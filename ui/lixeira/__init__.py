@@ -1,0 +1,3 @@
+# package
+
+from .lixeira import *

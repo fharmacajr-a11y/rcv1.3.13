@@ -1,0 +1,14 @@
+﻿__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+*.log
+
+# Bancos locais (ajuste se quiser versionar)
+db/*.db
+db/*.sqlite
+
+# Dados de clientes (NÃO versionar)
+clientes_docs/
+!clientes_docs/.gitkeep
