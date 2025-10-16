@@ -91,6 +91,10 @@ from ui.files_browser import open_files_browser
 from core.services.upload_service import upload_folder_to_supabase
 from infra.net_status import Status
 
+from gui.navigation import show_frame
+from gui.hub_screen import HubScreen
+from gui.placeholders import ComingSoonScreen
+
 DEFAULT_ORDER_LABEL = "Razao Social (A->Z)"
 ORDER_CHOICES: dict[str, tuple[Optional[str], bool]] = {
     "Razao Social (A->Z)": ("razao_social", False),
@@ -186,9 +190,27 @@ class App(tb.Window):
 
         log.info("App iniciado com tema: %s", self.tema_atual)
 
+        self._content_container = tb.Frame(self)
+        self._content_container.pack(fill="both", expand=True)
+
+        self._main_frame = tb.Frame(self._content_container)
+        self._main_frame._keep_alive = True  # type: ignore[attr-defined]
+        self._build_main_screen(self._main_frame)
+
+        try:
+            app_status.update_net_status(self)
+        except Exception:
+            pass
+        self._apply_env_dot(self._get_env_text())
+
+        self._update_main_buttons_state()
+        self.after(300, self._schedule_user_status_refresh)
+        self.show_hub_screen()
+
+    def _build_main_screen(self, parent: tk.Misc) -> None:
         # === UI Principal ===
         search_controls = create_search_controls(
-            self,
+            parent,
             order_choices=ORDER_CHOICES.keys(),
             default_order=DEFAULT_ORDER_LABEL,
             on_search=self._buscar,
@@ -200,7 +222,7 @@ class App(tb.Window):
         self.var_ordem = search_controls.order_var
 
         self.client_list = create_clients_treeview(
-            self,
+            parent,
             on_double_click=lambda _event: self.editar_cliente(),
             on_select=self._update_main_buttons_state,
             on_delete=lambda _event: self._excluir_cliente(),
@@ -209,7 +231,7 @@ class App(tb.Window):
         self.client_list.pack(expand=True, fill="both", padx=10, pady=5)
 
         footer = create_footer_buttons(
-            self,
+            parent,
             on_novo=self.novo_cliente,
             on_editar=self.editar_cliente,
             on_subpastas=self.ver_subpastas,
@@ -224,7 +246,7 @@ class App(tb.Window):
         self.btn_lixeira = footer.lixeira
 
         status = create_status_bar(
-            self,
+            parent,
             status_text_var=tk.StringVar(
                 master=self,
                 value=(getattr(app_status, "status_text", None) or "LOCAL"),
@@ -237,15 +259,36 @@ class App(tb.Window):
         self.status_dot = status.status_dot
         self.status_lbl = status.status_label
 
-        try:
-            app_status.update_net_status(self)
-        except Exception:
-            pass
-        self._apply_env_dot(self._get_env_text())
+        self._main_loaded = False
 
+    def show_hub_screen(self) -> None:
+        show_frame(
+            self._content_container,
+            HubScreen,
+            on_open_sifap=self.show_main_screen,
+            on_open_anvisa=lambda: self.show_placeholder_screen("ANVISA"),
+            on_open_passwords=lambda: self.show_placeholder_screen("senhas"),
+        )
+
+    def show_main_screen(self) -> None:
+        show_frame(
+            self._content_container,
+            lambda parent: self._main_frame,
+        )
+        self._main_loaded = True
+        try:
+            self.carregar()
+        except Exception:
+            log.exception("Erro ao carregar lista na tela principal.")
         self._update_main_buttons_state()
-        self.after(300, self._schedule_user_status_refresh)
-        self.carregar()
+
+    def show_placeholder_screen(self, title: str) -> None:
+        show_frame(
+            self._content_container,
+            ComingSoonScreen,
+            title=title,
+            on_back=self.show_hub_screen,
+        )
 
     # ---------- Confirmação de saída ----------
     def _confirm_exit(self, *_):
@@ -799,7 +842,7 @@ if __name__ == "__main__":
             app.deiconify()
             try:
                 app._update_user_status()
-                app.carregar()
+                app.show_hub_screen()
             except Exception as e:
                 log.error("Erro ao carregar UI: %s", e)
         else:
