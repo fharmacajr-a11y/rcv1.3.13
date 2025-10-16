@@ -1,0 +1,365 @@
+﻿diff --git a/utils/resource_path.py b/utils/resource_path.py
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/utils/resource_path.py
+@@ -0,0 +1,45 @@
++# util compartilhado de resoluÃ§Ã£o de caminho de recursos (PyInstaller-friendly)
++# v1.0.14
++from __future__ import annotations
++import os
++import sys
++
++def resource_path(relative_path: str) -> str:
++    # Retorna caminho absoluto para relative_path em dev e em build (PyInstaller)
++    try:
++        base_path = getattr(sys, "_MEIPASS")  # type: ignore[attr-defined]
++    except Exception:
++        base_path = os.path.abspath(".")
++    return os.path.join(base_path, relative_path)
++
++__all__ = ["resource_path"]
++
+diff --git a/utils/hash_utils.py b/utils/hash_utils.py
+new file mode 100644
+index 0000000..2222222
+--- /dev/null
++++ b/utils/hash_utils.py
+@@ -0,0 +1,35 @@
++# util de hash (sha256) unificado
++# v1.0.14
++from __future__ import annotations
++import hashlib
++from pathlib import Path
++
++def sha256_file(path) -> str:
++    # Calcula SHA-256 de um arquivo no disco (streaming).
++    p = Path(path)
++    h = hashlib.sha256()
++    with p.open("rb") as f:
++        for chunk in iter(lambda: f.read(8192), b""):
++            h.update(chunk)
++    return h.hexdigest()
++
++__all__ = ["sha256_file"]
++
+diff --git a/app_gui.py b/app_gui.py
+index 1111111..3333333 100644
+--- a/app_gui.py
++++ b/app_gui.py
+@@ -1,5 +1,18 @@
+ # imports diversos
++
++# Fase 1: padroniza resource_path e sha256 com fallbacks (nÃ£o quebra)
++try:
++    from utils.resource_path import resource_path as _resource_path
++except Exception:  # pragma: no cover
++    def _resource_path(p):  # fallback neutro
++        import os
++        return os.path.join(".", p)
++try:
++    from utils.hash_utils import sha256_file as _sha256
++except Exception:  # pragma: no cover
++    def _sha256(path):
++        import hashlib; h = hashlib.sha256()
++        with open(path,"rb") as f:
++            for c in iter(lambda: f.read(8192), b""): h.update(c)
++        return h.hexdigest()
+ 
+diff --git a/core/services/upload_service.py b/core/services/upload_service.py
+index 1111111..4444444 100644
+--- a/core/services/upload_service.py
++++ b/core/services/upload_service.py
+@@ -1,3 +1,12 @@
++# Fase 1: import robusto para sha256
++try:
++    from utils.hash_utils import sha256_file as _sha256
++except Exception:  # pragma: no cover
++    def _sha256(path):
++        import hashlib; h = hashlib.sha256()
++        with open(path,"rb") as f:
++            for c in iter(lambda: f.read(8192), b""): h.update(c)
++        return h.hexdigest()
+ 
+diff --git a/core/services/supabase_uploader.py b/core/services/supabase_uploader.py
+index 1111111..5555555 100644
+--- a/core/services/supabase_uploader.py
++++ b/core/services/supabase_uploader.py
+@@ -1,3 +1,11 @@
++# Fase 1: import robusto para sha256
++try:
++    from utils.hash_utils import sha256_file as _sha256
++except Exception:  # pragma: no cover
++    def _sha256(path):
++        import hashlib; h = hashlib.sha256()
++        with open(path,"rb") as f:
++            for c in iter(lambda: f.read(8192), b""): h.update(c)
++        return h.hexdigest()
+ 
+diff --git a/ui/login/login.py b/ui/login/login.py
+index 1111111..6666666 100644
+--- a/ui/login/login.py
++++ b/ui/login/login.py
+@@ -1,3 +1,10 @@
++# Fase 1: resource_path robusto
++try:
++    from utils.resource_path import resource_path as _resource_path
++except Exception:  # pragma: no cover
++    def _resource_path(p):
++        import os
++        return os.path.join(".", p)
+ 
+diff --git a/ui/forms/actions.py b/ui/forms/actions.py
+index 1111111..7777777 100644
+--- a/ui/forms/actions.py
++++ b/ui/forms/actions.py
+@@ -1,3 +1,10 @@
++# Fase 1: resource_path robusto
++try:
++    from utils.resource_path import resource_path as _resource_path
++except Exception:  # pragma: no cover
++    def _resource_path(p):
++        import os
++        return os.path.join(".", p)
+
+diff --git a/utils/validators.py b/utils/validators.py
+new file mode 100644
+index 0000000..8888888
+--- /dev/null
++++ b/utils/validators.py
+@@ -0,0 +1,14 @@
++from __future__ import annotations
++
++def only_digits(s) -> str:
++    return "".join(ch for ch in str(s) if ch.isdigit())
++
++__all__ = ["only_digits"]
++
+diff --git a/ui/utils.py b/ui/utils.py
+index 1111111..9999999 100644
+--- a/ui/utils.py
++++ b/ui/utils.py
+@@ -1,3 +1,37 @@
++# Fase 2: OkCancelMixin (nÃ£o-invasivo; classes podem herdar quando conveniente)
++class OkCancelMixin:
++    def __init__(self, *args, **kwargs):
++        super().__init__(*args, **kwargs)  # type: ignore[misc]
++        self._cancel_result = None
++
++    def _ok(self, value=True):
++        try:
++            self._finalize_ok(value)
++        except AttributeError:
++            pass
++        try:
++            self.result = value  # dialogs costumam usar .result
++        except Exception:
++            pass
++        try:
++            self.destroy()
++        except Exception:
++            pass
++
++    def _cancel(self):
++        self._cancel_result = False
++        try:
++            self.result = False
++        except Exception:
++            pass
++        try:
++            self.destroy()
++        except Exception:
++            pass
+
+diff --git a/ui/utils.py b/ui/utils.py
+--- a/ui/utils.py
++++ b/ui/utils.py
+@@
++# ---- Phase 3: window centering helper --------------------------------------
++def center_on_parent(win, parent=None, pad: int = 0):
++    # Centraliza a janela `win` sobre seu pai (ou sobre a tela como fallback).
++    # - parent: janela pai; se None, usa win.master ou winfo_toplevel()
++    # - pad: margem mÃ­nima (px) a partir da borda da tela
++    try:
++        win.update_idletasks()
++        if parent is None:
++            parent = getattr(win, "master", None) or win.winfo_toplevel()
++        px, py = parent.winfo_rootx(), parent.winfo_rooty()
++        pw, ph = parent.winfo_width(), parent.winfo_height()
++        ww, wh = win.winfo_width(), win.winfo_height()
++        x = max(pad, px + (pw - ww) // 2)
++        y = max(pad, py + (ph - wh) // 2)
++        win.geometry(f"+{x}+{y}")
++    except Exception:
++        # Fallback: centraliza na tela
++        sw, sh = win.winfo_screenwidth(), win.winfo_screenheight()
++        ww, wh = win.winfo_width(), win.winfo_height()
++        x, y = (sw - ww) // 2, (sh - wh) // 2
++        win.geometry(f"+{x}+{y}")
++    return win
++
+diff --git a/ui/login/login.py b/ui/login/login.py
+--- a/ui/login/login.py
++++ b/ui/login/login.py
+@@
+-from tkinter import ttk
++from tkinter import ttk
++try:
++    # Fase 3: helper unificado de centralizaÃ§Ã£o
++    from ui.utils import center_on_parent
++except Exception:  # pragma: no cover
++    center_on_parent = lambda win, parent=None, pad=0: win  # fallback inofensivo
+@@
+-        # (antes) blocos locais de centralizaÃ§Ã£o foram removidos
+-        # self.update_idletasks()
+-        # ... cÃ¡lculos de x,y ...
+-        # self.geometry(f"+{x}+{y}")
++        # Fase 3: centralizaÃ§Ã£o unificada
++        try:
++            center_on_parent(self, parent)
++        except Exception:
++            pass
+diff --git a/ui/forms/actions.py b/ui/forms/actions.py
+--- a/ui/forms/actions.py
++++ b/ui/forms/actions.py
+@@
+-# imports originais...
++# imports originais...
++try:
++    from ui.utils import center_on_parent  # Fase 3
++except Exception:  # pragma: no cover
++    center_on_parent = lambda win, parent=None, pad=0: win
+@@
+-    def abrir_dialogo(self, parent):
+-        dlg = SomeDialog(parent)
+-        # ... centralizaÃ§Ã£o antiga removida ...
+-        return dlg
++    def abrir_dialogo(self, parent):
++        dlg = SomeDialog(parent)
++        try:
++            center_on_parent(dlg, parent)
++        except Exception:
++            pass
++        return dlg
+diff --git a/ui/dialogs.py b/ui/dialogs.py
+--- a/ui/dialogs.py
++++ b/ui/dialogs.py
+@@
+-# cabeÃ§alho original
++# cabeÃ§alho original
++try:
++    from ui.utils import center_on_parent  # Fase 3
++except Exception:  # pragma: no cover
++    center_on_parent = lambda win, parent=None, pad=0: win
+@@
+-    def show(self, parent):
+-        self.transient(parent)
+-        # self.update_idletasks(); ... centralizaÃ§Ã£o local ...
+-        self.deiconify()
++    def show(self, parent):
++        self.transient(parent)
++        try:
++            center_on_parent(self, parent)
++        except Exception:
++            pass
++        self.deiconify()
+diff --git a/app_gui.py b/app_gui.py
+--- a/app_gui.py
++++ b/app_gui.py
+@@
+-# imports diversos
++# imports diversos
++try:
++    from ui.utils import center_on_parent  # Fase 3 (opcional)
++except Exception:  # pragma: no cover
++    center_on_parent = lambda win, parent=None, pad=0: win
+
+diff --git a/ui/utils.py b/ui/utils.py
+--- a/ui/utils.py
++++ b/ui/utils.py
+@@
++# Fase 4: expÃµe API pÃºblica deste mÃ³dulo
++__all__ = ["center_on_parent"]
+diff --git a/ui/login/login.py b/ui/login/login.py
+--- a/ui/login/login.py
++++ b/ui/login/login.py
+@@
+-from tkinter import ttk
+-try:
+-    # Fase 3: helper unificado de centralizaÃ§Ã£o
+-    from ui.utils import center_on_parent
+-except Exception:  # pragma: no cover
+-    center_on_parent = lambda win, parent=None, pad=0: win  # fallback inofensivo
++from tkinter import ttk
++try:
++    # Fase 4: preferir import absoluto do pacote
++    from ui import center_on_parent
++except Exception:
++    try:
++        # Fase 3 (compat): helper em ui.utils
++        from ui.utils import center_on_parent
++    except Exception:  # pragma: no cover
++        center_on_parent = lambda win, parent=None, pad=0: win  # fallback inofensivo
+diff --git a/ui/forms/actions.py b/ui/forms/actions.py
+--- a/ui/forms/actions.py
++++ b/ui/forms/actions.py
+@@
+-# imports originais...
+-try:
+-    from ui.utils import center_on_parent  # Fase 3
+-except Exception:  # pragma: no cover
+-    center_on_parent = lambda win, parent=None, pad=0: win
++# imports originais...
++try:
++    # Fase 4: preferir import absoluto
++    from ui import center_on_parent
++except Exception:
++    try:
++        from ui.utils import center_on_parent  # Fase 3 (compat)
++    except Exception:  # pragma: no cover
++        center_on_parent = lambda win, parent=None, pad=0: win
+diff --git a/ui/dialogs.py b/ui/dialogs.py
+--- a/ui/dialogs.py
++++ b/ui/dialogs.py
+@@
+-# cabeÃ§alho original
+-try:
+-    from ui.utils import center_on_parent  # Fase 3
+-except Exception:  # pragma: no cover
+-    center_on_parent = lambda win, parent=None, pad=0: win
++# cabeÃ§alho original
++try:
++    from ui import center_on_parent  # Fase 4
++except Exception:
++    try:
++        from ui.utils import center_on_parent  # Fase 3 (compat)
++    except Exception:  # pragma: no cover
++        center_on_parent = lambda win, parent=None, pad=0: win
+diff --git a/app_gui.py b/app_gui.py
+--- a/app_gui.py
++++ b/app_gui.py
+@@
+-# imports diversos
++# imports diversos
++# Fase 4: imports robustos para utilitÃ¡rios comuns (sem quebrar caso ausentes)
++try:
++    from utils.validators import only_digits
++except Exception:
++    try:
++        from utils import only_digits  # futuro agregador
++    except Exception:  # pragma: no cover
++        def only_digits(s):  # fallback neutro
++            return "".join(ch for ch in str(s) if ch.isdigit())
++try:
++    from utils.hash_utils import sha256_file
++except Exception:
++    try:
++        from utils import sha256_file  # futuro agregador
++    except Exception:  # pragma: no cover
++        def sha256_file(path):
++            import hashlib
++            h = hashlib.sha256()
++            with open(path, "rb") as f:
++                for chunk in iter(lambda: f.read(8192), b""):
++                    h.update(chunk)
++            return h.hexdigest()

@@ -1,0 +1,35 @@
+2025-10-16 08:25:17,850 - INFO - Iniciando limpeza do projeto
+2025-10-16 08:25:17,850 - INFO - Criando backup em C:/Users/Pichau/Desktop/v1.0.13\backup_20251016_082517
+2025-10-16 08:25:23,288 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\config/__init__.py contém código; verifique manualmente
+2025-10-16 08:25:23,289 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\config/__init__.py movido para C:/Users/Pichau/Desktop/v1.0.13\scripts\__init__.py
+2025-10-16 08:25:23,289 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\config/logging_config.py contém código; verifique manualmente
+2025-10-16 08:25:23,290 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\config/logging_config.py movido para C:/Users/Pichau/Desktop/v1.0.13\scripts\logging_config.py
+2025-10-16 08:25:23,291 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\config/settings.py contém código; verifique manualmente
+2025-10-16 08:25:23,292 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\config/settings.py movido para C:/Users/Pichau/Desktop/v1.0.13\scripts\settings.py
+2025-10-16 08:25:23,293 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\detectors/__init__.py está vazio ou só tem comentários
+2025-10-16 08:25:23,295 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\detectors/__init__.py movido para C:/Users/Pichau/Desktop/v1.0.13\scripts\__init__.py
+2025-10-16 08:25:23,295 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\infra/__init__.py contém código; verifique manualmente
+2025-10-16 08:25:23,297 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\infra/__init__.py movido para C:/Users/Pichau/Desktop/v1.0.13\scripts\__init__.py
+2025-10-16 08:25:23,298 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\infra/db/__init__.py está vazio ou só tem comentários
+2025-10-16 08:25:23,300 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\infra/db/__init__.py movido para C:/Users/Pichau/Desktop/v1.0.13\scripts\__init__.py
+2025-10-16 08:25:23,300 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\infra/db/init_db.py contém código; verifique manualmente
+2025-10-16 08:25:23,301 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\infra/db/init_db.py movido para C:/Users/Pichau/Desktop/v1.0.13\scripts\init_db.py
+2025-10-16 08:25:23,302 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\infra/upload_queue.py contém código; verifique manualmente
+2025-10-16 08:25:23,302 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\infra/upload_queue.py movido para C:/Users/Pichau/Desktop/v1.0.13\scripts\upload_queue.py
+2025-10-16 08:25:23,303 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\scripts/healthcheck.py contém código; verifique manualmente
+2025-10-16 08:25:23,304 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\scripts/healthcheck.py movido para C:/Users/Pichau/Desktop/v1.0.13\scripts\healthcheck.py
+2025-10-16 08:25:23,305 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\scripts/smoke_test.py contém código; verifique manualmente
+2025-10-16 08:25:23,306 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\scripts/smoke_test.py movido para C:/Users/Pichau/Desktop/v1.0.13\scripts\smoke_test.py
+2025-10-16 08:25:23,307 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\ui/__init__.py está vazio ou só tem comentários
+2025-10-16 08:25:23,309 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\ui/__init__.py movido para C:/Users/Pichau/Desktop/v1.0.13\scripts\__init__.py
+2025-10-16 08:25:23,310 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\ui/dialogs.py contém código; verifique manualmente
+2025-10-16 08:25:23,311 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\ui/dialogs.py movido para C:/Users/Pichau/Desktop/v1.0.13\scripts\dialogs.py
+2025-10-16 08:25:23,313 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\ui/menu/__init__.py está vazio ou só tem comentários
+2025-10-16 08:25:23,317 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\ui/menu/__init__.py movido para C:/Users/Pichau/Desktop/v1.0.13\scripts\__init__.py
+2025-10-16 08:25:23,318 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\ui/subpastas/__init__.py está vazio ou só tem comentários
+2025-10-16 08:25:23,323 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\ui/subpastas/__init__.py movido para C:/Users/Pichau/Desktop/v1.0.13\scripts\__init__.py
+2025-10-16 08:25:23,324 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\ui/users/__init__.py contém código; verifique manualmente
+2025-10-16 08:25:23,327 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\ui/users/__init__.py movido para C:/Users/Pichau/Desktop/v1.0.13\scripts\__init__.py
+2025-10-16 08:25:23,328 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\ui/users/users.py contém código; verifique manualmente
+2025-10-16 08:25:23,329 - INFO - Arquivo C:/Users/Pichau/Desktop/v1.0.13\ui/users/users.py movido para C:/Users/Pichau/Desktop/v1.0.13\scripts\users.py
+2025-10-16 08:25:23,329 - INFO - Limpeza concluída

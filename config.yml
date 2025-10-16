@@ -1,0 +1,5 @@
+# config.yml
+status_probe:
+  url: https://httpbin.org/status/204
+  timeout_seconds: 2.0
+  interval_ms: 5000

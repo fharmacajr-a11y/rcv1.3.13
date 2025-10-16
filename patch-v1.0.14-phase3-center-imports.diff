@@ -1,0 +1,102 @@
+diff --git a/ui/utils.py b/ui/utils.py
+--- a/ui/utils.py
++++ b/ui/utils.py
+@@
++# ---- Phase 3: window centering helper --------------------------------------
++def center_on_parent(win, parent=None, pad: int = 0):
++    # Centraliza a janela `win` sobre seu pai (ou sobre a tela como fallback).
++    # - parent: janela pai; se None, usa win.master ou winfo_toplevel()
++    # - pad: margem mínima (px) a partir da borda da tela
++    try:
++        win.update_idletasks()
++        if parent is None:
++            parent = getattr(win, "master", None) or win.winfo_toplevel()
++        px, py = parent.winfo_rootx(), parent.winfo_rooty()
++        pw, ph = parent.winfo_width(), parent.winfo_height()
++        ww, wh = win.winfo_width(), win.winfo_height()
++        x = max(pad, px + (pw - ww) // 2)
++        y = max(pad, py + (ph - wh) // 2)
++        win.geometry(f"+{x}+{y}")
++    except Exception:
++        # Fallback: centraliza na tela
++        sw, sh = win.winfo_screenwidth(), win.winfo_screenheight()
++        ww, wh = win.winfo_width(), win.winfo_height()
++        x, y = (sw - ww) // 2, (sh - wh) // 2
++        win.geometry(f"+{x}+{y}")
++    return win
++
+diff --git a/ui/login/login.py b/ui/login/login.py
+--- a/ui/login/login.py
++++ b/ui/login/login.py
+@@
+-from tkinter import ttk
++from tkinter import ttk
++try:
++    # Fase 3: helper unificado de centralização
++    from ui.utils import center_on_parent
++except Exception:  # pragma: no cover
++    center_on_parent = lambda win, parent=None, pad=0: win  # fallback inofensivo
+@@
+-        # (antes) blocos locais de centralização foram removidos
+-        # self.update_idletasks()
+-        # ... cálculos de x,y ...
+-        # self.geometry(f"+{x}+{y}")
++        # Fase 3: centralização unificada
++        try:
++            center_on_parent(self, parent)
++        except Exception:
++            pass
+diff --git a/ui/forms/actions.py b/ui/forms/actions.py
+--- a/ui/forms/actions.py
++++ b/ui/forms/actions.py
+@@
+-# imports originais...
++# imports originais...
++try:
++    from ui.utils import center_on_parent  # Fase 3
++except Exception:  # pragma: no cover
++    center_on_parent = lambda win, parent=None, pad=0: win
+@@
+-    def abrir_dialogo(self, parent):
+-        dlg = SomeDialog(parent)
+-        # ... centralização antiga removida ...
+-        return dlg
++    def abrir_dialogo(self, parent):
++        dlg = SomeDialog(parent)
++        try:
++            center_on_parent(dlg, parent)
++        except Exception:
++            pass
++        return dlg
+diff --git a/ui/dialogs.py b/ui/dialogs.py
+--- a/ui/dialogs.py
++++ b/ui/dialogs.py
+@@
+-# cabeçalho original
++# cabeçalho original
++try:
++    from ui.utils import center_on_parent  # Fase 3
++except Exception:  # pragma: no cover
++    center_on_parent = lambda win, parent=None, pad=0: win
+@@
+-    def show(self, parent):
+-        self.transient(parent)
+-        # self.update_idletasks(); ... centralização local ...
+-        self.deiconify()
++    def show(self, parent):
++        self.transient(parent)
++        try:
++            center_on_parent(self, parent)
++        except Exception:
++            pass
++        self.deiconify()
+diff --git a/app_gui.py b/app_gui.py
+--- a/app_gui.py
++++ b/app_gui.py
+@@
+-# imports diversos
++# imports diversos
++try:
++    from ui.utils import center_on_parent  # Fase 3 (opcional)
++except Exception:  # pragma: no cover
++    center_on_parent = lambda win, parent=None, pad=0: win

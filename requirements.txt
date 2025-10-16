@@ -1,0 +1,13 @@
+httpx
+pdfminer.six
+pillow
+pymupdf
+pypdf
+PyPDF2
+pytesseract
+python-dotenv
+pyyaml
+requests
+supabase>=2.6.0
+ttkbootstrap
+tzdata
