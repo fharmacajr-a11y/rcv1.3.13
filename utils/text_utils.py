@@ -4,6 +4,8 @@ import re
 import unicodedata
 from typing import Optional, Tuple, Dict, List
 
+from utils.validators import only_digits  # Fase 2: centralizado
+
 # -------- regex padrões --------
 # Aceita "11.222.333/0001-44" ou "11222333000144" sem grudar em dígitos vizinhos.
 RE_CNPJ = re.compile(r"(?<!\d)(?:\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}|\d{14})(?!\d)")
@@ -43,9 +45,6 @@ def normalize_ascii(s: str) -> str:
 
 def clean_text(s: str) -> str:
     return re.sub(r"\s+", " ", (s or "").strip())
-
-def only_digits(s: str) -> str:
-    return re.sub(r"\D", "", s or "")
 
 def cnpj_is_valid(cnpj: str) -> bool:
     """Checa se tem 14 dígitos numéricos (validação simples)."""

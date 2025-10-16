@@ -41,11 +41,6 @@ def fmt_data(iso_str: str | None) -> str:
 from utils.validators import only_digits  # Fase 2: centralizado
 
 
-def only_digits(value: str | None) -> str:
-    """Return only the numeric characters from the provided string."""
-    return re.sub(r"\D", "", value or "")
-
-
 def slugify_name(value: str | None) -> str:
     """Create a filesystem-friendly slug limited to 60 ASCII characters."""
     if not value:
