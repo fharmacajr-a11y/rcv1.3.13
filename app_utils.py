@@ -38,6 +38,8 @@ def fmt_data(iso_str: str | None) -> str:
     except Exception:
         return cleaned
 
+from utils.validators import only_digits  # Fase 2: centralizado
+
 
 def only_digits(value: str | None) -> str:
     """Return only the numeric characters from the provided string."""
