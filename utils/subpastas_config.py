@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterable, Tuple, List, Any
+from typing import Tuple, List, Any
 import yaml
 
 
@@ -41,7 +41,9 @@ def _norm(p: str) -> str:
     return "/".join([seg for seg in str(p).replace("\\", "/").split("/") if seg])
 
 
-def load_subpastas_config(explicit_path: str | Path | None = None) -> Tuple[List[str], List[str]]:
+def load_subpastas_config(
+    explicit_path: str | Path | None = None,
+) -> Tuple[List[str], List[str]]:
     """
     Lê subpastas.yml, achata e retorna (subpastas, extras_visiveis).
     Procura em:
@@ -81,3 +83,17 @@ def load_subpastas_config(explicit_path: str | Path | None = None) -> Tuple[List
     extras_list = [p for p in extras_list if p and not (p in seen or seen.add(p))]
 
     return sub_list, extras_list
+
+
+MANDATORY_SUBPASTAS = ("SIFAP", "ANVISA", "FARMACIA_POPULAR", "AUDITORIA")
+
+
+def get_mandatory_subpastas():
+    return tuple(MANDATORY_SUBPASTAS)
+
+
+def join_prefix(base: str, *parts: str) -> str:
+    b = base.rstrip("/")
+    mid = "/".join(p.strip("/") for p in parts if p)
+    combined = f"{b}/{mid}".strip("/") if mid else b.strip("/")
+    return (combined + "/") if combined else ""

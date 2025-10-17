@@ -3,11 +3,12 @@ from __future__ import annotations
 
 import re
 import sqlite3
-from typing import Optional, Iterable, Dict, Any, Tuple
+from typing import Optional, Iterable, Dict, Any
 
 # -------------------------- helpers básicos --------------------------
 
 _ONLY_DIGITS = re.compile(r"\D+")
+
 
 def only_digits(s: Optional[str]) -> str:
     return _ONLY_DIGITS.sub("", s or "")
@@ -18,6 +19,7 @@ def normalize_text(s: Optional[str]) -> str:
 
 
 # -------------------------- WhatsApp (BR) --------------------------
+
 
 def normalize_whatsapp(num: Optional[str], country_code: str = "55") -> str:
     """
@@ -47,6 +49,7 @@ def is_valid_whatsapp_br(num: Optional[str]) -> bool:
 
 # -------------------------- CNPJ --------------------------
 
+
 def normalize_cnpj(cnpj: Optional[str]) -> str:
     return only_digits(cnpj)
 
@@ -63,20 +66,23 @@ def is_valid_cnpj(cnpj: Optional[str]) -> bool:
         return False
 
     def dv_calc(base: str) -> str:
-        pesos = [6,5,4,3,2,9,8,7,6,5,4,3,2]
-        soma = sum(int(d)*pesos[i+1] for i, d in enumerate(base))
+        pesos = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+        soma = sum(int(d) * pesos[i + 1] for i, d in enumerate(base))
         r = soma % 11
         dv = 0 if r < 2 else 11 - r
         return str(dv)
 
     d1 = dv_calc(c[:12])
     d2 = dv_calc(c[:12] + d1)
-    return (c[-2:] == d1 + d2)
+    return c[-2:] == d1 + d2
 
 
 # -------------------------- campos requeridos --------------------------
 
-def validate_required_fields(data: Dict[str, Any], required: Iterable[str]) -> Dict[str, str]:
+
+def validate_required_fields(
+    data: Dict[str, Any], required: Iterable[str]
+) -> Dict[str, str]:
     """
     Retorna dict de erros {campo: 'mensagem'} para os campos vazios.
     """
@@ -90,10 +96,11 @@ def validate_required_fields(data: Dict[str, Any], required: Iterable[str]) -> D
 
 # -------------------------- duplicatas --------------------------
 
+
 def check_duplicates(
     *,
     cnpj: Optional[str] = None,
-    numero: Optional[str] = None,           # mantido por compatibilidade, mas não bloqueia
+    numero: Optional[str] = None,  # mantido por compatibilidade, mas não bloqueia
     razao_social: Optional[str] = None,
     exclude_id: Optional[int] = None,
     conn: Optional[sqlite3.Connection] = None,
@@ -169,12 +176,21 @@ def check_duplicates(
                 rid = int(row.get("ID") or row.get("id") or 0)
                 if exclude_id and rid == exclude_id:
                     continue
-                if cnpj_d and normalize_cnpj(row.get("CNPJ") or row.get("cnpj")) == cnpj_d:
+                if (
+                    cnpj_d
+                    and normalize_cnpj(row.get("CNPJ") or row.get("cnpj")) == cnpj_d
+                ):
                     dup["CNPJ"].append(rid)
                 # (removido) bloqueio por número/WhatsApp
                 # if numero_d and only_digits(row.get("NUMERO") or row.get("numero")) == numero_d:
                 #     dup["NUMERO"].append(rid)
-                if razao_n and normalize_text(row.get("RAZAO_SOCIAL") or row.get("razao_social")).lower() == razao_n.lower():
+                if (
+                    razao_n
+                    and normalize_text(
+                        row.get("RAZAO_SOCIAL") or row.get("razao_social")
+                    ).lower()
+                    == razao_n.lower()
+                ):
                     dup["RAZAO_SOCIAL"].append(rid)
         except Exception:
             pass
@@ -184,6 +200,7 @@ def check_duplicates(
 
 
 # -------------------------- pacote de validação de formulário --------------------------
+
 
 def validate_cliente_payload(
     *,

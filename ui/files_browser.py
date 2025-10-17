@@ -6,18 +6,21 @@ from pathlib import Path
 from typing import Any
 from tkinter import filedialog, messagebox, ttk
 
-from infra.supabase_client import baixar_pasta_zip, DownloadCancelledError
+from adapters.storage.api import DownloadCancelledError, download_folder_zip
 from ui.forms.actions import list_storage_objects, download_file
+from utils.resource_path import resource_path  # evita ciclo com app_gui
 
 
-def open_files_browser(parent, *, org_id: str, client_id: Any, razao: str, cnpj: str) -> None:
+def open_files_browser(
+    parent, *, org_id: str, client_id: Any, razao: str, cnpj: str
+) -> None:
     """Abre uma janela para navegar/baixar arquivos do Storage (listar, baixar arquivo, baixar pasta .zip)."""
-    from app_gui import resource_path
-
     BUCKET = "rc-docs"
     root_prefix = f"{org_id}/{client_id}".strip("/")
 
-    titulo_parts = [p for p in [(razao or "").strip(), (cnpj or "").strip(), f"ID {client_id}"] if p]
+    titulo_parts = [
+        p for p in [(razao or "").strip(), (cnpj or "").strip(), f"ID {client_id}"] if p
+    ]
     titulo = "Arquivos: " + " - ".join(titulo_parts)
 
     docs_window = tk.Toplevel(parent)
@@ -28,7 +31,12 @@ def open_files_browser(parent, *, org_id: str, client_id: Any, razao: str, cnpj:
         pass
 
     # Helpers
-    def _center_on_parent(win: tk.Toplevel, parent_win: tk.Misc, width: int | None = None, height: int | None = None):
+    def _center_on_parent(
+        win: tk.Toplevel,
+        parent_win: tk.Misc,
+        width: int | None = None,
+        height: int | None = None,
+    ):
         win.update_idletasks()
         pw, ph = parent_win.winfo_width(), parent_win.winfo_height()
         px, py = parent_win.winfo_rootx(), parent_win.winfo_rooty()
@@ -42,6 +50,7 @@ def open_files_browser(parent, *, org_id: str, client_id: Any, razao: str, cnpj:
 
     def _sanitize_filename(name: str) -> str:
         import re as _re
+
         s = _re.sub(_invalid_chars, "_", name).strip()
         return s.rstrip(" .")
 
@@ -51,7 +60,9 @@ def open_files_browser(parent, *, org_id: str, client_id: Any, razao: str, cnpj:
     # Toolbar
     toolbar = ttk.Frame(docs_window)
     toolbar.pack(fill="x", padx=8, pady=(8, 0))
-    ttk.Button(toolbar, text="Baixar selecionado", command=lambda: do_download()).pack(side="left")
+    ttk.Button(toolbar, text="Baixar selecionado", command=lambda: do_download()).pack(
+        side="left"
+    )
 
     btn_zip_folder = ttk.Button(toolbar, text="Baixar pasta (.zip)")
     btn_zip_folder.pack(side="left", padx=(8, 0))
@@ -59,10 +70,14 @@ def open_files_browser(parent, *, org_id: str, client_id: Any, razao: str, cnpj:
     ttk.Button(toolbar, text="Fechar", command=docs_window.destroy).pack(side="right")
     docs_window.bind("<Escape>", lambda e: docs_window.destroy())
 
-    info = ttk.Label(docs_window, text=f"Supabase: {BUCKET}/{root_prefix}/", foreground="#7a7a7a")
+    info = ttk.Label(
+        docs_window, text=f"Supabase: {BUCKET}/{root_prefix}/", foreground="#7a7a7a"
+    )
     info.pack(fill="x", padx=8, pady=(2, 0))
 
-    tree = ttk.Treeview(docs_window, columns=("type",), show="tree headings", selectmode="browse")
+    tree = ttk.Treeview(
+        docs_window, columns=("type",), show="tree headings", selectmode="browse"
+    )
     tree.heading("#0", text="Nome do arquivo/pasta", anchor="w")
     tree.heading("type", text="Tipo", anchor="center")
     tree.column("#0", width=560, stretch=True)
@@ -83,12 +98,20 @@ def open_files_browser(parent, *, org_id: str, client_id: Any, razao: str, cnpj:
         threading.Thread(target=_worker, daemon=True).start()
 
     def populate_tree(parent_item, rel_prefix: str):
-        full_prefix = root_prefix if not rel_prefix else f"{root_prefix}/{rel_prefix}".rstrip("/")
+        full_prefix = (
+            root_prefix if not rel_prefix else f"{root_prefix}/{rel_prefix}".rstrip("/")
+        )
         objects = list_storage_objects(BUCKET, prefix=full_prefix) or []
         for obj in objects:
             name = (obj.get("name") or "").strip("/")
             is_folder = bool(obj.get("is_folder"))
-            item_id = tree.insert(parent_item, "end", text=name, values=("Pasta" if is_folder else "Arquivo",), open=False)
+            item_id = tree.insert(
+                parent_item,
+                "end",
+                text=name,
+                values=("Pasta" if is_folder else "Arquivo",),
+                open=False,
+            )
             if is_folder:
                 tree.insert(item_id, "end", text="", values=("...",))
 
@@ -131,42 +154,61 @@ def open_files_browser(parent, *, org_id: str, client_id: Any, razao: str, cnpj:
         # Sugere nome enriquecido com CNPJ/ID
         base = os.path.basename(rel)
         stem, ext = os.path.splitext(base)
-        sufixo = (cnpj or f"ID {client_id}")
+        sufixo = cnpj or f"ID {client_id}"
         suggest = _sanitize_filename(f"{stem} - {sufixo}{ext}")
 
-        local_path = filedialog.asksaveasfilename(parent=docs_window, title="Salvar como", initialfile=suggest)
+        local_path = filedialog.asksaveasfilename(
+            parent=docs_window, title="Salvar como", initialfile=suggest
+        )
         if local_path:
             try:
                 download_file(BUCKET, file_path, local_path)
                 messagebox.showinfo("Sucesso", "Arquivo baixado!", parent=docs_window)
             except Exception as e:
-                messagebox.showerror("Erro", f"Falha ao baixar: {e}", parent=docs_window)
+                messagebox.showerror(
+                    "Erro", f"Falha ao baixar: {e}", parent=docs_window
+                )
 
     # Baixar pasta como ZIP (com Cancelar)
     def on_zip_folder():
         sel = tree.selection()
         if not sel:
-            messagebox.showinfo("Baixar pasta", "Selecione uma pasta (ex.: GERAL, SIFAP).", parent=docs_window)
+            messagebox.showinfo(
+                "Baixar pasta",
+                "Selecione uma pasta (ex.: GERAL, SIFAP).",
+                parent=docs_window,
+            )
             return
         item = sel[0]
         tipo = (tree.item(item).get("values") or [""])[0]
         if (tipo or "").lower() != "pasta":
-            messagebox.showinfo("Baixar pasta", "O item selecionado nao e pasta.", parent=docs_window)
+            messagebox.showinfo(
+                "Baixar pasta", "O item selecionado nao e pasta.", parent=docs_window
+            )
             return
 
         rel = _get_rel_path(item)
         if not rel:
-            messagebox.showerror("Baixar pasta", "Nao foi possivel determinar a pasta.", parent=docs_window)
+            messagebox.showerror(
+                "Baixar pasta",
+                "Nao foi possivel determinar a pasta.",
+                parent=docs_window,
+            )
             return
 
         prefix = f"{root_prefix}/{rel}".strip("/")
-        pasta = (rel.rstrip("/").split("/")[-1] or "pasta")
-        ident = (cnpj or f"ID {client_id}")
+        pasta = rel.rstrip("/").split("/")[-1] or "pasta"
+        ident = cnpj or f"ID {client_id}"
         zip_name = _sanitize_filename(f"{pasta} - {ident} - {razao}".strip())
 
         # Pasta de destino (Cancelar => Downloads)
         initial = str(Path.home() / "Downloads")
-        chosen_dir = filedialog.askdirectory(parent=docs_window, title="Escolha a pasta para salvar o ZIP (Cancelar = Downloads padrao)", initialdir=initial, mustexist=True)
+        chosen_dir = filedialog.askdirectory(
+            parent=docs_window,
+            title="Escolha a pasta para salvar o ZIP (Cancelar = Downloads padrao)",
+            initialdir=initial,
+            mustexist=True,
+        )
         out_dir = chosen_dir or None
 
         # Dialogo "Aguarde..."
@@ -217,9 +259,9 @@ def open_files_browser(parent, *, org_id: str, client_id: Any, razao: str, cnpj:
         btn_zip_folder.configure(state="disabled")
 
         def _target():
-            return baixar_pasta_zip(
-                BUCKET,
+            return download_folder_zip(
                 prefix,
+                bucket=BUCKET,
                 zip_name=zip_name,
                 out_dir=out_dir,
                 timeout_s=300,
@@ -239,18 +281,34 @@ def open_files_browser(parent, *, org_id: str, client_id: Any, razao: str, cnpj:
 
             if err:
                 if isinstance(err, DownloadCancelledError):
-                    messagebox.showinfo("Download cancelado", "Voce cancelou o download.", parent=docs_window)
+                    messagebox.showinfo(
+                        "Download cancelado",
+                        "Voce cancelou o download.",
+                        parent=docs_window,
+                    )
                 elif isinstance(err, TimeoutError):
-                    messagebox.showerror("Tempo esgotado", "O servidor nao respondeu a tempo (conexao ou leitura). Verifique sua internet e tente novamente.", parent=docs_window)
+                    messagebox.showerror(
+                        "Tempo esgotado",
+                        "O servidor nao respondeu a tempo (conexao ou leitura). Verifique sua internet e tente novamente.",
+                        parent=docs_window,
+                    )
                 else:
-                    messagebox.showerror("Erro ao baixar pasta", str(err), parent=docs_window)
+                    messagebox.showerror(
+                        "Erro ao baixar pasta", str(err), parent=docs_window
+                    )
             else:
-                messagebox.showinfo("Download concluido", f"ZIP salvo em:\n{destino}", parent=docs_window)
+                messagebox.showinfo(
+                    "Download concluido",
+                    f"ZIP salvo em:\n{destino}",
+                    parent=docs_window,
+                )
 
             try:
                 docs_window.lift()
                 docs_window.attributes("-topmost", True)
-                docs_window.after(200, lambda: docs_window.attributes("-topmost", False))
+                docs_window.after(
+                    200, lambda: docs_window.attributes("-topmost", False)
+                )
             except Exception:
                 pass
 

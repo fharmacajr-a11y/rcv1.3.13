@@ -1,5 +1,6 @@
 from __future__ import annotations
 from config.paths import CLOUD_ONLY
+
 # utils/file_utils.py
 
 from pathlib import Path
@@ -13,7 +14,6 @@ from datetime import datetime
 from core import classify_document
 
 # Carregador da configuração (SUBPASTAS / EXTRAS_VISIBLE)
-from utils.subpastas_config import load_subpastas_config
 
 
 # =============================================================================
@@ -71,6 +71,7 @@ def _read_pdf_text_pypdf(p: Path) -> Optional[str]:
 def _read_pdf_text_pdfminer(p: Path) -> Optional[str]:
     try:
         from pdfminer.high_level import extract_text
+
         res = (extract_text(str(p)) or "").strip()
         return res or None
     except Exception:
@@ -176,7 +177,9 @@ def find_cartao_cnpj_pdf(base: str | Path, max_mb: int = 10) -> Optional[Path]:
 
     limit = max(1, max_mb) * 1024 * 1024
     try:
-        pdfs = [p for p in base.rglob("*.pdf") if p.is_file() and p.stat().st_size <= limit]
+        pdfs = [
+            p for p in base.rglob("*.pdf") if p.is_file() and p.stat().st_size <= limit
+        ]
     except Exception:
         pdfs = []
     if not pdfs:
@@ -274,7 +277,9 @@ def ensure_subtree(base: str | Path, spec: SubSpecList) -> None:
         if children:
             ensure_subtree(p, children)
 
+
 from typing import Iterable
+
 
 def ensure_subpastas(base: str, nomes: Iterable[str] | None = None) -> bool:
     """
@@ -296,6 +301,7 @@ def ensure_subpastas(base: str, nomes: Iterable[str] | None = None) -> bool:
         # carrega do YAML, aceitando 2 ou 3 valores de retorno
         try:
             from utils.subpastas_config import load_subpastas_config
+
             ret = load_subpastas_config()
 
             subs: list[str] = []

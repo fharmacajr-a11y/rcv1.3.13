@@ -1,4 +1,5 @@
 """Utility helpers shared across the Gestor de Clientes application."""
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -82,7 +83,9 @@ def split_meta(meta: str) -> Tuple[str, str]:
     if not meta:
         return "", ""
 
-    parts = [segment.strip() for segment in _META_SEPARATOR.split(meta) if segment.strip()]
+    parts = [
+        segment.strip() for segment in _META_SEPARATOR.split(meta) if segment.strip()
+    ]
     razao = parts[0] if len(parts) >= 1 else ""
     contato = parts[1] if len(parts) >= 2 else ""
     return razao, contato

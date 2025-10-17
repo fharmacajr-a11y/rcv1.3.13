@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 import logging
 from typing import Optional
 
@@ -20,10 +20,10 @@ def configure_logging(level: Optional[str] = None) -> None:
         level=lvl,
         format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
     )
-    
+
     # Adiciona filtro de redação de dados sensíveis
     # Baseado em OWASP Secrets Management Cheat Sheet
     root_logger = logging.getLogger()
     root_logger.addFilter(RedactSensitiveData())
-    
+
     _configured = True

@@ -5,5 +5,6 @@ from __future__ import annotations
 __all__ = [
     "navigation",
     "hub_screen",
+    "main_screen",
     "placeholders",
 ]

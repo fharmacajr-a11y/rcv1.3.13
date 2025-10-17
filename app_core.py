@@ -1,4 +1,5 @@
 """High-level actions triggered by the GUI (CRUD, folders, trash integration)."""
+
 from __future__ import annotations
 from config.paths import CLOUD_ONLY
 
@@ -21,7 +22,7 @@ try:
     from config.paths import DOCS_DIR
 except Exception:  # best-effort para manter compatibilidade
     safe_base_from_fields = None  # type: ignore[assignment]
-    DOCS_DIR = os.getcwd()        # type: ignore[assignment]
+    DOCS_DIR = os.getcwd()  # type: ignore[assignment]
 
 log = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ MARKER_NAME = ".rc_client_id"
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-from tkinter import messagebox
+
 
 def _safe_messagebox(method: str, *args: Any, **kwargs: Any) -> Any:
     func = getattr(messagebox, method, None)
@@ -46,6 +47,7 @@ def _safe_messagebox(method: str, *args: Any, **kwargs: Any) -> Any:
 def _resolve_cliente_row(pk: int) -> Sequence[Any] | None:
     try:
         from core.db_manager import get_cliente_by_id
+
         cliente = get_cliente_by_id(pk)
     except Exception:
         log.exception("Failed to resolve client %s from Supabase", pk)
@@ -71,12 +73,14 @@ def _resolve_cliente_row(pk: int) -> Sequence[Any] | None:
 def novo_cliente(app: Any) -> None:
     log.info("Opening form for new client")
     from ui.forms import form_cliente
+
     form_cliente(app)
 
 
 def editar_cliente(app: Any, pk: int) -> None:
     log.info("Opening edit form for client id=%s", pk)
     from ui.forms import form_cliente
+
     row = _resolve_cliente_row(pk)
     if row:
         form_cliente(app, row)
@@ -114,16 +118,14 @@ def excluir_cliente(app: Any, selected_values: Sequence[Any]) -> None:
 
     try:
         from infra.supabase_client import supabase
+
         deleted_at = datetime.now(timezone.utc).isoformat()
         update_payload = {"deleted_at": deleted_at, "ultima_alteracao": deleted_at}
-        (
-            supabase.table("clients")
-            .update(update_payload)
-            .eq("id", client_id)
-            .execute()
-        )
+        (supabase.table("clients").update(update_payload).eq("id", client_id).execute())
     except Exception as exc:
-        _safe_messagebox("showerror", "Erro ao excluir", f"Falha ao enviar para a Lixeira: {exc}")
+        _safe_messagebox(
+            "showerror", "Erro ao excluir", f"Falha ao enviar para a Lixeira: {exc}"
+        )
         log.exception("Failed to soft-delete client %s", label_cli)
         return
 
@@ -134,11 +136,14 @@ def excluir_cliente(app: Any, selected_values: Sequence[Any]) -> None:
 
     try:
         from ui.lixeira.lixeira import refresh_if_open
+
         refresh_if_open()
     except Exception:
         log.debug("Lixeira refresh skipped", exc_info=True)
 
-    _safe_messagebox("showinfo", "Lixeira", f"Cliente {label_cli} enviado para a Lixeira.")
+    _safe_messagebox(
+        "showinfo", "Lixeira", f"Cliente {label_cli} enviado para a Lixeira."
+    )
     log.info("Cliente %s enviado para a Lixeira com sucesso", label_cli)
 
 
@@ -151,15 +156,22 @@ def dir_base_cliente_from_pk(pk: int) -> str:
 
     try:
         from core.services.path_resolver import resolve_unique_path
+
         path, location = resolve_unique_path(pk)
         if path:
-            log.debug("Resolved folder via path_resolver: pk=%s path=%s (%s)", pk, path, location)
+            log.debug(
+                "Resolved folder via path_resolver: pk=%s path=%s (%s)",
+                pk,
+                path,
+                location,
+            )
             return path
     except Exception:
         log.debug("resolve_unique_path not available or failed", exc_info=True)
 
     try:
         from core.db_manager import get_cliente_by_id
+
         c = get_cliente_by_id(pk)
     except Exception:
         c = None
@@ -168,7 +180,9 @@ def dir_base_cliente_from_pk(pk: int) -> str:
     cnpj = getattr(c, "cnpj", "") or ""
     razao = getattr(c, "razao_social", "") or ""
     base_name = (
-        safe_base_from_fields(cnpj, numero, razao, pk) if callable(safe_base_from_fields) else str(pk)
+        safe_base_from_fields(cnpj, numero, razao, pk)
+        if callable(safe_base_from_fields)
+        else str(pk)
     )
     return os.path.join(str(DOCS_DIR), base_name)
 
@@ -196,7 +210,9 @@ def _ensure_live_folder_ready(pk: int) -> str:
             content_ok = False
             if marker_path.is_file():
                 try:
-                    content_ok = marker_path.read_text(encoding="utf-8").strip() == str(pk)
+                    content_ok = marker_path.read_text(encoding="utf-8").strip() == str(
+                        pk
+                    )
                 except Exception:
                     content_ok = False
             if not content_ok:
@@ -246,6 +262,7 @@ def ver_subpastas(app: Any, pk: int) -> None:
     try:
         from utils.subpastas_config import load_subpastas_config
         from ui.subpastas.dialog import open_subpastas_dialog
+
         subpastas, extras = load_subpastas_config()
     except Exception:
         log.exception("Failed to load subfolders configuration; using empty lists")
@@ -263,7 +280,15 @@ def abrir_lixeira_ui(app: Any, *args: Any, **kwargs: Any) -> None:
 
     try:
         module = importlib.import_module("ui.lixeira.lixeira")
-        for name in ("abrir_lixeira", "abrir_lixeira_ui", "abrir", "open_lixeira", "open_window", "open", "show"):
+        for name in (
+            "abrir_lixeira",
+            "abrir_lixeira_ui",
+            "abrir",
+            "open_lixeira",
+            "open_window",
+            "open",
+            "show",
+        ):
             candidate = getattr(module, name, None)
             if callable(candidate):
                 abrir_fn = candidate

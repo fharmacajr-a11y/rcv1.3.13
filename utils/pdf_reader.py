@@ -4,6 +4,7 @@ import logging
 logger = logging.getLogger(__name__)
 log = logger
 
+
 def _flatten_rawdict(raw) -> str:
     try:
         blocks = raw.get("blocks", []) if isinstance(raw, dict) else []
@@ -21,6 +22,7 @@ def _flatten_rawdict(raw) -> str:
             return str(raw)
         except Exception:
             return ""
+
 
 def read_pdf_text(path: str, max_pages: int = 3) -> str:
     """Lê até max_pages do PDF, com fallback para PDFs problemáticos."""

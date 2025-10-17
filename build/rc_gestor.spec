@@ -11,7 +11,7 @@ Referência: https://pyinstaller.org/en/stable/spec-files.html
 Build:
     pyinstaller build/rc_gestor.spec
 
-IMPORTANTE: 
+IMPORTANTE:
 - O arquivo .env NÃO deve estar em datas=[]
 - Apenas arquivos públicos (ícones, recursos estáticos) devem ser incluídos
 - Segredos devem ser fornecidos via variáveis de ambiente em runtime

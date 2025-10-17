@@ -1,10 +1,10 @@
 from __future__ import annotations
 from config.paths import CLOUD_ONLY
+
 # ui/forms/actions.py
 
 import os
 import re
-import sys
 import shutil
 import logging
 import threading
@@ -19,19 +19,23 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
 from dotenv import load_dotenv
+from utils.resource_path import resource_path
+from adapters.storage.api import (
+    delete_file as storage_delete_file,
+    download_file as storage_download_file,
+    list_files as storage_list_files,
+    upload_file as storage_upload_file,
+    using_storage_backend,
+)
+from adapters.storage.supabase_storage import SupabaseStorageAdapter
+
 load_dotenv()
 
 # Phase 1: shared helpers with defensive fallbacks
 try:
-    from utils.resource_path import resource_path as _resource_path
-except Exception:  # pragma: no cover
-    def _resource_path(rel: str) -> str:
-        base = getattr(sys, "_MEIPASS", os.path.abspath("."))
-        return os.path.join(base, rel)
-
-try:
     from utils.hash_utils import sha256_file as _sha256
 except Exception:  # pragma: no cover
+
     def _sha256(path: Path | str) -> str:
         digest = hashlib.sha256()
         with Path(path).open("rb") as handle:
@@ -39,11 +43,14 @@ except Exception:  # pragma: no cover
                 digest.update(chunk)
         return digest.hexdigest()
 
+
 try:
     from utils.validators import only_digits as _only_digits
 except Exception:  # pragma: no cover
+
     def _only_digits(value: str | None) -> str:
         return "".join(ch for ch in str(value or "") if ch.isdigit())
+
 
 try:
     from ui import center_on_parent
@@ -51,8 +58,10 @@ except Exception:  # pragma: no cover
     try:
         from ui.utils import center_on_parent
     except Exception:  # pragma: no cover
+
         def center_on_parent(win, parent=None, pad=0):
             return win
+
 
 from infra.supabase_client import supabase
 from core.services.clientes_service import salvar_cliente, checar_duplicatas_info
@@ -70,11 +79,14 @@ DEFAULT_IMPORT_SUBFOLDER = "GERAL"
 # utils locais
 # -----------------------------------------------------------------------------
 
+
 def _now_iso_z() -> str:
     return datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
 
+
 def _get_bucket_name(default_env: str | None = None) -> str:
     return (default_env or os.getenv("SUPABASE_BUCKET") or "rc-docs").strip()
+
 
 def _current_user_id() -> Optional[str]:
     try:
@@ -83,20 +95,29 @@ def _current_user_id() -> Optional[str]:
         if u and getattr(u, "id", None):
             return u.id
         if isinstance(resp, dict):
-            u = (resp.get("user") or (resp.get("data") or {}).get("user") or {})
+            u = resp.get("user") or (resp.get("data") or {}).get("user") or {}
             return u.get("id") or u.get("uid")
     except Exception:
         pass
     return None
 
+
 def _resolve_org_id() -> str:
     uid = _current_user_id()
     fallback = (os.getenv("SUPABASE_DEFAULT_ORG") or "").strip()
     if not uid and not fallback:
-        raise RuntimeError("Usuário não autenticado e SUPABASE_DEFAULT_ORG não definido.")
+        raise RuntimeError(
+            "Usuário não autenticado e SUPABASE_DEFAULT_ORG não definido."
+        )
     try:
         if uid:
-            res = supabase.table("memberships").select("org_id").eq("user_id", uid).limit(1).execute()
+            res = (
+                supabase.table("memberships")
+                .select("org_id")
+                .eq("user_id", uid)
+                .limit(1)
+                .execute()
+            )
             data = getattr(res, "data", None) or []
             if data:
                 return data[0]["org_id"]
@@ -106,13 +127,15 @@ def _resolve_org_id() -> str:
         return fallback
     raise RuntimeError("Não foi possível resolver a organização do usuário.")
 
+
 def _sanitize_key_component(s: str | None) -> str:
-    s = (s or "")
+    s = s or ""
     s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode("ascii")
     s = s.replace("\\", "/").replace(" ", "_")
     s = re.sub(r"[^A-Za-z0-9._/-]", "-", s)
     s = re.sub(r"-{2,}", "-", s).strip("-").strip(".")
     return s
+
 
 def _build_storage_path(*parts: str) -> str:
     cleaned = [_sanitize_key_component(str(p)) for p in parts if str(p)]
@@ -124,6 +147,7 @@ def _build_storage_path(*parts: str) -> str:
 # -----------------------------------------------------------------------------
 class BusyDialog(tk.Toplevel):
     """Progress dialog. Suporta modo indeterminado e determinado (com %)."""
+
     def __init__(self, parent: tk.Misc, text: str = "Processando…"):
         super().__init__(parent)
         self.withdraw()
@@ -132,7 +156,7 @@ class BusyDialog(tk.Toplevel):
         self.transient(parent)
         self.protocol("WM_DELETE_WINDOW", lambda: None)  # não fecha
         try:
-            self.iconbitmap(_resource_path("rc.ico"))
+            self.iconbitmap(resource_path("rc.ico"))
         except Exception:
             pass
 
@@ -215,7 +239,7 @@ class SubpastaDialog(tk.Toplevel):
         self.transient(parent)
         self.resizable(False, False)
         try:
-            self.iconbitmap(_resource_path("rc.ico"))
+            self.iconbitmap(resource_path("rc.ico"))
         except Exception:
             pass
 
@@ -224,9 +248,13 @@ class SubpastaDialog(tk.Toplevel):
 
         ttk.Label(
             frm,
-            text=f"Digite o nome da subpasta (ou deixe vazio para usar só '{DEFAULT_IMPORT_SUBFOLDER}/')."
+            text=f"Digite o nome da subpasta (ou deixe vazio para usar só '{DEFAULT_IMPORT_SUBFOLDER}/').",
         ).pack(anchor="w", pady=(0, 8))
-        ttk.Label(frm, text="Ex.: SIFAP, VISA, Farmacia_Popular, Auditoria", foreground="#6c757d").pack(anchor="w")
+        ttk.Label(
+            frm,
+            text="Ex.: SIFAP, VISA, Farmacia_Popular, Auditoria",
+            foreground="#6c757d",
+        ).pack(anchor="w")
 
         self.var = tk.StringVar(value=default or "")
         ent = ttk.Entry(frm, textvariable=self.var, width=40)
@@ -234,7 +262,9 @@ class SubpastaDialog(tk.Toplevel):
         btns = ttk.Frame(frm)
         btns.pack(fill="x")
         ttk.Button(btns, text="OK", command=self._ok).pack(side="left", padx=4)
-        ttk.Button(btns, text="Cancelar", command=self._cancel).pack(side="left", padx=4)
+        ttk.Button(btns, text="Cancelar", command=self._cancel).pack(
+            side="left", padx=4
+        )
 
         self.bind("<Return>", lambda e: self._ok())
         self.bind("<Escape>", lambda e: self._cancel())
@@ -272,7 +302,9 @@ def _ask_subpasta_nome(parent: tk.Misc, default: str = "") -> Optional[str]:
 # Preenchimento via Cartão CNPJ
 # -----------------------------------------------------------------------------
 def preencher_via_pasta(ents: dict) -> None:
-    base = filedialog.askdirectory(title="Escolha a pasta do cliente (com o Cartão CNPJ)")
+    base = filedialog.askdirectory(
+        title="Escolha a pasta do cliente (com o Cartão CNPJ)"
+    )
     if not base:
         return
 
@@ -312,43 +344,50 @@ def preencher_via_pasta(ents: dict) -> None:
 # -----------------------------------------------------------------------------
 def _classify_storage_error(exc: Exception) -> str:
     s = str(exc).lower()
-    if "invalidkey" in s or "invalid key" in s: return "invalid_key"
-    if "row-level security" in s or "rls" in s or "42501" in s or "403" in s: return "rls"
-    if "already exists" in s or "keyalreadyexists" in s or "409" in s: return "exists"
+    if "invalidkey" in s or "invalid key" in s:
+        return "invalid_key"
+    if "row-level security" in s or "rls" in s or "42501" in s or "403" in s:
+        return "rls"
+    if "already exists" in s or "keyalreadyexists" in s or "409" in s:
+        return "exists"
     return "other"
 
 
-def salvar_e_upload_docs(self, row, ents: dict, arquivos_selecionados: list | None, win=None) -> None:
+def salvar_e_upload_docs(
+    self, row, ents: dict, arquivos_selecionados: list | None, win=None
+) -> None:
     # --- valores
     valores = {
         "Razão Social": ents["Razão Social"].get().strip(),
-        "CNPJ":         _only_digits(ents["CNPJ"].get().strip()),
-        "Nome":         ents["Nome"].get().strip(),
-        "WhatsApp":     _only_digits(ents["WhatsApp"].get().strip()),
-        "Observações":  ents["Observações"].get("1.0", "end-1c").strip(),
+        "CNPJ": _only_digits(ents["CNPJ"].get().strip()),
+        "Nome": ents["Nome"].get().strip(),
+        "WhatsApp": _only_digits(ents["WhatsApp"].get().strip()),
+        "Observações": ents["Observações"].get("1.0", "end-1c").strip(),
     }
 
     # -------- duplicatas: Nome/Whats liberados; considerar só CNPJ/Razão --------
     try:
         info = checar_duplicatas_info(
-            cnpj=valores.get('CNPJ'),
-            razao=valores.get('Razão Social'),
-            numero=valores.get('WhatsApp'),   # mantém na chamada
-            nome=valores.get('Nome'),         # mantém na chamada
+            cnpj=valores.get("CNPJ"),
+            razao=valores.get("Razão Social"),
+            numero=valores.get("WhatsApp"),  # mantém na chamada
+            nome=valores.get("Nome"),  # mantém na chamada
         )
         ids = (info.get("ids") or [])[:]
         if row and ids and int(row[0]) in ids:
             ids = [i for i in ids if i != int(row[0])]
 
         # filtra os campos para só CNPJ/RAZAO_SOCIAL
-        campos_filtrados = [c for c in (info.get("campos") or []) if c in ("CNPJ", "RAZAO_SOCIAL")]
+        campos_filtrados = [
+            c for c in (info.get("campos") or []) if c in ("CNPJ", "RAZAO_SOCIAL")
+        ]
         if ids and campos_filtrados:
-            campos = ', '.join(campos_filtrados)
-            ids_str = ', '.join(str(i) for i in ids)
+            campos = ", ".join(campos_filtrados)
+            ids_str = ", ".join(str(i) for i in ids)
             if not messagebox.askokcancel(
-                'Possível duplicata',
+                "Possível duplicata",
                 f'Campos que bateram: {campos or "-"}\nIDs: {ids_str}\n\nDeseja continuar?',
-                parent=win
+                parent=win,
             ):
                 return
     except Exception:
@@ -366,8 +405,11 @@ def salvar_e_upload_docs(self, row, ents: dict, arquivos_selecionados: list | No
     org_id = _resolve_org_id()
     BUCKET = _get_bucket_name()
     log.info("Bucket em uso: %s", BUCKET)
+    storage_adapter = SupabaseStorageAdapter(bucket=BUCKET)
 
-    parent_win = win if (win and hasattr(win, "winfo_exists") and win.winfo_exists()) else self
+    parent_win = (
+        win if (win and hasattr(win, "winfo_exists") and win.winfo_exists()) else self
+    )
 
     # subpasta
     subpasta = _ask_subpasta_nome(parent_win, default="")
@@ -377,32 +419,40 @@ def salvar_e_upload_docs(self, row, ents: dict, arquivos_selecionados: list | No
     # garante subpasta no storage (placeholder)
     try:
         if subpasta:
-            prefix = _build_storage_path(org_id, str(client_id), DEFAULT_IMPORT_SUBFOLDER, subpasta)
-            existing = supabase.storage.from_(BUCKET).list(path=f"{prefix}/", options={"limit": 1}) or []
-            if not existing:
-                ph = _build_storage_path(prefix, ".keep")
-                supabase.storage.from_(BUCKET).upload(ph, b"keep",
-                                                      file_options={"content-type": "text/plain", "upsert": "true"})
-                log.info("Subpasta criada (placeholder): %s", prefix)
+            prefix = _build_storage_path(
+                org_id, str(client_id), DEFAULT_IMPORT_SUBFOLDER, subpasta
+            )
+            with using_storage_backend(storage_adapter):
+                existing = list(storage_list_files(prefix))
+                if not existing:
+                    ph = _build_storage_path(prefix, ".keep")
+                    storage_upload_file(b"keep", ph, "text/plain")
+                    log.info("Subpasta criada (placeholder): %s", prefix)
     except Exception as e:
         log.warning("Não foi possível garantir a subpasta '%s': %s", subpasta, e)
 
     # escolhe pasta origem
     src = filedialog.askdirectory(
         parent=parent_win,
-        title=f"Escolha a PASTA para importar (irá para '{DEFAULT_IMPORT_SUBFOLDER}{'/' + subpasta if subpasta else ''}')"
+        title=f"Escolha a PASTA para importar (irá para '{DEFAULT_IMPORT_SUBFOLDER}{'/' + subpasta if subpasta else ''}')",
     )
 
     # se nada a enviar
     if not src and not (arquivos_selecionados or []):
-        messagebox.showinfo("Nada a enviar", "Cliente salvo, mas nenhum arquivo foi selecionado.")
-        try: self.carregar()
-        except Exception: pass
+        messagebox.showinfo(
+            "Nada a enviar", "Cliente salvo, mas nenhum arquivo foi selecionado."
+        )
+        try:
+            self.carregar()
+        except Exception:
+            pass
         return
 
     # coleta lista de arquivos a enviar
-    files: list[tuple[str, str]] = []  # (local_path, rel_path_na_pasta)  (rel vazio para arquivos soltos)
-    for f in (arquivos_selecionados or []):
+    files: list[tuple[str, str]] = (
+        []
+    )  # (local_path, rel_path_na_pasta)  (rel vazio para arquivos soltos)
+    for f in arquivos_selecionados or []:
         files.append((f, os.path.basename(f)))
 
     if src:
@@ -424,13 +474,20 @@ def salvar_e_upload_docs(self, row, ents: dict, arquivos_selecionados: list | No
 
         # espelha local (se teve pasta)
         if src:
-            base_local = os.path.join(pasta_local, DEFAULT_IMPORT_SUBFOLDER, subpasta) if subpasta \
+            base_local = (
+                os.path.join(pasta_local, DEFAULT_IMPORT_SUBFOLDER, subpasta)
+                if subpasta
                 else os.path.join(pasta_local, DEFAULT_IMPORT_SUBFOLDER)
+            )
             try:
                 if not CLOUD_ONLY:
                     os.makedirs(base_local, exist_ok=True)
                 for lp, rel in files:
-                    dest = os.path.join(base_local, rel) if src and rel else os.path.join(base_local, os.path.basename(lp))
+                    dest = (
+                        os.path.join(base_local, rel)
+                        if src and rel
+                        else os.path.join(base_local, os.path.basename(lp))
+                    )
                     if not CLOUD_ONLY:
                         os.makedirs(os.path.dirname(dest), exist_ok=True)
                     try:
@@ -442,71 +499,105 @@ def salvar_e_upload_docs(self, row, ents: dict, arquivos_selecionados: list | No
                 log.error("Falha ao copiar local: %s", e)
 
         def _after_step(msg=None):
-            if msg: busy.set_text(msg)
+            if msg:
+                busy.set_text(msg)
             busy.step()
 
-        for local_path, rel in files:
-            try:
-                rel_parts = [_sanitize_key_component(p) for p in rel.split("/")] if rel else [_sanitize_key_component(os.path.basename(local_path))]
-                if subpasta:
-                    storage_path = _build_storage_path(org_id, str(client_id), DEFAULT_IMPORT_SUBFOLDER, subpasta, *rel_parts)
-                else:
-                    storage_path = _build_storage_path(org_id, str(client_id), DEFAULT_IMPORT_SUBFOLDER, *rel_parts)
+        with using_storage_backend(storage_adapter):
+            for local_path, rel in files:
+                try:
+                    rel_parts = (
+                        [_sanitize_key_component(p) for p in rel.split("/")]
+                        if rel
+                        else [_sanitize_key_component(os.path.basename(local_path))]
+                    )
+                    if subpasta:
+                        storage_path = _build_storage_path(
+                            org_id,
+                            str(client_id),
+                            DEFAULT_IMPORT_SUBFOLDER,
+                            subpasta,
+                            *rel_parts,
+                        )
+                    else:
+                        storage_path = _build_storage_path(
+                            org_id, str(client_id), DEFAULT_IMPORT_SUBFOLDER, *rel_parts
+                        )
 
-                with open(local_path, "rb") as f:
-                    data = f.read()
+                    data = Path(local_path).read_bytes()
+                    ct = (
+                        mimetypes.guess_type(storage_path)[0]
+                        or "application/octet-stream"
+                    )
+                    storage_delete_file(storage_path)
+                    storage_upload_file(data, storage_path, ct)
 
-                ct = mimetypes.guess_type(storage_path)[0] or "application/octet-stream"
-                supabase.storage.from_(BUCKET).upload(
-                    storage_path, data,
-                    file_options={"content-type": ct, "upsert": "true"},
-                )
+                    size_bytes = len(data)
+                    sha256_hash = hashlib.sha256(data).hexdigest()
 
-                size_bytes = len(data)
-                sha256_hash = hashlib.sha256(data).hexdigest()
+                    # documents
+                    doc = (
+                        supabase.table("documents")
+                        .insert(
+                            {
+                                "client_id": client_id,
+                                "title": os.path.basename(local_path),
+                                "kind": os.path.splitext(local_path)[1].lstrip("."),
+                                "current_version": None,
+                            }
+                        )
+                        .execute()
+                    )
+                    document_id = doc.data[0]["id"]
 
-                # documents
-                doc = supabase.table('documents').insert({
-                    "client_id": client_id,
-                    "title": os.path.basename(local_path),
-                    "kind": os.path.splitext(local_path)[1].lstrip('.'),
-                    "current_version": None,
-                }).execute()
-                document_id = doc.data[0]['id']
+                    # document_versions
+                    ver = (
+                        supabase.table("document_versions")
+                        .insert(
+                            {
+                                "document_id": document_id,
+                                "path": storage_path,
+                                "size_bytes": size_bytes,
+                                "sha256": sha256_hash,
+                                "uploaded_by": user_id or "unknown",
+                                "created_at": created_at,
+                            }
+                        )
+                        .execute()
+                    )
+                    version_id = ver.data[0]["id"]
+                    supabase.table("documents").update(
+                        {"current_version": version_id}
+                    ).eq("id", document_id).execute()
 
-                # document_versions
-                ver = supabase.table('document_versions').insert({
-                    "document_id": document_id,
-                    "path": storage_path,
-                    "size_bytes": size_bytes,
-                    "sha256": sha256_hash,
-                    "uploaded_by": user_id or 'unknown',
-                    "created_at": created_at,
-                }).execute()
-                version_id = ver.data[0]['id']
-                supabase.table('documents').update({"current_version": version_id}).eq('id', document_id).execute()
-
-                log.info("Upload OK: %s", storage_path)
-            except Exception as e:
-                falhas += 1
-                kind = _classify_storage_error(e)
-                if kind == "invalid_key":
-                    log.error("Nome/caminho inválido: %s", storage_path)
-                elif kind == "rls":
-                    log.error("Permissão negada (RLS) no upload de %s", storage_path)
-                elif kind == "exists":
-                    log.warning("Chave já existia: %s", storage_path)
-                else:
-                    log.exception("Falha upload/registro (%s): %s", local_path, e)
-            finally:
-                self.after(0, _after_step)
+                    log.info("Upload OK: %s", storage_path)
+                except Exception as e:
+                    falhas += 1
+                    kind = _classify_storage_error(e)
+                    if kind == "invalid_key":
+                        log.error("Nome/caminho inválido: %s", storage_path)
+                    elif kind == "rls":
+                        log.error(
+                            "Permissão negada (RLS) no upload de %s", storage_path
+                        )
+                    elif kind == "exists":
+                        log.warning("Chave já existia: %s", storage_path)
+                    else:
+                        log.exception("Falha upload/registro (%s): %s", local_path, e)
+                finally:
+                    self.after(0, _after_step)
 
         def _finish():
             busy.close()
-            msg = "Cliente e docs enviados." if falhas == 0 else f"Cliente salvo com {falhas} falha(s)."
+            msg = (
+                "Cliente e docs enviados."
+                if falhas == 0
+                else f"Cliente salvo com {falhas} falha(s)."
+            )
             messagebox.showinfo("Sucesso", msg, parent=parent_win)
             try:
-                if win and hasattr(win, "destroy"): win.destroy()
+                if win and hasattr(win, "destroy"):
+                    win.destroy()
             except Exception:
                 pass
             try:
@@ -531,30 +622,32 @@ def list_storage_objects(bucket_name: str | None, prefix: str = "") -> list:
     try:
         BN = _get_bucket_name(bucket_name)
         prefix = prefix.strip("/")
-        path = f"{prefix}/" if prefix else ""
-        response = supabase.storage.from_(BN).list(
-            path=path,
-            options={"limit": 1000, "offset": 0, "sortBy": {"column": "name", "order": "asc"}},
-        )
+        adapter = SupabaseStorageAdapter(bucket=BN)
+        with using_storage_backend(adapter):
+            response = list(storage_list_files(prefix))
         objects = []
         for obj in response:
-            is_folder = (obj.get("metadata") is None)
-            name = obj.get("name")
-            full_path = f"{prefix}/{name}".strip("/") if prefix else name
-            objects.append({"name": name, "is_folder": is_folder, "full_path": full_path})
+            if isinstance(obj, dict):
+                is_folder = obj.get("metadata") is None
+                name = obj.get("name")
+                full_path = obj.get("full_path") or (
+                    f"{prefix}/{name}".strip("/") if prefix else name
+                )
+                objects.append(
+                    {"name": name, "is_folder": is_folder, "full_path": full_path}
+                )
         return objects
     except Exception as e:
         log.error("Erro ao listar objetos: %s", e)
         return []
 
+
 def download_file(bucket_name: str | None, file_path: str, local_path: str):
     try:
         BN = _get_bucket_name(bucket_name)
-        data = supabase.storage.from_(BN).download(file_path)
-        if isinstance(data, dict) and "data" in data:
-            data = data["data"]
-        with open(local_path, "wb") as f:
-            f.write(data)
+        adapter = SupabaseStorageAdapter(bucket=BN)
+        with using_storage_backend(adapter):
+            storage_download_file(file_path, local_path)
         log.info("Arquivo baixado: %s", local_path)
     except Exception as e:
         log.error("Erro ao baixar %s: %s", file_path, e)

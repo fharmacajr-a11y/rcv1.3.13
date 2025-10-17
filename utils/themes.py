@@ -21,14 +21,15 @@ if not NO_FS:
     except Exception:
         # Fallback: pasta acima de utils/
         from pathlib import Path
+
         _BASE_DIR = Path(__file__).resolve().parents[1]
     CONFIG_FILE = os.path.join(str(_BASE_DIR), "config_theme.json")
 else:
     CONFIG_FILE = None  # não usamos arquivo no modo cloud-only
 
 # ---------- Constantes ----------
-DEFAULT_THEME = ENV_DEFAULT_THEME or "flatly"   # claro
-ALT_THEME = "darkly"                            # escuro
+DEFAULT_THEME = ENV_DEFAULT_THEME or "flatly"  # claro
+ALT_THEME = "darkly"  # escuro
 
 # ---------- Cache em memória ----------
 _CACHED_THEME: str | None = None
@@ -44,7 +45,7 @@ def _load_theme_from_disk() -> str:
         if CONFIG_FILE and os.path.isfile(CONFIG_FILE):
             with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                return (data.get("theme") or DEFAULT_THEME)
+                return data.get("theme") or DEFAULT_THEME
     except Exception:
         logging.exception("themes: falha ao carregar tema do disco")
     return DEFAULT_THEME
@@ -70,13 +71,21 @@ def load_theme(force_reload: bool = False) -> str:
     # Modo normal: com arquivo
     try:
         if not force_reload and _CACHED_THEME is not None:
-            mtime = os.path.getmtime(CONFIG_FILE) if (CONFIG_FILE and os.path.exists(CONFIG_FILE)) else None
+            mtime = (
+                os.path.getmtime(CONFIG_FILE)
+                if (CONFIG_FILE and os.path.exists(CONFIG_FILE))
+                else None
+            )
             if _CACHED_MTIME == mtime:
                 return _CACHED_THEME
 
         theme = _load_theme_from_disk()
         _CACHED_THEME = theme
-        _CACHED_MTIME = os.path.getmtime(CONFIG_FILE) if (CONFIG_FILE and os.path.exists(CONFIG_FILE)) else None
+        _CACHED_MTIME = (
+            os.path.getmtime(CONFIG_FILE)
+            if (CONFIG_FILE and os.path.exists(CONFIG_FILE))
+            else None
+        )
         return theme
     except Exception:
         logging.exception("themes: load_theme falhou; usando default")
@@ -92,7 +101,7 @@ def save_theme(theme: str) -> None:
     global _CACHED_THEME, _CACHED_MTIME
 
     # Sempre atualiza o cache
-    _CACHED_THEME = (theme or DEFAULT_THEME)
+    _CACHED_THEME = theme or DEFAULT_THEME
 
     if NO_FS:
         # Não persiste no disco
@@ -160,7 +169,9 @@ def apply_button_styles(app, *, theme: str | None = None) -> None:
             has_subp and app.btn_subpastas.configure(bootstyle="secondary")
     except Exception:
         # Não falhar se algum botão ainda não existir
-        logging.debug("themes: apply_button_styles silencioso (componentes podem não existir ainda)")
+        logging.debug(
+            "themes: apply_button_styles silencioso (componentes podem não existir ainda)"
+        )
 
 
 def apply_theme(win, *, theme: str | None = None) -> None:

@@ -4,7 +4,6 @@ from __future__ import annotations
 import os
 import shutil
 import logging
-from datetime import datetime as dt
 
 from utils.validators import only_digits, normalize_text
 from config.paths import DOCS_DIR, CLOUD_ONLY
@@ -16,21 +15,18 @@ from core.db_manager import insert_cliente, update_cliente, list_clientes
 
 log = logging.getLogger(__name__)
 
+
 def _normalize_payload(valores: dict) -> tuple[str, str, str, str, str]:
-    razao  = (valores.get("Razão Social") or "").strip()
-    cnpj   = (valores.get("CNPJ") or "").strip()
-    nome   = (valores.get("Nome") or "").strip()
+    razao = (valores.get("Razão Social") or "").strip()
+    cnpj = (valores.get("CNPJ") or "").strip()
+    nome = (valores.get("Nome") or "").strip()
     numero = (valores.get("WhatsApp") or "").strip()
-    obs    = (valores.get("Observações") or "").strip()
+    obs = (valores.get("Observações") or "").strip()
     return razao, cnpj, nome, numero, obs
 
+
 def _exists_duplicate(
-    numero: str,
-    cnpj: str,
-    nome: str,
-    razao: str,
-    *,
-    skip_id: int | None = None
+    numero: str, cnpj: str, nome: str, razao: str, *, skip_id: int | None = None
 ) -> list[int]:
     """
     Retorna IDs de possíveis duplicatas considerando **apenas**:
@@ -39,7 +35,7 @@ def _exists_duplicate(
 
     OBS: Nome e WhatsApp (numero) **não** entram mais no critério de duplicidade.
     """
-    cnpj_d  = only_digits(cnpj or "")
+    cnpj_d = only_digits(cnpj or "")
     razao_n = normalize_text(razao or "")
 
     ids: list[int] = []
@@ -61,13 +57,17 @@ def _exists_duplicate(
 
     return sorted(set(ids))
 
-def checar_duplicatas_info(numero: str, cnpj: str, nome: str, razao: str) -> dict[str, list]:
+
+def checar_duplicatas_info(
+    numero: str, cnpj: str, nome: str, razao: str
+) -> dict[str, list]:
     """
     Mantida a assinatura por compatibilidade.
     Retorna {"ids": [...]} considerando só CNPJ/Razão.
     """
     ids = _exists_duplicate(numero, cnpj, nome, razao)
     return {"ids": ids}
+
 
 def _pasta_do_cliente(pk: int, cnpj: str, numero: str, razao: str) -> str:
     base = safe_base_from_fields(cnpj, numero, razao, pk)
@@ -76,6 +76,8 @@ def _pasta_do_cliente(pk: int, cnpj: str, numero: str, razao: str) -> str:
         ensure_subpastas(pasta)
         write_marker(pasta, pk)
     return pasta
+
+
 def _migrar_pasta_se_preciso(old_path: str | None, nova_pasta: str) -> None:
     if not old_path or not os.path.isdir(old_path):
         return
@@ -90,6 +92,7 @@ def _migrar_pasta_se_preciso(old_path: str | None, nova_pasta: str) -> None:
                 shutil.copy2(src, dst)
     except Exception:
         log.exception("Falha ao migrar pasta (%s -> %s)", old_path, nova_pasta)
+
 
 def salvar_cliente(row, valores: dict) -> tuple[int, str]:
     """
@@ -111,11 +114,15 @@ def salvar_cliente(row, valores: dict) -> tuple[int, str]:
 
     if row:
         pk = int(row[0])
-        update_cliente(pk, numero=numero, nome=nome, razao_social=razao, cnpj=cnpj, obs=obs)
+        update_cliente(
+            pk, numero=numero, nome=nome, razao_social=razao, cnpj=cnpj, obs=obs
+        )
         real_pk = pk
         old_path = None
     else:
-        real_pk = insert_cliente(numero=numero, nome=nome, razao_social=razao, cnpj=cnpj, obs=obs)
+        real_pk = insert_cliente(
+            numero=numero, nome=nome, razao_social=razao, cnpj=cnpj, obs=obs
+        )
         old_path = None
 
     # Auditoria

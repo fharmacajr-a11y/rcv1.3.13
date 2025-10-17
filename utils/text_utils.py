@@ -34,28 +34,36 @@ LABEL_ONLY_VALUES = {
 # Linhas que não devem ser tratadas como valor de nome
 SKIP_VALUE_TOKENS = {"matriz", "filial"}
 
+
 # -------- utilitários básicos --------
 def normalize_ascii(s: str) -> str:
     """Remove acentos e retorna string ASCII simples."""
     return "".join(
-        c for c in unicodedata.normalize("NFKD", s or "") if not unicodedata.combining(c)
+        c
+        for c in unicodedata.normalize("NFKD", s or "")
+        if not unicodedata.combining(c)
     )
+
 
 def clean_text(s: str) -> str:
     return re.sub(r"\s+", " ", (s or "").strip())
 
+
 def only_digits(s: str) -> str:
     return re.sub(r"\D", "", s or "")
+
 
 def cnpj_is_valid(cnpj: str) -> bool:
     """Checa se tem 14 dígitos numéricos (validação simples)."""
     return len(only_digits(cnpj or "")) == 14
+
 
 def format_cnpj(digits14: str) -> str:
     d = only_digits(digits14)
     if len(d) != 14:
         return digits14
     return f"{d[0:2]}.{d[2:5]}.{d[5:8]}/{d[8:12]}-{d[12:14]}"
+
 
 # -------- normalização de nome empresarial --------
 def _clean_company_name(raw: Optional[str]) -> Optional[str]:
@@ -68,6 +76,7 @@ def _clean_company_name(raw: Optional[str]) -> Optional[str]:
     candidate = re.sub(r"\s{2,}", " ", candidate).strip()
     return candidate or None
 
+
 # -------- detecção de labels --------
 def _match_label(line: str) -> Optional[Tuple[int, int]]:
     if not line:
@@ -75,6 +84,7 @@ def _match_label(line: str) -> Optional[Tuple[int, int]]:
     normalized = normalize_ascii(line).lower()
     match = LABEL_PATTERN.search(normalized)
     return (match.start(1), match.end(1)) if match else None
+
 
 def _is_label_only(line: str) -> bool:
     if not line:
@@ -84,9 +94,11 @@ def _is_label_only(line: str) -> bool:
     normalized = re.sub(r"\s+", " ", normalized).strip()
     return normalized in LABEL_ONLY_VALUES
 
+
 def _is_skip_value(line: str) -> bool:
     norm = normalize_ascii(line).lower().strip()
     return norm in SKIP_VALUE_TOKENS
+
 
 def _next_nonempty_value(lines: List[str], idx: int) -> Optional[str]:
     """Pega o próximo valor não vazio após uma label."""
@@ -104,6 +116,7 @@ def _next_nonempty_value(lines: List[str], idx: int) -> Optional[str]:
         return None
     return _clean_company_name(candidate)
 
+
 # -------- extração de Razão Social --------
 def _extract_razao_by_label(lines: List[str]) -> Optional[str]:
     for idx, line in enumerate(lines):
@@ -119,6 +132,7 @@ def _extract_razao_by_label(lines: List[str]) -> Optional[str]:
         if razao:
             return razao
     return None
+
 
 def _extract_razao_near_cnpj(lines: List[str], cnpj_idx: int) -> Optional[str]:
     """Se não encontrar label, tenta achar uma linha de nome perto do CNPJ (acima e abaixo)."""
@@ -141,6 +155,7 @@ def _extract_razao_near_cnpj(lines: List[str], cnpj_idx: int) -> Optional[str]:
     if not window:
         return None
     return _clean_company_name(max(window, key=len))
+
 
 # -------- API pública --------
 def extract_company_fields(text: str) -> Dict[str, Optional[str]]:
@@ -176,9 +191,11 @@ def extract_company_fields(text: str) -> Dict[str, Optional[str]]:
 
     return {"cnpj": cnpj, "razao_social": razao}
 
+
 def extract_cnpj_razao(text: str) -> Tuple[Optional[str], Optional[str]]:
     fields = extract_company_fields(text)
     return fields.get("cnpj"), fields.get("razao_social")
+
 
 __all__ = [
     "normalize_ascii",

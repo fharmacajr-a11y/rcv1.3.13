@@ -248,3 +248,209 @@ dist/RC-Gestor/
 ## Próximos Steps
 Aguardando instruções para Step 3.
 
+---
+
+## Step 3 – Remover BOM + Pre-commit Hooks
+
+### Objetivo
+Remover BOM (Byte Order Mark) de arquivos Python e ativar pre-commit com Black, Ruff e hooks básicos, sem alterar assinaturas de funções.
+
+### Base Técnica
+- **UTF-8 padrão no Python 3**: PEP 3120 (https://peps.python.org/pep-3120/)
+- **Encoding declaration**: PEP 263 (https://peps.python.org/pep-0263/)
+- **Pre-commit**: https://pre-commit.com/
+- **Black**: https://black.readthedocs.io/
+- **Ruff**: https://docs.astral.sh/ruff/
+
+### Implementações Realizadas
+
+#### 1. Script de Remoção de BOM
+✅ **Arquivo criado**: `scripts/dev/strip_bom.py`
+
+**Funcionalidade**:
+- Varre recursivamente todos os arquivos `.py` do projeto
+- Detecta BOM UTF-8 (bytes `0xEF 0xBB 0xBF`)
+- Remove os 3 bytes do BOM quando encontrados
+- Ignora diretórios: `.venv`, `__pycache__`, `build`, `dist`
+
+**Execução**:
+```bash
+python scripts/dev/strip_bom.py
+```
+
+**Resultado**:
+```
+✅ 21 arquivos com BOM detectados e corrigidos
+```
+
+**Arquivos corrigidos**:
+1. `app_gui.py`
+2. `adapters/__init__.py`
+3. `application/navigation_controller.py`
+4. `application/__init__.py`
+5. `config/paths.py`
+6. `gui/hub_screen.py`
+7. `gui/placeholders.py`
+8. `infrastructure/__init__.py`
+9. `shared/__init__.py`
+10. `ui/topbar.py`
+11. `shared/config/environment.py`
+12. `shared/config/__init__.py`
+13. `shared/logging/audit.py`
+14. `shared/logging/configure.py`
+15. `shared/logging/__init__.py`
+16. `infrastructure/scripts/__init__.py`
+17. `core/logs/audit.py`
+18. `adapters/storage/api.py`
+19. `adapters/storage/port.py`
+20. `adapters/storage/supabase_storage.py`
+21. `adapters/storage/__init__.py`
+
+#### 2. Configuração do Pre-commit
+✅ **Arquivo criado**: `.pre-commit-config.yaml`
+
+**Hooks configurados**:
+1. **Black** (v24.8.0) - Formatador de código Python
+2. **Ruff** (v0.6.9) - Linter Python rápido com auto-fix
+3. **Pre-commit-hooks** (v4.6.0):
+   - `end-of-file-fixer` - Garante newline no final dos arquivos
+   - `mixed-line-ending` - Normaliza line endings (CRLF → LF)
+   - `trailing-whitespace` - Remove espaços em branco no final das linhas
+
+**Instalação**:
+```bash
+pip install pre-commit black ruff
+pre-commit install
+```
+
+**Status**: ✅ Hooks instalados em `.git/hooks/pre-commit`
+
+#### 3. Configuração do Ruff
+✅ **Arquivo criado**: `.ruff.toml`
+
+**Configuração**:
+- Line length: 88 (compatível com Black)
+- Ignora erros de código legado (sem alterar comportamento):
+  - `F403` - Star imports (`from x import *`)
+  - `F821` - Undefined names em contextos específicos
+  - `E402` - Imports não no topo (imports condicionais)
+  - `F841` - Variáveis locais não utilizadas (algumas necessárias)
+
+#### 4. Execução do Pre-commit
+
+**Primeira execução**:
+```bash
+pre-commit run --all-files
+```
+
+**Correções automáticas aplicadas**:
+
+**Black**:
+- ✅ **44 arquivos reformatados**
+- 13 arquivos já conformes
+
+**Ruff**:
+- ✅ **16 erros corrigidos automaticamente**
+- 16 erros ignorados (configuração)
+
+**End-of-file-fixer**:
+- ✅ 2 arquivos corrigidos:
+  - `docs/CLAUDE-SONNET-v1.0.29/LOG.md`
+  - `requirements.txt`
+
+**Mixed-line-ending**:
+- ✅ 15 arquivos corrigidos (CRLF → LF):
+  - `build/BUILD-REPORT.md`
+  - `utils/subpastas_config.py`
+  - `docs/CLAUDE-SONNET-v1.0.29/STEP-2-PR.md`
+  - `utils/theme_manager.py`
+  - `build/rc_gestor.spec`
+  - `shared/logging/filters.py`
+  - `build/BUILD.md`
+  - `config.yml`
+  - `docs/CLAUDE-SONNET-v1.0.29/LOG.md`
+  - `core/models.py`
+  - `utils/text_utils.py`
+  - `detectors/cnpj_card.py`
+  - `ui/subpastas/dialog.py`
+  - `config/constants.py`
+  - `utils/validators.py`
+
+**Trailing-whitespace**:
+- ✅ 1 arquivo corrigido:
+  - `build/rc_gestor.spec`
+
+**Segunda execução (validação)**:
+```bash
+pre-commit run --all-files
+```
+
+**Resultado**:
+```
+✅ black....................................................................Passed
+✅ ruff.....................................................................Passed
+✅ fix end of files.........................................................Passed
+✅ mixed line ending........................................................Passed
+✅ trim trailing whitespace.................................................Passed
+```
+
+### Estatísticas Totais
+
+#### Remoção de BOM
+- **21 arquivos** corrigidos
+
+#### Formatação e Linting
+- **44 arquivos** reformatados (Black)
+- **16 erros** corrigidos (Ruff auto-fix)
+- **15 arquivos** normalizados (line endings)
+- **2 arquivos** corrigidos (end-of-file)
+- **1 arquivo** corrigido (trailing whitespace)
+
+**Total de arquivos modificados pelo pre-commit**: ~60+ arquivos
+
+### Arquivos Criados/Modificados
+
+**Criados**:
+- `scripts/dev/strip_bom.py` - Script de remoção de BOM
+- `.pre-commit-config.yaml` - Configuração dos hooks
+- `.ruff.toml` - Configuração do Ruff
+- `docs/CLAUDE-SONNET-v1.0.29/STEP-3-EXECUTION.md` - Relatório detalhado
+
+**Modificados**:
+- 21 arquivos Python (BOM removido)
+- 44 arquivos Python (formatação Black)
+- 16 arquivos Python (correções Ruff)
+- 15 arquivos (line endings normalizados)
+- 2 arquivos (end-of-file corrigido)
+- 1 arquivo (trailing whitespace removido)
+
+### Decisões Técnicas
+
+1. **UTF-8 sem BOM**: Seguindo PEP 3120, UTF-8 é o encoding padrão e BOM é desnecessário
+2. **Pre-commit automatizado**: Garante qualidade de código em cada commit
+3. **Black + Ruff**: Combinação recomendada para formatação e linting Python
+4. **Ignores configurados**: Erros de código legado ignorados para não quebrar funcionalidade
+5. **Line endings LF**: Padrão Unix/Linux (melhor compatibilidade Git)
+
+### Conformidade PEPs
+
+✅ **PEP 3120**: UTF-8 como encoding padrão  
+✅ **PEP 263**: Declaração de encoding correta  
+✅ **PEP 8**: Formatação via Black (subset of PEP 8)
+
+### Git Hooks Ativos
+
+Agora a cada `git commit`, o pre-commit executa automaticamente:
+- ✅ Formatação Black
+- ✅ Linting Ruff com auto-fix
+- ✅ Correção de line endings
+- ✅ Remoção de trailing whitespace
+- ✅ Garantia de newline final
+
+### Status
+✅ **COMPLETO** - BOM removido, pre-commit ativo, qualidade de código automatizada.
+
+---
+
+## Próximos Steps
+Aguardando instruções para Step 4.

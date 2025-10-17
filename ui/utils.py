@@ -81,4 +81,3 @@ def center_on_parent(win, parent=None, pad: int = 0):
 
 
 __all__ = ["OkCancelMixin", "center_window", "center_on_parent"]
-

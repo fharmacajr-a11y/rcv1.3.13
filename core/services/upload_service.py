@@ -1,4 +1,5 @@
 """Upload helper used by the Tkinter UI to push folders to Supabase."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -10,6 +11,7 @@ from typing import Any, Dict, Iterable, List, Optional
 try:
     from utils.hash_utils import sha256_file as _sha256
 except Exception:  # pragma: no cover
+
     def _sha256(path: Path | str) -> str:
         digest = hashlib.sha256()
         with Path(path).open("rb") as handle:
@@ -17,9 +19,12 @@ except Exception:  # pragma: no cover
                 digest.update(chunk)
         return digest.hexdigest()
 
-from infra.supabase_client import supabase
 
-BUCKET_NAME = (os.getenv("SUPABASE_BUCKET") or "rc-docs").strip() or "rc-docs"
+from adapters.storage.api import (
+    list_files as storage_list_files,
+    upload_file as storage_upload_file,
+)
+from infra.supabase_client import supabase
 
 
 def _guess_mime(path: Path) -> str:
@@ -87,10 +92,24 @@ def upload_folder_to_supabase(
 
     user_id = _current_user_id()
     if not user_id:
-        raise RuntimeError("Usuario nao autenticado no Supabase. Faca login antes de enviar.")
+        raise RuntimeError(
+            "Usuario nao autenticado no Supabase. Faca login antes de enviar."
+        )
 
     org_id = _resolve_org_id() or "unknown-org"
     results: List[Dict[str, Any]] = []
+
+    def _raise_if_exists(path_key: str) -> None:
+        folder, _, filename = path_key.rpartition("/")
+        candidates = storage_list_files(folder)
+        for item in candidates:
+            if isinstance(item, dict):
+                name = item.get("name")
+                full_path = item.get("full_path")
+                if name == filename or full_path == path_key:
+                    raise RuntimeError(f"Arquivo ja existente no storage: {path_key}")
+            elif isinstance(item, str) and item.strip("/") in {filename, path_key}:
+                raise RuntimeError(f"Arquivo ja existente no storage: {path_key}")
 
     for path in _iter_files(base):
         relative_path = str(path.relative_to(base)).replace("\\", "/")
@@ -99,45 +118,55 @@ def upload_folder_to_supabase(
         mime_type = _guess_mime(path)
 
         storage_path = f"{org_id}/{client_id}/{subdir}/{relative_path}"
-        with path.open("rb") as handle:
-            supabase.storage.from_(BUCKET_NAME).upload(
-                file=handle,
-                path=storage_path,
-                file_options={"content-type": mime_type, "upsert": "false"},
-            )
+        _raise_if_exists(storage_path)
+        storage_upload_file(str(path), storage_path, mime_type)
 
-        document_response = supabase.table("documents").insert(
-            {
-                "client_id": int(client_id),
-                "title": path.name,
-                "kind": mime_type,
-                "user_id": user_id,
-            },
-            returning="representation",
-        ).execute()
+        document_response = (
+            supabase.table("documents")
+            .insert(
+                {
+                    "client_id": int(client_id),
+                    "title": path.name,
+                    "kind": mime_type,
+                    "user_id": user_id,
+                },
+                returning="representation",
+            )
+            .execute()
+        )
 
         if not document_response.data:
-            raise RuntimeError(f"INSERT bloqueado por RLS em 'documents' para arquivo: {path.name}")
+            raise RuntimeError(
+                f"INSERT bloqueado por RLS em 'documents' para arquivo: {path.name}"
+            )
 
         document_id = document_response.data[0]["id"]
 
-        version_response = supabase.table("document_versions").insert(
-            {
-                "document_id": document_id,
-                "storage_path": storage_path,
-                "size_bytes": size_bytes,
-                "sha256": sha_value,
-                "uploaded_by": user_id,
-            },
-            returning="representation",
-        ).execute()
+        version_response = (
+            supabase.table("document_versions")
+            .insert(
+                {
+                    "document_id": document_id,
+                    "storage_path": storage_path,
+                    "size_bytes": size_bytes,
+                    "sha256": sha_value,
+                    "uploaded_by": user_id,
+                },
+                returning="representation",
+            )
+            .execute()
+        )
 
         if not version_response.data:
-            raise RuntimeError(f"INSERT bloqueado por RLS em 'document_versions' para arquivo: {path.name}")
+            raise RuntimeError(
+                f"INSERT bloqueado por RLS em 'document_versions' para arquivo: {path.name}"
+            )
 
         version_id = version_response.data[0]["id"]
 
-        supabase.table("documents").update({"current_version": version_id}).eq("id", document_id).execute()
+        supabase.table("documents").update({"current_version": version_id}).eq(
+            "id", document_id
+        ).execute()
 
         results.append(
             {

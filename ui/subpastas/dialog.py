@@ -15,6 +15,7 @@ except Exception:  # pragma: no cover
     try:
         from ui.utils import center_on_parent
     except Exception:  # pragma: no cover
+
         def center_on_parent(win, parent=None, pad=0):
             return win
 
@@ -56,7 +57,10 @@ def open_subpastas_dialog(
 
     var_only_missing = tk.BooleanVar(value=False)
     tb.Checkbutton(
-        tools, text="Só faltando", variable=var_only_missing, command=lambda: _refresh_rows()
+        tools,
+        text="Só faltando",
+        variable=var_only_missing,
+        command=lambda: _refresh_rows(),
     ).grid(row=0, column=3, sticky="w")
 
     # ---------- Lista rolável ----------
@@ -69,7 +73,9 @@ def open_subpastas_dialog(
     vsb = tb.Scrollbar(list_box, orient="vertical", command=canvas.yview)
     rows_holder = tb.Frame(canvas)
 
-    rows_holder.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+    rows_holder.bind(
+        "<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+    )
     canvas.create_window((0, 0), window=rows_holder, anchor="nw")
     canvas.configure(yscrollcommand=vsb.set)
 
@@ -96,6 +102,7 @@ def open_subpastas_dialog(
         if not nomes:  # se não veio nada, carrega do YAML
             try:
                 from utils.subpastas_config import load_subpastas_config
+
                 _subs, _ext = load_subpastas_config()
                 nomes = list(sorted(set(_subs + _ext)))
             except Exception:
@@ -106,12 +113,15 @@ def open_subpastas_dialog(
             ensure_subpastas(base_path, None)  # fallback: loader interno do file_utils
         _refresh_rows()
 
-    tb.Button(footer, text="Criar todas", bootstyle="primary", command=_criar_todas).grid(
-        row=0, column=0, sticky="w"
-    )
+    tb.Button(
+        footer, text="Criar todas", bootstyle="primary", command=_criar_todas
+    ).grid(row=0, column=0, sticky="w")
 
     tb.Button(
-        footer, text="Abrir pasta base", bootstyle="secondary", command=lambda: open_folder(base_path)
+        footer,
+        text="Abrir pasta base",
+        bootstyle="secondary",
+        command=lambda: open_folder(base_path),
     ).grid(row=0, column=1, padx=6, sticky="w")
 
     tb.Button(footer, text="Fechar", bootstyle="secondary", command=win.destroy).grid(
@@ -119,12 +129,15 @@ def open_subpastas_dialog(
     )
 
     # ---------- Dados ----------
-    all_items: List[str] = list(sorted(set(list(subpastas or []) + list(extras_visiveis or []))))
+    all_items: List[str] = list(
+        sorted(set(list(subpastas or []) + list(extras_visiveis or [])))
+    )
 
     # Se vier vazio, tenta carregar do YAML aqui mesmo
     if not all_items:
         try:
             from utils.subpastas_config import load_subpastas_config
+
             _subs, _ext = load_subpastas_config()
             all_items = list(sorted(set(_subs + _ext)))
         except Exception:
@@ -140,13 +153,16 @@ def open_subpastas_dialog(
 
         tb.Label(r, text=path_display).grid(row=0, column=0, sticky="w")
         status = tb.Label(
-            r, text="OK" if exists else "Faltando", bootstyle=("success" if exists else "danger")
+            r,
+            text="OK" if exists else "Faltando",
+            bootstyle=("success" if exists else "danger"),
         )
         status.grid(row=0, column=1, padx=(10, 10), sticky="w")
 
         def _open():
             if CLOUD_ONLY:
                 from pathlib import Path
+
                 open_folder(Path.home() / "Downloads")
                 return
             if not CLOUD_ONLY:

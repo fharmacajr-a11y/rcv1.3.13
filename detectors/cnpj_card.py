@@ -4,6 +4,7 @@ import re
 # Mantém o padrão do seu projeto: detectar CNPJ no formato oficial
 _CNPJ_RE = re.compile(r"\b\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}\b")
 
+
 def detect_and_extract(path: str) -> dict | None:
     """
     Detecta se o PDF é Cartão CNPJ pelo conteúdo.
@@ -27,6 +28,7 @@ def detect_and_extract(path: str) -> dict | None:
     if cnpj and razao:
         return {"type": "cnpj_card", "cnpj": cnpj, "razao_social": razao}
     return None
+
 
 def _extract_razao_social(text: str) -> str | None:
     """

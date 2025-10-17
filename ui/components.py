@@ -1,8 +1,9 @@
 """Reusable Tkinter component helpers."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable, Iterable, Sequence
+from typing import Any, Callable, Iterable
 import logging
 import os
 import re
@@ -70,7 +71,9 @@ class StatusIndicators:
     status_label: tb.Label
 
 
-def toolbar_button(parent: tk.Misc, text: str, command: Callable[[], Any]) -> ttk.Button:
+def toolbar_button(
+    parent: tk.Misc, text: str, command: Callable[[], Any]
+) -> ttk.Button:
     """Create a standard toolbar button and return it."""
     return ttk.Button(parent, text=text, command=command)
 
@@ -220,7 +223,9 @@ def create_clients_treeview(
         tree.heading(key, text=heading, anchor="center")
 
     for key, _, width, can_stretch in columns:
-        tree.column(key, width=width, minwidth=width, anchor="center", stretch=can_stretch)
+        tree.column(
+            key, width=width, minwidth=width, anchor="center", stretch=can_stretch
+        )
 
     def _block_header_resize(event: Any) -> str | None:
         if tree.identify_region(event.x, event.y) == "separator":
@@ -271,11 +276,19 @@ def create_footer_buttons(
     """Create the footer buttons frame used on the main window."""
     frame = tb.Frame(parent)
 
-    btn_novo = tb.Button(frame, text="Novo Cliente", command=on_novo, bootstyle="success")
+    btn_novo = tb.Button(
+        frame, text="Novo Cliente", command=on_novo, bootstyle="success"
+    )
     btn_editar = tb.Button(frame, text="Editar", command=on_editar, bootstyle="primary")
-    btn_subpastas = tb.Button(frame, text="Ver Subpastas", command=on_subpastas, bootstyle="secondary")
-    btn_enviar = tb.Button(frame, text="Enviar Para SupaBase", command=on_enviar, bootstyle="success")
-    btn_lixeira = tb.Button(frame, text="Lixeira", command=on_lixeira, bootstyle="warning")
+    btn_subpastas = tb.Button(
+        frame, text="Ver Subpastas", command=on_subpastas, bootstyle="secondary"
+    )
+    btn_enviar = tb.Button(
+        frame, text="Enviar Para SupaBase", command=on_enviar, bootstyle="success"
+    )
+    btn_lixeira = tb.Button(
+        frame, text="Lixeira", command=on_lixeira, bootstyle="warning"
+    )
 
     btn_novo.pack(side="left", padx=5)
     btn_editar.pack(side="left", padx=5)
@@ -306,7 +319,9 @@ def create_status_bar(
 
     count_var = count_var or tk.StringVar(master=parent, value="0 clientes")
     status_dot_var = status_dot_var or tk.StringVar(master=parent, value=STATUS_DOT)
-    status_text_var = status_text_var or tk.StringVar(master=parent, value=default_status_text)
+    status_text_var = status_text_var or tk.StringVar(
+        master=parent, value=default_status_text
+    )
 
     tb.Label(frame, textvariable=count_var).pack(side="left")
 
@@ -317,7 +332,9 @@ def create_status_bar(
     status_dot.configure(font=("", 14))
     status_dot.pack(side="left", padx=(0, 6))
 
-    status_label = tb.Label(right_box, textvariable=status_text_var, bootstyle="inverse")
+    status_label = tb.Label(
+        right_box, textvariable=status_text_var, bootstyle="inverse"
+    )
     status_label.pack(side="left")
 
     return StatusIndicators(

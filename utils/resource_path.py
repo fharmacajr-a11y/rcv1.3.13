@@ -1,4 +1,5 @@
 """Utilities for resolving resource paths in both dev and PyInstaller builds."""
+
 from __future__ import annotations
 
 import os
@@ -16,4 +17,3 @@ def resource_path(relative_path: str) -> str:
 
 
 __all__: Final = ["resource_path"]
-

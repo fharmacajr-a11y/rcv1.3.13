@@ -57,7 +57,9 @@ def _to_cliente(row: dict) -> Cliente:
     )
 
 
-def _resolve_order(order_by: str | None, descending: Optional[bool]) -> tuple[str, bool]:
+def _resolve_order(
+    order_by: str | None, descending: Optional[bool]
+) -> tuple[str, bool]:
     col, default_desc = _ORDER_MAP.get(order_by or None, _ORDER_MAP[None])
     desc = default_desc if descending is None else bool(descending)
     return col, desc
@@ -65,24 +67,29 @@ def _resolve_order(order_by: str | None, descending: Optional[bool]) -> tuple[st
 
 # -------------------- CRUD / LISTAGEM --------------------
 
-def list_clientes(order_by: str | None = None, descending: Optional[bool] = None) -> list[Cliente]:
+
+def list_clientes(
+    order_by: str | None = None, descending: Optional[bool] = None
+) -> list[Cliente]:
     col, desc = _resolve_order(order_by, descending)
     resp = (
         supabase.table("clients")
         .select("*")
-        .is_("deleted_at", "null")              # somente ativos
+        .is_("deleted_at", "null")  # somente ativos
         .order(col, desc=desc)
         .execute()
     )
     return [_to_cliente(r) for r in (resp.data or [])]
 
 
-def list_clientes_deletados(order_by: str | None = None, descending: Optional[bool] = None) -> list[Cliente]:
+def list_clientes_deletados(
+    order_by: str | None = None, descending: Optional[bool] = None
+) -> list[Cliente]:
     col, desc = _resolve_order(order_by, descending)
     resp = (
         supabase.table("clients")
         .select("*")
-        .not_.is_("deleted_at", "null")         # somente marcados como deletados
+        .not_.is_("deleted_at", "null")  # somente marcados como deletados
         .order(col, desc=desc)
         .execute()
     )
@@ -90,13 +97,7 @@ def list_clientes_deletados(order_by: str | None = None, descending: Optional[bo
 
 
 def get_cliente(cliente_id: int) -> Optional[Cliente]:
-    resp = (
-        supabase.table("clients")
-        .select("*")
-        .eq("id", cliente_id)
-        .limit(1)
-        .execute()
-    )
+    resp = supabase.table("clients").select("*").eq("id", cliente_id).limit(1).execute()
     rows = resp.data or []
     return _to_cliente(rows[0]) if rows else None
 
@@ -108,7 +109,9 @@ def get_cliente_by_id(cliente_id: int) -> Optional[Cliente]:
     return None
 
 
-def insert_cliente(numero: str, nome: str, razao_social: str, cnpj: str, obs: str) -> int:
+def insert_cliente(
+    numero: str, nome: str, razao_social: str, cnpj: str, obs: str
+) -> int:
     row = {
         "numero": numero,
         "nome": nome,
@@ -143,7 +146,9 @@ def insert_cliente(numero: str, nome: str, razao_social: str, cnpj: str, obs: st
     raise RuntimeError("Falha ao obter ID do cliente inserido.")
 
 
-def update_cliente(cliente_id: int, numero: str, nome: str, razao_social: str, cnpj: str, obs: str) -> int:
+def update_cliente(
+    cliente_id: int, numero: str, nome: str, razao_social: str, cnpj: str, obs: str
+) -> int:
     data = {
         "numero": numero,
         "nome": nome,

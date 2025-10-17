@@ -1,10 +1,11 @@
-
 """Runtime hotfix to force cloud-only behavior and avoid local FS writes.
 - Sets RC_NO_LOCAL_FS=1 before any path resolution.
 - Provides safe temp directories for any accidental writes.
 """
+
 from __future__ import annotations
-import os, tempfile
+import os
+import tempfile
 from pathlib import Path
 
 # Force cloud-only mode early
@@ -17,6 +18,7 @@ TMP_BASE.mkdir(parents=True, exist_ok=True)
 # Best-effort monkeypatch for config.paths if already imported
 try:
     import importlib
+
     paths = importlib.import_module("config.paths")
     try:
         setattr(paths, "CLOUD_ONLY", True)

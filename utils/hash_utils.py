@@ -1,4 +1,5 @@
 """Hashing helpers shared across the desktop application."""
+
 from __future__ import annotations
 
 import hashlib
@@ -18,4 +19,3 @@ def sha256_file(path: PathLike) -> str:
 
 
 __all__: Final = ["sha256_file"]
-

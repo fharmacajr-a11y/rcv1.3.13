@@ -16,8 +16,10 @@ except Exception:  # pragma: no cover
     try:
         from ui.utils import center_on_parent
     except Exception:  # pragma: no cover
+
         def center_on_parent(win, parent=None, pad=0):
             return win
+
 
 logger = logging.getLogger(__name__)
 log = logger
@@ -48,7 +50,9 @@ def form_cliente(self, row=None, preset: dict | None = None) -> None:
 
     # --- Seção: Documentos no Supabase (somente informativa) ---
     docs_frame = ttk.LabelFrame(win, text="Documentos no Supabase")
-    docs_frame.grid(row=len(campos), column=0, columnspan=2, sticky="nsew", padx=6, pady=(2, 6))
+    docs_frame.grid(
+        row=len(campos), column=0, columnspan=2, sticky="nsew", padx=6, pady=(2, 6)
+    )
     docs_frame.columnconfigure(0, weight=1)
     listbox_docs = Listbox(docs_frame, height=5)
     listbox_docs.grid(row=0, column=0, sticky="nsew")
@@ -66,22 +70,31 @@ def form_cliente(self, row=None, preset: dict | None = None) -> None:
         ents["Observações"].insert("1.0", obs or "")
         # carregar docs existentes (opcional)
         try:
-            resp = supabase.table('documents').select('title').eq('client_id', pk).execute()
-            for doc in (resp.data or []):
-                listbox_docs.insert("end", f"{doc.get('title') or '-'} (já no Supabase)")
+            resp = (
+                supabase.table("documents")
+                .select("title")
+                .eq("client_id", pk)
+                .execute()
+            )
+            for doc in resp.data or []:
+                listbox_docs.insert(
+                    "end", f"{doc.get('title') or '-'} (já no Supabase)"
+                )
         except Exception as e:
             log.warning("Erro ao carregar docs existentes: %s", e)
     elif preset:
-        if preset.get("razao"): ents["Razão Social"].insert(0, preset["razao"])
-        if preset.get("cnpj"):  ents["CNPJ"].insert(0, preset["cnpj"])
+        if preset.get("razao"):
+            ents["Razão Social"].insert(0, preset["razao"])
+        if preset.get("cnpj"):
+            ents["CNPJ"].insert(0, preset["cnpj"])
 
     def _coletar_valores() -> dict:
         return {
             "Razão Social": ents["Razão Social"].get().strip(),
-            "CNPJ":         ents["CNPJ"].get().strip(),
-            "Nome":         ents["Nome"].get().strip(),
-            "WhatsApp":     ents["WhatsApp"].get().strip(),
-            "Observações":  ents["Observações"].get("1.0", "end").strip(),
+            "CNPJ": ents["CNPJ"].get().strip(),
+            "Nome": ents["Nome"].get().strip(),
+            "WhatsApp": ents["WhatsApp"].get().strip(),
+            "Observações": ents["Observações"].get("1.0", "end").strip(),
         }
 
     def _confirmar_duplicatas(val: dict, row=None, win=None) -> bool:
@@ -101,7 +114,9 @@ def form_cliente(self, row=None, preset: dict | None = None) -> None:
             pass
 
         # Considere apenas CNPJ / RAZAO_SOCIAL para alertar
-        campos_info = [c for c in (info.get("campos") or []) if c in ("CNPJ", "RAZAO_SOCIAL")]
+        campos_info = [
+            c for c in (info.get("campos") or []) if c in ("CNPJ", "RAZAO_SOCIAL")
+        ]
         if not ids or not campos_info:
             return True
         campos_batidos = ", ".join(campos_info)
@@ -119,9 +134,12 @@ def form_cliente(self, row=None, preset: dict | None = None) -> None:
         if not _confirmar_duplicatas(val):
             return
         try:
-            salvar_cliente(row, val)  # mantém assinatura original (service decide insert/update)
+            salvar_cliente(
+                row, val
+            )  # mantém assinatura original (service decide insert/update)
         except Exception as e:
-            messagebox.showerror("Erro", str(e)); return
+            messagebox.showerror("Erro", str(e))
+            return
         win.destroy()
         try:
             self.carregar()
@@ -131,14 +149,16 @@ def form_cliente(self, row=None, preset: dict | None = None) -> None:
 
     # --- Botões ---
     btns = ttk.Frame(win)
-    btns.grid(row=len(campos)+1, column=0, columnspan=2, pady=10)
+    btns.grid(row=len(campos) + 1, column=0, columnspan=2, pady=10)
 
     toolbar_button(btns, text="Salvar", command=_salvar).pack(side="left", padx=5)
-    toolbar_button(btns, text="Cartão CNPJ",
-                   command=lambda: preencher_via_pasta(ents)).pack(side="left", padx=5)
     toolbar_button(
-        btns, text="Salvar + Enviar para Supabase",
-        command=lambda: salvar_e_enviar_para_supabase(self, row, ents, win)
+        btns, text="Cartão CNPJ", command=lambda: preencher_via_pasta(ents)
+    ).pack(side="left", padx=5)
+    toolbar_button(
+        btns,
+        text="Salvar + Enviar para Supabase",
+        command=lambda: salvar_e_enviar_para_supabase(self, row, ents, win),
     ).pack(side="left", padx=5)
     toolbar_button(btns, text="Cancelar", command=win.destroy).pack(side="left", padx=5)
 

@@ -1,4 +1,5 @@
 """Network status helpers for the Tkinter desktop application."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -131,7 +132,9 @@ def update_net_status(app: Any, interval_ms: int | None = None) -> None:
         log.info("NetStatusWorker started")
         while True:
             url_, timeout_, cfg_interval_ms_ = _get_cfg()
-            eff_interval_ms = int(interval_ms or cfg_interval_ms_ or DEFAULT_INTERVAL_MS)
+            eff_interval_ms = int(
+                interval_ms or cfg_interval_ms_ or DEFAULT_INTERVAL_MS
+            )
             eff_interval_s = max(1.0, eff_interval_ms / 1000.0)
 
             try:

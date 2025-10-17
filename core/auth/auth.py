@@ -2,17 +2,23 @@
 from __future__ import annotations
 
 import os
-import binascii
 import sqlite3
 from hashlib import pbkdf2_hmac
 from datetime import datetime
 from typing import Tuple, Optional
 
-from config.paths import USERS_DB_PATH, CLOUD_ONLY
+from config.paths import USERS_DB_PATH
 from infra.supabase_client import supabase  # create_client conforme doc.
 
+
 # ------------------ Hash de senha (formato legível futuro) ------------------ #
-def pbkdf2_hash(password: str, *, iterations: int = 600_000, salt: Optional[bytes] = None, dklen: int = 32) -> str:
+def pbkdf2_hash(
+    password: str,
+    *,
+    iterations: int = 600_000,
+    salt: Optional[bytes] = None,
+    dklen: int = 32,
+) -> str:
     """
     Gera hash PBKDF2-SHA256 no formato:
       pbkdf2_sha256$<iter>$<hex_salt>$<hex_hash>
@@ -22,7 +28,8 @@ def pbkdf2_hash(password: str, *, iterations: int = 600_000, salt: Optional[byte
     if salt is None:
         salt = os.urandom(16)
     dk = pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iterations, dklen)
-    return f"pbkdf2_sha256${{iterations}}${{binascii.hexlify(salt).decode()}}${{binascii.hexlify(dk).decode()}}"
+    return "pbkdf2_sha256${iterations}${binascii.hexlify(salt).decode()}${binascii.hexlify(dk).decode()}"
+
 
 # ------------------------- Banco local de usuários ------------------------- #
 def ensure_users_db() -> None:
@@ -45,6 +52,7 @@ def ensure_users_db() -> None:
             """
         )
         con.commit()
+
 
 def create_user(username: str, password: Optional[str] = None) -> int:
     """Cria usuário local (SQLite). Se já existir, atualiza a senha se fornecida e retorna o ID."""
@@ -80,6 +88,7 @@ def create_user(username: str, password: Optional[str] = None) -> int:
         )
         con.commit()
         return int(cur.lastrowid)
+
 
 # ------------------------- Autenticação (Supabase) ------------------------- #
 def authenticate_user(email: str, password: str) -> Tuple[bool, str]:

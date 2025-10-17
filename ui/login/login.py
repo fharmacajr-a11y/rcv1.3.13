@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import os
-import sys
 import ttkbootstrap as tb
 from ttkbootstrap.dialogs import Messagebox
 from core.auth import ensure_users_db, authenticate_user
@@ -14,17 +13,12 @@ except Exception:  # pragma: no cover
     try:
         from ui.utils import center_on_parent
     except Exception:  # pragma: no cover
+
         def center_on_parent(win, parent=None, pad=0):
             return win
 
-try:
-    from utils.resource_path import resource_path as _resource_path
-except Exception:  # pragma: no cover
-    def _resource_path(rel: str) -> str:
-        base = getattr(sys, "_MEIPASS", os.path.abspath("."))
-        return os.path.join(base, rel)
 
-resource_path = _resource_path
+from utils.resource_path import resource_path
 
 
 class LoginDialog(tb.Toplevel):
@@ -59,11 +53,11 @@ class LoginDialog(tb.Toplevel):
             sw, sh = 1366, 768  # fallback
 
         # Breakpoints de tamanho da janela de login
-        if sw >= 1920 and sh >= 1080:      # Full HD ou maior
+        if sw >= 1920 and sh >= 1080:  # Full HD ou maior
             w, h = 420, 260
-        elif sw >= 1366 and sh >= 768:     # HD
+        elif sw >= 1366 and sh >= 768:  # HD
             w, h = 380, 230
-        else:                              # telas menores
+        else:  # telas menores
             w, h = 350, 210
 
         self.geometry(f"{w}x{h}")
@@ -89,10 +83,14 @@ class LoginDialog(tb.Toplevel):
         self.ent_pass = tb.Entry(frame, width=28, show="•")
         self.ent_pass.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(0, 12))
 
-        btn_login = tb.Button(frame, text="Entrar", bootstyle="success", command=self._do_login)
+        btn_login = tb.Button(
+            frame, text="Entrar", bootstyle="success", command=self._do_login
+        )
         btn_login.grid(row=4, column=0, sticky="e")
 
-        btn_cancel = tb.Button(frame, text="Sair", bootstyle="danger", command=self._cancel)
+        btn_cancel = tb.Button(
+            frame, text="Sair", bootstyle="danger", command=self._cancel
+        )
         btn_cancel.grid(row=4, column=1, sticky="w")
 
         # atalhos

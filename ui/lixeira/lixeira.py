@@ -1,5 +1,7 @@
 """Tela da Lixeira (clientes deletados via Supabase - soft delete)."""
+
 from __future__ import annotations
+
 # ui/lixeira/lixeira.py
 
 import logging
@@ -8,7 +10,9 @@ import ttkbootstrap as tb
 from tkinter import messagebox as tkmsg
 
 from core.db_manager import list_clientes_deletados
-from core.services import lixeira_service  # ações: restore_clients / hard_delete_clients
+from core.services import (
+    lixeira_service,
+)  # ações: restore_clients / hard_delete_clients
 from ui.utils import center_window
 
 logger = logging.getLogger(__name__)
@@ -45,7 +49,7 @@ def _set_busy(win, buttons, busy: bool):
             btn.configure(state=("disabled" if busy else "normal"))
         except Exception:
             try:
-                btn["state"] = ("disabled" if busy else "normal")
+                btn["state"] = "disabled" if busy else "normal"
             except Exception:
                 pass
     try:
@@ -86,7 +90,9 @@ def abrir_lixeira(parent, app=None):
     container = tb.Frame(win, padding=10)
     container.pack(fill="both", expand=True)
 
-    tb.Label(container, text="Clientes na Lixeira", font=("", 12, "bold")).pack(anchor="center", pady=(0, 8))
+    tb.Label(container, text="Clientes na Lixeira", font=("", 12, "bold")).pack(
+        anchor="center", pady=(0, 8)
+    )
 
     # Treeview
     cols = ("id", "razao_social", "cnpj", "nome", "whatsapp", "obs", "ultima_alteracao")
@@ -103,8 +109,13 @@ def abrir_lixeira(parent, app=None):
         "ultima_alteracao": "Última Alteração",
     }
     widths = {
-        "id": 60, "razao_social": 240, "cnpj": 140, "nome": 180,
-        "whatsapp": 120, "obs": 260, "ultima_alteracao": 180,
+        "id": 60,
+        "razao_social": 240,
+        "cnpj": 140,
+        "nome": 180,
+        "whatsapp": 120,
+        "obs": 260,
+        "ultima_alteracao": 180,
     }
     for c in cols:
         tree.heading(c, text=headings[c])
@@ -117,7 +128,9 @@ def abrir_lixeira(parent, app=None):
     btn_restore = tb.Button(toolbar, text="Restaurar Selecionados", bootstyle="success")
     btn_purge = tb.Button(toolbar, text="Apagar Selecionados", bootstyle="danger")
     btn_refresh = tb.Button(toolbar, text="⟳", width=3)
-    btn_close = tb.Button(toolbar, text="Fechar", bootstyle="secondary", command=win.destroy)
+    btn_close = tb.Button(
+        toolbar, text="Fechar", bootstyle="secondary", command=win.destroy
+    )
 
     btn_restore.pack(side="left")
     tb.Separator(toolbar, orient="vertical").pack(side="left", padx=6, fill="y")
@@ -130,20 +143,28 @@ def abrir_lixeira(parent, app=None):
 
     # -------- helpers locais (com parent=win) --------
     def _info(title, msg):
-        try: tkmsg.showinfo(title, msg, parent=win)
-        except Exception: tkmsg.showinfo(title, msg)
+        try:
+            tkmsg.showinfo(title, msg, parent=win)
+        except Exception:
+            tkmsg.showinfo(title, msg)
 
     def _warn(title, msg):
-        try: tkmsg.showwarning(title, msg, parent=win)
-        except Exception: tkmsg.showwarning(title, msg)
+        try:
+            tkmsg.showwarning(title, msg, parent=win)
+        except Exception:
+            tkmsg.showwarning(title, msg)
 
     def _err(title, msg):
-        try: tkmsg.showerror(title, msg, parent=win)
-        except Exception: tkmsg.showerror(title, msg)
+        try:
+            tkmsg.showerror(title, msg, parent=win)
+        except Exception:
+            tkmsg.showerror(title, msg)
 
     def _ask_yesno(title, msg) -> bool:
-        try: return tkmsg.askyesno(title, msg, parent=win)
-        except Exception: return tkmsg.askyesno(title, msg)
+        try:
+            return tkmsg.askyesno(title, msg, parent=win)
+        except Exception:
+            return tkmsg.askyesno(title, msg)
 
     def get_selected_ids():
         ids = []
@@ -169,8 +190,17 @@ def abrir_lixeira(parent, app=None):
             obs = getattr(r, "obs", "") or ""
             ultima = getattr(r, "ultima_alteracao", "") or ""
             tree.insert(
-                "", "end",
-                values=(r.id, r.razao_social or "", r.cnpj or "", r.nome or "", whatsapp, obs, ultima)
+                "",
+                "end",
+                values=(
+                    r.id,
+                    r.razao_social or "",
+                    r.cnpj or "",
+                    r.nome or "",
+                    whatsapp,
+                    obs,
+                    ultima,
+                ),
             )
         status.config(text=f"{len(rows)} item(ns) na lixeira")
         log.info("Lixeira carregada: %s itens", len(rows))
@@ -181,7 +211,9 @@ def abrir_lixeira(parent, app=None):
         if not ids:
             _warn("Lixeira", "Selecione pelo menos um registro para restaurar.")
             return
-        if not _ask_yesno("Restaurar", f"Restaurar {len(ids)} registro(s) para a lista principal?"):
+        if not _ask_yesno(
+            "Restaurar", f"Restaurar {len(ids)} registro(s) para a lista principal?"
+        ):
             return
 
         _set_busy(win, [btn_restore, btn_purge, btn_refresh, btn_close], True)
@@ -192,6 +224,7 @@ def abrir_lixeira(parent, app=None):
                 _err("Falha parcial", f"{ok} restaurado(s), erros:\n{msg}")
             else:
                 _info("Pronto", f"{ok} registro(s) restaurado(s).")
+                # As subpastas obrigatórias são garantidas no serviço (_ensure_mandatory_subfolders).
         except Exception as e:
             log.exception("Falha ao restaurar")
             _err("Lixeira", f"Erro ao restaurar: {e}")
@@ -202,14 +235,22 @@ def abrir_lixeira(parent, app=None):
     def on_purge():
         ids = get_selected_ids()
         if not ids:
-            _warn("Lixeira", "Selecione pelo menos um registro para apagar definitivamente.")
+            _warn(
+                "Lixeira",
+                "Selecione pelo menos um registro para apagar definitivamente.",
+            )
             return
-        if not _ask_yesno("Apagar", f"APAGAR DEFINITIVAMENTE {len(ids)} registro(s)? Esta ação não pode ser desfeita."):
+        if not _ask_yesno(
+            "Apagar",
+            f"APAGAR DEFINITIVAMENTE {len(ids)} registro(s)? Esta ação não pode ser desfeita.",
+        ):
             return
 
         _set_busy(win, [btn_restore, btn_purge, btn_refresh, btn_close], True)
         try:
-            ok, errs = lixeira_service.hard_delete_clients(ids, parent=win)  # DB + Storage
+            ok, errs = lixeira_service.hard_delete_clients(
+                ids, parent=win
+            )  # DB + Storage
             if errs:
                 msg = "\n".join([f"ID {cid}: {err}" for cid, err in errs])
                 _err("Falha parcial", f"{ok} apagado(s), erros:\n{msg}")

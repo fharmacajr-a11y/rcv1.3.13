@@ -1,10 +1,20 @@
-# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 import logging
+import os
+from tempfile import NamedTemporaryFile
 from typing import Iterable, List, Tuple
 
 from tkinter import messagebox
+
+from adapters.storage.api import (
+    delete_file as storage_delete_file,
+    list_files as storage_list_files,
+    upload_file as storage_upload_file,
+    using_storage_backend,
+)
+from adapters.storage.supabase_storage import SupabaseStorageAdapter
+from utils.subpastas_config import get_mandatory_subpastas, join_prefix
 
 logger = logging.getLogger(__name__)
 log = logger
@@ -26,7 +36,13 @@ def _get_supabase_and_org():
         uid = getattr(u, "id", None)
         if not uid:
             raise RuntimeError("Usuário não autenticado no Supabase.")
-        res = supabase.table("memberships").select("org_id").eq("user_id", uid).limit(1).execute()
+        res = (
+            supabase.table("memberships")
+            .select("org_id")
+            .eq("user_id", uid)
+            .limit(1)
+            .execute()
+        )
         org_id = res.data[0]["org_id"] if getattr(res, "data", None) else None
         if not org_id:
             raise RuntimeError("Organização não encontrada para o usuário atual.")
@@ -39,13 +55,15 @@ def _get_supabase_and_org():
 def _list_storage_children(bucket, prefix: str) -> List[dict]:
     """
     Lista UM nível de filhos em `prefix`. Retorna dicts com pelo menos {name, is_folder?}.
-    Usa a API do supabase.storage.from_(bucket).list(prefix).
+    Usa a API do adapter de storage.
     """
-    from infra.supabase_client import supabase
-    client = supabase.storage.from_(bucket)
-    items = client.list(prefix)  # retorna apenas um nível
+    adapter = SupabaseStorageAdapter(bucket=bucket)
+    with using_storage_backend(adapter):
+        items = storage_list_files(prefix)
     out = []
     for it in items or []:
+        if not isinstance(it, dict):
+            continue
         # Heurística: objetos com metadata None são "pastas" (chaves virtuais)
         name = it.get("name")
         meta = it.get("metadata")
@@ -80,22 +98,57 @@ def _remove_storage_prefix(org_id: str, client_id: int) -> int:
     Remove todos os objetos do bucket sob <org_id>/<client_id>.
     Retorna quantidade de objetos removidos.
     """
-    from infra.supabase_client import supabase
-    client = supabase.storage.from_(BUCKET_DOCS)
     root = f"{org_id}/{client_id}"
     paths = _gather_all_paths(BUCKET_DOCS, root)
 
     if not paths:
         return 0
 
-    # A API aceita remover em lote
-    res = client.remove(paths)
-    # se não estourou exceção, consideramos removido
-    return len(paths)
+    removed = 0
+    adapter = SupabaseStorageAdapter(bucket=BUCKET_DOCS)
+    with using_storage_backend(adapter):
+        for key in paths:
+            if storage_delete_file(key):
+                removed += 1
+    return removed
+
+
+def _ensure_mandatory_subfolders(prefix: str) -> None:
+    """
+    Garante que as subpastas obrigatórias existam sob `prefix`.
+    Como o Supabase é orientado a objetos e 'pastas' são prefixos,
+    criamos um placeholder `.keep` quando não houver nenhum objeto no prefixo.
+    """
+    adapter = SupabaseStorageAdapter(bucket=BUCKET_DOCS)
+    with using_storage_backend(adapter):
+        for name in get_mandatory_subpastas():
+            sub_prefix = join_prefix(prefix, name)
+            has_any = False
+            for _ in storage_list_files(sub_prefix):
+                has_any = True
+                break
+            if has_any:
+                continue
+            keep_key = f"{sub_prefix}.keep"
+            tmp_name: str | None = None
+            with NamedTemporaryFile("wb", delete=False) as tmp:
+                tmp.write(b"")
+                tmp.flush()
+                tmp_name = tmp.name
+            try:
+                storage_upload_file(tmp_name, keep_key, "text/plain")
+            finally:
+                if tmp_name:
+                    try:
+                        os.unlink(tmp_name)
+                    except OSError:
+                        pass
 
 
 # ----------------- Ações públicas -----------------
-def restore_clients(client_ids: Iterable[int], parent=None) -> Tuple[int, List[Tuple[int, str]]]:
+def restore_clients(
+    client_ids: Iterable[int], parent=None
+) -> Tuple[int, List[Tuple[int, str]]]:
     """
     Restaura clientes (deleted_at = null).
     Retorna: (qtd_ok, [(client_id, err), ...])
@@ -103,14 +156,25 @@ def restore_clients(client_ids: Iterable[int], parent=None) -> Tuple[int, List[T
     ok = 0
     errs: List[Tuple[int, str]] = []
     try:
-        supabase, _ = _get_supabase_and_org()
+        supabase, org_id = _get_supabase_and_org()
     except Exception as e:
         messagebox.showerror("Erro", str(e), parent=parent)
         return 0, [(0, str(e))]
 
     for cid in client_ids:
         try:
-            supabase.table("clients").update({"deleted_at": None}).eq("id", int(cid)).execute()
+            supabase.table("clients").update({"deleted_at": None}).eq(
+                "id", int(cid)
+            ).execute()
+            prefix = f"{org_id}/{int(cid)}"
+            try:
+                _ensure_mandatory_subfolders(prefix)
+            except Exception as guard_err:
+                log.warning(
+                    "Falha ao garantir subpastas obrigatórias para %s: %s",
+                    prefix,
+                    guard_err,
+                )
             ok += 1
         except Exception as e:
             errs.append((int(cid), str(e)))
@@ -118,7 +182,9 @@ def restore_clients(client_ids: Iterable[int], parent=None) -> Tuple[int, List[T
     return ok, errs
 
 
-def hard_delete_clients(client_ids: Iterable[int], parent=None) -> Tuple[int, List[Tuple[int, str]]]:
+def hard_delete_clients(
+    client_ids: Iterable[int], parent=None
+) -> Tuple[int, List[Tuple[int, str]]]:
     """
     Apaga DEFINITIVAMENTE clientes (DB + Storage).
     - Remove do Storage: bucket rc-docs/<org_id>/<client_id>/**
@@ -140,7 +206,9 @@ def hard_delete_clients(client_ids: Iterable[int], parent=None) -> Tuple[int, Li
             # 1) Limpa Storage
             try:
                 removed = _remove_storage_prefix(org_id, cid)
-                log.info("Storage: removidos %s objeto(s) de %s/%s", removed, org_id, cid)
+                log.info(
+                    "Storage: removidos %s objeto(s) de %s/%s", removed, org_id, cid
+                )
             except Exception as e:
                 # Não aborta; reporta erro mas tenta seguir para DB
                 log.exception("Falha ao limpar Storage de %s/%s", org_id, cid)

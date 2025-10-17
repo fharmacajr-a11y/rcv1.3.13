@@ -3,7 +3,6 @@ from __future__ import annotations
 from config.paths import CLOUD_ONLY
 
 import os
-import sys
 import re
 import tempfile
 import threading
@@ -16,48 +15,50 @@ from requests.adapters import HTTPAdapter
 from requests import exceptions as req_exc
 from urllib3.util.retry import Retry
 
-from dotenv import load_dotenv
 from supabase import Client, create_client
+from shared.config.environment import load_env, env_str
+
+load_env()
+
 
 # -----------------------------------------------------------------------------#
 # .env (compatível com qualquer CWD e PyInstaller)
 # -----------------------------------------------------------------------------#
-def _resource_path(rel: str) -> str:
-    base = getattr(sys, "_MEIPASS", os.path.abspath("."))
-    return os.path.join(base, rel)
-
 def _project_root() -> Path:
     # este arquivo está em <raiz>/infra/supabase_client.py
     return Path(__file__).resolve().parent.parent
 
-# ordem de carga: empacotado -> raiz do projeto -> CWD (se existir)
-load_dotenv(_resource_path(".env"), override=False)
-load_dotenv(_project_root() / ".env", override=True)
-load_dotenv(os.path.join(os.getcwd(), ".env"), override=True)
 
-SUPABASE_URL: str | None = os.environ.get("SUPABASE_URL")
-SUPABASE_ANON_KEY: str | None = os.environ.get("SUPABASE_ANON_KEY")
+# ordem de carga: empacotado -> raiz do projeto -> CWD (se existir)
+SUPABASE_URL: str | None = env_str("SUPABASE_URL")
+SUPABASE_ANON_KEY: str | None = env_str("SUPABASE_ANON_KEY")
+SUPABASE_BUCKET: str = env_str("SUPABASE_BUCKET") or "rc-docs"
 
 # -----------------------------------------------------------------------------#
 # Cliente Supabase (lazy)
 # -----------------------------------------------------------------------------#
 _supabase_client: Optional[Client] = None
 
+
 def get_supabase() -> Client:
     """Cria/reusa cliente Supabase; valida variáveis só aqui (não no import)."""
     global _supabase_client, SUPABASE_URL, SUPABASE_ANON_KEY
     if _supabase_client is None:
-        SUPABASE_URL = SUPABASE_URL or os.environ.get("SUPABASE_URL")
-        SUPABASE_ANON_KEY = SUPABASE_ANON_KEY or os.environ.get("SUPABASE_ANON_KEY")
+        SUPABASE_URL = SUPABASE_URL or env_str("SUPABASE_URL")
+        SUPABASE_ANON_KEY = SUPABASE_ANON_KEY or env_str("SUPABASE_ANON_KEY")
         if not SUPABASE_URL or not SUPABASE_ANON_KEY:
-            raise RuntimeError("Defina SUPABASE_URL e SUPABASE_ANON_KEY no .env/ambiente.")
+            raise RuntimeError(
+                "Defina SUPABASE_URL e SUPABASE_ANON_KEY no .env/ambiente."
+            )
         _supabase_client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
     return _supabase_client
+
 
 # Proxy preguiçoso: ao acessar qualquer atributo, resolve o client na hora
 class _SupabaseLazy:
     def __getattr__(self, name: str):
         return getattr(get_supabase(), name)
+
 
 supabase = _SupabaseLazy()  # <- não instancia nada na importação
 
@@ -66,9 +67,11 @@ supabase = _SupabaseLazy()  # <- não instancia nada na importação
 # -----------------------------------------------------------------------------#
 EDGE_FUNCTION_ZIPPER_URL = f"{SUPABASE_URL}/functions/v1/zipper"
 
+
 def _downloads_dir() -> Path:
     d = Path.home() / "Downloads"
     return d if d.exists() else Path(tempfile.gettempdir())
+
 
 def _pick_name_from_cd(cd: str, fallback: str) -> str:
     """Extrai filename/filename* de Content-Disposition."""
@@ -79,8 +82,9 @@ def _pick_name_from_cd(cd: str, fallback: str) -> str:
         return fallback
     return url_unquote(m.group(2))
 
+
 def _session_with_retries(total=5, backoff=0.6) -> requests.Session:
-    # urllib3 moderno usa 'allowed_methods' (no 1.26+ e 2.x) — OK. 
+    # urllib3 moderno usa 'allowed_methods' (no 1.26+ e 2.x) — OK.
     retry = Retry(
         total=total,
         connect=total,
@@ -95,17 +99,21 @@ def _session_with_retries(total=5, backoff=0.6) -> requests.Session:
     s.mount("http://", HTTPAdapter(max_retries=retry))
     return s
 
+
 # -----------------------------------------------------------------------------#
 # Exports explícitos do módulo
 # -----------------------------------------------------------------------------#
 __all__ = ["supabase", "get_supabase", "baixar_pasta_zip", "DownloadCancelledError"]
+
 
 # -----------------------------------------------------------------------------#
 # Download (com cancelamento + mensagens amigáveis)
 # -----------------------------------------------------------------------------#
 class DownloadCancelledError(Exception):
     """Sinaliza cancelamento voluntário do usuário durante o download."""
+
     pass
+
 
 def baixar_pasta_zip(
     bucket: str,
@@ -123,7 +131,7 @@ def baixar_pasta_zip(
     if not prefix:
         raise ValueError("prefix é obrigatório")
 
-    base_name = (zip_name or prefix.rstrip("/").split("/")[-1] or "pasta")
+    base_name = zip_name or prefix.rstrip("/").split("/")[-1] or "pasta"
     desired_name = f"{base_name}.zip"
 
     destino = Path(out_dir) if out_dir else _downloads_dir()
@@ -154,7 +162,9 @@ def baixar_pasta_zip(
                     detail = resp.json()
                 except Exception:
                     detail = (resp.text or "")[:600]
-                raise RuntimeError(f"Erro do servidor (HTTP {resp.status_code}): {detail}")
+                raise RuntimeError(
+                    f"Erro do servidor (HTTP {resp.status_code}): {detail}"
+                )
 
             ct = (resp.headers.get("Content-Type") or "").lower()
             if "application/zip" not in ct:
