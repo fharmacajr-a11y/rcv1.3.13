@@ -1,5 +1,40 @@
+# Ambiente virtual Python
 .venv/
+venv/
+env/
+
+# Cache Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Backups
 backup_*/
 
+# Arquivos de ambiente e segredos
+.env
+.env.local
+.env.*.local
+*.env
+
+# Build e distribuição
+build/
+!build/*.spec
+dist/
+*.exe
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db

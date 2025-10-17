@@ -87,3 +87,164 @@ Nenhum arquivo foi modificado neste step. Apenas análise e documentação.
 ## Próximos Steps
 Aguardando instruções para Step 2.
 
+---
+
+## Step 2 – Segredos & Build Seguro
+
+### Objetivo
+Garantir que o build PyInstaller não inclua o arquivo `.env` no bundle e implementar redação de segredos nos logs.
+
+### Implementações Realizadas
+
+#### 1. Proteção de Segredos no `.gitignore`
+✅ **Arquivo atualizado**: `.gitignore`
+
+Proteções adicionadas:
+- `.env` e variações (`.env.local`, `.env.*.local`, `*.env`)
+- Diretórios de build e distribuição (`build/`, `dist/`)
+- Exceção para versionamento do `.spec`: `!build/*.spec`
+- Arquivos executáveis (`*.exe`)
+- Cache Python, logs, backups
+- IDEs e arquivos do sistema operacional
+
+**IMPORTANTE**: O `.env` está explicitamente excluído do controle de versão.
+
+#### 2. Filtro de Redação de Segredos nos Logs
+✅ **Arquivo criado**: `shared/logging/filters.py`
+
+Implementação baseada em **OWASP Secrets Management Cheat Sheet**:
+
+```python
+class RedactSensitiveData(logging.Filter):
+    """Filtro que redacta dados sensíveis em logs."""
+```
+
+**Funcionalidades**:
+- Detecta padrões sensíveis: `apikey`, `authorization`, `token`, `password`, `secret`, `api_key`, `access_key`, `private_key`
+- Redacta valores substituindo por `***`
+- Processa mensagens de log e argumentos (dict, list, tuple)
+- Redação recursiva em dicionários aninhados
+
+**Padrão regex utilizado**:
+```python
+SENSITIVE_PATTERN = re.compile(
+    r"(apikey|authorization|token|password|secret|api_key|access_key|private_key)=([^\s&]+)",
+    re.IGNORECASE
+)
+```
+
+#### 3. Ativação do Filtro de Logs
+✅ **Arquivo atualizado**: `shared/logging/configure.py`
+
+Adicionado ao `configure_logging()`:
+```python
+from shared.logging.filters import RedactSensitiveData
+
+# Adiciona filtro de redação de dados sensíveis
+root_logger = logging.getLogger()
+root_logger.addFilter(RedactSensitiveData())
+```
+
+O filtro é aplicado ao logger raiz, afetando todos os logs da aplicação.
+
+#### 4. PyInstaller Spec Seguro
+✅ **Arquivo criado**: `build/rc_gestor.spec`
+
+**Características de Segurança**:
+- ✅ **SEM `.env` em `datas=[]`** - Apenas recursos públicos são incluídos
+- ✅ Apenas `rc.ico` e `rc.png` empacotados
+- ✅ Documentação clara sobre segredos em runtime
+- ✅ Configuração `console=False` para GUI
+
+**Estrutura do spec**:
+```python
+datas=[
+    ('rc.ico', '.'),
+    ('rc.png', '.'),
+    # SEM .env - segredos via variáveis de ambiente em runtime
+]
+```
+
+**Hidden imports incluídos**:
+- `tkinter`, `ttkbootstrap` (GUI)
+- `dotenv` (carregamento de .env externo)
+- `supabase`, `httpx` (backend)
+- `PIL` (imagens)
+
+**Excludes para otimização**:
+- `matplotlib`, `numpy`, `pandas`, `scipy`, `pytest`, `setuptools`
+
+#### 5. Smoke Build Test
+✅ **Build executado com sucesso**
+
+Comando:
+```bash
+pyinstaller build/rc_gestor.spec
+```
+
+**Verificações realizadas**:
+- ✅ Build concluído sem erros
+- ✅ Executável `RC-Gestor.exe` gerado em `dist/RC-Gestor/`
+- ✅ Aplicação inicia corretamente via `app_gui.py`
+- ✅ Splash screen e login funcionam
+- ✅ **`.env` NÃO encontrado no bundle** (inspecionado `dist/RC-Gestor/`)
+- ✅ Apenas `rc.ico` e `rc.png` presentes nos recursos
+
+**Estrutura do bundle** (sem `.env`):
+```
+dist/RC-Gestor/
+├── RC-Gestor.exe
+├── rc.ico
+├── rc.png
+├── [bibliotecas Python compiladas]
+└── [DLLs necessárias]
+```
+
+### Decisões de Segurança
+
+1. **Gestão de Segredos**:
+   - `.env` deve ser fornecido externamente ao executável
+   - Carregamento via `dotenv` em runtime
+   - Suporta `.env` no mesmo diretório do executável (deployment)
+   - Suporta `.env` empacotado via `resource_path` (fallback)
+
+2. **Logs Seguros**:
+   - Filtro ativo em toda a aplicação
+   - Redação automática de tokens, senhas, chaves
+   - Baseado em padrões OWASP
+
+3. **Build Reproduzível**:
+   - `.spec` versionado no git
+   - Documentação inline das decisões
+   - Exclusões otimizadas para reduzir tamanho
+
+### Arquivos Tocados
+
+**Criados**:
+- `shared/logging/filters.py` (filtro de redação)
+- `build/rc_gestor.spec` (configuração PyInstaller)
+
+**Modificados**:
+- `.gitignore` (proteção de segredos e build)
+- `shared/logging/configure.py` (ativação do filtro)
+
+**Artefatos gerados**:
+- `dist/RC-Gestor/` (bundle completo)
+- `dist/RC-Gestor/RC-Gestor.exe` (executável principal)
+
+### Conformidade OWASP
+
+✅ **OWASP Secrets Management Cheat Sheet**:
+- Segredos não armazenados em código ou bundle
+- Logs com redação automática de dados sensíveis
+- Separação clara entre configuração pública e privada
+- Ambiente de runtime para injeção de segredos
+
+### Status
+✅ **COMPLETO** - Build seguro sem `.env`, filtro de logs ativo, spec versionado.
+
+---
+
+## Próximos Steps
+Aguardando instruções para Step 3.
+
