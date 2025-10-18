@@ -1,0 +1,93 @@
+name: RC - test & build
+
+on:
+  push:
+    branches: [maintenance/v1.0.29]
+  pull_request:
+    branches: [maintenance/v1.0.29]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -U pytest
+
+      - name: Run tests
+        run: pytest -q
+
+      - name: Upload pytest artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-report
+          path: .pytest_cache
+          retention-days: 7
+
+  build:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -U pyinstaller
+
+      - name: PyInstaller build (usando .spec)
+        run: pyinstaller build/rc_gestor.spec --clean
+
+      - name: Verify build output
+        run: |
+          if (Test-Path dist\RC-Gestor\RC-Gestor.exe) {
+            Write-Host "✓ RC-Gestor.exe criado com sucesso"
+            $size = (Get-Item dist\RC-Gestor\RC-Gestor.exe).Length / 1MB
+            Write-Host "  Tamanho: $([math]::Round($size, 2)) MB"
+          } else {
+            Write-Error "✗ RC-Gestor.exe não encontrado!"
+            exit 1
+          }
+
+      - name: Check for .env in bundle
+        run: |
+          $envFiles = Get-ChildItem -Path dist\RC-Gestor\ -Recurse -File | Where-Object {$_.Extension -eq '.env'}
+          if ($envFiles) {
+            Write-Error "✗ Arquivos .env encontrados no bundle!"
+            $envFiles | ForEach-Object { Write-Host $_.FullName }
+            exit 1
+          } else {
+            Write-Host "✓ Nenhum arquivo .env no bundle (seguro)"
+          }
+
+      - name: Zip artifact
+        run: |
+          Compress-Archive -Path dist\RC-Gestor\* -DestinationPath dist\RC-Gestor-v1.0.29.zip -Force
+          $zipSize = (Get-Item dist\RC-Gestor-v1.0.29.zip).Length / 1MB
+          Write-Host "✓ ZIP criado: $([math]::Round($zipSize, 2)) MB"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RC-Gestor-v1.0.29
+          path: dist/RC-Gestor-v1.0.29.zip
+          retention-days: 30

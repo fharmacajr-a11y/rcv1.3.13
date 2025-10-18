@@ -1,0 +1,52 @@
+name: Security - pip-audit
+
+on:
+  push:
+    branches: [maintenance/v1.0.29]
+  pull_request:
+    branches: [maintenance/v1.0.29]
+  schedule:
+    # Roda todo domingo às 00:00 UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pip-audit
+
+      - name: Run pip-audit
+        run: |
+          pip-audit --desc --format json --output audit-report.json || true
+          pip-audit --desc
+
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pip-audit-report
+          path: audit-report.json
+          retention-days: 90
+
+      - name: Check for critical vulnerabilities
+        run: |
+          if pip-audit --strict --format json | jq -e '.vulnerabilities | length > 0' > /dev/null 2>&1; then
+            echo "⚠️ Vulnerabilidades críticas encontradas!"
+            echo "Veja o relatório em: Artifacts > pip-audit-report"
+            exit 1
+          else
+            echo "✓ Nenhuma vulnerabilidade crítica encontrada"
+          fi

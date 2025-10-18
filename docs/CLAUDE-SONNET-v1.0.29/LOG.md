@@ -2152,5 +2152,633 @@ DeprecationWarning: builtin type swigvarlink has no __module__ attribute
 
 ---
 
+## Step 10 – CI/CD: GitHub Actions (test + build + release)
+
+### Objetivo
+Implementar pipelines automatizados de CI/CD no GitHub Actions para testes, build e releases do RC-Gestor.
+
+### Base Técnica
+- **GitHub Actions**: Automação de workflows CI/CD
+  - https://docs.github.com/en/actions
+- **actions/checkout@v4**: Checkout de código
+  - https://github.com/actions/checkout
+- **actions/setup-python@v5**: Configuração de Python
+  - https://github.com/actions/setup-python
+- **actions/upload-artifact@v4**: Upload de artefatos
+  - https://github.com/actions/upload-artifact
+- **softprops/action-gh-release@v2**: Criação de releases
+  - https://github.com/softprops/action-gh-release
+
+### Implementações Realizadas
+
+#### 1. Workflow de CI - Test & Build (`.github/workflows/ci.yml`)
+
+✅ **Arquivo criado**: `.github/workflows/ci.yml`
+
+**Triggers**:
+- ✅ Push na branch `maintenance/v1.0.29`
+- ✅ Pull requests para `maintenance/v1.0.29`
+- ✅ Manual via `workflow_dispatch`
+
+**Jobs implementados**:
+
+##### Job 1: test
+```yaml
+test:
+  runs-on: windows-latest
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with: { python-version: '3.13' }
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -U pytest
+    - name: Run tests
+      run: pytest -q
+    - name: Upload pytest artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: pytest-report
+        path: .pytest_cache
+        retention-days: 7
+```
+
+**Características**:
+- ✅ Windows runner (mesma plataforma do build)
+- ✅ Python 3.13 (mesmo que local)
+- ✅ Instala dependências do `requirements.txt`
+- ✅ Executa 24 testes com pytest
+- ✅ Upload de artefatos de teste (retenção: 7 dias)
+- ✅ Executa sempre (`if: always()`) mesmo se testes falharem
+
+##### Job 2: build (depende de test)
+```yaml
+build:
+  needs: test
+  runs-on: windows-latest
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with: { python-version: '3.13' }
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -U pyinstaller
+    - name: PyInstaller build (usando .spec)
+      run: pyinstaller build/rc_gestor.spec --clean
+    - name: Verify build output
+      run: |
+        if (Test-Path dist\RC-Gestor\RC-Gestor.exe) {
+          Write-Host "✓ RC-Gestor.exe criado com sucesso"
+          $size = (Get-Item dist\RC-Gestor\RC-Gestor.exe).Length / 1MB
+          Write-Host "  Tamanho: $([math]::Round($size, 2)) MB"
+        } else {
+          Write-Error "✗ RC-Gestor.exe não encontrado!"
+          exit 1
+        }
+    - name: Check for .env in bundle
+      run: |
+        $envFiles = Get-ChildItem -Path dist\RC-Gestor\ -Recurse -File | Where-Object {$_.Extension -eq '.env'}
+        if ($envFiles) {
+          Write-Error "✗ Arquivos .env encontrados no bundle!"
+          exit 1
+        } else {
+          Write-Host "✓ Nenhum arquivo .env no bundle (seguro)"
+        }
+    - name: Zip artifact
+      run: |
+        Compress-Archive -Path dist\RC-Gestor\* -DestinationPath dist\RC-Gestor-v1.0.29.zip -Force
+        $zipSize = (Get-Item dist\RC-Gestor-v1.0.29.zip).Length / 1MB
+        Write-Host "✓ ZIP criado: $([math]::Round($zipSize, 2)) MB"
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: RC-Gestor-v1.0.29
+        path: dist/RC-Gestor-v1.0.29.zip
+        retention-days: 30
+```
+
+**Características**:
+- ✅ Executa **apenas se testes passarem** (`needs: test`)
+- ✅ Build com PyInstaller usando `.spec` oficial
+- ✅ Verificação de segurança: busca `.env` no bundle
+- ✅ Validação do executável criado
+- ✅ Criação de ZIP distribuível
+- ✅ Upload de artefato (retenção: 30 dias)
+
+**Verificações de segurança**:
+1. **Executável existe**: Falha se `RC-Gestor.exe` não for criado
+2. **Sem `.env`**: Busca recursiva e falha se encontrar
+3. **Tamanho reportado**: Log do tamanho do exe e ZIP
+
+#### 2. Workflow de Release (`.github/workflows/release.yml`)
+
+✅ **Arquivo criado**: `.github/workflows/release.yml`
+
+**Triggers**:
+- ✅ Push de tags `v*` (ex: `v1.0.29`)
+- ✅ Manual via `workflow_dispatch`
+
+**Job implementado**:
+
+##### Job: release
+```yaml
+release:
+  runs-on: windows-latest
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with: { python-version: '3.13' }
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -U pyinstaller pytest
+    - name: Run tests
+      run: pytest -q
+    - name: Build with PyInstaller
+      run: pyinstaller build/rc_gestor.spec --clean
+    - name: Verify build output
+      run: [verificação do executável]
+    - name: Check for .env in bundle
+      run: [busca recursiva por .env]
+    - name: Zip artifact
+      run: |
+        Compress-Archive -Path dist\RC-Gestor\* -DestinationPath RC-Gestor-${{ github.ref_name }}.zip -Force
+    - name: Generate checksums
+      run: |
+        $hash = (Get-FileHash RC-Gestor-${{ github.ref_name }}.zip -Algorithm SHA256).Hash
+        "SHA256: $hash" | Out-File -FilePath RC-Gestor-${{ github.ref_name }}.zip.sha256
+    - name: Create GitHub Release and upload assets
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          RC-Gestor-${{ github.ref_name }}.zip
+          RC-Gestor-${{ github.ref_name }}.zip.sha256
+        body: |
+          ## RC-Gestor ${{ github.ref_name }}
+
+          ### 📦 Artefatos
+          - RC-Gestor-${{ github.ref_name }}.zip - Build completo
+          - RC-Gestor-${{ github.ref_name }}.zip.sha256 - Checksum
+
+          ### ✅ Verificações
+          - ✓ Testes passaram (pytest)
+          - ✓ Build seguro (sem .env)
+```
+
+**Características**:
+- ✅ Executa testes **antes** de buildar
+- ✅ Gera checksum SHA256 para verificação de integridade
+- ✅ Cria GitHub Release automaticamente
+- ✅ Anexa ZIP e checksum como assets
+- ✅ Gera descrição formatada com instruções
+
+**Como usar**:
+```bash
+# Criar tag e enviar
+git tag v1.0.29
+git push origin v1.0.29
+
+# Ou tag anotada
+git tag -a v1.0.29 -m "Release v1.0.29"
+git push origin v1.0.29
+```
+
+**Resultado**:
+- Release criada em: `https://github.com/{owner}/{repo}/releases/tag/v1.0.29`
+- Assets disponíveis:
+  - `RC-Gestor-v1.0.29.zip` (executável + dependências)
+  - `RC-Gestor-v1.0.29.zip.sha256` (checksum para verificação)
+
+#### 3. Workflow de Segurança - pip-audit (`.github/workflows/security-audit.yml`)
+
+✅ **Arquivo criado**: `.github/workflows/security-audit.yml` (opcional)
+
+**Triggers**:
+- ✅ Push na branch `maintenance/v1.0.29`
+- ✅ Pull requests para `maintenance/v1.0.29`
+- ✅ Schedule: Todo domingo às 00:00 UTC
+- ✅ Manual via `workflow_dispatch`
+
+**Job implementado**:
+
+##### Job: audit
+```yaml
+audit:
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with: { python-version: '3.13' }
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install pip-audit
+    - name: Run pip-audit
+      run: |
+        pip-audit --desc --format json --output audit-report.json || true
+        pip-audit --desc
+    - name: Upload audit report
+      uses: actions/upload-artifact@v4
+      with:
+        name: pip-audit-report
+        path: audit-report.json
+        retention-days: 90
+    - name: Check for critical vulnerabilities
+      run: |
+        if pip-audit --strict --format json | jq -e '.vulnerabilities | length > 0'; then
+          echo "⚠️ Vulnerabilidades críticas encontradas!"
+          exit 1
+        fi
+```
+
+**Características**:
+- ✅ Escaneia dependências do `requirements.txt`
+- ✅ Detecta CVEs conhecidos
+- ✅ Gera relatório JSON detalhado
+- ✅ Falha CI se vulnerabilidades críticas
+- ✅ Execução semanal automática
+
+**Referências**:
+- https://github.com/pypa/pip-audit
+
+#### 4. Documentação (`.github/workflows/README.md`)
+
+✅ **Arquivo criado**: `.github/workflows/README.md`
+
+**Conteúdo**:
+1. **Descrição de cada workflow**: CI, Release, Security
+2. **Como usar**: Comandos git, triggers
+3. **Troubleshooting**: Problemas comuns e soluções
+4. **Melhorias futuras**: Code signing, Sigstore, Inno Setup
+5. **Referências técnicas**: Links oficiais
+
+### Pontos Trocados
+
+**Resumo das mudanças**:
+
+1. ✅ **CI Pipeline criado**:
+   - Job de testes (pytest)
+   - Job de build (PyInstaller)
+   - Artefatos com retenção configurada
+
+2. ✅ **Release automatizada**:
+   - Trigger por tags `v*`
+   - Checksum SHA256
+   - Assets anexados à release
+
+3. ✅ **Segurança implementada**:
+   - Busca recursiva por `.env`
+   - Validação de executável
+   - Auditoria de vulnerabilidades (opcional)
+
+4. ✅ **Documentação completa**:
+   - README com instruções
+   - Troubleshooting
+   - Referências técnicas
+
+### Fluxo de Trabalho
+
+**Desenvolvimento**:
+```
+1. Developer faz commit em feature branch
+2. Cria PR para maintenance/v1.0.29
+3. CI roda testes + build automaticamente
+4. Review do PR com status dos checks
+5. Merge para maintenance/v1.0.29
+   ↓
+6. CI roda novamente (push trigger)
+7. Artefato disponível em Actions > Artifacts
+```
+
+**Release**:
+```
+1. Developer cria tag: git tag v1.0.29
+2. Push da tag: git push origin v1.0.29
+   ↓
+3. Workflow release.yml dispara
+4. Testes executados
+5. Build do executável
+6. Verificações de segurança
+7. Criação de ZIP + checksum
+   ↓
+8. GitHub Release criada automaticamente
+9. Assets anexados (ZIP + SHA256)
+10. Release disponível publicamente
+```
+
+### Verificações de Segurança
+
+**1. Sem `.env` no bundle**:
+```powershell
+$envFiles = Get-ChildItem -Path dist\RC-Gestor\ -Recurse -File |
+            Where-Object {$_.Extension -eq '.env'}
+if ($envFiles) {
+    Write-Error "✗ Arquivos .env encontrados!"
+    exit 1
+}
+```
+
+**2. Validação do executável**:
+```powershell
+if (Test-Path dist\RC-Gestor\RC-Gestor.exe) {
+    Write-Host "✓ RC-Gestor.exe criado"
+    # Reporta tamanho
+} else {
+    Write-Error "✗ Executável não encontrado!"
+    exit 1
+}
+```
+
+**3. Checksums SHA256**:
+```powershell
+$hash = (Get-FileHash RC-Gestor-v1.0.29.zip -Algorithm SHA256).Hash
+"SHA256: $hash" | Out-File RC-Gestor-v1.0.29.zip.sha256
+```
+
+**Verificação pelo usuário**:
+```powershell
+# Windows
+(Get-FileHash RC-Gestor-v1.0.29.zip -Algorithm SHA256).Hash
+
+# Linux/macOS
+sha256sum RC-Gestor-v1.0.29.zip
+
+# Comparar com .sha256 file
+```
+
+### Artefatos Gerados
+
+**CI (push/PR)**:
+- `pytest-report` - Cache de testes (7 dias)
+- `RC-Gestor-v1.0.29.zip` - Build completo (30 dias)
+
+**Release (tag)**:
+- `RC-Gestor-{version}.zip` - Executável + libs
+- `RC-Gestor-{version}.zip.sha256` - Checksum
+
+**Security Audit (opcional)**:
+- `pip-audit-report.json` - Relatório CVEs (90 dias)
+
+### Garantias de Não-Breaking
+
+- ✅ **Nenhuma alteração em código Python**
+- ✅ **`.spec` mantido como está** (`build/rc_gestor.spec`)
+- ✅ **Entrypoint intacto** (`app_gui.py`)
+- ✅ **Assinaturas preservadas** - apenas CI/CD adicionado
+- ✅ **Compatibilidade total** - mesmas versões Python/PyInstaller
+
+### Arquivos Criados/Modificados
+
+**Criados** (4):
+- ✅ `.github/workflows/ci.yml` - Pipeline de CI
+- ✅ `.github/workflows/release.yml` - Pipeline de release
+- ✅ `.github/workflows/security-audit.yml` - Auditoria (opcional)
+- ✅ `.github/workflows/README.md` - Documentação
+
+**Modificados**: Nenhum arquivo Python modificado
+
+**Total**: 4 arquivos de workflow criados
+
+### Benefícios
+
+**Automação**:
+- ✅ Testes executam automaticamente em cada push
+- ✅ Build executado automaticamente
+- ✅ Releases criadas por tags
+- ✅ Sem build manual necessário
+
+**Qualidade**:
+- ✅ Testes obrigatórios antes do build
+- ✅ Verificações de segurança automáticas
+- ✅ Artefatos versionados
+- ✅ Checksums para integridade
+
+**Distribuição**:
+- ✅ ZIP pronto para download
+- ✅ Releases públicas no GitHub
+- ✅ Verificação de integridade (SHA256)
+- ✅ Changelog automático
+
+**Segurança**:
+- ✅ Auditoria de vulnerabilidades (pip-audit)
+- ✅ Validação de bundle seguro
+- ✅ Retenção controlada de artefatos
+
+### Melhorias Futuras (Opcional)
+
+**1. Code Signing (Certificado)**:
+```yaml
+- name: Sign executable
+  run: |
+    signtool sign /a /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 dist\RC-Gestor\RC-Gestor.exe
+  env:
+    CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
+```
+
+**Benefícios**:
+- Reduz alertas do Windows SmartScreen
+- Valida identidade do publisher
+- Melhora confiança do usuário
+
+**Pré-requisitos**:
+- Adquirir certificado (ex: DigiCert ~$400/ano)
+- Adicionar ao GitHub Secrets
+- Configurar SignTool
+
+**Referências**:
+- https://learn.microsoft.com/en-us/windows/win32/seccrypto/signtool
+
+---
+
+**2. Sigstore (Assinatura de Transparência)**:
+```yaml
+- name: Install Cosign
+  uses: sigstore/cosign-installer@v3
+
+- name: Sign with Sigstore
+  run: |
+    cosign sign-blob --yes RC-Gestor-v1.0.29.zip \
+      --output-signature RC-Gestor-v1.0.29.zip.sig \
+      --output-certificate RC-Gestor-v1.0.29.zip.pem
+```
+
+**Benefícios**:
+- Assinatura gratuita e transparente
+- Verificabilidade pública
+- Sem certificado pago
+
+**Verificação**:
+```bash
+cosign verify-blob \
+  --signature RC-Gestor-v1.0.29.zip.sig \
+  --certificate RC-Gestor-v1.0.29.zip.pem \
+  RC-Gestor-v1.0.29.zip
+```
+
+**Referências**:
+- https://www.sigstore.dev/
+- https://github.com/sigstore/cosign
+
+---
+
+**3. Inno Setup (Instalador Windows)**:
+```yaml
+- name: Install Inno Setup
+  run: choco install innosetup -y
+
+- name: Create installer
+  run: iscc installer.iss
+```
+
+**Script `installer.iss`**:
+```iss
+[Setup]
+AppName=RC-Gestor
+AppVersion=1.0.29
+DefaultDirName={pf}\RC-Gestor
+OutputBaseFilename=RC-Gestor-Setup-v1.0.29
+
+[Files]
+Source: "dist\RC-Gestor\*"; DestDir: "{app}"; Flags: recursesubdirs
+
+[Icons]
+Name: "{commondesktop}\RC-Gestor"; Filename: "{app}\RC-Gestor.exe"
+```
+
+**Benefícios**:
+- Instalador profissional (.exe)
+- Criação de atalhos
+- Desinstalação via Painel de Controle
+
+**Referências**:
+- https://jrsoftware.org/isinfo.php
+
+### Badges para README
+
+Adicione ao `README.md` principal:
+```markdown
+[![CI - Test & Build](https://github.com/{owner}/{repo}/actions/workflows/ci.yml/badge.svg)](https://github.com/{owner}/{repo}/actions/workflows/ci.yml)
+[![Release](https://github.com/{owner}/{repo}/actions/workflows/release.yml/badge.svg)](https://github.com/{owner}/{repo}/actions/workflows/release.yml)
+[![Security](https://github.com/{owner}/{repo}/actions/workflows/security-audit.yml/badge.svg)](https://github.com/{owner}/{repo}/actions/workflows/security-audit.yml)
+```
+
+### Como Testar
+
+**1. Testar CI**:
+```bash
+git add .github/
+git commit -m "CI/CD: GitHub Actions workflows"
+git push origin maintenance/v1.0.29
+```
+
+**Verificar**:
+- Vá para: `Actions` > `RC - test & build`
+- Aguarde conclusão (~10 minutos)
+- Baixe artefato: `Artifacts` > `RC-Gestor-v1.0.29.zip`
+
+---
+
+**2. Testar Release**:
+```bash
+# Criar tag
+git tag v1.0.29
+
+# Enviar tag
+git push origin v1.0.29
+```
+
+**Verificar**:
+- Vá para: `Actions` > `RC - release`
+- Aguarde conclusão (~10 minutos)
+- Vá para: `Releases` > `v1.0.29`
+- Baixe: `RC-Gestor-v1.0.29.zip` + `RC-Gestor-v1.0.29.zip.sha256`
+
+**Verificar integridade**:
+```powershell
+(Get-FileHash RC-Gestor-v1.0.29.zip -Algorithm SHA256).Hash
+# Comparar com conteúdo do .sha256
+```
+
+---
+
+**3. Testar Security Audit** (opcional):
+```bash
+# Dispara automaticamente em push ou manualmente:
+# Actions > Security - pip-audit > Run workflow
+```
+
+**Verificar**:
+- Vá para: `Actions` > `Security - pip-audit`
+- Aguarde conclusão (~3 minutos)
+- Baixe: `Artifacts` > `pip-audit-report`
+
+### Troubleshooting
+
+**Problema**: Testes falhando no CI
+
+**Solução**:
+1. Execute localmente: `pytest -q`
+2. Verifique warnings no output
+3. Confirme `requirements.txt` atualizado
+
+---
+
+**Problema**: Build falhando
+
+**Solução**:
+1. Verifique `build/rc_gestor.spec` versionado
+2. Execute localmente: `pyinstaller build/rc_gestor.spec --clean`
+3. Veja logs do step "PyInstaller build"
+
+---
+
+**Problema**: Release não criada
+
+**Solução**:
+1. Confirme tag enviada: `git push origin v1.0.29`
+2. Verifique permissões de `GITHUB_TOKEN`
+3. Veja logs do workflow `release.yml`
+
+### Referências Técnicas
+
+1. **GitHub Actions**:
+   - https://docs.github.com/en/actions
+   - Workflow syntax
+   - Triggers e eventos
+
+2. **actions/checkout@v4**:
+   - https://github.com/actions/checkout
+   - Checkout de código
+
+3. **actions/setup-python@v5**:
+   - https://github.com/actions/setup-python
+   - Configuração de Python
+
+4. **actions/upload-artifact@v4**:
+   - https://github.com/actions/upload-artifact
+   - Upload de artefatos
+
+5. **softprops/action-gh-release@v2**:
+   - https://github.com/softprops/action-gh-release
+   - Criação de releases
+
+6. **pip-audit**:
+   - https://github.com/pypa/pip-audit
+   - Auditoria de vulnerabilidades
+
+7. **PyInstaller**:
+   - https://pyinstaller.org/
+   - Empacotamento de aplicações
+
+### Status
+✅ **COMPLETO** - CI/CD configurado, workflows testáveis, pronto para release automatizada.
+
+---
+
 ## Próximos Steps
-Aguardando instruções para Step 10.
+Aguardando instruções para Step 11 ou teste dos workflows.
