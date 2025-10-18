@@ -1,234 +1,336 @@
+"""High-level actions triggered by the GUI (CRUD, folders, trash integration)."""
+
 from __future__ import annotations
+from config.paths import CLOUD_ONLY
 
+import importlib
 import logging
-import sqlite3
 import os
+from datetime import datetime, timezone
 from tkinter import messagebox
+from typing import Any, Sequence
 
-from ui.forms import form_cliente
-from ui.lixeira import abrir_lixeira
-from ui.subpastas.dialog import open_subpastas_dialog
-from core.services import lixeira_service
-from core.services.path_resolver import resolve_unique_path  # usa o mesmo resolver do service
-from config.paths import DB_PATH, DOCS_DIR
-from utils.file_utils import ensure_subpastas, write_marker
-from app_utils import safe_base_from_fields
-from utils.subpastas_config import load_subpastas_config
+# ------------------------------------------------------------
+# Modo "somente nuvem" (não cria nada em disco local)
+# defina RC_NO_LOCAL_FS=1 no .env para ativar
+# ------------------------------------------------------------
+NO_FS = os.getenv("RC_NO_LOCAL_FS") == "1"
 
-logger = logging.getLogger(__name__)
-log = logger
+# Utilitários que podem ser usados quando o FS local estiver habilitado
+try:
+    from app_utils import safe_base_from_fields
+    from config.paths import DOCS_DIR
+except Exception:  # best-effort para manter compatibilidade
+    safe_base_from_fields = None  # type: ignore[assignment]
+    DOCS_DIR = os.getcwd()  # type: ignore[assignment]
+
+log = logging.getLogger(__name__)
 
 MARKER_NAME = ".rc_client_id"
 
 
-# -------- CRUD --------
-def novo_cliente(app) -> None:
-    log.info("app_core: novo_cliente -> abrir form")
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _safe_messagebox(method: str, *args: Any, **kwargs: Any) -> Any:
+    func = getattr(messagebox, method, None)
+    if callable(func):
+        try:
+            return func(*args, **kwargs)
+        except Exception:
+            log.debug("messagebox.%s failed", method, exc_info=True)
+    return None
+
+
+def _resolve_cliente_row(pk: int) -> Sequence[Any] | None:
+    try:
+        from core.db_manager import get_cliente_by_id
+
+        cliente = get_cliente_by_id(pk)
+    except Exception:
+        log.exception("Failed to resolve client %s from Supabase", pk)
+        return None
+
+    if cliente is None:
+        return None
+
+    return (
+        cliente.id,
+        cliente.razao_social,
+        cliente.cnpj,
+        cliente.nome,
+        cliente.numero,
+        cliente.obs,
+        cliente.ultima_alteracao,
+    )
+
+
+# ---------------------------------------------------------------------------
+# CRUD
+# ---------------------------------------------------------------------------
+def novo_cliente(app: Any) -> None:
+    log.info("Opening form for new client")
+    from ui.forms import form_cliente
+
     form_cliente(app)
 
 
-def editar_cliente(app, pk: int) -> None:
-    log.info("app_core: editar_cliente -> pk=%s", pk)
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT ID,NUMERO,NOME,RAZAO_SOCIAL,CNPJ,ULTIMA_ALTERACAO,OBS FROM clientes WHERE ID=?",
-        (pk,),
-    )
-    row = cur.fetchone()
-    conn.close()
+def editar_cliente(app: Any, pk: int) -> None:
+    log.info("Opening edit form for client id=%s", pk)
+    from ui.forms import form_cliente
+
+    row = _resolve_cliente_row(pk)
     if row:
         form_cliente(app, row)
+    else:
+        _safe_messagebox("showerror", "Cliente", "Registro nao encontrado no Supabase.")
 
 
-# -------- Pastas / Path helpers --------
-def dir_base_cliente_from_pk(pk: int) -> str:
-    """
-    Resolve o caminho da pasta do cliente usando o *mesmo* resolver da camada de serviços.
-    - Reutiliza marcadores/slug (resolve_unique_path) em vez de varrer o diretório inteiro (O(N)).
-    - Se não encontrar, faz um fallback determinístico para DOCS_DIR usando os campos do banco.
-    """
+def excluir_cliente(app: Any, selected_values: Sequence[Any]) -> None:
+    if not selected_values:
+        _safe_messagebox("showwarning", "Atencao", "Selecione um cliente primeiro.")
+        return
+
     try:
-        path, loc = resolve_unique_path(pk)  # loc: "live" | "trash" | None
+        client_id = int(selected_values[0])
+    except (TypeError, ValueError):
+        _safe_messagebox("showerror", "Erro", "Selecao invalida (ID ausente).")
+        log.error("Invalid selected_values for exclusion: %s", selected_values)
+        return
+
+    razao = ""
+    if len(selected_values) > 1:
+        try:
+            razao = (selected_values[1] or "").strip()
+        except Exception:
+            razao = ""
+    label_cli = f"{razao} (ID {client_id})" if razao else f"ID {client_id}"
+
+    confirm = _safe_messagebox(
+        "askyesno",
+        "Enviar para Lixeira",
+        f"Deseja enviar o cliente {label_cli} para a Lixeira?",
+    )
+    if confirm is False:
+        return
+
+    try:
+        from infra.supabase_client import supabase
+
+        deleted_at = datetime.now(timezone.utc).isoformat()
+        update_payload = {"deleted_at": deleted_at, "ultima_alteracao": deleted_at}
+        (supabase.table("clients").update(update_payload).eq("id", client_id).execute())
+    except Exception as exc:
+        _safe_messagebox(
+            "showerror", "Erro ao excluir", f"Falha ao enviar para a Lixeira: {exc}"
+        )
+        log.exception("Failed to soft-delete client %s", label_cli)
+        return
+
+    try:
+        app.carregar()
+    except Exception:
+        log.exception("Failed to refresh client list after soft delete")
+
+    try:
+        from ui.lixeira.lixeira import refresh_if_open
+
+        refresh_if_open()
+    except Exception:
+        log.debug("Lixeira refresh skipped", exc_info=True)
+
+    _safe_messagebox(
+        "showinfo", "Lixeira", f"Cliente {label_cli} enviado para a Lixeira."
+    )
+    log.info("Cliente %s enviado para a Lixeira com sucesso", label_cli)
+
+
+# ---------------------------------------------------------------------------
+# Pastas locais (desligadas quando NO_FS)
+# ---------------------------------------------------------------------------
+def dir_base_cliente_from_pk(pk: int) -> str:
+    if NO_FS:
+        return ""
+
+    try:
+        from core.services.path_resolver import resolve_unique_path
+
+        path, location = resolve_unique_path(pk)
         if path:
-            log.debug("app_core: resolve_unique_path -> pk=%s path=%s loc=%s", pk, path, loc)
+            log.debug(
+                "Resolved folder via path_resolver: pk=%s path=%s (%s)",
+                pk,
+                path,
+                location,
+            )
             return path
     except Exception:
-        log.exception("app_core: resolve_unique_path falhou (pk=%s); aplicando fallback", pk)
+        log.debug("resolve_unique_path not available or failed", exc_info=True)
 
-    # fallback: compõe um nome estável a partir dos campos
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("SELECT NUMERO,CNPJ,RAZAO_SOCIAL FROM clientes WHERE ID=?", (pk,))
-    row = cur.fetchone() or ("", "", "")
-    conn.close()
+    try:
+        from core.db_manager import get_cliente_by_id
 
-    numero, cnpj, razao = row
-    base = safe_base_from_fields(cnpj or "", numero or "", razao or "", pk)
-    p = os.path.join(DOCS_DIR, base)
-    log.debug("app_core: fallback path para pk=%s -> %s", pk, p)
-    return p
+        c = get_cliente_by_id(pk)
+    except Exception:
+        c = None
+
+    numero = getattr(c, "numero", "") or ""
+    cnpj = getattr(c, "cnpj", "") or ""
+    razao = getattr(c, "razao_social", "") or ""
+    base_name = (
+        safe_base_from_fields(cnpj, numero, razao, pk)
+        if callable(safe_base_from_fields)
+        else str(pk)
+    )
+    return os.path.join(str(DOCS_DIR), base_name)
 
 
 def _ensure_live_folder_ready(pk: int) -> str:
-    """
-    Centraliza a garantia de que a pasta do cliente existe, tem subpastas e o marcador.
-    - Usa dir_base_cliente_from_pk (que já usa o path_resolver).
-    - Cria a pasta caso não exista.
-    - Escreve/atualiza o marcador e garante subpastas.
-    """
+    if NO_FS:
+        return ""
+
     path = dir_base_cliente_from_pk(pk)
     try:
-        os.makedirs(path, exist_ok=True)
-        ensure_subpastas(path)
-        # só regrava o marcador se estiver ausente ou incorreto
-        marker = os.path.join(path, MARKER_NAME)
-        need_write = True
-        if os.path.isfile(marker):
+        if not CLOUD_ONLY:
+            os.makedirs(path, exist_ok=True)
+        try:
+            from utils.file_utils import ensure_subpastas, write_marker
+            from utils.subpastas_config import load_subpastas_config
+            from pathlib import Path
+
             try:
-                with open(marker, "r", encoding="utf-8") as f:
-                    need_write = (f.read().strip() != str(pk))
+                subpastas, _extras = load_subpastas_config()
             except Exception:
-                need_write = True
-        if need_write:
-            write_marker(path, pk)
+                subpastas = []
+            ensure_subpastas(path, subpastas=subpastas)
+
+            marker_path = Path(path) / MARKER_NAME
+            content_ok = False
+            if marker_path.is_file():
+                try:
+                    content_ok = marker_path.read_text(encoding="utf-8").strip() == str(
+                        pk
+                    )
+                except Exception:
+                    content_ok = False
+            if not content_ok:
+                if not CLOUD_ONLY:
+                    write_marker(path, pk)
+        except Exception:
+            log.debug("ensure_subpastas/write_marker skipped", exc_info=True)
     except Exception:
-        log.exception("app_core: _ensure_live_folder_ready falhou (pk=%s)", pk)
-        raise
+        log.exception("Failed to prepare folder for client %s", pk)
     return path
 
 
-def abrir_pasta(app, pk: int) -> None:
-    path = _ensure_live_folder_ready(pk)
-    os.startfile(path)
+def abrir_pasta_cliente(pk: int) -> str | None:
+    if NO_FS:
+        return None
+    return _ensure_live_folder_ready(pk)
 
 
-def ver_subpastas(app, pk: int) -> None:
-    path = _ensure_live_folder_ready(pk)
-
-    # carrega listas (achatadas) do YAML
-    try:
-        subps, extras = load_subpastas_config()
-    except Exception:
-        log.exception("app_core: load_subpastas_config falhou; usando listas vazias")
-        subps, extras = [], []
-
-    # abre o diálogo modular com as listas
-    open_subpastas_dialog(app, path, subps, extras)
-
-
-# -------- Lixeira (UI) --------
-def abrir_lixeira_ui(app, *a, **kw):
-    log.info("app_core: abrir_lixeira_ui")
-    abrir_lixeira(app, *a, **kw)
-
-
-def restore_ids_ui(app, ids: list[int], parent=None):
-    ok_db, processadas, falhas = lixeira_service.restore_ids(ids)
-    if falhas:
-        messagebox.showerror("Erro", f"Falha ao restaurar {len(falhas)} cliente(s).", parent=parent)
-    else:
-        messagebox.showinfo("Sucesso", f"{processadas} pasta(s) restaurada(s) e {ok_db} registro(s) reativado(s).", parent=parent)
-    try:
-        app.carregar()
-    except Exception:
-        pass
-    return ok_db, processadas, falhas
-
-
-def purge_ids_ui(app, ids: list[int], parent=None):
-    ok_db, removidas = lixeira_service.purge_ids(ids)
-    if removidas:
-        messagebox.showinfo("Sucesso", f"{removidas} cliente(s) apagados permanentemente!", parent=parent)
-    try:
-        app.carregar()
-    except Exception:
-        pass
-    return ok_db, removidas
-
-
-def enviar_para_lixeira(app, ids: list[int], parent=None) -> None:
-    """
-    Versão com tratamento correto de pastas ausentes:
-    - Confirma com o usuário.
-    - Usa o service (que já trata markers/slugs).
-    - Se nada foi movido porque pastas não foram encontradas, a UI é informada.
-    """
-    if not ids:
-        return
-    if not messagebox.askyesno("Confirmar", f"Enviar {len(ids)} cliente(s) para a Lixeira?", parent=parent):
-        log.info("app_core: envio para Lixeira cancelado pelo usuário. ids=%s", ids)
-        return
-
-    try:
-        ok_list, falhas = lixeira_service.enviar_para_lixeira(ids)
-    except Exception:
-        log.exception("app_core: falha no enviar_para_lixeira (service)")
-        messagebox.showerror("Erro", "Falha ao enviar para a Lixeira. Veja os logs.", parent=parent)
-        return
-
-    if not ok_list and falhas:
-        # todas falharam (em geral porque pastas não foram encontradas)
-        messagebox.showwarning(
-            "Nada movido",
-            "Nenhuma pasta foi movida.\n"
-            "Possíveis causas: pastas não encontradas para os cliente(s) selecionado(s).",
-            parent=parent,
+def abrir_pasta(app: Any, pk: int) -> None:
+    if NO_FS:
+        _safe_messagebox(
+            "showinfo",
+            "Somente Nuvem",
+            "Este app está em modo somente nuvem.\n"
+            "Use o botão 'Ver Subpastas' para navegar e baixar arquivos do Supabase.",
         )
-    elif falhas:
-        messagebox.showwarning(
-            "Parcial",
-            f"{len(ok_list)} enviado(s), {len(falhas)} falhou(aram) para Lixeira.",
-            parent=parent,
+        return
+
+    path = _ensure_live_folder_ready(pk)
+    log.info("Opening folder for client %s: %s", pk, path)
+    try:
+        # Guardrail adicional: mesmo em modo local, verificar se startfile está disponível
+        from utils.helpers import check_cloud_only_block
+
+        if check_cloud_only_block("Abrir pasta do cliente"):
+            return
+        os.startfile(path)  # type: ignore[attr-defined]
+    except Exception:
+        log.exception("Failed to open file explorer for %s", path)
+
+
+def ver_subpastas(app: Any, pk: int) -> None:
+    if NO_FS:
+        _safe_messagebox(
+            "showinfo",
+            "Subpastas",
+            "Navegação de pastas locais desativada.\nUse 'Ver Subpastas' na tela principal (Supabase).",
         )
-    else:
-        messagebox.showinfo("Sucesso", f"{len(ok_list)} cliente(s) enviados para Lixeira.", parent=parent)
+        return
+
+    path = _ensure_live_folder_ready(pk)
+    try:
+        from utils.subpastas_config import load_subpastas_config
+        from ui.subpastas.dialog import open_subpastas_dialog
+
+        subpastas, extras = load_subpastas_config()
+    except Exception:
+        log.exception("Failed to load subfolders configuration; using empty lists")
+        subpastas, extras = [], []
+
+    open_subpastas_dialog(app, path, subpastas, extras)
+
+
+# ---------------------------------------------------------------------------
+# Lixeira (trash)
+# ---------------------------------------------------------------------------
+def abrir_lixeira_ui(app: Any, *args: Any, **kwargs: Any) -> None:
+    log.info("Opening Lixeira UI window")
+    abrir_fn = None
 
     try:
-        app.carregar()
+        module = importlib.import_module("ui.lixeira.lixeira")
+        for name in (
+            "abrir_lixeira",
+            "abrir_lixeira_ui",
+            "abrir",
+            "open_lixeira",
+            "open_window",
+            "open",
+            "show",
+        ):
+            candidate = getattr(module, name, None)
+            if callable(candidate):
+                abrir_fn = candidate
+                break
     except Exception:
-        pass
+        log.debug("Primary lixeira module import failed", exc_info=True)
 
+    if abrir_fn is None:
+        try:
+            pkg = importlib.import_module("ui.lixeira")
+            candidate = getattr(pkg, "abrir_lixeira", None)
+            if callable(candidate):
+                abrir_fn = candidate
+        except Exception:
+            log.debug("Fallback lixeira package import failed", exc_info=True)
 
-def restore_db_only_ui(app, ids: list[int], parent=None):
-    reativados, ignorados = lixeira_service.restore_db_only(ids)
-    if reativados and ignorados:
-        messagebox.showwarning("Parcial", f"{reativados} reativado(s) no banco; {ignorados} ignorado(s) (tem pasta na Lixeira).", parent=parent)
-    elif reativados:
-        messagebox.showinfo("Sucesso", f"{reativados} cliente(s) reativado(s) no banco.", parent=parent)
-    else:
-        messagebox.showerror("Erro", "Nenhum cliente foi reativado. Verifique a Lixeira.", parent=parent)
+    if abrir_fn is None:
+        log.error("Nenhuma funcao de abertura encontrada em ui.lixeira")
+        raise AttributeError("Nenhuma funcao de abertura encontrada em ui.lixeira")
+
+    parent = getattr(app, "root", app)
+    app_ctx = getattr(app, "app", app)
+    window = abrir_fn(parent, app_ctx, *args, **kwargs)
+
     try:
-        app.carregar()
+        setattr(app, "lixeira_win", window)
     except Exception:
-        pass
-    return reativados, ignorados
+        log.debug("Unable to attach lixeira_win attribute", exc_info=True)
 
 
-# -------- vincular pasta manualmente --------
-def vincular_pasta_ui(app, pk: int, parent=None):
-    from tkinter import filedialog
-    # escolher pasta
-    path = filedialog.askdirectory(title="Selecione a pasta do cliente", initialdir=DOCS_DIR, parent=parent)
-    if not path:
-        return False, ""
-    if not os.path.isdir(path):
-        messagebox.showerror("Erro", "Pasta inválida.", parent=parent); return False, ""
-    # não permitir _LIXEIRA
-    base = os.path.basename(path)
-    if base.strip().upper() == "_LIXEIRA":
-        messagebox.showwarning("Aviso", "Selecione uma pasta dentro de CLIENTES, não a Lixeira.", parent=parent)
-        return False, ""
-    try:
-        write_marker(path, str(pk))
-        ensure_subpastas(path)
-        messagebox.showinfo("Sucesso", f"Pasta vinculada ao cliente ID {pk}.", parent=parent)
-    except Exception:
-        logger.exception("Falha ao vincular pasta para ID=%s", pk)
-        messagebox.showerror("Erro", "Falha ao vincular pasta. Veja o log.", parent=parent)
-        return False, ""
-    try:
-        app.carregar()
-    except Exception:
-        pass
-    return True, path
+__all__ = [
+    "abrir_lixeira_ui",
+    "abrir_pasta",
+    "abrir_pasta_cliente",
+    "dir_base_cliente_from_pk",
+    "editar_cliente",
+    "excluir_cliente",
+    "novo_cliente",
+    "ver_subpastas",
+]

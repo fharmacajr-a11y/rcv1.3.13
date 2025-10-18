@@ -1,13 +1,23 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import re
 import unicodedata
+from typing import Optional, Tuple, Dict, List
 
 # -------- regex padrões --------
-RE_CNPJ = re.compile(r"\b\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}\b|\b\d{14}\b")
+# Aceita "11.222.333/0001-44" ou "11222333000144" sem grudar em dígitos vizinhos.
+RE_CNPJ = re.compile(r"(?<!\d)(?:\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}|\d{14})(?!\d)")
 
+# Como normalizamos para ASCII em _match_label, podemos simplificar os acentos aqui
 LABEL_PATTERN = re.compile(
-    r"(?<!\w)(raz[a\u00e3]o\s*/?\s*nome\s*empresarial|raz[a\u00e3]o\s*social|nome\s*empresarial|empresa)(?!\w)",
+    r"(?<!\w)("
+    r"razao\s*/?\s*nome\s*empresarial|"
+    r"razao\s*social|"
+    r"nome\s*/?\s*razao\s*social|"
+    r"denominacao\s*social|"
+    r"nome\s*empresarial|"
+    r"empresa"
+    r")(?!\w)",
     flags=re.IGNORECASE,
 )
 
@@ -15,16 +25,23 @@ LABEL_ONLY_VALUES = {
     "razao social",
     "razao nome empresarial",
     "razao/nome empresarial",
+    "nome razao social",
+    "denominacao social",
     "nome empresarial",
     "empresa",
 }
+
+# Linhas que não devem ser tratadas como valor de nome
+SKIP_VALUE_TOKENS = {"matriz", "filial"}
 
 
 # -------- utilitários básicos --------
 def normalize_ascii(s: str) -> str:
     """Remove acentos e retorna string ASCII simples."""
     return "".join(
-        c for c in unicodedata.normalize("NFKD", s or "") if not unicodedata.combining(c)
+        c
+        for c in unicodedata.normalize("NFKD", s or "")
+        if not unicodedata.combining(c)
     )
 
 
@@ -49,21 +66,19 @@ def format_cnpj(digits14: str) -> str:
 
 
 # -------- normalização de nome empresarial --------
-def _clean_company_name(raw: str | None) -> str | None:
+def _clean_company_name(raw: Optional[str]) -> Optional[str]:
     if not raw:
         return None
     candidate = clean_text(raw)
     if not candidate:
         return None
-
-    # ✅ Ajuste final: preserva hífen e en-dash, apenas normaliza espaços extras
+    # preserva hífen/en-dash; só colapsa espaços extras
     candidate = re.sub(r"\s{2,}", " ", candidate).strip()
-
     return candidate or None
 
 
 # -------- detecção de labels --------
-def _match_label(line: str) -> tuple[int, int] | None:
+def _match_label(line: str) -> Optional[Tuple[int, int]]:
     if not line:
         return None
     normalized = normalize_ascii(line).lower()
@@ -75,12 +90,17 @@ def _is_label_only(line: str) -> bool:
     if not line:
         return False
     normalized = normalize_ascii(line).lower()
-    normalized = re.sub(r"[:\-\u2013\u2014]", " ", normalized)
+    normalized = re.sub(r"[:\-\u2013\u2014\.]", " ", normalized)  # inclui ponto final
     normalized = re.sub(r"\s+", " ", normalized).strip()
     return normalized in LABEL_ONLY_VALUES
 
 
-def _next_nonempty_value(lines: list[str], idx: int) -> str | None:
+def _is_skip_value(line: str) -> bool:
+    norm = normalize_ascii(line).lower().strip()
+    return norm in SKIP_VALUE_TOKENS
+
+
+def _next_nonempty_value(lines: List[str], idx: int) -> Optional[str]:
     """Pega o próximo valor não vazio após uma label."""
     pos = idx + 1
     while pos < len(lines) and not lines[pos].strip():
@@ -92,13 +112,13 @@ def _next_nonempty_value(lines: list[str], idx: int) -> str | None:
         return None
     if re.search(r"\bCNPJ\b", candidate, flags=re.IGNORECASE):
         return None
-    if _is_label_only(candidate):
+    if _is_label_only(candidate) or _is_skip_value(candidate):
         return None
     return _clean_company_name(candidate)
 
 
 # -------- extração de Razão Social --------
-def _extract_razao_by_label(lines: list[str]) -> str | None:
+def _extract_razao_by_label(lines: List[str]) -> Optional[str]:
     for idx, line in enumerate(lines):
         match_pos = _match_label(line)
         if not match_pos:
@@ -114,19 +134,22 @@ def _extract_razao_by_label(lines: list[str]) -> str | None:
     return None
 
 
-def _extract_razao_near_cnpj(lines: list[str], cnpj_idx: int) -> str | None:
-    """Se não encontrar label, tenta achar uma linha de nome perto do CNPJ."""
+def _extract_razao_near_cnpj(lines: List[str], cnpj_idx: int) -> Optional[str]:
+    """Se não encontrar label, tenta achar uma linha de nome perto do CNPJ (acima e abaixo)."""
     start = max(0, cnpj_idx - 3)
-    window: list[str] = []
-    for line in lines[start:cnpj_idx]:
-        candidate = line.strip()
+    end = min(len(lines), cnpj_idx + 3)  # olha também 2 linhas abaixo (cnpj_idx+1, +2)
+    window: List[str] = []
+    for i in range(start, end):
+        if i == cnpj_idx:
+            continue
+        candidate = lines[i].strip()
         if not candidate:
             continue
         if RE_CNPJ.search(candidate):
             continue
         if re.search(r"\bCNPJ\b", candidate, flags=re.IGNORECASE):
             continue
-        if _is_label_only(candidate):
+        if _is_label_only(candidate) or _is_skip_value(candidate):
             continue
         window.append(candidate)
     if not window:
@@ -135,7 +158,7 @@ def _extract_razao_near_cnpj(lines: list[str], cnpj_idx: int) -> str | None:
 
 
 # -------- API pública --------
-def extract_company_fields(text: str) -> dict[str, str | None]:
+def extract_company_fields(text: str) -> Dict[str, Optional[str]]:
     """Extrai CNPJ e Razão Social/Nome Empresarial do texto OCR."""
     if not text:
         return {"cnpj": None, "razao_social": None}
@@ -144,8 +167,8 @@ def extract_company_fields(text: str) -> dict[str, str | None]:
     lines = processed.split("\n")
 
     # procurar CNPJ
-    cnpj: str | None = None
-    cnpj_idx: int | None = None
+    cnpj: Optional[str] = None
+    cnpj_idx: Optional[int] = None
     for idx, line in enumerate(lines):
         match = RE_CNPJ.search(line)
         if match:
@@ -158,6 +181,7 @@ def extract_company_fields(text: str) -> dict[str, str | None]:
         if match:
             digits = only_digits(match.group(0))
             cnpj = format_cnpj(digits)
+            # índice aproximado da linha do CNPJ no texto inteiro
             cnpj_idx = processed[: match.start()].count("\n")
 
     # procurar Razão Social
@@ -168,7 +192,7 @@ def extract_company_fields(text: str) -> dict[str, str | None]:
     return {"cnpj": cnpj, "razao_social": razao}
 
 
-def extract_cnpj_razao(text: str) -> tuple[str | None, str | None]:
+def extract_cnpj_razao(text: str) -> Tuple[Optional[str], Optional[str]]:
     fields = extract_company_fields(text)
     return fields.get("cnpj"), fields.get("razao_social")
 

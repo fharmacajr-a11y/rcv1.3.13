@@ -1,110 +1,80 @@
-# core/services/clientes_service.py
+# core/services/clientes_service.py — versão Supabase (libera Nome/Whats; mantém CNPJ/Razão)
 from __future__ import annotations
 
-from utils.validators import only_digits, normalize_text
 import os
 import shutil
-import sqlite3
 import logging
-from datetime import datetime as dt
 
-from config.paths import DB_PATH, DOCS_DIR
+from utils.validators import only_digits, normalize_text
+from config.paths import DOCS_DIR, CLOUD_ONLY
 from app_utils import safe_base_from_fields
 from utils.file_utils import ensure_subpastas, write_marker
 from core.logs.audit import log_client_action
 from core.session.session import get_current_user
+from core.db_manager import insert_cliente, update_cliente, list_clientes
 
 log = logging.getLogger(__name__)
-MARKER_NAME = ".rc_client_id"
 
 
+def _normalize_payload(valores: dict) -> tuple[str, str, str, str, str]:
+    razao = (valores.get("Razão Social") or "").strip()
+    cnpj = (valores.get("CNPJ") or "").strip()
+    nome = (valores.get("Nome") or "").strip()
+    numero = (valores.get("WhatsApp") or "").strip()
+    obs = (valores.get("Observações") or "").strip()
+    return razao, cnpj, nome, numero, obs
 
 
-def _normalize_payload(data: dict) -> dict:
-    """Normaliza campos-chave do cliente sem alterar a API pública."""
-    out = dict(data or {})
-    if 'CNPJ' in out and out['CNPJ'] is not None:
-        out['CNPJ'] = only_digits(str(out['CNPJ']))
-    if 'NUMERO' in out and out['NUMERO'] is not None:
-        out['NUMERO'] = only_digits(str(out['NUMERO']))
-    if 'NOME' in out and out['NOME'] is not None:
-        out['NOME'] = normalize_text(str(out['NOME']))
-    if 'RAZAO_SOCIAL' in out and out['RAZAO_SOCIAL'] is not None:
-        out['RAZAO_SOCIAL'] = normalize_text(str(out['RAZAO_SOCIAL']))
-    return out
+def _exists_duplicate(
+    numero: str, cnpj: str, nome: str, razao: str, *, skip_id: int | None = None
+) -> list[int]:
+    """
+    Retorna IDs de possíveis duplicatas considerando **apenas**:
+      - CNPJ (somente dígitos)
+      - Razão Social (normalizada/trim)
 
-def _checar_duplicatas(conn, numero, cnpj, nome, razao) -> list[int]:
-    """Checa duplicatas em uma ida ao banco (UNION ALL). Ignora soft-delete."""
-    cur = conn.cursor()
-    parts, params = [], []
-
+    OBS: Nome e WhatsApp (numero) **não** entram mais no critério de duplicidade.
+    """
     cnpj_d = only_digits(cnpj or "")
-    numero_d = only_digits(numero or "")
-    nome_n = normalize_text(nome or "")
     razao_n = normalize_text(razao or "")
 
-    if cnpj_d:
-        parts.append("SELECT ID FROM clientes WHERE DELETED_AT IS NULL AND CNPJ = ?")
-        params.append(cnpj_d)
-    if numero_d:
-        parts.append("SELECT ID FROM clientes WHERE DELETED_AT IS NULL AND NUMERO = ?")
-        params.append(numero_d)
-    if nome_n:
-        parts.append("SELECT ID FROM clientes WHERE DELETED_AT IS NULL AND NOME = ? COLLATE NOCASE")
-        params.append(nome_n)
-    if razao_n:
-        parts.append("SELECT ID FROM clientes WHERE DELETED_AT IS NULL AND RAZAO_SOCIAL = ? COLLATE NOCASE")
-        params.append(razao_n)
+    ids: list[int] = []
+    for c in list_clientes():
+        if skip_id and c.id == skip_id:
+            continue
 
-    if not parts:
-        return []
+        # CNPJ único
+        if cnpj_d and only_digits(c.cnpj or "") == cnpj_d:
+            ids.append(int(c.id))
+            continue
 
-    sql = " UNION ALL ".join(parts)
-    rows = cur.execute(sql, params).fetchall()
-    return sorted(set(int(r[0]) for r in rows or []))
+        # Razão Social única (case/trim insensível conforme normalize_text)
+        if razao_n and normalize_text(c.razao_social or "") == razao_n:
+            ids.append(int(c.id))
+            continue
+
+        # Nome / Número (WhatsApp) foram propositalmente ignorados
+
+    return sorted(set(ids))
 
 
-def checar_duplicatas_info(numero: str, cnpj: str, nome: str, razao: str) -> dict[str, list]:
+def checar_duplicatas_info(
+    numero: str, cnpj: str, nome: str, razao: str
+) -> dict[str, list]:
     """
-    Utilitário para a UI: retorna {'ids': [...], 'campos': ['CNPJ','WhatsApp',...]}
-    dos registros ATIVOS que colidem com os valores informados.
+    Mantida a assinatura por compatibilidade.
+    Retorna {"ids": [...]} considerando só CNPJ/Razão.
     """
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    ids = set()
-    campos: list[str] = []
-
-    def run(label: str, sql: str, val: str):
-        if not val:
-            return
-        try:
-            cur.execute(sql, (val,))
-            rows = [r[0] for r in cur.fetchall()]
-            if rows:
-                campos.append(label)
-                ids.update(rows)
-        except Exception:
-            pass
-
-    run('CNPJ',        "SELECT ID FROM clientes WHERE CNPJ=? AND (DELETED_AT IS NULL OR DELETED_AT='')", cnpj)
-    run('WhatsApp',    "SELECT ID FROM clientes WHERE NUMERO=? AND (DELETED_AT IS NULL OR DELETED_AT='')", numero)
-    run('Nome',        "SELECT ID FROM clientes WHERE NOME=? AND (DELETED_AT IS NULL OR DELETED_AT='')", nome)
-    run('Razão Social',"SELECT ID FROM clientes WHERE RAZAO_SOCIAL=? AND (DELETED_AT IS NULL OR DELETED_AT='')", razao)
-
-    try:
-        conn.close()
-    except Exception:
-        pass
-
-    return {'ids': sorted(ids), 'campos': campos}
+    ids = _exists_duplicate(numero, cnpj, nome, razao)
+    return {"ids": ids}
 
 
 def _pasta_do_cliente(pk: int, cnpj: str, numero: str, razao: str) -> str:
-    base = safe_base_from_fields(cnpj or "", numero or "", razao or "", pk)
-    pasta = os.path.join(DOCS_DIR, base)
-    os.makedirs(pasta, exist_ok=True)
-    ensure_subpastas(pasta)
-    write_marker(pasta, pk)
+    base = safe_base_from_fields(cnpj, numero, razao, pk)
+    pasta = os.path.join(str(DOCS_DIR), base)
+    if not CLOUD_ONLY:
+        ensure_subpastas(pasta)
+        write_marker(pasta, pk)
     return pasta
 
 
@@ -121,73 +91,39 @@ def _migrar_pasta_se_preciso(old_path: str | None, nova_pasta: str) -> None:
             else:
                 shutil.copy2(src, dst)
     except Exception:
-        log.exception("Falha ao migrar pasta antiga para a nova (%s -> %s)", old_path, nova_pasta)
+        log.exception("Falha ao migrar pasta (%s -> %s)", old_path, nova_pasta)
 
 
 def salvar_cliente(row, valores: dict) -> tuple[int, str]:
     """
-    Persiste cliente (cria/edita), audita, garante estrutura de pasta e
-    retorna (id, caminho_da_pasta).
+    Cria/atualiza cliente.
+    - Permite duplicatas de Nome e WhatsApp.
+    - Bloqueia quando CNPJ **ou** Razão Social já existirem (IDs retornados).
     """
-    razao  = (valores.get("Razão Social") or "").strip()
-    cnpj   = (valores.get("CNPJ") or "").strip()
-    nome   = (valores.get("Nome") or "").strip()
-    numero = (valores.get("WhatsApp") or "").strip()
-    obs    = (valores.get("Observações") or "").strip()
-
+    razao, cnpj, nome, numero, obs = _normalize_payload(valores)
     if not (razao or cnpj or nome or numero):
         raise ValueError("Preencha pelo menos Razão Social, CNPJ, Nome ou WhatsApp.")
 
-    pk = None
-    orig_numero = orig_razao = orig_cnpj = None
+    # Checagem de duplicatas (apenas CNPJ/Razão)
+    current_id = int(row[0]) if row else None
+    dups = _exists_duplicate(numero, cnpj, nome, razao, skip_id=current_id)
+
+    # Se criando e bateu CNPJ/Razão, bloqueia
+    if dups and not row:
+        raise ValueError(f"Já existe cliente com algum desses dados (IDs: {dups}).")
+
     if row:
-        pk, numero_old, nome_old, razao_old, cnpj_old, ult, obs_old = row
-        orig_numero, orig_razao, orig_cnpj = numero_old, razao_old, cnpj_old
-
-    old_path = None
-    if pk and (orig_numero is not None or orig_razao is not None or orig_cnpj is not None):
-        old_base = safe_base_from_fields(orig_cnpj or "", orig_numero or "", orig_razao or "", pk)
-        old_path = os.path.join(DOCS_DIR, old_base)
-
-    agora = dt.now().isoformat()
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-
-    if pk:
-        # edição
-        cur.execute(
-            """
-            UPDATE clientes
-               SET NUMERO=?,NOME=?,RAZAO_SOCIAL=?,CNPJ=?,ULTIMA_ALTERACAO=?,OBS=?
-             WHERE ID=?
-            """,
-            (numero, nome, razao, cnpj, agora, obs, pk),
+        pk = int(row[0])
+        update_cliente(
+            pk, numero=numero, nome=nome, razao_social=razao, cnpj=cnpj, obs=obs
         )
         real_pk = pk
+        old_path = None
     else:
-        # criação: checar duplicatas e anotar IDs (únicos, ordenados)
-        try:
-            ids_dup = _checar_duplicatas(conn, numero, cnpj, nome, razao)
-        except Exception:
-            ids_dup = []
-        if ids_dup:
-            ids_str = ",".join(str(i) for i in sorted(set(ids_dup)))
-            marcador = f"[DUPLICATA de IDs: {ids_str}]"
-            obs = marcador if not obs else marcador + "\n" + obs
-
-        cur.execute(
-            """
-            INSERT INTO clientes
-                  (NUMERO,NOME,RAZAO_SOCIAL,CNPJ,ULTIMA_ALTERACAO,OBS)
-            VALUES (?,?,?,?,?,?)
-            """,
-            (numero, nome, razao, cnpj, agora, obs),
+        real_pk = insert_cliente(
+            numero=numero, nome=nome, razao_social=razao, cnpj=cnpj, obs=obs
         )
-        real_pk = cur.lastrowid
-        pk = real_pk
-
-    conn.commit()
-    conn.close()
+        old_path = None
 
     # Auditoria
     try:
@@ -196,7 +132,7 @@ def salvar_cliente(row, valores: dict) -> tuple[int, str]:
     except Exception:
         pass
 
-    # Pasta
+    # Pasta local (opcional)
     pasta = _pasta_do_cliente(real_pk, cnpj, numero, razao)
     _migrar_pasta_se_preciso(old_path, pasta)
     return real_pk, pasta

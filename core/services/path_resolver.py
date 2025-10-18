@@ -1,16 +1,17 @@
-
 # core/services/path_resolver.py
 from __future__ import annotations
 import os
-import sqlite3
+from core.db_manager import get_cliente_by_id
+
 from dataclasses import dataclass
 from typing import Optional, Literal, Tuple
 
-from config.paths import DB_PATH, DOCS_DIR
+from config.paths import DOCS_DIR
 from app_utils import safe_base_from_fields
 from utils.file_utils import read_marker_id
 
 TRASH_DIR = os.path.join(DOCS_DIR, "_LIXEIRA")
+
 
 def _limited_walk(base: str, max_depth: int = 2):
     base_sep = base.count(os.sep)
@@ -27,12 +28,11 @@ class ResolveResult:
     trash: Optional[str] = None
     slug: Optional[str] = None
 
+
 def _candidate_by_slug(pk: int) -> Optional[str]:
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cur = conn.cursor()
-        cur.execute("SELECT NUMERO, CNPJ, RAZAO_SOCIAL FROM clientes WHERE ID=?", (pk,))
-        row = cur.fetchone()
+        c = get_cliente_by_id(pk)
+        row = (c.numero, c.cnpj, c.razao_social) if c else None
     finally:
         try:
             conn.close()
@@ -46,7 +46,10 @@ def _candidate_by_slug(pk: int) -> Optional[str]:
     base = safe_base_from_fields(cnpj or "", numero or "", razao or "", pk)
     return base
 
-def _find_by_marker(root: str, pk: int, *, skip_names: set[str] | None = None) -> Optional[str]:
+
+def _find_by_marker(
+    root: str, pk: int, *, skip_names: set[str] | None = None
+) -> Optional[str]:
     if not os.path.isdir(root):
         return None
     if skip_names is None:
@@ -65,7 +68,10 @@ def _find_by_marker(root: str, pk: int, *, skip_names: set[str] | None = None) -
             return path
     return None
 
-def resolve_cliente_path(pk: int, *, prefer: Literal["active", "trash", "both"] = "both") -> ResolveResult:
+
+def resolve_cliente_path(
+    pk: int, *, prefer: Literal["active", "trash", "both"] = "both"
+) -> ResolveResult:
     """Resolve o caminho real (pasta) de um cliente pelo PK.
     Estratégia:
       1) Tenta pelo marcador (mais confiável) no ativos e na lixeira.
@@ -94,7 +100,13 @@ def resolve_cliente_path(pk: int, *, prefer: Literal["active", "trash", "both"] 
     res.trash = trash
     return res
 
-def resolve_unique_path(pk: int, *, prefer: Literal["active", "trash", "both"] = "both", conn: Optional[sqlite3.Connection] = None) -> Tuple[Optional[str], Optional[str]]:
+
+def resolve_unique_path(
+    pk: int,
+    *,
+    prefer: Literal["active", "trash", "both"] = "both",
+    conn: Optional[sqlite3.Connection] = None,
+) -> Tuple[Optional[str], Optional[str]]:
     """Convenience: retorna (path, location) onde location é 'active' ou 'trash'. Se ambos existirem,
     respeita 'prefer'. Em empates, prioriza 'active'.
     """

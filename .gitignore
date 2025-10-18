@@ -1,14 +1,41 @@
-﻿__pycache__/
-*.py[cod]
-.pytest_cache/
-.mypy_cache/
+# Ambiente virtual Python
 .venv/
+venv/
+env/
+
+# Cache Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Backups
+backup_*/
+
+# Arquivos de ambiente e segredos
+.env
+.env.local
+.env.*.local
+*.env
+
+# Build e distribuição
+build/
+!build/*.spec
+dist/
+*.exe
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
 *.log
+logs/
 
-# Bancos locais (ajuste se quiser versionar)
-db/*.db
-db/*.sqlite
-
-# Dados de clientes (NÃO versionar)
-clientes_docs/
-!clientes_docs/.gitkeep
+# OS
+.DS_Store
+Thumbs.db
+docs/*.zip

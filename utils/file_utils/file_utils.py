@@ -1,5 +1,7 @@
-# utils/file_utils.py
 from __future__ import annotations
+from config.paths import CLOUD_ONLY
+
+# utils/file_utils.py
 
 from pathlib import Path
 import os
@@ -12,7 +14,6 @@ from datetime import datetime
 from core import classify_document
 
 # Carregador da configuração (SUBPASTAS / EXTRAS_VISIBLE)
-from utils.subpastas_config import load_subpastas_config
 
 
 # =============================================================================
@@ -20,7 +21,8 @@ from utils.subpastas_config import load_subpastas_config
 # =============================================================================
 def ensure_dir(p: str | Path) -> Path:
     p = Path(p)
-    p.mkdir(parents=True, exist_ok=True)
+    if not CLOUD_ONLY:
+        p.mkdir(parents=True, exist_ok=True)
     return p
 
 
@@ -31,18 +33,26 @@ def safe_copy(src: str | Path, dst: str | Path) -> None:
 
 
 def open_folder(p: str | Path) -> None:
+    """Abre pasta no explorador de arquivos (bloqueado em modo Cloud-Only)."""
+    from utils.helpers import check_cloud_only_block
+
+    if check_cloud_only_block("Abrir pasta"):
+        return
     os.startfile(str(Path(p)))
 
 
 # =============================================================================
 # Leitura de PDF (vários backends + OCR fallback)
 # =============================================================================
+# Backend unificado: pypdf (recomendado) com fallback para PyPDF2 (deprecated)
+# Referência: PyPDF2 está deprecated, pypdf é o sucessor oficial
+# https://pypi.org/project/pypdf/
 pdfmod: Any
 try:
-    import pypdf as pdfmod  # type: ignore[no-redef]
+    import pypdf as pdfmod  # Prioridade: pypdf (recomendado)
 except Exception:
     try:
-        import pypdf as pdfmod  # legado como fallback
+        import PyPDF2 as pdfmod  # type: ignore[no-redef]  # Fallback: PyPDF2 (deprecated)
     except Exception:
         pdfmod = None
 
@@ -69,6 +79,7 @@ def _read_pdf_text_pypdf(p: Path) -> Optional[str]:
 def _read_pdf_text_pdfminer(p: Path) -> Optional[str]:
     try:
         from pdfminer.high_level import extract_text
+
         res = (extract_text(str(p)) or "").strip()
         return res or None
     except Exception:
@@ -174,7 +185,9 @@ def find_cartao_cnpj_pdf(base: str | Path, max_mb: int = 10) -> Optional[Path]:
 
     limit = max(1, max_mb) * 1024 * 1024
     try:
-        pdfs = [p for p in base.rglob("*.pdf") if p.is_file() and p.stat().st_size <= limit]
+        pdfs = [
+            p for p in base.rglob("*.pdf") if p.is_file() and p.stat().st_size <= limit
+        ]
     except Exception:
         pdfs = []
     if not pdfs:
@@ -245,7 +258,8 @@ def ensure_subtree(base: str | Path, spec: SubSpecList) -> None:
                                      {"name":"RESPONSAVEL_LEGAL","children":["PROTOCOLOS","DOCS"]}]}]
     """
     base = Path(base)
-    base.mkdir(parents=True, exist_ok=True)
+    if not CLOUD_ONLY:
+        base.mkdir(parents=True, exist_ok=True)
 
     for item in spec or []:
         # Caso string: pode ter barras (cria caminho completo)
@@ -256,7 +270,8 @@ def ensure_subtree(base: str | Path, spec: SubSpecList) -> None:
             p = base
             for seg in parts:
                 p = p / seg
-                p.mkdir(parents=True, exist_ok=True)
+                if not CLOUD_ONLY:
+                    p.mkdir(parents=True, exist_ok=True)
             continue
 
         # Caso dict: cria <base>/<name> e desce nos children
@@ -264,10 +279,14 @@ def ensure_subtree(base: str | Path, spec: SubSpecList) -> None:
         if not name:
             continue
         p = base / name
-        p.mkdir(parents=True, exist_ok=True)
+        if not CLOUD_ONLY:
+            p.mkdir(parents=True, exist_ok=True)
         children = _spec_children(item)
         if children:
             ensure_subtree(p, children)
+
+
+from typing import Iterable
 
 
 def ensure_subpastas(base: str, nomes: Iterable[str] | None = None) -> bool:
@@ -278,7 +297,8 @@ def ensure_subpastas(base: str, nomes: Iterable[str] | None = None) -> bool:
       aceitando tanto o retorno novo (subpastas, extras) quanto o antigo
       (top_level, all_paths, extras).
     """
-    os.makedirs(base, exist_ok=True)
+    if not CLOUD_ONLY:
+        os.makedirs(base, exist_ok=True)
 
     final: list[str] = []
 
@@ -288,6 +308,8 @@ def ensure_subpastas(base: str, nomes: Iterable[str] | None = None) -> bool:
     else:
         # carrega do YAML, aceitando 2 ou 3 valores de retorno
         try:
+            from utils.subpastas_config import load_subpastas_config
+
             ret = load_subpastas_config()
 
             subs: list[str] = []
@@ -308,7 +330,8 @@ def ensure_subpastas(base: str, nomes: Iterable[str] | None = None) -> bool:
     if not final:
         for n in ("DOCS", "ANEXOS"):
             try:
-                os.makedirs(os.path.join(base, n), exist_ok=True)
+                if not CLOUD_ONLY:
+                    os.makedirs(os.path.join(base, n), exist_ok=True)
             except Exception:
                 pass
         return True
@@ -319,7 +342,8 @@ def ensure_subpastas(base: str, nomes: Iterable[str] | None = None) -> bool:
         if not rel:
             continue
         try:
-            os.makedirs(os.path.join(base, rel), exist_ok=True)
+            if not CLOUD_ONLY:
+                os.makedirs(os.path.join(base, rel), exist_ok=True)
         except Exception:
             pass
 
@@ -334,7 +358,8 @@ MARKER_NAME = ".rc_client_id"  # padrão único do app
 
 def write_marker(pasta: str, cliente_id: int) -> str:
     """Cria/atualiza o marcador `.rc_client_id` com o ID (conteúdo cru)."""
-    os.makedirs(pasta, exist_ok=True)
+    if not CLOUD_ONLY:
+        os.makedirs(pasta, exist_ok=True)
     marker = os.path.join(pasta, MARKER_NAME)
     with open(marker, "w", encoding="utf-8") as f:
         f.write(str(cliente_id).strip() + "\n")

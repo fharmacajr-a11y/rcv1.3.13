@@ -1,0 +1,29 @@
+﻿name: Security - pip-audit
+on:
+  push:
+    branches: [ "main", "maintenance/**" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * 0"
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pip-audit
+        run: python -m pip install --upgrade pip pip-audit
+      - name: Run pip-audit (report-only)
+        run: |
+          pip-audit -r requirements.txt -f json -o pip-audit.json || true
+      - name: Upload audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: pip-audit-report
+          path: pip-audit.json
+          retention-days: 30

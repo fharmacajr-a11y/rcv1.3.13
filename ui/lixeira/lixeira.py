@@ -1,343 +1,292 @@
-# ui/lixeira/lixeira.py
-import logging
-import time
-import threading
-import ttkbootstrap as tb
-from tkinter import messagebox as tkmsg  # avisos nativos (claros)
+"""Tela da Lixeira (clientes deletados via Supabase - soft delete)."""
 
-from core import db_manager
-from utils.file_utils import format_datetime
-from core.logs.audit import last_client_activity_many
-from ui.components import draw_whatsapp_overlays
+from __future__ import annotations
+
+# ui/lixeira/lixeira.py
+
+import logging
+from tkinter import ttk
+import ttkbootstrap as tb
+from tkinter import messagebox as tkmsg
+
+from core.db_manager import list_clientes_deletados
+from core.services import (
+    lixeira_service,
+)  # ações: restore_clients / hard_delete_clients
 from ui.utils import center_window
-from config.constants import ICON_SIZE_WHATS
-from core.services import lixeira_service  # chamadas diretas (evita modal duplicado)
 
 logger = logging.getLogger(__name__)
-
-_AUDIT_BY_ID_CACHE = {}
-
-def _set_audit_cache(mapping: dict[int, tuple]):
-    global _AUDIT_BY_ID_CACHE
-    _AUDIT_BY_ID_CACHE = mapping or {}
 log = logger
 
-# ---------------- helpers de linha (Row/dict) ----------------
-def _row_get(row, key, default=None):
-    """Compatível com sqlite3.Row e dict."""
-    try:
-        if isinstance(row, dict):
-            return row.get(key, default)
-        # sqlite3.Row suporta mapeamento por chave; checa presença:
-        if hasattr(row, "keys") and key in row.keys():
-            val = row[key]
-            return default if val is None else val
-        # tentativa direta (pode levantar KeyError)
-        val = row[key]  # type: ignore[index]
-        return default if val is None else val
-    except Exception:
-        return default
+# ---------- Singleton da janela ----------
+_OPEN_WINDOW: tb.Toplevel | None = None
 
-# ---------------- modais (nativos, claros) ----------------
-def _modal_info(parent, title, message):
-    try:
-        tkmsg.showinfo(title, message, parent=parent)
-    except Exception:
-        tkmsg.showinfo(title, message)
 
-def _modal_okcancel(parent, title, message):
+def _is_open() -> bool:
     try:
-        return tkmsg.askokcancel(title, message, parent=parent, default="ok")
+        return _OPEN_WINDOW is not None and int(_OPEN_WINDOW.winfo_exists()) == 1
     except Exception:
-        return tkmsg.askokcancel(title, message)
+        return False
 
-# ---------------- formatação da coluna ----------------
-def _ultima_txt(ts, cid):
-    try:
-        txt = format_datetime(ts) if ts else ''
-    except Exception:
-        txt = ''
-    try:
-        last = _AUDIT_BY_ID_CACHE.get(cid)
-        if last:
-            lts, user = (last[0], last[1] or '')
-            if not txt and lts:
-                txt = format_datetime(lts)
-            if user:
-                txt = (txt + f' ({user})').strip()
-    except Exception:
-        pass
-    return txt or '-'
+
+def refresh_if_open():
+    """Recarrega a listagem se a janela estiver aberta (usado por fora)."""
+    if _is_open():
+        try:
+            _OPEN_WINDOW._carregar()  # type: ignore[attr-defined]
+        except Exception:
+            log.exception("Falha ao recarregar Lixeira aberta.")
+
 
 # ---------------- helpers UI ----------------
 def _set_busy(win, buttons, busy: bool):
     try:
-        win.configure(cursor="watch" if busy else "")
-        for b in buttons:
+        win.configure(cursor=("watch" if busy else ""))
+    except Exception:
+        pass
+    for btn in buttons or []:
+        try:
+            btn.configure(state=("disabled" if busy else "normal"))
+        except Exception:
             try:
-                b.configure(state=("disabled" if busy else "normal"))
+                btn["state"] = "disabled" if busy else "normal"
             except Exception:
                 pass
+    try:
         win.update_idletasks()
     except Exception:
         pass
 
-def _run_bg(win, buttons, work_fn, on_done):
-    """Roda work_fn em thread e chama on_done no mainloop."""
-    _set_busy(win, buttons, True)
-    started = time.perf_counter()
 
-    def _target():
-        err = None
-        result = None
+# ---------------- janela principal da Lixeira (com Treeview) ----------------
+def abrir_lixeira(parent, app=None):
+    """Abre a Lixeira em modo singleton: se já estiver aberta, só foca e recarrega."""
+    global _OPEN_WINDOW
+
+    # Se já existe: traz pra frente, foca e recarrega
+    if _is_open():
+        w = _OPEN_WINDOW  # type: ignore[assignment]
         try:
-            result = work_fn()
-        except Exception as e:
-            err = e
-            logger.exception("Falha na operação da Lixeira: %s", e)
-        finally:
-            elapsed = time.perf_counter() - started
-            def _finish():
-                _set_busy(win, buttons, False)
-                try:
-                    on_done(err, result, elapsed)
-                except Exception:
-                    logger.exception("Falha no on_done da Lixeira")
-            win.after(0, _finish)
-
-    threading.Thread(target=_target, daemon=True).start()
-
-# ---------------- janela da lixeira ----------------
-def abrir_lixeira(app):
-    # já aberta? foca e recarrega uma vez
-    if hasattr(app, "lixeira_win") and app.lixeira_win and tb.Toplevel.winfo_exists(app.lixeira_win):
-        logger.info("Lixeira UI: janela já aberta; focando e recarregando")
-        app.lixeira_win.focus()
-        if hasattr(app.lixeira_win, "carregar_func"):
-            app.lixeira_win.carregar_func()
-        return
-
-    # cria sem "piscada" (withdraw -> centraliza -> deiconify)
-    win = tb.Toplevel(app)
-    win.withdraw()
-    app.lixeira_win = win
-    win.title("Lixeira de Clientes")
-    win.geometry("1200x500")
-    center_window(win, 1200, 500)
-    win.deiconify()
-    logger.info("Lixeira UI: janela criada")
-
-    # pedir refresh na tela principal (quando fechar ou após operações)
-    def _refresh_main_safely():
-        try:
-            logger.info("Lixeira UI: pedindo refresh da tela principal")
-            app.carregar()
+            w.deiconify()
+            w.lift()
+            w.focus_force()
+            # truque para garantir foco em algumas janelas
+            w.attributes("-topmost", True)
+            w.after(120, lambda: w.attributes("-topmost", False))
+            if hasattr(w, "_carregar"):
+                w._carregar()  # type: ignore[attr-defined]
         except Exception:
-            logger.exception("Lixeira UI: falha ao atualizar a lista principal")
+            log.exception("Falha ao focar janela da Lixeira existente.")
+        return w
 
-    def _on_close_lixeira():
-        _refresh_main_safely()
+    # Criar nova janela
+    win = tb.Toplevel(parent)
+    win.title("Lixeira de Clientes")
+    try:
+        win.minsize(900, 520)
+    except Exception:
+        pass
+
+    container = tb.Frame(win, padding=10)
+    container.pack(fill="both", expand=True)
+
+    tb.Label(container, text="Clientes na Lixeira", font=("", 12, "bold")).pack(
+        anchor="center", pady=(0, 8)
+    )
+
+    # Treeview
+    cols = ("id", "razao_social", "cnpj", "nome", "whatsapp", "obs", "ultima_alteracao")
+    tree = ttk.Treeview(container, show="headings", columns=cols, height=16)
+    tree.pack(fill="both", expand=True)
+
+    headings = {
+        "id": "ID",
+        "razao_social": "Razão Social",
+        "cnpj": "CNPJ",
+        "nome": "Nome",
+        "whatsapp": "WhatsApp",
+        "obs": "Observações",
+        "ultima_alteracao": "Última Alteração",
+    }
+    widths = {
+        "id": 60,
+        "razao_social": 240,
+        "cnpj": 140,
+        "nome": 180,
+        "whatsapp": 120,
+        "obs": 260,
+        "ultima_alteracao": 180,
+    }
+    for c in cols:
+        tree.heading(c, text=headings[c])
+        tree.column(c, width=widths[c], anchor="w")
+
+    # Toolbar inferior
+    toolbar = tb.Frame(container)
+    toolbar.pack(fill="x", pady=(8, 0))
+
+    btn_restore = tb.Button(toolbar, text="Restaurar Selecionados", bootstyle="success")
+    btn_purge = tb.Button(toolbar, text="Apagar Selecionados", bootstyle="danger")
+    btn_refresh = tb.Button(toolbar, text="⟳", width=3)
+    btn_close = tb.Button(
+        toolbar, text="Fechar", bootstyle="secondary", command=win.destroy
+    )
+
+    btn_restore.pack(side="left")
+    tb.Separator(toolbar, orient="vertical").pack(side="left", padx=6, fill="y")
+    btn_purge.pack(side="left")
+    btn_refresh.pack(side="right", padx=(0, 6))
+    btn_close.pack(side="right")
+
+    status = tb.Label(container, text="", anchor="w")
+    status.pack(fill="x", pady=(6, 0))
+
+    # -------- helpers locais (com parent=win) --------
+    def _info(title, msg):
         try:
-            if hasattr(app, 'lixeira_win'):
-                app.lixeira_win = None
+            tkmsg.showinfo(title, msg, parent=win)
+        except Exception:
+            tkmsg.showinfo(title, msg)
+
+    def _warn(title, msg):
+        try:
+            tkmsg.showwarning(title, msg, parent=win)
+        except Exception:
+            tkmsg.showwarning(title, msg)
+
+    def _err(title, msg):
+        try:
+            tkmsg.showerror(title, msg, parent=win)
+        except Exception:
+            tkmsg.showerror(title, msg)
+
+    def _ask_yesno(title, msg) -> bool:
+        try:
+            return tkmsg.askyesno(title, msg, parent=win)
+        except Exception:
+            return tkmsg.askyesno(title, msg)
+
+    def get_selected_ids():
+        ids = []
+        for iid in tree.selection():
+            try:
+                ids.append(int(tree.set(iid, "id")))
+            except Exception:
+                pass
+        return ids
+
+    # -------- carregar lista --------
+    def carregar():
+        tree.delete(*tree.get_children())
+        try:
+            rows = list_clientes_deletados(order_by="id", descending=True)
+        except Exception as e:
+            log.exception("Falha ao buscar lixeira no Supabase")
+            _err("Lixeira", f"Erro ao carregar lixeira: {e}")
+            return
+
+        for r in rows:
+            whatsapp = getattr(r, "whatsapp", "") if hasattr(r, "whatsapp") else ""
+            obs = getattr(r, "obs", "") or ""
+            ultima = getattr(r, "ultima_alteracao", "") or ""
+            tree.insert(
+                "",
+                "end",
+                values=(
+                    r.id,
+                    r.razao_social or "",
+                    r.cnpj or "",
+                    r.nome or "",
+                    whatsapp,
+                    obs,
+                    ultima,
+                ),
+            )
+        status.config(text=f"{len(rows)} item(ns) na lixeira")
+        log.info("Lixeira carregada: %s itens", len(rows))
+
+    # -------- ações --------
+    def on_restore():
+        ids = get_selected_ids()
+        if not ids:
+            _warn("Lixeira", "Selecione pelo menos um registro para restaurar.")
+            return
+        if not _ask_yesno(
+            "Restaurar", f"Restaurar {len(ids)} registro(s) para a lista principal?"
+        ):
+            return
+
+        _set_busy(win, [btn_restore, btn_purge, btn_refresh, btn_close], True)
+        try:
+            ok, errs = lixeira_service.restore_clients(ids, parent=win)
+            if errs:
+                msg = "\n".join([f"ID {cid}: {err}" for cid, err in errs])
+                _err("Falha parcial", f"{ok} restaurado(s), erros:\n{msg}")
+            else:
+                _info("Pronto", f"{ok} registro(s) restaurado(s).")
+                # As subpastas obrigatórias são garantidas no serviço (_ensure_mandatory_subfolders).
+        except Exception as e:
+            log.exception("Falha ao restaurar")
+            _err("Lixeira", f"Erro ao restaurar: {e}")
+        finally:
+            _set_busy(win, [btn_restore, btn_purge, btn_refresh, btn_close], False)
+            carregar()
+
+    def on_purge():
+        ids = get_selected_ids()
+        if not ids:
+            _warn(
+                "Lixeira",
+                "Selecione pelo menos um registro para apagar definitivamente.",
+            )
+            return
+        if not _ask_yesno(
+            "Apagar",
+            f"APAGAR DEFINITIVAMENTE {len(ids)} registro(s)? Esta ação não pode ser desfeita.",
+        ):
+            return
+
+        _set_busy(win, [btn_restore, btn_purge, btn_refresh, btn_close], True)
+        try:
+            ok, errs = lixeira_service.hard_delete_clients(
+                ids, parent=win
+            )  # DB + Storage
+            if errs:
+                msg = "\n".join([f"ID {cid}: {err}" for cid, err in errs])
+                _err("Falha parcial", f"{ok} apagado(s), erros:\n{msg}")
+            else:
+                _info("Pronto", f"{ok} registro(s) apagado(s) para sempre.")
+        except Exception as e:
+            log.exception("Falha ao apagar definitivamente")
+            _err("Lixeira", f"Erro ao apagar: {e}")
+        finally:
+            _set_busy(win, [btn_restore, btn_purge, btn_refresh, btn_close], False)
+            carregar()
+
+    btn_restore.configure(command=on_restore)
+    btn_purge.configure(command=on_purge)
+    btn_refresh.configure(command=carregar)
+
+    # expõe carregar para refresh externo e registra singleton
+    win._carregar = carregar  # type: ignore[attr-defined]
+    _OPEN_WINDOW = win
+
+    # close handler limpa o singleton
+    def _on_close():
+        global _OPEN_WINDOW
+        try:
+            _OPEN_WINDOW = None
         except Exception:
             pass
         win.destroy()
 
-    win.protocol("WM_DELETE_WINDOW", _on_close_lixeira)
+    win.protocol("WM_DELETE_WINDOW", _on_close)
 
-    tb.Label(win, text="Clientes na Lixeira", font=("Segoe UI", 12, "bold")).pack(pady=10)
-
-    # ------- Tabela -------
-    cols = ("ID", "Razão Social", "CNPJ", "Nome", "WhatsApp", "Observações", "Última Alteração")
-    tree = tb.Treeview(win, columns=cols, show="headings", selectmode="extended")
-
-    # Debounce para overlays do WhatsApp (evita flood em <Configure>/<MouseWheel>)
-    _whats_after = {'id': None}
-    def _schedule_whats_overlays():
-        try:
-            if _whats_after['id'] is not None:
-                win.after_cancel(_whats_after['id'])
-        except Exception:
-            pass
-        try:
-            _whats_after['id'] = win.after(60, lambda: (
-                draw_whatsapp_overlays(tree, 'WhatsApp', ICON_SIZE_WHATS),
-                _whats_after.__setitem__('id', None)
-            ))
-        except Exception:
-            # fallback direto (não quebra a UI)
-            try:
-                draw_whatsapp_overlays(tree, 'WhatsApp', ICON_SIZE_WHATS)
-            except Exception:
-                pass
-
-    # ícones do WhatsApp
-    tree.bind('<Configure>',   lambda e: _schedule_whats_overlays())
-    tree.bind('<MouseWheel>',  lambda e: _schedule_whats_overlays())
-
-    for col, width, anchor in [
-        ("ID", 40, "center"),
-        ("Razão Social", 200, "w"),
-        ("CNPJ", 140, "center"),
-        ("Nome", 150, "w"),
-        ("WhatsApp", 140, "center"),
-        ("Observações", 220, "w"),
-        ("Última Alteração", 200, "center"),
-    ]:
-        tree.heading(col, text=col)
-        tree.column(col, width=width, anchor=anchor)
-    tree.pack(fill="both", expand=True, padx=10, pady=10)
-
-    def carregar():
-        started = time.perf_counter()
-        # limpa a árvore
-        for rowid in tree.get_children():
-            tree.delete(rowid)
-        total = 0
-        rows = []
-        try:
-            # Reutiliza o serviço central de listagem de deletados
-            rows = db_manager.list_clientes_deletados(order_by="ID")
-        except Exception:
-            logger.exception('Lixeira UI: falha ao listar clientes deletados (service)')
-            rows = []
-
-        for row in rows or []:
-            try:
-                cid = _row_get(row, 'ID', None)
-                ultima = _ultima_txt(_row_get(row, 'ULTIMA_ALTERACAO', None), cid)
-                tree.insert(
-                    "", "end",
-                    values=(
-                        _row_get(row, 'ID', ''),
-                        _row_get(row, 'RAZAO_SOCIAL', ''),
-                        _row_get(row, 'CNPJ', ''),
-                        _row_get(row, 'NOME', ''),
-                        _row_get(row, 'NUMERO', '') or '',
-                        _row_get(row, 'OBS', '') or '',
-                        ultima,
-                    )
-                )
-                total += 1
-            except Exception:
-                logger.exception('Lixeira UI: falha ao inserir linha na grade (ID=%s)', _row_get(row, 'ID', '?'))
-
-        logger.info('Lixeira UI: carregadas %s linhas em %.3fs', total, time.perf_counter() - started)
-        # redesenha overlays após popular a grade
-        _schedule_whats_overlays()
-
-    def _get_selected_ids():
-        ids = []
-        for iid in tree.selection():
-            vals = tree.item(iid, "values")
-            if vals:
-                try:
-                    ids.append(int(str(vals[0]).strip()))
-                except Exception:
-                    pass
-        return ids
-
-    def restaurar():
-        ids = _get_selected_ids()
-        if not ids:
-            _modal_info(win, 'Aviso', 'Selecione um ou mais clientes para restaurar.')
-            return
-        logger.info("Lixeira UI: solicitar RESTORE de %d id(s): %s", len(ids), ids)
-        # Confirmação simples antes de restaurar
-        if not _modal_okcancel(
-            win,
-            'Restaurar',
-            f'Restaurar {len(ids)} cliente(s) da Lixeira e reativar no sistema?'
-        ):
-            return
-
-        def _work():
-            return lixeira_service.restore_ids(ids)  # -> (ok_db, processadas, falhas)
-
-        def _done(err, result, elapsed):
-            if err:
-                _modal_info(win, 'Erro', 'Falha ao restaurar. Veja o log.')
-                return
-            ok_db, processadas, falhas = result
-            logger.info(
-                'Lixeira UI: RESTORE finalizado em %.3fs -> ok_db=%s, processadas=%s, falhas=%s',
-                elapsed, ok_db, processadas, falhas
-            )
-            # Evita popup duplicado: não mostra diálogo de sucesso aqui.
-            # Se houve falhas, mostra um único aviso resumido.
-            if falhas and falhas > 0:
-                _modal_info(win, 'Parcial', f'Restauradas {processadas - falhas} pasta(s). {falhas} falha(s). Verifique o log.')
-            carregar()              # atualiza a lista da Lixeira
-            _refresh_main_safely()  # atualiza a tela principal
-
-        _run_bg(win, [btn_restaurar, btn_apagar, btn_refresh, btn_fechar], _work, _done)
-
-    def apagar_definitivo():
-        ids = _get_selected_ids()
-        if not ids:
-            _modal_info(win, 'Aviso', 'Selecione um ou mais clientes para apagar definitivamente.')
-            return
-        if not _modal_okcancel(
-            win,
-            "Apagar definitivamente",
-            f"Remover {len(ids)} cliente(s) de forma irreversível?\n"
-            "Esta ação não pode ser desfeita."
-        ):
-            return
-        logger.info("Lixeira UI: solicitar PURGE de %d id(s): %s", len(ids), ids)
-
-    # --- PURGE mantido como estava no seu arquivo anterior ---
-        def _work():
-            return lixeira_service.purge_ids(ids)  # -> (ok_db, removidas)
-
-        def _done(err, result, elapsed):
-            if err:
-                _modal_info(win, "Erro", "Falha ao apagar definitivamente. Veja o log.")
-                return
-            ok_db, removidas = result
-            logger.info(
-                "Lixeira UI: PURGE finalizado em %.3fs -> removidos_bd=%s, pastas_apagadas=%s",
-                elapsed, ok_db, removidas
-            )
-            _modal_info(win, "Lixeira", f"Removidos do banco: {ok_db}\nPastas apagadas: {removidas}")
-            carregar()              # atualiza a lista da Lixeira
-            _refresh_main_safely()  # atualiza a tela principal
-
-        _run_bg(win, [btn_restaurar, btn_apagar, btn_refresh, btn_fechar], _work, _done)
-
-    def _on_key(event):
-        if event.keysym == "Delete":
-            apagar_definitivo(); return "break"
-        if event.keysym.lower() == "r" and (event.state & 0x4):
-            restaurar(); return "break"
-        if event.keysym == "F5":
-            carregar(); return "break"
-    tree.bind("<Key>", _on_key)
-
-    # ------- Rodapé -------
-    btn_frame = tb.Frame(win)
-    btn_frame.pack(fill="x", pady=10)
-
-    btn_restaurar = tb.Button(btn_frame, text="Restaurar Selecionados", bootstyle="success",
-                              command=restaurar)
-    btn_restaurar.pack(side="left", padx=5)
-
-    btn_apagar = tb.Button(btn_frame, text="Apagar Selecionados", bootstyle="danger",
-                           command=apagar_definitivo)
-    btn_apagar.pack(side="left", padx=5)
-
-    btn_fechar = tb.Button(btn_frame, text="Fechar", bootstyle="secondary",
-                           command=_on_close_lixeira)
-    btn_fechar.pack(side="right", padx=5)
-
-    btn_refresh = tb.Button(
-        btn_frame, text="↻", width=3, bootstyle="secondary",
-        command=lambda: (logger.info("Refresh manual (↻) - Lixeira"), carregar())
-    )
-    btn_refresh.pack(side="right", padx=5)
-
-    # expõe função de recarregar para outras telas
-    win.carregar_func = carregar
-    # carga inicial
+    # primeira carga e centralização
     carregar()
+    try:
+        center_window(win)
+    except Exception:
+        pass
+
+    return win
