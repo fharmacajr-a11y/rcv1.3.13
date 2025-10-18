@@ -84,8 +84,6 @@ pymupdf==1.26.5
     # via -r requirements.in
 pypdf==6.1.1
     # via -r requirements.in
-pypdf2==3.0.1
-    # via -r requirements.in
 pytesseract==0.3.13
     # via -r requirements.in
 python-dotenv==1.1.1
@@ -118,8 +116,6 @@ typing-extensions==4.15.0
     #   typing-inspection
 typing-inspection==0.4.2
     # via pydantic
-tzdata==2025.2
-    # via -r requirements.in
 urllib3==2.5.0
     # via requests
 websockets==15.0.1

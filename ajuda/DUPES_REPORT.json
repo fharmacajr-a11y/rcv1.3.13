@@ -1,0 +1,350 @@
+{
+  "timestamp": "2025-10-18T08:32:40.303423",
+  "total_files": 86,
+  "duplicate_groups": 3,
+  "duplicates": {
+    "api.py": [
+      {
+        "path": "application\\api.py",
+        "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\application\\api.py",
+        "size": 12516,
+        "sha256": "c7dcd6906a765072440c48f2df9dc6006d1af6c72631434cd7c829363c0792f7",
+        "modified": "2025-10-18T03:23:36.472064",
+        "lines": 317,
+        "imports": [
+          "utils.hash_utils",
+          "adapters.__init__",
+          "core.models"
+        ],
+        "centrality": 2,
+        "importers": [
+          "application.commands",
+          "gui.main_window"
+        ]
+      },
+      {
+        "path": "adapters\\storage\\api.py",
+        "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\adapters\\storage\\api.py",
+        "size": 2527,
+        "sha256": "7b8813f3ba31012942ddcc406c6916af956ee44a275831625d360cd3b38a13ab",
+        "modified": "2025-10-18T03:23:36.462543",
+        "lines": 73,
+        "imports": [],
+        "centrality": 0,
+        "importers": []
+      }
+    ],
+    "__init__.py": [
+      {
+        "path": "application\\__init__.py",
+        "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\application\\__init__.py",
+        "size": 75,
+        "sha256": "540752c436cb7e2585aee4c0bec6f475abff40b1cca7efa2844c0b5644214172",
+        "modified": "2025-10-18T03:23:36.472064",
+        "lines": 1,
+        "imports": [],
+        "centrality": 0,
+        "importers": []
+      },
+      {
+        "path": "gui\\__init__.py",
+        "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\gui\\__init__.py",
+        "size": 193,
+        "sha256": "d7b3d7fa4941701b2e0f0d225307c9dc870498db6979a49de0b8e692687a8f3d",
+        "modified": "2025-10-18T03:23:36.525283",
+        "lines": 8,
+        "imports": [],
+        "centrality": 0,
+        "importers": []
+      },
+      {
+        "path": "ui\\__init__.py",
+        "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\ui\\__init__.py",
+        "size": 177,
+        "sha256": "f781c19bee3529811c3fc90fc64288db11a93d571a41bff1a94956f3787b924e",
+        "modified": "2025-10-18T03:23:36.572256",
+        "lines": 3,
+        "imports": [
+          "ui.components"
+        ],
+        "centrality": 0,
+        "importers": []
+      },
+      {
+        "path": "ui\\dialogs\\__init__.py",
+        "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\ui\\dialogs\\__init__.py",
+        "size": 25,
+        "sha256": "b23c34835e06f0fa4bafd8fa0aef642bfe9b8a32ab1a91413f4139b13e2336e6",
+        "modified": "2025-10-18T03:23:36.574255",
+        "lines": 0,
+        "imports": [],
+        "centrality": 0,
+        "importers": []
+      },
+      {
+        "path": "ui\\forms\\__init__.py",
+        "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\ui\\forms\\__init__.py",
+        "size": 32,
+        "sha256": "462c3999b6028c6f91724f310b4c47902ec0b03da29573ee6b9c6287a91d78c4",
+        "modified": "2025-10-11T00:37:38",
+        "lines": 1,
+        "imports": [],
+        "centrality": 0,
+        "importers": []
+      },
+      {
+        "path": "ui\\lixeira\\__init__.py",
+        "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\ui\\lixeira\\__init__.py",
+        "size": 200,
+        "sha256": "580d4866a27b1616d51fac028a43ca7353da134b385e75f7daaee98f1e933dbc",
+        "modified": "2025-10-18T03:23:43.200121",
+        "lines": 4,
+        "imports": [],
+        "centrality": 0,
+        "importers": []
+      },
+      {
+        "path": "ui\\login\\__init__.py",
+        "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\ui\\login\\__init__.py",
+        "size": 32,
+        "sha256": "8b20c0e6385f90400ed69df031ef592603e76ed352fee666d2248b3fbd774b4a",
+        "modified": "2025-10-11T00:37:38",
+        "lines": 1,
+        "imports": [],
+        "centrality": 0,
+        "importers": []
+      },
+      {
+        "path": "ui\\widgets\\__init__.py",
+        "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\ui\\widgets\\__init__.py",
+        "size": 166,
+        "sha256": "b1c1ec49c7ff86b25704d3f3adec028fa5baf5228a768a554131d33553740a70",
+        "modified": "2025-10-18T07:44:03.365535",
+        "lines": 6,
+        "imports": [
+          "ui.components"
+        ],
+        "centrality": 0,
+        "importers": []
+      },
+      {
+        "path": "core\\__init__.py",
+        "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\core\\__init__.py",
+        "size": 413,
+        "sha256": "a7e619e695e2c5bfd3273d1c3826ceaa2217e6e03ee26cb29d992b01812ba22e",
+        "modified": "2025-10-18T03:23:43.160701",
+        "lines": 9,
+        "imports": [],
+        "centrality": 0,
+        "importers": []
+      },
+      {
+        "path": "core\\auth\\__init__.py",
+        "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\core\\auth\\__init__.py",
+        "size": 206,
+        "sha256": "2fd5c019eff4ca73c4a3d8181873c8510455e3e860805114f6a4c30a7b5ec377",
+        "modified": "2025-10-18T03:23:43.161702",
+        "lines": 7,
+        "imports": [],
+        "centrality": 0,
+        "importers": []
+      },
+      {
+        "path": "core\\db_manager\\__init__.py",
+        "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\core\\db_manager\\__init__.py",
+        "size": 598,
+        "sha256": "dd1ea0b5e0d5d3da8a38ba02439c431d8f28aea31cdedadc57f203b135ee8ba7",
+        "modified": "2025-10-18T03:23:43.165210",
+        "lines": 28,
+        "imports": [],
+        "centrality": 0,
+        "importers": []
+      },
+      {
+        "path": "core\\logs\\__init__.py",
+        "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\core\\logs\\__init__.py",
+        "size": 10,
+        "sha256": "527c668d5ae4f9e34e46c8ad88ce3c5b4a41eb27ec684ace6a4f11621fc42edf",
+        "modified": "2025-10-11T00:37:34",
+        "lines": 0,
+        "imports": [],
+        "centrality": 0,
+        "importers": []
+      },
+      {
+        "path": "core\\search\\__init__.py",
+        "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\core\\search\\__init__.py",
+        "size": 60,
+        "sha256": "0185f7676f827b76abf655633f4e52ef68f4f2ce1dcc14ca535a7418391290f0",
+        "modified": "2025-10-11T00:37:34",
+        "lines": 1,
+        "imports": [],
+        "centrality": 0,
+        "importers": []
+      },
+      {
+        "path": "core\\session\\__init__.py",
+        "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\core\\session\\__init__.py",
+        "size": 62,
+        "sha256": "05c948285b32129f54b79c95a6386d36b6519b8c53c73ddf3c295aaee06b65cc",
+        "modified": "2025-10-11T00:37:36",
+        "lines": 1,
+        "imports": [],
+        "centrality": 0,
+        "importers": []
+      },
+      {
+        "path": "utils\\__init__.py",
+        "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\utils\\__init__.py",
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "modified": "2025-10-11T00:37:32",
+        "lines": 0,
+        "imports": [],
+        "centrality": 0,
+        "importers": []
+      },
+      {
+        "path": "utils\\file_utils\\__init__.py",
+        "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\utils\\file_utils\\__init__.py",
+        "size": 37,
+        "sha256": "6af4e5fd9186bf81ac0a1fd006c70597f394b208f39636c0d8ed1f96e862ecd1",
+        "modified": "2025-10-11T00:37:32",
+        "lines": 1,
+        "imports": [],
+        "centrality": 0,
+        "importers": []
+      },
+      {
+        "path": "utils\\helpers\\__init__.py",
+        "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\utils\\helpers\\__init__.py",
+        "size": 243,
+        "sha256": "21324c4e141c345f03505fefc4db7d1c121851f3363cd37fdd975f371971aa88",
+        "modified": "2025-10-18T03:23:43.209164",
+        "lines": 4,
+        "imports": [
+          "utils.hash_utils"
+        ],
+        "centrality": 0,
+        "importers": []
+      },
+      {
+        "path": "adapters\\__init__.py",
+        "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\adapters\\__init__.py",
+        "size": 22,
+        "sha256": "00090195cef5c0d51bcafd7903294ee843ee620726d2e732b5f90860cf847933",
+        "modified": "2025-10-18T03:23:36.460547",
+        "lines": 1,
+        "imports": [],
+        "centrality": 6,
+        "importers": [
+          "application.api",
+          "ui.files_browser",
+          "ui.forms.actions",
+          "core.services.lixeira_service",
+          "core.services.upload_service",
+          "adapters.storage.supabase_storage"
+        ]
+      },
+      {
+        "path": "adapters\\storage\\__init__.py",
+        "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\adapters\\storage\\__init__.py",
+        "size": 46,
+        "sha256": "59a8c78d69521ea61cfbdf313486f1cc04f1f99ce3189fa70b1aa457c58a3e5d",
+        "modified": "2025-10-18T03:23:36.461542",
+        "lines": 1,
+        "imports": [],
+        "centrality": 0,
+        "importers": []
+      },
+      {
+        "path": "shared\\__init__.py",
+        "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\shared\\__init__.py",
+        "size": 32,
+        "sha256": "b2a875168ad5b0ebf5d5d031ae3719f49f6bfe7020d0829a56b62f4092a4cc68",
+        "modified": "2025-10-18T03:23:36.556112",
+        "lines": 1,
+        "imports": [],
+        "centrality": 5,
+        "importers": [
+          "application.status_monitor",
+          "core.logs.audit",
+          "infra.supabase_client",
+          "shared.logging.configure",
+          "config.paths"
+        ]
+      },
+      {
+        "path": "shared\\config\\__init__.py",
+        "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\shared\\config\\__init__.py",
+        "size": 26,
+        "sha256": "8b1f8ed0c821e4743441f6e9dee70967ec8f2e0f6830e9fa5694fa3c8d2b2456",
+        "modified": "2025-10-18T03:23:36.557112",
+        "lines": 1,
+        "imports": [],
+        "centrality": 0,
+        "importers": []
+      },
+      {
+        "path": "shared\\logging\\__init__.py",
+        "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\shared\\logging\\__init__.py",
+        "size": 33,
+        "sha256": "c641dda55bad519874d7a97a33b6d0e90592488ec15c006e0408e542e7426ce1",
+        "modified": "2025-10-18T03:23:36.559112",
+        "lines": 1,
+        "imports": [],
+        "centrality": 0,
+        "importers": []
+      }
+    ],
+    "audit.py": [
+      {
+        "path": "core\\logs\\audit.py",
+        "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\core\\logs\\audit.py",
+        "size": 59,
+        "sha256": "ef93b4e9a6bd30c81ceb47009caa0cc54f3ffa7da39510c96e8773ffd811eaac",
+        "modified": "2025-10-18T03:23:43.167215",
+        "lines": 1,
+        "imports": [
+          "shared.__init__"
+        ],
+        "centrality": 0,
+        "importers": []
+      },
+      {
+        "path": "shared\\logging\\audit.py",
+        "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\shared\\logging\\audit.py",
+        "size": 991,
+        "sha256": "0f9f9b6033edc71927b91d79d396bd1dd4e2568e0434e026d0d9e9d0f7185fa2",
+        "modified": "2025-10-18T03:23:36.560112",
+        "lines": 26,
+        "imports": [],
+        "centrality": 0,
+        "importers": []
+      }
+    ]
+  },
+  "canonicals": {
+    "api.py": {
+      "path": "application\\api.py",
+      "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\application\\api.py",
+      "justification": "mais importado (2 refs) + 317 linhas",
+      "lines": 317,
+      "centrality": 2
+    },
+    "__init__.py": {
+      "path": "adapters\\__init__.py",
+      "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\adapters\\__init__.py",
+      "justification": "mais importado (6 refs) + 1 linhas",
+      "lines": 1,
+      "centrality": 6
+    },
+    "audit.py": {
+      "path": "core\\logs\\audit.py",
+      "full_path": "C:\\Users\\Pichau\\Desktop\\v1.0.34\\core\\logs\\audit.py",
+      "justification": "1 linhas",
+      "lines": 1,
+      "centrality": 0
+    }
+  }
+}

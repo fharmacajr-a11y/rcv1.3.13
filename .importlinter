@@ -1,0 +1,29 @@
+[importlinter]
+root_packages =
+    ui
+    gui
+    application
+    core
+    adapters
+    shared
+    infra
+    utils
+    config
+include_external_packages = False
+
+[importlinter:contract:1]
+name = Core should not import UI
+type = forbidden
+source_modules =
+    core
+forbidden_modules =
+    ui
+    gui
+
+[importlinter:contract:2]
+name = Core should not import Application
+type = forbidden
+source_modules =
+    core
+forbidden_modules =
+    application

@@ -21,8 +21,8 @@ def ensure_schema() -> None:
 def log_client_action(
     user: str,
     client_id: int,
-    action: str,
-    details: Optional[str] = None,
+    _action: str,  # Prefixo _ indica parâmetro não usado (placeholder futuro)
+    _details: Optional[str] = None,  # Prefixo _ indica parâmetro não usado
 ) -> None:
     """Records a client action. Currently a no-op kept for future expansion."""
     return None

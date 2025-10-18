@@ -1,0 +1,87 @@
+{
+  "total_nodes": 89,
+  "total_edges": 1821,
+  "orphans": 2,
+  "top_referenced": [
+    {
+      "module": "utils.hash_utils",
+      "in_degree": 35
+    },
+    {
+      "module": "utils.net_retry",
+      "in_degree": 35
+    },
+    {
+      "module": "utils.pdf_reader",
+      "in_degree": 35
+    },
+    {
+      "module": "utils.resource_path",
+      "in_degree": 35
+    },
+    {
+      "module": "utils.subpastas_config",
+      "in_degree": 35
+    },
+    {
+      "module": "utils.text_utils",
+      "in_degree": 35
+    },
+    {
+      "module": "utils.themes",
+      "in_degree": 35
+    },
+    {
+      "module": "utils.theme_manager",
+      "in_degree": 35
+    },
+    {
+      "module": "utils.validators",
+      "in_degree": 35
+    },
+    {
+      "module": "utils.__init__",
+      "in_degree": 35
+    },
+    {
+      "module": "utils.file_utils.file_utils",
+      "in_degree": 35
+    },
+    {
+      "module": "utils.file_utils.__init__",
+      "in_degree": 35
+    },
+    {
+      "module": "utils.helpers.cloud_guardrails",
+      "in_degree": 35
+    },
+    {
+      "module": "utils.helpers.hidpi",
+      "in_degree": 35
+    },
+    {
+      "module": "utils.helpers.rc_hotfix_no_local_fs",
+      "in_degree": 35
+    },
+    {
+      "module": "utils.helpers.__init__",
+      "in_degree": 35
+    },
+    {
+      "module": "core.models",
+      "in_degree": 30
+    },
+    {
+      "module": "core.__init__",
+      "in_degree": 30
+    },
+    {
+      "module": "core.auth.auth",
+      "in_degree": 30
+    },
+    {
+      "module": "core.auth.__init__",
+      "in_degree": 30
+    }
+  ]
+}

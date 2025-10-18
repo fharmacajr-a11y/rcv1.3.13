@@ -22,7 +22,6 @@ requests
 pypdf
 pdfminer.six
 pymupdf
-PyPDF2  # mantido para compatibilidade com código legado
 
 # Image processing
 pillow
@@ -37,6 +36,3 @@ supabase>=2.6.0
 
 # GUI toolkit
 ttkbootstrap
-
-# Timezone data
-tzdata

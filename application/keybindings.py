@@ -4,7 +4,7 @@ from typing import Callable, Optional, Dict, Any
 
 
 def _wrap(fn: Optional[Callable[..., Any]]):
-    def _h(ev=None):
+    def _h(_event=None):  # Renomeado para _event (prefixo _ indica não usado)
         if callable(fn):
             try:
                 fn()

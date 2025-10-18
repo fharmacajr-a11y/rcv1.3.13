@@ -1,0 +1,22 @@
+
+# Log de Aplicação - Quarentena de Órfãos
+**Data:** 2025-10-18 09:13:17
+**Ação:** Mover módulos órfãos para quarentena
+---
+
+## Arquivos Movidos (1)
+
+- `detectors\cnpj_card.py` → `ajuda/_quarentena_orfaos/detectors\cnpj_card.py`
+
+
+## Observações
+
+- Arquivos movidos para `ajuda/_quarentena_orfaos/` preservando estrutura
+- Se nenhum problema ocorrer após 1-2 releases, podem ser deletados permanentemente
+- Para restaurar: `Move-Item "ajuda\_quarentena_orfaos\<arquivo>" "<local_original>"`
+
+## Comandos para Reverter
+
+```powershell
+Move-Item "ajuda\_quarentena_orfaos\detectors\cnpj_card.py" "detectors\cnpj_card.py"
+```
