@@ -1,209 +1,224 @@
 from __future__ import annotations
-import os
-import shutil
+
 import logging
-from typing import Iterable, Tuple, Optional, Literal
-from config.paths import DOCS_DIR
-from core import db_manager
-from utils.file_utils import ensure_subpastas, write_marker
-from .path_resolver import resolve_cliente_path, resolve_unique_path, TRASH_DIR
+import os
+from tempfile import NamedTemporaryFile
+from typing import Iterable, List, Tuple
+
+from tkinter import messagebox
+
+from adapters.storage.api import (
+    delete_file as storage_delete_file,
+    list_files as storage_list_files,
+    upload_file as storage_upload_file,
+    using_storage_backend,
+)
+from adapters.storage.supabase_storage import SupabaseStorageAdapter
+from utils.subpastas_config import get_mandatory_subpastas, join_prefix
 
 logger = logging.getLogger(__name__)
+log = logger
 
-def _unique_dest(base_dir: str, name: str) -> str:
-    dst = os.path.join(base_dir, name)
-    if not os.path.exists(dst):
-        return dst
-    root, ext = os.path.splitext(name)
-    k = 1
-    while True:
-        cand = os.path.join(base_dir, f"{root}_{k}{ext}")
-        if not os.path.exists(cand):
-            return cand
-        k += 1
+BUCKET_DOCS = "rc-docs"
 
-def _merge_folders(src: str, dst: str) -> tuple[int, int]:
-    if not os.path.isdir(src):
-        return (0, 0)
-    os.makedirs(dst, exist_ok=True)
-    moved = failed = 0
-    for name in os.listdir(src):
-        s = os.path.join(src, name)
-        d = os.path.join(dst, name)
-        try:
-            if os.path.isdir(s):
-                m2, f2 = _merge_folders(s, d)
-                moved += m2
-                failed += f2
-                try:
-                    if not os.listdir(s):
-                        os.rmdir(s)
-                except Exception as e:
-                    logger.warning("Lixeira: erro ignorado: %s", e)
-            else:
-                if os.path.exists(d):
-                    root, ext = os.path.splitext(name)
-                    k = 1
-                    nd = os.path.join(dst, f"{root}_{k}{ext}")
-                    while os.path.exists(nd):
-                        k += 1
-                        nd = os.path.join(dst, f"{root}_{k}{ext}")
-                    shutil.move(s, nd)
-                else:
-                    shutil.move(s, d)
-                moved += 1
-        except Exception:
-            logger.exception("merge fail: %s -> %s", s, d)
-            failed += 1
+
+# ----------------- Helpers Supabase -----------------
+def _get_supabase_and_org():
+    """
+    Retorna (supabase, org_id) do usuário logado.
+    """
+    from infra.supabase_client import supabase
+
     try:
-        if not os.listdir(src):
-            os.rmdir(src)
+        # compat: get_user() pode retornar .user ou já o user
+        resp = supabase.auth.get_user()
+        u = getattr(resp, "user", None) or resp
+        uid = getattr(u, "id", None)
+        if not uid:
+            raise RuntimeError("Usuário não autenticado no Supabase.")
+        res = (
+            supabase.table("memberships")
+            .select("org_id")
+            .eq("user_id", uid)
+            .limit(1)
+            .execute()
+        )
+        org_id = res.data[0]["org_id"] if getattr(res, "data", None) else None
+        if not org_id:
+            raise RuntimeError("Organização não encontrada para o usuário atual.")
+        return supabase, org_id
     except Exception as e:
-        logger.warning("Lixeira: erro ignorado: %s", e)
-    return (moved, failed)
+        raise RuntimeError(f"Falha ao obter usuário/organização: {e}")
 
-def trash_find_folder_by_pk(pk: int) -> str | None:
-    # marker-based detection in the trash, independent of folder name
-    path, loc = resolve_unique_path(int(pk), prefer="trash")
-    return path
 
-def enviar_para_lixeira(ids: Iterable[int]) -> tuple[list[int], list[int]]:
+# ---- Listagem recursiva no Storage (usando list + chamada recursiva) ----
+def _list_storage_children(bucket, prefix: str) -> List[dict]:
     """
-    Move clientes para a Lixeira.
-    Regras:
-      - Só aplica soft delete no BD após mover a pasta com sucesso.
-      - Se não encontrar a pasta ativa (nem por marker), registra em 'falhas' e NÃO altera o BD.
+    Lista UM nível de filhos em `prefix`. Retorna dicts com pelo menos {name, is_folder?}.
+    Usa a API do adapter de storage.
     """
-    ok_list: list[int] = []
-    falhas: list[int] = []
-    os.makedirs(TRASH_DIR, exist_ok=True)
-
-    for raw_pk in ids:
-        pk = int(raw_pk)
-
-        # Pre-flight: resolver caminho ativo por marker/slug
-        active_path, loc = resolve_unique_path(pk, prefer="active")
-        if not active_path or not os.path.isdir(active_path):
-            # não cria pasta vazia na lixeira; sinaliza falha para feedback e possível rollback
-            logger.warning("Lixeira: pasta ativa não encontrada para PK=%s", pk)
-            falhas.append(pk)
+    adapter = SupabaseStorageAdapter(bucket=bucket)
+    with using_storage_backend(adapter):
+        items = storage_list_files(prefix)
+    out = []
+    for it in items or []:
+        if not isinstance(it, dict):
             continue
+        # Heurística: objetos com metadata None são "pastas" (chaves virtuais)
+        name = it.get("name")
+        meta = it.get("metadata")
+        is_folder = meta is None
+        out.append({"name": name, "is_folder": is_folder})
+    return out
 
-        # Nome de destino preserva o basename atual
-        base_name = os.path.basename(active_path)
-        dest = _unique_dest(TRASH_DIR, base_name)
 
-        try:
-            # Move físico
-            shutil.move(active_path, dest)
-            # Pós-move: garantir estrutura e marcador
-            try:
-                ensure_subpastas(dest)
-                write_marker(dest, pk)
-            except Exception:
-                logger.exception("Falha ao garantir subpastas/escrever marcador na Lixeira para PK=%s", pk)
-
-            # BD somente após sucesso do move
-            db_manager.soft_delete_clientes([pk])
-            ok_list.append(pk)
-            logger.info("Lixeira: movido PK=%s %s -> %s", pk, active_path, dest)
-        except Exception:
-            logger.exception("Falha no enviar_para_lixeira PK=%s", pk)
-            falhas.append(pk)
-            # Nenhuma mutação no BD em caso de falha
-
-    return ok_list, falhas
-
-def restore_ids(ids: Iterable[int]) -> tuple[int, int, int]:
+def _gather_all_paths(bucket: str, root_prefix: str) -> List[str]:
     """
-    Restaura clientes da Lixeira.
-    Regras:
-      - Trabalha por marker (independe do nome do diretório).
-      - NÃO reativa no BD antes da operação de arquivo.
-      - Coleta as falhas e só chama restore_clientes() para os que moveram com sucesso.
-      - Não cria pasta ativa vazia quando a pasta na Lixeira não existe; isso vira 'falha'.
-    Retorna: (ok_db, processadas, falhas)
+    Coleta todos os caminhos de arquivos sob root_prefix, recursivamente.
+    Retorna caminhos completos (ex.: "<org>/<client>/SIFAP/arquivo.pdf").
     """
-    success_ids: list[int] = []
-    falha_ids: list[int] = []
-    processadas = 0
+    paths: List[str] = []
 
-    for raw_pk in ids:
-        pk = int(raw_pk)
-
-        # Localizar na lixeira
-        trash_path, loc = resolve_unique_path(pk, prefer="trash")
-        if not trash_path or not os.path.isdir(trash_path):
-            logger.warning("Restore: pasta na Lixeira não encontrada para PK=%s", pk)
-            falha_ids.append(pk)
-            processadas += 1
-            continue
-
-        # Determinar destino ativo
-        r = resolve_cliente_path(pk)
-        # se já existe ativa (ex.: resíduo de operação anterior), vamos mesclar
-        dst_active = r.active or _unique_dest(DOCS_DIR, os.path.basename(trash_path))
-
-        try:
-            if r.active and os.path.abspath(dst_active) != os.path.abspath(trash_path):
-                _merge_folders(trash_path, dst_active)
-                # remove a pasta da lixeira se ficar vazia
-                try:
-                    if os.path.isdir(trash_path) and not os.listdir(trash_path):
-                        os.rmdir(trash_path)
-                except Exception as e:
-                    logger.warning("Lixeira: erro ignorado: %s", e)
+    def walk(prefix: str):
+        for obj in _list_storage_children(bucket, prefix):
+            name = obj["name"]
+            if not name:
+                continue
+            if obj.get("is_folder"):
+                walk(f"{prefix}/{name}")
             else:
-                shutil.move(trash_path, dst_active)
+                paths.append(f"{prefix}/{name}")
 
-            # Pós-move: garantir estrutura e marker
+    walk(root_prefix)
+    return paths
+
+
+def _remove_storage_prefix(org_id: str, client_id: int) -> int:
+    """
+    Remove todos os objetos do bucket sob <org_id>/<client_id>.
+    Retorna quantidade de objetos removidos.
+    """
+    root = f"{org_id}/{client_id}"
+    paths = _gather_all_paths(BUCKET_DOCS, root)
+
+    if not paths:
+        return 0
+
+    removed = 0
+    adapter = SupabaseStorageAdapter(bucket=BUCKET_DOCS)
+    with using_storage_backend(adapter):
+        for key in paths:
+            if storage_delete_file(key):
+                removed += 1
+    return removed
+
+
+def _ensure_mandatory_subfolders(prefix: str) -> None:
+    """
+    Garante que as subpastas obrigatórias existam sob `prefix`.
+    Como o Supabase é orientado a objetos e 'pastas' são prefixos,
+    criamos um placeholder `.keep` quando não houver nenhum objeto no prefixo.
+    """
+    adapter = SupabaseStorageAdapter(bucket=BUCKET_DOCS)
+    with using_storage_backend(adapter):
+        for name in get_mandatory_subpastas():
+            sub_prefix = join_prefix(prefix, name)
+            has_any = False
+            for _ in storage_list_files(sub_prefix):
+                has_any = True
+                break
+            if has_any:
+                continue
+            keep_key = f"{sub_prefix}.keep"
+            tmp_name: str | None = None
+            with NamedTemporaryFile("wb", delete=False) as tmp:
+                tmp.write(b"")
+                tmp.flush()
+                tmp_name = tmp.name
             try:
-                ensure_subpastas(dst_active)
-                write_marker(dst_active, pk)
-            except Exception:
-                logger.exception("Falha ao garantir subpastas/escrever marcador no Ativo para PK=%s", pk)
+                storage_upload_file(tmp_name, keep_key, "text/plain")
+            finally:
+                if tmp_name:
+                    try:
+                        os.unlink(tmp_name)
+                    except OSError:
+                        pass
 
-            success_ids.append(pk)
-            processadas += 1
-            logger.info("Restore: movido PK=%s %s -> %s", pk, trash_path, dst_active)
-        except Exception:
-            logger.exception("Falha ao restaurar PK=%s", pk)
-            falha_ids.append(pk)
-            processadas += 1
-            # Não altera BD em caso de falha
 
-    ok_db = 0
-    if success_ids:
+# ----------------- Ações públicas -----------------
+def restore_clients(
+    client_ids: Iterable[int], parent=None
+) -> Tuple[int, List[Tuple[int, str]]]:
+    """
+    Restaura clientes (deleted_at = null).
+    Retorna: (qtd_ok, [(client_id, err), ...])
+    """
+    ok = 0
+    errs: List[Tuple[int, str]] = []
+    try:
+        supabase, org_id = _get_supabase_and_org()
+    except Exception as e:
+        messagebox.showerror("Erro", str(e), parent=parent)
+        return 0, [(0, str(e))]
+
+    for cid in client_ids:
         try:
-            db_manager.restore_clientes(success_ids)
-            ok_db = len(success_ids)
-        except Exception:
-            logger.exception("Falha no restore_clientes para IDs=%s", success_ids)
-
-    return ok_db, processadas, len(falha_ids)
-
-import time
-
-def purge_ids(ids: Iterable[int]) -> tuple[int, int]:
-    started = time.perf_counter()
-    ok_db = removidas = 0
-    ids = list(map(int, ids))
-    logger.info("Purge iniciar: %d id(s) -> %s", len(ids), ids)
-    for pk in ids:
-        r = resolve_cliente_path(pk)
-        trash_path = r.trash
-        if trash_path and os.path.isdir(trash_path):
+            supabase.table("clients").update({"deleted_at": None}).eq(
+                "id", int(cid)
+            ).execute()
+            prefix = f"{org_id}/{int(cid)}"
             try:
-                shutil.rmtree(trash_path, ignore_errors=False)
-                removidas += 1
-                logger.info("Purge: pasta removida PK=%s (%s)", pk, trash_path)
-            except Exception:
-                logger.exception("Falha ao remover definitivamente PK=%s", pk)
+                _ensure_mandatory_subfolders(prefix)
+            except Exception as guard_err:
+                log.warning(
+                    "Falha ao garantir subpastas obrigatórias para %s: %s",
+                    prefix,
+                    guard_err,
+                )
+            ok += 1
+        except Exception as e:
+            errs.append((int(cid), str(e)))
+
+    return ok, errs
+
+
+def hard_delete_clients(
+    client_ids: Iterable[int], parent=None
+) -> Tuple[int, List[Tuple[int, str]]]:
+    """
+    Apaga DEFINITIVAMENTE clientes (DB + Storage).
+    - Remove do Storage: bucket rc-docs/<org_id>/<client_id>/**
+    - Deleta a linha na tabela clients
+    Retorna: (qtd_ok, [(client_id, err), ...])
+    """
+    ok = 0
+    errs: List[Tuple[int, str]] = []
+
+    try:
+        supabase, org_id = _get_supabase_and_org()
+    except Exception as e:
+        messagebox.showerror("Erro", str(e), parent=parent)
+        return 0, [(0, str(e))]
+
+    for cid in client_ids:
+        cid = int(cid)
         try:
-            db_manager.purge_clientes([pk])
-            ok_db += 1
-            logger.info("Purge: removido do banco PK=%s", pk)
-        except Exception:
-            logger.exception("Falha no purge_clientes para PK=%s", pk)
-    logger.info("Purge fim: ok_db=%s, pastas=%s, tempo=%.3fs", ok_db, removidas, time.perf_counter()-started)
-    return ok_db, removidas
+            # 1) Limpa Storage
+            try:
+                removed = _remove_storage_prefix(org_id, cid)
+                log.info(
+                    "Storage: removidos %s objeto(s) de %s/%s", removed, org_id, cid
+                )
+            except Exception as e:
+                # Não aborta; reporta erro mas tenta seguir para DB
+                log.exception("Falha ao limpar Storage de %s/%s", org_id, cid)
+                errs.append((cid, f"Storage: {e}"))
+
+            # 2) Remove do DB (linha do cliente)
+            supabase.table("clients").delete().eq("id", cid).execute()
+
+            ok += 1
+        except Exception as e:
+            errs.append((cid, str(e)))
+
+    return ok, errs

@@ -1,9 +1,9 @@
-# utils/pdf_reader.py
-import logging
 import fitz  # PyMuPDF
+import logging
 
 logger = logging.getLogger(__name__)
 log = logger
+
 
 def _flatten_rawdict(raw) -> str:
     try:
@@ -23,35 +23,34 @@ def _flatten_rawdict(raw) -> str:
         except Exception:
             return ""
 
+
 def read_pdf_text(path: str, max_pages: int = 3) -> str:
-    """Lê até max_pages do PDF (default=3) com fallback para 'rawdict' quando necessário."""
+    """Lê até max_pages do PDF, com fallback para PDFs problemáticos."""
     try:
-        with fitz.open(path) as doc:
-            # PyMuPDF: doc.needs_pass -> True se cifrado e sem senha
-            if getattr(doc, "needs_pass", False):
-                logger.warning(f"PDF criptografado sem senha: {path}")
-                return ""
-
-            total_pages = getattr(doc, "page_count", 0)
-            if total_pages <= 0:
-                return ""
-
-            limit = total_pages if (max_pages is None or max_pages <= 0) else min(max_pages, total_pages)
-            texts = []
-            for i in range(limit):
-                try:
-                    page = doc.load_page(i)
-                    txt = page.get_text("text") or ""
-                    if not txt.strip():
-                        raw = page.get_text("rawdict")
-                        txt = _flatten_rawdict(raw)
-                    if not isinstance(txt, str):
-                        txt = str(txt)
-                    texts.append(txt)
-                except Exception as e:
-                    logger.warning(f"Falha ao ler página {i} em {path}: {e}")
-                    continue
-            return "\n".join(texts)
+        doc = fitz.open(path)
     except Exception as e:
-        logger.warning(f"PDF inválido ou erro ao abrir: {path} ({e})")
+        logger.warning(f"PDF inválido ou criptografado: {path} ({e})")
         return ""
+
+    texts = []
+    try:
+        total = min(max_pages, getattr(doc, "page_count", 0))
+        for i in range(total):
+            try:
+                page = doc.load_page(i)
+                txt = page.get_text("text")
+                if not txt:
+                    raw = page.get_text("rawdict")
+                    txt = _flatten_rawdict(raw)
+                if not isinstance(txt, str):
+                    txt = str(txt)
+                texts.append(txt)
+            except Exception as e:
+                logger.warning(f"Falha ao ler página {i} em {path}: {e}")
+                continue
+    finally:
+        try:
+            doc.close()
+        except Exception:
+            pass
+    return "\n".join(texts)

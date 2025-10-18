@@ -1,104 +1,115 @@
-# app_status.py
+"""Network status helpers for the Tkinter desktop application."""
+
 from __future__ import annotations
 
-import os
+from pathlib import Path
+from typing import Any, Tuple
+import logging
+import threading
 import time
 import yaml
-import threading
-import logging
-from typing import Tuple
 
-from infra.net_status import probe, Status
+from infra.net_status import Status, probe
 
 log = logging.getLogger(__name__)
 
-DEFAULT_INTERVAL_MS = 30000  # 30s
-DEFAULT_TIMEOUT = 2.0
-CONFIG_PATH = "config.yml"
+# Public attribute consumed by the UI during bootstrap.
+status_text: str = "LOCAL"
 
-# ------------------------- helpers de UI -------------------------
-def _set_env(app, text: str):
-    """Define o ambiente no rodapé preservando o usuário, se disponível."""
+DEFAULT_INTERVAL_MS = 30_000  # 30 seconds
+DEFAULT_TIMEOUT = 2.0
+CONFIG_PATH = Path("config.yml")
+_STATUS_DOT = "\u25CF"  # Unicode bullet rendered by ttkbootstrap
+
+# Cache structure: (path, mtime, (url, timeout, interval_ms))
+_cfg_cache: Tuple[Path, float, Tuple[str, float, int]] | None = None
+
+
+def _set_env_text(app: Any, text: str) -> None:
+    """Update the environment text label while preserving existing user details."""
     try:
         if hasattr(app, "_merge_status_text"):
             app._merge_status_text(text)
-        else:
+        elif hasattr(app, "status_var_text"):
             app.status_var_text.set(text)
     except Exception:
-        try:
-            app.status_var_text.set(text)
-        except Exception:
-            pass
+        log.debug("Unable to propagate environment text", exc_info=True)
 
-def _apply_status(app, st: Status):
-    if not getattr(app, "winfo_exists", None):
-        return
+
+def _apply_status(app: Any, status: Status) -> None:
+    """Apply the probe result to the UI (dot style, text and callbacks)."""
     try:
-        if not app.winfo_exists():
+        if hasattr(app, "winfo_exists") and not app.winfo_exists():
             return
     except Exception:
         return
 
+    # Always show the status dot
     try:
-        # mantém o ponto sempre visível; estilo muda pela rede
-        try:
-            app.status_var_dot.set("●")
-        except Exception:
-            pass
-
-        if st == Status.ONLINE:
-            _set_env(app, "ONLINE")
-            app.status_dot.configure(bootstyle="success")
-        elif st == Status.OFFLINE:
-            _set_env(app, "OFFLINE")
-            app.status_dot.configure(bootstyle="danger")
+        if hasattr(app, "status_var_dot"):
+            app.status_var_dot.set(_STATUS_DOT)
+        if hasattr(app, "status_dot"):
+            style = "warning"
+            env_text = "LOCAL"
+            if status == Status.ONLINE:
+                style = "success"
+                env_text = "ONLINE"
+            elif status == Status.OFFLINE:
+                style = "danger"
+                env_text = "OFFLINE"
+            app.status_dot.configure(bootstyle=style)
+            _set_env_text(app, env_text)
         else:
-            _set_env(app, "LOCAL")
-            app.status_dot.configure(bootstyle="warning")
+            _set_env_text(app, "ONLINE" if status == Status.ONLINE else "OFFLINE")
     except Exception:
-        pass
+        log.debug("Failed to update status widgets", exc_info=True)
 
-# ------------------------- cache de config.yml -------------------------
-_cfg_cache: Tuple[str, float, Tuple[str, float, int]] | None = None
-# formato: (path, mtime, (url, timeout, interval_ms))
+    try:
+        callback = getattr(app, "on_net_status_change", None)
+        if callable(callback):
+            callback(status)
+    except Exception:
+        log.debug("on_net_status_change hook failed", exc_info=True)
+
 
 def _read_cfg_from_disk() -> Tuple[str, float, int]:
-    """Lê config.yml (ou defaults) sem cache."""
+    """Read config.yml (if available) returning (url, timeout, interval_ms)."""
     try:
-        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-            cfg = yaml.safe_load(f) or {}
-        sp = cfg.get("status_probe") or {}
-        url = str(sp.get("url", "") or "")
-        timeout = float(sp.get("timeout_seconds", DEFAULT_TIMEOUT))
-        interval_ms = int(sp.get("interval_ms", DEFAULT_INTERVAL_MS))
+        with CONFIG_PATH.open("r", encoding="utf-8") as file:
+            cfg = yaml.safe_load(file) or {}
+        probe_opts = cfg.get("status_probe") or {}
+        url = str(probe_opts.get("url") or "")
+        timeout = float(probe_opts.get("timeout_seconds", DEFAULT_TIMEOUT))
+        interval_ms = int(probe_opts.get("interval_ms", DEFAULT_INTERVAL_MS))
         return url, timeout, interval_ms
     except Exception:
         return "", DEFAULT_TIMEOUT, DEFAULT_INTERVAL_MS
 
+
 def _get_cfg() -> Tuple[str, float, int]:
-    """Retorna (url, timeout, interval_ms) com cache por mtime."""
+    """Return cached probe configuration using file mtime as invalidation token."""
     global _cfg_cache
     try:
-        mtime = os.path.getmtime(CONFIG_PATH) if os.path.exists(CONFIG_PATH) else -1.0
+        mtime = CONFIG_PATH.stat().st_mtime
     except Exception:
         mtime = -1.0
 
     if _cfg_cache and _cfg_cache[0] == CONFIG_PATH and _cfg_cache[1] == mtime:
         return _cfg_cache[2]
 
-    vals = _read_cfg_from_disk()
-    _cfg_cache = (CONFIG_PATH, mtime, vals)
-    return vals
+    values = _read_cfg_from_disk()
+    _cfg_cache = (CONFIG_PATH, mtime, values)
+    return values
 
-# ------------------------- worker único + throttle -------------------------
-def update_net_status(app, interval_ms: int | None = None):
+
+def update_net_status(app: Any, interval_ms: int | None = None) -> None:
     """
-    Inicia (uma vez) um worker de status de rede e agenda updates na UI.
-    - Evita spawn de threads por intervalo (apenas 1 daemon).
-    - Throttle de updates na UI (~3/s) e evita updates redundantes quando o status não muda.
-    - Respeita config.yml com cache por mtime; permite override via `interval_ms`.
+    Start a background worker that probes network connectivity and updates the UI.
+
+    The first probe is executed synchronously so the status indicator is updated as soon
+    as the window is shown. Subsequent probes run in a daemon thread with throttled UI
+    updates to avoid overwhelming Tkinter.
     """
-    # já rodando?
     if getattr(app, "_net_worker_started", False):
         return
 
@@ -106,46 +117,50 @@ def update_net_status(app, interval_ms: int | None = None):
     app._net_last_ui = 0.0
     app._net_last_status = None  # type: ignore[assignment]
 
-    def _safe_after_apply(status: Status):
-        try:
-            if app.winfo_exists():
-                app.after(0, lambda s=status: _apply_status(app, s))
-        except Exception:
-            pass
+    url, timeout, cfg_interval_ms = _get_cfg()
+    try:
+        first_status = probe(url, timeout)
+    except Exception:
+        first_status = Status.LOCAL
 
-    def worker():
-        log.info("NetStatusWorker: iniciado (daemon)")
+    try:
+        app.after(0, lambda s=first_status: _apply_status(app, s))
+    except Exception:
+        log.debug("Unable to schedule initial status update", exc_info=True)
+
+    def worker() -> None:
+        log.info("NetStatusWorker started")
         while True:
-            # carrega config (com cache)
-            url, timeout, cfg_interval_ms = _get_cfg()
-            eff_interval_ms = int(interval_ms or cfg_interval_ms or DEFAULT_INTERVAL_MS)
+            url_, timeout_, cfg_interval_ms_ = _get_cfg()
+            eff_interval_ms = int(
+                interval_ms or cfg_interval_ms_ or DEFAULT_INTERVAL_MS
+            )
             eff_interval_s = max(1.0, eff_interval_ms / 1000.0)
 
-            # mede status
-            st = Status.LOCAL
             try:
-                st = probe(url, timeout)
+                current_status = probe(url_, timeout_)
             except Exception:
-                # probe falhou -> considera LOCAL (degradação suave)
-                st = Status.LOCAL
+                current_status = Status.LOCAL
 
-            # throttle de UI e evita updates redundantes
             now = time.time()
-            do_throttle = (now - getattr(app, "_net_last_ui", 0.0)) >= 0.33
-            last_st = getattr(app, "_net_last_status", None)
+            last_ui = getattr(app, "_net_last_ui", 0.0)
+            previous_status = getattr(app, "_net_last_status", None)
+            throttle = (now - last_ui) >= 0.33
 
-            if do_throttle or st != last_st:
+            if throttle or current_status != previous_status:
                 try:
-                    if app.winfo_exists():
+                    if hasattr(app, "winfo_exists") and app.winfo_exists():
                         app._net_last_ui = now
-                        app._net_last_status = st
-                        app.after(0, lambda s=st: _apply_status(app, s))
+                        app._net_last_status = current_status
+                        app.after(0, lambda s=current_status: _apply_status(app, s))
                 except Exception:
-                    # janela pode ter sido fechada — como daemon, terminamos quando o processo sair
-                    pass
+                    log.debug("Failed to dispatch status update", exc_info=True)
 
             time.sleep(eff_interval_s)
 
-    t = threading.Thread(target=worker, daemon=True, name="NetStatusWorker")
-    t.start()
-    app._net_worker_thread = t
+    thread = threading.Thread(target=worker, daemon=True, name="NetStatusWorker")
+    thread.start()
+    app._net_worker_thread = thread
+
+
+__all__ = ["status_text", "update_net_status"]

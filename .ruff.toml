@@ -1,0 +1,20 @@
+# Configuração do Ruff para RC-Gestor v1.0.29
+# https://docs.astral.sh/ruff/
+
+# Tamanho máximo de linha (Black usa 88)
+line-length = 88
+
+[lint]
+# Ignora erros de código legado que não afetam funcionalidade
+# e que seriam corrigidos em refatorações futuras
+ignore = [
+    "F403",  # star imports (from x import *) - código legado
+    "F821",  # undefined names em alguns contextos específicos
+    "E402",  # imports não no topo - alguns imports condicionais necessários
+    "F841",  # variáveis locais não utilizadas - algumas são necessárias
+]
+
+[format]
+# Usa as mesmas configurações do Black
+quote-style = "double"
+indent-style = "space"

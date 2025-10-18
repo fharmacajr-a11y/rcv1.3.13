@@ -4,16 +4,28 @@ from __future__ import annotations
 import os
 import tkinter as tk
 import ttkbootstrap as tb
-
 from typing import Iterable, List
-from ui.utils import center_on_parent
+
+from config.paths import CLOUD_ONLY
 from utils.file_utils import ensure_subpastas, open_folder
 
+try:
+    from ui import center_on_parent
+except Exception:  # pragma: no cover
+    try:
+        from ui.utils import center_on_parent
+    except Exception:  # pragma: no cover
 
-def open_subpastas_dialog(parent: tk.Tk | tk.Toplevel,
-                          base_path: str,
-                          subpastas: Iterable[str] | None = None,
-                          extras_visiveis: Iterable[str] | None = None) -> None:
+        def center_on_parent(win, parent=None, pad=0):
+            return win
+
+
+def open_subpastas_dialog(
+    parent: tk.Tk | tk.Toplevel,
+    base_path: str,
+    subpastas: Iterable[str] | None = None,
+    extras_visiveis: Iterable[str] | None = None,
+) -> None:
     win = tb.Toplevel(parent)
     win.title("Subpastas do Cliente")
     win.transient(parent)
@@ -39,12 +51,17 @@ def open_subpastas_dialog(parent: tk.Tk | tk.Toplevel,
         var_filter.set("")
         _refresh_rows()
 
-    tb.Button(tools, text="Limpar", bootstyle="secondary",
-              command=_clear_filter).grid(row=0, column=2, padx=(6, 12))
+    tb.Button(tools, text="Limpar", bootstyle="secondary", command=_clear_filter).grid(
+        row=0, column=2, padx=(6, 12)
+    )
 
     var_only_missing = tk.BooleanVar(value=False)
-    tb.Checkbutton(tools, text="Só faltando", variable=var_only_missing,
-                   command=lambda: _refresh_rows()).grid(row=0, column=3, sticky="w")
+    tb.Checkbutton(
+        tools,
+        text="Só faltando",
+        variable=var_only_missing,
+        command=lambda: _refresh_rows(),
+    ).grid(row=0, column=3, sticky="w")
 
     # ---------- Lista rolável ----------
     list_box = tb.Frame(win, padding=(10, 10, 10, 0))
@@ -56,7 +73,9 @@ def open_subpastas_dialog(parent: tk.Tk | tk.Toplevel,
     vsb = tb.Scrollbar(list_box, orient="vertical", command=canvas.yview)
     rows_holder = tb.Frame(canvas)
 
-    rows_holder.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+    rows_holder.bind(
+        "<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+    )
     canvas.create_window((0, 0), window=rows_holder, anchor="nw")
     canvas.configure(yscrollcommand=vsb.set)
 
@@ -83,6 +102,7 @@ def open_subpastas_dialog(parent: tk.Tk | tk.Toplevel,
         if not nomes:  # se não veio nada, carrega do YAML
             try:
                 from utils.subpastas_config import load_subpastas_config
+
                 _subs, _ext = load_subpastas_config()
                 nomes = list(sorted(set(_subs + _ext)))
             except Exception:
@@ -93,22 +113,31 @@ def open_subpastas_dialog(parent: tk.Tk | tk.Toplevel,
             ensure_subpastas(base_path, None)  # fallback: loader interno do file_utils
         _refresh_rows()
 
-    tb.Button(footer, text="Criar todas", bootstyle="primary",
-              command=_criar_todas).grid(row=0, column=0, sticky="w")
+    tb.Button(
+        footer, text="Criar todas", bootstyle="primary", command=_criar_todas
+    ).grid(row=0, column=0, sticky="w")
 
-    tb.Button(footer, text="Abrir pasta base", bootstyle="secondary",
-              command=lambda: open_folder(base_path)).grid(row=0, column=1, padx=6, sticky="w")
+    tb.Button(
+        footer,
+        text="Abrir pasta base",
+        bootstyle="secondary",
+        command=lambda: open_folder(base_path),
+    ).grid(row=0, column=1, padx=6, sticky="w")
 
-    tb.Button(footer, text="Fechar", bootstyle="secondary",
-              command=win.destroy).grid(row=0, column=2, sticky="e")
+    tb.Button(footer, text="Fechar", bootstyle="secondary", command=win.destroy).grid(
+        row=0, column=2, sticky="e"
+    )
 
     # ---------- Dados ----------
-    all_items: List[str] = list(sorted(set(list(subpastas or []) + list(extras_visiveis or []))))
+    all_items: List[str] = list(
+        sorted(set(list(subpastas or []) + list(extras_visiveis or [])))
+    )
 
     # Se vier vazio, tenta carregar do YAML aqui mesmo
     if not all_items:
         try:
             from utils.subpastas_config import load_subpastas_config
+
             _subs, _ext = load_subpastas_config()
             all_items = list(sorted(set(_subs + _ext)))
         except Exception:
@@ -123,20 +152,30 @@ def open_subpastas_dialog(parent: tk.Tk | tk.Toplevel,
         r.columnconfigure(0, weight=1)
 
         tb.Label(r, text=path_display).grid(row=0, column=0, sticky="w")
-        status = tb.Label(r, text="OK" if exists else "Faltando",
-                          bootstyle=("success" if exists else "danger"))
+        status = tb.Label(
+            r,
+            text="OK" if exists else "Faltando",
+            bootstyle=("success" if exists else "danger"),
+        )
         status.grid(row=0, column=1, padx=(10, 10), sticky="w")
 
         def _open():
-            try:
-                os.makedirs(full_path, exist_ok=True)
-            except Exception:
-                pass
+            if CLOUD_ONLY:
+                from pathlib import Path
+
+                open_folder(Path.home() / "Downloads")
+                return
+            if not CLOUD_ONLY:
+                try:
+                    os.makedirs(full_path, exist_ok=True)
+                except Exception:
+                    pass
             open_folder(full_path)
             _refresh_rows()
 
-        tb.Button(r, text="Abrir", bootstyle="secondary",
-                  command=_open).grid(row=0, column=2, sticky="e")
+        tb.Button(r, text="Abrir", bootstyle="secondary", command=_open).grid(
+            row=0, column=2, sticky="e"
+        )
 
     def _refresh_rows():
         for c in rows_holder.winfo_children():
@@ -163,13 +202,14 @@ def open_subpastas_dialog(parent: tk.Tk | tk.Toplevel,
         rows_holder.update_idletasks()
         canvas.configure(scrollregion=canvas.bbox("all"))
 
+    # binds e layout final (fora de _refresh_rows)
     ent_filter.bind("<KeyRelease>", lambda e: _refresh_rows())
     win.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
 
     win.update_idletasks()
     min_w, min_h = 640, 420
     win.minsize(min_w, min_h)
-    center_on_parent(parent, win, max(min_w, win.winfo_width()), max(min_h, win.winfo_height()))
+    center_on_parent(win, parent)
     _refresh_rows()
     win.grab_set()
     win.focus_force()

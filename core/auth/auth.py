@@ -1,87 +1,101 @@
+# core/auth/auth.py
 from __future__ import annotations
-import sqlite3, os, time, hashlib, hmac, secrets
-from typing import Optional
+
+import os
+import sqlite3
+from hashlib import pbkdf2_hmac
 from datetime import datetime
+from typing import Tuple, Optional
+
 from config.paths import USERS_DB_PATH
+from infra.supabase_client import supabase  # create_client conforme doc.
 
-# ---------- Password hashing helpers (PBKDF2-SHA256) ----------
-def _pbkdf2_hash(password: str, *, iterations: int = 130000) -> str:
-    salt = secrets.token_bytes(16)
-    dk = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, iterations)
-    return f"pbkdf2_sha256${iterations}${salt.hex()}${dk.hex()}"
 
-def _pbkdf2_verify(password: str, stored: str) -> bool:
-    try:
-        algo, iters_str, salt_hex, dk_hex = stored.split('$', 3)
-        assert algo == 'pbkdf2_sha256'
-        iterations = int(iters_str)
-        salt = bytes.fromhex(salt_hex)
-        expected = bytes.fromhex(dk_hex)
-    except Exception:
-        return False
-    cand = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, iterations)
-    return hmac.compare_digest(expected, cand)
+# ------------------ Hash de senha (formato legível futuro) ------------------ #
+def pbkdf2_hash(
+    password: str,
+    *,
+    iterations: int = 600_000,
+    salt: Optional[bytes] = None,
+    dklen: int = 32,
+) -> str:
+    """
+    Gera hash PBKDF2-SHA256 no formato:
+      pbkdf2_sha256$<iter>$<hex_salt>$<hex_hash>
+    """
+    if not password:
+        raise ValueError("password vazio")
+    if salt is None:
+        salt = os.urandom(16)
+    dk = pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iterations, dklen)
+    return "pbkdf2_sha256${iterations}${binascii.hexlify(salt).decode()}${binascii.hexlify(dk).decode()}"
 
-# ---------- DB init ----------
+
+# ------------------------- Banco local de usuários ------------------------- #
 def ensure_users_db() -> None:
+    """Garante a existência da tabela 'users' no SQLite local (ou /tmp em cloud)."""
+    # O SQLite cria o arquivo do DB, mas NÃO cria diretórios. Garanta a pasta-mãe.
     USERS_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    con = sqlite3.connect(USERS_DB_PATH)
-    try:
+
+    with sqlite3.connect(str(USERS_DB_PATH)) as con:
         cur = con.cursor()
-        cur.execute("""
+        cur.execute(
+            """
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT,
                 is_active INTEGER NOT NULL DEFAULT 1,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             )
-        """)
-        con.commit()
-
-        # Seed default admin if empty
-        cur.execute("SELECT COUNT(*) FROM users")
-        (count,) = cur.fetchone()
-        if count == 0:
-            now = datetime.utcnow().isoformat()
-            cur.execute(
-                "INSERT INTO users (username, password_hash, is_active, created_at, updated_at) VALUES (?, ?, 1, ?, ?)",
-                ("admin", _pbkdf2_hash("admin123"), now, now),
-            )
-            con.commit()
-    finally:
-        con.close()
-
-# ---------- CRUD helpers ----------
-def get_user(username: str) -> Optional[tuple]:
-    con = sqlite3.connect(USERS_DB_PATH)
-    try:
-        cur = con.cursor()
-        cur.execute("SELECT id, username, password_hash, is_active FROM users WHERE username = ?", (username,))
-        return cur.fetchone()
-    finally:
-        con.close()
-
-def create_user(username: str, password: str) -> int:
-    con = sqlite3.connect(USERS_DB_PATH)
-    try:
-        cur = con.cursor()
-        now = datetime.utcnow().isoformat()
-        cur.execute(
-            "INSERT INTO users (username, password_hash, is_active, created_at, updated_at) VALUES (?, ?, 1, ?, ?)",
-            (username, _pbkdf2_hash(password), now, now),
+            """
         )
         con.commit()
-        return cur.lastrowid
-    finally:
-        con.close()
 
-def authenticate_user(username: str, password: str) -> bool:
-    row = get_user(username)
-    if not row:
-        return False
-    _id, _username, pwd_hash, is_active = row
-    if not is_active:
-        return False
-    return _pbkdf2_verify(password, pwd_hash)
+
+def create_user(username: str, password: Optional[str] = None) -> int:
+    """Cria usuário local (SQLite). Se já existir, atualiza a senha se fornecida e retorna o ID."""
+    if not (username or "").strip():
+        raise ValueError("username obrigatório")
+
+    ensure_users_db()
+    now = datetime.utcnow().isoformat()
+    pwd_hash = pbkdf2_hash(password) if password else None
+
+    with sqlite3.connect(str(USERS_DB_PATH)) as con:
+        cur = con.cursor()
+        cur.execute("SELECT id FROM users WHERE username=?", (username,))
+        row = cur.fetchone()
+        if row:
+            uid = int(row[0])
+            if pwd_hash:
+                cur.execute(
+                    "UPDATE users SET password_hash=?, updated_at=? WHERE id=?",
+                    (pwd_hash, now, uid),
+                )
+            else:
+                cur.execute(
+                    "UPDATE users SET updated_at=? WHERE id=?",
+                    (now, uid),
+                )
+            con.commit()
+            return uid
+
+        cur.execute(
+            "INSERT INTO users (username, password_hash, is_active, created_at, updated_at) VALUES (?, ?, 1, ?, ?)",
+            (username, pwd_hash, now, now),
+        )
+        con.commit()
+        return int(cur.lastrowid)
+
+
+# ------------------------- Autenticação (Supabase) ------------------------- #
+def authenticate_user(email: str, password: str) -> Tuple[bool, str]:
+    """Autentica via Supabase Auth (email/senha). Retorna (ok, mensagem_erro)."""
+    try:
+        # conforme documentação oficial do client Python
+        supabase.auth.sign_in_with_password({"email": email, "password": password})
+        return True, ""
+    except Exception as e:
+        return False, f"Falha de autenticação: {e}"
