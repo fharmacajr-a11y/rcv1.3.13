@@ -39,6 +39,15 @@ if __name__ == "__main__":
     from gui.splash import show_splash
     from ui.login import LoginDialog
 
+    # Configurar HiDPI no Windows ANTES de criar qualquer Tk
+    # Referência: https://ttkbootstrap.readthedocs.io/en/latest/api/utility/enable_high_dpi_awareness/
+    try:
+        from utils.helpers import configure_hidpi_support
+
+        configure_hidpi_support()  # Windows: chamar sem parâmetros antes do Tk
+    except Exception:
+        pass
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",

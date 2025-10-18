@@ -80,6 +80,17 @@ class App(tb.Window):
     def __init__(self, start_hidden: bool = False) -> None:
         _theme_name = themes.load_theme()
         super().__init__(themename=_theme_name)
+
+        # Configurar HiDPI após criação do Tk (Linux) ou antes (Windows já foi no app_gui)
+        # No Linux, ttkbootstrap Window já vem com hdpi=True por padrão em versões recentes
+        # Mas vamos garantir configuração explícita se necessário
+        try:
+            from utils.helpers import configure_hidpi_support
+
+            configure_hidpi_support(self)  # Linux: aplica scaling
+        except Exception:
+            pass  # Silencioso se falhar
+
         self._topbar = TopBar(self, on_home=self.show_hub_screen)
         self._topbar.pack(side="top", fill="x")
 

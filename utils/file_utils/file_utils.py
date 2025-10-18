@@ -33,6 +33,11 @@ def safe_copy(src: str | Path, dst: str | Path) -> None:
 
 
 def open_folder(p: str | Path) -> None:
+    """Abre pasta no explorador de arquivos (bloqueado em modo Cloud-Only)."""
+    from utils.helpers import check_cloud_only_block
+
+    if check_cloud_only_block("Abrir pasta"):
+        return
     os.startfile(str(Path(p)))
 
 

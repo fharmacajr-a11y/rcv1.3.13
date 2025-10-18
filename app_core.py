@@ -244,6 +244,11 @@ def abrir_pasta(app: Any, pk: int) -> None:
     path = _ensure_live_folder_ready(pk)
     log.info("Opening folder for client %s: %s", pk, path)
     try:
+        # Guardrail adicional: mesmo em modo local, verificar se startfile está disponível
+        from utils.helpers import check_cloud_only_block
+
+        if check_cloud_only_block("Abrir pasta do cliente"):
+            return
         os.startfile(path)  # type: ignore[attr-defined]
     except Exception:
         log.exception("Failed to open file explorer for %s", path)
