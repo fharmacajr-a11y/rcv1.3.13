@@ -779,5 +779,231 @@ Os stubs `infrastructure/` serão removidos em versão futura quando:
 
 ---
 
+## Step 6 – Padronizar PDF em pypdf (compat)
+
+### Objetivo
+Migrar o backend PDF para pypdf (sucessor oficial do PyPDF2) sem alterar nomes/assinaturas das funções públicas dos utilitários de PDF.
+
+### Base Técnica
+- **PyPDF2 está deprecated**: Manutenção e novos recursos seguem no pypdf
+- **pypdf**: Sucessor oficial e recomendado do PyPDF2
+- Referências:
+  - https://pypi.org/project/pypdf/
+  - https://pypi.org/project/PyPDF2/ (deprecated)
+
+### Análise do Código Atual
+
+**Estado inicial** (`utils/file_utils/file_utils.py`):
+```python
+pdfmod: Any
+try:
+    import PyPDF2 as pdfmod  # PyPDF2 primeiro (deprecated)
+except Exception:
+    try:
+        import pypdf as pdfmod  # pypdf como fallback
+    except Exception:
+        pdfmod = None
+```
+
+**Problema**: PyPDF2 (deprecated) tinha prioridade sobre pypdf (recomendado)
+
+### Implementações Realizadas
+
+#### 1. Inversão de Prioridade do Backend PDF
+✅ **Arquivo modificado**: `utils/file_utils/file_utils.py`
+
+**Mudança**:
+```python
+# Backend unificado: pypdf (recomendado) com fallback para PyPDF2 (deprecated)
+# Referência: PyPDF2 está deprecated, pypdf é o sucessor oficial
+# https://pypi.org/project/pypdf/
+pdfmod: Any
+try:
+    import pypdf as pdfmod  # Prioridade: pypdf (recomendado)
+except Exception:
+    try:
+        import PyPDF2 as pdfmod  # Fallback: PyPDF2 (deprecated)
+    except Exception:
+        pdfmod = None
+```
+
+**Benefícios**:
+- ✅ pypdf agora tem prioridade (recomendado)
+- ✅ PyPDF2 mantido como fallback (compatibilidade)
+- ✅ Mesma API pública (`pdfmod.PdfReader`, `pdfmod.PdfWriter`)
+- ✅ Zero mudanças nas assinaturas de funções
+
+#### 2. API Pública Mantida
+
+**Funções públicas** (sem alteração):
+```python
+def read_pdf_text(path: str | Path) -> Optional[str]:
+    """
+    Lê texto de um PDF usando múltiplos backends.
+
+    Ordem de tentativa:
+    1. pypdf (ou PyPDF2) - _read_pdf_text_pypdf
+    2. pdfminer - _read_pdf_text_pdfminer
+    3. PyMuPDF - _read_pdf_text_pymupdf
+    4. OCR (fallback) - _ocr_pdf_with_pymupdf
+    """
+    p = Path(path)
+    if not p.exists() or not p.is_file():
+        return None
+
+    for fn in (_read_pdf_text_pypdf, _read_pdf_text_pdfminer, _read_pdf_text_pymupdf):
+        txt = fn(p)
+        if txt:
+            return txt
+
+    return _ocr_pdf_with_pymupdf(p)
+```
+
+**Backend interno** (sem alteração de lógica):
+```python
+def _read_pdf_text_pypdf(p: Path) -> Optional[str]:
+    """Backend pypdf/PyPDF2 - API unificada via pdfmod."""
+    if pdfmod is None:
+        return None
+    try:
+        reader = pdfmod.PdfReader(str(p))  # pypdf.PdfReader ou PyPDF2.PdfReader
+        parts: list[str] = []
+        for page in getattr(reader, "pages", []):
+            try:
+                t = page.extract_text() or ""
+            except Exception:
+                t = ""
+            if t.strip():
+                parts.append(t)
+        res = "\n".join(parts).strip()
+        return res or None
+    except Exception:
+        return None
+```
+
+**Compatibilidade garantida**:
+- ✅ Mesma assinatura: `(path: str | Path) -> Optional[str]`
+- ✅ Mesmo comportamento de retorno
+- ✅ Mesmas exceções tratadas
+- ✅ Mesma ordem de fallback
+
+#### 3. Smoke Test Criado
+✅ **Arquivo criado**: `scripts/dev/test_pdf_backend.py`
+
+**Testes realizados**:
+1. ✅ Verificar qual backend está ativo (pypdf vs PyPDF2)
+2. ✅ Verificar função `read_pdf_text` disponível
+3. ✅ Verificar API pública mantida (assinatura)
+4. ✅ Verificar compatibilidade de imports
+5. ✅ Verificar `pdfmod.PdfReader` disponível
+
+**Resultado do smoke test**:
+```
+============================================================
+Smoke Test - Backend PDF (pypdf)
+============================================================
+
+✓ Backend: pypdf (✓ recomendado)
+  Versão: pypdf 6.1.0
+
+------------------------------------------------------------
+Teste 1: Verificar função read_pdf_text
+------------------------------------------------------------
+✓ Função _read_pdf_text_pypdf importada com sucesso
+✓ pdfmod disponível: pypdf
+✓ PdfReader disponível
+
+------------------------------------------------------------
+Teste 2: API pública mantida
+------------------------------------------------------------
+✓ read_pdf_text está disponível
+✓ Assinatura: (path: 'str | Path') -> 'Optional[str]'
+✓ Retorno: Optional[str]
+
+------------------------------------------------------------
+Teste 3: Compatibilidade de imports
+------------------------------------------------------------
+✓ from utils.file_utils import read_pdf_text
+✓ from utils.file_utils.file_utils import read_pdf_text
+✓ Imports consistentes
+
+============================================================
+✓ SMOKE TEST PASSOU - Backend pypdf configurado corretamente!
+============================================================
+```
+
+#### 4. Verificação do Entrypoint
+✅ **Teste do app_gui.py**:
+```bash
+python -c "import app_gui; print('✓ app_gui importado com sucesso')"
+```
+**Resultado**: ✅ Sucesso - nenhuma quebra
+
+### Pontos Trocados
+
+**Resumo das mudanças**:
+1. ✅ **Prioridade invertida**: pypdf agora é preferencial, PyPDF2 é fallback
+2. ✅ **Backend ativo**: pypdf 6.1.0 (ao invés de PyPDF2 3.0.1)
+3. ✅ **API mantida**: Todas as funções públicas inalteradas
+4. ✅ **Comportamento preservado**: Mesma lógica de extração e fallbacks
+5. ✅ **Compatibilidade**: PyPDF2 ainda funciona se pypdf não estiver disponível
+
+### Backends PDF Disponíveis
+
+**Ordem de prioridade** (multi-backend com fallbacks):
+```
+1. pypdf (recomendado)       ← NOVO: prioridade
+   ↓ fallback
+2. PyPDF2 (deprecated)       ← mantido para compatibilidade
+   ↓ próximo backend
+3. pdfminer.six
+   ↓ próximo backend
+4. PyMuPDF (fitz)
+   ↓ último recurso
+5. OCR (pytesseract + PyMuPDF)
+```
+
+### Garantias de Não-Breaking
+
+- ✅ Nenhuma alteração em assinaturas de funções públicas
+- ✅ `app_gui.py` continua como entrypoint único
+- ✅ API pública de PDF mantida: `read_pdf_text(path) -> Optional[str]`
+- ✅ Comportamentos de retorno preservados
+- ✅ Fallbacks mantidos (PyPDF2, pdfminer, PyMuPDF, OCR)
+- ✅ Smoke test passou com pypdf 6.1.0
+
+### Dependências
+
+**requirements.in** (mantido):
+```
+pypdf         # Sucessor oficial (prioridade)
+PyPDF2        # Deprecated (fallback para compatibilidade)
+pdfminer.six  # Backend alternativo
+pymupdf       # Backend alternativo + OCR
+```
+
+**requirements.txt** (versões pinadas):
+```
+pypdf==6.1.0          ← Backend principal (novo)
+PyPDF2==3.0.1         ← Fallback (mantido)
+pdfminer-six==20250506
+pymupdf==1.25.2
+```
+
+### Arquivos Modificados
+
+**Modificados**:
+- ✅ `utils/file_utils/file_utils.py` - Inversão de prioridade pypdf/PyPDF2
+
+**Criados**:
+- ✅ `scripts/dev/test_pdf_backend.py` - Smoke test do backend PDF
+
+**Total**: 1 arquivo modificado, 1 arquivo de teste criado
+
+### Status
+✅ **COMPLETO** - Backend PDF migrado para pypdf (prioridade), API mantida, smoke test passou.
+
+---
+
 ## Próximos Steps
-Aguardando instruções para Step 6.
+Aguardando instruções para Step 7.

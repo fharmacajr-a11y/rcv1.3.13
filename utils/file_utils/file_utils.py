@@ -39,12 +39,15 @@ def open_folder(p: str | Path) -> None:
 # =============================================================================
 # Leitura de PDF (vários backends + OCR fallback)
 # =============================================================================
+# Backend unificado: pypdf (recomendado) com fallback para PyPDF2 (deprecated)
+# Referência: PyPDF2 está deprecated, pypdf é o sucessor oficial
+# https://pypi.org/project/pypdf/
 pdfmod: Any
 try:
-    import PyPDF2 as pdfmod  # type: ignore[no-redef]
+    import pypdf as pdfmod  # Prioridade: pypdf (recomendado)
 except Exception:
     try:
-        import pypdf as pdfmod  # type: ignore[no-redef]
+        import PyPDF2 as pdfmod  # type: ignore[no-redef]  # Fallback: PyPDF2 (deprecated)
     except Exception:
         pdfmod = None
 
