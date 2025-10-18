@@ -197,8 +197,8 @@ ajuda/
 
 Estes scripts estão na raiz do projeto e geraram estes relatórios:
 
-- `scripts/consolidate_modules.py` - Script principal de análise
-- `scripts/run_import_linter.py` - Wrapper do Import Linter
+- `juda/_ferramentas/consolidate_modules.py` - Script principal de análise
+- `juda/_ferramentas/run_import_linter.py` - Wrapper do Import Linter
 - `.importlinter` - Configuração de regras arquiteturais
 
 ---

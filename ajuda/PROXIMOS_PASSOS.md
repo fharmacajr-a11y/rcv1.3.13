@@ -134,10 +134,10 @@ pip-sync requirements.txt
 
 ```powershell
 # Análise de duplicados
-python scripts/consolidate_modules.py
+python ajuda/_ferramentas/consolidate_modules.py
 
 # Verificar arquitetura
-python scripts/run_import_linter.py
+python ajuda/_ferramentas/run_import_linter.py
 
 # Código não usado
 python -m vulture application gui ui core infra utils adapters shared detectors config --min-confidence 80

@@ -62,8 +62,8 @@ A análise completa revelou que o projeto v1.0.34 **já está bem organizado** e
 13. ✅ `DEPTRY_AFTER.txt` - Deps não usadas (pós)
 
 ### 3 Scripts na pasta `scripts/`
-14. ✅ `scripts/consolidate_modules.py` - Scanner principal
-15. ✅ `scripts/run_import_linter.py` - Wrapper Import Linter
+14. ✅ `juda/_ferramentas/consolidate_modules.py` - Scanner principal
+15. ✅ `juda/_ferramentas/run_import_linter.py` - Wrapper Import Linter
 
 ### 1 Configuração na raiz
 16. ✅ `.importlinter` - Regras arquiteturais
@@ -204,7 +204,7 @@ Não foram encontrados problemas estruturais. O projeto está:
 3. Ajustar 3 dependências
 
 ### Manutenção
-1. Executar `scripts/consolidate_modules.py` periodicamente
+1. Executar `juda/_ferramentas/consolidate_modules.py` periodicamente
 2. Manter regras em `.importlinter`
 3. Smoke test antes de releases
 
@@ -214,10 +214,10 @@ Não foram encontrados problemas estruturais. O projeto está:
 
 ```powershell
 # Análise completa
-python scripts/consolidate_modules.py
+python ajuda/_ferramentas/consolidate_modules.py
 
 # Verificar arquitetura
-python scripts/run_import_linter.py
+python ajuda/_ferramentas/run_import_linter.py
 
 # Smoke test
 python scripts/smoke_runtime.py

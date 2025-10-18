@@ -10,7 +10,7 @@
 
 ### ✅ Etapa 1 — Scanner de duplicados + grafo de imports
 
-- [x] Criar script `scripts/consolidate_modules.py`
+- [x] Criar script `juda/_ferramentas/consolidate_modules.py`
 - [x] Listar todos os `*.py` nas pastas de código
 - [x] Agrupar por basename (encontrar duplicados)
 - [x] Registrar métricas (tamanho, SHA-256, data, linhas, imports)
@@ -132,8 +132,8 @@
 
 ### ✅ Scripts e Ferramentas
 
-- [x] `scripts/consolidate_modules.py` ✅ (scanner principal)
-- [x] `scripts/run_import_linter.py` ✅ (wrapper)
+- [x] `juda/_ferramentas/consolidate_modules.py` ✅ (scanner principal)
+- [x] `juda/_ferramentas/run_import_linter.py` ✅ (wrapper)
 - [x] `.importlinter` ✅ (configuração de regras)
 
 **Status:** ✅ 3/3
@@ -228,7 +228,7 @@
 - [ ] Ajustar 3 dependências (Deptry)
 
 ### Manutenção
-- [ ] Executar `scripts/consolidate_modules.py` trimestralmente
+- [ ] Executar `juda/_ferramentas/consolidate_modules.py` trimestralmente
 - [ ] Manter `.importlinter` atualizado
 - [ ] Smoke test antes de cada release
 

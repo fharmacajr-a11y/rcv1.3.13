@@ -70,8 +70,8 @@ shared\logging\audit.py:25: unused variable 'details' (100% confidence)
 
 ### Arquivos de Análise Criados ✅
 
-- `scripts/consolidate_modules.py` - Script de análise
-- `scripts/run_import_linter.py` - Wrapper do Import Linter
+- `juda/_ferramentas/consolidate_modules.py` - Script de análise
+- `juda/_ferramentas/run_import_linter.py` - Wrapper do Import Linter
 - `.importlinter` - Configuração de regras
 - Todos os arquivos em `ajuda/`
 

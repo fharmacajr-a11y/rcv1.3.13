@@ -157,8 +157,8 @@ Durante a análise, foram criados arquivos `__init__.py` faltantes para melhorar
 
 ### Scripts Criados
 
-1. ✅ `scripts/consolidate_modules.py` - Scanner principal de duplicados
-2. ✅ `scripts/run_import_linter.py` - Wrapper para import-linter
+1. ✅ `juda/_ferramentas/consolidate_modules.py` - Scanner principal de duplicados
+2. ✅ `juda/_ferramentas/run_import_linter.py` - Wrapper para import-linter
 3. ✅ `.importlinter` - Configuração de regras arquiteturais
 
 ---
@@ -219,5 +219,5 @@ Não foram encontrados problemas estruturais que necessitem consolidação ou re
 
 ---
 
-**Gerado por:** `scripts/consolidate_modules.py`  
+**Gerado por:** `juda/_ferramentas/consolidate_modules.py`  
 **Ferramentas usadas:** AST, Vulture, Deptry, Import Linter

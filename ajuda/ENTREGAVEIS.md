@@ -41,8 +41,8 @@
 
 | Arquivo | Descrição | Status |
 |---------|-----------|--------|
-| `scripts/consolidate_modules.py` | Script principal de análise e consolidação | ✅ |
-| `scripts/run_import_linter.py` | Wrapper para Import Linter | ✅ |
+| `juda/_ferramentas/consolidate_modules.py` | Script principal de análise e consolidação | ✅ |
+| `juda/_ferramentas/run_import_linter.py` | Wrapper para Import Linter | ✅ |
 | `.importlinter` | Configuração de regras arquiteturais | ✅ |
 
 ### 4. Melhorias no Código
@@ -152,7 +152,7 @@ python runtime/app_gui.py
 4. Documentar novos `__init__.py`
 
 ### Manutenção Contínua
-1. Executar `scripts/consolidate_modules.py` periodicamente
+1. Executar `juda/_ferramentas/consolidate_modules.py` periodicamente
 2. Manter regras arquiteturais em `.importlinter`
 3. Executar smoke test antes de releases
 
@@ -162,12 +162,12 @@ python runtime/app_gui.py
 
 ### Análise de Duplicados
 ```powershell
-python scripts/consolidate_modules.py
+python ajuda/_ferramentas/consolidate_modules.py
 ```
 
 ### Verificação Arquitetural
 ```powershell
-python scripts/run_import_linter.py
+python ajuda/_ferramentas/run_import_linter.py
 ```
 
 ### Código Não Usado
@@ -192,7 +192,7 @@ python scripts/smoke_runtime.py
 Se tiver dúvidas sobre qualquer entregável ou relatório, consulte:
 - `ajuda/CONSOLIDACAO_RELATORIO_FINAL.md` - Relatório completo
 - `ajuda/MELHORIAS_OPCIONAIS.md` - Sugestões de melhorias
-- `scripts/consolidate_modules.py` - Código do scanner
+- `juda/_ferramentas/consolidate_modules.py` - Código do scanner
 
 ---
 

@@ -87,7 +87,7 @@ Aplicar **ajustes finos e boas práticas** para garantir encoding UTF-8 consiste
 
 ---
 
-### 2. `scripts/check_utf8.py`
+### 2. `juda/_ferramentas/check_utf8.py`
 
 **Propósito:** Guardião de encoding para CI/CD.
 
@@ -100,7 +100,7 @@ Aplicar **ajustes finos e boas práticas** para garantir encoding UTF-8 consiste
 
 **Uso:**
 ```powershell
-python scripts/check_utf8.py
+python ajuda/_ferramentas/check_utf8.py
 ```
 
 **Resultado atual:**
@@ -269,7 +269,7 @@ python meu_script.py
 **Integração GitHub Actions:**
 ```yaml
 - name: Check UTF-8 Encoding
-  run: python scripts/check_utf8.py
+  run: python ajuda/_ferramentas/check_utf8.py
 ```
 
 ---
@@ -281,7 +281,7 @@ python meu_script.py
 Adicionar ao `.github/workflows/ci.yml`:
 ```yaml
 - name: Verificar Encoding UTF-8
-  run: python scripts/check_utf8.py
+  run: python ajuda/_ferramentas/check_utf8.py
 ```
 
 ### 2. Tornar UTF-8 Permanente no PowerShell (Opcional)
@@ -303,7 +303,7 @@ Adicionar seção sobre encoding:
 
 Este projeto usa **UTF-8 sem BOM** para todos os arquivos de texto.
 
-- Verificar: `python scripts/check_utf8.py`
+- Verificar: `python ajuda/_ferramentas/check_utf8.py`
 - EditorConfig configurado automaticamente
 - Python: Use `PYTHONUTF8=1`
 ```
