@@ -1,0 +1,38 @@
+# RC-Gestor - Dependências Mínimas para Runtime
+# ==============================================
+# Este arquivo contém apenas as dependências essenciais para rodar o app.
+# Gerado a partir da análise do deptry e árvore de dependências.
+#
+# Uso:
+#   pip-compile requirements-min.in --output-file requirements-min.txt
+#   pip install -r requirements-min.txt
+#
+# Diferenças do requirements.in original:
+# - Removido: tzdata (DEP002 - não usado no código)
+# - urllib3 será instalado transitivamente via requests/httpx
+
+# HTTP clients (essenciais para Supabase)
+httpx
+requests
+urllib3  # usado diretamente em infra/net_session.py para configuração de Retry
+
+# PDF processing (usado em utils/pdf_reader.py e utils/file_utils/)
+# pypdf é a continuação moderna e ativa do PyPDF2
+# Referência: https://pypdf.readthedocs.io/
+pypdf
+pdfminer.six
+pymupdf
+
+# Image processing (usado em detectors/cnpj_card.py)
+pillow
+pytesseract
+
+# Configuration and environment (essencial para .env)
+python-dotenv
+pyyaml
+
+# Supabase backend (versão mínima requerida)
+supabase>=2.6.0
+
+# GUI toolkit (essencial para ttkbootstrap UI)
+ttkbootstrap

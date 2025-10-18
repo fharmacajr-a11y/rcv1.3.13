@@ -1,0 +1,5 @@
+C:\Users\Pichau\Desktop\v1.0.33\build\rc_gestor.spec:15:- O arquivo .env NÃO deve estar em datas=[]
+C:\Users\Pichau\Desktop\v1.0.33\build\rc_gestor.spec:29:    binaries=[],
+C:\Users\Pichau\Desktop\v1.0.33\build\rc_gestor.spec:30:    datas=[
+C:\Users\Pichau\Desktop\v1.0.33\build\rc_gestor.spec:37:    hiddenimports=[
+C:\Users\Pichau\Desktop\v1.0.33\build\rc_gestor.spec:74:    exclude_binaries=True,

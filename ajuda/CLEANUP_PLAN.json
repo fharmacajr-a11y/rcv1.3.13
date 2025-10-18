@@ -1,0 +1,700 @@
+{
+  "generated_at": 1760783611,
+  "root": "C:\\Users\\Pichau\\Desktop\\v1.0.33",
+  "params": {
+    "stale_days": 60,
+    "top": 80
+  },
+  "stats": {
+    "files": 163,
+    "top_dirs": [
+      {
+        "name": "docs",
+        "count": 19,
+        "bytes": 238179
+      },
+      {
+        "name": "scripts",
+        "count": 19,
+        "bytes": 139670
+      },
+      {
+        "name": "assets",
+        "count": 1,
+        "bytes": 122078
+      },
+      {
+        "name": "rc.ico",
+        "count": 1,
+        "bytes": 122078
+      },
+      {
+        "name": "ui",
+        "count": 19,
+        "bytes": 85518
+      },
+      {
+        "name": "utils",
+        "count": 16,
+        "bytes": 49402
+      },
+      {
+        "name": "gui",
+        "count": 7,
+        "bytes": 46153
+      },
+      {
+        "name": "core",
+        "count": 17,
+        "bytes": 36081
+      },
+      {
+        "name": "rc.png",
+        "count": 1,
+        "bytes": 32502
+      },
+      {
+        "name": "application",
+        "count": 7,
+        "bytes": 27461
+      },
+      {
+        "name": "infra",
+        "count": 6,
+        "bytes": 20604
+      },
+      {
+        "name": ".github",
+        "count": 4,
+        "bytes": 14674
+      },
+      {
+        "name": "tests",
+        "count": 8,
+        "bytes": 11397
+      },
+      {
+        "name": "app_core.py",
+        "count": 1,
+        "bytes": 10412
+      },
+      {
+        "name": "adapters",
+        "count": 5,
+        "bytes": 9564
+      },
+      {
+        "name": "app_status.py",
+        "count": 1,
+        "bytes": 5689
+      },
+      {
+        "name": "shared",
+        "count": 7,
+        "bytes": 5458
+      },
+      {
+        "name": "config",
+        "count": 3,
+        "bytes": 3874
+      },
+      {
+        "name": "app_utils.py",
+        "count": 1,
+        "bytes": 3795
+      },
+      {
+        "name": "CHANGELOG.md",
+        "count": 1,
+        "bytes": 3222
+      },
+      {
+        "name": "requirements-min.txt",
+        "count": 1,
+        "bytes": 2607
+      },
+      {
+        "name": "requirements.txt",
+        "count": 1,
+        "bytes": 2605
+      },
+      {
+        "name": "app_gui.py",
+        "count": 1,
+        "bytes": 2281
+      },
+      {
+        "name": "README.md",
+        "count": 1,
+        "bytes": 2205
+      },
+      {
+        "name": "detectors",
+        "count": 1,
+        "bytes": 1574
+      },
+      {
+        "name": "infrastructure",
+        "count": 2,
+        "bytes": 1341
+      },
+      {
+        "name": "requirements-min.in",
+        "count": 1,
+        "bytes": 1171
+      },
+      {
+        "name": ".pre-commit-config.yaml",
+        "count": 1,
+        "bytes": 1102
+      },
+      {
+        "name": "requirements.in",
+        "count": 1,
+        "bytes": 871
+      },
+      {
+        "name": ".ruff.toml",
+        "count": 1,
+        "bytes": 676
+      },
+      {
+        "name": ".env",
+        "count": 1,
+        "bytes": 541
+      },
+      {
+        "name": "pyproject.toml",
+        "count": 1,
+        "bytes": 535
+      },
+      {
+        "name": ".env.example",
+        "count": 1,
+        "bytes": 492
+      },
+      {
+        "name": ".gitignore",
+        "count": 1,
+        "bytes": 337
+      },
+      {
+        "name": "run_dev.bat",
+        "count": 1,
+        "bytes": 153
+      },
+      {
+        "name": "config.yml",
+        "count": 1,
+        "bytes": 108
+      },
+      {
+        "name": "pytest.ini",
+        "count": 1,
+        "bytes": 54
+      },
+      {
+        "name": ".gitattributes",
+        "count": 1,
+        "bytes": 42
+      }
+    ]
+  },
+  "duplicates": [
+    {
+      "sha256": "ebf2adcf9e7768e8d4a53c4ce348125050c524eeb193a090d4286887c1d9d4d3",
+      "size": 122078,
+      "items": [
+        "rc.ico",
+        "assets\\app.ico"
+      ]
+    },
+    {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0,
+      "items": [
+        "docs\\.gitkeep",
+        "scripts\\infrastructure_scripts_init.py.bak",
+        "utils\\__init__.py"
+      ]
+    }
+  ],
+  "stale": [],
+  "not_in_runtime_manifest": [
+    ".env",
+    ".env.example",
+    ".gitattributes",
+    ".github/workflows/README.md",
+    ".github/workflows/ci.yml",
+    ".github/workflows/release.yml",
+    ".github/workflows/security-audit.yml",
+    ".gitignore",
+    ".pre-commit-config.yaml",
+    ".ruff.toml",
+    "CHANGELOG.md",
+    "README.md",
+    "config.yml",
+    "docs/.gitkeep",
+    "docs/BATCH-17-RELATORIO.md",
+    "docs/BATCH-17-RESUMO.md",
+    "docs/BATCH-17X-RELATORIO.md",
+    "docs/CLAUDE-SONNET-v1.0.29/CREATE-PR.md",
+    "docs/CLAUDE-SONNET-v1.0.29/LOG.md",
+    "docs/CLAUDE-SONNET-v1.0.29/STEP-2-PR.md",
+    "docs/CLAUDE-SONNET-v1.0.29/STEP-3-CREATE-PR.md",
+    "docs/CLAUDE-SONNET-v1.0.29/STEP-3-EXECUTION.md",
+    "docs/CLAUDE-SONNET-v1.0.29/STEP-3-PR.md",
+    "docs/CLAUDE-SONNET-v1.0.29/STEP-5-PR.md",
+    "docs/CLAUDE-SONNET-v1.0.29/STEP-6-PR.md",
+    "docs/CLAUDE-SONNET-v1.0.29/STEP-7-PR.md",
+    "docs/CLAUDE-SONNET-v1.0.29/STEP-7-SUMMARY.md",
+    "docs/CLAUDE-SONNET-v1.0.29/STEP-8-PR.md",
+    "docs/CLAUDE-SONNET-v1.0.29/STEP-9-PR.md",
+    "docs/DEADCODE-REPORT.md",
+    "docs/DEV-MAP.md",
+    "docs/LOC-REPORT.md",
+    "pyproject.toml",
+    "pytest.ini",
+    "rc.ico",
+    "rc.png",
+    "requirements-min.in",
+    "requirements-min.txt",
+    "requirements.in",
+    "requirements.txt",
+    "run_dev.bat",
+    "scripts/audit_repo_v2.py",
+    "scripts/cleanup.py",
+    "scripts/dev/demo_guardrail.py",
+    "scripts/dev/dup_scan.py",
+    "scripts/dev/find_unused.py",
+    "scripts/dev/loc_report.py",
+    "scripts/dev/strip_bom.py",
+    "scripts/dev/test_pdf_backend.py",
+    "scripts/dev/test_step7.py",
+    "scripts/healthcheck.py",
+    "scripts/infrastructure_scripts_init.py.bak",
+    "scripts/make_runtime.py",
+    "scripts/rc.py",
+    "scripts/scan_repo.py",
+    "scripts/smoke_runtime.py",
+    "scripts/test_login.py",
+    "scripts/test_minimal_deps.ps1",
+    "scripts/test_robustness.py",
+    "scripts/test_ui_polish.py",
+    "tests/__init__.py",
+    "tests/test_entrypoint.py",
+    "tests/test_hub_screen_import.py",
+    "tests/test_net_session.py",
+    "tests/test_net_status.py",
+    "tests/test_paths_cloud_only.py",
+    "tests/test_pdf_text.py",
+    "tests/test_supabase_client_headers.py"
+  ],
+  "largest": [
+    {
+      "rel": "assets/app.ico",
+      "size": 122078,
+      "mtime": 1760768616
+    },
+    {
+      "rel": "rc.ico",
+      "size": 122078,
+      "mtime": 1760768616
+    },
+    {
+      "rel": "docs/CLAUDE-SONNET-v1.0.29/LOG.md",
+      "size": 95078,
+      "mtime": 1760778824
+    },
+    {
+      "rel": "scripts/healthcheck.py",
+      "size": 38196,
+      "mtime": 1760768616
+    },
+    {
+      "rel": "rc.png",
+      "size": 32502,
+      "mtime": 1760768616
+    },
+    {
+      "rel": "gui/main_window.py",
+      "size": 22702,
+      "mtime": 1760778824
+    },
+    {
+      "rel": "ui/forms/actions.py",
+      "size": 22302,
+      "mtime": 1760768623
+    },
+    {
+      "rel": "docs/DEV-MAP.md",
+      "size": 18673,
+      "mtime": 1760778824
+    },
+    {
+      "rel": "docs/BATCH-17X-RELATORIO.md",
+      "size": 16284,
+      "mtime": 1760778824
+    },
+    {
+      "rel": "scripts/dev/find_unused.py",
+      "size": 16217,
+      "mtime": 1760768616
+    },
+    {
+      "rel": "docs/CLAUDE-SONNET-v1.0.29/STEP-9-PR.md",
+      "size": 15937,
+      "mtime": 1760778824
+    },
+    {
+      "rel": "docs/CLAUDE-SONNET-v1.0.29/STEP-8-PR.md",
+      "size": 15561,
+      "mtime": 1760778824
+    },
+    {
+      "rel": "utils/file_utils/file_utils.py",
+      "size": 14006,
+      "mtime": 1760780802
+    },
+    {
+      "rel": "ui/components.py",
+      "size": 13216,
+      "mtime": 1760768623
+    },
+    {
+      "rel": "scripts/dev/dup_scan.py",
+      "size": 13054,
+      "mtime": 1760768616
+    },
+    {
+      "rel": "application/api.py",
+      "size": 12516,
+      "mtime": 1760768616
+    },
+    {
+      "rel": "gui/main_screen.py",
+      "size": 12103,
+      "mtime": 1760768616
+    },
+    {
+      "rel": "docs/CLAUDE-SONNET-v1.0.29/STEP-7-PR.md",
+      "size": 11492,
+      "mtime": 1760778824
+    },
+    {
+      "rel": "ui/files_browser.py",
+      "size": 10797,
+      "mtime": 1760768616
+    },
+    {
+      "rel": "app_core.py",
+      "size": 10412,
+      "mtime": 1760768623
+    },
+    {
+      "rel": "scripts/cleanup.py",
+      "size": 10221,
+      "mtime": 1760778077
+    },
+    {
+      "rel": "scripts/audit_repo_v2.py",
+      "size": 10025,
+      "mtime": 1760783025
+    },
+    {
+      "rel": "docs/BATCH-17-RELATORIO.md",
+      "size": 9609,
+      "mtime": 1760778824
+    },
+    {
+      "rel": "ui/lixeira/lixeira.py",
+      "size": 9244,
+      "mtime": 1760768623
+    },
+    {
+      "rel": "scripts/test_robustness.py",
+      "size": 8418,
+      "mtime": 1760777582
+    },
+    {
+      "rel": "infra/supabase_client.py",
+      "size": 8226,
+      "mtime": 1760778824
+    },
+    {
+      "rel": "docs/CLAUDE-SONNET-v1.0.29/STEP-6-PR.md",
+      "size": 7931,
+      "mtime": 1760778824
+    },
+    {
+      "rel": ".github/workflows/README.md",
+      "size": 7789,
+      "mtime": 1760768616
+    },
+    {
+      "rel": "utils/validators.py",
+      "size": 7541,
+      "mtime": 1760768623
+    },
+    {
+      "rel": "docs/DEADCODE-REPORT.md",
+      "size": 7171,
+      "mtime": 1760778824
+    },
+    {
+      "rel": "core/services/lixeira_service.py",
+      "size": 7111,
+      "mtime": 1760768623
+    },
+    {
+      "rel": "ui/subpastas/dialog.py",
+      "size": 7101,
+      "mtime": 1760768623
+    },
+    {
+      "rel": "scripts/test_ui_polish.py",
+      "size": 6798,
+      "mtime": 1760776955
+    },
+    {
+      "rel": "application/commands.py",
+      "size": 6770,
+      "mtime": 1760768616
+    },
+    {
+      "rel": "core/db_manager/db_manager.py",
+      "size": 6360,
+      "mtime": 1760768623
+    },
+    {
+      "rel": "docs/CLAUDE-SONNET-v1.0.29/STEP-5-PR.md",
+      "size": 6351,
+      "mtime": 1760778824
+    },
+    {
+      "rel": "utils/text_utils.py",
+      "size": 6304,
+      "mtime": 1760768623
+    },
+    {
+      "rel": "utils/themes.py",
+      "size": 6286,
+      "mtime": 1760768623
+    },
+    {
+      "rel": "adapters/storage/supabase_storage.py",
+      "size": 6229,
+      "mtime": 1760768616
+    },
+    {
+      "rel": "docs/CLAUDE-SONNET-v1.0.29/STEP-3-PR.md",
+      "size": 6168,
+      "mtime": 1760778824
+    },
+    {
+      "rel": "ui/forms/forms.py",
+      "size": 6135,
+      "mtime": 1760768623
+    },
+    {
+      "rel": "core/services/upload_service.py",
+      "size": 5704,
+      "mtime": 1760768616
+    },
+    {
+      "rel": "app_status.py",
+      "size": 5689,
+      "mtime": 1760768623
+    },
+    {
+      "rel": "scripts/rc.py",
+      "size": 5125,
+      "mtime": 1760768616
+    },
+    {
+      "rel": "docs/BATCH-17-RESUMO.md",
+      "size": 5112,
+      "mtime": 1760778824
+    },
+    {
+      "rel": "docs/CLAUDE-SONNET-v1.0.29/STEP-7-SUMMARY.md",
+      "size": 4919,
+      "mtime": 1760778824
+    },
+    {
+      "rel": "scripts/smoke_runtime.py",
+      "size": 4902,
+      "mtime": 1760780905
+    },
+    {
+      "rel": "docs/CLAUDE-SONNET-v1.0.29/STEP-2-PR.md",
+      "size": 4838,
+      "mtime": 1760778824
+    },
+    {
+      "rel": "ui/login/login.py",
+      "size": 4787,
+      "mtime": 1760778824
+    },
+    {
+      "rel": "gui/menu_bar.py",
+      "size": 4729,
+      "mtime": 1760778824
+    },
+    {
+      "rel": "scripts/make_runtime.py",
+      "size": 4681,
+      "mtime": 1760779981
+    },
+    {
+      "rel": "core/services/clientes_service.py",
+      "size": 4587,
+      "mtime": 1760768623
+    },
+    {
+      "rel": "tests/test_net_session.py",
+      "size": 4508,
+      "mtime": 1760778824
+    },
+    {
+      "rel": "application/status_monitor.py",
+      "size": 4393,
+      "mtime": 1760768616
+    },
+    {
+      "rel": "docs/CLAUDE-SONNET-v1.0.29/STEP-3-EXECUTION.md",
+      "size": 4268,
+      "mtime": 1760778824
+    },
+    {
+      "rel": "scripts/dev/test_step7.py",
+      "size": 4004,
+      "mtime": 1760768616
+    },
+    {
+      "rel": "app_utils.py",
+      "size": 3795,
+      "mtime": 1760768623
+    },
+    {
+      "rel": "docs/CLAUDE-SONNET-v1.0.29/STEP-3-CREATE-PR.md",
+      "size": 3752,
+      "mtime": 1760778824
+    },
+    {
+      "rel": "core/auth/auth.py",
+      "size": 3528,
+      "mtime": 1760768623
+    },
+    {
+      "rel": "core/services/path_resolver.py",
+      "size": 3430,
+      "mtime": 1760768623
+    },
+    {
+      "rel": ".github/workflows/release.yml",
+      "size": 3416,
+      "mtime": 1760768616
+    },
+    {
+      "rel": "scripts/scan_repo.py",
+      "size": 3403,
+      "mtime": 1760779570
+    },
+    {
+      "rel": "scripts/dev/test_pdf_backend.py",
+      "size": 3365,
+      "mtime": 1760768616
+    },
+    {
+      "rel": "CHANGELOG.md",
+      "size": 3222,
+      "mtime": 1760778824
+    },
+    {
+      "rel": "infra/net_session.py",
+      "size": 3170,
+      "mtime": 1760768616
+    },
+    {
+      "rel": "scripts/test_minimal_deps.ps1",
+      "size": 3110,
+      "mtime": 1760780437
+    },
+    {
+      "rel": "gui/hub_screen.py",
+      "size": 2971,
+      "mtime": 1760768616
+    },
+    {
+      "rel": "utils/helpers/hidpi.py",
+      "size": 2967,
+      "mtime": 1760768616
+    },
+    {
+      "rel": "utils/subpastas_config.py",
+      "size": 2939,
+      "mtime": 1760768623
+    },
+    {
+      "rel": "docs/LOC-REPORT.md",
+      "size": 2920,
+      "mtime": 1760778824
+    },
+    {
+      "rel": "infra/net_status.py",
+      "size": 2915,
+      "mtime": 1760768623
+    },
+    {
+      "rel": "infra/db/supabase_setup.sql",
+      "size": 2832,
+      "mtime": 1760768616
+    },
+    {
+      "rel": "ui/widgets/busy.py",
+      "size": 2739,
+      "mtime": 1760776949
+    },
+    {
+      "rel": ".github/workflows/ci.yml",
+      "size": 2678,
+      "mtime": 1760768616
+    },
+    {
+      "rel": "utils/theme_manager.py",
+      "size": 2677,
+      "mtime": 1760732432
+    },
+    {
+      "rel": "shared/logging/filters.py",
+      "size": 2639,
+      "mtime": 1760768616
+    },
+    {
+      "rel": "scripts/test_login.py",
+      "size": 2631,
+      "mtime": 1760776611
+    },
+    {
+      "rel": "requirements-min.txt",
+      "size": 2607,
+      "mtime": 1760780797
+    },
+    {
+      "rel": "requirements.txt",
+      "size": 2605,
+      "mtime": 1760768616
+    },
+    {
+      "rel": "adapters/storage/api.py",
+      "size": 2527,
+      "mtime": 1760768616
+    }
+  ],
+  "notes": [
+    "Ninguém foi deletado. Isto é um plano de limpeza (dry-run).",
+    "Duplicados: hash sha256 no conteúdo (mesmo tamanho + mesmo hash).",
+    "not_in_runtime_manifest: não seriam copiados para runtime/ pelo manifesto atual."
+  ]
+}

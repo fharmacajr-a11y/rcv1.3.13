@@ -1,0 +1,280 @@
+{
+  "root": "C:\\Users\\Pichau\\Desktop\\v1.0.33",
+  "stats": {
+    "dirs": 42,
+    "files": 175,
+    "py_loc": 13912
+  },
+  "top_dirs": [
+    {
+      "name": "build",
+      "count": 19,
+      "bytes": 39678226
+    },
+    {
+      "name": "docs",
+      "count": 19,
+      "bytes": 238179
+    },
+    {
+      "name": "assets",
+      "count": 1,
+      "bytes": 122078
+    },
+    {
+      "name": "scripts",
+      "count": 15,
+      "bytes": 116952
+    },
+    {
+      "name": "ui",
+      "count": 19,
+      "bytes": 85518
+    },
+    {
+      "name": "utils",
+      "count": 16,
+      "bytes": 49468
+    },
+    {
+      "name": "gui",
+      "count": 7,
+      "bytes": 46153
+    },
+    {
+      "name": "core",
+      "count": 17,
+      "bytes": 36081
+    },
+    {
+      "name": "application",
+      "count": 7,
+      "bytes": 27461
+    },
+    {
+      "name": "infra",
+      "count": 6,
+      "bytes": 19688
+    },
+    {
+      "name": ".github",
+      "count": 4,
+      "bytes": 14674
+    },
+    {
+      "name": "tests",
+      "count": 8,
+      "bytes": 11397
+    },
+    {
+      "name": "adapters",
+      "count": 5,
+      "bytes": 9564
+    },
+    {
+      "name": "shared",
+      "count": 7,
+      "bytes": 5458
+    },
+    {
+      "name": "config",
+      "count": 2,
+      "bytes": 2349
+    },
+    {
+      "name": "detectors",
+      "count": 1,
+      "bytes": 1574
+    },
+    {
+      "name": "infrastructure",
+      "count": 2,
+      "bytes": 1341
+    }
+  ],
+  "extensions": [
+    {
+      "ext": ".exe",
+      "count": 1,
+      "bytes": 11923582
+    },
+    {
+      "ext": ".pkg",
+      "count": 1,
+      "bytes": 11523198
+    },
+    {
+      "ext": ".pyz",
+      "count": 1,
+      "bytes": 11494780
+    },
+    {
+      "ext": ".html",
+      "count": 1,
+      "bytes": 2156013
+    },
+    {
+      "ext": ".zip",
+      "count": 1,
+      "bytes": 1402463
+    },
+    {
+      "ext": ".toc",
+      "count": 5,
+      "bytes": 1103666
+    },
+    {
+      "ext": ".py",
+      "count": 114,
+      "bytes": 432349
+    },
+    {
+      "ext": ".md",
+      "count": 23,
+      "bytes": 257590
+    },
+    {
+      "ext": ".ico",
+      "count": 2,
+      "bytes": 244156
+    },
+    {
+      "ext": ".pyc",
+      "count": 5,
+      "bytes": 45166
+    },
+    {
+      "ext": ".png",
+      "count": 1,
+      "bytes": 32502
+    },
+    {
+      "ext": ".txt",
+      "count": 2,
+      "bytes": 23400
+    },
+    {
+      "ext": ".yml",
+      "count": 4,
+      "bytes": 6993
+    },
+    {
+      "ext": ".sql",
+      "count": 1,
+      "bytes": 2832
+    },
+    {
+      "ext": ".spec",
+      "count": 1,
+      "bytes": 2368
+    },
+    {
+      "ext": ".yaml",
+      "count": 1,
+      "bytes": 1102
+    },
+    {
+      "ext": "<noext>",
+      "count": 4,
+      "bytes": 920
+    },
+    {
+      "ext": ".in",
+      "count": 1,
+      "bytes": 871
+    },
+    {
+      "ext": ".toml",
+      "count": 2,
+      "bytes": 754
+    },
+    {
+      "ext": ".example",
+      "count": 1,
+      "bytes": 492
+    },
+    {
+      "ext": ".bat",
+      "count": 1,
+      "bytes": 153
+    },
+    {
+      "ext": ".ini",
+      "count": 1,
+      "bytes": 54
+    },
+    {
+      "ext": ".bak",
+      "count": 1,
+      "bytes": 0
+    }
+  ],
+  "imports_detected": [
+    "PIL",
+    "PyPDF2",
+    "adapters",
+    "app_core",
+    "app_gui",
+    "app_status",
+    "app_utils",
+    "application",
+    "argparse",
+    "ast",
+    "collections",
+    "config",
+    "contextlib",
+    "core",
+    "dataclasses",
+    "datetime",
+    "dotenv",
+    "enum",
+    "fitz",
+    "functools",
+    "gui",
+    "hashlib",
+    "httpx",
+    "importlib",
+    "infra",
+    "inspect",
+    "json",
+    "logging",
+    "mimetypes",
+    "os",
+    "pathlib",
+    "pdfminer",
+    "platform",
+    "pypdf",
+    "pytesseract",
+    "re",
+    "requests",
+    "scripts",
+    "shared",
+    "shutil",
+    "socket",
+    "sqlite3",
+    "subprocess",
+    "supabase",
+    "sys",
+    "tempfile",
+    "threading",
+    "time",
+    "tkinter",
+    "traceback",
+    "ttkbootstrap",
+    "typing",
+    "ui",
+    "unicodedata",
+    "urllib",
+    "urllib3",
+    "utils",
+    "warnings",
+    "webbrowser",
+    "yaml",
+    "zipfile"
+  ],
+  "spec_summary": {
+    "exists": true,
+    "datas": true,
+    "hiddenimports": true
+  }
+}

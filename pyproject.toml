@@ -3,3 +3,15 @@ line-length = 100
 
 [tool.mypy]
 ignore_missing_imports = true
+
+[tool.deptry]
+# analisa código-fonte somente
+ignore = ["ajuda", "runtime", "build", "dist", ".venv", "tests", ".ruff_cache", ".pytest_cache"]
+# mapeamento opcional de import->distribuição (adicione se precisar)
+# [tool.deptry.package_module_name_map]
+# "Pillow" = ["PIL"]
+
+[tool.vulture]
+paths = ["app_gui.py", "application", "gui", "ui", "core", "infra", "utils", "adapters", "shared"]
+ignore_decorators = ["@overload"]
+min_confidence = 80

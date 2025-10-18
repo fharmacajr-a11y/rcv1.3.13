@@ -1,0 +1,48 @@
+# Quais caminhos entram no runtime (globs relativos à raiz do repo)
+include:
+  - app_gui.py
+  - app_core.py
+  - app_status.py
+  - app_utils.py
+  - application/**        # camadas de aplicação
+  - gui/**                # janelas/menus
+  - ui/**                 # telas/widgets/tema
+  - core/**               # sessão, domínio
+  - infra/**              # supabase, healthcheck
+  - utils/**              # utilitários em uso
+  - adapters/**           # adaptadores
+  - shared/**             # tipos/constantes compartilhadas
+  - assets/**             # ícones/imagens usadas pela UI
+  - config/**             # configs não sensíveis (ex.: temas)
+  - infrastructure/**     # mantido por causa dos imports detectados
+  - detectors/**          # mantido por causa dos imports detectados
+
+# O que deve ficar fora do runtime
+exclude:
+  - ajuda/**
+  - docs/**
+  - tests/**
+  - scripts/**            # exceto o make_runtime.py
+  - .github/**
+  - build/**
+  - dist/**
+  - __pycache__/**
+  - "**/*.pyc"
+  - "**/*.pyo"
+  - "**/*.bak"
+  - "**/*.zip"
+  - .env                  # nunca copie segredos
+  - .env.example          # apenas referência, não precisa no runtime
+  - rc.png                # material promocional
+  - CHANGELOG.md
+  - README.md
+  - pyproject.toml
+  - pytest.ini
+  - requirements.in
+  - requirements.txt
+  - run_dev.bat
+  - config.yml
+
+# Exceções de scripts permitidos no runtime (se precisar rodar algo junto)
+whitelist_scripts:
+  - scripts/make_runtime.py
