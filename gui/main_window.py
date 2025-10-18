@@ -625,13 +625,17 @@ class App(tb.Window):
 
     def _show_changelog(self) -> None:
         try:
-            with open(resource_path("ajuda/CHANGELOG_HISTORICO.md"), "r", encoding="utf-8") as f:
+            with open(
+                resource_path("ajuda/CHANGELOG_HISTORICO.md"), "r", encoding="utf-8"
+            ) as f:
                 conteudo = f.read()
             preview = "\n".join(conteudo.splitlines()[:20])
             messagebox.showinfo("Changelog", preview, parent=self)
         except Exception:
             messagebox.showinfo(
-                "Changelog", "Arquivo CHANGELOG_HISTORICO.md nao encontrado.", parent=self
+                "Changelog",
+                "Arquivo CHANGELOG_HISTORICO.md nao encontrado.",
+                parent=self,
             )
 
 
