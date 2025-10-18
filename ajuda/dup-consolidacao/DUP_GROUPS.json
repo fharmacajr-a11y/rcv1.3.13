@@ -38,20 +38,20 @@
         ],
         "classes": [],
         "signatures": [
-          "update_client(client_id,data)",
+          "purge_from_trash(org_id,client_ids)",
+          "resolve_asset(asset_name)",
+          "switch_theme(root,theme_name)",
+          "list_trash_clients(org_id)",
           "get_current_theme()",
           "upload_file(file_path,bucket,remote_path)",
-          "upload_folder(local_dir,org_id,client_id,subdir)",
-          "list_trash_clients(org_id)",
           "list_storage_files(bucket,prefix)",
           "search_clients(query,org_id)",
-          "switch_theme(root,theme_name)",
-          "create_client(data)",
-          "download_folder_zip(bucket,prefix,dest_path)",
-          "delete_client(client_id,soft)",
-          "purge_from_trash(org_id,client_ids)",
           "restore_from_trash(org_id,client_ids)",
-          "resolve_asset(asset_name)"
+          "upload_folder(local_dir,org_id,client_id,subdir)",
+          "download_folder_zip(bucket,prefix,dest_path)",
+          "update_client(client_id,data)",
+          "create_client(data)",
+          "delete_client(client_id,soft)"
         ],
         "size_bytes": 12516,
         "lines": 462
@@ -87,16 +87,16 @@
         ],
         "classes": [],
         "signatures": [
-          "set_storage_backend(backend)",
-          "upload_file(local_path,remote_key,content_type)",
-          "download_folder_zip(prefix)",
-          "reset_storage_backend()",
-          "get_current_backend()",
-          "delete_file(remote_key)",
           "_call(method)",
+          "reset_storage_backend()",
+          "list_files(prefix)",
+          "get_current_backend()",
           "using_storage_backend(backend)",
+          "delete_file(remote_key)",
+          "download_folder_zip(prefix)",
+          "upload_file(local_path,remote_key,content_type)",
           "download_file(remote_key,local_path)",
-          "list_files(prefix)"
+          "set_storage_backend(backend)"
         ],
         "size_bytes": 2527,
         "lines": 101
@@ -687,7 +687,7 @@
         "functions": [],
         "classes": [],
         "signatures": [],
-        "size_bytes": 109,
+        "size_bytes": 107,
         "lines": 2
       },
       {
@@ -797,7 +797,7 @@
         "path": "utils\\__init__.py",
         "module_name": "utils.__init__",
         "layer": "utils",
-        "in_degree": 35,
+        "in_degree": 34,
         "importers": [
           "application.api",
           "application.api",
@@ -832,8 +832,7 @@
           "utils.file_utils.file_utils",
           "utils.file_utils.file_utils",
           "utils.helpers.__init__",
-          "utils.helpers.__init__",
-          "detectors.cnpj_card"
+          "utils.helpers.__init__"
         ],
         "functions": [],
         "classes": [],
@@ -845,7 +844,7 @@
         "path": "utils\\file_utils\\__init__.py",
         "module_name": "utils.file_utils.__init__",
         "layer": "utils",
-        "in_degree": 35,
+        "in_degree": 34,
         "importers": [
           "application.api",
           "application.api",
@@ -880,8 +879,7 @@
           "utils.file_utils.file_utils",
           "utils.file_utils.file_utils",
           "utils.helpers.__init__",
-          "utils.helpers.__init__",
-          "detectors.cnpj_card"
+          "utils.helpers.__init__"
         ],
         "functions": [],
         "classes": [],
@@ -893,7 +891,7 @@
         "path": "utils\\helpers\\__init__.py",
         "module_name": "utils.helpers.__init__",
         "layer": "utils",
-        "in_degree": 35,
+        "in_degree": 34,
         "importers": [
           "application.api",
           "application.api",
@@ -928,8 +926,7 @@
           "utils.file_utils.file_utils",
           "utils.file_utils.file_utils",
           "utils.helpers.__init__",
-          "utils.helpers.__init__",
-          "detectors.cnpj_card"
+          "utils.helpers.__init__"
         ],
         "functions": [],
         "classes": [],
@@ -946,7 +943,7 @@
         "functions": [],
         "classes": [],
         "signatures": [],
-        "size_bytes": 78,
+        "size_bytes": 76,
         "lines": 2
       },
       {
@@ -970,7 +967,7 @@
         "functions": [],
         "classes": [],
         "signatures": [],
-        "size_bytes": 58,
+        "size_bytes": 56,
         "lines": 2
       }
     ],
@@ -1026,25 +1023,25 @@
         {
           "path": "utils\\helpers\\__init__.py",
           "module_name": "utils.helpers.__init__",
-          "score": 1950.6,
+          "score": 1900.6,
           "layer_priority": 20,
-          "in_degree": 35,
+          "in_degree": 34,
           "lines": 6
         },
         {
           "path": "utils\\file_utils\\__init__.py",
           "module_name": "utils.file_utils.__init__",
-          "score": 1950.3,
+          "score": 1900.3,
           "layer_priority": 20,
-          "in_degree": 35,
+          "in_degree": 34,
           "lines": 3
         },
         {
           "path": "utils\\__init__.py",
           "module_name": "utils.__init__",
-          "score": 1950.0,
+          "score": 1900.0,
           "layer_priority": 20,
-          "in_degree": 35,
+          "in_degree": 34,
           "lines": 0
         },
         {
@@ -3590,7 +3587,7 @@
     ],
     "consolidation_risks": [
       "Camadas diferentes (application vs adapters) - podem ter propósitos distintos",
-      "Muitos importers (495 > 40) - custo alto de reescrita"
+      "Muitos importers (492 > 40) - custo alto de reescrita"
     ]
   },
   "theme": {
@@ -3637,7 +3634,7 @@
         "path": "utils\\themes.py",
         "module_name": "utils.themes",
         "layer": "utils",
-        "in_degree": 35,
+        "in_degree": 34,
         "importers": [
           "application.api",
           "application.api",
@@ -3672,8 +3669,7 @@
           "utils.file_utils.file_utils",
           "utils.file_utils.file_utils",
           "utils.helpers.__init__",
-          "utils.helpers.__init__",
-          "detectors.cnpj_card"
+          "utils.helpers.__init__"
         ],
         "functions": [
           "_load_theme_from_disk",
@@ -3685,12 +3681,12 @@
         ],
         "classes": [],
         "signatures": [
-          "apply_button_styles(app)",
-          "load_theme(force_reload)",
-          "toggle_theme(app)",
-          "apply_theme(win)",
           "save_theme(theme)",
-          "_load_theme_from_disk()"
+          "load_theme(force_reload)",
+          "apply_button_styles(app)",
+          "apply_theme(win)",
+          "_load_theme_from_disk()",
+          "toggle_theme(app)"
         ],
         "size_bytes": 6286,
         "lines": 187
@@ -3699,11 +3695,11 @@
     "canonical_suggestion": {
       "path": "utils\\themes.py",
       "module_name": "utils.themes",
-      "score": 1968.7,
+      "score": 1918.7,
       "layer_priority": 20,
-      "in_degree": 35,
+      "in_degree": 34,
       "lines": 187,
-      "justification": "camada prioritária (20) + mais referenciado (35 importers) + 187 linhas",
+      "justification": "camada prioritária (20) + mais referenciado (34 importers) + 187 linhas",
       "alternatives": [
         {
           "path": "ui\\theme.py",
@@ -3735,7 +3731,7 @@
     ],
     "consolidation_risks": [
       "Camadas diferentes (utils, ui) - verificar propósito",
-      "Muitos importers (56 > 40) - custo alto de reescrita"
+      "Muitos importers (55 > 40) - custo alto de reescrita"
     ]
   },
   "audit": {
@@ -3804,12 +3800,12 @@
         ],
         "classes": [],
         "signatures": [
+          "last_action_of_user(user_id)",
           "last_client_activity_many(client_ids)",
-          "ensure_schema()",
-          "log_client_action(user,client_id,action,details)",
-          "last_action_of_user(user_id)"
+          "log_client_action(user,client_id,_action,_details)",
+          "ensure_schema()"
         ],
-        "size_bytes": 991,
+        "size_bytes": 1098,
         "lines": 38
       }
     ],

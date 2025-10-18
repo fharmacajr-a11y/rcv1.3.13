@@ -1,5 +1,5 @@
 # Análise de Riscos
-**Data:** 2025-10-18 09:12:09
+**Data:** 2025-10-18 09:56:34
 ---
 
 ## ⚠️ Riscos Identificados
@@ -11,12 +11,12 @@
 ### Grupo: `__init__`
 
 - Camadas diferentes (application vs adapters) - podem ter propósitos distintos
-- Muitos importers (495 > 40) - custo alto de reescrita
+- Muitos importers (492 > 40) - custo alto de reescrita
 
 ### Grupo: `theme`
 
 - Camadas diferentes (utils, ui) - verificar propósito
-- Muitos importers (56 > 40) - custo alto de reescrita
+- Muitos importers (55 > 40) - custo alto de reescrita
 
 ### Grupo: `audit`
 

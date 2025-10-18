@@ -1,5 +1,5 @@
 # Proposta de Módulos Canônicos
-**Data:** 2025-10-18 09:12:09
+**Data:** 2025-10-18 09:56:34
 **Grupos analisados:** 4
 ---
 
@@ -76,9 +76,9 @@
 |  `shared\__init__.py` | shared | 6 | 1 | 0 | 0 |
 |  `shared\config\__init__.py` | shared | 6 | 1 | 0 | 0 |
 |  `shared\logging\__init__.py` | shared | 6 | 1 | 0 | 0 |
-|  `utils\__init__.py` | utils | 35 | 0 | 0 | 0 |
-|  `utils\file_utils\__init__.py` | utils | 35 | 3 | 0 | 0 |
-|  `utils\helpers\__init__.py` | utils | 35 | 6 | 0 | 0 |
+|  `utils\__init__.py` | utils | 34 | 0 | 0 | 0 |
+|  `utils\file_utils\__init__.py` | utils | 34 | 3 | 0 | 0 |
+|  `utils\helpers\__init__.py` | utils | 34 | 6 | 0 | 0 |
 |  `detectors\__init__.py` | detectors | 0 | 2 | 0 | 0 |
 |  `config\__init__.py` | config | 11 | 2 | 0 | 0 |
 
@@ -400,7 +400,7 @@
 
 **Riscos:**
 - ⚠️ Camadas diferentes (application vs adapters) - podem ter propósitos distintos
-- ⚠️ Muitos importers (495 > 40) - custo alto de reescrita
+- ⚠️ Muitos importers (492 > 40) - custo alto de reescrita
 
 ---
 
@@ -410,16 +410,16 @@
 
 **Arquivo:** `utils\themes.py`
 
-**Justificativa:** camada prioritária (20) + mais referenciado (35 importers) + 187 linhas
+**Justificativa:** camada prioritária (20) + mais referenciado (34 importers) + 187 linhas
 
-**Score:** 1968.70
+**Score:** 1918.70
 
 ### Arquivos no Grupo
 
 | Arquivo | Camada | In-Degree | Linhas | Funções | Classes |
 |---------|--------|-----------|--------|---------|----------|
 |  `ui\theme.py` | ui | 21 | 44 | 1 | 0 |
-| **✅** `utils\themes.py` | utils | 35 | 187 | 6 | 0 |
+| **✅** `utils\themes.py` | utils | 34 | 187 | 6 | 0 |
 
 ### Similaridades
 
@@ -439,7 +439,7 @@
 
 **Riscos:**
 - ⚠️ Camadas diferentes (utils, ui) - verificar propósito
-- ⚠️ Muitos importers (56 > 40) - custo alto de reescrita
+- ⚠️ Muitos importers (55 > 40) - custo alto de reescrita
 
 ---
 

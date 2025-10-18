@@ -1,13 +1,7 @@
 # Módulos Órfãos (Não Importados)
-**Data:** 2025-10-18 09:12:09
-**Total:** 2
+**Data:** 2025-10-18 09:56:34
+**Total:** 1
 ---
-
-## ⚠️ Candidatos à Remoção (1)
-
-| Módulo | Caminho |
-|--------|----------|
-| `detectors.cnpj_card` | `detectors\cnpj_card.py` |
 
 ## 📦 `__init__.py` Órfãos (1)
 

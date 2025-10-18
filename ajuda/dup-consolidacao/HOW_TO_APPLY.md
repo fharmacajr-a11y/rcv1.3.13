@@ -1,5 +1,5 @@
 # Como Aplicar as Consolidações
-**Data:** 2025-10-18 09:12:09
+**Data:** 2025-10-18 09:56:34
 ---
 
 ## 📋 Pré-requisitos

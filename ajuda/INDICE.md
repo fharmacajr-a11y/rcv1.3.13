@@ -2,7 +2,8 @@
 
 **Pasta:** `ajuda/`  
 **Total:** 16 arquivos  
-**Última atualização:** 2025-10-18
+**Última atualização:** 2025-10-18  
+**Encoding:** ✅ UTF-8 (todos os arquivos)
 
 ---
 
