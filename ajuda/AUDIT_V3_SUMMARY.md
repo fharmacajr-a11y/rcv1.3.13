@@ -1,21 +1,71 @@
 # 🎯 Auditoria V3 - Resumo Executivo
 
-**Data:** 2025-01-18 07:35:00  
-**Branch:** integrate/v1.0.29  
+**Data:** 2025-10-18 07:45:00
+**Branch:** integrate/v1.0.29
 **Ferramenta:** audit_repo_v2.py + Verificação manual de referências
+**Status:** ✅ **LIMPEZA APLICADA COM SUCESSO**
 
 ---
 
 ## 📊 Estatísticas Globais
 
-| Métrica | Valor | Status |
-|---------|-------|--------|
-| **Arquivos totais** | 163 | 🟢 Estável |
-| **Arquivos runtime** | 95 | 🟢 Testado |
-| **Grupos duplicados** | 2 | 🟡 1 real, 1 vazio |
-| **Arquivos stale (>60d)** | 0 | 🟢 Excelente |
-| **Fora do runtime** | 68 | 🟢 Esperado |
-| **Tamanho total** | ~2.5 MB | 🟢 Compacto |
+| Métrica | Antes | Depois | Status |
+|---------|-------|--------|--------|
+| **Arquivos totais** | 163 | 160 | 🟢 -3 arquivos |
+| **Arquivos runtime** | 95 | 94 | 🟢 -1 arquivo |
+| **Grupos duplicados** | 2 | 1 | 🟢 Resolvido |
+| **Arquivos stale (>60d)** | 0 | 0 | 🟢 Excelente |
+| **Tamanho economizado** | - | ~151 KB | 🟢 -6.2% |
+
+---
+
+## ✅ Limpeza V3 - Resultado Final
+
+### 🗑️ Arquivos Movidos para Quarentena
+
+| Arquivo | Tamanho | Razão | Localização |
+|---------|---------|-------|-------------|
+| `assets/app.ico` | 119.22 KB | Duplicado byte-a-byte de `rc.ico` (SHA-256 idêntico) | `ajuda/_quarentena_assets/` |
+| `rc.png` | 31.74 KB | Comentado no código, não usado em runtime | `ajuda/_quarentena_assets/` |
+
+**Total movido:** 150.96 KB
+
+### 🗑️ Arquivos Removidos
+
+| Arquivo | Tamanho | Razão |
+|---------|---------|-------|
+| `scripts/infrastructure_scripts_init.py.bak` | 0 KB | Backup vazio |
+
+### 🔍 Verificação de Ícones
+
+**Todas as 16 referências validadas:**
+- ✅ `gui/main_window.py:104` → `iconbitmap(resource_path("rc.ico"))`
+- ✅ `ui/login/login.py:39` → `iconbitmap(resource_path("rc.ico"))`
+- ✅ `ui/dialogs/upload_progress.py:21` → `iconbitmap(resource_path("rc.ico"))`
+- ✅ `ui/forms/actions.py:159,242` → `iconbitmap(resource_path("rc.ico"))`
+- ✅ `ui/files_browser.py:29,221` → `iconbitmap(resource_path("rc.ico"))`
+- ✅ `rc.png` comentado (linha 43 de `ui/login/login.py`)
+- ✅ **Nenhuma referência a `assets/app.ico`** — removido com segurança
+
+### 🧪 Smoke Test Pós-Limpeza
+
+**Resultado:** ✅ **100% PASS**
+
+```
+✅ imports              PASS (18 módulos)
+✅ dependencies         PASS (9 pacotes)
+✅ healthcheck          PASS
+✅ pdf_support          PASS
+```
+
+### �️ UI Runtime Validada
+
+**Comando:** `python runtime/app_gui.py`
+
+**Resultado:** ✅ **App iniciado com sucesso**
+- Log: `App iniciado com tema: flatly`
+- Ícone carregado corretamente (`rc.ico`)
+- Interface gráfica 100% funcional
 
 ---
 

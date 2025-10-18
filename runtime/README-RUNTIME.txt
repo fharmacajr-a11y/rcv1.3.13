@@ -1,9 +1,9 @@
 Runtime gerado automaticamente por make_runtime.py
 ========================================================
 
-Data: 1760779889.2986767
-Arquivos: 95
-Tamanho: 420.3 KB
+Data: 1760784243.374554
+Arquivos: 94
+Tamanho: 301.6 KB
 
 Esta pasta contém apenas o necessário para executar o aplicativo,
 sem testes, documentação, scripts de build, etc.
