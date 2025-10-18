@@ -39,3 +39,6 @@ logs/
 .DS_Store
 Thumbs.db
 docs/*.zip
+
+# ZIPs pesados de backup
+*.zip
