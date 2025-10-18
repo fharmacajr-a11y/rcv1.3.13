@@ -10,10 +10,7 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import unquote as url_unquote
 
-import requests
-from requests.adapters import HTTPAdapter
 from requests import exceptions as req_exc
-from urllib3.util.retry import Retry
 
 from supabase import Client, create_client
 from shared.config.environment import load_env, env_str
@@ -83,21 +80,18 @@ def _pick_name_from_cd(cd: str, fallback: str) -> str:
     return url_unquote(m.group(2))
 
 
-def _session_with_retries(total=5, backoff=0.6) -> requests.Session:
-    # urllib3 moderno usa 'allowed_methods' (no 1.26+ e 2.x) — OK.
-    retry = Retry(
-        total=total,
-        connect=total,
-        read=total,
-        backoff_factor=backoff,
-        status_forcelist=[429, 500, 502, 503, 504],
-        allowed_methods=["GET"],
-        raise_on_status=False,
-    )
-    s = requests.Session()
-    s.mount("https://", HTTPAdapter(max_retries=retry))
-    s.mount("http://", HTTPAdapter(max_retries=retry))
-    return s
+# Sessão lazy para reutilizar conexões com retry/timeout
+_session = None
+
+
+def _sess():
+    """Retorna sessão reutilizável com retry e timeout configurados."""
+    global _session
+    if _session is None:
+        from infra.net_session import make_session
+
+        _session = make_session()
+    return _session
 
 
 # -----------------------------------------------------------------------------#
@@ -146,7 +140,7 @@ def baixar_pasta_zip(
     }
     params = {"bucket": bucket, "prefix": prefix, "name": desired_name}
 
-    sess = _session_with_retries()
+    sess = _sess()
     timeouts = (15, timeout_s)  # (connect, read)
 
     try:
