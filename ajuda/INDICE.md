@@ -1,7 +1,7 @@
 # 📚 ÍNDICE ALFABÉTICO DE ARQUIVOS
 
 **Pasta:** `ajuda/`  
-**Total:** 16 arquivos  
+**Total:** 17 arquivos  
 **Última atualização:** 2025-10-18  
 **Encoding:** ✅ UTF-8 (todos os arquivos)
 

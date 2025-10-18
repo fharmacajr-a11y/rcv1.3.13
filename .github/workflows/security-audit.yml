@@ -1,4 +1,4 @@
-﻿name: Security - pip-audit
+name: Security - pip-audit
 on:
   push:
     branches: [ "main", "maintenance/**" ]

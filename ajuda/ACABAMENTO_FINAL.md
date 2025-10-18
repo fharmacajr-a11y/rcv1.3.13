@@ -189,6 +189,17 @@ Move-Item "ajuda\_quarentena_orfaos\detectors\cnpj_card.py" "detectors\"
 
 ---
 
-**Data de conclusão:** 2025-10-18
-**Tempo total:** ~20 minutos
+**Data de conclusão:** 2025-10-18  
+**Tempo total:** ~20 minutos  
 **Status:** ✅ APROVADO PARA PRODUÇÃO
+
+---
+
+## 📝 Nota sobre Commits
+
+Este documento refere-se ao **commit d2f39ba** ("acabamento mínimo").  
+A padronização UTF-8 posterior foi registrada no **commit 34b60d8**.
+
+**Sequência cronológica:**
+1. `d2f39ba` - Acabamento mínimo (deps, auditoria, higiene)
+2. `34b60d8` - Padronização UTF-8 completa (relatórios, encoding)

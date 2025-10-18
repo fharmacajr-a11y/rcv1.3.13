@@ -1,4 +1,4 @@
-﻿.\.venv\Scripts\python.exe : Detected a 'requirements.in' file in the project and no
+.\.venv\Scripts\python.exe : Detected a 'requirements.in' file in the project and no
 'requirements-files' were explicitly specified. Automatically using
 'requirements.in' as the source for the project's dependencies. To specify a
 different source for the project's dependencies, use the '--requirements-files'

@@ -279,5 +279,5 @@ $PSDefaultParameterValues['Add-Content:Encoding']   = 'utf8'
 **Assinatura Digital:**
 - Executor: GitHub Copilot
 - Data: 2025-10-18
-- Commit: (aguardando confirmação para commit)
+- Commit: 34b60d8 (padronização UTF-8 completa)
 - Branch: integrate/v1.0.29
