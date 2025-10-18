@@ -42,7 +42,7 @@ Toda a documentação detalhada está organizada na pasta [`ajuda/`](ajuda/):
 
 - **[README_PROJETO.md](ajuda/README_PROJETO.md)** - Documentação completa do projeto
 - **[SETUP_VENV_GUIA.md](ajuda/SETUP_VENV_GUIA.md)** - Guia detalhado de instalação
-- **[CHANGELOG_HISTORICO.md](ajuda/CHANGELOG_HISTORICO.md)** - Histórico de mudanças
+- **[CHANGELOG.md](runtime_docs/CHANGELOG.md)** - Histórico de mudanças (usado em runtime)
 - **[INDICE.md](ajuda/INDICE.md)** - Índice de toda documentação
 
 ### Outros Recursos em `ajuda/`
@@ -115,7 +115,7 @@ python scripts\smoke_runtime.py
 
 ## 📝 Changelog
 
-Veja [ajuda/CHANGELOG_HISTORICO.md](ajuda/CHANGELOG_HISTORICO.md) para histórico completo de mudanças.
+Veja [runtime_docs/CHANGELOG.md](runtime_docs/CHANGELOG.md) para histórico completo de mudanças.
 
 **Última versão:** v1.0.34 (18/10/2025)
 - ✅ Padronização UTF-8 completa
