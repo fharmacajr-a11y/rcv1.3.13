@@ -1,0 +1,42 @@
+# RC-Gestor v1.0.29 - Top-level dependencies
+# =============================================
+# Este arquivo contém apenas as dependências diretas do projeto.
+# Use pip-compile para gerar o requirements.txt com versões pinadas.
+#
+# Instalação:
+#   pip install pip-tools
+#
+# Gerar requirements.txt:
+#   pip-compile --upgrade -o requirements.txt requirements.in
+#
+# Atualizar dependências:
+#   pip-compile --upgrade requirements.in
+#
+# Referência: https://pip-tools.readthedocs.io/
+
+# HTTP clients
+httpx
+requests
+
+# PDF processing
+pypdf
+pdfminer.six
+pymupdf
+PyPDF2  # mantido para compatibilidade com código legado
+
+# Image processing
+pillow
+pytesseract
+
+# Configuration and environment
+python-dotenv
+pyyaml
+
+# Supabase backend (versão mínima requerida)
+supabase>=2.6.0
+
+# GUI toolkit
+ttkbootstrap
+
+# Timezone data
+tzdata
