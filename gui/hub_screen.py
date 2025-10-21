@@ -16,6 +16,8 @@ from tkinter import messagebox
 import ttkbootstrap as tb
 
 from core.logger import get_logger
+from ui.hub.constants import PAD_OUTER
+from ui.hub.layout import apply_hub_notes_right
 
 # Import do erro transitório
 from core.services.notes_service import NotesTransientError
@@ -107,22 +109,16 @@ class HubScreen(tb.Frame):
         self.open_senhas = open_senhas
         self.open_mod_sifap = open_mod_sifap
 
-        # Grid principal: 3 colunas (módulos | espaço vazio | notas)
-        self.columnconfigure(0, weight=0, minsize=180)  # sidebar de módulos (fixa)
-        self.columnconfigure(1, weight=3, minsize=16)   # espaço vazio no meio (aumenta!)
-        self.columnconfigure(2, weight=2, minsize=360)  # painel de anotações (reduz um pouco)
-        self.rowconfigure(0, weight=1)                  # conteúdo principal cresce em Y
-
         # --- MENU VERTICAL (coluna 0) ---
-        menu = tb.Labelframe(self, text="MÓDULOS", padding=8)
-        menu.grid(row=0, column=0, sticky="nsw", padx=(8, 6), pady=(6, 8))
+        self.modules_panel = tb.Labelframe(self, text="Módulos", padding=PAD_OUTER)
+        modules_panel = self.modules_panel
 
         def mk_btn(text: str, cmd: Optional[Callable] = None, highlight: bool = False) -> tb.Button:
             """Cria um botão. Se highlight=True, aplica estilo de sucesso (verde)."""
             if highlight:
-                b = tb.Button(menu, text=text, command=(cmd or self._noop), bootstyle="success")
+                b = tb.Button(modules_panel, text=text, command=(cmd or self._noop), bootstyle="success")
             else:
-                b = tb.Button(menu, text=text, command=(cmd or self._noop), bootstyle="secondary")
+                b = tb.Button(modules_panel, text=text, command=(cmd or self._noop), bootstyle="secondary")
             b.pack(fill="x", pady=4)
             return b
 
@@ -138,10 +134,16 @@ class HubScreen(tb.Frame):
 
         # --- ESPAÇO CENTRAL VAZIO (coluna 1) ---
         self.center_spacer = tb.Frame(self)
-        self.center_spacer.grid(row=0, column=1, sticky="nsew")
 
         # --- LATERAL DIREITA (coluna 2) - Notas Compartilhadas ---
         self._build_notes_panel()
+
+        widgets = {
+            "modules_panel": self.modules_panel,
+            "spacer": self.center_spacer,
+            "notes_panel": self.notes_panel,
+        }
+        apply_hub_notes_right(self, widgets)
 
         # Estado de polling
         self._notes_poll_ms = 10000  # 10 segundos
@@ -284,8 +286,8 @@ class HubScreen(tb.Frame):
 
     def _build_notes_panel(self) -> None:
         """Constrói o painel de notas compartilhadas (append-only)."""
-        right = tb.Labelframe(self, text="Anotações Compartilhadas", padding=8)
-        right.grid(row=0, column=2, sticky="nsew", padx=(6, 8), pady=(6, 8))
+        self.notes_panel = tb.Labelframe(self, text="Anotações Compartilhadas", padding=PAD_OUTER)
+        right = self.notes_panel
         right.columnconfigure(0, weight=1)
         right.rowconfigure(0, weight=1)  # histórico expande
 
