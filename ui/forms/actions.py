@@ -28,7 +28,13 @@ from adapters.storage.api import (
     using_storage_backend,
 )
 from adapters.storage.supabase_storage import SupabaseStorageAdapter
-from infra.supabase_client import is_supabase_online, get_supabase_state, is_really_online
+from infra.supabase_client import (
+    exec_postgrest,
+    get_supabase_state,
+    is_really_online,
+    is_supabase_online,
+    supabase,
+)
 from ui.forms.pipeline import (
     finalize_state,
     perform_uploads,
@@ -70,7 +76,6 @@ except Exception:  # pragma: no cover
             return win
 
 
-from infra.supabase_client import supabase
 from core.services.clientes_service import salvar_cliente, checar_duplicatas_info
 from utils.file_utils import list_and_classify_pdfs, find_cartao_cnpj_pdf
 from utils.pdf_reader import read_pdf_text
@@ -118,12 +123,11 @@ def _resolve_org_id() -> str:
         )
     try:
         if uid:
-            res = (
+            res = exec_postgrest(
                 supabase.table("memberships")
                 .select("org_id")
                 .eq("user_id", uid)
                 .limit(1)
-                .execute()
             )
             data = getattr(res, "data", None) or []
             if data:
@@ -596,9 +600,8 @@ def _salvar_e_upload_docs_impl(
                     sha256_hash = hashlib.sha256(data).hexdigest()
 
                     # documents
-                    doc = (
-                        supabase.table("documents")
-                        .insert(
+                    doc = exec_postgrest(
+                        supabase.table("documents").insert(
                             {
                                 "client_id": client_id,
                                 "title": os.path.basename(local_path),
@@ -606,14 +609,12 @@ def _salvar_e_upload_docs_impl(
                                 "current_version": None,
                             }
                         )
-                        .execute()
                     )
                     document_id = doc.data[0]["id"]
 
                     # document_versions
-                    ver = (
-                        supabase.table("document_versions")
-                        .insert(
+                    ver = exec_postgrest(
+                        supabase.table("document_versions").insert(
                             {
                                 "document_id": document_id,
                                 "path": storage_path,
@@ -623,12 +624,13 @@ def _salvar_e_upload_docs_impl(
                                 "created_at": created_at,
                             }
                         )
-                        .execute()
                     )
                     version_id = ver.data[0]["id"]
-                    supabase.table("documents").update(
-                        {"current_version": version_id}
-                    ).eq("id", document_id).execute()
+                    exec_postgrest(
+                        supabase.table("documents")
+                        .update({"current_version": version_id})
+                        .eq("id", document_id)
+                    )
 
                     log.info("Upload OK: %s", storage_path)
                 except Exception as e:

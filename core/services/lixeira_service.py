@@ -14,6 +14,7 @@ from adapters.storage.api import (
     using_storage_backend,
 )
 from adapters.storage.supabase_storage import SupabaseStorageAdapter
+from infra.supabase_client import exec_postgrest
 from utils.subpastas_config import get_mandatory_subpastas, join_prefix
 
 logger = logging.getLogger(__name__)
@@ -36,12 +37,11 @@ def _get_supabase_and_org():
         uid = getattr(u, "id", None)
         if not uid:
             raise RuntimeError("Usuário não autenticado no Supabase.")
-        res = (
+        res = exec_postgrest(
             supabase.table("memberships")
             .select("org_id")
             .eq("user_id", uid)
             .limit(1)
-            .execute()
         )
         org_id = res.data[0]["org_id"] if getattr(res, "data", None) else None
         if not org_id:
@@ -163,9 +163,11 @@ def restore_clients(
 
     for cid in client_ids:
         try:
-            supabase.table("clients").update({"deleted_at": None}).eq(
-                "id", int(cid)
-            ).execute()
+            exec_postgrest(
+                supabase.table("clients")
+                .update({"deleted_at": None})
+                .eq("id", int(cid))
+            )
             prefix = f"{org_id}/{int(cid)}"
             try:
                 _ensure_mandatory_subfolders(prefix)
@@ -215,7 +217,7 @@ def hard_delete_clients(
                 errs.append((cid, f"Storage: {e}"))
 
             # 2) Remove do DB (linha do cliente)
-            supabase.table("clients").delete().eq("id", cid).execute()
+            exec_postgrest(supabase.table("clients").delete().eq("id", cid))
 
             ok += 1
         except Exception as e:

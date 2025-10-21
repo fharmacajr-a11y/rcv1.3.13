@@ -117,11 +117,13 @@ def excluir_cliente(app: Any, selected_values: Sequence[Any]) -> None:
         return
 
     try:
-        from infra.supabase_client import supabase
+        from infra.supabase_client import exec_postgrest, supabase
 
         deleted_at = datetime.now(timezone.utc).isoformat()
         update_payload = {"deleted_at": deleted_at, "ultima_alteracao": deleted_at}
-        (supabase.table("clients").update(update_payload).eq("id", client_id).execute())
+        exec_postgrest(
+            supabase.table("clients").update(update_payload).eq("id", client_id)
+        )
     except Exception as exc:
         _safe_messagebox(
             "showerror", "Erro ao excluir", f"Falha ao enviar para a Lixeira: {exc}"

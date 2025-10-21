@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import shutil
 import logging
+import time
 
 from utils.validators import only_digits, normalize_text
 from config.paths import DOCS_DIR, CLOUD_ONLY
@@ -12,8 +13,72 @@ from utils.file_utils import ensure_subpastas, write_marker
 from core.logs.audit import log_client_action
 from core.session.session import get_current_user
 from core.db_manager import insert_cliente, update_cliente, list_clientes
+from infra.supabase_client import exec_postgrest, supabase
 
 log = logging.getLogger(__name__)
+
+# Valor em memória para exibir se a rede falhar momentaneamente
+_LAST_CLIENTS_COUNT = 0
+
+
+def _count_clients_raw() -> int:
+    """
+    Executa a contagem real de clientes no Supabase.
+    Código original extraído para isolamento de retry.
+    """
+    resp = exec_postgrest(
+        supabase.table("clients").select("id", count="exact").is_("deleted_at", "null")
+    )
+    return resp.count or 0
+
+
+def count_clients(*, max_retries: int = 2, base_delay: float = 0.2) -> int:
+    """
+    Conta clientes ativos do Supabase com retry leve e tratamento resiliente.
+    
+    - Se der WSAEWOULDBLOCK (WinError 10035), não loga como erro; tenta novamente.
+    - Se falhar após retries, retorna o último valor conhecido sem quebrar a UI.
+    - Mantém cache em memória (_LAST_CLIENTS_COUNT) para resiliência.
+    
+    Args:
+        max_retries: Número máximo de tentativas em caso de erro 10035 (padrão: 2)
+        base_delay: Delay base entre tentativas em segundos (padrão: 0.2)
+    
+    Returns:
+        Contagem de clientes ativos ou último valor conhecido em caso de falha
+    """
+    global _LAST_CLIENTS_COUNT
+
+    attempt = 0
+    while True:
+        try:
+            total = _count_clients_raw()
+            _LAST_CLIENTS_COUNT = int(total)
+            return _LAST_CLIENTS_COUNT
+
+        except OSError as e:
+            # WinError 10035 = WSAEWOULDBLOCK (socket non-blocking)
+            if getattr(e, "winerror", 0) == 10035:
+                if attempt < max_retries:
+                    delay = base_delay * (attempt + 1)
+                    log.warning("Clientes: socket ocupada (10035); retry em %.1fs...", delay)
+                    time.sleep(delay)
+                    attempt += 1
+                    continue
+                # Sem pânico: devolve último valor conhecido
+                log.info("Clientes: usando last-known=%s após 10035", _LAST_CLIENTS_COUNT)
+                return _LAST_CLIENTS_COUNT
+            else:
+                # Outros erros de rede → mantém como warning e devolve last-known
+                log.warning("Clientes: erro de rede ao contar; usando last-known=%s (%r)",
+                           _LAST_CLIENTS_COUNT, e)
+                return _LAST_CLIENTS_COUNT
+
+        except Exception as e:
+            # Último guarda-chuva: não quebrar UI por causa do contador
+            log.warning("Clientes: falha inesperada ao contar; usando last-known=%s (%r)",
+                       _LAST_CLIENTS_COUNT, e)
+            return _LAST_CLIENTS_COUNT
 
 
 def _normalize_payload(valores: dict) -> tuple[str, str, str, str, str]:

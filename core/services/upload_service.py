@@ -24,7 +24,7 @@ from adapters.storage.api import (
     list_files as storage_list_files,
     upload_file as storage_upload_file,
 )
-from infra.supabase_client import supabase
+from infra.supabase_client import exec_postgrest, supabase
 
 
 def _guess_mime(path: Path) -> str:
@@ -59,12 +59,11 @@ def _resolve_org_id() -> str:
     if not user_id:
         return fallback
     try:
-        response = (
+        response = exec_postgrest(
             supabase.table("memberships")
             .select("org_id")
             .eq("user_id", user_id)
             .limit(1)
-            .execute()
         )
         data = getattr(response, "data", None) or []
         if data:
@@ -121,9 +120,8 @@ def upload_folder_to_supabase(
         _raise_if_exists(storage_path)
         storage_upload_file(str(path), storage_path, mime_type)
 
-        document_response = (
-            supabase.table("documents")
-            .insert(
+        document_response = exec_postgrest(
+            supabase.table("documents").insert(
                 {
                     "client_id": int(client_id),
                     "title": path.name,
@@ -132,7 +130,6 @@ def upload_folder_to_supabase(
                 },
                 returning="representation",
             )
-            .execute()
         )
 
         if not document_response.data:
@@ -142,9 +139,8 @@ def upload_folder_to_supabase(
 
         document_id = document_response.data[0]["id"]
 
-        version_response = (
-            supabase.table("document_versions")
-            .insert(
+        version_response = exec_postgrest(
+            supabase.table("document_versions").insert(
                 {
                     "document_id": document_id,
                     "storage_path": storage_path,
@@ -154,7 +150,6 @@ def upload_folder_to_supabase(
                 },
                 returning="representation",
             )
-            .execute()
         )
 
         if not version_response.data:
@@ -164,9 +159,11 @@ def upload_folder_to_supabase(
 
         version_id = version_response.data[0]["id"]
 
-        supabase.table("documents").update({"current_version": version_id}).eq(
-            "id", document_id
-        ).execute()
+        exec_postgrest(
+            supabase.table("documents")
+            .update({"current_version": version_id})
+            .eq("id", document_id)
+        )
 
         results.append(
             {

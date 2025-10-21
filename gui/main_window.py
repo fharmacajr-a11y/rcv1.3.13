@@ -6,8 +6,10 @@ import sys
 import hashlib
 
 import tkinter as tk
+from tkinter import ttk
 import ttkbootstrap as tb
 import logging
+import threading
 from tkinter import filedialog, messagebox
 from typing import Any, Optional
 
@@ -91,8 +93,19 @@ class App(tb.Window):
         except Exception:
             pass  # Silencioso se falhar
 
+        # Criar separadores horizontais (idempotentes)
+        # Separador 1: logo abaixo do menu (antes da toolbar)
+        if not hasattr(self, "sep_menu_toolbar") or self.sep_menu_toolbar is None:
+            self.sep_menu_toolbar = ttk.Separator(self, orient="horizontal")
+            self.sep_menu_toolbar.pack(side="top", fill="x", pady=0)
+
         self._topbar = TopBar(self, on_home=self.show_hub_screen)
         self._topbar.pack(side="top", fill="x")
+
+        # Separador 2: logo abaixo da toolbar (antes do conteúdo principal)
+        if not hasattr(self, "sep_toolbar_main") or self.sep_toolbar_main is None:
+            self.sep_toolbar_main = ttk.Separator(self, orient="horizontal")
+            self.sep_toolbar_main.pack(side="top", fill="x", pady=0)
 
         if start_hidden:
             try:
@@ -133,7 +146,7 @@ class App(tb.Window):
 
         self.report_callback_exception = _tk_report
 
-        self.title("Regularize Consultoria - v1.0.12 (BETA)")
+        self.title("Regularize Consultoria - v1.0.49")
 
         # --- Geometria responsiva ---
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
@@ -160,6 +173,12 @@ class App(tb.Window):
 
         self._net_is_online = True
         self._offline_alerted = False
+        
+        # Cache da instância única do Hub (evita tela branca ao navegar)
+        self._hub_screen_instance = None
+        
+        # Cache da instância única da tela de Senhas (evita tela branca ao navegar)
+        self._passwords_screen_instance = None
 
         self.clients_count_var = tk.StringVar(master=self, value="0 clientes")
         self.status_var_dot = tk.StringVar(master=self, value="")
@@ -190,6 +209,14 @@ class App(tb.Window):
             self._content_container, frame_factory=self._frame_factory
         )
 
+        # --- StatusBar Global (sempre visível no rodapé) ---
+        from gui.status_footer import StatusFooter
+        self.footer = StatusFooter(self, show_trash=False)
+        self.footer.pack(side="bottom", fill="x")
+        self.footer.set_count(0)
+        self.footer.set_user(None)
+        self.footer.set_cloud("UNKNOWN")
+
         self._status_monitor = StatusMonitor(
             self._handle_status_update, app_after=self.after
         )
@@ -198,6 +225,9 @@ class App(tb.Window):
         except Exception:
             pass
         self._status_monitor.start()
+        
+        # Conectar health check ao rodapé
+        self._wire_session_and_health()
 
         # Auth
         self.auth = AuthController(
@@ -235,20 +265,83 @@ class App(tb.Window):
         return frame
 
     def _frame_factory(self, frame_cls, options):
+        """
+        Decide criação/reuso de frames.
+        Retorna o frame (novo ou reutilizado) ou None para fallback padrão.
+        """
+        options = options or {}
         current = self.nav.current()
-        if callable(frame_cls) and not isinstance(frame_cls, type):
-            frame = frame_cls(self._content_container)
-        else:
-            frame = frame_cls(self._content_container, **options)
+        
+        # NÃO parar live sync ao sair do Hub - mantém sync ativo sempre
+        # (live-sync será parado apenas em logout/fechar app)
+        
+        # Implementação com reuso do Hub
+        from gui.hub_screen import HubScreen
+        if frame_cls is HubScreen:
+            # Criar apenas uma vez
+            if self._hub_screen_instance is None:
+                self._hub_screen_instance = HubScreen(self._content_container, **options)
+                # Colocar uma vez (place preferencial, fallback pack)
+                try:
+                    self._hub_screen_instance.place(relx=0, rely=0, relwidth=1, relheight=1)
+                except Exception:
+                    try:
+                        self._hub_screen_instance.pack(fill="both", expand=True)
+                    except Exception:
+                        pass
+
+            frame = self._hub_screen_instance
+            
+            # Esconder frame anterior (não destruir!)
+            if current is not None and current is not frame:
+                try:
+                    current.pack_forget()
+                except Exception:
+                    try:
+                        current.place_forget()
+                    except Exception:
+                        pass
+            
+            # Trazer pra frente SEM recriar
+            try:
+                frame.lift()
+            except Exception:
+                pass
+            
+            # Gancho de entrada (render imediato se Text vazia)
+            try:
+                frame.on_show()
+            except Exception:
+                pass
+            
+            return frame
+        
+        # Outras telas: criar normalmente
+        try:
+            if callable(frame_cls) and not isinstance(frame_cls, type):
+                frame = frame_cls(self._content_container)
+            else:
+                frame = frame_cls(self._content_container, **options)
+        except Exception:
+            # Fallback para None -> navegação controller usa caminho padrão
+            return None
+        
+        # Esconder frame anterior (não destruir!)
         if current is not None and current is not frame:
             try:
                 current.pack_forget()
             except Exception:
-                pass
+                try:
+                    current.place_forget()
+                except Exception:
+                    pass
+        
+        # Mostrar novo frame
         try:
             frame.pack(fill="both", expand=True)
         except Exception:
             pass
+        
         return frame
 
     def _update_topbar_state(self, frame_or_cls) -> None:
@@ -311,13 +404,61 @@ class App(tb.Window):
         if frame:
             frame.carregar()
 
+    def refresh_clients_count_async(self, auto_schedule: bool = True) -> None:
+        """
+        Atualiza a contagem de clientes do Supabase de forma assíncrona.
+        Usa threading para não travar a UI.
+        
+        Args:
+            auto_schedule: Se True, agenda próxima atualização automática em 30s
+        """
+        def _work():
+            try:
+                from core.services.clientes_service import count_clients
+                total = count_clients()
+            except Exception as e:
+                # Não trata como erro crítico; count_clients já retorna last-known
+                log.warning("Erro ao atualizar contagem de clientes: %s", e)
+                total = 0
+            
+            # Atualizar na thread da UI
+            text = "1 cliente" if total == 1 else f"{total} clientes"
+            try:
+                self.after(0, lambda: self.clients_count_var.set(text))
+                self.after(0, lambda: self.footer.set_count(total))
+            except Exception:
+                pass
+            
+            # Auto-refresh: agenda próxima atualização em 30s
+            if auto_schedule:
+                try:
+                    self.after(30000, lambda: self.refresh_clients_count_async(auto_schedule=True))
+                except Exception:
+                    pass
+        
+        threading.Thread(target=_work, daemon=True).start()
+
     def show_hub_screen(self) -> None:
-        self.show_frame(
+        frame = self.show_frame(
             HubScreen,
-            open_sifap=self.show_main_screen,
-            open_anvisa=lambda: self.show_placeholder_screen("ANVISA"),
-            open_senhas=lambda: self.show_placeholder_screen("senhas"),
+            open_clientes=self.show_main_screen,
+            open_anvisa=lambda: self.show_placeholder_screen("Anvisa"),
+            open_auditoria=lambda: self.show_placeholder_screen("Auditoria"),
+            open_farmacia_popular=lambda: self.show_placeholder_screen("Farmácia Popular"),
+            open_sngpc=lambda: self.show_placeholder_screen("Sngpc"),  # Corrigido: SNJPC -> SNGPC
+            open_senhas=self.show_passwords_screen,
+            open_mod_sifap=lambda: self.show_placeholder_screen("Sifap"),
         )
+        
+        # Atualizar contagem de clientes sempre que voltar para o Hub
+        self.refresh_clients_count_async()
+        
+        # Chamar on_show() para renderização imediata e iniciar live-sync
+        if isinstance(frame, HubScreen):
+            try:
+                frame.on_show()
+            except Exception as e:
+                log.warning("Erro ao chamar on_show do Hub: %s", e)
 
     def show_main_screen(self) -> None:
         frame = self.show_frame(
@@ -346,6 +487,78 @@ class App(tb.Window):
             title=title,
             on_back=self.show_hub_screen,
         )
+
+    def show_passwords_screen(self) -> None:
+        """Exibe a tela de gerenciamento de senhas (singleton com lift + on_show)."""
+        from gui.passwords_screen import PasswordsScreen
+        
+        # Singleton: criar apenas uma vez
+        if not hasattr(self, "_passwords_screen_instance") or self._passwords_screen_instance is None:
+            self._passwords_screen_instance = PasswordsScreen(self._content_container, main_window=self)
+            # Posicionar uma vez (place preferencial, fallback pack)
+            try:
+                self._passwords_screen_instance.place(relx=0, rely=0, relwidth=1, relheight=1)
+            except Exception:
+                try:
+                    self._passwords_screen_instance.pack(fill="both", expand=True)
+                except Exception:
+                    pass
+        
+        frame = self._passwords_screen_instance
+        current = self.nav.current()
+        
+        # Esconder frame anterior (não destruir!)
+        if current is not None and current is not frame:
+            try:
+                current.pack_forget()
+            except Exception:
+                try:
+                    current.place_forget()
+                except Exception:
+                    pass
+        
+        # Trazer para frente SEM recriar
+        try:
+            frame.lift()
+        except Exception:
+            pass
+        
+        # Atualizar estado de navegação
+        try:
+            self.nav._current = frame
+        except Exception:
+            pass
+        
+        # Chamar on_show() para atualizar dados
+        try:
+            frame.on_show()
+        except Exception as e:
+            log.exception("Erro ao chamar on_show da tela de senhas")
+        
+        # Atualizar topbar
+        try:
+            self._update_topbar_state(frame)
+        except Exception:
+            pass
+    
+    def open_clients_picker(self, on_pick):
+        """
+        Helper para abrir tela de Clientes em modo seleção.
+        
+        Args:
+            on_pick: Callback que recebe dict com dados do cliente selecionado
+        """
+        def _return_to_passwords():
+            self.show_passwords_screen()
+        
+        # Mostrar tela de clientes
+        self.show_main_screen()
+        
+        # Ativar modo seleção
+        if hasattr(self, "_main_frame_ref") and hasattr(self._main_frame_ref, "start_pick"):
+            self._main_frame_ref.start_pick(on_pick=on_pick, return_to=_return_to_passwords)
+        else:
+            messagebox.showwarning("Atenção", "Tela de clientes não está disponível.")
 
     # ---------- Confirmação de saída ----------
     def _confirm_exit(self, *_):
@@ -381,6 +594,51 @@ class App(tb.Window):
             self._menu.refresh_theme(name)
         except Exception:
             pass
+
+    # ---------- Integração com Health Check e Sessão ----------
+    def _wire_session_and_health(self):
+        """Conecta o health check do Supabase ao rodapé para atualização automática."""
+        # [finalize-notes] import seguro dentro de função
+        from infra.supabase_client import get_supabase
+        
+        try:
+            # Criar polling manual do estado do health check
+            def poll_health():
+                try:
+                    # [finalize-notes] import seguro dentro de função aninhada
+                    from infra.supabase_client import get_supabase_state
+                    state, _ = get_supabase_state()
+                    self.footer.set_cloud(state)
+                except Exception:
+                    pass
+                # Reagendar polling
+                try:
+                    self.after(5000, poll_health)  # A cada 5 segundos
+                except Exception:
+                    pass
+            
+            # Iniciar polling
+            self.after(1000, poll_health)
+            
+            # Tentar obter estado inicial
+            try:
+                # [finalize-notes] import seguro dentro de função
+                from infra.supabase_client import get_supabase_state
+                current, _ = get_supabase_state()
+                self.footer.set_cloud(current)
+            except Exception:
+                pass
+                
+        except Exception as e:
+            log.warning("Erro ao conectar health check: %s", e)
+
+    def _on_login_success(self, session):
+        """Atualiza o rodapé com o email do usuário após login bem-sucedido."""
+        try:
+            email = getattr(getattr(session, "user", None), "email", None)
+            self.footer.set_user(email)
+        except Exception as e:
+            log.warning("Erro ao atualizar usuário no rodapé: %s", e)
 
     # ---------- Helpers de Status ----------
     def _handle_status_update(
@@ -459,6 +717,24 @@ class App(tb.Window):
         is_online = st == Status.ONLINE
         self._apply_online_state(is_online)
         self._update_status_dot(is_online)
+
+    # ---------- API pública para status ----------
+    def set_cloud_status(self, online: bool) -> None:
+        """Define o status da nuvem (online/offline) na StatusBar global."""
+        try:
+            if self._status_monitor:
+                self._status_monitor.set_cloud_status(online)
+        except Exception:
+            pass
+
+    def set_user_status(self, email: Optional[str], role: Optional[str] = None) -> None:
+        """Define informações do usuário logado na StatusBar global."""
+        try:
+            self._user_cache = {"email": email, "id": email} if email else None
+            self._role_cache = role
+            self._refresh_status_display()
+        except Exception:
+            pass
         self._refresh_status_display()
 
     def _update_user_status(self) -> None:
@@ -552,6 +828,19 @@ class App(tb.Window):
             email = getattr(u, "email", "") or ""
             if uid:
                 self._user_cache = {"id": uid, "email": email}
+                
+                # Hidratar AuthController com dados completos
+                try:
+                    org_id = self._get_org_id_cached(uid)
+                    user_data = {
+                        "id": uid,
+                        "email": email,
+                        "org_id": org_id,
+                    }
+                    self.auth.set_user_data(user_data)
+                except Exception as e:
+                    log.warning("Não foi possível hidratar AuthController: %s", e)
+                
                 return self._user_cache
         except Exception:
             pass
@@ -561,14 +850,13 @@ class App(tb.Window):
         if self._role_cache:
             return self._role_cache
         try:
-            from infra.supabase_client import supabase
+            from infra.supabase_client import exec_postgrest, supabase
 
-            res = (
+            res = exec_postgrest(
                 supabase.table("memberships")
                 .select("role")
                 .eq("user_id", uid)
                 .limit(1)
-                .execute()
             )
             if getattr(res, "data", None):
                 self._role_cache = (res.data[0].get("role") or "user").lower()
@@ -582,14 +870,13 @@ class App(tb.Window):
         if self._org_id_cache:
             return self._org_id_cache
         try:
-            from infra.supabase_client import supabase
+            from infra.supabase_client import exec_postgrest, supabase
 
-            res = (
+            res = exec_postgrest(
                 supabase.table("memberships")
                 .select("org_id")
                 .eq("user_id", uid)
                 .limit(1)
-                .execute()
             )
             if getattr(res, "data", None) and res.data[0].get("org_id"):
                 self._org_id_cache = res.data[0]["org_id"]

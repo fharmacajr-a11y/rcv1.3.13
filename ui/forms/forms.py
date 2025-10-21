@@ -8,7 +8,7 @@ import logging
 from ui.components import toolbar_button, labeled_entry
 from core.services.clientes_service import salvar_cliente, checar_duplicatas_info
 from ui.forms.actions import preencher_via_pasta, salvar_e_enviar_para_supabase
-from infra.supabase_client import supabase  # cliente Supabase
+from infra.supabase_client import exec_postgrest, supabase  # cliente Supabase
 
 try:
     from ui import center_on_parent
@@ -70,11 +70,10 @@ def form_cliente(self, row=None, preset: dict | None = None) -> None:
         ents["Observações"].insert("1.0", obs or "")
         # carregar docs existentes (opcional)
         try:
-            resp = (
+            resp = exec_postgrest(
                 supabase.table("documents")
                 .select("title")
                 .eq("client_id", pk)
-                .execute()
             )
             for doc in resp.data or []:
                 listbox_docs.insert(
