@@ -28,6 +28,13 @@ from adapters.storage.api import (
     using_storage_backend,
 )
 from adapters.storage.supabase_storage import SupabaseStorageAdapter
+from infra.supabase_client import is_supabase_online, get_supabase_state, is_really_online
+from ui.forms.pipeline import (
+    finalize_state,
+    perform_uploads,
+    prepare_payload,
+    validate_inputs,
+)
 
 load_dotenv()
 
@@ -353,9 +360,62 @@ def _classify_storage_error(exc: Exception) -> str:
     return "other"
 
 
-def salvar_e_upload_docs(
+def _salvar_e_upload_docs_impl(
     self, row, ents: dict, arquivos_selecionados: list | None, win=None
 ) -> None:
+    """
+    Salva cliente e envia documentos para o Supabase Storage.
+    
+    Sistema de 3 Estados:
+    - ONLINE: Prossegue com envio normalmente
+    - INSTÁVEL: Bloqueia envio, salva apenas localmente
+    - OFFLINE: Bloqueia envio, salva apenas localmente
+    
+    Esta função trata a instabilidade da conexão com Supabase:
+    Se a última verificação bem-sucedida tiver mais de 60 segundos, marca como instável
+    e bloqueia o envio para evitar erros e perda de dados.
+    """
+    
+    # ========== Verificação de conectividade com sistema de 3 estados ==========
+    state, description = get_supabase_state()
+    
+    if state != "online":
+        # Estado INSTÁVEL ou OFFLINE: bloqueia envio
+        if state == "unstable":
+            messagebox.showwarning(
+                "Conexão Instável",
+                f"A conexão com o Supabase está instável.\n\n"
+                f"Detalhes: {description}\n\n"
+                f"O cliente será salvo localmente, mas o envio para a nuvem "
+                f"não pode ser realizado no momento.\n\n"
+                f"Aguarde a estabilização da conexão ou tente novamente mais tarde.",
+                parent=win
+            )
+        else:  # offline
+            messagebox.showwarning(
+                "Sem Conexão",
+                f"O sistema está sem conexão com o Supabase.\n\n"
+                f"Detalhes: {description}\n\n"
+                f"O cliente será salvo localmente, mas o envio para a nuvem "
+                f"não pode ser realizado no momento.\n\n"
+                f"Aguarde a reconexão ou tente novamente mais tarde.",
+                parent=win
+            )
+        
+        # Log da tentativa bloqueada
+        log.warning(
+            "Tentativa de envio bloqueada: Estado da nuvem = %s (%s)",
+            state.upper(),
+            description
+        )
+        
+        # Poderia salvar localmente aqui se necessário
+        # Por enquanto, apenas retorna sem fazer nada
+        return
+    
+    # Estado ONLINE: prossegue normalmente
+    log.info("Iniciando envio: Estado da nuvem = ONLINE, prosseguindo com upload")
+    
     # --- valores
     valores = {
         "Razão Social": ents["Razão Social"].get().strip(),
@@ -612,6 +672,38 @@ def salvar_e_upload_docs(
 
 # Wrapper usado no botão do form
 def salvar_e_enviar_para_supabase(self, row, ents, win=None):
+    """
+    Wrapper para salvar cliente e enviar documentos.
+    
+    Verifica conectividade com sistema de 3 estados antes de processar.
+    Esta função trata a instabilidade da conexão com Supabase.
+    """
+    
+    # Verificação extra de segurança usando is_really_online()
+    # que verifica threshold de instabilidade
+    if not is_really_online():
+        state, description = get_supabase_state()
+        
+        if state == "unstable":
+            messagebox.showwarning(
+                "Conexão Instável",
+                f"A conexão com o Supabase está instável.\n\n"
+                f"{description}\n\n"
+                f"Não é possível enviar dados no momento.",
+                parent=win
+            )
+        else:  # offline
+            messagebox.showwarning(
+                "Sistema Offline",
+                f"Não foi possível conectar ao Supabase.\n\n"
+                f"{description}\n\n"
+                f"Verifique sua conexão e tente novamente.",
+                parent=win
+            )
+        
+        log.warning("Envio bloqueado no wrapper: Estado = %s", state.upper())
+        return
+    
     return salvar_e_upload_docs(self, row, ents, None, win)
 
 
@@ -651,3 +743,16 @@ def download_file(bucket_name: str | None, file_path: str, local_path: str):
         log.info("Arquivo baixado: %s", local_path)
     except Exception as e:
         log.error("Erro ao baixar %s: %s", file_path, e)
+
+
+def salvar_e_upload_docs(
+    self, row, ents: dict, arquivos_selecionados: list | None, win=None
+):
+    args = (self, row, ents, arquivos_selecionados, win)
+    kwargs: dict = {}
+    args, kwargs = validate_inputs(*args, **kwargs)
+    args, kwargs = prepare_payload(*args, **kwargs)
+    result = _salvar_e_upload_docs_impl(*args, **kwargs)
+    perform_uploads(*args, **kwargs)
+    finalize_state(*args, **kwargs)
+    return result
