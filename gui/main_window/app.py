@@ -67,7 +67,9 @@ from application.navigation_controller import NavigationController
 from application.status_monitor import StatusMonitor
 from application.auth_controller import AuthController
 from application.keybindings import bind_global_shortcuts
-from gui.main_window import create_frame, navigate_to, tk_report
+from gui.main_window.frame_factory import create_frame
+from gui.main_window.router import navigate_to
+from gui.main_window.tk_report import tk_report
 from gui.hub_screen import HubScreen
 from gui.menu_bar import AppMenuBar
 from gui.placeholders import ComingSoonScreen
