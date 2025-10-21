@@ -67,6 +67,7 @@ from application.navigation_controller import NavigationController
 from application.status_monitor import StatusMonitor
 from application.auth_controller import AuthController
 from application.keybindings import bind_global_shortcuts
+from gui.main_window import create_frame, navigate_to, tk_report
 from gui.hub_screen import HubScreen
 from gui.menu_bar import AppMenuBar
 from gui.placeholders import ComingSoonScreen
@@ -141,10 +142,7 @@ class App(tb.Window):
         except Exception:
             pass
 
-        def _tk_report(exc, val, tb_):
-            log.exception("Excecao no Tkinter callback", exc_info=(exc, val, tb_))
-
-        self.report_callback_exception = _tk_report
+        self.report_callback_exception = tk_report
 
         self.title("Regularize Consultoria - v1.0.49")
 
@@ -265,84 +263,7 @@ class App(tb.Window):
         return frame
 
     def _frame_factory(self, frame_cls, options):
-        """
-        Decide criação/reuso de frames.
-        Retorna o frame (novo ou reutilizado) ou None para fallback padrão.
-        """
-        options = options or {}
-        current = self.nav.current()
-        
-        # NÃO parar live sync ao sair do Hub - mantém sync ativo sempre
-        # (live-sync será parado apenas em logout/fechar app)
-        
-        # Implementação com reuso do Hub
-        from gui.hub_screen import HubScreen
-        if frame_cls is HubScreen:
-            # Criar apenas uma vez
-            if self._hub_screen_instance is None:
-                self._hub_screen_instance = HubScreen(self._content_container, **options)
-                # Colocar uma vez (place preferencial, fallback pack)
-                try:
-                    self._hub_screen_instance.place(relx=0, rely=0, relwidth=1, relheight=1)
-                except Exception:
-                    try:
-                        self._hub_screen_instance.pack(fill="both", expand=True)
-                    except Exception:
-                        pass
-
-            frame = self._hub_screen_instance
-            
-            # Esconder frame anterior (não destruir!)
-            if current is not None and current is not frame:
-                try:
-                    current.pack_forget()
-                except Exception:
-                    try:
-                        current.place_forget()
-                    except Exception:
-                        pass
-            
-            # Trazer pra frente SEM recriar
-            try:
-                frame.lift()
-            except Exception:
-                pass
-            
-            # Gancho de entrada (render imediato se Text vazia)
-            try:
-                frame.on_show()
-            except Exception:
-                pass
-            
-            return frame
-        
-        # Outras telas: criar normalmente
-        try:
-            if callable(frame_cls) and not isinstance(frame_cls, type):
-                frame = frame_cls(self._content_container)
-            else:
-                frame = frame_cls(self._content_container, **options)
-        except Exception:
-            # Fallback para None -> navegação controller usa caminho padrão
-            return None
-        
-        # Esconder frame anterior (não destruir!)
-        if current is not None and current is not frame:
-            try:
-                current.pack_forget()
-            except Exception:
-                try:
-                    current.place_forget()
-                except Exception:
-                    pass
-        
-        # Mostrar novo frame
-        try:
-            frame.pack(fill="both", expand=True)
-        except Exception:
-            pass
-        
-        return frame
+        return create_frame(self, frame_cls, options)
 
     def _update_topbar_state(self, frame_or_cls) -> None:
         try:
@@ -439,126 +360,19 @@ class App(tb.Window):
         threading.Thread(target=_work, daemon=True).start()
 
     def show_hub_screen(self) -> None:
-        frame = self.show_frame(
-            HubScreen,
-            open_clientes=self.show_main_screen,
-            open_anvisa=lambda: self.show_placeholder_screen("Anvisa"),
-            open_auditoria=lambda: self.show_placeholder_screen("Auditoria"),
-            open_farmacia_popular=lambda: self.show_placeholder_screen("Farmácia Popular"),
-            open_sngpc=lambda: self.show_placeholder_screen("Sngpc"),  # Corrigido: SNJPC -> SNGPC
-            open_senhas=self.show_passwords_screen,
-            open_mod_sifap=lambda: self.show_placeholder_screen("Sifap"),
-        )
-        
-        # Atualizar contagem de clientes sempre que voltar para o Hub
-        self.refresh_clients_count_async()
-        
-        # Chamar on_show() para renderização imediata e iniciar live-sync
-        if isinstance(frame, HubScreen):
-            try:
-                frame.on_show()
-            except Exception as e:
-                log.warning("Erro ao chamar on_show do Hub: %s", e)
+        return navigate_to(self, "hub")
 
     def show_main_screen(self) -> None:
-        frame = self.show_frame(
-            MainScreenFrame,
-            app=self,
-            on_new=self.novo_cliente,
-            on_edit=self.editar_cliente,
-            on_delete=self._excluir_cliente,
-            on_upload=self.enviar_para_supabase,
-            on_open_subpastas=self.ver_subpastas,
-            on_open_lixeira=self.abrir_lixeira,
-            order_choices=ORDER_CHOICES,
-            default_order_label=DEFAULT_ORDER_LABEL,
-        )
-        if isinstance(frame, MainScreenFrame):
-            self._main_frame_ref = frame
-        self._main_loaded = True
-        try:
-            frame.carregar()
-        except Exception:
-            log.exception("Erro ao carregar lista na tela principal.")
+        return navigate_to(self, "main")
 
     def show_placeholder_screen(self, title: str) -> None:
-        self.show_frame(
-            ComingSoonScreen,
-            title=title,
-            on_back=self.show_hub_screen,
-        )
+        return navigate_to(self, "placeholder", title=title)
 
     def show_passwords_screen(self) -> None:
-        """Exibe a tela de gerenciamento de senhas (singleton com lift + on_show)."""
-        from gui.passwords_screen import PasswordsScreen
-        
-        # Singleton: criar apenas uma vez
-        if not hasattr(self, "_passwords_screen_instance") or self._passwords_screen_instance is None:
-            self._passwords_screen_instance = PasswordsScreen(self._content_container, main_window=self)
-            # Posicionar uma vez (place preferencial, fallback pack)
-            try:
-                self._passwords_screen_instance.place(relx=0, rely=0, relwidth=1, relheight=1)
-            except Exception:
-                try:
-                    self._passwords_screen_instance.pack(fill="both", expand=True)
-                except Exception:
-                    pass
-        
-        frame = self._passwords_screen_instance
-        current = self.nav.current()
-        
-        # Esconder frame anterior (não destruir!)
-        if current is not None and current is not frame:
-            try:
-                current.pack_forget()
-            except Exception:
-                try:
-                    current.place_forget()
-                except Exception:
-                    pass
-        
-        # Trazer para frente SEM recriar
-        try:
-            frame.lift()
-        except Exception:
-            pass
-        
-        # Atualizar estado de navegação
-        try:
-            self.nav._current = frame
-        except Exception:
-            pass
-        
-        # Chamar on_show() para atualizar dados
-        try:
-            frame.on_show()
-        except Exception as e:
-            log.exception("Erro ao chamar on_show da tela de senhas")
-        
-        # Atualizar topbar
-        try:
-            self._update_topbar_state(frame)
-        except Exception:
-            pass
-    
+        return navigate_to(self, "passwords")
+
     def open_clients_picker(self, on_pick):
-        """
-        Helper para abrir tela de Clientes em modo seleção.
-        
-        Args:
-            on_pick: Callback que recebe dict com dados do cliente selecionado
-        """
-        def _return_to_passwords():
-            self.show_passwords_screen()
-        
-        # Mostrar tela de clientes
-        self.show_main_screen()
-        
-        # Ativar modo seleção
-        if hasattr(self, "_main_frame_ref") and hasattr(self._main_frame_ref, "start_pick"):
-            self._main_frame_ref.start_pick(on_pick=on_pick, return_to=_return_to_passwords)
-        else:
-            messagebox.showwarning("Atenção", "Tela de clientes não está disponível.")
+        return navigate_to(self, "clients_picker", on_pick=on_pick)
 
     # ---------- Confirmação de saída ----------
     def _confirm_exit(self, *_):
