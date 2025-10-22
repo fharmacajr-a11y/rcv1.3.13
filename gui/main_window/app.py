@@ -1,6 +1,6 @@
-# gui/main_window.py
 # -*- coding: utf-8 -*-
 """Main application window (App class)."""
+# gui/main_window.py
 import os
 import sys
 import hashlib

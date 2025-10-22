@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from .buttons import *
 from .inputs import *
 from .lists import *

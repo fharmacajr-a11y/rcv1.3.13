@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # utils/themes.py
 from __future__ import annotations
 import os

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 import re
@@ -36,6 +37,18 @@ SKIP_VALUE_TOKENS = {"matriz", "filial"}
 
 
 # -------- utilitários básicos --------
+
+
+def fix_mojibake(s: str) -> str:
+    # Detecta padrões comuns 'Ã' e tenta reverter latin1->utf8
+    if s and ("Ã" in s or "Â" in s):
+        try:
+            return s.encode("latin1").decode("utf-8")
+        except Exception:
+            pass
+    return s
+
+
 def normalize_ascii(s: str) -> str:
     """Remove acentos e retorna string ASCII simples."""
     return "".join(
@@ -198,6 +211,7 @@ def extract_cnpj_razao(text: str) -> Tuple[Optional[str], Optional[str]]:
 
 
 __all__ = [
+    "fix_mojibake",
     "normalize_ascii",
     "clean_text",
     "cnpj_is_valid",

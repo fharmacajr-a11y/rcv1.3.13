@@ -15,7 +15,7 @@ from tkinter import messagebox
 import ttkbootstrap as tb
 
 from core.logger import get_logger
-from ui.hub.constants import PAD_OUTER
+from ui.hub.constants import PAD_OUTER, HUB_TITLE, MODULES_TITLE, NEW_NOTE_LABEL
 from ui.hub.layout import apply_hub_notes_right
 from gui.hub.utils import (
     _hsl_to_hex,
@@ -27,7 +27,7 @@ from gui.hub.utils import (
 from gui.hub.colors import _author_color, _ensure_author_tag
 from gui.hub.authors import _author_display_name, _debug_resolve_author
 
-# Import do erro transitÃ³rio
+# Import do erro transitório
 from core.services.notes_service import NotesTransientError
 
 # Timezone handling com fallback (mantido para compatibilidade)
@@ -44,18 +44,18 @@ except Exception:
 logger = get_logger(__name__)
 log = logger
 
-# Constantes para retry de autenticaÃ§Ã£o
+# Constantes para retry de autenticação
 AUTH_RETRY_MS = 2000  # 2 segundos
 
-# Mapa de e-mail -> nome curto preferido (sempre em minÃºsculas)
+# Mapa de e-mail -> nome curto preferido (sempre em minúsculas)
 # Cooldown para refresh de nomes (evitar chamadas duplicadas)
 _NAMES_REFRESH_COOLDOWN_S = 30
 
 
 class HubScreen(tb.Frame):
     """
-    Hub: menu vertical Ã  esquerda + bloco de notas Ã  direita.
-    Sem conteÃºdo central. Sem painel de login/status (a StatusBar global jÃ¡ existe).
+    Hub: menu vertical à esquerda + bloco de notas à direita.
+    Sem conteúdo central. Sem painel de login/status (a StatusBar global já existe).
     """
 
     DEBUG_NOTES = False  # mude pra True se quiser logs
@@ -84,7 +84,7 @@ class HubScreen(tb.Frame):
         open_mod_sifap: Optional[Callable[[], None]] = None,
         **kwargs,
     ) -> None:
-        # Compatibilidade com kwargs antigos (mantÃ©m snjpc para retrocompatibilidade)
+        # Compatibilidade com kwargs antigos (mantém snjpc para retrocompatibilidade)
         open_clientes = open_clientes or kwargs.pop("on_open_clientes", None) or open_sifap or kwargs.pop("on_open_sifap", None)
         open_anvisa = open_anvisa or kwargs.pop("on_open_anvisa", None)
         open_auditoria = open_auditoria or kwargs.pop("on_open_auditoria", None)
@@ -105,11 +105,11 @@ class HubScreen(tb.Frame):
         self.open_mod_sifap = open_mod_sifap
 
         # --- MENU VERTICAL (coluna 0) ---
-        self.modules_panel = tb.Labelframe(self, text="MÃ³dulos", padding=PAD_OUTER)
+        self.modules_panel = tb.Labelframe(self, text=MODULES_TITLE, padding=PAD_OUTER)
         modules_panel = self.modules_panel
 
         def mk_btn(text: str, cmd: Optional[Callable] = None, highlight: bool = False) -> tb.Button:
-            """Cria um botÃ£o. Se highlight=True, aplica estilo de sucesso (verde)."""
+            """Cria um botão. Se highlight=True, aplica estilo de sucesso (verde)."""
             if highlight:
                 b = tb.Button(modules_panel, text=text, command=(cmd or self._noop), bootstyle="success")
             else:
@@ -117,17 +117,17 @@ class HubScreen(tb.Frame):
             b.pack(fill="x", pady=4)
             return b
 
-        # Ordem e rÃ³tulos padronizados (primeira letra maiÃºscula)
-        # BotÃ£o "Clientes" destacado em verde
+        # Ordem e rótulos padronizados (primeira letra maiúscula)
+        # Botão "Clientes" destacado em verde
         mk_btn("Clientes", self.open_clientes, highlight=True)
         mk_btn("Senhas", self.open_senhas)
         mk_btn("Anvisa", self.open_anvisa)
         mk_btn("Auditoria", self.open_auditoria)
-        mk_btn("FarmÃ¡cia Popular", self.open_farmacia_popular)
+        mk_btn("Farmácia Popular", self.open_farmacia_popular)
         mk_btn("Sngpc", self.open_sngpc)  # Corrigido: SNJPC -> SNGPC (callback)
         mk_btn("Sifap", self.open_mod_sifap)
 
-        # --- ESPAÃ‡O CENTRAL VAZIO (coluna 1) ---
+        # --- ESPAÇO CENTRAL VAZIO (coluna 1) ---
         self.center_spacer = tb.Frame(self)
 
         # --- LATERAL DIREITA (coluna 2) - Notas Compartilhadas ---
@@ -142,7 +142,7 @@ class HubScreen(tb.Frame):
 
         # Estado de polling
         self._notes_poll_ms = 10000  # 10 segundos
-        self._notes_last_snapshot: Optional[List[tuple]] = None  # snapshot (id, ts) para detectar mudanÃ§as
+        self._notes_last_snapshot: Optional[List[tuple]] = None  # snapshot (id, ts) para detectar mudanças
         self._notes_last_data: Optional[List[Dict[str, Any]]] = None  # dados completos normalizados
         self._polling_active = False
         self._notes_after_handle = None
@@ -167,20 +167,20 @@ class HubScreen(tb.Frame):
         
         # Debounce de re-render
         self._last_names_cache_hash = None  # md5 do cache de nomes
-        self._last_render_hash = None       # md5 do conteÃºdo renderizado
-        self._names_cache_loading = False   # trava anti reentrÃ¢ncia
+        self._last_render_hash = None       # md5 do conteúdo renderizado
+        self._names_cache_loading = False   # trava anti reentrância
 
         # Live sync
         self._live_channel = None
         self._live_org_id = None
         self._live_sync_on = False
-        self._live_last_ts = None  # ISO da Ãºltima nota conhecida
+        self._live_last_ts = None  # ISO da última nota conhecida
         self._live_poll_job = None
 
         # Configurar atalhos (apenas uma vez)
         self._binds_ready = getattr(self, "_binds_ready", False)
         if not self._binds_ready:
-            # Ctrl+D para diagnÃ³stico
+            # Ctrl+D para diagnóstico
             self.bind_all("<Control-d>", self._show_debug_info)
             self.bind_all("<Control-D>", self._show_debug_info)
             
@@ -189,13 +189,13 @@ class HubScreen(tb.Frame):
             self.bind_all("<Control-L>", lambda e: self._refresh_author_names_cache_async(force=True))
             self._binds_ready = True
 
-        # Iniciar timers com gate de autenticaÃ§Ã£o
+        # Iniciar timers com gate de autenticação
         self.after(500, self._start_home_timers_safely)
 
-    # -------------------- Helpers de AutenticaÃ§Ã£o Segura --------------------
+    # -------------------- Helpers de Autenticação Segura --------------------
     
     def _auth_ready(self) -> bool:
-        """Verifica se autenticaÃ§Ã£o estÃ¡ pronta (sem levantar exceÃ§Ã£o)."""
+        """Verifica se autenticação está pronta (sem levantar exceção)."""
         try:
             app = self._get_app()
             return app and hasattr(app, "auth") and app.auth and app.auth.is_authenticated
@@ -203,7 +203,7 @@ class HubScreen(tb.Frame):
             return False
 
     def _get_org_id_safe(self) -> Optional[str]:
-        """ObtÃ©m org_id de forma segura (sem exceÃ§Ã£o)."""
+        """Obtém org_id de forma segura (sem exceção)."""
         try:
             app = self._get_app()
             if not app or not hasattr(app, "auth") or not app.auth:
@@ -214,7 +214,7 @@ class HubScreen(tb.Frame):
             if org_id:
                 return org_id
             
-            # Fallback: usar mÃ©todo antigo se disponÃ­vel
+            # Fallback: usar método antigo se disponível
             if hasattr(app, "_get_org_id_cached"):
                 user_id = app.auth.get_user_id()
                 if user_id:
@@ -222,77 +222,77 @@ class HubScreen(tb.Frame):
             
             return None
         except Exception as e:
-            log.debug("NÃ£o foi possÃ­vel obter org_id: %s", e)
+            log.debug("Não foi possível obter org_id: %s", e)
             return None
 
     def _get_email_safe(self) -> Optional[str]:
-        """ObtÃ©m email de forma segura (sem exceÃ§Ã£o)."""
+        """Obtém email de forma segura (sem exceção)."""
         try:
             app = self._get_app()
             if not app or not hasattr(app, "auth") or not app.auth:
                 return None
             return app.auth.get_email()
         except Exception as e:
-            log.debug("NÃ£o foi possÃ­vel obter email: %s", e)
+            log.debug("Não foi possível obter email: %s", e)
             return None
 
     def _get_user_id_safe(self) -> Optional[str]:
-        """ObtÃ©m user_id de forma segura (sem exceÃ§Ã£o)."""
+        """Obtém user_id de forma segura (sem exceção)."""
         try:
             app = self._get_app()
             if not app or not hasattr(app, "auth") or not app.auth:
                 return None
             return app.auth.get_user_id()
         except Exception as e:
-            log.debug("NÃ£o foi possÃ­vel obter user_id: %s", e)
+            log.debug("Não foi possível obter user_id: %s", e)
             return None
 
     def _start_home_timers_safely(self) -> None:
-        """Inicia timers apenas quando autenticaÃ§Ã£o estiver pronta."""
+        """Inicia timers apenas quando autenticação estiver pronta."""
         if not self._auth_ready():
-            log.debug("HubScreen: AutenticaÃ§Ã£o ainda nÃ£o pronta, aguardando...")
+            log.debug("HubScreen: Autenticação ainda não pronta, aguardando...")
             self.after(AUTH_RETRY_MS, self._start_home_timers_safely)
             return
         
-        log.debug("HubScreen: AutenticaÃ§Ã£o pronta, iniciando timers.")
+        log.debug("HubScreen: Autenticação pronta, iniciando timers.")
         
-        # ForÃ§ar recarga do cache de nomes ao trocar de conta/login
+        # Forçar recarga do cache de nomes ao trocar de conta/login
         self._names_cache_loaded = False
         self._author_names_cache = {}
-        self._email_prefix_map = {}  # limpar mapa de prefixos tambÃ©m
-        self._last_org_for_names = None  # forÃ§a recarga mesmo se org for igual
+        self._email_prefix_map = {}  # limpar mapa de prefixos também
+        self._last_org_for_names = None  # força recarga mesmo se org for igual
         
-        self._update_notes_ui_state()  # Atualizar estado do botÃ£o/placeholder
+        self._update_notes_ui_state()  # Atualizar estado do botão/placeholder
         self._start_notes_polling()
 
     def _update_notes_ui_state(self) -> None:
-        """Atualiza estado do botÃ£o e placeholder baseado em org_id."""
+        """Atualiza estado do botão e placeholder baseado em org_id."""
         org_id = self._get_org_id_safe()
         
         if org_id:
-            # SessÃ£o vÃ¡lida - habilitar botÃ£o
+            # Sessão válida - habilitar botão
             self.btn_add_note.configure(state="normal")
             self.new_note.delete("1.0", "end")
-            # Sem placeholder (widget Text nÃ£o tem atributo 'placeholder')
+            # Sem placeholder (widget Text não tem atributo 'placeholder')
         else:
-            # SessÃ£o sem organizaÃ§Ã£o - desabilitar botÃ£o
+            # Sessão sem organização - desabilitar botão
             self.btn_add_note.configure(state="disabled")
             # Mostrar mensagem no campo de texto
             self.new_note.delete("1.0", "end")
-            self.new_note.insert("1.0", "SessÃ£o sem organizaÃ§Ã£o. FaÃ§a login novamente.")
+            self.new_note.insert("1.0", "Sessão sem organização. Faça login novamente.")
             self.new_note.configure(state="disabled")
 
     def _build_notes_panel(self) -> None:
-        """ConstrÃ³i o painel de notas compartilhadas (append-only)."""
+        """Constrói o painel de notas compartilhadas (append-only)."""
         # Reset do cache de tags (widget sendo recriado)
         self._author_tags = {}
         
-        self.notes_panel = tb.Labelframe(self, text="AnotaÃ§Ãµes Compartilhadas", padding=PAD_OUTER)
+        self.notes_panel = tb.Labelframe(self, text=HUB_TITLE, padding=PAD_OUTER)
         right = self.notes_panel
         right.columnconfigure(0, weight=1)
-        right.rowconfigure(0, weight=1)  # histÃ³rico expande
+        right.rowconfigure(0, weight=1)  # histórico expande
 
-        # --- HistÃ³rico (somente leitura) ---
+        # --- Histórico (somente leitura) ---
         history_frame = tb.Frame(right)
         history_frame.grid(row=0, column=0, sticky="nsew", pady=(0, 8))
         history_frame.columnconfigure(0, weight=1)
@@ -311,12 +311,12 @@ class HubScreen(tb.Frame):
         sb.grid(row=0, column=1, sticky="ns")
         self.notes_history.configure(yscrollcommand=sb.set)
 
-        # --- Entrada nova anotaÃ§Ã£o ---
+        # --- Entrada nova anotação ---
         entry_frame = tb.Frame(right)
         entry_frame.grid(row=1, column=0, sticky="ew", pady=(0, 0))
         entry_frame.columnconfigure(0, weight=1)
 
-        tb.Label(entry_frame, text="Nova anotaÃ§Ã£o:", font=("", 9)).grid(
+        tb.Label(entry_frame, text=NEW_NOTE_LABEL, font=("", 9)).grid(
             row=0, column=0, sticky="w", pady=(0, 4)
         )
 
@@ -334,7 +334,7 @@ class HubScreen(tb.Frame):
     # -------------------- Polling e Cache --------------------
 
     def _start_notes_polling(self) -> None:
-        """Inicia o polling de atualizaÃ§Ãµes de notas."""
+        """Inicia o polling de atualizações de notas."""
         if not self._polling_active:
             self._polling_active = True
             # Carregar cache de nomes na primeira vez
@@ -343,12 +343,12 @@ class HubScreen(tb.Frame):
 
     def _refresh_author_names_cache_async(self, force: bool = False) -> None:
         """
-        Atualiza cache de nomes de autores (profiles.display_name) de forma assÃ­ncrona.
+        Atualiza cache de nomes de autores (profiles.display_name) de forma assíncrona.
         
         Args:
-            force: Se True, ignora cooldown e forÃ§a atualizaÃ§Ã£o
+            force: Se True, ignora cooldown e força atualização
         """
-        # Evitar reentrÃ¢ncia (exceto se force=True)
+        # Evitar reentrância (exceto se force=True)
         if getattr(self, "_names_cache_loading", False) and not force:
             return
         self._names_cache_loading = True
@@ -369,12 +369,12 @@ class HubScreen(tb.Frame):
             self._names_cache_loading = False
             return
         
-        # Se organizaÃ§Ã£o mudou, invalidar cache
+        # Se organização mudou, invalidar cache
         if self._last_org_for_names and self._last_org_for_names != org_id:
             self._author_names_cache = {}
-            self._email_prefix_map = {}  # invalidar mapa de prefixos tambÃ©m
+            self._email_prefix_map = {}  # invalidar mapa de prefixos também
             self._names_cache_loaded = False
-            log.info("Cache de nomes invalidado (mudanÃ§a de organizaÃ§Ã£o)")
+            log.info("Cache de nomes invalidado (mudança de organização)")
         
         self._names_refreshing = True
         
@@ -406,7 +406,7 @@ class HubScreen(tb.Frame):
                     log.debug("Mapa de prefixos carregado: %d entradas", len(self._email_prefix_map))
 
                     if new_hash != old_hash:
-                        # forÃ§a um Ãºnico re-render
+                        # força um único re-render
                         self._last_render_hash = None
                         if getattr(self, "_notes_last_data", None):
                             self.render_notes(self._notes_last_data)
@@ -434,7 +434,7 @@ class HubScreen(tb.Frame):
         self._live_org_id = org_id
         self._live_sync_on = True
 
-        # 1) marcar timestamp da Ãºltima nota jÃ¡ renderizada (para polling)
+        # 1) marcar timestamp da última nota já renderizada (para polling)
         try:
             notes = getattr(self, "_notes_last_data", None) or []
             if notes:
@@ -444,13 +444,13 @@ class HubScreen(tb.Frame):
 
         # 2) tentar Realtime
         try:
-            # [finalize-notes] import seguro dentro de funÃ§Ã£o
+            # [finalize-notes] import seguro dentro de função
             from infra.supabase_client import get_supabase  # usar cliente existente
             client = get_supabase()
             channel_name = f"rc_notes_org_{org_id}"
             ch = client.realtime.channel(channel_name)
 
-            # INSERTs da organizaÃ§Ã£o atual
+            # INSERTs da organização atual
             ch.on(
                 "postgres_changes",
                 {"event": "INSERT", "schema": "public", "table": "rc_notes", "filter": f"org_id=eq.{org_id}"},
@@ -484,29 +484,29 @@ class HubScreen(tb.Frame):
 
     def on_show(self):
         """
-        Chamado sempre que a tela do Hub fica visÃ­vel (navegaÃ§Ã£o de volta).
-        Garante renderizaÃ§Ã£o imediata dos dados em cache e mantÃ©m live-sync ativo.
+        Chamado sempre que a tela do Hub fica visível (navegação de volta).
+        Garante renderização imediata dos dados em cache e mantém live-sync ativo.
         """
-        # 1) Iniciar live-sync caso ainda nÃ£o esteja (idempotente)
+        # 1) Iniciar live-sync caso ainda não esteja (idempotente)
         try:
             self._start_live_sync()
         except Exception as e:
             log.warning("Erro ao iniciar live-sync no on_show: %s", e)
 
-        # 2) Se a Text estÃ¡ vazia mas jÃ¡ temos dados em memÃ³ria, renderizar JÃ
+        # 2) Se a Text está vazia mas já temos dados em memória, renderizar JÁ
         try:
             is_empty = (self.notes_history.index("end-1c") == "1.0")
         except Exception:
             is_empty = True
 
         if is_empty and getattr(self, "_notes_last_data", None):
-            # Render forÃ§ado ignora o hash para nÃ£o 'pular'
+            # Render forçado ignora o hash para não 'pular'
             try:
                 self.render_notes(self._notes_last_data, force=True)
             except Exception as e:
                 log.warning("Erro ao renderizar notas no on_show: %s", e)
         
-        # 3) ForÃ§ar recarga do cache de nomes (garante nomes atualizados)
+        # 3) Forçar recarga do cache de nomes (garante nomes atualizados)
         try:
             self._author_names_cache = {}
             self._email_prefix_map = {}
@@ -527,7 +527,7 @@ class HubScreen(tb.Frame):
         self._live_poll_job = self.after(delay_ms, self._poll_notes_if_needed)
 
     def _poll_notes_if_needed(self):
-        """Se Realtime nÃ£o chegou, busca apenas notas novas (desde _live_last_ts)."""
+        """Se Realtime não chegou, busca apenas notas novas (desde _live_last_ts)."""
         if not self._live_sync_on:
             return
         try:
@@ -559,7 +559,7 @@ class HubScreen(tb.Frame):
         """Adiciona UMA nota nova sem repintar tudo, sem limpar a tela."""
         # normalizar
         if not hasattr(self, "_normalize_note"):
-            # se nÃ£o existir, faÃ§a um normalize mÃ­nimo:
+            # se não existir, faça um normalize mínimo:
             def _normalize_note(n):
                 em = (n.get("author_email") or "").strip().lower()
                 return {
@@ -573,16 +573,16 @@ class HubScreen(tb.Frame):
         else:
             note = _normalize_note(row)
 
-        # se jÃ¡ temos essa nota na memÃ³ria, ignore
+        # se já temos essa nota na memória, ignore
         notes = getattr(self, "_notes_last_data", None) or []
         if any(str(n.get("id")) == str(note.get("id")) for n in notes if n.get("id") is not None):
             return
 
-        # append em memÃ³ria
+        # append em memória
         notes = notes + [note]
         self._notes_last_data = notes
         try:
-            # manter snapshot de comparaÃ§Ã£o simples (id+ts)
+            # manter snapshot de comparação simples (id+ts)
             self._notes_last_snapshot = [(n.get("id"), n.get("created_at")) for n in notes]
         except Exception:
             pass
@@ -622,20 +622,20 @@ class HubScreen(tb.Frame):
             self.notes_history.configure(state="disabled")
             self.notes_history.see("end")
         except Exception as e:
-            logger.exception("Hub: falha crÃ­tica ao inserir nota, restaurando estado do widget.")
+            logger.exception("Hub: falha crítica ao inserir nota, restaurando estado do widget.")
             try:
                 self.notes_history.configure(state="disabled")
             except Exception:
                 pass
 
-        # garantir que nÃ£o haverÃ¡ "pisca": invalida o hash sÃ³ para a linha nova
+        # garantir que não haverá "pisca": invalida o hash só para a linha nova
         self._last_render_hash = None
 
-    # -------------------- UtilitÃ¡rios de Nome e Cor --------------------
+    # -------------------- Utilitários de Nome e Cor --------------------
 
     def _collect_notes_debug(self) -> dict:
         """
-        Coleta informaÃ§Ãµes de debug sobre notas e resoluÃ§Ã£o de autores.
+        Coleta informações de debug sobre notas e resolução de autores.
         """
         notes = getattr(self, "_notes_last_data", None) or getattr(self, "_notes_last_snapshot", None) or []
         out = {
@@ -665,41 +665,41 @@ class HubScreen(tb.Frame):
 
     # -------------------- Fim DEBUG --------------------
 
-    # -------------------- FormataÃ§Ã£o e RenderizaÃ§Ã£o --------------------
+    # -------------------- Formatação e Renderização --------------------
 
     def render_notes(self, notes: List[Dict[str, Any]], force: bool = False) -> None:
-        """Renderiza lista de notas no histÃ³rico com nomes coloridos e timezone local.
+        """Renderiza lista de notas no histórico com nomes coloridos e timezone local.
         
         Args:
-            notes: Lista de dicionÃ¡rios com dados das notas
-            force: Se True, ignora cache de hash e forÃ§a re-renderizaÃ§Ã£o
+            notes: Lista de dicionários com dados das notas
+            force: Se True, ignora cache de hash e força re-renderização
         """
-        # VerificaÃ§Ã£o defensiva: garantir que cache de tags existe
+        # Verificação defensiva: garantir que cache de tags existe
         if not hasattr(self, "_author_tags") or self._author_tags is None:
             self._author_tags = {}
         
         # Normalizar entrada: converter tuplas/listas para dicts
         notes = [_normalize_note(x) for x in (notes or [])]
         
-        # NÃƒO apaga se vier vazio/None (evita 'branco' e piscas)
+        # NÃO apaga se vier vazio/None (evita 'branco' e piscas)
         if not notes:
             self._dlog("render_skip_empty")
             return
         
-        # Hash de conteÃºdo pra evitar re-render desnecessÃ¡rio
+        # Hash de conteúdo pra evitar re-render desnecessário
         sig_items = []
         for n in notes:
             em = (n.get("author_email") or "").strip().lower()
             ts = (n.get("created_at") or "")
             ln = len((n.get("body") or ""))
-            # se existir author_name jÃ¡ no dado, inclua na assinatura
+            # se existir author_name já no dado, inclua na assinatura
             nm = (n.get("author_name") or "")
             sig_items.append((em, ts, ln, nm))
 
         import hashlib, json
         render_hash = hashlib.md5(json.dumps(sig_items, ensure_ascii=False).encode("utf-8")).hexdigest()
         
-        # Se nÃ£o forÃ§ado, verificar se hash Ã© igual (skip re-render)
+        # Se não forçado, verificar se hash é igual (skip re-render)
         if not force:
             if render_hash == getattr(self, "_last_render_hash", None):
                 self._dlog("render_skip_samehash")
@@ -743,14 +743,14 @@ class HubScreen(tb.Frame):
             self.notes_history.see("end")
             self.notes_history.see("end")
         except Exception as e:
-            logger.exception("Hub: erro crÃ­tico ao renderizar lista de notas.")
+            logger.exception("Hub: erro crítico ao renderizar lista de notas.")
             try:
                 self.notes_history.configure(state="disabled")
             except Exception:
                 pass
 
     def refresh_notes_async(self, force: bool = False) -> None:
-        """Atualiza notas de forma assÃ­ncrona (thread separada)."""
+        """Atualiza notas de forma assíncrona (thread separada)."""
         if not self._polling_active:
             return
         
@@ -760,15 +760,15 @@ class HubScreen(tb.Frame):
             self._notes_after_handle = self.after(self._notes_retry_ms, lambda: self._retry_after_table_missing())
             return
         
-        # Gate de autenticaÃ§Ã£o
+        # Gate de autenticação
         if not self._auth_ready():
-            log.debug("HubScreen: AutenticaÃ§Ã£o nÃ£o pronta para refresh_notes, aguardando...")
+            log.debug("HubScreen: Autenticação não pronta para refresh_notes, aguardando...")
             self._notes_after_handle = self.after(AUTH_RETRY_MS, lambda: self.refresh_notes_async(force))
             return
         
         org_id = self._get_org_id_safe()
         if not org_id:
-            log.debug("HubScreen: org_id nÃ£o disponÃ­vel para refresh_notes, aguardando...")
+            log.debug("HubScreen: org_id não disponível para refresh_notes, aguardando...")
             self._notes_after_handle = self.after(AUTH_RETRY_MS, lambda: self.refresh_notes_async(force))
             return
 
@@ -779,13 +779,13 @@ class HubScreen(tb.Frame):
             transient_error = False
             
             try:
-                # Importar serviÃ§o aqui para evitar import circular
+                # Importar serviço aqui para evitar import circular
                 from core.services.notes_service import list_notes, NotesTableMissingError, NotesAuthError
                 notes = list_notes(org_id, limit=500)
             except NotesTransientError:
-                # Erro transitÃ³rio de rede - reagendar retry mais curto sem popup
+                # Erro transitório de rede - reagendar retry mais curto sem popup
                 transient_error = True
-                log.debug("HubScreen: Erro transitÃ³rio ao listar notas, retry em 2s")
+                log.debug("HubScreen: Erro transitório ao listar notas, retry em 2s")
                 
                 def _schedule_transient_retry():
                     if self._polling_active:
@@ -800,7 +800,7 @@ class HubScreen(tb.Frame):
                     pass
                 return
             except NotesTableMissingError as e:
-                # Tabela ausente - notificar usuÃ¡rio uma vez
+                # Tabela ausente - notificar usuário uma vez
                 table_missing = True
                 log.warning("HubScreen: %s", e)
                 
@@ -810,10 +810,10 @@ class HubScreen(tb.Frame):
                         self._notes_table_missing_notified = True
                         try:
                             messagebox.showwarning(
-                                "AnotaÃ§Ãµes IndisponÃ­veis",
-                                "Bloco de anotaÃ§Ãµes indisponÃ­vel:\n\n"
-                                f"A tabela 'rc_notes' nÃ£o existe no Supabase.\n"
-                                f"Execute a migraÃ§Ã£o em: infra/db/rc_notes_migration.sql\n\n"
+                                "Anotações Indisponíveis",
+                                "Bloco de anotações indisponível:\n\n"
+                                f"A tabela 'rc_notes' não existe no Supabase.\n"
+                                f"Execute a migração em: infra/db/rc_notes_migration.sql\n\n"
                                 f"Tentaremos novamente em 60 segundos.",
                                 parent=self
                             )
@@ -826,15 +826,15 @@ class HubScreen(tb.Frame):
                     pass
                 return
             except NotesAuthError as e:
-                # Erro de permissÃ£o RLS - mostrar toast
+                # Erro de permissão RLS - mostrar toast
                 auth_error = True
                 log.warning("HubScreen: %s", e)
                 
                 def _notify_auth_error():
                     try:
                         messagebox.showwarning(
-                            "Sem PermissÃ£o",
-                            "Sem permissÃ£o para anotar nesta organizaÃ§Ã£o.\n"
+                            "Sem Permissão",
+                            "Sem permissão para anotar nesta organização.\n"
                             "Verifique seu cadastro em 'profiles'.",
                             parent=self
                         )
@@ -853,7 +853,7 @@ class HubScreen(tb.Frame):
                 # Normalizar notas antes de processar
                 notes = [_normalize_note(x) for x in notes]
                 
-                # Snapshot para detectar mudanÃ§as (apenas id + timestamp)
+                # Snapshot para detectar mudanças (apenas id + timestamp)
                 snapshot = [(n.get("id"), n.get("created_at")) for n in notes]
                 changed = (snapshot != self._notes_last_snapshot) or force
                 
@@ -883,36 +883,36 @@ class HubScreen(tb.Frame):
         threading.Thread(target=_work, daemon=True).start()
 
     def _retry_after_table_missing(self) -> None:
-        """Tenta novamente apÃ³s perÃ­odo de espera quando tabela estava ausente."""
-        log.info("HubScreen: Tentando novamente apÃ³s perÃ­odo de espera (tabela ausente).")
+        """Tenta novamente após período de espera quando tabela estava ausente."""
+        log.info("HubScreen: Tentando novamente após período de espera (tabela ausente).")
         # Resetar flags e tentar novamente
         self._notes_table_missing = False
         self._notes_table_missing_notified = False
-        # ForÃ§ar refresh
+        # Forçar refresh
         self.refresh_notes_async(force=True)
 
     def _on_add_note_clicked(self) -> None:
-        """Handler do botÃ£o "Adicionar" anotaÃ§Ã£o."""
+        """Handler do botão "Adicionar" anotação."""
         # [finalize-notes] evita vazio e spam
         text = self.new_note.get("1.0", "end").strip()
         if not text:
             return
         
-        # Gate de autenticaÃ§Ã£o
+        # Gate de autenticação
         if not self._auth_ready():
             messagebox.showerror(
-                "NÃ£o autenticado",
-                "VocÃª precisa estar autenticado para adicionar uma anotaÃ§Ã£o.",
+                "Não autenticado",
+                "Você precisa estar autenticado para adicionar uma anotação.",
                 parent=self
             )
             return
 
-        # Verificar se estÃ¡ online
+        # Verificar se está online
         app = self._get_app()
         if not app or not self._is_online(app):
             messagebox.showerror(
-                "Sem conexÃ£o",
-                "NÃ£o Ã© possÃ­vel adicionar anotaÃ§Ãµes sem conexÃ£o com a internet.",
+                "Sem conexão",
+                "Não é possível adicionar anotações sem conexão com a internet.",
                 parent=self
             )
             return
@@ -924,12 +924,12 @@ class HubScreen(tb.Frame):
         if not org_id or not user_email:
             messagebox.showerror(
                 "Erro",
-                "SessÃ£o incompleta (organizaÃ§Ã£o/usuÃ¡rio nÃ£o identificados). Tente novamente apÃ³s o login.",
+                "Sessão incompleta (organização/usuário não identificados). Tente novamente após o login.",
                 parent=self
             )
             return
 
-        # [finalize-notes] Desabilitar botÃ£o durante operaÃ§Ã£o (anti-spam)
+        # [finalize-notes] Desabilitar botão durante operação (anti-spam)
         self.btn_add_note.configure(state="disabled")
 
         def _work():
@@ -941,17 +941,17 @@ class HubScreen(tb.Frame):
             
             try:
                 from core.services.notes_service import add_note, NotesTableMissingError, NotesAuthError
-                # [finalize-notes] Ãšnica inserÃ§Ã£o permitida: clique explÃ­cito do usuÃ¡rio no botÃ£o
+                # [finalize-notes] Única inserção permitida: clique explícito do usuário no botão
                 add_note(org_id, user_email, text)
             except NotesTransientError:
-                # Erro transitÃ³rio de rede - alerta suave sem stacktrace
+                # Erro transitório de rede - alerta suave sem stacktrace
                 transient_error = True
-                error_msg = "ConexÃ£o instÃ¡vel, tentando novamenteâ€¦"
-                log.debug("HubScreen: Erro transitÃ³rio ao adicionar nota")
+                error_msg = "Conexão instável, tentando novamenteâ€¦"
+                log.debug("HubScreen: Erro transitório ao adicionar nota")
             except NotesTableMissingError as e:
                 # Tabela ausente
                 table_missing = True
-                error_msg = "Tabela de anotaÃ§Ãµes nÃ£o encontrada no Supabase."
+                error_msg = "Tabela de anotações não encontrada no Supabase."
                 log.warning("HubScreen: %s", e)
                 
                 # Marcar flag para silenciar polling
@@ -965,7 +965,7 @@ class HubScreen(tb.Frame):
                 except Exception:
                     pass
             except NotesAuthError as e:
-                # Erro de permissÃ£o RLS
+                # Erro de permissão RLS
                 auth_error = True
                 error_msg = str(e)
                 log.warning("HubScreen: %s", e)
@@ -976,42 +976,42 @@ class HubScreen(tb.Frame):
 
             def _ui():
                 if transient_error:
-                    # Erro transitÃ³rio - alerta suave sem stacktrace
+                    # Erro transitório - alerta suave sem stacktrace
                     messagebox.showwarning(
-                        "ConexÃ£o instÃ¡vel",
-                        "NÃ£o foi possÃ­vel salvar agora; tentando novamenteâ€¦\n\n"
-                        "A anotaÃ§Ã£o serÃ¡ salva assim que a conexÃ£o estabilizar.",
+                        "Conexão instável",
+                        "Não foi possível salvar agora; tentando novamenteâ€¦\n\n"
+                        "A anotação será salva assim que a conexão estabilizar.",
                         parent=self
                     )
                 elif table_missing:
                     # Erro de tabela ausente
                     messagebox.showerror(
-                        "AnotaÃ§Ãµes IndisponÃ­veis",
-                        "Bloco de anotaÃ§Ãµes indisponÃ­vel:\n\n"
-                        "A tabela 'rc_notes' nÃ£o existe no Supabase.\n"
-                        "Execute a migraÃ§Ã£o em: infra/db/rc_notes_migration.sql\n\n"
+                        "Anotações Indisponíveis",
+                        "Bloco de anotações indisponível:\n\n"
+                        "A tabela 'rc_notes' não existe no Supabase.\n"
+                        "Execute a migração em: infra/db/rc_notes_migration.sql\n\n"
                         "Tentaremos novamente em 60 segundos.",
                         parent=self
                     )
                 elif auth_error:
-                    # Erro de permissÃ£o RLS
+                    # Erro de permissão RLS
                     messagebox.showerror(
-                        "Sem PermissÃ£o",
-                        "Sem permissÃ£o para anotar nesta organizaÃ§Ã£o.\n"
+                        "Sem Permissão",
+                        "Sem permissão para anotar nesta organização.\n"
                         "Verifique seu cadastro em 'profiles'.\n\n"
                         f"Detalhes: {error_msg}",
                         parent=self
                     )
                 elif ok:
                     self.new_note.delete("1.0", "end")
-                    # ForÃ§ar atualizaÃ§Ã£o imediata
+                    # Forçar atualização imediata
                     self.refresh_notes_async(force=True)
-                    # Atualizar cache de nomes apÃ³s adicionar nota
+                    # Atualizar cache de nomes após adicionar nota
                     self._refresh_author_names_cache_async(force=False)
                     try:
                         messagebox.showinfo(
                             "Sucesso",
-                            "AnotaÃ§Ã£o adicionada com sucesso!",
+                            "Anotação adicionada com sucesso!",
                             parent=self
                         )
                     except Exception:
@@ -1019,7 +1019,7 @@ class HubScreen(tb.Frame):
                 else:
                     messagebox.showerror(
                         "Erro",
-                        f"Falha ao adicionar anotaÃ§Ã£o: {error_msg}",
+                        f"Falha ao adicionar anotação: {error_msg}",
                         parent=self
                     )
                 self.btn_add_note.configure(state="normal")
@@ -1032,9 +1032,9 @@ class HubScreen(tb.Frame):
         threading.Thread(target=_work, daemon=True).start()
 
     def _get_app(self):
-        """ObtÃ©m referÃªncia para a janela principal (App)."""
+        """Obtém referência para a janela principal (App)."""
         try:
-            # Subir na hierarquia atÃ© encontrar a janela raiz
+            # Subir na hierarquia até encontrar a janela raiz
             widget = self.master
             while widget:
                 if hasattr(widget, "auth") or hasattr(widget, "_org_id_cache"):
@@ -1045,13 +1045,13 @@ class HubScreen(tb.Frame):
         return None
 
     def _is_online(self, app) -> bool:
-        """Verifica se estÃ¡ online."""
+        """Verifica se está online."""
         try:
             if hasattr(app, "_net_is_online"):
                 return bool(app._net_is_online)
         except Exception:
             pass
-        return True  # Assume online se nÃ£o conseguir verificar
+        return True  # Assume online se não conseguir verificar
 
     def stop_polling(self) -> None:
         """Para o polling de notas e cancela timers pendentes."""
@@ -1078,32 +1078,32 @@ class HubScreen(tb.Frame):
         super().destroy()
 
     def _noop(self) -> None:
-        """Placeholder para botÃµes sem aÃ§Ã£o."""
+        """Placeholder para botões sem ação."""
         pass
 
     def _show_debug_info(self, event=None) -> None:
-        """Gera relatÃ³rio JSON de diagnÃ³stico (atalho Ctrl+D)."""
+        """Gera relatório JSON de diagnóstico (atalho Ctrl+D)."""
         import json
         import os
         from datetime import datetime
         
         try:
-            # Coleta informaÃ§Ãµes de debug
+            # Coleta informações de debug
             debug_data = self._collect_notes_debug()
             
             # Gera nome do arquivo com timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"debug_notes_report_{timestamp}.json"
             
-            # Salva no diretÃ³rio de trabalho
+            # Salva no diretório de trabalho
             filepath = os.path.abspath(filename)
             with open(filepath, "w", encoding="utf-8") as f:
                 json.dump(debug_data, f, ensure_ascii=False, indent=2)
             
             # Mostra mensagem com o caminho do arquivo
             messagebox.showinfo(
-                "RelatÃ³rio de Debug Gerado",
-                f"RelatÃ³rio salvo em:\n{filepath}",
+                "Relatório de Debug Gerado",
+                f"Relatório salvo em:\n{filepath}",
                 parent=self
             )
             
@@ -1113,9 +1113,9 @@ class HubScreen(tb.Frame):
             logger.info("=== Salvo em: %s ===\n", filepath)
             
         except Exception as e:
-            log.error("Erro ao gerar relatÃ³rio de debug: %s", e)
+            log.error("Erro ao gerar relatório de debug: %s", e)
             messagebox.showerror(
                 "Erro",
-                f"Erro ao gerar relatÃ³rio: {e}",
+                f"Erro ao gerar relatório: {e}",
                 parent=self
             )

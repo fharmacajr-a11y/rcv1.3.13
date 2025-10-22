@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Tela da Lixeira (clientes deletados via Supabase - soft delete)."""
 
 from __future__ import annotations
