@@ -269,13 +269,39 @@ def ensure_client_storage_prefix(
         
         # Compatibilidade: alguns clients usam .from_ e outros .from_
         bucket_ref = getattr(supabase.storage, "from_", supabase.storage.from_)(bucket)
-        
+
+        # Preferir usar objeto tipado da lib se exposto (storage3.utils.StorageFileOptions)
+        upload_opts = None
+        try:
+            # Tentar import compatível com diferentes versões
+            try:
+                from storage3.utils import StorageFileOptions as _StorageFileOptions
+            except Exception:
+                from storage3.types import FileOptions as _StorageFileOptions  # type: ignore
+
+            # Montar opções usando tipo da lib (mais robusto)
+            try:
+                # nomes de parâmetros podem variar entre versões
+                upload_opts = _StorageFileOptions(content_type="text/plain", upsert=True)  # type: ignore
+            except Exception:
+                try:
+                    upload_opts = _StorageFileOptions(contentType="text/plain", upsert=True)  # type: ignore
+                except Exception:
+                    upload_opts = None
+        except Exception:
+            upload_opts = None
+
         # Upload usando caminho de arquivo (não BytesIO)
-        res = bucket_ref.upload(
-            key,
-            tmp_path,
-            {"contentType": "text/plain", "upsert": True}
-        )
+        if upload_opts is not None:
+            # Se conseguimos criar um objeto de opções, use-o
+            res = bucket_ref.upload(key, tmp_path, upload_opts)
+        else:
+            # Fallback: usar dict com upsert como string 'true' para evitar problemas de encoding
+            res = bucket_ref.upload(
+                key,
+                tmp_path,
+                {"contentType": "text/plain", "upsert": "true"},
+            )
         
         # Logar retorno para debug
         logger.info(
