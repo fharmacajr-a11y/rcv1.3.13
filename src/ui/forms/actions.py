@@ -134,6 +134,8 @@ def _sanitize_key_component(s: str | None) -> str:
     s = s or ""
     s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode("ascii")
     s = s.replace("\\", "/").replace(" ", "_")
+    # Substituir parênteses por hífen para evitar problemas no Storage
+    s = s.replace("(", "-").replace(")", "-")
     s = re.sub(r"[^A-Za-z0-9._/-]", "-", s)
     s = re.sub(r"-{2,}", "-", s).strip("-").strip(".")
     return s

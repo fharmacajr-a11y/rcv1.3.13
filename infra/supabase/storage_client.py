@@ -200,31 +200,22 @@ def build_client_prefix(
 ) -> str:
     """
     Constrói o prefixo de armazenamento para um cliente no formato:
-    {org_id}/{cnpj_digits}-{slug}[-{client_id:06d}]
+    {org_id}/{client_id}
     
     Args:
         org_id: ID da organização
-        cnpj: CNPJ do cliente (será normalizado para apenas dígitos)
-        razao_social: Razão social do cliente (será slugificada)
-        client_id: ID do cliente (opcional, será formatado com 6 dígitos)
+        cnpj: CNPJ do cliente (não usado no novo formato)
+        razao_social: Razão social do cliente (não usado no novo formato)
+        client_id: ID do cliente (obrigatório)
     
     Returns:
         String do prefixo (sem barra final)
     """
-    # Normaliza CNPJ para apenas dígitos
-    cnpj_digits = re.sub(r"\D", "", cnpj or "")
+    if not client_id:
+        raise ValueError("client_id obrigatório para montar o prefixo compatível.")
     
-    # Slugifica razão social ou usa "cliente" como fallback
-    slug = _slugify(razao_social) or "cliente"
-    
-    # Monta prefixo base
-    base = f"{org_id}/{cnpj_digits}-{slug}"
-    
-    # Adiciona client_id se fornecido
-    if client_id:
-        base = f"{base}-{client_id:06d}"
-    
-    return base  # sem barra final
+    # Formato simplificado alinhado com uploads: <ORG>/<client_id>/
+    return f"{org_id}/{client_id}"
 
 
 def ensure_client_storage_prefix(
@@ -237,26 +228,31 @@ def ensure_client_storage_prefix(
     """
     Garante que o prefixo exista no Storage criando um placeholder '.keep'.
     
-    Esta função cria um arquivo vazio .keep no prefixo do cliente para garantir
+    Esta função cria um arquivo .keep no prefixo do cliente para garantir
     que a "pasta" exista no Supabase Storage (que funciona baseado em objetos).
+    
+    Usa arquivo temporário para upload (não BytesIO) para compatibilidade
+    com diferentes versões do cliente Supabase.
     
     Args:
         bucket: Nome do bucket do Supabase Storage
         org_id: ID da organização
-        cnpj: CNPJ do cliente
-        razao_social: Razão social do cliente
-        client_id: ID do cliente
+        cnpj: CNPJ do cliente (não usado no novo formato)
+        razao_social: Razão social do cliente (não usado no novo formato)
+        client_id: ID do cliente (obrigatório)
     
     Returns:
-        String do prefixo criado
+        String do prefixo criado (formato: org_id/client_id)
         
     Raises:
+        ValueError: Se client_id não for fornecido
         Exception: Se houver erro ao criar o placeholder no Storage
     """
     from infra.supabase_client import supabase
     
+    # Alinhar com o caminho já usado pelos uploads: <ORG>/<client_id>/
     prefix = build_client_prefix(org_id, cnpj, razao_social, client_id)
-    key = f"{prefix}/.keep"
+    key = f"{prefix}/.keep"  # coloca .keep na raiz do cliente
     
     logger.info(
         "ensure_client_storage_prefix: criando placeholder bucket=%s key=%s",
@@ -264,28 +260,32 @@ def ensure_client_storage_prefix(
         key,
     )
     
+    tmp_path = None
     try:
-        # Upload de 1 byte; 'upsert' True para idempotência
-        data = io.BytesIO(b"1")
+        # Cria arquivo temporário com conteúdo "1"
+        fd, tmp_path = tempfile.mkstemp(prefix="rc_keep_", suffix=".txt")
+        os.write(fd, b"1")
+        os.close(fd)
         
         # Compatibilidade: alguns clients usam .from_ e outros .from_
         bucket_ref = getattr(supabase.storage, "from_", supabase.storage.from_)(bucket)
         
+        # Upload usando caminho de arquivo (não BytesIO)
         res = bucket_ref.upload(
-            path=key,
-            file=data,
-            file_options={"contentType": "text/plain", "upsert": True},
+            key,
+            tmp_path,
+            {"contentType": "text/plain", "upsert": True}
         )
         
         # Logar retorno para debug
         logger.info(
-            "ensure_client_storage_prefix: placeholder criado com sucesso - bucket=%s key=%s resp=%s",
+            "Storage placeholder OK | bucket=%s key=%s resp=%s",
             bucket,
             key,
             getattr(res, "data", res),
         )
         
-        return prefix
+        return prefix.rstrip("/")
         
     except Exception as exc:
         logger.exception(
@@ -295,3 +295,10 @@ def ensure_client_storage_prefix(
             exc,
         )
         raise
+    finally:
+        # Limpa arquivo temporário
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                logger.warning("Não conseguiu apagar tmp: %s", tmp_path)

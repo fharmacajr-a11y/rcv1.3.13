@@ -77,6 +77,8 @@ def _sanitize_key_component(component: str) -> str:
     clean = (component or "").replace("\\", "/").strip("/")
     clean = clean.replace("..", "").replace("//", "/")
     clean = clean.replace(" ", "_")
+    # Substituir parênteses por hífen para evitar problemas no Storage
+    clean = clean.replace("(", "-").replace(")", "-")
     return clean
 
 
@@ -313,17 +315,10 @@ def prepare_payload(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
         razao = valores.get("Razão Social", "")
         cnpj = valores.get("CNPJ", "")
         
-        if not cnpj or len(cnpj) != 14:
-            logger.warning(
-                "CNPJ inválido para criar prefixo: '%s'. Prefixo pode não ser criado corretamente.",
-                cnpj,
-            )
-        
         logger.info(
-            "Criando prefixo no Storage para cliente_id=%s, cnpj=%s, razao=%s",
+            "Criando prefixo no Storage para cliente_id=%s, org_id=%s",
             client_id,
-            cnpj,
-            razao,
+            ctx.org_id,
         )
         
         prefix = ensure_client_storage_prefix(
@@ -338,18 +333,18 @@ def prepare_payload(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
         ctx.misc["storage_prefix"] = prefix
         
     except Exception as exc:
-        # Não abortar o fluxo se falhar a criação do prefixo, apenas logar
+        # Logar e mostrar erro ao usuário (não é silencioso)
         logger.exception(
-            "Erro ao criar prefixo no Storage (não fatal): %s. Continuando...",
+            "Erro ao criar prefixo no Storage: %s",
             exc,
         )
-        # Opcional: exibir warning ao usuário
-        # messagebox.showwarning(
-        #     "Aviso",
-        #     f"O prefixo no Storage não pôde ser criado: {exc}\n\n"
-        #     f"O cliente foi salvo no DB, mas pode haver problemas ao enviar arquivos.",
-        #     parent=win,
-        # )
+        messagebox.showerror(
+            "Erro ao criar prefixo no Storage",
+            f"O prefixo no Storage não pôde ser criado:\n\n{exc}\n\n"
+            f"O cliente foi salvo no DB, mas pode haver problemas ao enviar arquivos.",
+            parent=win,
+        )
+        # Não abortar o fluxo - cliente já foi salvo
     
     ctx.storage_adapter = SupabaseStorageAdapter(bucket=ctx.bucket)
 
@@ -451,6 +446,7 @@ def perform_uploads(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
 
     def worker():
         falhas = 0
+        arquivos_falhados = []  # Track quais arquivos falharam
 
         if ctx.src_dir:
             base_local_inner = (
@@ -550,21 +546,24 @@ def perform_uploads(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
                     logger.info("Upload OK: %s", storage_path)
                 except Exception as exc:
                     falhas += 1
+                    arquivo_nome = os.path.basename(local_path)
+                    arquivos_falhados.append(arquivo_nome)
                     kind = _classify_storage_error(exc)
                     if kind == "invalid_key":
-                        logger.error("Nome/caminho inválido: %s", storage_path)
+                        logger.error("Nome/caminho inválido: %s | arquivo: %s", storage_path, arquivo_nome)
                     elif kind == "rls":
                         logger.error(
-                            "Permissão negada (RLS) no upload de %s", storage_path
+                            "Permissão negada (RLS) no upload de %s | arquivo: %s", storage_path, arquivo_nome
                         )
                     elif kind == "exists":
-                        logger.warning("Chave já existia: %s", storage_path)
+                        logger.warning("Chave já existia: %s | arquivo: %s", storage_path, arquivo_nome)
                     else:
-                        logger.exception("Falha upload/registro (%s): %s", local_path, exc)
+                        logger.exception("Falha upload/registro (%s) | arquivo: %s: %s", local_path, arquivo_nome, exc)
                 finally:
                     self.after(0, _after_step)
 
         ctx.falhas = falhas
+        ctx.misc["arquivos_falhados"] = arquivos_falhados
         ctx.finalize_ready = True
         self.after(
             0,
@@ -599,10 +598,21 @@ def finalize_state(*args, ctx_override: Optional[UploadCtx] = None, **kwargs) ->
     if ctx.misc.get("storage_prefix"):
         prefix_info = f"\n\nPrefixo no Storage: {ctx.misc['storage_prefix']}"
     
+    # Lista de arquivos que falharam
+    arquivos_falhados = ctx.misc.get("arquivos_falhados", [])
+    falhas_info = ""
+    if arquivos_falhados:
+        # Limitar a 10 arquivos para não poluir a mensagem
+        lista = arquivos_falhados[:10]
+        falhas_info = "\n\nArquivos que falharam:\n- " + "\n- ".join(lista)
+        if len(arquivos_falhados) > 10:
+            falhas_info += f"\n... e mais {len(arquivos_falhados) - 10} arquivo(s)"
+        logger.warning("Arquivos que falharam no upload: %s", ", ".join(arquivos_falhados))
+    
     msg = (
         f"Cliente salvo e documentos enviados com sucesso!{prefix_info}"
         if ctx.falhas == 0
-        else f"Cliente salvo com {ctx.falhas} falha(s) no envio de arquivos.{prefix_info}"
+        else f"Cliente salvo com {ctx.falhas} falha(s) no envio de arquivos.{falhas_info}{prefix_info}"
     )
     
     try:
