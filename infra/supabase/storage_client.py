@@ -1,18 +1,24 @@
+# -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import io
 import os
 import re
 import tempfile
+import unicodedata
+import logging
 from pathlib import Path
 from typing import Optional
 from urllib.parse import unquote as url_unquote
 import threading
 
-from config.paths import CLOUD_ONLY
+from src.config.paths import CLOUD_ONLY
 from requests import exceptions as req_exc
 
 from infra.net_session import make_session
 from infra.supabase.types import SUPABASE_ANON_KEY, SUPABASE_URL
+
+logger = logging.getLogger("infra.supabase.storage_client")
 
 EDGE_FUNCTION_ZIPPER_URL = f"{SUPABASE_URL}/functions/v1/zipper"
 
@@ -168,3 +174,124 @@ def baixar_pasta_zip(
         raise
     except req_exc.RequestException as e:
         raise RuntimeError(f"Falha de rede durante o download: {e}") from e
+
+
+# -----------------------------------------------------------------------------
+# Funções de criação de prefixo para clientes no Storage
+# -----------------------------------------------------------------------------
+
+
+def _slugify(text: str) -> str:
+    """
+    Converte texto em slug: normaliza unicode, remove acentos, substitui espaços/especiais por hífen.
+    """
+    if not text:
+        return ""
+    text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+    text = re.sub(r"[^a-zA-Z0-9]+", "-", text).strip("-")
+    return text.lower()
+
+
+def build_client_prefix(
+    org_id: str,
+    cnpj: str,
+    razao_social: str = "",
+    client_id: int | None = None,
+) -> str:
+    """
+    Constrói o prefixo de armazenamento para um cliente no formato:
+    {org_id}/{cnpj_digits}-{slug}[-{client_id:06d}]
+    
+    Args:
+        org_id: ID da organização
+        cnpj: CNPJ do cliente (será normalizado para apenas dígitos)
+        razao_social: Razão social do cliente (será slugificada)
+        client_id: ID do cliente (opcional, será formatado com 6 dígitos)
+    
+    Returns:
+        String do prefixo (sem barra final)
+    """
+    # Normaliza CNPJ para apenas dígitos
+    cnpj_digits = re.sub(r"\D", "", cnpj or "")
+    
+    # Slugifica razão social ou usa "cliente" como fallback
+    slug = _slugify(razao_social) or "cliente"
+    
+    # Monta prefixo base
+    base = f"{org_id}/{cnpj_digits}-{slug}"
+    
+    # Adiciona client_id se fornecido
+    if client_id:
+        base = f"{base}-{client_id:06d}"
+    
+    return base  # sem barra final
+
+
+def ensure_client_storage_prefix(
+    bucket: str,
+    org_id: str,
+    cnpj: str,
+    razao_social: str = "",
+    client_id: int | None = None,
+) -> str:
+    """
+    Garante que o prefixo exista no Storage criando um placeholder '.keep'.
+    
+    Esta função cria um arquivo vazio .keep no prefixo do cliente para garantir
+    que a "pasta" exista no Supabase Storage (que funciona baseado em objetos).
+    
+    Args:
+        bucket: Nome do bucket do Supabase Storage
+        org_id: ID da organização
+        cnpj: CNPJ do cliente
+        razao_social: Razão social do cliente
+        client_id: ID do cliente
+    
+    Returns:
+        String do prefixo criado
+        
+    Raises:
+        Exception: Se houver erro ao criar o placeholder no Storage
+    """
+    from infra.supabase_client import supabase
+    
+    prefix = build_client_prefix(org_id, cnpj, razao_social, client_id)
+    key = f"{prefix}/.keep"
+    
+    logger.info(
+        "ensure_client_storage_prefix: criando placeholder bucket=%s key=%s",
+        bucket,
+        key,
+    )
+    
+    try:
+        # Upload de 1 byte; 'upsert' True para idempotência
+        data = io.BytesIO(b"1")
+        
+        # Compatibilidade: alguns clients usam .from_ e outros .from_
+        bucket_ref = getattr(supabase.storage, "from_", supabase.storage.from_)(bucket)
+        
+        res = bucket_ref.upload(
+            path=key,
+            file=data,
+            file_options={"contentType": "text/plain", "upsert": True},
+        )
+        
+        # Logar retorno para debug
+        logger.info(
+            "ensure_client_storage_prefix: placeholder criado com sucesso - bucket=%s key=%s resp=%s",
+            bucket,
+            key,
+            getattr(res, "data", res),
+        )
+        
+        return prefix
+        
+    except Exception as exc:
+        logger.exception(
+            "Erro ao criar placeholder no Storage: bucket=%s key=%s erro=%s",
+            bucket,
+            key,
+            exc,
+        )
+        raise

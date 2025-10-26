@@ -1,9 +1,9 @@
+# -*- coding: utf-8 -*-
 # data/supabase_repo.py
 """Repositório Supabase para operações CRUD na tabela client_passwords."""
 
 from __future__ import annotations
 
-import os
 import time
 import random
 import logging
@@ -11,6 +11,9 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional, Callable
 
 import httpx
+
+from infra.supabase_client import exec_postgrest, get_supabase
+from security.crypto import encrypt_text, decrypt_text
 
 log = logging.getLogger(__name__)
 
@@ -92,7 +95,6 @@ def _rls_precheck_membership(client, org_id: str, user_id: str) -> None:
 # -----------------------------------------------------------------------------
 # Cliente Supabase SINGLETON (sempre usar get_supabase do infra)
 # -----------------------------------------------------------------------------
-from infra.supabase_client import exec_postgrest, get_supabase
 
 # Proxy para compatibilidade com código existente
 class _SupabaseProxy:
@@ -100,8 +102,6 @@ class _SupabaseProxy:
         return getattr(get_supabase(), name)
 
 supabase = _SupabaseProxy()
-
-from security.crypto import encrypt_text, decrypt_text
 
 
 # -----------------------------------------------------------------------------

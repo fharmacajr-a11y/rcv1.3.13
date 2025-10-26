@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Tuple
 from supabase import Client
 from infra.supabase_client import get_supabase
-from core import session
+from src.core import session
 
 
 class AuthError(Exception):

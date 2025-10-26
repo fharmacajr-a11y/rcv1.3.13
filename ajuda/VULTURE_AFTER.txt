@@ -1,5 +1,0 @@
-application\keybindings.py:7: unused variable 'ev' (100% confidence)
-
-shared\logging\audit.py:24: unused variable 'action' (100% confidence)
-
-shared\logging\audit.py:25: unused variable 'details' (100% confidence)

@@ -47,7 +47,7 @@ def retry_call(
     while True:
         try:
             return fn(*args, **kwargs)
-        except exceptions as exc:
+        except exceptions:
             attempt += 1
             # WinError 10035 é transitório; re-tentar
             if attempt >= tries:

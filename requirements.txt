@@ -54,15 +54,12 @@ idna==3.11
 multidict==6.7.0
     # via yarl
 packaging==25.0
-    # via
-    #   deprecation
-    #   pytesseract
+    # via deprecation
 pdfminer-six==20250506
     # via -r requirements.in
 pillow==11.3.0
     # via
     #   -r requirements.in
-    #   pytesseract
     #   ttkbootstrap
 postgrest==2.22.0
     # via supabase
@@ -83,8 +80,6 @@ pyjwt[crypto]==2.10.1
 pymupdf==1.26.5
     # via -r requirements.in
 pypdf==6.1.1
-    # via -r requirements.in
-pytesseract==0.3.13
     # via -r requirements.in
 python-dotenv==1.1.1
     # via -r requirements.in
@@ -116,6 +111,10 @@ typing-extensions==4.15.0
     #   typing-inspection
 typing-inspection==0.4.2
     # via pydantic
+tzdata==2025.2
+    # via tzlocal
+tzlocal==5.3.1
+    # via -r requirements.in
 urllib3==2.5.0
     # via requests
 websockets==15.0.1

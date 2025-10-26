@@ -42,3 +42,13 @@ docs/*.zip
 
 # ZIPs pesados de backup
 *.zip
+
+# Pytest cache
+.pytest_cache/
+
+# Python egg info
+*.egg-info/
+
+# SQL backups
+migrations/*.sql~
+

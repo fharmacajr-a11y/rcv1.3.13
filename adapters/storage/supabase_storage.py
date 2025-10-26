@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from typing import Iterable, Optional, Any
 
-from config.paths import CLOUD_ONLY
+from src.config.paths import CLOUD_ONLY
 from infra.supabase_client import supabase, baixar_pasta_zip, DownloadCancelledError
 from adapters.storage.port import StoragePort
 

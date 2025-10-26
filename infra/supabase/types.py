@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import Optional
 
-from shared.config.environment import load_env, env_str
+from src.config.environment import load_env, env_str
 
 load_env()
 

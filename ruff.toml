@@ -1,0 +1,5 @@
+line-length = 120
+
+[lint]
+select = ["E", "F"]  # pycodestyle/pyflakes básicos (sem reformatar)
+ignore = []
