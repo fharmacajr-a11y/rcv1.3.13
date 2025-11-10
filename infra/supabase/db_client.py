@@ -48,8 +48,27 @@ def _health_check_once(client: Client) -> bool:
             if data == "ok" or (isinstance(data, str) and data == "ok"):
                 return True
         except Exception as e:
-            # Não derrube o app; siga para fallback
-            log.debug("Health RPC error: %s", e)
+            # Fallback: se RPC não existir (404), tentar /auth/v1/health
+            error_str = str(e)
+            if "404" in error_str or "Not Found" in error_str:
+                log.debug("RPC 'ping' indisponível (404). Usando /auth/v1/health como fallback.")
+                try:
+                    # Tentar endpoint de health do GoTrue (Auth)
+                    import httpx
+                    supabase_url = os.getenv("SUPABASE_URL", "").rstrip("/")
+                    health_url = f"{supabase_url}/auth/v1/health"
+                    resp = httpx.get(health_url, timeout=10.0)
+                    if resp.status_code == 200:
+                        health_data = resp.json()
+                        # GoTrue retorna {"version": "...", "name": "GoTrue", ...}
+                        if health_data.get("version") or health_data.get("name") == "GoTrue":
+                            log.debug("Health check OK via /auth/v1/health")
+                            return True
+                except Exception as health_error:
+                    log.debug("Health fallback /auth/v1/health error: %s", health_error)
+            else:
+                # Outro tipo de erro RPC, apenas logar
+                log.debug("Health RPC error: %s", e)
 
     # Tentativa 2: Fallback leve via tabela
     try:
