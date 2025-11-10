@@ -3,11 +3,12 @@
 
 # HTTP client com suporte HTTP/2
 httpx[http2]
+starlette>=0.49.3,<0.50.0  # CVE fix (0.47.2+), limitado por FastAPI
 
 # PDF processing
-pdfminer-six
+pdfminer-six>=20251107  # CVE fix: GHSA-wf5f-4jwr-ppcp, GHSA-f83h-ghpp-7wcc
 pymupdf
-pypdf
+pypdf>=6.1.3  # CVE fix: GHSA-vr63-x8vc-m265, GHSA-jfx9-29x2-rv3j
 
 pillow
 
