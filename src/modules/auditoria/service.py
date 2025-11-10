@@ -1,4 +1,8 @@
-"""Service layer para Auditoria - Funções de integração com Supabase."""
+"""Service layer para Auditoria - Funções de integração com Supabase.
+
+Nota: Este módulo não é mais usado ativamente pela view.py (que faz queries diretas),
+mas mantém-se para referência ou uso futuro.
+"""
 from __future__ import annotations
 
 from typing import Any
@@ -10,22 +14,22 @@ except Exception:
         return None
 
 
-def list_clientes_minimal() -> list[dict[str, Any]]:
+def list_clients_minimal() -> list[dict[str, Any]]:
     """
-    Retorna lista mínima de clientes (id, razao_social, cnpj) ordenada por nome.
-    
+    Retorna lista mínima de clients (id BIGINT, name, tax_id) ordenada por id.
+
     Returns:
-        Lista de dicts com chaves: id, razao_social, cnpj
+        Lista de dicts com dados do client
     """
     sb = get_supabase()
     if not sb:
         return []
-    
+
     try:
         res = (
-            sb.table("clientes")
-            .select("id, razao_social, cnpj")
-            .order("razao_social")
+            sb.table("clients")
+            .select("*")
+            .order("id")
             .execute()
         )
         return getattr(res, "data", []) or []
@@ -35,21 +39,19 @@ def list_clientes_minimal() -> list[dict[str, Any]]:
 
 def list_auditorias() -> list[dict[str, Any]]:
     """
-    Retorna lista de auditorias com dados do cliente via FK.
-    
-    Usa select com relação referenciada: clientes:cliente_id(razao_social)
-    
+    Retorna lista de auditorias (sem FK embed).
+
     Returns:
-        Lista de dicts com chaves: id, status, created_at, updated_at, cliente_id, clientes
+        Lista de dicts com chaves: id, status, created_at, updated_at, cliente_id
     """
     sb = get_supabase()
     if not sb:
         return []
-    
+
     try:
         res = (
             sb.table("auditorias")
-            .select("id, status, created_at, updated_at, cliente_id, clientes:cliente_id(razao_social)")
+            .select("id, status, created_at, updated_at, cliente_id")
             .order("created_at", desc=True)
             .execute()
         )
@@ -58,20 +60,20 @@ def list_auditorias() -> list[dict[str, Any]]:
         return []
 
 
-def start_auditoria(cliente_id: str) -> dict[str, Any] | None:
+def start_auditoria(cliente_id: int) -> dict[str, Any] | None:
     """
     Inicia uma nova auditoria para o cliente especificado.
-    
+
     Args:
-        cliente_id: ID do cliente (string ou int)
-        
+        cliente_id: ID do cliente (BIGINT)
+
     Returns:
         Dict com dados da auditoria criada, ou None se falhar
     """
     sb = get_supabase()
     if not sb:
         return None
-    
+
     try:
         res = (
             sb.table("auditorias")

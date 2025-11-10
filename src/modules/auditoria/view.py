@@ -22,7 +22,7 @@ class AuditoriaFrame(ttk.Frame):
       - Combobox para escolher Cliente
       - Botão 'Iniciar auditoria' (insere em public.auditorias)
       - Tabela com auditorias (cliente, status, criado/atualizado)
-    
+
     Não altera nenhuma lógica global; funciona isolada.
     """
 
@@ -34,7 +34,7 @@ class AuditoriaFrame(ttk.Frame):
     ) -> None:
         """
         Inicializa a tela de Auditoria.
-        
+
         Args:
             master: Widget pai (Tk ou Frame)
             go_back: Callback para voltar ao Hub (opcional)
@@ -44,7 +44,8 @@ class AuditoriaFrame(ttk.Frame):
         self._sb = get_supabase()
         self._go_back = go_back
 
-        self._clientes: list[tuple[str, str]] = []  # [(id, label)]
+        self._clientes: list[tuple[int, str]] = []  # [(id BIGINT, label)]
+        self._clientes_map: dict[int, str] = {}  # {id: label}
         self._cliente_var = tk.StringVar()
 
         self._build_ui()
@@ -152,7 +153,7 @@ class AuditoriaFrame(ttk.Frame):
     def _set_offline(self, is_offline: bool) -> None:
         """
         Configura estado offline/online da tela.
-        
+
         Args:
             is_offline: True se offline, False se online
         """
@@ -166,20 +167,33 @@ class AuditoriaFrame(ttk.Frame):
         """Carrega lista de clientes do Supabase."""
         if not self._sb:
             return
-        
+
         try:
-            # Busca id, razão social e cnpj; ordena por nome
+            # Busca todos os campos; ordena por id
             res = (
-                self._sb.table("clientes")
-                .select("id, razao_social, cnpj")
-                .order("razao_social")
+                self._sb.table("clients")
+                .select("*")
+                .order("id")
                 .execute()
             )
             data = getattr(res, "data", []) or []
-            self._clientes = [
-                (str(row["id"]), f'{row.get("razao_social", "")} — {row.get("cnpj", "")}')
-                for row in data
-            ]
+            
+            self._clientes, self._clientes_map = [], {}
+            for row in data:
+                cid = int(row.get("id"))
+                nome = (
+                    row.get("razao_social")
+                    or row.get("legal_name")
+                    or row.get("name")
+                    or row.get("display_name")
+                    or f"Cliente {cid}"
+                )
+                cnpj = row.get("cnpj") or row.get("tax_id") or ""
+                label = f"{nome} — {cnpj}" if cnpj else nome
+                
+                self._clientes.append((cid, label))
+                self._clientes_map[cid] = label
+            
             self.cmb_cliente["values"] = [label for _id, label in self._clientes]
             if self._clientes:
                 self.cmb_cliente.current(0)
@@ -192,21 +206,16 @@ class AuditoriaFrame(ttk.Frame):
     def _load_auditorias(self) -> None:
         """
         Carrega lista de auditorias do Supabase.
-        
-        Usa select com tabela referenciada via FK (cliente_id → clientes)
-        conforme docs Supabase.
-        Ex.: .select("..., clientes:cliente_id(razao_social)")
+
+        Monta o nome do cliente via self._clientes_map, sem usar embed FK.
         """
         if not self._sb:
             return
-        
+
         try:
             res = (
                 self._sb.table("auditorias")
-                .select(
-                    "id, status, created_at, updated_at, cliente_id, "
-                    "clientes:cliente_id(razao_social)"
-                )
+                .select("id, status, created_at, updated_at, cliente_id")
                 .order("created_at", desc=True)
                 .execute()
             )
@@ -214,12 +223,16 @@ class AuditoriaFrame(ttk.Frame):
             self.tree.delete(*self.tree.get_children())
 
             for r in rows:
-                # Extrai nome do cliente da relação FK
-                cliente_nome = None
-                c_rel = r.get("clientes")
-                if isinstance(c_rel, dict):
-                    cliente_nome = c_rel.get("razao_social")
-                cliente_nome = cliente_nome or str(r.get("cliente_id", ""))
+                # Busca nome do cliente via mapa em memória
+                cliente_id = r.get("cliente_id")
+                if cliente_id is not None:
+                    try:
+                        cid = int(cliente_id)
+                        cliente_nome = self._clientes_map.get(cid, f"#{cid}")
+                    except (ValueError, TypeError):
+                        cliente_nome = str(cliente_id)
+                else:
+                    cliente_nome = ""
 
                 # Formata timestamps (remove T e microssegundos)
                 created = (r.get("created_at") or "")[:19].replace("T", " ")
@@ -248,7 +261,7 @@ class AuditoriaFrame(ttk.Frame):
             messagebox.showinfo("Auditoria", "Selecione um cliente.")
             return
 
-        cliente_id, _label = self._clientes[idx]
+        cliente_id = int(self._clientes[idx][0])
 
         try:
             ins = (
