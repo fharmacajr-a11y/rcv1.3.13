@@ -9,7 +9,7 @@ def test_placeholder():
     assert True
 
 
-# TODO: Adicionar testes para:
+# Cobertura futura:
 # - src.core.models
 # - src.core.logger
 # - src.core.settings
