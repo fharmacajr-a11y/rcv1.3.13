@@ -1,6 +1,6 @@
 """Tests for CLI argument parsing."""
 
-import pytest
+import pytest  # type: ignore[import-untyped]
 
 
 def test_parse_args_defaults():

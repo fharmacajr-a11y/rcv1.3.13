@@ -8,7 +8,7 @@ Validates that the loading order is correct:
 import os
 from pathlib import Path
 
-import pytest
+import pytest  # type: ignore[import-untyped]
 
 
 def test_env_precedence_local_overwrites_bundled(tmp_path, monkeypatch):

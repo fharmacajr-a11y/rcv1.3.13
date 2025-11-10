@@ -4,7 +4,7 @@ Testes para o fallback de health check quando RPC ping retorna 404.
 import logging
 from unittest.mock import MagicMock, Mock, patch
 
-import pytest
+import pytest  # type: ignore[import-untyped]
 
 
 class MockResponse:

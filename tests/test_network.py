@@ -2,7 +2,7 @@
 
 import socket
 
-import pytest
+import pytest  # type: ignore[import-untyped]
 
 
 def test_check_internet_connectivity_bypassed_in_test(monkeypatch):

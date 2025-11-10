@@ -4,7 +4,7 @@ import logging
 import os
 import sys
 
-import pytest
+import pytest  # type: ignore[import-untyped]
 
 
 def test_exception_hook_can_be_installed():

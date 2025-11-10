@@ -6,7 +6,7 @@ import os
 import tempfile
 from pathlib import Path
 
-import pytest
+import pytest  # type: ignore[import-untyped]
 
 from src.utils.prefs import load_columns_visibility, save_columns_visibility
 

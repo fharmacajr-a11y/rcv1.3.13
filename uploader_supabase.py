@@ -7,7 +7,7 @@ import os
 import posixpath
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple, cast
 
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
@@ -36,10 +36,13 @@ class UploadProgressDialog(tb.Toplevel):
     """Janela simples com barra de progresso deterministica."""
 
     def __init__(self, parent: tk.Misc, total: int) -> None:
-        super().__init__(parent)
+        # tb.Toplevel herda de tk.Toplevel; aceita parent como primeiro argumento posicional
+        super().__init__(parent)  # type: ignore[arg-type]
         self.withdraw()
         self.title("Enviando arquivos")
-        self.transient(parent)
+        # Cast parent para tk.Tk para chamar transient()
+        parent_window = cast(tk.Tk, parent)
+        self.transient(parent_window)
         self.resizable(False, False)
 
         self._total = max(int(total), 1)
@@ -55,7 +58,8 @@ class UploadProgressDialog(tb.Toplevel):
         self._bar.pack(fill="x")
 
         try:
-            center_window(self, parent)
+            # center_window espera (win, width, height)
+            center_window(self, w=400, h=120)
         except Exception as e:
             log.debug("Failed to center progress window: %s", e)
 
@@ -98,17 +102,18 @@ def _select_pdfs_dialog(parent: Optional[tk.Misc] = None) -> List[str]:
 
 
 def _show_upload_summary(ok_count: int, failed_paths: List[str], *, parent: Optional[tk.Misc] = None) -> None:
+    # messagebox funções esperam parent não-None; usar None como fallback padrão
     if failed_paths:
         messagebox.showwarning(
             "Envio concluido com falhas",
             "Alguns arquivos nao foram enviados:\n- " + "\n- ".join(failed_paths),
-            parent=parent,
+            parent=parent if parent is not None else None,  # type: ignore[arg-type]
         )
     else:
         messagebox.showinfo(
             "Envio concluido",
             f"Todos os {ok_count} arquivo(s) foram enviados com sucesso.",
-            parent=parent,
+            parent=parent if parent is not None else None,  # type: ignore[arg-type]
         )
 
 
@@ -269,14 +274,18 @@ def _resolve_selected_cliente(app: tk.Misc) -> Optional[Tuple[int, dict[str, str
     frame = frame_getter() if callable(frame_getter) else None
     columns = tuple(getattr(frame, "_col_order", ()))
 
+    # Cast para Sequence para garantir que suporta len() e indexação
+    values_seq = cast(Sequence, values)
+    columns_seq = cast(Sequence, columns)
+
     mapping: dict[str, str] = {}
-    if columns and len(columns) == len(values):
-        mapping = {columns[idx]: str(values[idx]) for idx in range(len(columns))}
+    if columns_seq and len(columns_seq) == len(values_seq):
+        mapping = {str(columns_seq[idx]): str(values_seq[idx]) for idx in range(len(columns_seq))}
     else:
-        mapping = {str(idx): str(values[idx]) for idx in range(len(values))}
+        mapping = {str(idx): str(values_seq[idx]) for idx in range(len(values_seq))}
 
     try:
-        client_id_raw = mapping.get("ID", values[0])
+        client_id_raw = mapping.get("ID", str(values_seq[0]))
         client_id = int(str(client_id_raw).strip())
     except Exception:
         return None

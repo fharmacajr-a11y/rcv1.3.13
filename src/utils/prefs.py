@@ -7,7 +7,7 @@ import os
 from typing import Any, Dict
 
 try:
-    from filelock import FileLock
+    from filelock import FileLock  # type: ignore[import-untyped]
     HAS_FILELOCK = True
 except ImportError:
     FileLock = Any  # type: ignore[misc,assignment]
