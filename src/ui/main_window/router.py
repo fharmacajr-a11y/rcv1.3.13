@@ -39,7 +39,7 @@ def _show_hub(app: Any) -> Any:
         HubScreen,
         open_clientes=lambda: navigate_to(app, "main"),
         open_anvisa=lambda: navigate_to(app, "placeholder", title="Anvisa"),
-        open_auditoria=lambda: navigate_to(app, "placeholder", title="Auditoria"),
+        open_auditoria=lambda: navigate_to(app, "auditoria"),
         open_farmacia_popular=lambda: navigate_to(
             app, "placeholder", title="Farmcia Popular"
         ),
@@ -149,6 +149,16 @@ def _open_clients_picker(app: Any, on_pick) -> None:
         messagebox.showwarning("Ateno", "Tela de clientes no est disponvel.")
 
 
+def _show_auditoria(app: Any) -> Any:
+    """Exibe a tela de Auditoria."""
+    from src.modules.auditoria import AuditoriaFrame
+
+    return app.show_frame(
+        AuditoriaFrame,
+        go_back=lambda: navigate_to(app, "hub"),
+    )
+
+
 def navigate_to(app: Any, target: str, **kwargs) -> Any:
     handlers = {
         "hub": _show_hub,
@@ -156,6 +166,7 @@ def navigate_to(app: Any, target: str, **kwargs) -> Any:
         "placeholder": _show_placeholder,
         "passwords": _show_passwords,
         "clients_picker": _open_clients_picker,
+        "auditoria": _show_auditoria,
     }
 
     handler = handlers.get(target)
