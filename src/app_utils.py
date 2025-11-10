@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from typing import Dict, Tuple
-import re
 
 # Windows reserves specific directory names; keep them uppercase for lookups.
 RESERVED_WIN_NAMES: set[str] = {

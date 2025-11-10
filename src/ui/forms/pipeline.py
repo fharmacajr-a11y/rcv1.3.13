@@ -11,23 +11,26 @@ import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 from tkinter import filedialog, messagebox
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
-from adapters.storage.api import (
-    delete_file as storage_delete_file,
-    list_files as storage_list_files,
-    upload_file as storage_upload_file,
-    using_storage_backend,
+# Garantir que .docx tenha MIME correto em qualquer SO
+mimetypes.add_type(
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".docx",
 )
+
+from adapters.storage.api import delete_file as storage_delete_file
+from adapters.storage.api import upload_file as storage_upload_file
+from adapters.storage.api import using_storage_backend
 from adapters.storage.supabase_storage import SupabaseStorageAdapter
+from infra.supabase_client import exec_postgrest, get_supabase_state, supabase
 from src.config.paths import CLOUD_ONLY
 from src.core.logger import get_logger
-from src.core.services.clientes_service import (
-    checar_duplicatas_info,
-    salvar_cliente,
-)
-from infra.supabase_client import exec_postgrest, get_supabase_state, supabase
+from src.core.cnpj_norm import normalize_cnpj as normalize_cnpj_norm
+from src.core.db_manager import find_cliente_by_cnpj_norm
+from src.core.services.clientes_service import checar_duplicatas_info, salvar_cliente
+from src.core.storage_key import make_storage_key, storage_slug_part
 
 logger = get_logger(__name__)
 
@@ -73,19 +76,13 @@ def _get_bucket_name(default_env: str | None = None) -> str:
     return (default_env or os.getenv("SUPABASE_BUCKET") or "rc-docs").strip()
 
 
-def _sanitize_key_component(component: str) -> str:
-    clean = (component or "").replace("\\", "/").strip("/")
-    clean = clean.replace("..", "").replace("//", "/")
-    clean = clean.replace(" ", "_")
-    # Substituir parênteses por hífen para evitar problemas no Storage
-    clean = clean.replace("(", "-").replace(")", "-")
-    return clean
-
-
-def _build_storage_path(*parts: str) -> str:
-    cleaned = [_sanitize_key_component(str(p)) for p in parts if str(p)]
-    return "/".join(cleaned).strip("/")
-
+def _build_storage_prefix(*parts: str | None) -> str:
+    sanitized: list[str] = []
+    for part in parts:
+        value = storage_slug_part(part)
+        if value:
+            sanitized.append(value)
+    return "/".join(sanitized).strip("/")
 
 def _ask_subpasta(parent: Any) -> Optional[str]:
     """
@@ -93,11 +90,11 @@ def _ask_subpasta(parent: Any) -> Optional[str]:
     Retorna o nome da subpasta escolhida ou None se cancelado/indisponível.
     """
     try:
-        # Import correto do SubpastaDialog que existe em actions.py
+        # Import correto do SubpastaDialog
         from src.ui.forms.actions import SubpastaDialog
     except ImportError as exc:
         logger.exception(
-            "Erro ao importar SubpastaDialog: %s. Verifique se src.ui.forms.actions existe.",
+            "Erro ao importar SubpastaDialog: %s. Verifique src.ui.forms.actions.",
             exc,
         )
         return None
@@ -231,7 +228,7 @@ def validate_inputs(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
 
     valores = {
         "Razão Social": ents["Razão Social"].get().strip(),
-        "CNPJ": _only_digits(ents["CNPJ"].get().strip()),
+        "CNPJ": ents["CNPJ"].get().strip(),
         "Nome": ents["Nome"].get().strip(),
         "WhatsApp": _only_digits(ents["WhatsApp"].get().strip()),
         "Observações": ents["Observações"].get("1.0", "end-1c").strip(),
@@ -239,25 +236,60 @@ def validate_inputs(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
     ctx.valores = valores
 
     try:
+        current_id = None
+        try:
+            current_id = int(row[0]) if row else None
+        except Exception:
+            current_id = None
+
+        cnpj_norm = normalize_cnpj_norm(valores.get("CNPJ"))
+        if cnpj_norm:
+            dup = find_cliente_by_cnpj_norm(cnpj_norm, exclude_id=current_id)
+            if dup:
+                messagebox.showwarning(
+                    "CNPJ duplicado",
+                    (
+                        "CNPJ já cadastrado para o cliente ID "
+                        f"{getattr(dup, 'id', '?')} — "
+                        f"{getattr(dup, 'razao_social', '') or '-'}\n"
+                        f"CNPJ registrado: {getattr(dup, 'cnpj', '') or '-'}"
+                    ),
+                    parent=win,
+                )
+                ctx.abort = True
+                return args, kwargs
+
         info = checar_duplicatas_info(
             cnpj=valores.get("CNPJ"),
             razao=valores.get("Razão Social"),
             numero=valores.get("WhatsApp"),
             nome=valores.get("Nome"),
+            exclude_id=current_id,
         )
-        ids = (info.get("ids") or [])[:]
-        if row and ids and int(row[0]) in ids:
-            ids = [i for i in ids if i != int(row[0])]
 
-        campos_filtrados = [
-            c for c in (info.get("campos") or []) if c in ("CNPJ", "RAZAO_SOCIAL")
-        ]
-        if ids and campos_filtrados:
-            campos = ", ".join(campos_filtrados)
-            ids_str = ", ".join(str(i) for i in ids)
+        razao_conflicts = info.get("razao_conflicts") or []
+        if razao_conflicts:
+            lines: list[str] = []
+            for idx, cliente in enumerate(razao_conflicts, start=1):
+                if idx > 3:
+                    break
+                lines.append(
+                    f"- ID {getattr(cliente, 'id', '?')} — "
+                    f"{getattr(cliente, 'razao_social', '') or '-'} "
+                    f"(CNPJ: {getattr(cliente, 'cnpj', '') or '-'})"
+                )
+            remaining = max(0, len(razao_conflicts) - len(lines))
+            if remaining:
+                lines.append(f"- ... e mais {remaining} registro(s)")
+
+            header = (
+                "Existe outro cliente com a mesma Razão Social mas CNPJ diferente."
+                " Deseja continuar?\n\n"
+            )
+            msg = header + "\n".join(lines)
             if not messagebox.askokcancel(
-                "Possível duplicata",
-                f'Campos que bateram: {campos or "-"}\nIDs: {ids_str}\n\nDeseja continuar?',
+                "Razão Social repetida",
+                msg,
                 parent=win,
             ):
                 ctx.abort = True
@@ -276,7 +308,7 @@ def prepare_payload(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
 
     valores = ctx.valores or {
         "Razão Social": ents["Razão Social"].get().strip(),
-        "CNPJ": _only_digits(ents["CNPJ"].get().strip()),
+        "CNPJ": ents["CNPJ"].get().strip(),
         "Nome": ents["Nome"].get().strip(),
         "WhatsApp": _only_digits(ents["WhatsApp"].get().strip()),
         "Observações": ents["Observações"].get("1.0", "end-1c").strip(),
@@ -307,45 +339,7 @@ def prepare_payload(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
 
     ctx.bucket = _get_bucket_name()
     logger.info("Bucket em uso: %s", ctx.bucket)
-    
-    # Criar prefixo do cliente no Storage ANTES de pedir subpasta
-    try:
-        from infra.supabase.storage_client import ensure_client_storage_prefix
-        
-        razao = valores.get("Razão Social", "")
-        cnpj = valores.get("CNPJ", "")
-        
-        logger.info(
-            "Criando prefixo no Storage para cliente_id=%s, org_id=%s",
-            client_id,
-            ctx.org_id,
-        )
-        
-        prefix = ensure_client_storage_prefix(
-            bucket=ctx.bucket,
-            org_id=ctx.org_id,
-            cnpj=cnpj,
-            razao_social=razao,
-            client_id=client_id,
-        )
-        
-        logger.info("Prefixo criado com sucesso: %s", prefix)
-        ctx.misc["storage_prefix"] = prefix
-        
-    except Exception as exc:
-        # Logar e mostrar erro ao usuário (não é silencioso)
-        logger.exception(
-            "Erro ao criar prefixo no Storage: %s",
-            exc,
-        )
-        messagebox.showerror(
-            "Erro ao criar prefixo no Storage",
-            f"O prefixo no Storage não pôde ser criado:\n\n{exc}\n\n"
-            f"O cliente foi salvo no DB, mas pode haver problemas ao enviar arquivos.",
-            parent=win,
-        )
-        # Não abortar o fluxo - cliente já foi salvo
-    
+
     ctx.storage_adapter = SupabaseStorageAdapter(bucket=ctx.bucket)
 
     parent_win = (
@@ -359,30 +353,16 @@ def prepare_payload(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
         return args, kwargs
     ctx.subpasta = subpasta
 
+    prefix_parts = [ctx.org_id, ctx.client_id, DEFAULT_IMPORT_SUBFOLDER]
     if ctx.subpasta:
-        try:
-            prefix = _build_storage_path(
-                ctx.org_id,
-                str(ctx.client_id),
-                DEFAULT_IMPORT_SUBFOLDER,
-                ctx.subpasta,
-            )
-            with using_storage_backend(ctx.storage_adapter):
-                existing = list(storage_list_files(prefix))
-                if not existing:
-                    placeholder = _build_storage_path(prefix, ".keep")
-                    storage_upload_file(b"keep", placeholder, "text/plain")
-                    logger.info("Subpasta criada (placeholder): %s", prefix)
-        except Exception as exc:
-            logger.warning(
-                "Não foi possível garantir a subpasta '%s': %s", ctx.subpasta, exc
-            )
+        prefix_parts.append(ctx.subpasta)
+    ctx.misc["storage_prefix"] = _build_storage_prefix(*prefix_parts)
 
     src = filedialog.askdirectory(
         parent=parent_win,
         title=(
             f"Escolha a PASTA para importar (irá para '{DEFAULT_IMPORT_SUBFOLDER}"
-            f"{'/' + subpasta if subpasta else ''}')"
+            f"{'/' + ctx.subpasta if ctx.subpasta else ''}')"
         ),
     )
     ctx.src_dir = src or ""
@@ -478,32 +458,34 @@ def perform_uploads(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
             busy.step()
 
         with using_storage_backend(ctx.storage_adapter):
+            base_parts = [ctx.org_id, ctx.client_id, DEFAULT_IMPORT_SUBFOLDER]
+            if ctx.subpasta:
+                base_parts.append(ctx.subpasta)
+
             for local_path, rel in ctx.files:
                 try:
-                    rel_parts = (
-                        [_sanitize_key_component(p) for p in rel.split("/")]
-                        if rel
-                        else [_sanitize_key_component(os.path.basename(local_path))]
-                    )
-                    if ctx.subpasta:
-                        storage_path = _build_storage_path(
-                            ctx.org_id,
-                            str(ctx.client_id),
-                            DEFAULT_IMPORT_SUBFOLDER,
-                            ctx.subpasta,
-                            *rel_parts,
-                        )
+                    rel_path = (rel or "").replace("\\", "/").strip("/")
+                    segments = [seg for seg in rel_path.split("/") if seg] if rel_path else []
+                    if segments:
+                        filename_original = segments[-1]
+                        dir_segments = segments[:-1]
                     else:
-                        storage_path = _build_storage_path(
-                            ctx.org_id,
-                            str(ctx.client_id),
-                            DEFAULT_IMPORT_SUBFOLDER,
-                            *rel_parts,
-                        )
+                        filename_original = os.path.basename(local_path)
+                        dir_segments = []
+
+                    key_parts = base_parts + dir_segments
+                    storage_path = make_storage_key(*key_parts, filename=filename_original)
+                    logger.info(
+                        "Upload Storage: original=%r -> key=%s (bucket=%s)",
+                        rel or filename_original,
+                        storage_path,
+                        ctx.bucket,
+                    )
 
                     data = Path(local_path).read_bytes()
+                    sanitized_filename = storage_path.split("/")[-1]
                     content_type = (
-                        mimetypes.guess_type(storage_path)[0]
+                        mimetypes.guess_type(sanitized_filename)[0]
                         or "application/octet-stream"
                     )
                     storage_delete_file(storage_path)
@@ -550,15 +532,30 @@ def perform_uploads(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
                     arquivos_falhados.append(arquivo_nome)
                     kind = _classify_storage_error(exc)
                     if kind == "invalid_key":
-                        logger.error("Nome/caminho inválido: %s | arquivo: %s", storage_path, arquivo_nome)
+                        logger.error(
+                            "Nome/caminho inválido: %s | arquivo: %s",
+                            storage_path,
+                            arquivo_nome,
+                        )
                     elif kind == "rls":
                         logger.error(
-                            "Permissão negada (RLS) no upload de %s | arquivo: %s", storage_path, arquivo_nome
+                            "Permissão negada (RLS) no upload de %s | arquivo: %s",
+                            storage_path,
+                            arquivo_nome,
                         )
                     elif kind == "exists":
-                        logger.warning("Chave já existia: %s | arquivo: %s", storage_path, arquivo_nome)
+                        logger.warning(
+                            "Chave já existia: %s | arquivo: %s",
+                            storage_path,
+                            arquivo_nome,
+                        )
                     else:
-                        logger.exception("Falha upload/registro (%s) | arquivo: %s: %s", local_path, arquivo_nome, exc)
+                        logger.exception(
+                            "Falha upload/registro (%s) | arquivo: %s: %s",
+                            local_path,
+                            arquivo_nome,
+                            exc,
+                        )
                 finally:
                     self.after(0, _after_step)
 
@@ -567,16 +564,16 @@ def perform_uploads(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
         ctx.finalize_ready = True
         self.after(
             0,
-            lambda: finalize_state(
-                self, row, ents, arquivos, win, ctx_override=ctx
-            ),
+            lambda: finalize_state(self, row, ents, arquivos, win, ctx_override=ctx),
         )
 
     threading.Thread(target=worker, daemon=True).start()
     return args, kwargs
 
 
-def finalize_state(*args, ctx_override: Optional[UploadCtx] = None, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
+def finalize_state(
+    *args, ctx_override: Optional[UploadCtx] = None, **kwargs
+) -> Tuple[tuple, Dict[str, Any]]:
     self, row, ents, arquivos, win = _unpack_call(args, kwargs)
     ctx = ctx_override or getattr(self, "_upload_ctx", None)
     if not ctx:
@@ -596,25 +593,27 @@ def finalize_state(*args, ctx_override: Optional[UploadCtx] = None, **kwargs) ->
     # Mensagem de sucesso com informação do prefixo
     prefix_info = ""
     if ctx.misc.get("storage_prefix"):
-        prefix_info = f"\n\nPrefixo no Storage: {ctx.misc['storage_prefix']}"
-    
+        prefix_info = f"\\n\\nPrefixo no Storage: {ctx.misc['storage_prefix']}"
+
     # Lista de arquivos que falharam
     arquivos_falhados = ctx.misc.get("arquivos_falhados", [])
     falhas_info = ""
     if arquivos_falhados:
         # Limitar a 10 arquivos para não poluir a mensagem
         lista = arquivos_falhados[:10]
-        falhas_info = "\n\nArquivos que falharam:\n- " + "\n- ".join(lista)
+        falhas_info = "\\n\\nArquivos que falharam:\\n- " + "\\n- ".join(lista)
         if len(arquivos_falhados) > 10:
-            falhas_info += f"\n... e mais {len(arquivos_falhados) - 10} arquivo(s)"
-        logger.warning("Arquivos que falharam no upload: %s", ", ".join(arquivos_falhados))
-    
+            falhas_info += f"\\n... e mais {len(arquivos_falhados) - 10} arquivo(s)"
+        logger.warning(
+            "Arquivos que falharam no upload: %s", ", ".join(arquivos_falhados)
+        )
+
     msg = (
         f"Cliente salvo e documentos enviados com sucesso!{prefix_info}"
         if ctx.falhas == 0
         else f"Cliente salvo com {ctx.falhas} falha(s) no envio de arquivos.{falhas_info}{prefix_info}"
     )
-    
+
     try:
         messagebox.showinfo("Sucesso", msg, parent=ctx.parent_win)
     except Exception:
@@ -633,4 +632,3 @@ def finalize_state(*args, ctx_override: Optional[UploadCtx] = None, **kwargs) ->
 
     _cleanup_ctx(self)
     return args, kwargs
-

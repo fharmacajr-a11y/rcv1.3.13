@@ -1,5 +1,6 @@
-import fitz  # PyMuPDF
 import logging
+
+import fitz  # PyMuPDF
 
 logger = logging.getLogger(__name__)
 log = logger

@@ -1,20 +1,27 @@
 # core/services/clientes_service.py — versão Supabase (libera Nome/Whats; mantém CNPJ/Razão)
 from __future__ import annotations
 
+import logging
 import os
 import shutil
-import logging
+import threading
 import time
 
-from src.utils.validators import only_digits, normalize_text
-from src.config.paths import DOCS_DIR, CLOUD_ONLY
+from infra.supabase_client import exec_postgrest, supabase
 from src.app_utils import safe_base_from_fields
-from src.utils.file_utils import ensure_subpastas, write_marker
+from src.config.paths import CLOUD_ONLY, DOCS_DIR
+from src.core.db_manager import (
+    find_cliente_by_cnpj_norm,
+    insert_cliente,
+    list_clientes,
+    update_cliente,
+)
 from src.core.logs.audit import log_client_action
 from src.core.session.session import get_current_user
-from src.core.db_manager import insert_cliente, update_cliente, list_clientes
-from infra.supabase_client import exec_postgrest, supabase
-import threading
+from src.utils.file_utils import ensure_subpastas, write_marker
+from src.utils.validators import normalize_text
+
+from src.core.cnpj_norm import normalize_cnpj as normalize_cnpj_norm
 
 log = logging.getLogger(__name__)
 
@@ -32,6 +39,8 @@ def _count_clients_raw() -> int:
         supabase.table("clients").select("id", count="exact").is_("deleted_at", "null")
     )
     return resp.count or 0
+
+
 def count_clients(*, max_retries: int = 2, base_delay: float = 0.2) -> int:
     """
     Conta clientes ativos do Supabase com retry leve e tratamento resiliente.
@@ -58,81 +67,98 @@ def count_clients(*, max_retries: int = 2, base_delay: float = 0.2) -> int:
             if getattr(e, "winerror", 0) == 10035:
                 if attempt < max_retries:
                     delay = base_delay * (attempt + 1)
-                    log.warning("Clientes: socket ocupada (10035); retry em %.1fs...", delay)
+                    log.warning(
+                        "Clientes: socket ocupada (10035); retry em %.1fs...", delay
+                    )
                     time.sleep(delay)
                     attempt += 1
                     continue
 
                 # Devolve o último valor conhecido com lock
                 with _clients_lock:
-                    log.info("Clientes: usando last-known=%s após 10035", _LAST_CLIENTS_COUNT)
+                    log.info(
+                        "Clientes: usando last-known=%s após 10035", _LAST_CLIENTS_COUNT
+                    )
                     return _LAST_CLIENTS_COUNT
 
             # Outros erros de rede → warning + last-known
-            log.warning("Clientes: erro de rede ao contar; usando last-known=%s (%r)",
-                        _LAST_CLIENTS_COUNT, e)
+            log.warning(
+                "Clientes: erro de rede ao contar; usando last-known=%s (%r)",
+                _LAST_CLIENTS_COUNT,
+                e,
+            )
             with _clients_lock:
                 return _LAST_CLIENTS_COUNT
 
         except Exception as e:
             # Último guarda-chuva: não quebrar UI por causa do contador
-            log.warning("Clientes: falha inesperada ao contar; usando last-known=%s (%r)",
-                        _LAST_CLIENTS_COUNT, e)
+            log.warning(
+                "Clientes: falha inesperada ao contar; usando last-known=%s (%r)",
+                _LAST_CLIENTS_COUNT,
+                e,
+            )
             with _clients_lock:
                 return _LAST_CLIENTS_COUNT
 
 
-def _normalize_payload(valores: dict) -> tuple[str, str, str, str, str]:
+def _normalize_payload(valores: dict) -> tuple[str, str, str, str, str, str]:
     razao = (valores.get("Razão Social") or "").strip()
     cnpj = (valores.get("CNPJ") or "").strip()
     nome = (valores.get("Nome") or "").strip()
     numero = (valores.get("WhatsApp") or "").strip()
     obs = (valores.get("Observações") or "").strip()
-    return razao, cnpj, nome, numero, obs
-
-
-def _exists_duplicate(
-    numero: str, cnpj: str, nome: str, razao: str, *, skip_id: int | None = None
-) -> list[int]:
-    """
-    Retorna IDs de possíveis duplicatas considerando **apenas**:
-      - CNPJ (somente dígitos)
-      - Razão Social (normalizada/trim)
-
-    OBS: Nome e WhatsApp (numero) **não** entram mais no critério de duplicidade.
-    """
-    cnpj_d = only_digits(cnpj or "")
-    razao_n = normalize_text(razao or "")
-
-    ids: list[int] = []
-    for c in list_clientes():
-        if skip_id and c.id == skip_id:
-            continue
-
-        # CNPJ único
-        if cnpj_d and only_digits(c.cnpj or "") == cnpj_d:
-            ids.append(int(c.id))
-            continue
-
-        # Razão Social única (case/trim insensível conforme normalize_text)
-        if razao_n and normalize_text(c.razao_social or "") == razao_n:
-            ids.append(int(c.id))
-            continue
-
-        # Nome / Número (WhatsApp) foram propositalmente ignorados
-
-    return sorted(set(ids))
+    cnpj_norm = normalize_cnpj_norm(cnpj)
+    return razao, cnpj, cnpj_norm, nome, numero, obs
 
 
 def checar_duplicatas_info(
-    numero: str, cnpj: str, nome: str, razao: str
-) -> dict[str, list]:
+    numero: str,
+    cnpj: str,
+    nome: str,
+    razao: str,
+    *,
+    exclude_id: int | None = None,
+) -> dict[str, object]:
+    """Retorna informações de possíveis duplicatas.
+
+    - ``cnpj_conflict``: cliente com mesmo ``cnpj_norm`` (None se não houver).
+    - ``razao_conflicts``: lista de clientes com mesma razão social mas CNPJ distinto.
     """
-    Mantida a assinatura por compatibilidade.
-    Retorna {"ids": [...]} considerando só CNPJ/Razão.
-    """
-    ids = _exists_duplicate(numero, cnpj, nome, razao)
-    return {"ids": ids}
+
+    cnpj_norm = normalize_cnpj_norm(cnpj)
+    cnpj_conflict = (
+        find_cliente_by_cnpj_norm(cnpj_norm, exclude_id=exclude_id)
+        if cnpj_norm
+        else None
+    )
+
+    razao_norm = normalize_text(razao or "")
+    razao_conflicts: list = []
+    if razao_norm:
+        for cliente in list_clientes():
+            if exclude_id and cliente.id == exclude_id:
+                continue
+            if normalize_text(cliente.razao_social or "") != razao_norm:
+                continue
+            cliente_norm = (
+                (cliente.cnpj_norm or "")
+                if getattr(cliente, "cnpj_norm", None) is not None
+                else normalize_cnpj_norm(cliente.cnpj or "")
+            )
+            if cnpj_norm:
+                if cliente_norm == cnpj_norm:
+                    continue
+            elif not cliente_norm:
+                # se ambos estão sem CNPJ normalizado, não alerta
+                continue
+            razao_conflicts.append(cliente)
+
+    return {
+        "cnpj_conflict": cnpj_conflict,
+        "razao_conflicts": razao_conflicts,
+        "cnpj_norm": cnpj_norm,
+        "razao_norm": razao_norm,
+    }
 
 
 def _pasta_do_cliente(pk: int, cnpj: str, numero: str, razao: str) -> str:
@@ -164,30 +190,44 @@ def salvar_cliente(row, valores: dict) -> tuple[int, str]:
     """
     Cria/atualiza cliente.
     - Permite duplicatas de Nome e WhatsApp.
-    - Bloqueia quando CNPJ **ou** Razão Social já existirem (IDs retornados).
+    - Bloqueia somente quando houver CNPJ duplicado (mesmo ``cnpj_norm``).
     """
-    razao, cnpj, nome, numero, obs = _normalize_payload(valores)
+    razao, cnpj, cnpj_norm, nome, numero, obs = _normalize_payload(valores)
     if not (razao or cnpj or nome or numero):
         raise ValueError("Preencha pelo menos Razão Social, CNPJ, Nome ou WhatsApp.")
 
-    # Checagem de duplicatas (apenas CNPJ/Razão)
     current_id = int(row[0]) if row else None
-    dups = _exists_duplicate(numero, cnpj, nome, razao, skip_id=current_id)
-
-    # Se criando e bateu CNPJ/Razão, bloqueia
-    if dups and not row:
-        raise ValueError(f"Já existe cliente com algum desses dados (IDs: {dups}).")
+    if cnpj_norm:
+        conflict = find_cliente_by_cnpj_norm(cnpj_norm, exclude_id=current_id)
+        if conflict:
+            raiser = conflict.razao_social or "-"
+            stored_cnpj = conflict.cnpj or "-"
+            raise ValueError(
+                "CNPJ já cadastrado para o cliente "
+                f"ID {conflict.id} — {raiser}. CNPJ: {stored_cnpj}."
+            )
 
     if row:
         pk = int(row[0])
         update_cliente(
-            pk, numero=numero, nome=nome, razao_social=razao, cnpj=cnpj, obs=obs
+            pk,
+            numero=numero,
+            nome=nome,
+            razao_social=razao,
+            cnpj=cnpj,
+            obs=obs,
+            cnpj_norm=cnpj_norm,
         )
         real_pk = pk
         old_path = None
     else:
         real_pk = insert_cliente(
-            numero=numero, nome=nome, razao_social=razao, cnpj=cnpj, obs=obs
+            numero=numero,
+            nome=nome,
+            razao_social=razao,
+            cnpj=cnpj,
+            obs=obs,
+            cnpj_norm=cnpj_norm,
         )
         old_path = None
 

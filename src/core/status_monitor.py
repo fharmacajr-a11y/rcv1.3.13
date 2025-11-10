@@ -63,9 +63,9 @@ class _NetStatusWorker:
 class StatusMonitor:
     """
     Orquestra texto da barra de status (ambiente + online/offline).
-    
+
     Args:
-        set_text: Função que atualiza o texto de status na UI. 
+        set_text: Função que atualiza o texto de status na UI.
                   Pode aceitar (str) ou (str, bool).
         app_after: Agendador da UI thread (ex: Tk.after).
         interval_ms: Intervalo de verificação de rede em ms.
@@ -90,8 +90,7 @@ class StatusMonitor:
         """Inicia monitoramento de status de rede."""
         if self._net is None:
             self._net = _NetStatusWorker(
-                callback=self._on_net_change, 
-                interval_ms=self._interval_ms
+                callback=self._on_net_change, interval_ms=self._interval_ms
             )
         try:
             self._net.start()

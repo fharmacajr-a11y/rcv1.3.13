@@ -1,9 +1,9 @@
 # ADR-0001: HTTP Timeout Strategy (LIGHT/HEAVY Variants)
 
-**Status**: Accepted  
-**Date**: 2025-11-10  
-**Deciders**: Development Team  
-**Context**: Medium Priority Improvements - Sprint 1  
+**Status**: Accepted
+**Date**: 2025-11-10
+**Deciders**: Development Team
+**Context**: Medium Priority Improvements - Sprint 1
 
 ---
 
@@ -133,6 +133,6 @@ HTTPX_TIMEOUT = int(os.getenv("HTTPX_TIMEOUT", "30"))
 
 ---
 
-**Author**: GitHub Copilot (ADR Assistant)  
-**Review**: Quality Campaign Team  
+**Author**: GitHub Copilot (ADR Assistant)
+**Review**: Quality Campaign Team
 **Next Review**: v1.2.0 (evaluate usage patterns)

@@ -39,6 +39,7 @@ def switch_theme(root: Any, theme_name: str) -> None:
     except Exception as e:
         log.warning(f"Failed to apply theme '{theme_name}': {e}")
 
+
 def get_current_theme() -> str:
     """
     Get currently active theme name.
@@ -55,6 +56,7 @@ def get_current_theme() -> str:
         return themes.load_theme()
     except Exception:
         return "flatly"  # fallback
+
 
 def upload_folder(
     local_dir: str, org_id: str, client_id: str, subdir: str = "GERAL"
@@ -91,6 +93,7 @@ def upload_folder(
         log.error(f"Folder upload failed: {e}")
         return {"success": False, "uploaded_count": 0, "errors": [str(e)]}
 
+
 def create_client(data: Dict[str, Any]) -> Optional[str]:
     """
     Create a new client.
@@ -117,6 +120,7 @@ def create_client(data: Dict[str, Any]) -> Optional[str]:
         log.error(f"Create client failed: {e}")
         return None
 
+
 def update_client(client_id: str, data: Dict[str, Any]) -> bool:
     """
     Update an existing client.
@@ -140,6 +144,7 @@ def update_client(client_id: str, data: Dict[str, Any]) -> bool:
         log.error(f"Update client failed: {e}")
         return False
 
+
 def delete_client(client_id: str, soft: bool = True) -> bool:
     """
     Delete a client (soft or hard delete).
@@ -162,6 +167,7 @@ def delete_client(client_id: str, soft: bool = True) -> bool:
     except Exception as e:
         log.error(f"Delete client failed: {e}")
         return False
+
 
 def search_clients(query: str, org_id: Optional[str] = None) -> List[Dict[str, Any]]:
     """
@@ -188,4 +194,3 @@ def search_clients(query: str, org_id: Optional[str] = None) -> List[Dict[str, A
     except Exception as e:
         log.error(f"Client search failed: {e}")
         return []
-

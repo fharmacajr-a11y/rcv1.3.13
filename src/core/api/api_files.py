@@ -36,6 +36,7 @@ def upload_file(file_path: str, bucket: str, remote_path: str) -> bool:
         log.error(f"Upload failed for {file_path}: {e}")
         return False
 
+
 def download_folder_zip(
     bucket: str, prefix: str, dest_path: Optional[str] = None
 ) -> Optional[str]:
@@ -65,4 +66,3 @@ def download_folder_zip(
     except Exception as e:
         log.error(f"Folder ZIP download failed for {prefix}: {e}")
         return None
-

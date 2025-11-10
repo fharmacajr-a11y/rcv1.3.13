@@ -1,12 +1,14 @@
 from __future__ import annotations
+
 import tkinter as tk
 from tkinter import ttk
 
 CLOUD_COLORS = {
-    "ONLINE":  "#22c55e",
+    "ONLINE": "#22c55e",
     "OFFLINE": "#ef4444",
     "UNKNOWN": "#a3a3a3",
 }
+
 
 class StatusFooter(ttk.Frame):
     def __init__(self, master, on_lixeira_click=None, show_trash=False):
@@ -31,11 +33,13 @@ class StatusFooter(ttk.Frame):
         self._lbl_cloud.grid(row=0, column=1, sticky="e", padx=(6, 0))
         sep.grid(row=0, column=2, sticky="e")
         self._lbl_user.grid(row=0, column=3, sticky="e", padx=(0, 8))
-        
+
         # Botão Lixeira opcional (apenas se show_trash=True)
         self._btn_lixeira = None
         if show_trash and on_lixeira_click:
-            self._btn_lixeira = ttk.Button(right, text="Lixeira", command=on_lixeira_click)
+            self._btn_lixeira = ttk.Button(
+                right, text="Lixeira", command=on_lixeira_click
+            )
             self._btn_lixeira.grid(row=0, column=4, sticky="e")
 
         self._cloud_state = "UNKNOWN"
@@ -43,7 +47,9 @@ class StatusFooter(ttk.Frame):
         self._count_text = ""
 
     def set_count(self, total: int | str):
-        self._count_text = f"{total} cliente(s)" if isinstance(total, int) else str(total)
+        self._count_text = (
+            f"{total} cliente(s)" if isinstance(total, int) else str(total)
+        )
         self._lbl_count.config(text=self._count_text)
 
     def set_user(self, email: str | None):
@@ -59,5 +65,7 @@ class StatusFooter(ttk.Frame):
         self._cloud_state = state
         color = CLOUD_COLORS[state]
         self._dot.itemconfig(1, fill=color)
-        label = {"ONLINE": "Online", "OFFLINE": "Offline", "UNKNOWN": "Desconhecido"}[state]
+        label = {"ONLINE": "Online", "OFFLINE": "Offline", "UNKNOWN": "Desconhecido"}[
+            state
+        ]
         self._lbl_cloud.config(text=f"Nuvem: {label}")

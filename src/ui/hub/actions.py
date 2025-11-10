@@ -91,9 +91,9 @@ def on_add_note_clicked(screen) -> None:
 
         try:
             from src.core.services.notes_service import (
-                add_note,
                 NotesAuthError,
                 NotesTableMissingError,
+                add_note,
             )
 
             add_note(org_id, user_email, text)
@@ -192,4 +192,3 @@ def on_add_note_clicked(screen) -> None:
             pass
 
     threading.Thread(target=_work, daemon=True).start()
-

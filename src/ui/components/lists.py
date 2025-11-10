@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable
-
 import tkinter as tk
 import tkinter.font as tkfont
+from typing import Any, Callable
 
 import ttkbootstrap as tb
 
+from src.config.constants import COL_STATUS_WIDTH  # <-- adicionar
 from src.config.constants import (
     COL_CNPJ_WIDTH,
     COL_ID_WIDTH,
@@ -17,7 +17,6 @@ from src.config.constants import (
     COL_RAZAO_WIDTH,
     COL_ULTIMA_WIDTH,
     COL_WHATSAPP_WIDTH,
-    COL_STATUS_WIDTH,   # <-- adicionar
 )
 
 OBS_FG = "#0d6efd"
@@ -39,12 +38,12 @@ def create_clients_treeview(
     """Create the main clients Treeview configured with column widths and bindings."""
     columns = (
         ("ID", "ID", COL_ID_WIDTH, False),
-        ("Razao Social", "Razão Social", COL_RAZAO_WIDTH, True),   # só esta estica
+        ("Razao Social", "Razão Social", COL_RAZAO_WIDTH, True),  # só esta estica
         ("CNPJ", "CNPJ", COL_CNPJ_WIDTH, False),
         ("Nome", "Nome", COL_NOME_WIDTH, False),
-        ("WhatsApp", "WhatsApp", COL_WHATSAPP_WIDTH, False),       # col #5
-        ("Observacoes", "Observações", COL_OBS_WIDTH, True),      # col #6
-        ("Status", "Status", COL_STATUS_WIDTH, False),             # col #7 (NOVA)
+        ("WhatsApp", "WhatsApp", COL_WHATSAPP_WIDTH, False),  # col #5
+        ("Observacoes", "Observações", COL_OBS_WIDTH, True),  # col #6
+        ("Status", "Status", COL_STATUS_WIDTH, False),  # col #7 (NOVA)
         ("Ultima Alteracao", "Última Alteração", COL_ULTIMA_WIDTH, False),
     )
 

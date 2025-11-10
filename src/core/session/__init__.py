@@ -2,10 +2,10 @@
 
 from .session import (
     Session,
-    set_current_user,
     get_current_user,
-    set_tokens,
     get_tokens,
+    set_current_user,
+    set_tokens,
 )
 
 __all__ = [

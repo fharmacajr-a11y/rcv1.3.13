@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any, Tuple
 import logging
 import threading
 import time
+from pathlib import Path
+from typing import Any, Tuple
+
 import yaml
 
 from infra.net_status import Status, probe
@@ -19,7 +20,7 @@ status_text: str = "LOCAL"
 DEFAULT_INTERVAL_MS = 30_000  # 30 seconds
 DEFAULT_TIMEOUT = 2.0
 CONFIG_PATH = Path("config.yml")
-_STATUS_DOT = "\u25CF"  # Unicode bullet rendered by ttkbootstrap
+_STATUS_DOT = "\u25cf"  # Unicode bullet rendered by ttkbootstrap
 
 # Cache structure: (path, mtime, (url, timeout, interval_ms))
 _cfg_cache: Tuple[Path, float, Tuple[str, float, int]] | None = None

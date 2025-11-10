@@ -1,33 +1,35 @@
 # -*- coding: utf-8 -*-
 """Main application window (App class)."""
 # gui/main_window.py
-import os
-import sys
+import functools as _functools
 import hashlib
 import logging
+import os
+import sys
 import threading
-import functools as _functools
+import tkinter as tk
+from tkinter import filedialog, messagebox, ttk
 from typing import Any, Optional
 
-import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
 import ttkbootstrap as tb
 
-from src import app_core, app_status
-from src.utils import themes
-from src.utils.theme_manager import theme_manager
-from src.ui.files_browser import open_files_browser
-from src.ui.topbar import TopBar
 from infra.net_status import Status
-from src.core.navigation_controller import NavigationController
-from src.core.status_monitor import StatusMonitor
+from src import app_core, app_status
 from src.core.auth_controller import AuthController
 from src.core.keybindings import bind_global_shortcuts
+from src.core.navigation_controller import NavigationController
+from src.core.status_monitor import StatusMonitor
+from src.ui.files_browser import open_files_browser
+from src.ui.main_screen import MainScreenFrame
 from src.ui.main_window.frame_factory import create_frame
 from src.ui.main_window.router import navigate_to
 from src.ui.main_window.tk_report import tk_report
 from src.ui.menu_bar import AppMenuBar
-from src.ui.main_screen import MainScreenFrame
+from src.ui.topbar import TopBar
+from src.ui.window_policy import apply_fit_policy
+from src.utils import themes
+from src.utils.theme_manager import theme_manager
+from uploader_supabase import send_folder_to_supabase, send_to_supabase_interactive
 
 # -------- Phase 1 + 4: shared helpers with safe fallbacks --------
 try:
@@ -55,8 +57,8 @@ try:
     from src.utils.validators import only_digits as _only_digits
 except Exception:  # pragma: no cover
 
-    def _only_digits(value) -> str:
-        return "".join(ch for ch in str(value or "") if ch.isdigit())
+    def _only_digits(s: str | None) -> str:
+        return "".join(ch for ch in str(s or "") if ch.isdigit())
 
 
 try:
@@ -79,7 +81,31 @@ class App(tb.Window):
 
     def __init__(self, start_hidden: bool = False) -> None:
         _theme_name = themes.load_theme()
-        super().__init__(themename=_theme_name)
+
+        # Try to initialize with ttkbootstrap theme, fallback to standard ttk
+        try:
+            super().__init__(themename=_theme_name)
+        except Exception as e:
+            log.warning(
+                "Falha ao aplicar tema '%s': %s. Fallback ttk padrão.",
+                _theme_name,
+                e,
+            )
+            # Fallback to standard tk.Tk if ttkbootstrap fails
+            try:
+                tk.Tk.__init__(self)
+                # Initialize standard ttk Style (not ttkbootstrap)
+                style = ttk.Style()
+                # Use a valid ttk theme
+                available_themes = style.theme_names()
+                if 'clam' in available_themes:
+                    style.theme_use('clam')
+                elif available_themes:
+                    style.theme_use(available_themes[0])
+                log.info("Initialized with standard Tk/ttk (theme: %s)", style.theme_use())
+            except Exception as fallback_error:
+                log.error("Critical: Failed to initialize GUI: %s", fallback_error)
+                raise
 
         # Configurar HiDPI após criação do Tk (Linux) ou antes (Windows já foi no app_gui)
         # No Linux, ttkbootstrap Window já vem com hdpi=True por padrão em versões recentes
@@ -141,23 +167,10 @@ class App(tb.Window):
 
         self.report_callback_exception = tk_report
 
-        self.title("Regularize Consultoria - v1.0.49")
+        self.title("Regularize Consultoria - v1.1.0")
 
-        # --- Geometria responsiva ---
-        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
-        MIN_W, MIN_H = 1100, 600
-        target_w, target_h = int(sw * 0.72), int(sh * 0.72)
-        MAX_W = 1500 if sw >= 1920 else sw - 80
-        MAX_H = 900 if sh >= 1080 else sh - 120
-        win_w = max(MIN_W, min(target_w, MAX_W))
-        win_h = max(MIN_H, min(target_h, MAX_H))
-        if sw <= 1280 or sh <= 720:
-            win_w = max(MIN_W, int(sw * 0.90))
-            win_h = max(MIN_H, int(sh * 0.88))
-        x = (sw - win_w) // 2
-        y = (sh - win_h) // 2
-        self.geometry(f"{win_w}x{win_h}+{x}+{y}")
-        self.minsize(MIN_W, MIN_H)
+        # --- Aplicar política Fit-to-WorkArea ---
+        apply_fit_policy(self)
 
         self.tema_atual = _theme_name
         self._restarting = False
@@ -168,12 +181,20 @@ class App(tb.Window):
 
         self._net_is_online = True
         self._offline_alerted = False
-        
+
         # Cache da instância única do Hub (evita tela branca ao navegar)
         self._hub_screen_instance = None
-        
+
         # Cache da instância única da tela de Senhas (evita tela branca ao navegar)
         self._passwords_screen_instance = None
+
+        # Cliente Supabase (lazy-loaded quando necessário)
+        try:
+            from infra.supabase_client import supabase
+
+            self.supabase = supabase
+        except Exception:
+            self.supabase = None
 
         self.clients_count_var = tk.StringVar(master=self, value="0 clientes")
         self.status_var_dot = tk.StringVar(master=self, value="")
@@ -206,6 +227,7 @@ class App(tb.Window):
 
         # --- StatusBar Global (sempre visível no rodapé) ---
         from src.ui.status_footer import StatusFooter
+
         self.footer = StatusFooter(self, show_trash=False)
         self.footer.pack(side="bottom", fill="x")
         self.footer.set_count(0)
@@ -220,7 +242,7 @@ class App(tb.Window):
         except Exception:
             pass
         self._status_monitor.start()
-        
+
         # Conectar health check ao rodapé
         self._wire_session_and_health()
 
@@ -326,19 +348,21 @@ class App(tb.Window):
         """
         Atualiza a contagem de clientes do Supabase de forma assíncrona.
         Usa threading para não travar a UI.
-        
+
         Args:
             auto_schedule: Se True, agenda próxima atualização automática em 30s
         """
+
         def _work():
             try:
                 from src.core.services.clientes_service import count_clients
+
                 total = count_clients()
             except Exception as e:
                 # Não trata como erro crítico; count_clients já retorna last-known
                 log.warning("Erro ao atualizar contagem de clientes: %s", e)
                 total = 0
-            
+
             # Atualizar na thread da UI
             text = "1 cliente" if total == 1 else f"{total} clientes"
             try:
@@ -346,14 +370,17 @@ class App(tb.Window):
                 self.after(0, lambda: self.footer.set_count(total))
             except Exception:
                 pass
-            
+
             # Auto-refresh: agenda próxima atualização em 30s
             if auto_schedule:
                 try:
-                    self.after(30000, lambda: self.refresh_clients_count_async(auto_schedule=True))
+                    self.after(
+                        30000,
+                        lambda: self.refresh_clients_count_async(auto_schedule=True),
+                    )
                 except Exception:
                     pass
-        
+
         threading.Thread(target=_work, daemon=True).start()
 
     def show_hub_screen(self) -> None:
@@ -410,13 +437,14 @@ class App(tb.Window):
     def _wire_session_and_health(self):
         """Conecta o health check do Supabase ao rodapé para atualização automática."""
         # [finalize-notes] import seguro dentro de função
-        
+
         try:
             # Criar polling manual do estado do health check
             def poll_health():
                 try:
                     # [finalize-notes] import seguro dentro de função aninhada
                     from infra.supabase_client import get_supabase_state
+
                     state, _ = get_supabase_state()
                     self.footer.set_cloud(state)
                 except Exception:
@@ -426,19 +454,20 @@ class App(tb.Window):
                     self.after(5000, poll_health)  # A cada 5 segundos
                 except Exception:
                     pass
-            
+
             # Iniciar polling
             self.after(1000, poll_health)
-            
+
             # Tentar obter estado inicial
             try:
                 # [finalize-notes] import seguro dentro de função
                 from infra.supabase_client import get_supabase_state
+
                 current, _ = get_supabase_state()
                 self.footer.set_cloud(current)
             except Exception:
                 pass
-                
+
         except Exception as e:
             log.warning("Erro ao conectar health check: %s", e)
 
@@ -607,23 +636,79 @@ class App(tb.Window):
         if values:
             app_core.excluir_cliente(self, values)
 
-    # -------- Upload para Supabase (com telinha indeterminada) --------
+    # -------- Hook para obter prefix do cliente (opcional) --------
+    def get_current_client_storage_prefix(self) -> str:
+        """
+        Retorna o prefix (caminho da pasta) do cliente atualmente selecionado no Storage.
+        Ex.: retorna '0a7c9f39-4b7d-4a88-8e77-7b88a38c66d7/7'
+
+        Este método é chamado automaticamente pelo uploader_supabase.py quando disponível.
+        A implementação usa a MESMA lógica da tela 'Ver Subpastas' / open_files_browser.
+        """
+        try:
+            values = self._selected_main_values()
+            if not values:
+                return ""
+
+            client_id = values[0]
+
+            # Usa mesma lógica do ver_subpastas
+            u = self._get_user_cached()
+            if not u:
+                return ""
+
+            org_id = self._get_org_id_cached(u["id"])
+            if not org_id:
+                return ""
+
+            # Formato idêntico ao open_files_browser: {org_id}/{client_id}
+            return f"{org_id}/{client_id}".strip("/")
+        except Exception:
+            pass
+
+        return ""
+
+    # -------- Upload para Supabase (sistema avançado com fallback) --------
     def enviar_para_supabase(self) -> None:
-        values = self._selected_main_values()
-        if not values:
-            messagebox.showwarning("Atencao", "Selecione um cliente primeiro.")
-            return
+        """
+        Upload avançado para Supabase Storage.
+        Permite escolher arquivos, múltiplos arquivos ou pasta inteira,
+        com seleção de bucket/pasta de destino e barra de progresso.
+        Inclui fallback quando list_buckets() não funciona (RLS).
+        Upload padrão: cliente/GERAL
+        """
+        try:
+            import os
 
-        client_id = values[0]
-        pasta = filedialog.askdirectory(
-            title="Escolha a pasta local para enviar ao Supabase", parent=self
-        )
-        if not pasta:
-            return
+            # Obtém base do cliente (ORG_UID/CLIENT_ID)
+            base = self.get_current_client_storage_prefix()
 
-        from src.ui.dialogs.upload_progress import show_upload_progress
+            send_to_supabase_interactive(
+                self,
+                default_bucket=os.getenv("SUPABASE_BUCKET") or "rc-docs",
+                base_prefix=base,  # força cair dentro do cliente
+                default_subprefix="GERAL",  # padrão: enviar para GERAL
+            )
+        except Exception as e:
+            log.error("Erro ao enviar para Supabase: %s", e)
+            messagebox.showerror(
+                "Erro", f"Erro ao enviar para Supabase:\n{str(e)}", parent=self
+            )
 
-        show_upload_progress(self, pasta, int(client_id), subdir="SIFAP")
+    def enviar_pasta_supabase(self) -> None:
+        """Seleciona uma pasta e envia PDFs recursivamente para o Supabase."""
+        try:
+            send_folder_to_supabase(
+                self,
+                default_bucket=os.getenv("SUPABASE_BUCKET") or "rc-docs",
+            )
+        except Exception as exc:
+            log.error("Erro ao enviar pasta para Supabase: %s", exc)
+            messagebox.showerror(
+                "Erro",
+                f"Erro ao enviar pasta para Supabase:\n{exc}",
+                parent=self,
+            )
 
     # -------- Sessao / usuario --------
     def _get_user_cached(self) -> Optional[dict[str, Any]]:
@@ -638,7 +723,7 @@ class App(tb.Window):
             email = getattr(u, "email", "") or ""
             if uid:
                 self._user_cache = {"id": uid, "email": email}
-                
+
                 # Hidratar AuthController com dados completos
                 try:
                     org_id = self._get_org_id_cached(uid)
@@ -650,7 +735,7 @@ class App(tb.Window):
                     self.auth.set_user_data(user_data)
                 except Exception as e:
                     log.warning("Não foi possível hidratar AuthController: %s", e)
-                
+
                 return self._user_cache
         except Exception:
             pass
@@ -663,10 +748,7 @@ class App(tb.Window):
             from infra.supabase_client import exec_postgrest, supabase
 
             res = exec_postgrest(
-                supabase.table("memberships")
-                .select("role")
-                .eq("user_id", uid)
-                .limit(1)
+                supabase.table("memberships").select("role").eq("user_id", uid).limit(1)
             )
             if getattr(res, "data", None):
                 self._role_cache = (res.data[0].get("role") or "user").lower()
@@ -704,14 +786,18 @@ class App(tb.Window):
     def destroy(self) -> None:
         if getattr(self, "_status_monitor", None):
             try:
-                self._status_monitor.stop()
+                status_monitor = getattr(self, "_status_monitor", None)
+                if status_monitor is not None:
+                    status_monitor.stop()
             except Exception:
                 pass
             finally:
                 self._status_monitor = None
         if getattr(self, "_theme_listener", None):
             try:
-                theme_manager.remove_listener(self._theme_listener)
+                listener = getattr(self, "_theme_listener", None)
+                if listener is not None:
+                    theme_manager.remove_listener(listener)
             except Exception:
                 pass
         super().destroy()

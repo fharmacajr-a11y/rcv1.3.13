@@ -1,13 +1,17 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import tkinter as tk
 from dataclasses import dataclass
+from tkinter import ttk
 from typing import Any, Callable
 
-import tkinter as tk
-from tkinter import ttk
-
 import ttkbootstrap as tb
+
+try:
+    from ttkbootstrap.tooltip import ToolTip  # type: ignore
+except Exception:  # pragma: no cover
+    ToolTip = None  # type: ignore
 
 
 @dataclass(slots=True)
@@ -16,7 +20,8 @@ class FooterButtons:
     novo: tb.Button
     editar: tb.Button
     subpastas: tb.Button
-    enviar: tb.Button
+    enviar: ttk.Menubutton
+    enviar_menu: tk.Menu
     lixeira: tb.Button
 
 
@@ -37,6 +42,7 @@ def create_footer_buttons(
     on_editar: Callable[[], Any],
     on_subpastas: Callable[[], Any],
     on_enviar: Callable[[], Any],
+    on_enviar_pasta: Callable[[], Any],
     on_lixeira: Callable[[], Any],
 ) -> FooterButtons:
     """Create the footer buttons frame used on the main window."""
@@ -49,9 +55,11 @@ def create_footer_buttons(
     btn_subpastas = tb.Button(
         frame, text="Ver Subpastas", command=on_subpastas, bootstyle="secondary"
     )
-    btn_enviar = tb.Button(
-        frame, text="Enviar Para SupaBase", command=on_enviar, bootstyle="success"
-    )
+    btn_enviar = ttk.Menubutton(frame, text="Enviar Para SupaBase")
+    menu_enviar = tk.Menu(btn_enviar, tearoff=0)
+    menu_enviar.add_command(label="Selecionar PDFs...", command=on_enviar)
+    menu_enviar.add_command(label="Selecionar Pasta...", command=on_enviar_pasta)
+    btn_enviar["menu"] = menu_enviar
     btn_lixeira = tb.Button(
         frame, text="Lixeira", command=on_lixeira, bootstyle="warning"
     )
@@ -62,11 +70,15 @@ def create_footer_buttons(
     btn_enviar.pack(side="left", padx=5)
     btn_lixeira.pack(side="right", padx=5)
 
+    if ToolTip:
+        ToolTip(btn_enviar, text="Enviar arquivos ou pastas para o Supabase")
+
     return FooterButtons(
         frame=frame,
         novo=btn_novo,
         editar=btn_editar,
         subpastas=btn_subpastas,
         enviar=btn_enviar,
+        enviar_menu=menu_enviar,
         lixeira=btn_lixeira,
     )

@@ -1,6 +1,7 @@
 # application/keybindings.py
 from __future__ import annotations
-from typing import Callable, Optional, Dict, Any
+
+from typing import Any, Callable, Dict, Optional
 
 
 def _wrap(fn: Optional[Callable[..., Any]]):

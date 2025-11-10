@@ -2,25 +2,28 @@
 # core/auth/auth.py
 from __future__ import annotations
 
+import binascii
 import os
 import re
 import sqlite3
-import binascii
 import time
-from hashlib import pbkdf2_hmac
 from datetime import datetime
-from typing import Tuple, Optional
+from hashlib import pbkdf2_hmac
+from typing import Optional, Tuple
+
 try:
     import yaml  # opcional
 except Exception:
     yaml = None
-from threading import Lock
 import logging
+from threading import Lock
 
-from src.config.paths import USERS_DB_PATH
 from infra.supabase_client import get_supabase  # cliente lazy singleton
+from src.config.paths import USERS_DB_PATH
 
 log = logging.getLogger(__name__)
+
+
 def _get_auth_pepper() -> str:
     """
     Obtém o 'pepper' a partir de variável de ambiente AUTH_PEPPER ou, se ausente,
@@ -37,7 +40,12 @@ def _get_auth_pepper() -> str:
                 if os.path.isfile(candidate):
                     with open(candidate, "r", encoding="utf-8") as fh:
                         data = yaml.safe_load(fh) or {}
-                        pep = str(data.get("AUTH_PEPPER") or data.get("auth_pepper") or "") or ""
+                        pep = (
+                            str(
+                                data.get("AUTH_PEPPER") or data.get("auth_pepper") or ""
+                            )
+                            or ""
+                        )
                         if pep:
                             return pep
     except Exception:
@@ -70,7 +78,10 @@ def check_rate_limit(email: str) -> Tuple[bool, float]:
 
 
 # ------------------ Hash de senha (formato legível futuro) ------------------ #
-def pbkdf2_hash(password: str, *, iterations: int = 1_000_000,
+def pbkdf2_hash(
+    password: str,
+    *,
+    iterations: int = 1_000_000,
     salt: Optional[bytes] = None,
     dklen: int = 32,
 ) -> str:
@@ -83,7 +94,9 @@ def pbkdf2_hash(password: str, *, iterations: int = 1_000_000,
     if salt is None:
         salt = os.urandom(16)
     pepper = _get_auth_pepper()
-    dk = pbkdf2_hmac("sha256", (password + pepper).encode("utf-8"), salt, iterations, dklen)
+    dk = pbkdf2_hmac(
+        "sha256", (password + pepper).encode("utf-8"), salt, iterations, dklen
+    )
     return f"pbkdf2_sha256${iterations}${binascii.hexlify(salt).decode()}${binascii.hexlify(dk).decode()}"
 
 
@@ -185,7 +198,7 @@ def authenticate_user(email: str, password: str) -> Tuple[bool, str]:
     try:
         # sign_in_with_password lança exceção se falhar
         res = sb.auth.sign_in_with_password({"email": email, "password": password})
-        
+
         # Confirma sessão e usuário
         sess = sb.auth.get_session()
         if getattr(res, "user", None) and sess and getattr(sess, "access_token", None):
@@ -193,7 +206,7 @@ def authenticate_user(email: str, password: str) -> Tuple[bool, str]:
                 if key in login_attempts:
                     del login_attempts[key]
             return True, res.user.email or email
-        
+
         raise Exception("Credenciais inválidas.")  # Força falha
     except Exception as e:
         msg = str(e)

@@ -1,18 +1,20 @@
 # core/db_manager/db_manager.py  (versão Supabase)
 from __future__ import annotations
 
-import os
-import time
-import random
 import logging
+import os
+import random
+import time
 from datetime import datetime, timezone
-from typing import Iterable, Optional, Callable
+from typing import Callable, Iterable, Optional
 
 import httpx
 
 from infra.supabase_client import exec_postgrest, supabase
-from src.core.models import Cliente
 from src.config.constants import RETRY_BASE_DELAY
+from src.core.cnpj_norm import normalize_cnpj as normalize_cnpj_norm
+from src.core.models import Cliente
+from src.core.session.session import get_current_user
 
 log = logging.getLogger("db_manager")
 
@@ -26,6 +28,11 @@ _ORDER_MAP: dict[str | None, tuple[str, bool]] = {
     "numero": ("numero", False),
     "ultima_alteracao": ("ultima_alteracao", True),  # mais recente primeiro por padrão
 }
+
+CLIENT_COLUMNS = (
+    "id,numero,nome,razao_social,cnpj,cnpj_norm,ultima_alteracao,ultima_por,obs,"
+    "org_id,deleted_at"
+)
 
 
 # -----------------------------------------------------------------------------
@@ -57,12 +64,20 @@ def _with_retries(fn: Callable, tries: int = 3, base_delay: float = RETRY_BASE_D
                 last_exc = e
             else:
                 raise
-        
+
         if attempt < tries:
             delay = base_delay * (2 ** (attempt - 1)) + random.uniform(0, 0.15)
             time.sleep(delay)
-    
+
     raise last_exc
+
+
+def _current_user_email() -> str:
+    try:
+        cu = get_current_user()
+        return (getattr(cu, "email", "") or "").strip()
+    except Exception:
+        return ""
 
 
 def init_db() -> None:
@@ -94,8 +109,10 @@ def _to_cliente(row: dict) -> Cliente:
         nome=row.get("nome"),
         razao_social=row.get("razao_social"),
         cnpj=row.get("cnpj"),
+        cnpj_norm=row.get("cnpj_norm"),
         ultima_alteracao=row.get("ultima_alteracao"),
         obs=row.get("obs"),
+        ultima_por=row.get("ultima_por"),
     )
 
 
@@ -108,7 +125,6 @@ def _resolve_order(
 
 
 # -------------------- CRUD / LISTAGEM --------------------
-
 
 
 def list_clientes_by_org(
@@ -124,12 +140,13 @@ def list_clientes_by_org(
     col, desc = _resolve_order(order_by, descending)
     resp = exec_postgrest(
         supabase.table("clients")
-        .select("*")
+        .select(CLIENT_COLUMNS)
         .is_("deleted_at", "null")
         .eq("org_id", org_id)
         .order(col, desc=desc)
     )
     return [_to_cliente(r) for r in (resp.data or [])]
+
 
 def list_clientes(
     order_by: str | None = None, descending: Optional[bool] = None
@@ -137,7 +154,7 @@ def list_clientes(
     col, desc = _resolve_order(order_by, descending)
     resp = exec_postgrest(
         supabase.table("clients")
-        .select("*")
+        .select(CLIENT_COLUMNS)
         .is_("deleted_at", "null")  # somente ativos
         .order(col, desc=desc)
     )
@@ -150,7 +167,7 @@ def list_clientes_deletados(
     col, desc = _resolve_order(order_by, descending)
     resp = exec_postgrest(
         supabase.table("clients")
-        .select("*")
+        .select(CLIENT_COLUMNS)
         .not_.is_("deleted_at", "null")  # somente marcados como deletados
         .order(col, desc=desc)
     )
@@ -159,7 +176,10 @@ def list_clientes_deletados(
 
 def get_cliente(cliente_id: int) -> Optional[Cliente]:
     resp = exec_postgrest(
-        supabase.table("clients").select("*").eq("id", cliente_id).limit(1)
+        supabase.table("clients")
+        .select(CLIENT_COLUMNS)
+        .eq("id", cliente_id)
+        .limit(1)
     )
     rows = resp.data or []
     return _to_cliente(rows[0]) if rows else None
@@ -167,28 +187,69 @@ def get_cliente(cliente_id: int) -> Optional[Cliente]:
 
 def get_cliente_by_id(cliente_id: int) -> Optional[Cliente]:
     resp = exec_postgrest(
-        supabase.table("clients").select("*").eq("id", cliente_id).limit(1)
+        supabase.table("clients")
+        .select(CLIENT_COLUMNS)
+        .eq("id", cliente_id)
+        .limit(1)
     )
     if resp.data:
         return _to_cliente(resp.data[0])
     return None
 
 
+def find_cliente_by_cnpj_norm(
+    cnpj_norm: str, *, exclude_id: int | None = None
+) -> Optional[Cliente]:
+    normalized = normalize_cnpj_norm(cnpj_norm)
+    if not normalized:
+        return None
+
+    query = (
+        supabase.table("clients")
+        .select(CLIENT_COLUMNS)
+        .is_("deleted_at", "null")
+        .eq("cnpj_norm", normalized)
+        .limit(1)
+    )
+    if exclude_id is not None:
+        query = query.neq("id", int(exclude_id))
+
+    resp = exec_postgrest(query)
+    rows = resp.data or []
+    if not rows:
+        return None
+    return _to_cliente(rows[0])
+
+
 def insert_cliente(
-    numero: str, nome: str, razao_social: str, cnpj: str, obs: str
+    numero: str,
+    nome: str,
+    razao_social: str,
+    cnpj: str,
+    obs: str,
+    *,
+    cnpj_norm: str | None = None,
 ) -> int:
+    normalized = normalize_cnpj_norm(cnpj) if cnpj_norm is None else cnpj_norm
+    by = _current_user_email()
     row = {
         "numero": numero,
         "nome": nome,
         "razao_social": razao_social,
         "cnpj": cnpj,
+        "cnpj_norm": normalized,
         "obs": obs,
         "ultima_alteracao": _now_iso(),
+        "ultima_por": by,
     }
 
     def _do():
-        # IMPORTANTE: não encadear .select() após insert (evita AttributeError)
-        resp = exec_postgrest(supabase.table("clients").insert(row))
+        payload = dict(row)
+        try:
+            resp = exec_postgrest(supabase.table("clients").insert(payload))
+        except Exception:
+            payload.pop("ultima_por", None)
+            resp = exec_postgrest(supabase.table("clients").insert(payload))
 
         # Muitas vezes o PostgREST retorna o registro inserido com o id
         if resp and getattr(resp, "data", None):
@@ -198,18 +259,17 @@ def insert_cliente(
                 pass
 
         # Fallback: buscar pelo CNPJ mais recente
-        r2 = exec_postgrest(
-            supabase.table("clients")
-            .select("id")
-            .eq("cnpj", cnpj)
-            .order("id", desc=True)
-            .limit(1)
-        )
+        fallback_query = supabase.table("clients").select("id").order("id", desc=True)
+        if normalized:
+            fallback_query = fallback_query.eq("cnpj_norm", normalized)
+        else:
+            fallback_query = fallback_query.eq("cnpj", cnpj)
+        r2 = exec_postgrest(fallback_query.limit(1))
         if r2.data:
             return int(r2.data[0]["id"])
 
         raise RuntimeError("Falha ao obter ID do cliente inserido.")
-    
+
     try:
         return _with_retries(_do, tries=3, base_delay=RETRY_BASE_DELAY)
     except Exception as e:
@@ -218,26 +278,44 @@ def insert_cliente(
 
 
 def update_cliente(
-    cliente_id: int, numero: str, nome: str, razao_social: str, cnpj: str, obs: str
+    cliente_id: int,
+    numero: str,
+    nome: str,
+    razao_social: str,
+    cnpj: str,
+    obs: str,
+    *,
+    cnpj_norm: str | None = None,
 ) -> int:
+    normalized = normalize_cnpj_norm(cnpj) if cnpj_norm is None else cnpj_norm
+    by = _current_user_email()
     data = {
         "numero": numero,
         "nome": nome,
         "razao_social": razao_social,
         "cnpj": cnpj,
+        "cnpj_norm": normalized,
         "obs": obs,
         "ultima_alteracao": _now_iso(),
+        "ultima_por": by,
     }
-    
+
     def _do():
-        resp = exec_postgrest(
-            supabase.table("clients").update(data).eq("id", cliente_id)
-        )
+        payload = dict(data)
+        try:
+            resp = exec_postgrest(
+                supabase.table("clients").update(payload).eq("id", cliente_id)
+            )
+        except Exception:
+            payload.pop("ultima_por", None)
+            resp = exec_postgrest(
+                supabase.table("clients").update(payload).eq("id", cliente_id)
+            )
         # count pode vir None; usa tamanho de data como alternativa
         if getattr(resp, "count", None) is not None:
             return int(resp.count or 0)
         return len(resp.data or [])
-    
+
     try:
         return _with_retries(_do, tries=3, base_delay=RETRY_BASE_DELAY)
     except Exception as e:
@@ -245,11 +323,36 @@ def update_cliente(
         raise
 
 
+def update_status_only(cliente_id: int, obs: str) -> int:
+    ts = _now_iso()
+    by = _current_user_email()
+    data = {"obs": obs, "ultima_alteracao": ts, "ultima_por": by}
+
+    def _do():
+        payload = dict(data)
+        try:
+            resp = exec_postgrest(
+                supabase.table("clients").update(payload).eq("id", cliente_id)
+            )
+        except Exception:
+            payload.pop("ultima_por", None)
+            resp = exec_postgrest(
+                supabase.table("clients").update(payload).eq("id", cliente_id)
+            )
+        if getattr(resp, "count", None) is not None:
+            return int(resp.count or 0)
+        return len(resp.data or [])
+
+    try:
+        return _with_retries(_do, tries=3, base_delay=RETRY_BASE_DELAY)
+    except Exception as e:
+        log.warning(f"Falha ao atualizar status do cliente {cliente_id}: {e}")
+        raise
+
+
 def delete_cliente(cliente_id: int) -> int:
     """Exclusão física de um único cliente (use soft_delete_clientes para lixeira)."""
-    resp = exec_postgrest(
-        supabase.table("clients").delete().eq("id", cliente_id)
-    )
+    resp = exec_postgrest(supabase.table("clients").delete().eq("id", cliente_id))
     if getattr(resp, "count", None) is not None:
         return int(resp.count or 0)
     return len(resp.data or [])
@@ -260,10 +363,18 @@ def soft_delete_clientes(ids: Iterable[int]) -> int:
     if not id_list:
         return 0
     ts = _now_iso()
-    data = {"deleted_at": ts, "ultima_alteracao": ts}
-    resp = exec_postgrest(
-        supabase.table("clients").update(data).in_("id", id_list)
-    )
+    by = _current_user_email()
+    data = {"deleted_at": ts, "ultima_alteracao": ts, "ultima_por": by}
+    try:
+        resp = exec_postgrest(
+            supabase.table("clients").update(dict(data)).in_("id", id_list)
+        )
+    except Exception:
+        data_fb = dict(data)
+        data_fb.pop("ultima_por", None)
+        resp = exec_postgrest(
+            supabase.table("clients").update(data_fb).in_("id", id_list)
+        )
 
     # PostgREST pode não trazer count; fallback no len(data) retornado
     if getattr(resp, "count", None) is not None:
@@ -276,10 +387,18 @@ def restore_clientes(ids: Iterable[int]) -> int:
     if not id_list:
         return 0
     ts = _now_iso()
-    data = {"deleted_at": None, "ultima_alteracao": ts}
-    resp = exec_postgrest(
-        supabase.table("clients").update(data).in_("id", id_list)
-    )
+    by = _current_user_email()
+    data = {"deleted_at": None, "ultima_alteracao": ts, "ultima_por": by}
+    try:
+        resp = exec_postgrest(
+            supabase.table("clients").update(dict(data)).in_("id", id_list)
+        )
+    except Exception:
+        data_fb = dict(data)
+        data_fb.pop("ultima_por", None)
+        resp = exec_postgrest(
+            supabase.table("clients").update(data_fb).in_("id", id_list)
+        )
     if getattr(resp, "count", None) is not None:
         return int(resp.count or 0)
     return len(resp.data or id_list)
@@ -290,9 +409,7 @@ def purge_clientes(ids: Iterable[int]) -> int:
     id_list = [int(i) for i in ids]
     if not id_list:
         return 0
-    resp = exec_postgrest(
-        supabase.table("clients").delete().in_("id", id_list)
-    )
+    resp = exec_postgrest(supabase.table("clients").delete().in_("id", id_list))
     if getattr(resp, "count", None) is not None:
         return int(resp.count or 0)
     return len(resp.data or [])

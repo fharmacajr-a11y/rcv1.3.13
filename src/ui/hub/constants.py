@@ -7,9 +7,9 @@ NOTES_PANEL_MIN_WIDTH = 360
 SPACER_MIN_WIDTH = 16
 PAD_OUTER = 8
 PAD_INNER = 6
-MODULES_WEIGHT = 0      # Módulos: sem expansão (mantém tamanho fixo)
-SPACER_WEIGHT = 1       # Centro: elástico (weight=1)
-NOTES_WEIGHT = 0        # Notas à direita: sem expansão
+MODULES_WEIGHT = 0  # Módulos: sem expansão (mantém tamanho fixo)
+SPACER_WEIGHT = 1  # Centro: elástico (weight=1)
+NOTES_WEIGHT = 0  # Notas à direita: sem expansão
 
 HUB_TITLE = "Anotações Compartilhadas"
 MODULES_TITLE = "Módulos"

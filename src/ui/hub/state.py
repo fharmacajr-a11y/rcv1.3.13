@@ -6,7 +6,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-
 DEFAULT_AUTH_RETRY_MS = 2000
 
 __all__ = ["HubState", "ensure_hub_state", "ensure_state"]

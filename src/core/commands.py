@@ -256,4 +256,3 @@ __all__ = [
     "list_commands",
     "get_command_info",
 ]
-

@@ -1,5 +1,6 @@
 # core/session/session_guard.py
 from __future__ import annotations
+
 from infra.supabase_client import get_supabase
 from src.core import session
 

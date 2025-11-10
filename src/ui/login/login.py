@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import os
+
 import ttkbootstrap as tb
 from ttkbootstrap.dialogs import Messagebox
-from src.core.auth import ensure_users_db, authenticate_user, validate_credentials
+
 from src.core import session
+from src.core.auth import authenticate_user, ensure_users_db, validate_credentials
 
 try:
     from ui import center_on_parent
@@ -27,14 +29,14 @@ class LoginDialog(tb.Toplevel):
 
         # Evita aparecer desalinhado
         self.withdraw()
-        
+
         # Tornar modal e acima do parent
         if parent:
             try:
                 self.transient(parent)
             except Exception:
                 pass
-        
+
         # Sempre por cima da janela principal
         self.attributes("-topmost", True)
 
@@ -135,7 +137,7 @@ class LoginDialog(tb.Toplevel):
     # -------- Lógica --------
     def _do_login(self):
         email = (self.ent_user.get() or "").strip()
-        password = (self.ent_pass.get() or "")
+        password = self.ent_pass.get() or ""
 
         # Validação imediata de formato
         err = validate_credentials(email, password)
@@ -156,11 +158,12 @@ class LoginDialog(tb.Toplevel):
             # Sucesso: guardar e-mail autenticado
             self.logged_email = msg  # e-mail retornado pelo Supabase
             session.set_current_user(msg)
-            
+
             # Hidratar AuthController com dados completos do usuário
             try:
                 # [finalize-notes] import seguro dentro de função
                 from infra.supabase_client import get_supabase
+
                 sb = get_supabase()
                 user = sb.auth.get_user()
                 if user and hasattr(user, "user"):
@@ -170,20 +173,21 @@ class LoginDialog(tb.Toplevel):
                         "created_at": getattr(user.user, "created_at", None),
                         "user_metadata": getattr(user.user, "user_metadata", {}),
                     }
-                    
+
                     # Tentar obter org_id (pode vir de user_metadata ou de tabela users)
                     # Será obtido posteriormente via _get_org_id_cached no main_window
-                    
+
                     # Atualizar AuthController do app se disponível
                     if hasattr(self.master, "auth"):
                         self.master.auth.set_user_data(user_data)
             except Exception as e:
                 # Não falhar o login se houver erro aqui
                 import logging
+
                 logging.getLogger(__name__).warning(
                     "Não foi possível hidratar dados do usuário: %s", e
                 )
-            
+
             self.result = True
             try:
                 self.grab_release()

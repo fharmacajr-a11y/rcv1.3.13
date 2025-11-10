@@ -5,6 +5,7 @@ import ctypes
 import platform
 import tkinter as tk
 import logging
+from typing import cast
 
 log = logging.getLogger(__name__)
 
@@ -64,16 +65,18 @@ def apply_fit_policy(win: tk.Misc) -> None:
     """Aplica a política Fit-to-WorkArea e garante foco/elevação."""
     geo = fit_geometry_for_device(win)
     # Define geometria antes do primeiro draw para evitar flicker
-    win.geometry(geo)
+    # Cast para tk.Tk para acessar métodos de window manager
+    window = cast(tk.Tk, win)
+    window.geometry(geo)
     try:
-        win.minsize(900, 580)  # mínimos gerais defensivos
+        window.minsize(900, 580)  # mínimos gerais defensivos
     except Exception as e:
         log.debug("Failed to set minsize: %s", e)
     # traz para frente e foca sem topmost permanente
     try:
-        win.lift()
-        win.focus_force()
-        win.attributes("-topmost", True)
-        win.after(10, lambda: win.attributes("-topmost", False))
+        window.lift()
+        window.focus_force()
+        window.wm_attributes("-topmost", True)
+        window.after(10, lambda: window.wm_attributes("-topmost", False))
     except Exception as e:
         log.debug("Failed to set window focus/topmost: %s", e)

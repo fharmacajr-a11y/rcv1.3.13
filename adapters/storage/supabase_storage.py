@@ -6,6 +6,12 @@ import os
 from pathlib import Path
 from typing import Iterable, Optional, Any
 
+# Garante MIME de .docx em qualquer SO
+mimetypes.add_type(
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".docx",
+)
+
 from src.config.paths import CLOUD_ONLY
 from infra.supabase_client import supabase, baixar_pasta_zip, DownloadCancelledError
 from adapters.storage.port import StoragePort
@@ -19,6 +25,7 @@ def _normalize_bucket(bucket: Optional[str]) -> str:
 
 
 def _normalize_key(key: str) -> str:
+    # não mexemos demais aqui; o pipeline/adapters já sanitizam os segmentos
     return key.strip("/")
 
 
@@ -49,6 +56,7 @@ def _upload(
     key = _normalize_key(remote_key)
     file_options = {
         "content-type": _guess_content_type(key, content_type),
+        # storage3 espera string, não bool (evita erro 'bool'.encode)
         "upsert": "true" if upsert else "false",
     }
     data = _read_data(source)

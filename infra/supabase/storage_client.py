@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import io
 import os
 import re
 import tempfile
@@ -50,7 +49,6 @@ def _sess():
 
 class DownloadCancelledError(Exception):
     """Sinaliza cancelamento voluntário do usuário durante o download."""
-
     pass
 
 
@@ -201,20 +199,9 @@ def build_client_prefix(
     """
     Constrói o prefixo de armazenamento para um cliente no formato:
     {org_id}/{client_id}
-    
-    Args:
-        org_id: ID da organização
-        cnpj: CNPJ do cliente (não usado no novo formato)
-        razao_social: Razão social do cliente (não usado no novo formato)
-        client_id: ID do cliente (obrigatório)
-    
-    Returns:
-        String do prefixo (sem barra final)
     """
     if not client_id:
         raise ValueError("client_id obrigatório para montar o prefixo compatível.")
-    
-    # Formato simplificado alinhado com uploads: <ORG>/<client_id>/
     return f"{org_id}/{client_id}"
 
 
@@ -227,102 +214,50 @@ def ensure_client_storage_prefix(
 ) -> str:
     """
     Garante que o prefixo exista no Storage criando um placeholder '.keep'.
-    
-    Esta função cria um arquivo .keep no prefixo do cliente para garantir
-    que a "pasta" exista no Supabase Storage (que funciona baseado em objetos).
-    
-    Usa arquivo temporário para upload (não BytesIO) para compatibilidade
-    com diferentes versões do cliente Supabase.
-    
-    Args:
-        bucket: Nome do bucket do Supabase Storage
-        org_id: ID da organização
-        cnpj: CNPJ do cliente (não usado no novo formato)
-        razao_social: Razão social do cliente (não usado no novo formato)
-        client_id: ID do cliente (obrigatório)
-    
-    Returns:
-        String do prefixo criado (formato: org_id/client_id)
-        
-    Raises:
-        ValueError: Se client_id não for fornecido
-        Exception: Se houver erro ao criar o placeholder no Storage
+
+    - Usa arquivo temporário (caminho em disco) porque storage3 abre via open()
+    - Define 'upsert' como STRING "true" (não bool), evitando erro do httpx .encode()
+    - Alinha o caminho com os uploads: <ORG>/<CLIENT_ID>/.keep
     """
     from infra.supabase_client import supabase
-    
-    # Alinhar com o caminho já usado pelos uploads: <ORG>/<client_id>/
+
+    # Prefixo alinhado
     prefix = build_client_prefix(org_id, cnpj, razao_social, client_id)
-    key = f"{prefix}/.keep"  # coloca .keep na raiz do cliente
-    
+    key = f"{prefix}/.keep"
+
     logger.info(
         "ensure_client_storage_prefix: criando placeholder bucket=%s key=%s",
-        bucket,
-        key,
+        bucket, key
     )
-    
+
     tmp_path = None
+    # Compat entre storage3.from_ e .from_
+    bucket_ref = getattr(supabase.storage, "from_", supabase.storage.from_)(bucket)
+
     try:
-        # Cria arquivo temporário com conteúdo "1"
         fd, tmp_path = tempfile.mkstemp(prefix="rc_keep_", suffix=".txt")
         os.write(fd, b"1")
         os.close(fd)
-        
-        # Compatibilidade: alguns clients usam .from_ e outros .from_
-        bucket_ref = getattr(supabase.storage, "from_", supabase.storage.from_)(bucket)
 
-        # Preferir usar objeto tipado da lib se exposto (storage3.utils.StorageFileOptions)
-        upload_opts = None
-        try:
-            # Tentar import compatível com diferentes versões
-            try:
-                from storage3.utils import StorageFileOptions as _StorageFileOptions
-            except Exception:
-                from storage3.types import FileOptions as _StorageFileOptions  # type: ignore
+        # >>> Fix principal: upsert como STRING <<<
+        res = bucket_ref.upload(
+            key,
+            tmp_path,
+            {"contentType": "text/plain", "upsert": "true"},
+        )
 
-            # Montar opções usando tipo da lib (mais robusto)
-            try:
-                # nomes de parâmetros podem variar entre versões
-                upload_opts = _StorageFileOptions(content_type="text/plain", upsert=True)  # type: ignore
-            except Exception:
-                try:
-                    upload_opts = _StorageFileOptions(contentType="text/plain", upsert=True)  # type: ignore
-                except Exception:
-                    upload_opts = None
-        except Exception:
-            upload_opts = None
-
-        # Upload usando caminho de arquivo (não BytesIO)
-        if upload_opts is not None:
-            # Se conseguimos criar um objeto de opções, use-o
-            res = bucket_ref.upload(key, tmp_path, upload_opts)
-        else:
-            # Fallback: usar dict com upsert como string 'true' para evitar problemas de encoding
-            res = bucket_ref.upload(
-                key,
-                tmp_path,
-                {"contentType": "text/plain", "upsert": "true"},
-            )
-        
-        # Logar retorno para debug
         logger.info(
             "Storage placeholder OK | bucket=%s key=%s resp=%s",
-            bucket,
-            key,
-            getattr(res, "data", res),
+            bucket, key, getattr(res, "data", res)
         )
-        
         return prefix.rstrip("/")
-        
     except Exception as exc:
         logger.exception(
             "Erro ao criar placeholder no Storage: bucket=%s key=%s erro=%s",
-            bucket,
-            key,
-            exc,
+            bucket, key, exc
         )
         raise
     finally:
-        # Limpa arquivo temporário
         if tmp_path and os.path.exists(tmp_path):
             try:
                 os.remove(tmp_path)

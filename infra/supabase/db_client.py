@@ -6,7 +6,7 @@ import threading
 import time
 from typing import Optional, Tuple
 
-from supabase import Client, ClientOptions, create_client
+from supabase import Client, ClientOptions, create_client  # type: ignore[import-untyped]
 
 from infra.http.retry import retry_call
 from infra.supabase import types as supa_types

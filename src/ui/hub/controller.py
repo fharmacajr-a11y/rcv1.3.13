@@ -4,9 +4,8 @@
 from __future__ import annotations
 
 import threading
-from typing import Any, Dict, List
-
 from tkinter import messagebox
+from typing import Any, Dict, List
 
 from src.core.logger import get_logger
 from src.core.services.notes_service import NotesTransientError
@@ -69,7 +68,10 @@ def poll_notes_if_needed(screen) -> None:
                 append_note_incremental(screen, note)
             try:
                 screen._live_last_ts = max(
-                    [screen._live_last_ts or "", *[n.get("created_at") or "" for n in new_notes]]
+                    [
+                        screen._live_last_ts or "",
+                        *[n.get("created_at") or "" for n in new_notes],
+                    ]
                 )
             except Exception:
                 pass
@@ -92,6 +94,7 @@ def append_note_incremental(screen, row: Dict[str, Any]) -> None:
     hub_state = _ensure_poll_attrs(screen)
 
     if not hasattr(screen, "_normalize_note"):
+
         def _normalize_local(data: Dict[str, Any]) -> Dict[str, Any]:
             email = (data.get("author_email") or "").strip().lower()
             return {
@@ -107,13 +110,19 @@ def append_note_incremental(screen, row: Dict[str, Any]) -> None:
         note = _normalize_note(row)
 
     notes = getattr(screen, "_notes_last_data", None) or []
-    if any(str(n.get("id")) == str(note.get("id")) for n in notes if n.get("id") is not None):
+    if any(
+        str(n.get("id")) == str(note.get("id"))
+        for n in notes
+        if n.get("id") is not None
+    ):
         return
 
     notes = notes + [note]
     screen._notes_last_data = notes
     try:
-        screen._notes_last_snapshot = [(n.get("id"), n.get("created_at")) for n in notes]
+        screen._notes_last_snapshot = [
+            (n.get("id"), n.get("created_at")) for n in notes
+        ]
     except Exception:
         pass
 
@@ -133,7 +142,9 @@ def append_note_incremental(screen, row: Dict[str, Any]) -> None:
         try:
             tag = _ensure_author_tag(screen.notes_history, email, hub_state.author_tags)
         except Exception:
-            logger.exception("Hub: falha ao aplicar estilo/tag do autor; renderizando sem cor.")
+            logger.exception(
+                "Hub: falha ao aplicar estilo/tag do autor; renderizando sem cor."
+            )
             tag = None
 
         created_at = note.get("created_at")
@@ -151,7 +162,9 @@ def append_note_incremental(screen, row: Dict[str, Any]) -> None:
         screen.notes_history.configure(state="disabled")
         screen.notes_history.see("end")
     except Exception:
-        logger.exception("Hub: falha crítica ao inserir nota, restaurando estado do widget.")
+        logger.exception(
+            "Hub: falha crítica ao inserir nota, restaurando estado do widget."
+        )
         try:
             screen.notes_history.configure(state="disabled")
         except Exception:
@@ -168,13 +181,16 @@ def refresh_notes_async(screen, force: bool = False) -> None:
     if getattr(screen, "_notes_table_missing", False):
         log.debug("HubScreen: Tabela rc_notes ausente, aguardando retry period...")
         screen._notes_after_handle = screen.after(
-            getattr(screen, "_notes_retry_ms", 60000), lambda: retry_after_table_missing(screen)
+            getattr(screen, "_notes_retry_ms", 60000),
+            lambda: retry_after_table_missing(screen),
         )
         return
 
     auth_retry_ms = getattr(screen, "AUTH_RETRY_MS", 2000)
     if not screen._auth_ready():
-        log.debug("HubScreen: Autenticação não pronta para refresh_notes, aguardando...")
+        log.debug(
+            "HubScreen: Autenticação não pronta para refresh_notes, aguardando..."
+        )
         screen._notes_after_handle = screen.after(
             auth_retry_ms, lambda: refresh_notes_async(screen, force)
         )
@@ -195,9 +211,9 @@ def refresh_notes_async(screen, force: bool = False) -> None:
 
         try:
             from src.core.services.notes_service import (
-                list_notes,
                 NotesAuthError,
                 NotesTableMissingError,
+                list_notes,
             )
 
             notes = list_notes(org_id, limit=500)
@@ -270,7 +286,9 @@ def refresh_notes_async(screen, force: bool = False) -> None:
             notes = [_normalize_note(x) for x in notes]
 
             snapshot = [(n.get("id"), n.get("created_at")) for n in notes]
-            changed = (snapshot != getattr(screen, "_notes_last_snapshot", None)) or force
+            changed = (
+                snapshot != getattr(screen, "_notes_last_snapshot", None)
+            ) or force
 
             if changed:
                 screen._notes_last_snapshot = snapshot
@@ -290,7 +308,8 @@ def refresh_notes_async(screen, force: bool = False) -> None:
         if getattr(screen, "_polling_active", False):
             try:
                 screen._notes_after_handle = screen.after(
-                    getattr(screen, "_notes_poll_ms", 10000), lambda: refresh_notes_async(screen)
+                    getattr(screen, "_notes_poll_ms", 10000),
+                    lambda: refresh_notes_async(screen),
                 )
             except Exception:
                 pass

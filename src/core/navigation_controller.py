@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 # application/navigation_controller.py
 from __future__ import annotations
-from typing import Any, Optional, Type, Callable
+
+from typing import Any, Callable, Optional, Type
 
 
 class NavigationController:

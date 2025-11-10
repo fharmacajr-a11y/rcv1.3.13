@@ -36,6 +36,7 @@ def list_storage_files(bucket: str, prefix: str) -> List[Dict[str, Any]]:
         log.error(f"List files failed for {prefix}: {e}")
         return []
 
+
 def list_trash_clients(org_id: str) -> List[Dict[str, Any]]:
     """
     List clients in trash (soft-deleted).
@@ -61,6 +62,7 @@ def list_trash_clients(org_id: str) -> List[Dict[str, Any]]:
     except Exception as e:
         log.error(f"List trash clients failed: {e}")
         return []
+
 
 def restore_from_trash(org_id: str, client_ids: List[str]) -> bool:
     """
@@ -89,6 +91,7 @@ def restore_from_trash(org_id: str, client_ids: List[str]) -> bool:
         log.error(f"Restore from trash failed: {e}")
         return False
 
+
 def purge_from_trash(org_id: str, client_ids: List[str]) -> bool:
     """
     Permanently delete clients from trash.
@@ -116,6 +119,7 @@ def purge_from_trash(org_id: str, client_ids: List[str]) -> bool:
         log.error(f"Purge from trash failed: {e}")
         return False
 
+
 def resolve_asset(asset_name: str) -> str:
     """
     Resolve path to application asset (icon, image, etc.).
@@ -141,4 +145,3 @@ def resolve_asset(asset_name: str) -> str:
     except Exception:
         # Fallback: relative path
         return asset_name
-

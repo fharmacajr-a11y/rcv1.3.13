@@ -2,15 +2,18 @@
 # ui/forms/forms.py
 from __future__ import annotations
 
-import tkinter as tk
-from tkinter import ttk, messagebox, Listbox
 import logging
 import re
+import tkinter as tk
+from tkinter import Listbox, messagebox, ttk
+from typing import Optional
 
-from src.ui.components import toolbar_button, labeled_entry
-from src.core.services.clientes_service import salvar_cliente, checar_duplicatas_info
-from src.ui.forms.actions import preencher_via_pasta, salvar_e_enviar_para_supabase
 from infra.supabase_client import exec_postgrest, supabase  # cliente Supabase
+from src.core.cnpj_norm import normalize_cnpj as normalize_cnpj_norm
+from src.core.db_manager import find_cliente_by_cnpj_norm
+from src.core.services.clientes_service import checar_duplicatas_info, salvar_cliente
+from src.ui.components import labeled_entry, toolbar_button
+from src.ui.forms.actions import preencher_via_pasta, salvar_e_enviar_para_supabase
 
 try:
     from ui import center_on_parent
@@ -27,10 +30,16 @@ logger = logging.getLogger(__name__)
 log = logger
 
 STATUS_CHOICES = [
-    "Novo lead", "Sem resposta", "Aguardando documento", "Aguardando pagamento",
-    "Em cadastro", "Finalizado", "Follow-up hoje", "Follow-up amanhã",
+    "Novo lead",
+    "Sem resposta",
+    "Aguardando documento",
+    "Aguardando pagamento",
+    "Em cadastro",
+    "Finalizado",
+    "Follow-up hoje",
+    "Follow-up amanhã",
 ]
-STATUS_PREFIX_RE = re.compile(r'^\s*\[(?P<st>[^\]]+)\]\s*')
+STATUS_PREFIX_RE = re.compile(r"^\s*\[(?P<st>[^\]]+)\]\s*")
 
 
 def form_cliente(self, row=None, preset: dict | None = None) -> None:
@@ -56,11 +65,73 @@ def form_cliente(self, row=None, preset: dict | None = None) -> None:
 
     win.columnconfigure(1, weight=1)
 
+    try:
+        current_client_id = int(row[0]) if row else None
+    except Exception:
+        current_client_id = None
+
+    initializing: list[bool] = [True]
+    _upload_button_ref: dict[str, ttk.Button | None] = {"btn": None}
+
+    def _set_button_enabled(button: ttk.Button | None, enabled: bool) -> None:
+        if button is None:
+            return
+        try:
+            if enabled:
+                button.state(["!disabled"])
+            else:
+                button.state(["disabled"])
+        except Exception:
+            try:
+                button.configure(state="normal" if enabled else "disabled")
+            except Exception:
+                pass
+
+    class _EditFormState:
+        def __init__(self, client_id: Optional[int]) -> None:
+            self.client_id = client_id
+            self.is_dirty = False
+
+        def mark_dirty(self, *_args, **_kwargs) -> None:
+            if initializing[0]:
+                return
+            if not self.is_dirty:
+                self.is_dirty = True
+                _set_button_enabled(_upload_button_ref["btn"], True)
+
+        def mark_clean(self) -> None:
+            if self.is_dirty:
+                self.is_dirty = False
+                _set_button_enabled(_upload_button_ref["btn"], False)
+
+        def save_silent(self) -> bool:
+            return _perform_save(show_success=False, close_window=False)
+
+    state = _EditFormState(current_client_id)
+
+    def _bind_dirty(widget: tk.Widget) -> None:
+        try:
+            widget.bind("<KeyRelease>", state.mark_dirty, add="+")
+            widget.bind("<<Paste>>", state.mark_dirty, add="+")
+            widget.bind("<<Cut>>", state.mark_dirty, add="+")
+        except Exception:
+            pass
+
+    if hasattr(self, "register_edit_form"):
+        try:
+            self.register_edit_form(win, state)
+        except Exception:
+            pass
+
     # --- Seção: Status do Cliente ---
     status_frame = ttk.LabelFrame(win, text="Status do Cliente")
-    status_frame.grid(row=len(campos), column=0, columnspan=2, sticky="ew", padx=6, pady=(2, 6))
+    status_frame.grid(
+        row=len(campos), column=0, columnspan=2, sticky="ew", padx=6, pady=(2, 6)
+    )
     status_var = tk.StringVar(value="")
-    cb_status = ttk.Combobox(status_frame, textvariable=status_var, values=STATUS_CHOICES, state="readonly")
+    cb_status = ttk.Combobox(
+        status_frame, textvariable=status_var, values=STATUS_CHOICES, state="readonly"
+    )
     cb_status.grid(row=0, column=0, sticky="w", padx=6, pady=6)
 
     # preencher valores iniciais
@@ -78,7 +149,9 @@ def form_cliente(self, row=None, preset: dict | None = None) -> None:
             if m:
                 status_var.set(m.group("st"))
                 ents["Observações"].delete("1.0", "end")
-                ents["Observações"].insert("1.0", STATUS_PREFIX_RE.sub("", obs_raw, count=1).strip())
+                ents["Observações"].insert(
+                    "1.0", STATUS_PREFIX_RE.sub("", obs_raw, count=1).strip()
+                )
         except Exception:
             pass
     elif preset:
@@ -86,6 +159,12 @@ def form_cliente(self, row=None, preset: dict | None = None) -> None:
             ents["Razão Social"].insert(0, preset["razao"])
         if preset.get("cnpj"):
             ents["CNPJ"].insert(0, preset["cnpj"])
+
+    for widget in ents.values():
+        _bind_dirty(widget)
+
+    cb_status.bind("<<ComboboxSelected>>", state.mark_dirty, add="+")
+    status_var.trace_add("write", lambda *_: state.mark_dirty())
 
     def _coletar_valores() -> dict:
         body = ents["Observações"].get("1.0", "end").strip()
@@ -103,69 +182,190 @@ def form_cliente(self, row=None, preset: dict | None = None) -> None:
         }
 
     def _confirmar_duplicatas(val: dict, row=None, win=None) -> bool:
-        # Passa nome/numero para respeitar a assinatura; vamos filtrar depois
+        current_id = None
+        try:
+            current_id = int(row[0]) if row else None
+        except Exception:
+            current_id = None
+
         info = checar_duplicatas_info(
             cnpj=val.get("CNPJ"),
             razao=val.get("Razão Social"),
             numero=val.get("WhatsApp"),
             nome=val.get("Nome"),
+            exclude_id=current_id,
         )
-        # Se estiver editando, remova o próprio ID
-        ids = (info.get("ids") or [])[:]
-        try:
-            if row and ids and int(row[0]) in ids:
-                ids = [i for i in ids if i != int(row[0])]
-        except Exception:
-            pass
 
-        # Considere apenas CNPJ / RAZAO_SOCIAL para alertar
-        campos_info = [
-            c for c in (info.get("campos") or []) if c in ("CNPJ", "RAZAO_SOCIAL")
-        ]
-        if not ids or not campos_info:
+        razao_conflicts = info.get("razao_conflicts") or []
+        if not razao_conflicts:
             return True
-        campos_batidos = ", ".join(campos_info)
-        ids_str = ", ".join(str(i) for i in ids)
-        msg = (
-            "Possível duplicata detectada.\n\n"
-            f"Campos que bateram: {campos_batidos or '-'}\n"
-            f"IDs encontrados: {ids_str}\n\n"
-            "Deseja continuar mesmo assim?"
-        )
-        return messagebox.askokcancel("Possível duplicata", msg, parent=win)
 
-    def _salvar():
+        lines: list[str] = []
+        for idx, cliente in enumerate(razao_conflicts, start=1):
+            if idx > 3:
+                break
+            lines.append(
+                f"- ID {getattr(cliente, 'id', '?')} — "
+                f"{getattr(cliente, 'razao_social', '') or '-'} "
+                f"(CNPJ: {getattr(cliente, 'cnpj', '') or '-'})"
+            )
+        remaining = max(0, len(razao_conflicts) - len(lines))
+        if remaining:
+            lines.append(f"- ... e mais {remaining} registro(s)")
+
+        header = (
+            "Existe outro cliente com a mesma Razão Social mas CNPJ diferente."
+            " Deseja continuar?\n\n"
+        )
+        msg = header + "\n".join(lines)
+        return messagebox.askokcancel("Razão Social repetida", msg, parent=win)
+
+    def _perform_save(*, show_success: bool, close_window: bool) -> bool:
+        nonlocal row
+
         val = _coletar_valores()
-        if not _confirmar_duplicatas(val):
-            return
+
+        current_id = None
         try:
-            salvar_cliente(
-                row, val
-            )  # mantém assinatura original (service decide insert/update)
-        except Exception as e:
-            messagebox.showerror("Erro", str(e))
-            return
-        win.destroy()
+            current_id = int(row[0]) if row else None
+        except Exception:
+            current_id = None
+
+        cnpj_norm = normalize_cnpj_norm(val.get("CNPJ"))
+        if cnpj_norm:
+            dup = find_cliente_by_cnpj_norm(cnpj_norm, exclude_id=current_id)
+            if dup:
+                messagebox.showwarning(
+                    "CNPJ duplicado",
+                    (
+                        "CNPJ já cadastrado para o cliente ID "
+                        f"{getattr(dup, 'id', '?')} — "
+                        f"{getattr(dup, 'razao_social', '') or '-'}\n"
+                        f"CNPJ registrado: {getattr(dup, 'cnpj', '') or '-'}"
+                    ),
+                    parent=win,
+                )
+                return False
+
+        if not _confirmar_duplicatas(val, row=row, win=win):
+            return False
+
+        try:
+            saved_id, _ = salvar_cliente(row, val)
+        except Exception as exc:
+            messagebox.showerror("Erro", str(exc), parent=win)
+            return False
+
+        state.client_id = saved_id
+        state.mark_clean()
+
+        if row:
+            row = (saved_id,) + tuple(row[1:])
+        else:
+            row = (saved_id,)
+
         try:
             self.carregar()
         except Exception:
             pass
-        messagebox.showinfo("Sucesso", "Cliente salvo.")
 
+        if show_success:
+            messagebox.showinfo("Sucesso", "Cliente salvo.", parent=win)
+
+        if close_window:
+            try:
+                if hasattr(self, "unregister_edit_form"):
+                    self.unregister_edit_form(win)
+            except Exception:
+                pass
+            win.destroy()
+
+        return True
+
+    def _salvar():
+        _perform_save(show_success=True, close_window=True)
+
+    def _salvar_e_enviar():
+        if _perform_save(show_success=False, close_window=False):
+            salvar_e_enviar_para_supabase(self, row, ents, win)
     # --- Botões ---
     btns = ttk.Frame(win)
     btns.grid(row=len(campos) + 1, column=0, columnspan=2, pady=10)
 
     toolbar_button(btns, text="Salvar", command=_salvar).pack(side="left", padx=5)
-    toolbar_button(
-        btns, text="Cartão CNPJ", command=lambda: preencher_via_pasta(ents)
-    ).pack(side="left", padx=5)
-    toolbar_button(
+
+    # Botão Cartão CNPJ com bloqueio de múltiplas aberturas
+    btn_cartao_cnpj = toolbar_button(btns, text="Cartão CNPJ", command=lambda: None)
+    btn_cartao_cnpj.pack(side="left", padx=5)
+
+    # Flag para controlar reentrância
+    _cnpj_busy = [False]  # usar lista para mutabilidade em closure
+
+    def _on_cartao_cnpj():
+        """Handler com bloqueio de múltiplos cliques."""
+        if _cnpj_busy[0]:
+            return
+
+        _cnpj_busy[0] = True
+        try:
+            # Desativa visualmente o botão
+            try:
+                btn_cartao_cnpj.state(["disabled"])
+            except Exception:
+                try:
+                    btn_cartao_cnpj.configure(state="disabled")
+                except Exception:
+                    pass
+
+            # Chama a função original de preenchimento
+            preencher_via_pasta(ents)
+            state.mark_dirty()
+
+        finally:
+            # Reativa o botão após o processamento
+            _cnpj_busy[0] = False
+            try:
+                btn_cartao_cnpj.state(["!disabled"])
+            except Exception:
+                try:
+                    btn_cartao_cnpj.configure(state="normal")
+                except Exception:
+                    pass
+
+    btn_cartao_cnpj.configure(command=_on_cartao_cnpj)
+
+    btn_salvar_enviar = toolbar_button(
         btns,
         text="Salvar + Enviar para Supabase",
-        command=lambda: salvar_e_enviar_para_supabase(self, row, ents, win),
-    ).pack(side="left", padx=5)
-    toolbar_button(btns, text="Cancelar", command=win.destroy).pack(side="left", padx=5)
+        command=_salvar_e_enviar,
+    )
+    btn_salvar_enviar.pack(side="left", padx=5)
+    _upload_button_ref["btn"] = btn_salvar_enviar
+    _set_button_enabled(btn_salvar_enviar, False)
+
+    def _cancelar():
+        try:
+            if hasattr(self, "unregister_edit_form"):
+                self.unregister_edit_form(win)
+        except Exception:
+            pass
+        win.destroy()
+
+    toolbar_button(btns, text="Cancelar", command=_cancelar).pack(
+        side="left", padx=5
+    )
+
+    def _on_close() -> None:
+        try:
+            if hasattr(self, "unregister_edit_form"):
+                self.unregister_edit_form(win)
+        except Exception:
+            pass
+        win.destroy()
+
+    win.protocol("WM_DELETE_WINDOW", _on_close)
+
+    initializing[0] = False
 
     # centraliza e mostra
     win.update_idletasks()

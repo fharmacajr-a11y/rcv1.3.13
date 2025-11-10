@@ -2,7 +2,6 @@
 """High-level actions triggered by the GUI (CRUD, folders, trash integration)."""
 
 from __future__ import annotations
-from src.config.paths import CLOUD_ONLY
 
 import importlib
 import logging
@@ -10,6 +9,8 @@ import os
 from datetime import datetime, timezone
 from tkinter import messagebox
 from typing import Any, Sequence
+
+from src.config.paths import CLOUD_ONLY
 
 # ------------------------------------------------------------
 # Modo "somente nuvem" (não cria nada em disco local)
@@ -19,8 +20,9 @@ NO_FS = os.getenv("RC_NO_LOCAL_FS") == "1"
 
 # Utilitários que podem ser usados quando o FS local estiver habilitado
 try:
-    from .app_utils import safe_base_from_fields
     from src.config.paths import DOCS_DIR
+
+    from .app_utils import safe_base_from_fields
 except Exception:  # best-effort para manter compatibilidade
     safe_base_from_fields = None  # type: ignore[assignment]
     DOCS_DIR = os.getcwd()  # type: ignore[assignment]
@@ -199,9 +201,10 @@ def _ensure_live_folder_ready(pk: int) -> str:
         if not CLOUD_ONLY:
             os.makedirs(path, exist_ok=True)
         try:
+            from pathlib import Path
+
             from src.utils.file_utils import ensure_subpastas, write_marker
             from src.utils.subpastas_config import load_subpastas_config
-            from pathlib import Path
 
             try:
                 subpastas, _extras = load_subpastas_config()
@@ -268,8 +271,8 @@ def ver_subpastas(app: Any, pk: int) -> None:
 
     path = _ensure_live_folder_ready(pk)
     try:
-        from src.utils.subpastas_config import load_subpastas_config
         from src.ui.subpastas.dialog import open_subpastas_dialog
+        from src.utils.subpastas_config import load_subpastas_config
 
         subpastas, extras = load_subpastas_config()
     except Exception:

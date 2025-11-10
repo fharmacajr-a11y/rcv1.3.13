@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import tkinter as tk
 from tkinter import ttk
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Literal, Optional
 
 
 class AutocompleteEntry(ttk.Entry):
@@ -44,7 +44,7 @@ class AutocompleteEntry(ttk.Entry):
         """Define a função que retorna sugestões baseadas no texto digitado."""
         self._suggester = fn
 
-    def _on_key_release(self, event) -> None:
+    def _on_key_release(self, event) -> Optional[Literal["break"]]:
         """Chamado ao soltar tecla (digitação)."""
         key = event.keysym
 
@@ -75,7 +75,7 @@ class AutocompleteEntry(ttk.Entry):
             "Alt_L",
             "Alt_R",
         ):
-            return
+            return None
 
         # Debounce: cancelar timer anterior
         if self._debounce_id:
@@ -83,6 +83,7 @@ class AutocompleteEntry(ttk.Entry):
 
         # Agendar busca após delay
         self._debounce_id = self.after(self._debounce_ms, self._fetch_suggestions)
+        return None
 
     def _fetch_suggestions(self) -> None:
         """Busca sugestões e exibe dropdown."""

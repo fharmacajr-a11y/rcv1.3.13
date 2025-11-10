@@ -1,5 +1,6 @@
 # ui/theme_toggle.py
 from __future__ import annotations
+
 from ttkbootstrap import Style
 
 

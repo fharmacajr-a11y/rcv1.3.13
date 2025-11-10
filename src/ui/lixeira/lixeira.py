@@ -3,18 +3,22 @@
 
 from __future__ import annotations
 
-# ui/lixeira/lixeira.py
-
+import json
 import logging
-from tkinter import ttk
-import ttkbootstrap as tb
+import os
 from tkinter import messagebox as tkmsg
+from tkinter import ttk
+
+import ttkbootstrap as tb
 
 from src.core.db_manager import list_clientes_deletados
-from src.core.services import (
+from src.core.services import (  # ações: restore_clients / hard_delete_clients
     lixeira_service,
-)  # ações: restore_clients / hard_delete_clients
+)
 from src.ui.utils import center_window
+
+# ui/lixeira/lixeira.py
+
 
 logger = logging.getLogger(__name__)
 log = logger
@@ -189,7 +193,47 @@ def abrir_lixeira(parent, app=None):
         for r in rows:
             whatsapp = getattr(r, "whatsapp", "") if hasattr(r, "whatsapp") else ""
             obs = getattr(r, "obs", "") or ""
-            ultima = getattr(r, "ultima_alteracao", "") or ""
+            ultima_raw = (
+                getattr(r, "ultima_alteracao", "")
+                or getattr(r, "updated_at", "")
+                or ""
+            )
+            if ultima_raw:
+                try:
+                    from src.app_utils import fmt_data
+
+                    ultima_fmt = fmt_data(ultima_raw)
+                except Exception:
+                    ultima_fmt = str(ultima_raw)
+            else:
+                ultima_fmt = ""
+
+            by = (getattr(r, "ultima_por", "") or "").strip()
+            initial = ""
+            if by:
+                try:
+                    mapping_raw = os.getenv("RC_INITIALS_MAP", "")
+                    try:
+                        mapping = json.loads(mapping_raw) if mapping_raw else {}
+                    except Exception:
+                        mapping = {}
+                    alias = ""
+                    if isinstance(mapping, dict):
+                        alias = str(mapping.get(by, "") or "")
+                    if alias:
+                        initial = (alias[:1] or "").upper()
+                    else:
+                        from src.ui.hub.authors import _author_display_name as _author_name
+
+                        display = _author_name(app, by) if app is not None else ""
+                        if not display:
+                            display = by
+                        initial = (display[:1] or by[:1] or "").upper()
+                except Exception:
+                    initial = (by[:1] or "").upper()
+            if ultima_fmt and initial:
+                ultima_fmt = f"{ultima_fmt} ({initial})"
+
             tree.insert(
                 "",
                 "end",
@@ -200,7 +244,7 @@ def abrir_lixeira(parent, app=None):
                     r.nome or "",
                     whatsapp,
                     obs,
-                    ultima,
+                    ultima_fmt,
                 ),
             )
         status.config(text=f"{len(rows)} item(ns) na lixeira")

@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import ttkbootstrap as tb
 from tkinter import ttk
-from typing import Optional, Callable
+from typing import Callable, Optional
+
+import ttkbootstrap as tb
 
 
 class TopBar(tb.Frame):

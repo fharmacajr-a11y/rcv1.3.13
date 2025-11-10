@@ -1,14 +1,12 @@
-from src.core.api.router import register_endpoints
 from src.core.api import api_clients, api_files, api_notes
-
 from src.core.api.api_clients import (
     create_client,
     delete_client,
-    search_clients,
     get_current_theme,
+    search_clients,
+    switch_theme,
     update_client,
     upload_folder,
-    switch_theme,
 )
 from src.core.api.api_files import download_folder_zip, upload_file
 from src.core.api.api_notes import (
@@ -18,6 +16,7 @@ from src.core.api.api_notes import (
     resolve_asset,
     restore_from_trash,
 )
+from src.core.api.router import register_endpoints
 
 __all__ = [
     "register_endpoints",

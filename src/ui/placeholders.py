@@ -2,9 +2,10 @@
 # gui/placeholders.py
 from __future__ import annotations
 
-from typing import Protocol, Type
-import ttkbootstrap as tb
 import tkinter.font as tkfont
+from typing import Protocol, Type
+
+import ttkbootstrap as tb
 
 __all__ = ["PlaceholderType"]
 

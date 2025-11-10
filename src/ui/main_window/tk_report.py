@@ -10,4 +10,3 @@ __all__ = ["tk_report"]
 
 def tk_report(exc: Any, val: Any, tb_: Any) -> None:
     log.exception("Excecao no Tkinter callback", exc_info=(exc, val, tb_))
-

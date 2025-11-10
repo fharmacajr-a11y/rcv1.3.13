@@ -1,27 +1,20 @@
 from __future__ import annotations
 
-# ui/forms/actions.py
-
+import datetime
+import hashlib
+import logging
 import os
 import re
-import logging
-import hashlib
-import datetime
-import unicodedata
+import tkinter as tk
 from pathlib import Path
+from tkinter import filedialog, messagebox, ttk
 from typing import Optional
 
-import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
-
 from dotenv import load_dotenv
-from src.utils.resource_path import resource_path
-from src.utils.file_utils import list_and_classify_pdfs, find_cartao_cnpj_pdf
-from src.utils.pdf_reader import read_pdf_text
-from src.utils.text_utils import extract_company_fields
+
+from adapters.storage.api import download_file as storage_download_file
+from adapters.storage.api import list_files as storage_list_files
 from adapters.storage.api import (
-    download_file as storage_download_file,
-    list_files as storage_list_files,
     using_storage_backend,
 )
 from adapters.storage.supabase_storage import SupabaseStorageAdapter
@@ -37,6 +30,20 @@ from src.ui.forms.pipeline import (
     prepare_payload,
     validate_inputs,
 )
+from src.utils.file_utils import find_cartao_cnpj_pdf, list_and_classify_pdfs
+from src.utils.pdf_reader import read_pdf_text
+from src.utils.resource_path import resource_path
+from src.utils.text_utils import extract_company_fields
+
+from src.core.storage_key import storage_slug_part
+from uploader_supabase import (
+    _select_pdfs_dialog,
+    build_items_from_files,
+    upload_files_to_supabase,
+)
+
+# ui/forms/actions.py
+
 
 load_dotenv()
 
@@ -131,23 +138,67 @@ def _resolve_org_id() -> str:
 
 
 def _sanitize_key_component(s: str | None) -> str:
-    s = s or ""
-    s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode("ascii")
-    s = s.replace("\\", "/").replace(" ", "_")
-    # Substituir parênteses por hífen para evitar problemas no Storage
-    s = s.replace("(", "-").replace(")", "-")
-    s = re.sub(r"[^A-Za-z0-9._/-]", "-", s)
-    s = re.sub(r"-{2,}", "-", s).strip("-").strip(".")
-    return s
-
-
-def _build_storage_path(*parts: str) -> str:
-    cleaned = [_sanitize_key_component(str(p)) for p in parts if str(p)]
-    return re.sub(r"/+", "/", "/".join(cleaned)).strip("/")
+    return storage_slug_part(s)
 
 
 # -----------------------------------------------------------------------------
 # Telinha de carregamento
+# -----------------------------------------------------------------------------
+
+
+# -----------------------------------------------------------------------------
+# utils locais
+# -----------------------------------------------------------------------------
+
+
+def _now_iso_z() -> str:
+    return datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+
+
+def _get_bucket_name(default_env: str | None = None) -> str:
+    return (default_env or os.getenv("SUPABASE_BUCKET") or "rc-docs").strip()
+
+
+def _current_user_id() -> Optional[str]:
+    try:
+        resp = supabase.auth.get_user()
+        u = getattr(resp, "user", None)
+        if u and getattr(u, "id", None):
+            return u.id
+        if isinstance(resp, dict):
+            u = resp.get("user") or (resp.get("data") or {}).get("user") or {}
+            return u.get("id") or u.get("uid")
+    except Exception:
+        pass
+    return None
+
+
+def _resolve_org_id() -> str:
+    uid = _current_user_id()
+    fallback = (os.getenv("SUPABASE_DEFAULT_ORG") or "").strip()
+    if not uid and not fallback:
+        raise RuntimeError(
+            "Usuário não autenticado e SUPABASE_DEFAULT_ORG não definido."
+        )
+    try:
+        if uid:
+            res = exec_postgrest(
+                supabase.table("memberships")
+                .select("org_id")
+                .eq("user_id", uid)
+                .limit(1)
+            )
+            data = getattr(res, "data", None) or []
+            if data:
+                return data[0]["org_id"]
+    except Exception:
+        pass
+    if fallback:
+        return fallback
+    raise RuntimeError("Não foi possível resolver a organização do usuário.")
+# -----------------------------------------------------------------------------
+# Telinha de carregamento
+
 # -----------------------------------------------------------------------------
 class BusyDialog(tk.Toplevel):
     """Progress dialog. Suporta modo indeterminado e determinado (com %)."""
@@ -366,40 +417,71 @@ def _salvar_e_upload_docs_impl(
     if ctx.abort:
         return
 
+
 def salvar_e_enviar_para_supabase(self, row, ents, win=None):
-    """
-    Wrapper para salvar cliente e enviar documentos.
-    
-    Verifica conectividade com sistema de 3 estados antes de processar.
-    Esta função trata a instabilidade da conexão com Supabase.
-    """
-    
-    # Verificação extra de segurança usando is_really_online()
-    # que verifica threshold de instabilidade
+    """Salva (externamente) e envia PDF(s) selecionados via diálogo padrão."""
+
     if not is_really_online():
         state, description = get_supabase_state()
-        
+
         if state == "unstable":
             messagebox.showwarning(
                 "Conexão Instável",
                 f"A conexão com o Supabase está instável.\n\n"
                 f"{description}\n\n"
                 f"Não é possível enviar dados no momento.",
-                parent=win
+                parent=win,
             )
-        else:  # offline
+        else:
             messagebox.showwarning(
                 "Sistema Offline",
                 f"Não foi possível conectar ao Supabase.\n\n"
                 f"{description}\n\n"
                 f"Verifique sua conexão e tente novamente.",
-                parent=win
+                parent=win,
             )
-        
+
         log.warning("Envio bloqueado no wrapper: Estado = %s", state.upper())
         return
-    
-    return salvar_e_upload_docs(self, row, ents, None, win)
+
+    parent = win or self
+
+    files = _select_pdfs_dialog(parent=parent)
+    if not files:
+        messagebox.showinfo("Envio", "Nenhum arquivo selecionado.", parent=parent)
+        return
+
+    items = build_items_from_files(files)
+    if not items:
+        messagebox.showwarning(
+            "Envio",
+            "Nenhum PDF valido foi selecionado.",
+            parent=parent,
+        )
+        return
+
+    cnpj_val = ""
+    try:
+        widget = ents.get("CNPJ")
+        if widget is not None:
+            cnpj_val = widget.get().strip()
+    except Exception:
+        cnpj_val = ""
+
+    if not cnpj_val and row and len(row) >= 3:
+        try:
+            cnpj_val = (row[2] or "").strip()
+        except Exception:
+            cnpj_val = ""
+
+    cliente = {"cnpj": cnpj_val}
+    upload_files_to_supabase(
+        self,
+        cliente,
+        items,
+        subpasta=None,
+        parent=parent,
+    )
 
 
 # -----------------------------------------------------------------------------

@@ -1,39 +1,44 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 from pathlib import Path
-from PyInstaller.utils.hooks import collect_data_files
+from PyInstaller.utils.hooks import collect_data_files  # retorna (src, dest) 2-tuplas
 
-BASE = Path.cwd().resolve()          # <- em vez de __file__
+BASE = Path(SPECPATH).resolve()  # usar pasta do .spec (estável)
 SRC  = BASE / "src"
 
-# ---------- montar lista de datas de forma segura ----------
+# ---------- datas: APENAS (src, dest) 2-tuplas aqui ----------
 datas = []
 
-def add_data_safe(path: Path, dest="."):
-    if path.exists():
-        datas.append((str(path), dest))
+def add_file(src: Path, dest="."):
+    if src.exists():
+        datas.append((str(src), dest))
 
-# opcionais (só entram se existirem)
-add_data_safe(BASE / "rc.ico", ".")
-add_data_safe(BASE / ".env", ".")
-add_data_safe(BASE / "CHANGELOG_CONSOLIDADO.md", ".")
+# opcionais
+add_file(BASE / "rc.ico", ".")
+add_file(BASE / ".env", ".")
+add_file(BASE / "CHANGELOG.md", ".")
+add_file(BASE / "CHANGELOG_CONSOLIDADO.md", ".")
 
-# runtime_docs (se existir em algum lugar comum)
-for candidate in [BASE / "runtime_docs", SRC / "runtime_docs", BASE / "assets" / "runtime_docs"]:
-    if candidate.exists():
-        add_data_safe(candidate, "runtime_docs")
-        break
-
-# libs que carregam arquivos de dados
+# dados de pacotes (site-packages)
 datas += collect_data_files("ttkbootstrap")
 datas += collect_data_files("tzdata")
+datas += collect_data_files("certifi")   # bundle CA para HTTPS
 
-# ---------- análise ----------
+# diretórios do projeto: anexar via Tree **DEPOIS** do Analysis
+ASSETS_DIR    = BASE / "assets"
+TEMPLATES_DIR = BASE / "templates"
+RUNTIME_DOCS_DIR = None
+for cand in (BASE / "runtime_docs", SRC / "runtime_docs", BASE / "assets" / "runtime_docs"):
+    if cand.exists():
+        RUNTIME_DOCS_DIR = cand
+        break
+
+# ---------- Analysis ----------
 a = Analysis(
     ['src/app_gui.py'],
     pathex=[str(BASE), str(SRC)],
     binaries=[],
-    datas=datas,
+    datas=datas,                    # aqui só 2-tuplas
     hiddenimports=['tzdata', 'tzlocal'],
     hookspath=[],
     hooksconfig={},
@@ -43,9 +48,19 @@ a = Analysis(
     optimize=0,
 )
 
+# ---------- anexar diretórios inteiros via Tree (TOC 3-tuplas) ----------
+if 'Tree' in globals():
+    if ASSETS_DIR.is_dir():
+        a.datas += Tree(str(ASSETS_DIR), prefix="assets")
+    if TEMPLATES_DIR.is_dir():
+        a.datas += Tree(str(TEMPLATES_DIR), prefix="templates")
+    if RUNTIME_DOCS_DIR and RUNTIME_DOCS_DIR.is_dir():
+        a.datas += Tree(str(RUNTIME_DOCS_DIR), prefix="runtime_docs")
+
 pyz = PYZ(a.pure, a.zipped_data)
 
 ICON = str(BASE / "rc.ico") if (BASE / "rc.ico").exists() else None
+VERSION_FILE = str(BASE / "version_file.txt") if (BASE / "version_file.txt").exists() else None
 
 exe = EXE(
     pyz,
@@ -54,7 +69,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='rcgestor',
+    name='RC-Gestor-Clientes-v1.1.0',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -65,5 +80,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=ICON,                       # string ou None
+    icon=ICON,
+    version=VERSION_FILE,
 )

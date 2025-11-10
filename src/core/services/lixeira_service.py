@@ -4,14 +4,13 @@ from __future__ import annotations
 import logging
 import os
 from tempfile import NamedTemporaryFile
+from tkinter import messagebox
 from typing import Iterable, List, Tuple
 
-from tkinter import messagebox
-
+from adapters.storage.api import delete_file as storage_delete_file
+from adapters.storage.api import list_files as storage_list_files
+from adapters.storage.api import upload_file as storage_upload_file
 from adapters.storage.api import (
-    delete_file as storage_delete_file,
-    list_files as storage_list_files,
-    upload_file as storage_upload_file,
     using_storage_backend,
 )
 from adapters.storage.supabase_storage import SupabaseStorageAdapter
@@ -39,10 +38,7 @@ def _get_supabase_and_org():
         if not uid:
             raise RuntimeError("Usuário não autenticado no Supabase.")
         res = exec_postgrest(
-            supabase.table("memberships")
-            .select("org_id")
-            .eq("user_id", uid)
-            .limit(1)
+            supabase.table("memberships").select("org_id").eq("user_id", uid).limit(1)
         )
         org_id = res.data[0]["org_id"] if getattr(res, "data", None) else None
         if not org_id:

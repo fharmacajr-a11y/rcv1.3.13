@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import hashlib
 import mimetypes
 import os
+import logging
+from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
+
+# Garante MIME de .docx em qualquer SO
+mimetypes.add_type(
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".docx",
+)
 
 try:
     from src.utils.hash_utils import sha256_file as _sha256
@@ -20,10 +27,11 @@ except Exception:  # pragma: no cover
         return digest.hexdigest()
 
 
-from adapters.storage.api import (
-    list_files as storage_list_files,
-    upload_file as storage_upload_file,
-)
+from adapters.storage.api import list_files as storage_list_files
+from adapters.storage.api import upload_file as storage_upload_file
+from src.core.storage_key import make_storage_key, storage_slug_filename, storage_slug_part
+
+logger = logging.getLogger(__name__)
 from infra.supabase_client import exec_postgrest, supabase
 
 
@@ -36,6 +44,7 @@ def _iter_files(base: Path) -> Iterable[Path]:
     for item in base.rglob("*"):
         if item.is_file():
             yield item
+
 
 
 def _current_user_id() -> Optional[str]:
@@ -55,7 +64,7 @@ def _current_user_id() -> Optional[str]:
 def _resolve_org_id() -> str:
     """Resolve the organisation identifier for the logged user."""
     user_id = _current_user_id()
-    fallback = (os.getenv("SUPABASE_DEFAULT_ORG") or "").strip()
+    fallback = (os.getenv("SUPABASE_DEFAULT_ORG") or "").strip() or "unknown-org"
     if not user_id:
         return fallback
     try:
@@ -95,7 +104,7 @@ def upload_folder_to_supabase(
             "Usuario nao autenticado no Supabase. Faca login antes de enviar."
         )
 
-    org_id = _resolve_org_id() or "unknown-org"
+    org_id = _resolve_org_id()
     results: List[Dict[str, Any]] = []
 
     def _raise_if_exists(path_key: str) -> None:
@@ -112,11 +121,35 @@ def upload_folder_to_supabase(
 
     for path in _iter_files(base):
         relative_path = str(path.relative_to(base)).replace("\\", "/")
+        segments_raw = [segment for segment in relative_path.split("/") if segment]
+        if segments_raw:
+            filename_raw = segments_raw[-1]
+            dir_segments_raw = segments_raw[:-1]
+        else:
+            filename_raw = path.name
+            dir_segments_raw = []
+
+        storage_path = make_storage_key(
+            org_id,
+            client_id,
+            subdir,
+            *dir_segments_raw,
+            filename=filename_raw,
+        )
+
+        dir_segments_sanitized: List[str] = []
+        for segment in dir_segments_raw:
+            sanitized_segment = storage_slug_part(segment)
+            if sanitized_segment:
+                dir_segments_sanitized.append(sanitized_segment)
+        filename_sanitized = storage_slug_filename(filename_raw)
+        safe_rel = "/".join(dir_segments_sanitized + [filename_sanitized])
+
         size_bytes = path.stat().st_size
         sha_value = _sha256(path)
         mime_type = _guess_mime(path)
 
-        storage_path = f"{org_id}/{client_id}/{subdir}/{relative_path}"
+        logger.info("Upload Storage: original=%r -> key=%s", relative_path or filename_raw, storage_path)
         _raise_if_exists(storage_path)
         storage_upload_file(str(path), storage_path, mime_type)
 
@@ -167,7 +200,7 @@ def upload_folder_to_supabase(
 
         results.append(
             {
-                "relative_path": relative_path,
+                "relative_path": safe_rel,
                 "storage_path": storage_path,
                 "document_id": document_id,
                 "version_id": version_id,

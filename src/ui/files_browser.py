@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
 import os
+import tempfile
 import threading
 import tkinter as tk
 from pathlib import Path
-from typing import Any
 from tkinter import filedialog, messagebox, ttk
+from typing import Any
 
 from adapters.storage.api import DownloadCancelledError, download_folder_zip
-from src.ui.forms.actions import list_storage_objects, download_file
+from infra.supabase.storage_helpers import download_bytes
+from src.ui.forms.actions import download_file, list_storage_objects
+from src.ui.pdf_preview_native import open_pdf_viewer
 from src.utils.resource_path import resource_path  # evita ciclo com app_gui
 
 
@@ -63,6 +66,9 @@ def open_files_browser(
     ttk.Button(toolbar, text="Baixar selecionado", command=lambda: do_download()).pack(
         side="left"
     )
+
+    btn_preview = ttk.Button(toolbar, text="Visualizar", state="disabled")
+    btn_preview.pack(side="left", padx=(8, 0))
 
     btn_zip_folder = ttk.Button(toolbar, text="Baixar pasta (.zip)")
     btn_zip_folder.pack(side="left", padx=(8, 0))
@@ -138,21 +144,37 @@ def open_files_browser(
             rel_prefix = (rel + "/") if rel else ""
             populate_tree(item, rel_prefix)
 
-    def do_download():
+    def _current_item_info() -> tuple[str, str, str, str] | None:
         sel = tree.selection()
         if not sel:
-            return
+            return None
         item = sel[0]
         tipo = (tree.item(item).get("values") or [""])[0]
-        if tipo != "Arquivo":
-            return
         rel = _get_rel_path(item)
-        if not rel:
+        nome = (tree.item(item).get("text") or "").strip()
+        return item, tipo, rel, nome
+
+    def _update_preview_state() -> None:
+        info = _current_item_info()
+        if not info:
+            btn_preview.configure(state="disabled")
+            return
+        _, tipo, rel, nome = info
+        if tipo != "Arquivo" or not rel or not nome.lower().endswith(".pdf"):
+            btn_preview.configure(state="disabled")
+            return
+        btn_preview.configure(state="normal")
+
+    def do_download():
+        info = _current_item_info()
+        if not info:
+            return
+        _item, tipo, rel, nome = info
+        if tipo != "Arquivo" or not rel:
             return
         file_path = f"{root_prefix}/{rel}".strip("/")
 
-        # Sugere nome enriquecido com CNPJ/ID
-        base = os.path.basename(rel)
+        base = nome or os.path.basename(rel)
         stem, ext = os.path.splitext(base)
         sufixo = cnpj or f"ID {client_id}"
         suggest = _sanitize_filename(f"{stem} - {sufixo}{ext}")
@@ -317,9 +339,68 @@ def open_files_browser(
 
     btn_zip_folder.configure(command=on_zip_folder)
 
+    def on_preview() -> None:
+        info = _current_item_info()
+        if not info:
+            return
+        _item, tipo, rel, nome = info
+        if tipo != "Arquivo" or not rel or not nome.lower().endswith(".pdf"):
+            _update_preview_state()
+            return
+
+        btn_preview.configure(state="disabled")
+        remote_path = f"{root_prefix}/{rel}".strip("/")
+
+        def _target():
+            return download_bytes(BUCKET, remote_path)
+
+        def _done(data, err):
+            if err or not data:
+                messagebox.showerror(
+                    "Visualizar",
+                    "Nao foi possivel carregar este PDF.",
+                    parent=docs_window,
+                )
+            else:
+                tmp_path = None
+                try:
+                    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+                    try:
+                        tmp.write(data)
+                        tmp_path = tmp.name
+                    finally:
+                        tmp.close()
+                    viewer = open_pdf_viewer(docs_window, tmp_path, display_name=nome)
+
+                    def _cleanup(_event=None):
+                        try:
+                            os.unlink(tmp_path)
+                        except OSError:
+                            pass
+
+                    viewer.bind("<Destroy>", _cleanup, add="+")
+                except Exception as exc:
+                    if tmp_path:
+                        try:
+                            os.unlink(tmp_path)
+                        except OSError:
+                            pass
+                    messagebox.showerror(
+                        "Visualizar",
+                        f"Falha ao abrir visualizacao: {exc}",
+                        parent=docs_window,
+                    )
+            _update_preview_state()
+
+        _run_bg(_target, _done)
+
+    btn_preview.configure(command=on_preview)
+
     def on_double_click(_event=None):
         do_download()
 
     tree.bind("<<TreeviewOpen>>", on_tree_open)
     tree.bind("<Double-1>", on_double_click)
+    tree.bind("<<TreeviewSelect>>", lambda _e: _update_preview_state())
     populate_tree("", rel_prefix="")
+    _update_preview_state()

@@ -28,37 +28,35 @@ def _is_missing_column_error(err: Exception) -> bool:
 def list_profiles_by_org(org_id: str) -> List[Dict[str, Any]]:
     """
     Lista perfis de uma organização com email e display_name.
-    
+
     Args:
         org_id: UUID da organização
-        
+
     Returns:
         Lista de dicionários com: email, display_name (se coluna existir)
-        
+
     Raises:
         Exception: Se houver erro não relacionado à coluna ausente
     """
     global _WARNED_MISSING_COL
     supa = get_supabase()
-    
+
     try:
         resp = exec_postgrest(
-            supa.table(_TABLE)
-            .select("email, display_name")
-            .eq("org_id", org_id)
+            supa.table(_TABLE).select("email, display_name").eq("org_id", org_id)
         )
         return resp.data or []
     except Exception as e:
         # Fallback se coluna display_name não existir
         if _is_missing_column_error(e):
             if not _WARNED_MISSING_COL:
-                log.warning("profiles_service: coluna display_name ausente; usando fallback.")
+                log.warning(
+                    "profiles_service: coluna display_name ausente; usando fallback."
+                )
                 _WARNED_MISSING_COL = True
             try:
                 resp = exec_postgrest(
-                    supa.table(_TABLE)
-                    .select("email")
-                    .eq("org_id", org_id)
+                    supa.table(_TABLE).select("email").eq("org_id", org_id)
                 )
                 return resp.data or []
             except Exception:
@@ -70,23 +68,23 @@ def list_profiles_by_org(org_id: str) -> List[Dict[str, Any]]:
 def get_display_names_map(org_id: str) -> Dict[str, str]:
     """
     Retorna mapa de email -> display_name para uma organização.
-    
+
     Args:
         org_id: UUID da organização
-        
+
     Returns:
         Dicionário {email_lowercase: display_name}
         Apenas emails com display_name preenchido
     """
     data = list_profiles_by_org(org_id)
     out: Dict[str, str] = {}
-    
+
     for row in data:
         email = (row.get("email") or "").strip().lower()
         dn = (row.get("display_name") or "").strip()
         if email and dn:
             out[email] = dn
-    
+
     return out
 
 
@@ -94,10 +92,10 @@ def get_display_name_by_email(email: str) -> Optional[str]:
     """
     Busca direta em 'profiles' filtrando por email (lowercase).
     Retorna display_name se existir; senão None. Tolerar erros.
-    
+
     Args:
         email: Email do usuário (será convertido para lowercase)
-        
+
     Returns:
         display_name se encontrado e preenchido, senão None
     """
@@ -107,10 +105,7 @@ def get_display_name_by_email(email: str) -> Optional[str]:
     try:
         supa = get_supabase()
         resp = exec_postgrest(
-            supa.table("profiles")
-            .select("display_name")
-            .eq("email", email_lc)
-            .limit(1)
+            supa.table("profiles").select("display_name").eq("email", email_lc).limit(1)
         )
         rows = getattr(resp, "data", None) or []
         if rows:
@@ -125,10 +120,10 @@ def get_email_prefix_map(org_id: str) -> Dict[str, str]:
     """
     Mapa {prefixo_sem_dominio: email_completo_lower} para todos os perfis da org.
     Inclui aliases de prefixos (ex: pharmaca2013 → fharmaca2013).
-    
+
     Args:
         org_id: UUID da organização
-        
+
     Returns:
         Dicionário {prefixo: email_completo}
         Ex.: {"fharmaca2013": "fharmaca2013@hotmail.com", "pharmaca2013": "fharmaca2013@hotmail.com"}
@@ -138,9 +133,7 @@ def get_email_prefix_map(org_id: str) -> Dict[str, str]:
     try:
         supa = get_supabase()
         resp = exec_postgrest(
-            supa.table("profiles")
-            .select("email")
-            .eq("org_id", org_id)
+            supa.table("profiles").select("email").eq("org_id", org_id)
         )
         rows = getattr(resp, "data", None) or []
         for r in rows:
@@ -148,10 +141,10 @@ def get_email_prefix_map(org_id: str) -> Dict[str, str]:
             if not em:
                 continue
             prefix = em.split("@", 1)[0]
-            
+
             # Aplicar alias no mapa
             alias = EMAIL_PREFIX_ALIASES.get(prefix, prefix)
-            out.setdefault(alias, em)   # garante entrada com o prefixo correto
+            out.setdefault(alias, em)  # garante entrada com o prefixo correto
             out.setdefault(prefix, em)  # mantém também o original se existir
     except Exception as e:
         log.debug("Erro ao carregar mapa de prefixos para org %s: %s", org_id, e)

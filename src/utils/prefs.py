@@ -10,6 +10,7 @@ try:
     from filelock import FileLock
     HAS_FILELOCK = True
 except ImportError:
+    FileLock = Any  # type: ignore[misc,assignment]
     HAS_FILELOCK = False
 
 log = logging.getLogger(__name__)
@@ -46,10 +47,10 @@ def load_columns_visibility(user_key: str) -> Dict[str, bool]:
     path = _prefs_path()
     if not os.path.exists(path):
         return {}
-    
+
     lock_path = path + ".lock" if HAS_FILELOCK else None
-    lock = FileLock(lock_path, timeout=5) if HAS_FILELOCK and lock_path else None
-    
+    lock = FileLock(lock_path, timeout=5) if HAS_FILELOCK and lock_path else None  # type: ignore[misc]
+
     try:
         if lock:
             with lock:
@@ -78,8 +79,8 @@ def save_columns_visibility(user_key: str, mapping: Dict[str, bool]) -> None:
     """
     path = _prefs_path()
     lock_path = path + ".lock" if HAS_FILELOCK else None
-    lock = FileLock(lock_path, timeout=5) if HAS_FILELOCK and lock_path else None
-    
+    lock = FileLock(lock_path, timeout=5) if HAS_FILELOCK and lock_path else None  # type: ignore[misc]
+
     try:
         if lock:
             with lock:

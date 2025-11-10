@@ -1,7 +1,9 @@
 # ui/theme.py
 from __future__ import annotations
+
 import tkinter as tk
 from tkinter import font as tkfont
+
 from ttkbootstrap import Style
 
 DEFAULT_THEME = "flatly"  # pode trocar para "darkly" se preferir escuro

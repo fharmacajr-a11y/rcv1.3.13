@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from src.config.paths import CLOUD_ONLY
-
-from datetime import datetime
-from pathlib import Path
 import os
 import re
+from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
+from src.config.paths import CLOUD_ONLY
 from src.core import classify_document
 
 __all__ = [

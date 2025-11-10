@@ -7,8 +7,8 @@ import tkinter as tk
 import ttkbootstrap as tb
 
 from src.ui.hub.actions import on_add_note_clicked as actions_on_add_note_clicked
-from src.ui.hub.state import ensure_state
 from src.ui.hub.constants import HUB_TITLE, NEW_NOTE_LABEL, PAD_OUTER
+from src.ui.hub.state import ensure_state
 
 
 def build_notes_panel(screen, parent=None):

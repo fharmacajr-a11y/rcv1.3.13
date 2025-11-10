@@ -2,6 +2,11 @@
 """Entry-point fino que reexporta a janela principal."""
 import os
 
+# Versão do aplicativo
+from src.version import get_version
+
+APP_VERSION = get_version()
+
 # Configuração cloud-only
 os.environ.setdefault("RC_NO_LOCAL_FS", "1")
 try:
@@ -11,8 +16,9 @@ except Exception:
 
 # -------- Loader de .env (suporta PyInstaller onefile) --------
 try:
-    from src.utils.resource_path import resource_path
     from dotenv import load_dotenv
+
+    from src.utils.resource_path import resource_path
 
     load_dotenv(resource_path(".env"), override=False)  # empacotado
     load_dotenv(os.path.join(os.getcwd(), ".env"), override=True)  # externo sobrescreve
@@ -36,16 +42,34 @@ __all__ = ["App"]
 
 if __name__ == "__main__":
     import logging
-    from src.ui.splash import show_splash
+
+    # Install global exception hook early
+    try:
+        from src.utils.errors import install_global_exception_hook
+        install_global_exception_hook()
+    except Exception:
+        pass  # Don't fail startup if hook installation fails
+
+    # Parse CLI arguments
+    try:
+        from src.cli import get_args
+        app_args = get_args()
+    except Exception:
+        # Fallback if CLI parsing fails
+        from src.cli import AppArgs
+        app_args = AppArgs()
+
     from src.ui.login_dialog import LoginDialog  # Novo diálogo simplificado
+    from src.ui.splash import show_splash
+
     # [startup-fix] import seguro do supabase
     try:
-        from infra.supabase_client import get_supabase as _get_supabase
         from infra.supabase_client import bind_postgrest_auth_if_any
+        from infra.supabase_client import get_supabase as _get_supabase
     except Exception:
         _get_supabase = None
         bind_postgrest_auth_if_any = None
-    
+
     from data.auth_bootstrap import _get_access_token
 
     def _sb():
@@ -71,10 +95,16 @@ if __name__ == "__main__":
 
     # Log timezone local detectado
     try:
-        import tzlocal  # type: ignore[import-not-found]
         from datetime import datetime
+
+        import tzlocal  # type: ignore[import-not-found]
+
         tz = tzlocal.get_localzone()
-        log.info("Timezone local detectado: %s (agora: %s)", tz, datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S"))
+        log.info(
+            "Timezone local detectado: %s (agora: %s)",
+            tz,
+            datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S"),
+        )
     except Exception:
         log.info("Timezone local não detectado; usando hora do sistema.")
 
@@ -85,38 +115,53 @@ if __name__ == "__main__":
         if not client:
             log.warning("Cliente Supabase não disponível.")
             return False
-        
+
         if bind_postgrest_auth_if_any:
             bind_postgrest_auth_if_any(client)
-        
+
         if _get_access_token(client):
             log.info("Sessão já existente no boot.")
             return True
-        
+
         # Abre diálogo de login
         log.info("Sem sessão inicial - abrindo login...")
         dlg = LoginDialog(root)
         root.wait_window(dlg)
-        
+
         if bind_postgrest_auth_if_any:
             bind_postgrest_auth_if_any(client)
-        
+
         return getattr(dlg, "login_success", False)
+
+    # Check internet connectivity if in cloud-only mode
+    try:
+        from src.utils.network import require_internet_or_alert
+        if not require_internet_or_alert():
+            log.error("Internet check failed in cloud-only mode. Exiting.")
+            import sys
+            sys.exit(1)
+    except Exception as e:
+        log.warning("Failed to check internet connectivity: %s", e)
 
     app = App(start_hidden=True)
 
-    splash = show_splash(app, min_ms=1200)
+    # Show splash unless --no-splash flag is set
+    if not app_args.no_splash:
+        splash = show_splash(app, min_ms=1200)
+    else:
+        splash = None
+        log.info("Splash screen skipped (--no-splash)")
 
     def _open_login_after_splash():
         try:
-            if splash.winfo_exists():
+            if splash and splash.winfo_exists():
                 splash.destroy()
         except Exception:
             pass
 
         # Garantir login antes de mostrar a app
         login_ok = _ensure_logged_ui(app)
-        
+
         # Log da sessão após login
         try:
             # [startup-fix] usa helper _sb() ao invés de get_supabase direto
@@ -135,10 +180,12 @@ if __name__ == "__main__":
             try:
                 # Atualizar status de nuvem (online) - e-mail aparece via _user_status_suffix()
                 if hasattr(app, "_status_monitor"):
-                    app._status_monitor.set_cloud_status(True)
-                
+                    status_monitor = getattr(app, "_status_monitor", None)
+                    if status_monitor is not None:
+                        status_monitor.set_cloud_status(True)
+
                 app._update_user_status()
-                
+
                 # Atualizar email no rodapé
                 try:
                     # [startup-fix] usa helper _sb() ao invés de get_supabase direto
@@ -150,7 +197,7 @@ if __name__ == "__main__":
                             app.footer.set_user(email)
                 except Exception:
                     pass
-                
+
                 app.show_hub_screen()
             except Exception as e:
                 log.error("Erro ao carregar UI: %s", e)

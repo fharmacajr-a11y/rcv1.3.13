@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from src.config.paths import CLOUD_ONLY
-
 import os
 import shutil
 from pathlib import Path
 from typing import Iterable, Mapping, Union
+
+from src.config.paths import CLOUD_ONLY
 
 SubSpec = Union[str, Mapping[str, object]]
 SubSpecList = Iterable[SubSpec]

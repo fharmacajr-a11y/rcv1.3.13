@@ -2,9 +2,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
-
 from tkinter import messagebox
+from typing import Any
 
 log = logging.getLogger("app_gui")
 
@@ -41,7 +40,9 @@ def _show_hub(app: Any) -> Any:
         open_clientes=lambda: navigate_to(app, "main"),
         open_anvisa=lambda: navigate_to(app, "placeholder", title="Anvisa"),
         open_auditoria=lambda: navigate_to(app, "placeholder", title="Auditoria"),
-        open_farmacia_popular=lambda: navigate_to(app, "placeholder", title="Farmcia Popular"),
+        open_farmacia_popular=lambda: navigate_to(
+            app, "placeholder", title="Farmcia Popular"
+        ),
         open_sngpc=lambda: navigate_to(app, "placeholder", title="Sngpc"),
         open_senhas=lambda: navigate_to(app, "passwords"),
         open_mod_sifap=lambda: navigate_to(app, "placeholder", title="Sifap"),
@@ -62,7 +63,7 @@ def _show_hub(app: Any) -> Any:
 
 
 def _show_main(app: Any) -> Any:
-    from src.ui.main_screen import MainScreenFrame, DEFAULT_ORDER_LABEL, ORDER_CHOICES
+    from src.ui.main_screen import DEFAULT_ORDER_LABEL, ORDER_CHOICES, MainScreenFrame
 
     frame = app.show_frame(
         MainScreenFrame,
@@ -75,6 +76,7 @@ def _show_main(app: Any) -> Any:
         on_open_lixeira=app.abrir_lixeira,
         order_choices=ORDER_CHOICES,
         default_order_label=DEFAULT_ORDER_LABEL,
+        on_upload_folder=app.enviar_pasta_supabase,
     )
     if isinstance(frame, MainScreenFrame):
         app._main_frame_ref = frame
@@ -100,7 +102,9 @@ def _show_passwords(app: Any) -> Any:
     from src.ui.passwords_screen import PasswordsScreen
 
     if getattr(app, "_passwords_screen_instance", None) is None:
-        app._passwords_screen_instance = PasswordsScreen(app._content_container, main_window=app)
+        app._passwords_screen_instance = PasswordsScreen(
+            app._content_container, main_window=app
+        )
         _place_or_pack(app._passwords_screen_instance)
 
     frame = app._passwords_screen_instance

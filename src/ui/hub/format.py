@@ -30,4 +30,3 @@ def _format_note_line(created_at: str, author_display: str, text: str) -> str:
     """Compose the standard note line representation."""
     ts = _format_timestamp(created_at)
     return f"[{ts}] {author_display}: {text}"
-

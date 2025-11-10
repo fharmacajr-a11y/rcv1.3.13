@@ -1,7 +1,8 @@
 # application/auth_controller.py
 from __future__ import annotations
-from typing import Optional, Callable, Dict, Any
+
 import contextlib
+from typing import Any, Callable, Dict, Optional
 
 
 class AuthController:
@@ -29,7 +30,7 @@ class AuthController:
     def set_user_data(self, user_data: Optional[Dict[str, Any]]) -> None:
         """
         Define dados completos do usuário após login bem-sucedido.
-        
+
         Args:
             user_data: Dict com email, org_id, etc.
         """
@@ -38,7 +39,7 @@ class AuthController:
             self._user = user_data.get("email")
         elif not user_data:
             self._user = None
-        
+
         # Notificar mudança
         if callable(self._on_user_change):
             with contextlib.suppress(Exception):
@@ -63,12 +64,12 @@ class AuthController:
         try:
             if not self._user_data:
                 return None
-            
+
             # Tentar obter diretamente
             org_id = self._user_data.get("org_id")
             if org_id:
                 return org_id
-            
+
             # Tentar obter de claims (JWT)
             claims = self._user_data.get("claims") or {}
             return claims.get("org_id")

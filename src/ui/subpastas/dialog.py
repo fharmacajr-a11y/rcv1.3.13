@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import os
 import tkinter as tk
-import ttkbootstrap as tb
 from typing import Iterable, List
+
+import ttkbootstrap as tb
 
 from src.config.paths import CLOUD_ONLY
 from src.utils.file_utils import ensure_subpastas, open_folder

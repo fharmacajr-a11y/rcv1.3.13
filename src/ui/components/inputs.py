@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, Callable, Iterable
-
 import tkinter as tk
+from dataclasses import dataclass
 from tkinter import ttk
+from typing import Any, Callable, Iterable
 
 import ttkbootstrap as tb
 
@@ -15,10 +14,12 @@ class SearchControls:
     frame: tb.Frame
     search_var: tk.StringVar
     order_var: tk.StringVar
+    status_var: tk.StringVar
     entry: tb.Entry
     search_button: tb.Button
     clear_button: tb.Button
     order_combobox: tb.Combobox
+    status_combobox: tb.Combobox
 
 
 __all__ = ["SearchControls", "labeled_entry", "create_search_controls"]
@@ -39,8 +40,11 @@ def create_search_controls(
     on_search: Callable[[Any | None], Any] | None,
     on_clear: Callable[[], Any] | None,
     on_order_change: Callable[[], Any] | None,
+    on_status_change: Callable[[Any | None], Any] | None = None,
     search_var: tk.StringVar | None = None,
     order_var: tk.StringVar | None = None,
+    status_var: tk.StringVar | None = None,
+    status_choices: Iterable[str] | None = None,
     entry_width: int = 40,
 ) -> SearchControls:
     """Build the search + ordering toolbar."""
@@ -48,6 +52,7 @@ def create_search_controls(
 
     search_var = search_var or tk.StringVar(master=parent)
     order_var = order_var or tk.StringVar(master=parent, value=default_order)
+    status_var = status_var or tk.StringVar(master=parent, value="Todos")
 
     tb.Label(frame, text="Pesquisar:").pack(side="left", padx=5)
 
@@ -85,12 +90,34 @@ def create_search_controls(
     order_combobox.pack(side="left", padx=5)
     order_combobox.bind("<<ComboboxSelected>>", _order_changed, add="+")
 
+    tb.Label(frame, text="Status:").pack(side="left", padx=5)
+
+    def _status_changed(event: Any | None = None) -> None:
+        if on_status_change:
+            on_status_change(event)
+
+    status_values = list(status_choices or [])
+    if "Todos" not in status_values:
+        status_values.insert(0, "Todos")
+
+    status_combobox = tb.Combobox(
+        frame,
+        textvariable=status_var,
+        values=status_values or ["Todos"],
+        state="readonly",
+        width=28,
+    )
+    status_combobox.pack(side="left", padx=5)
+    status_combobox.bind("<<ComboboxSelected>>", _status_changed, add="+")
+
     return SearchControls(
         frame=frame,
         search_var=search_var,
         order_var=order_var,
+        status_var=status_var,
         entry=entry,
         search_button=search_button,
         clear_button=clear_button,
         order_combobox=order_combobox,
+        status_combobox=status_combobox,
     )

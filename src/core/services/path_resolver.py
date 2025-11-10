@@ -1,12 +1,13 @@
 # core/services/path_resolver.py
 from __future__ import annotations
-import os
-from typing import Optional, Literal, Tuple, TYPE_CHECKING
 
-from src.core.db_manager import get_cliente_by_id
+import os
 from dataclasses import dataclass
-from src.config.paths import DOCS_DIR
+from typing import TYPE_CHECKING, Literal, Optional, Tuple
+
 from src.app_utils import safe_base_from_fields
+from src.config.paths import DOCS_DIR
+from src.core.db_manager import get_cliente_by_id
 from src.utils.file_utils import read_marker_id
 
 if TYPE_CHECKING:

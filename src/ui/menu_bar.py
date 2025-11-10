@@ -1,8 +1,9 @@
 # gui/menu_bar.py
 from __future__ import annotations
+
 import tkinter as tk
 from tkinter import messagebox
-from typing import Callable, Optional, Iterable
+from typing import Callable, Iterable, Optional
 
 
 def _available_themes() -> Iterable[str]:

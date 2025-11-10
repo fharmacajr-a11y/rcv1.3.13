@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 # utils/themes.py
 from __future__ import annotations
-import os
+
 import json
 import logging
+import os
 
 try:
     import ttkbootstrap as tb
@@ -57,8 +58,17 @@ def load_theme(force_reload: bool = False) -> str:
     Retorna o tema ativo.
     - NO_FS=True: só usa cache/memória e RC_DEFAULT_THEME; não lê/grava arquivo.
     - NO_FS=False: lê de config_theme.json com cache.
+    - Safe-mode: retorna 'default' se detectado via CLI
     """
     global _CACHED_THEME, _CACHED_MTIME
+
+    # Check for safe-mode (returns default ttk theme)
+    try:
+        from src.cli import get_args
+        if get_args().safe_mode:
+            return "default"  # Standard ttk theme
+    except Exception:
+        pass  # If CLI not available, continue normally
 
     # Modo cloud-only: nunca toca no disco
     if NO_FS:
@@ -161,13 +171,13 @@ def apply_button_styles(app, *, theme: str | None = None) -> None:
         has_subp = hasattr(app, "btn_subpastas")
 
         if atual == DEFAULT_THEME:
-            has_limpar and app.btn_limpar.configure(bootstyle="danger")
-            has_abrir and app.btn_abrir.configure(bootstyle="primary")
-            has_subp and app.btn_subpastas.configure(bootstyle="secondary")
+            _ = has_limpar and app.btn_limpar.configure(bootstyle="danger")
+            _ = has_abrir and app.btn_abrir.configure(bootstyle="primary")
+            _ = has_subp and app.btn_subpastas.configure(bootstyle="secondary")
         else:
-            has_limpar and app.btn_limpar.configure(bootstyle="secondary")
-            has_abrir and app.btn_abrir.configure(bootstyle="secondary")
-            has_subp and app.btn_subpastas.configure(bootstyle="secondary")
+            _ = has_limpar and app.btn_limpar.configure(bootstyle="secondary")
+            _ = has_abrir and app.btn_abrir.configure(bootstyle="secondary")
+            _ = has_subp and app.btn_subpastas.configure(bootstyle="secondary")
     except Exception:
         # Não falhar se algum botão ainda não existir
         logging.debug(

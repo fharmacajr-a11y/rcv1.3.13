@@ -1,7 +1,8 @@
 # utils/theme_manager.py
 from __future__ import annotations
+
 import logging
-from typing import Callable, List, Set, Optional
+from typing import Callable, List, Optional, Set
 
 from src.utils import themes
 

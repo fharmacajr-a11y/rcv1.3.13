@@ -2,10 +2,12 @@
 """Sessão do usuário logado + tokens do Supabase, com org_id carregado da tabela memberships."""
 
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Optional, List
 
-from infra.supabase_client import supabase, exec_postgrest
+from dataclasses import dataclass
+from typing import List, Optional
+
+from infra.supabase_client import exec_postgrest, supabase
+
 
 # -------------------- Modelos -------------------- #
 @dataclass
@@ -14,10 +16,12 @@ class CurrentUser:
     email: str
     org_id: Optional[str] = None
 
+
 @dataclass
 class Tokens:
     access_token: Optional[str] = None
     refresh_token: Optional[str] = None
+
 
 # Compatibilidade com código legado que importava `Session`
 @dataclass
@@ -28,9 +32,11 @@ class Session:
     access_token: Optional[str] = None
     refresh_token: Optional[str] = None
 
+
 # -------------------- Estado -------------------- #
 _CURRENT_USER: Optional[CurrentUser] = None
 _TOKENS = Tokens()
+
 
 # -------------------- API pública -------------------- #
 def refresh_current_user_from_supabase() -> None:
@@ -51,9 +57,7 @@ def refresh_current_user_from_supabase() -> None:
 
     # Busca memberships do usuário
     resp = exec_postgrest(
-        supabase.table("memberships")
-        .select("org_id, role")
-        .eq("user_id", uid)
+        supabase.table("memberships").select("org_id, role").eq("user_id", uid)
     )
     rows: List[dict] = resp.data or []
 
@@ -65,28 +69,34 @@ def refresh_current_user_from_supabase() -> None:
 
     _CURRENT_USER = CurrentUser(uid=uid, email=email, org_id=org_id)
 
+
 def get_current_user() -> Optional[CurrentUser]:
     """Retorna o usuário atual (uid, email, org_id) ou None."""
     return _CURRENT_USER
+
 
 def clear_current_user() -> None:
     """Limpa a sessão do usuário atual."""
     global _CURRENT_USER
     _CURRENT_USER = None
 
+
 # -------------------- Tokens -------------------- #
 def set_tokens(access: Optional[str], refresh: Optional[str]) -> None:
     _TOKENS.access_token = access
     _TOKENS.refresh_token = refresh
 
+
 def get_tokens() -> tuple[Optional[str], Optional[str]]:
     return _TOKENS.access_token, _TOKENS.refresh_token
+
 
 # -------------------- Compat/legado -------------------- #
 def set_current_user(username: str) -> None:
     """Compat: define apenas o e-mail; org_id ficará None até rodar refresh_current_user_from_supabase()."""
     global _CURRENT_USER
     _CURRENT_USER = CurrentUser(uid="", email=username or "", org_id=None)
+
 
 def get_session() -> Session:
     """

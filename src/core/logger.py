@@ -5,8 +5,7 @@ _LEVEL = os.getenv("RC_LOG_LEVEL", "INFO").upper()
 _LEVEL_VAL = getattr(logging, _LEVEL, logging.INFO)
 
 logging.basicConfig(
-    level=_LEVEL_VAL,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+    level=_LEVEL_VAL, format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
 )
 
 

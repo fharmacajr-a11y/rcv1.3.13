@@ -4,16 +4,15 @@ from __future__ import annotations
 import logging
 import os
 import re
+import tkinter as tk
 import webbrowser
 from dataclasses import dataclass
 from typing import Callable
 
-import tkinter as tk
-
 import ttkbootstrap as tb
 from PIL import Image, ImageOps, ImageTk
 
-STATUS_DOT = "\u25CF"
+STATUS_DOT = "\u25cf"
 _ICON_CACHE: dict[tuple[str, int], ImageTk.PhotoImage] = {}
 
 logger = logging.getLogger(__name__)

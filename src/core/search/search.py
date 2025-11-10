@@ -1,38 +1,29 @@
-"""Busca de clientes via Supabase (com ordenação em Python se necessário)."""
+"""Client search helpers using Supabase with local fallback."""
 
 from __future__ import annotations
 
-import unicodedata
-from typing import Optional, List
+from typing import List, Optional
 
-from infra.supabase_client import exec_postgrest, supabase, is_supabase_online
+from infra.supabase_client import exec_postgrest, is_supabase_online, supabase
+from src.core.db_manager.db_manager import CLIENT_COLUMNS
 from src.core.models import Cliente
-from src.core.session.session import get_current_user  # << pegar org_id da sessão
+from src.core.session.session import get_current_user  # << pegar org_id da sessao
+from src.core.textnorm import join_and_normalize, normalize_search
 
 
 def _normalize_order(order_by: Optional[str]) -> tuple[Optional[str], bool]:
     if not order_by:
         return None, False
-    ob = order_by.lower()
     mapping = {
         "nome": ("nome", False),
         "razao social": ("razao_social", False),
         "razao_social": ("razao_social", False),
         "cnpj": ("cnpj", False),
+        "id": ("id", False),
         "ultima alteracao": ("ultima_alteracao", True),
         "ultima_alteracao": ("ultima_alteracao", True),
     }
-    return mapping.get(ob, (None, False))
-
-
-def _normalize_text(s: str) -> str:
-    s = (s or "").strip().lower()
-    nfkd = unicodedata.normalize("NFKD", s)
-    return "".join(ch for ch in nfkd if not unicodedata.combining(ch))
-
-
-def _digits(s: str) -> str:
-    return "".join(ch for ch in (s or "") if ch.isdigit())
+    return mapping.get(order_by.lower(), (None, False))
 
 
 def _row_to_cliente(row: dict) -> Cliente:
@@ -42,72 +33,111 @@ def _row_to_cliente(row: dict) -> Cliente:
         nome=row.get("nome"),
         razao_social=row.get("razao_social"),
         cnpj=row.get("cnpj"),
+        cnpj_norm=row.get("cnpj_norm"),
         ultima_alteracao=row.get("ultima_alteracao"),
         obs=row.get("obs"),
+        ultima_por=row.get("ultima_por"),
     )
 
 
+def _cliente_search_blob(cliente: Cliente) -> str:
+    return join_and_normalize(
+        getattr(cliente, "id", None),
+        getattr(cliente, "nome", None),
+        getattr(cliente, "razao_social", None),
+        getattr(cliente, "cnpj", None),
+        getattr(cliente, "numero", None),
+        getattr(cliente, "obs", None),
+    )
+
+
+def _filter_rows_with_norm(rows: List[dict], term: str) -> List[dict]:
+    query_norm = normalize_search(term)
+    if not query_norm:
+        return rows
+
+    filtered: List[dict] = []
+    for row in rows:
+        norm = row.get("_search_norm")
+        if not norm:
+            norm = join_and_normalize(
+                row.get("id"),
+                row.get("razao_social"),
+                row.get("cnpj"),
+                row.get("nome"),
+                row.get("numero"),
+                row.get("obs"),
+            )
+            row["_search_norm"] = norm
+        if query_norm in norm:
+            filtered.append(row)
+    return filtered
+
+
+def _filter_clientes(clientes: List[Cliente], term: str) -> List[Cliente]:
+    query_norm = normalize_search(term)
+    if not query_norm:
+        return clientes
+    return [cli for cli in clientes if query_norm in _cliente_search_blob(cli)]
+
+
 def search_clientes(
-    term: str | None,
-    order_by: Optional[str] = None,
-    org_id: Optional[str] = None
+    term: str | None, order_by: Optional[str] = None, org_id: Optional[str] = None
 ) -> list[Cliente]:
     """
-    Busca clientes por *term* (nome/razão/CNPJ/número) priorizando Supabase.
+    Busca clientes por *term* (nome/razao/CNPJ/numero) priorizando Supabase.
     Fallback para filtro local quando offline.
     """
-    # Se não veio parâmetro, tenta pegar da sessão
     if org_id is None:
-        cu = get_current_user()
-        org_id = getattr(cu, "org_id", None) if cu else None
+        current_user = get_current_user()
+        org_id = getattr(current_user, "org_id", None) if current_user else None
 
     term = (term or "").strip()
     col, desc = _normalize_order(order_by)
 
-    # Preferir Supabase quando online
     try:
         if is_supabase_online():
             if org_id is None:
-                raise ValueError("org_id obrigatório")
-            qb = (
-                supabase.table("clients")
-                .select("*")
-                .is_("deleted_at", "null")
-                .eq("org_id", org_id)
-            )
+                raise ValueError("org_id obrigatorio")
+
+            def _fetch_rows(search_term: str | None) -> List[dict]:
+                qb = (
+                    supabase.table("clients")
+                    .select(CLIENT_COLUMNS)
+                    .is_("deleted_at", "null")
+                    .eq("org_id", org_id)
+                )
+                if search_term:
+                    pat = f"%{search_term}%"
+                    qb = qb.or_(
+                        "nome.ilike.{pat},razao_social.ilike.{pat},cnpj.ilike.{pat},numero.ilike.{pat}".format(
+                            pat=pat
+                        )
+                    )
+                if col:
+                    qb = qb.order(col, desc=desc)
+                resp_inner = exec_postgrest(qb)
+                return list(resp_inner.data or [])
+
+            rows = _fetch_rows(term)
             if term:
-                pat = f"%{term}%"
-                # nome, razao_social, cnpj, numero (WhatsApp)
-                qb = qb.or_(f"nome.ilike.{pat},razao_social.ilike.{pat},cnpj.ilike.{pat},numero.ilike.{pat}")
-            if col:
-                qb = qb.order(col, desc=desc)
-            resp = exec_postgrest(qb)
-            rows = resp.data or []
-            return [_row_to_cliente(r) for r in rows]
+                rows = _filter_rows_with_norm(rows, term)
+                if not rows:
+                    rows = _filter_rows_with_norm(_fetch_rows(None), term)
+            clientes = [_row_to_cliente(r) for r in rows]
+            if term:
+                return _filter_clientes(clientes, term)
+            return clientes
     except Exception:
-        # qualquer falha → cai no fallback local
         pass
 
-    # Fallback offline/local
     if org_id is None:
-        raise ValueError("org_id obrigatório")
+        raise ValueError("org_id obrigatorio")
     from src.core.db_manager.db_manager import list_clientes_by_org  # evita ciclo
-    clientes = list_clientes_by_org(org_id, order_by=col or None, descending=desc if col else None)
+
+    clientes = list_clientes_by_org(
+        org_id, order_by=col or None, descending=desc if col else None
+    )
     if not term:
         return clientes
-
-    # filtro local por texto/dígitos
-    t_norm = _normalize_text(term)
-    t_digits = _digits(term)
-    if not t_norm and not t_digits:
-        return clientes
-
-    out: List[Cliente] = []
-    for c in clientes:
-        if t_digits and (t_digits in _digits(c.cnpj or "") or t_digits in _digits(c.numero or "")):
-            out.append(c)
-            continue
-        blob = " ".join([c.nome or "", c.razao_social or ""]).lower()
-        if t_norm and t_norm in _normalize_text(blob):
-            out.append(c)
-    return out
+    return _filter_clientes(clientes, term)

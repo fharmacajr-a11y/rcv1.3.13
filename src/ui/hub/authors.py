@@ -3,8 +3,8 @@
 
 from __future__ import annotations
 
-import threading
 import functools
+import threading
 import time
 
 # Mapa de e-mail -> nome curto preferido (sempre em minúsculas)
@@ -16,6 +16,7 @@ AUTHOR_NAMES = {
 
 # Constante para TTL do cache (em segundos)
 CACHE_TTL_SECONDS = 60
+
 
 # Cache TTL de 60s para nomes provisórios (fallback), usando tick por minuto
 @functools.lru_cache(maxsize=1024)
@@ -73,6 +74,7 @@ def _author_display_name(screen, email: str) -> str:
             resolved = None
             try:
                 from src.core.services.profiles_service import get_display_name_by_email
+
                 resolved = get_display_name_by_email(key)
             finally:
 
@@ -161,6 +163,7 @@ def _debug_resolve_author(screen, email: str) -> dict:
     if name is None and "@" in resolved_email:
         try:
             from src.core.services.profiles_service import get_display_name_by_email
+
             fetched = get_display_name_by_email(resolved_email)
             if fetched:
                 name = fetched

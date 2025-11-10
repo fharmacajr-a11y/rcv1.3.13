@@ -17,7 +17,7 @@ def normalize_br_whatsapp(raw: str) -> dict:
       - display: "(DD) 9XXXX-XXXX" ou "(DD) XXXX-XXXX"
       - ddd: "DD"
       - local: número local sem DDD
-    
+
     Regras:
       - Se vier com '55' no começo, remove.
       - Se local tiver 9 dígitos e começar com '9' => celular.
@@ -71,9 +71,4 @@ def normalize_br_whatsapp(raw: str) -> dict:
         # sem DDD, evita quebrar link – não monta e164
         e164 = ""
 
-    return {
-        "e164": e164,
-        "display": display,
-        "ddd": ddd,
-        "local": local
-    }
+    return {"e164": e164, "display": display, "ddd": ddd, "local": local}
