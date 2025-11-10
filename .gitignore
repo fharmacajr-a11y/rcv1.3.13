@@ -8,21 +8,26 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.py[cod]
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
 
 # Backups
 backup_*/
 
 # Arquivos de ambiente e segredos
 .env
-.env.local
-.env.*.local
-*.env
+.env.backup
+.env.*
+!.env.example
 
-# Build e distribuição
+# Build e distribuição (PyInstaller)
 build/
-!build/*.spec
 dist/
 *.exe
+*.egg-info/
+wheels/
 
 # IDEs
 .vscode/
@@ -43,11 +48,11 @@ docs/*.zip
 # ZIPs pesados de backup
 *.zip
 
-# Pytest cache
-.pytest_cache/
-
-# Python egg info
-*.egg-info/
+# Tool artifacts (security/quality scans)
+bandit-report.json
+ruff-report.json
+pip-audit.json
+.coverage
 
 # SQL backups
 migrations/*.sql~
