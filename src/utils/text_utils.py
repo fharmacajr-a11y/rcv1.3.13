@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import logging
 import re
 import unicodedata
-from typing import Optional, Tuple, Dict, List
+from typing import Dict, List, Optional, Tuple
+
+log = logging.getLogger(__name__)
 
 # -------- regex padrões --------
 # Aceita "11.222.333/0001-44" ou "11222333000144" sem grudar em dígitos vizinhos.
@@ -44,7 +47,8 @@ def fix_mojibake(s: str) -> str:
     if s and ("Ã" in s or "Â" in s):
         try:
             return s.encode("latin1").decode("utf-8")
-        except Exception:
+        except Exception as e:
+            log.exception("Erro ao corrigir mojibake em '%s': %s", s[:50], e)
             pass
     return s
 

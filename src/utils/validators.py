@@ -2,9 +2,12 @@
 # utils/validators.py
 from __future__ import annotations
 
+import logging
 import re
 import sqlite3
-from typing import Optional, Iterable, Dict, Any
+from typing import Any, Dict, Iterable, Optional
+
+log = logging.getLogger(__name__)
 
 # -------------------------- helpers básicos --------------------------
 
@@ -169,8 +172,9 @@ def check_duplicates(
                     continue
                 if k in dup:
                     dup[k].append(idv)
-        except Exception:
+        except Exception as e:
             # Em caso de erro de conexão/SQL, devolvemos vazio (não quebrar fluxo)
+            log.exception("Erro ao buscar duplicatas no banco: %s", e)
             pass
     elif existing is not None:
         try:
@@ -194,7 +198,8 @@ def check_duplicates(
                     == razao_n.lower()
                 ):
                     dup["RAZAO_SOCIAL"].append(rid)
-        except Exception:
+        except Exception as e:
+            log.exception("Erro ao processar duplicatas em memória: %s", e)
             pass
 
     has_any = any(dup.values())

@@ -1,9 +1,13 @@
 # utils/subpastas_config.py
 from __future__ import annotations
 
+import logging
 from pathlib import Path
-from typing import Tuple, List, Any
+from typing import Any, List, Tuple
+
 import yaml
+
+log = logging.getLogger(__name__)
 
 
 def _flatten(node: Any, prefix: str = "") -> List[str]:
@@ -67,7 +71,8 @@ def load_subpastas_config(
                 with cand.open("r", encoding="utf-8") as f:
                     cfg = yaml.safe_load(f) or {}
                 break
-        except Exception:
+        except Exception as e:
+            log.exception("Erro ao ler subpastas.yml de %s: %s", cand, e)
             pass
 
     sub_spec = cfg.get("SUBPASTAS") or []
