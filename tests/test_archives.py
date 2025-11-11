@@ -198,8 +198,8 @@ class TestResourcePath:
         import sys
         from infra.archive_utils import resource_path
 
-        # Simular _MEIPASS do PyInstaller
-        monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path))
+        # Simular _MEIPASS do PyInstaller (adicionar atributo temporário)
+        monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
 
         result = resource_path("subdir", "file.txt")
         assert str(tmp_path) in str(result)

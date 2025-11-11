@@ -1,25 +1,35 @@
 # Binários do 7-Zip
 
-Este diretório deve conter os binários do 7-Zip para extração de arquivos RAR:
+Este diretório contém os binários do 7-Zip **embarcados no repositório** para extração de arquivos RAR.
 
-- `7z.exe` - Executável principal do 7-Zip (x64)
-- `7z.dll` - Biblioteca de suporte do 7-Zip (x64)
+## Arquivos Incluídos
 
-## Download
+- `7z.exe` - Executável principal do 7-Zip (x64, ~550 KB)
+- `7z.dll` - Biblioteca de suporte do 7-Zip (x64, ~1.9 MB)
 
-Baixe o 7-Zip em: https://www.7-zip.org/download.html
+## Versão
 
-1. Baixe a versão **64-bit x64** (7-Zip Extra ou 7-Zip Standalone)
-2. Extraia `7z.exe` e `7z.dll` para este diretório
-3. Os arquivos serão incluídos automaticamente no build via PyInstaller
+- **7-Zip**: 24.09 (2024-11-25)
+- **Arquitetura**: 64-bit x64
+- **Origem**: https://www.7-zip.org/download.html
 
-## Versão Recomendada
+## Funcionalidade
 
-- 7-Zip 24.xx ou superior (suporte completo a RAR5)
+Os binários são usados para:
+- Extração de arquivos `.rar` (incluindo RAR5)
+- Alternativa para `.zip` (embora o projeto use `zipfile` do Python para ZIP)
+
+## Licença
+
+7-Zip é software livre sob licença **GNU LGPL** + unRAR restriction.
+
+Veja a licença completa em: `third_party/7zip/LICENSE.txt`
+
+**Importante**: O código de descompressão RAR não pode ser usado para criar compactadores RAR (restrição do unRAR).
 
 ## Build/PyInstaller
 
-Os binários são incluídos no build através do arquivo `rcgestor.spec`:
+Os binários são incluídos automaticamente no build via `rcgestor.spec`:
 
 ```python
 Analysis(
@@ -31,12 +41,13 @@ Analysis(
 )
 ```
 
-Ou via linha de comando:
-```bash
-pyinstaller --add-binary "infra/bin/7zip/7z.exe;7z" --add-binary "infra/bin/7zip/7z.dll;7z" ...
-```
+No executável final, os binários ficam em `<_MEIPASS>/7z/` e são encontrados pela função `find_7z()` em `infra/archive_utils.py`.
 
-## Licença
+## Nota para Desenvolvedores
 
-7-Zip é software livre sob licença GNU LGPL.
-Veja: https://www.7-zip.org/license.txt
+**Estes binários estão commitados no repositório** para que os usuários finais não precisem instalar nada.
+
+Se você estiver desenvolvendo localmente:
+- Os binários já estão incluídos (não precisa baixar)
+- O código também busca 7-Zip no PATH do sistema como fallback
+- Para testar extração RAR: `pytest tests/test_archives.py -v`

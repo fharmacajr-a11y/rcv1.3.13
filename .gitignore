@@ -26,6 +26,9 @@ backup_*/
 build/
 dist/
 *.exe
+# Exceção: binários embarcados do 7-Zip
+!infra/bin/7zip/*.exe
+!infra/bin/7zip/*.dll
 *.egg-info/
 wheels/
 
