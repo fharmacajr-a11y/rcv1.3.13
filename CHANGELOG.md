@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Auditoria**: Suporte a arquivos `.rar` (além de `.zip`)
+  - Preserva estrutura de subpastas no Storage
+  - Requer `rarfile` + UnRAR/unar/bsdtar no PATH
+  - Mensagem de erro amigável quando ferramenta de extração não está disponível
+
+### Changed
+- **Auditoria**: Mensagem de sucesso agora inclui Razão Social + CNPJ formatado
+- **UI**: Botão renomeado para "Enviar ZIP/RAR p/ Auditoria"
+- **ZIP**: Estratégia otimizada - leitura direta de membros (sem extração temporária)
+
+### Removed
+- **Auditoria**: Removido suporte a arquivos `.7z`
+  - Removida dependência `py7zr` do requirements.txt
+  - Simplificado código de upload para manter apenas ZIP e RAR
+  - Removido script `validate_7z_support.py`
+
+## [1.0.99] - 2025-11-11
+
+### Added
+- **Auditoria**: Suporte completo a arquivos `.7z` (além de `.zip`)
+  - Preserva estrutura de subpastas no Storage
+  - Usa `py7zr.SevenZipFile.extractall()` (API oficial)
+  - Extração temporária com cleanup automático
+  - Mensagem amigável quando py7zr não está instalado
+- **Dependencies**: `py7zr>=0.21.0` com dependências transitivas
+- **Docs**: `INSTALACAO.md` com instruções completas de setup
+- **Docs**: `.docs/RESUMO_TECNICO_7Z.md` com detalhes técnicos
+- **Scripts**: `scripts/validate_7z_support.py` para validação automatizada
+
+### Fixed
+- **Pylance**: Import `py7zr` com `# type: ignore[import]` elimina warning
+- **Uploads**: Correção de `upsert` para usar string `"true"` (não booleano)
+
+### Changed
+- **UI**: Botão renomeado para "Enviar ZIP/7z p/ Auditoria"
+- **Import**: `py7zr` com type ignore para suprimir warnings antes da instalação
+
 ## [1.1.0] - 2025-11-10
 
 ### Added

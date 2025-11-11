@@ -37,7 +37,11 @@ for cand in (BASE / "runtime_docs", SRC / "runtime_docs", BASE / "assets" / "run
 a = Analysis(
     ['src/app_gui.py'],
     pathex=[str(BASE), str(SRC)],
-    binaries=[],
+    binaries=[
+        # Binários do 7-Zip para extração de arquivos RAR
+        ('infra/bin/7zip/7z.exe', '7z'),
+        ('infra/bin/7zip/7z.dll', '7z'),
+    ],
     datas=datas,                    # aqui só 2-tuplas
     hiddenimports=['tzdata', 'tzlocal'],
     hookspath=[],

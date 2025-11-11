@@ -1,14 +1,23 @@
 """View principal do módulo Auditoria."""
 from __future__ import annotations
 
+import io
+import mimetypes
 import os
 import re
+import tempfile
 import tkinter as tk
 import unicodedata
-from tkinter import messagebox
+import zipfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path, PurePosixPath
+from tkinter import filedialog, messagebox
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 from ttkbootstrap import ttk
+
+from src.ui import files_browser as fb
+from infra.archive_utils import extract_archive, ArchiveError
 
 try:
     from infra.supabase_client import get_supabase  # type: ignore[import-untyped]
@@ -16,11 +25,24 @@ except Exception:
     def get_supabase():  # type: ignore[no-redef]
         return None
 
+try:
+    from src.ui.files_browser import format_cnpj_for_display  # type: ignore[import-untyped]
+except Exception:
+    def format_cnpj_for_display(cnpj: str) -> str:  # fallback defensivo
+        c = ''.join(filter(str.isdigit, cnpj or ''))
+        return f"{c[:2]}.{c[2:5]}.{c[5:8]}/{c[8:12]}-{c[12:14]}" if len(c) == 14 else (cnpj or "")
+
 OFFLINE_MSG = "Recurso on-line. Verifique internet e credenciais do Supabase."
 
 # === Storage config ===
 STO_BUCKET = os.getenv("RC_STORAGE_BUCKET_CLIENTS", "").strip()
 STO_CLIENT_FOLDER_FMT = os.getenv("RC_STORAGE_CLIENTS_FOLDER_FMT", "{client_id}").strip() or "{client_id}"
+
+
+def _guess_mime(path: str) -> str:
+    """Detecta MIME type de um arquivo pelo nome/extensão."""
+    mt, _ = mimetypes.guess_type(path)
+    return mt or "application/octet-stream"
 
 
 class AuditoriaFrame(ttk.Frame):
@@ -58,10 +80,17 @@ class AuditoriaFrame(ttk.Frame):
         self._clientes_map: dict[int, str] = {}  # {id: label}
         self._cliente_var = tk.StringVar()
 
-        self._build_ui()
-        self.after(100, self._lazy_load)
+        # Índice de auditorias: {iid: {db_id, auditoria_id, cliente_nome, cnpj, ...}}
+        self._aud_index: dict[str, dict] = {}
 
-    # ---------- UI ----------
+        # Rastreio de janelas "Ver subpastas" abertas por auditoria_id (chave string)
+        self._open_browsers: dict[str, tk.Toplevel] = {}
+
+        # Org ID do usuário logado (cache)
+        self._org_id: str = ""
+
+        self._build_ui()
+        self.after(100, self._lazy_load)    # ---------- UI ----------
     def _build_ui(self) -> None:
         """Constrói a interface da tela."""
         self.columnconfigure(0, weight=0)  # painel esquerdo
@@ -118,18 +147,25 @@ class AuditoriaFrame(ttk.Frame):
         header = ttk.Frame(center)
         header.grid(row=0, column=0, sticky="ew", padx=(6, 6), pady=(4, 6))
         header.grid_columnconfigure(0, weight=1)
-        
+
         ttk.Label(header, text="Auditorias recentes").grid(row=0, column=0, sticky="w")
-        
-        self._btn_h_ver = ttk.Button(header, text="Ver subpastas", command=self._open_subpastas)
-        self._btn_h_criar = ttk.Button(header, text="Criar pasta Auditoria", command=self._create_auditoria_folder)
+
+        self._btn_h_ver = ttk.Button(header, text="Ver subpastas", command=self._open_subpastas, state="disabled")
+        # Botão desativado (upload com upsert já cria as pastas necessárias)
+        # self._btn_h_criar = ttk.Button(header, text="Criar pasta Auditoria", command=self._create_auditoria_folder)
+        self._btn_h_enviar_zip = ttk.Button(header, text="Enviar ZIP/RAR p/ Auditoria", command=self._upload_archive_to_auditoria)
+        self._btn_h_delete = ttk.Button(header, text="Excluir auditoria(s)", command=self._delete_auditorias, state="disabled")
+
         self._btn_h_ver.grid(row=0, column=1, padx=(8, 4))
-        self._btn_h_criar.grid(row=0, column=2)
+        # self._btn_h_criar.grid(row=0, column=2, padx=(4, 4))
+        self._btn_h_enviar_zip.grid(row=0, column=2, padx=(4, 4))
+        self._btn_h_delete.grid(row=0, column=3, padx=(4, 6))
 
         self.tree = ttk.Treeview(
             center,
             columns=("cliente", "status", "created", "updated"),
             show="headings",
+            selectmode="extended",
             height=16
         )
         self.tree.heading("cliente", text="Cliente")
@@ -141,6 +177,9 @@ class AuditoriaFrame(ttk.Frame):
         self.tree.column("created", width=140, anchor="center")
         self.tree.column("updated", width=140, anchor="center")
         self.tree.grid(row=1, column=0, sticky="nsew")
+
+        # Bind para habilitar/desabilitar botão Ver subpastas
+        self.tree.bind("<<TreeviewSelect>>", self._on_auditoria_select)
 
         scrollbar = ttk.Scrollbar(center, orient="vertical", command=self.tree.yview)
         scrollbar.grid(row=1, column=1, sticky="ns")
@@ -266,7 +305,8 @@ class AuditoriaFrame(ttk.Frame):
         # Botões de storage (header direita)
         for w in (
             getattr(self, "_btn_h_ver", None),
-            getattr(self, "_btn_h_criar", None)
+            # getattr(self, "_btn_h_criar", None),  # botão comentado
+            getattr(self, "_btn_h_enviar_zip", None)
         ):
             if w:
                 w.configure(state=state)
@@ -324,15 +364,19 @@ class AuditoriaFrame(ttk.Frame):
         Carrega lista de auditorias do Supabase.
 
         Monta o nome do cliente via self._clientes_map, sem usar embed FK.
+        Popula self._aud_index para rastreamento de IDs.
         """
         if not self._sb:
             return
 
         try:
+            # Limpa índice anterior
+            self._aud_index.clear()
+
             res = (
                 self._sb.table("auditorias")
-                .select("id, status, created_at, updated_at, cliente_id")
-                .order("created_at", desc=True)
+                .select("id, cliente_id, status, created_at, updated_at")
+                .order("updated_at", desc=True)
                 .execute()
             )
             rows = getattr(res, "data", []) or []
@@ -341,23 +385,45 @@ class AuditoriaFrame(ttk.Frame):
             for r in rows:
                 # Busca nome do cliente via mapa em memória
                 cliente_id = r.get("cliente_id")
+                cnpj = ""
                 if cliente_id is not None:
                     try:
                         cid = int(cliente_id)
                         cliente_nome = self._clientes_map.get(cid, f"#{cid}")
+                        # Busca CNPJ do cliente
+                        for row_data in self._clientes_all_rows:
+                            if row_data.get("id") == cid:
+                                cnpj = row_data.get("cnpj", "")
+                                break
                     except (ValueError, TypeError):
                         cliente_nome = str(cliente_id)
+                        cid = 0
                 else:
                     cliente_nome = ""
+                    cid = 0
 
                 # Formata timestamps (remove T e microssegundos)
                 created = (r.get("created_at") or "")[:19].replace("T", " ")
                 updated = (r.get("updated_at") or "")[:19].replace("T", " ")
 
+                # IID = string do id (sempre disponível)
+                iid = str(r["id"])
+
+                # Popula índice de auditoria
+                self._aud_index[iid] = {
+                    "db_id": r["id"],  # ID inteiro para DELETE
+                    "cliente_id": cid,
+                    "cliente_nome": cliente_nome,
+                    "cnpj": cnpj,
+                    "status": r.get("status", ""),
+                    "created_at": created,
+                    "updated_at": updated
+                }
+
                 self.tree.insert(
                     "",
                     "end",
-                    iid=r["id"],
+                    iid=iid,
                     values=(cliente_nome, r.get("status", ""), created, updated)
                 )
         except Exception as e:
@@ -394,19 +460,140 @@ class AuditoriaFrame(ttk.Frame):
                 f"Não foi possível iniciar a auditoria.\n{e}"
             )
 
+    def _on_auditoria_select(self, event=None) -> None:  # type: ignore[no-untyped-def]
+        """Handler de seleção na Treeview de auditorias. Habilita/desabilita botões Ver subpastas e Excluir."""
+        sel = self.tree.selection()
+        if sel and sel[0] in self._aud_index:
+            self._btn_h_ver.configure(state="normal")
+        else:
+            self._btn_h_ver.configure(state="disabled")
+
+        # Habilita botão Excluir se houver seleção
+        if sel:
+            self._btn_h_delete.configure(state="normal")
+        else:
+            self._btn_h_delete.configure(state="disabled")
+
+    def _delete_auditorias(self) -> None:
+        """Exclui as auditorias selecionadas da tabela (não remove arquivos do Storage)."""
+        if not self._sb:
+            messagebox.showwarning("Auditoria", "Sem conexão com o banco de dados.")
+            return
+
+        sels = list(self.tree.selection())
+        if not sels:
+            messagebox.showwarning("Atenção", "Selecione uma ou mais auditorias para excluir.")
+            return
+
+        # Extrai db_ids usando list comprehension
+        ids = [self._aud_index[i]["db_id"] for i in sels if i in self._aud_index]
+
+        if not ids:
+            messagebox.showwarning("Atenção", "Nenhuma auditoria válida selecionada.")
+            return
+
+        # Coleta nomes para confirmação
+        nomes = [self._aud_index[i]["cliente_nome"] for i in sels if i in self._aud_index]
+        lista_nomes = "\n".join(nomes[:5]) + ("..." if len(nomes) > 5 else "")
+
+        if not messagebox.askyesno(
+            "Confirmar exclusão",
+            f"Excluir {len(ids)} auditoria(s)?\n\n{lista_nomes}",
+            parent=self
+        ):
+            return
+
+        try:
+            # DELETE em lote usando .in_() com db_id (int)
+            self._sb.table("auditorias").delete().in_("id", ids).execute()
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao excluir: {e}", parent=self)
+            return
+
+        # Atualiza UI local (remoção otimista)
+        for iid in sels:
+            self.tree.delete(iid)
+            self._aud_index.pop(iid, None)
+
+        # Desabilita botões
+        self._btn_h_ver.configure(state="disabled")
+        self._btn_h_delete.configure(state="disabled")
+
+        messagebox.showinfo("Pronto", f"{len(ids)} auditoria(s) excluída(s).", parent=self)
+
     def _open_subpastas(self) -> None:
-        """Abre a mesma janela de arquivos usada em Clientes."""
+        """
+        Abre janela de arquivos da AUDITORIA SELECIONADA.
+        Garante apenas 1 janela por auditoria (foca se já existe).
+        """
         if not self._sb:
             messagebox.showwarning("Storage", "Sem conexão com a nuvem.")
             return
-        cid = self._selected_client_id()
-        if cid is None:
-            messagebox.showinfo("Storage", "Selecione um cliente.")
+
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showinfo("Atenção", "Selecione uma auditoria na lista.")
             return
+
+        iid = sel[0]
+        row = self._aud_index.get(iid)
+        if not row:
+            messagebox.showwarning("Atenção", "Nenhuma auditoria válida selecionada.")
+            return
+
+        # Usa iid diretamente como chave (já é string)
+        aud_key = iid
+
+        # Se já existe janela para esta auditoria, traz para frente
+        win = self._open_browsers.get(aud_key)
+        if win and win.winfo_exists():
+            try:
+                win.lift()
+                win.attributes("-topmost", True)
+                win.after(150, lambda: win.attributes("-topmost", False))
+                win.focus_force()
+            except Exception:
+                pass
+            return
+
         try:
-            # Usa a MESMA janela dos Clientes (com todos os recursos)
-            from src.shared.storage_ui_bridge import open_client_files_window
-            open_client_files_window(self, self._sb, int(cid))
+            from src.ui.files_browser import open_files_browser, get_current_org_id
+
+            # Cache org_id para reutilização
+            if not self._org_id:
+                self._org_id = get_current_org_id(self._sb)
+
+            org_id = self._org_id
+            client_id = row["cliente_id"]
+
+            # Prefixo completo: {org_id}/{client_id}/GERAL/Auditoria
+            prefix = f"{org_id}/{client_id}/GERAL/Auditoria"
+
+            # Debug visual
+            print(f"[AUDITORIA] Abrindo Storage - Prefixo: {prefix}")
+            print(f"[AUDITORIA] Cliente: {row['cliente_nome']} (ID {client_id})")
+            print(f"[AUDITORIA] Auditoria ID: {iid}")
+
+            # Cria a janela com start_prefix para abrir diretamente na pasta Auditoria
+            browser_win = open_files_browser(
+                self,
+                supabase=self._sb,
+                client_id=client_id,
+                org_id=org_id,
+                razao=row["cliente_nome"],
+                cnpj=row["cnpj"],
+                start_prefix=prefix
+            )
+
+            # Registra janela
+            if browser_win:
+                self._open_browsers[aud_key] = browser_win
+
+                def _on_close():
+                    self._open_browsers.pop(aud_key, None)
+                    browser_win.destroy()
+
+                browser_win.protocol("WM_DELETE_WINDOW", _on_close)
         except Exception as e:
             messagebox.showwarning("Storage", f"Falhou ao abrir subpastas.\n{e}")
 
@@ -421,30 +608,180 @@ class AuditoriaFrame(ttk.Frame):
             return
 
         try:
-            # Reutiliza helpers do módulo de arquivos dos Clientes
-            from src.shared.storage_ui_bridge import (
+            from src.ui.files_browser import (
                 get_clients_bucket,
                 client_prefix_for_id,
-                _get_org_id_from_supabase
+                get_current_org_id
             )
 
-            bucket = get_clients_bucket()  # ex.: 'rc-docs'
-            org_id = _get_org_id_from_supabase(self._sb) or ""  # mesmo org usado nos Clientes
-            base = client_prefix_for_id(int(cid), org_id)  # ex.: '<ORG>/<CLIENTE>'
+            bucket = get_clients_bucket()  # "rc-docs"
+            org_id = get_current_org_id(self._sb)
+            base = client_prefix_for_id(int(cid), org_id)  # "{org_id}/{client_id}"
             target = f"{base}/GERAL/Auditoria/.keep"
 
-            # Upload do placeholder
+            # Upload do placeholder com API correta (upsert string para evitar 409)
             resp = self._sb.storage.from_(bucket).upload(  # type: ignore[union-attr]
-                file=target,
-                file_data=b"",
-                file_options={"contentType": "text/plain", "upsert": False}
+                path=target,
+                file=b"",
+                file_options={"content-type": "text/plain", "upsert": "true"}
             )
-            if getattr(resp, "error", None):
-                raise RuntimeError(resp.error.get("message") or str(resp.error))  # type: ignore[union-attr]
+            if hasattr(resp, "error") and resp.error:
+                raise RuntimeError(getattr(resp.error, "message", str(resp.error)))
 
             messagebox.showinfo("Criar pasta", "Pasta 'GERAL/Auditoria' criada com sucesso.")
         except Exception as e:
             messagebox.showwarning("Criar pasta", f"Falhou ao criar pasta.\n{e}")
+
+    def _auditoria_prefix(self, client_id: int) -> tuple[str, str]:
+        """Retorna (bucket, base_prefix) para o cliente atual."""
+        org_id = fb.get_current_org_id(self._sb)
+        bucket = fb.get_clients_bucket()
+        base = fb.client_prefix_for_id(client_id, org_id)  # ex: "{org_id}/{client_id}"
+        return bucket, f"{base}/GERAL/Auditoria"
+
+    def _upload_archive_to_auditoria(self) -> None:
+        """Upload de arquivo .zip ou .rar para Auditoria preservando subpastas."""
+        if not self._sb:
+            messagebox.showwarning("Nuvem", "Sem conexão com o Supabase.")
+            return
+
+        # 1) Garantir auditoria selecionada
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showwarning("Atenção", "Selecione uma auditoria na lista.")
+            return
+
+        iid = sel[0]
+        row = self._aud_index.get(iid)
+        if not row:
+            messagebox.showwarning("Atenção", "Nenhuma auditoria válida selecionada.")
+            return
+
+        # Cache org_id se necessário
+        if not self._org_id:
+            from src.ui.files_browser import get_current_org_id
+            self._org_id = get_current_org_id(self._sb)
+
+        org_id = self._org_id
+        client_id = row["cliente_id"]
+        cliente_nome = row["cliente_nome"]
+        cnpj = row.get("cnpj", "")
+        bucket = "rc-docs"
+        base_prefix = f"{org_id}/{client_id}/GERAL/Auditoria".strip("/")
+
+        # 2) Escolher arquivo .zip ou .rar
+        path = filedialog.askopenfilename(
+            title="Selecione um arquivo .ZIP ou .RAR",
+            filetypes=[
+                ("Arquivos compactados", ("*.zip", "*.rar")),
+                ("ZIP", "*.zip"),
+                ("RAR", "*.rar"),
+                ("Todos os arquivos", "*.*"),
+            ]
+        )
+        if not path:
+            return
+
+        # Detectar extensão
+        ext = path.lower().rsplit('.', 1)[-1] if '.' in path else ""
+
+        enviados = 0
+        erro = None
+
+        # 3) Estratégia baseada na extensão
+        try:
+            if ext == "zip":
+                # ZIP: leitura direta de membros preservando estrutura
+                with zipfile.ZipFile(path, "r") as zf:
+                    for info in zf.infolist():
+                        if info.is_dir():
+                            continue
+                        rel = info.filename.lstrip("/").replace("\\", "/")
+                        # Segurança e limpeza
+                        if not rel or rel.startswith((".", "__MACOSX")):
+                            continue
+                        if ".." in rel:
+                            continue
+                        # Upload mantendo subpastas
+                        data = zf.read(info)
+                        dest = f"{base_prefix}/{rel}".strip("/")
+                        mime = _guess_mime(rel)
+                        self._sb.storage.from_(bucket).upload(  # type: ignore[union-attr]
+                            dest,
+                            data,
+                            {"content-type": mime, "upsert": "true", "cacheControl": "3600"}
+                        )
+                        enviados += 1
+
+            elif ext == "rar":
+                # RAR: extração temporária via 7-Zip + upload
+                try:
+                    with tempfile.TemporaryDirectory() as tmpdir:
+                        # Extrai usando 7-Zip
+                        extract_archive(path, tmpdir)
+
+                        base = Path(tmpdir)
+                        for f in base.rglob("*"):
+                            if f.is_file():
+                                rel = f.relative_to(base).as_posix()
+                                # Segurança e limpeza
+                                if not rel or rel.startswith((".", "__MACOSX")):
+                                    continue
+                                if ".." in rel:
+                                    continue
+                                dest = f"{base_prefix}/{rel}".strip("/")
+                                mime = _guess_mime(f.name)
+                                with open(f, "rb") as fh:
+                                    self._sb.storage.from_(bucket).upload(  # type: ignore[union-attr]
+                                        dest,
+                                        fh.read(),
+                                        {"content-type": mime, "upsert": "true", "cacheControl": "3600"}
+                                    )
+                                enviados += 1
+                except ArchiveError as e:
+                    messagebox.showerror(
+                        "Erro ao extrair RAR",
+                        f"Não foi possível extrair o arquivo RAR.\n\n{e}"
+                    )
+                    return
+
+            else:
+                messagebox.showwarning("Atenção", "Formato não suportado. Selecione um arquivo .zip ou .rar.")
+                return
+
+        except ArchiveError as e:
+            messagebox.showerror("Erro no arquivo", f"{e}")
+            return
+        except Exception as e:
+            erro = e
+
+        if erro:
+            messagebox.showerror("Erro no upload", f"{erro}")
+            return
+
+        # Mensagem de sucesso com Razão Social + CNPJ formatado
+        cnpj_fmt = format_cnpj_for_display(cnpj)
+        messagebox.showinfo(
+            "Auditoria",
+            f"Upload concluído para {cliente_nome} — {cnpj_fmt}.\n"
+            f"{enviados} arquivo(s) enviados para {base_prefix}/"
+        )
+
+        # Reabrir/atualizar browser para visualizar arquivos enviados
+        try:
+            from src.ui.files_browser import open_files_browser
+            open_files_browser(
+                self,
+                supabase=self._sb,
+                client_id=client_id,
+                org_id=org_id,
+                razao=cliente_nome,
+                cnpj=cnpj,
+                start_prefix=base_prefix
+            )
+        except Exception as e:
+            print(f"[AUDITORIA][UPLOAD] Não foi possível abrir browser: {e}")
+
 
 
 class StorageBrowser(tk.Toplevel):

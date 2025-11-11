@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 import os
+import re
 import tempfile
 import threading
 import tkinter as tk
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from tkinter import filedialog, messagebox, ttk
-from typing import Any
+from typing import Any, Optional
 
 from adapters.storage.api import DownloadCancelledError, download_folder_zip
 from infra.supabase.storage_helpers import download_bytes
@@ -14,24 +15,124 @@ from src.ui.pdf_preview_native import open_pdf_viewer
 from src.utils.resource_path import resource_path  # evita ciclo com app_gui
 
 
+def _cnpj_only_digits(text: str) -> str:
+    """Retorna apenas dígitos do CNPJ; se vier None, devolve string vazia."""
+    if text is None:
+        return ""
+    return re.sub(r"\D", "", str(text))
+
+
+def format_cnpj_for_display(cnpj: str) -> str:
+    """
+    Formata CNPJ numérico em 00.000.000/0000-00.
+    Se não tiver 14 dígitos (ex.: futuro alfanumérico), retorna como veio.
+    """
+    digits = _cnpj_only_digits(cnpj)
+    if len(digits) == 14:
+        return f"{digits[:2]}.{digits[2:5]}.{digits[5:8]}/{digits[8:12]}-{digits[12:]}"
+    return str(cnpj or "")
+
+
+def strip_cnpj_from_razao(razao: str, cnpj: str) -> str:
+    """
+    Remove do fim da razão social um CNPJ "cru" (14 dígitos) que tenha sido
+    acidentalmente concatenado (com ou sem traços/'—').
+    """
+    if not razao:
+        return ""
+    raw = _cnpj_only_digits(cnpj or "")
+    s = str(razao).strip()
+    if raw:
+        s = re.sub(rf"\s*[—–-]?\s*{re.escape(raw)}\s*$", "", s)
+    return s.strip()
+
+
+def get_clients_bucket() -> str:
+    """Retorna o nome do bucket de clientes."""
+    return "rc-docs"
+
+
+def client_prefix_for_id(client_id: int, org_id: str) -> str:
+    """
+    Monta o prefixo do cliente no Storage.
+    Formato: {org_id}/{client_id}
+    """
+    return f"{org_id}/{client_id}".strip("/")
+
+
+def get_current_org_id(sb) -> str:  # type: ignore[no-untyped-def]
+    """Obtém org_id do usuário logado via Supabase."""
+    try:
+        user = sb.auth.get_user()
+        if not user or not user.user:
+            return ""
+        uid = user.user.id
+
+        # Busca org_id na tabela memberships
+        res = (
+            sb.table("memberships")
+            .select("org_id")
+            .eq("user_id", uid)
+            .limit(1)
+            .execute()
+        )
+        if getattr(res, "data", None) and res.data and res.data[0].get("org_id"):
+            return res.data[0]["org_id"]
+    except Exception:
+        pass
+    return ""
+
+
 def open_files_browser(
-    parent, *, org_id: str, client_id: Any, razao: str, cnpj: str
-) -> None:
-    """Abre uma janela para navegar/baixar arquivos do Storage (listar, baixar arquivo, baixar pasta .zip)."""
+    parent,
+    *,
+    org_id: str,
+    client_id: Any,
+    razao: str = "",
+    cnpj: str = "",
+    supabase=None,  # type: ignore[no-untyped-def]
+    start_prefix: str = ""
+) -> tk.Toplevel:
+    """
+    Abre uma janela para navegar/baixar arquivos do Storage.
+
+    Args:
+        parent: Widget pai
+        org_id: ID da organização
+        client_id: ID do cliente
+        razao: Razão social do cliente (opcional)
+        cnpj: CNPJ do cliente (opcional)
+        supabase: Cliente Supabase (opcional)
+        start_prefix: Prefixo inicial opcional (ex: "{org_id}/{client_id}/GERAL/Auditoria")
+                     Se fornecido, substitui o root_prefix padrão
+
+    Returns:
+        Janela Toplevel criada
+    """
     BUCKET = "rc-docs"
-    root_prefix = f"{org_id}/{client_id}".strip("/")
 
-    titulo_parts = [
-        p for p in [(razao or "").strip(), (cnpj or "").strip(), f"ID {client_id}"] if p
-    ]
-    titulo = "Arquivos: " + " - ".join(titulo_parts)
+    # Se start_prefix fornecido, usa ele; senão constrói padrão
+    if start_prefix:
+        root_prefix = start_prefix.strip("/")
+    else:
+        root_prefix = f"{org_id}/{client_id}".strip("/")
 
+    # Título padronizado com CNPJ formatado e razão limpa
+    razao_clean = strip_cnpj_from_razao(razao, cnpj)
+    cnpj_fmt = format_cnpj_for_display(cnpj)
     docs_window = tk.Toplevel(parent)
-    docs_window.title(titulo)
+    docs_window.title(f"Arquivos: {razao_clean} — {cnpj_fmt} — ID {client_id}")
     try:
         docs_window.iconbitmap(resource_path("rc.ico"))
     except Exception:
         pass
+
+    # Guardar raiz e prefixo atual para navegação
+    docs_window._org_id = org_id  # type: ignore[attr-defined]
+    docs_window._client_id = client_id  # type: ignore[attr-defined]
+    docs_window._base_root = f"{org_id}/{client_id}".strip("/")  # type: ignore[attr-defined]
+    # Se start_prefix passado, respeita; senão começa na raiz do cliente
+    docs_window._current_prefix = root_prefix  # type: ignore[attr-defined]
 
     # Helpers
     def _center_on_parent(
@@ -60,27 +161,109 @@ def open_files_browser(
     # Centraliza a janela
     _center_on_parent(docs_window, parent, width=760, height=520)
 
-    # Toolbar
-    toolbar = ttk.Frame(docs_window)
-    toolbar.pack(fill="x", padx=8, pady=(8, 0))
-    ttk.Button(toolbar, text="Baixar selecionado", command=lambda: do_download()).pack(
-        side="left"
-    )
+    # --- NAV BAR (setas + caminho) ---
+    nav = ttk.Frame(docs_window)
+    nav.pack(side="top", anchor="w", fill="x", padx=8, pady=(8, 0))
 
-    btn_preview = ttk.Button(toolbar, text="Visualizar", state="disabled")
-    btn_preview.pack(side="left", padx=(8, 0))
+    # Setas de navegação
+    btn_prev = ttk.Button(nav, text="←", width=3)
+    btn_next = ttk.Button(nav, text="→", width=3)
 
-    btn_zip_folder = ttk.Button(toolbar, text="Baixar pasta (.zip)")
-    btn_zip_folder.pack(side="left", padx=(8, 0))
+    # Label do caminho
+    path_var = tk.StringVar()
 
-    ttk.Button(toolbar, text="Fechar", command=docs_window.destroy).pack(side="right")
-    docs_window.bind("<Escape>", lambda e: docs_window.destroy())
+    def _sync_path_label():
+        path_var.set(f"Supabase: {BUCKET}/{docs_window._current_prefix}")  # type: ignore[attr-defined]
 
-    info = ttk.Label(
-        docs_window, text=f"Supabase: {BUCKET}/{root_prefix}/", foreground="#7a7a7a"
-    )
-    info.pack(fill="x", padx=8, pady=(2, 0))
+    path_lbl = ttk.Label(nav, textvariable=path_var, foreground="#7a7a7a")
 
+    btn_prev.pack(side="left", padx=(0, 6))
+    btn_next.pack(side="left", padx=(0, 12))
+    path_lbl.pack(side="left", padx=(0, 6))
+
+    def _set_prefix(prefix: str):
+        """Define o prefixo atual e recarrega a listagem."""
+        prefix = prefix.strip("/")
+        # Trava na raiz do cliente
+        if not prefix.startswith(docs_window._base_root):  # type: ignore[attr-defined]
+            prefix = docs_window._base_root  # type: ignore[attr-defined]
+        docs_window._current_prefix = prefix  # type: ignore[attr-defined]
+        _sync_path_label()
+        _refresh_listing()
+
+    def _go_up_one():
+        """Sobe um nível na hierarquia de pastas (botão ←)."""
+        current = docs_window._current_prefix  # type: ignore[attr-defined]
+        base = docs_window._base_root  # type: ignore[attr-defined]
+        p = PurePosixPath(current)
+        if str(p) == base:
+            return  # Já está na raiz
+        newp = str(p.parent)
+        if not newp.startswith(base):
+            newp = base
+        _set_prefix(newp)
+
+    def _go_forward():
+        """
+        Avança (botão →):
+        - Se há pasta selecionada, entra nela
+        - Senão, segue trilha: base → GERAL → GERAL/Auditoria
+        """
+        # Tenta entrar na pasta selecionada
+        sel = tree.selection()  # type: ignore[name-defined]
+        if sel:
+            item = sel[0]
+            vals = tree.item(item, "values")  # type: ignore[name-defined]
+            if vals and len(vals) > 0:
+                tipo = vals[0] if len(vals) == 1 else (vals[1] if len(vals) > 1 else "")
+                if (tipo or "").lower() == "pasta":
+                    name = tree.item(item)["text"]  # type: ignore[name-defined]
+                    _set_prefix(f"{docs_window._current_prefix}/{name}".strip("/"))  # type: ignore[attr-defined]
+                    return
+
+        # Fallback por etapas
+        cur = docs_window._current_prefix  # type: ignore[attr-defined]
+        base = docs_window._base_root  # type: ignore[attr-defined]
+        if cur == base:
+            _set_prefix(f"{base}/GERAL")
+        elif cur == f"{base}/GERAL":
+            _set_prefix(f"{base}/GERAL/Auditoria")
+        else:
+            pass  # Já no fim da trilha
+
+    btn_prev.configure(command=_go_up_one)
+    btn_next.configure(command=_go_forward)
+
+    def _refresh_listing():
+        """Recarrega a listagem de arquivos usando o prefixo atual."""
+        # Limpa a árvore
+        for item in tree.get_children():  # type: ignore[name-defined]
+            tree.delete(item)  # type: ignore[name-defined]
+        # Atualiza o label de caminho
+        _sync_path_label()
+        # Recarrega
+        populate_tree("", rel_prefix="")  # type: ignore[name-defined]
+
+    # Header com botões de ação
+    header = ttk.Frame(docs_window)
+    header.pack(side="top", fill="x", padx=8, pady=(8, 0))
+
+    left_box = ttk.Frame(header)
+    left_box.pack(side="left")
+    right_box = ttk.Frame(header)
+    right_box.pack(side="right")
+
+    # À esquerda: Baixar selecionado e Baixar pasta (.zip)
+    btn_download_sel = ttk.Button(left_box, text="Baixar selecionado", command=lambda: do_download())  # type: ignore[name-defined]
+    btn_zip_folder = ttk.Button(left_box, text="Baixar pasta (.zip)")
+    btn_download_sel.pack(side="left", padx=(0, 6))
+    btn_zip_folder.pack(side="left")
+
+    # À direita: Visualizar
+    btn_preview = ttk.Button(right_box, text="Visualizar", state="disabled")
+    btn_preview.pack(side="right")
+
+    # TreeView (listagem de arquivos)
     tree = ttk.Treeview(
         docs_window, columns=("type",), show="tree headings", selectmode="browse"
     )
@@ -90,8 +273,16 @@ def open_files_browser(
     tree.column("type", width=120, anchor="center", stretch=False)
     tree.pack(expand=True, fill="both", padx=8, pady=8)
 
+    # Footer com botão Fechar
+    footer = ttk.Frame(docs_window)
+    footer.pack(side="bottom", fill="x", padx=8, pady=(0, 6))
+
+    btn_close = ttk.Button(footer, text="Fechar", command=docs_window.destroy)
+    btn_close.pack(side="right")
+    docs_window.bind("<Escape>", lambda e: docs_window.destroy())
+
     def _run_bg(target, on_done):
-        res = {"value": None, "err": None}
+        res: dict[str, Any] = {"value": None, "err": None}
 
         def _worker():
             try:
@@ -104,8 +295,10 @@ def open_files_browser(
         threading.Thread(target=_worker, daemon=True).start()
 
     def populate_tree(parent_item, rel_prefix: str):
+        # Usa o prefixo atual da navegação
+        current = docs_window._current_prefix  # type: ignore[attr-defined]
         full_prefix = (
-            root_prefix if not rel_prefix else f"{root_prefix}/{rel_prefix}".rstrip("/")
+            current if not rel_prefix else f"{current}/{rel_prefix}".rstrip("/")
         )
         objects = list_storage_objects(BUCKET, prefix=full_prefix) or []
         for obj in objects:
@@ -172,7 +365,9 @@ def open_files_browser(
         _item, tipo, rel, nome = info
         if tipo != "Arquivo" or not rel:
             return
-        file_path = f"{root_prefix}/{rel}".strip("/")
+        # Usa o prefixo atual ao invés do root_prefix fixo
+        current = docs_window._current_prefix  # type: ignore[attr-defined]
+        file_path = f"{current}/{rel}".strip("/")
 
         base = nome or os.path.basename(rel)
         stem, ext = os.path.splitext(base)
@@ -218,7 +413,9 @@ def open_files_browser(
             )
             return
 
-        prefix = f"{root_prefix}/{rel}".strip("/")
+        # Usa o prefixo atual ao invés do root_prefix fixo
+        current = docs_window._current_prefix  # type: ignore[attr-defined]
+        prefix = f"{current}/{rel}".strip("/")
         pasta = rel.rstrip("/").split("/")[-1] or "pasta"
         ident = cnpj or f"ID {client_id}"
         zip_name = _sanitize_filename(f"{pasta} - {ident} - {razao}".strip())
@@ -349,7 +546,9 @@ def open_files_browser(
             return
 
         btn_preview.configure(state="disabled")
-        remote_path = f"{root_prefix}/{rel}".strip("/")
+        # Usa o prefixo atual ao invés do root_prefix fixo
+        current = docs_window._current_prefix  # type: ignore[attr-defined]
+        remote_path = f"{current}/{rel}".strip("/")
 
         def _target():
             return download_bytes(BUCKET, remote_path)
@@ -402,5 +601,10 @@ def open_files_browser(
     tree.bind("<<TreeviewOpen>>", on_tree_open)
     tree.bind("<Double-1>", on_double_click)
     tree.bind("<<TreeviewSelect>>", lambda _e: _update_preview_state())
+
+    # Inicialização
+    _sync_path_label()
     populate_tree("", rel_prefix="")
     _update_preview_state()
+
+    return docs_window
