@@ -186,20 +186,20 @@ class Test7ZExtraction:
         """Testa que .7z sem py7zr disponível levanta ArchiveError."""
         # Simular ImportError ao importar py7zr
         import sys
-        
+
         # Guardar módulo original se existir
         original_py7zr = sys.modules.get("py7zr")
-        
+
         # Remover py7zr dos módulos
         if "py7zr" in sys.modules:
             sys.modules.pop("py7zr")
-        
+
         # Forçar ImportError
         def mock_import(name, *args, **kwargs):
             if name == "py7zr":
                 raise ImportError("Mocked import error")
             return original_import(name, *args, **kwargs)
-        
+
         import builtins
         original_import = builtins.__import__
         monkeypatch.setattr(builtins, "__import__", mock_import)

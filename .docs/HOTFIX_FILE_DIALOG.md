@@ -1,4 +1,4 @@
-# HOTFIX: Diálogo de Arquivo ZIP/RAR
+# HOTFIX: Diálogo de Arquivo ZIP/RAR/7Z
 
 ## 🎯 Problema Identificado
 
@@ -27,9 +27,10 @@ A API do Tkinter `filedialog` aceita **tupla** (ou lista) de padrões:
 ```python
 # ✅ CORRETO - Funciona no Tkinter
 filetypes=[
-    ("Arquivos compactados", ("*.zip", "*.rar")),  # Tupla de padrões
+    ("Arquivos compactados", ("*.zip", "*.rar", "*.7z")),  # Tupla de padrões
     ("ZIP", "*.zip"),
     ("RAR", "*.rar"),
+    ("7-Zip", "*.7z"),
     ("Todos os arquivos", "*.*"),
 ]
 ```
@@ -42,9 +43,10 @@ Criado `src/ui/dialogs/file_select.py` com:
 
 ```python
 ARCHIVE_FILETYPES = [
-    ("Arquivos compactados", ("*.zip", "*.rar")),  # ✅ Tupla
+    ("Arquivos compactados", ("*.zip", "*.rar", "*.7z")),  # ✅ Tupla
     ("ZIP", "*.zip"),
     ("RAR", "*.rar"),
+    ("7-Zip", "*.7z"),
     ("Todos os arquivos", "*.*"),
 ]
 
@@ -70,7 +72,7 @@ Adicionada função `validate_archive_extension()` para rejeitar extensões não
 
 ```python
 def validate_archive_extension(path: str) -> bool:
-    return path.lower().endswith((".zip", ".rar"))
+    return path.lower().endswith((".zip", ".rar", ".7z"))
 ```
 
 **Uso**:
@@ -78,11 +80,31 @@ def validate_archive_extension(path: str) -> bool:
 path = select_archive_file()
 if not validate_archive_extension(path):
     messagebox.showwarning("Arquivo não suportado",
-                          "Apenas .zip e .rar são aceitos")
+                          "Apenas .zip, .rar e .7z são aceitos")
     return
 ```
 
-Isso evita que usuários selecionem `.7z`, `.tar.gz`, etc., através do filtro "Todos os arquivos".
+Isso evita que usuários selecionem `.tar.gz`, etc., através do filtro "Todos os arquivos".
+
+### 4. Suporte a .7z via py7zr
+
+Adicionada extração de arquivos `.7z` usando a biblioteca `py7zr`:
+
+```python
+elif ext == ".7z":
+    try:
+        import py7zr  # Import tardio
+    except ImportError as e:
+        raise ArchiveError("Suporte a .7z indisponível.\nInstale: pip install py7zr") from e
+    try:
+        with py7zr.SevenZipFile(src, mode="r") as z:
+            z.extractall(path=out)
+        return out
+    except Exception as e:
+        raise ArchiveError(f"Erro ao extrair 7Z: {e}")
+```
+
+**Dependência**: `py7zr>=1.0.0` adicionada ao `requirements.txt`
 
 ---
 
@@ -90,13 +112,24 @@ Isso evita que usuários selecionem `.7z`, `.tar.gz`, etc., através do filtro "
 
 ### Novos Arquivos
 1. **`src/ui/dialogs/file_select.py`** - Helper de seleção de arquivo
-2. **`tests/test_file_select.py`** - 15 testes unitários
+2. **`tests/test_file_select.py`** - 18 testes unitários (incluindo .7z)
 3. **`scripts/test_file_dialog_manual.py`** - Script de teste manual
 
 ### Arquivos Modificados
 1. **`src/modules/auditoria/view.py`**
    - Substituído `filedialog.askopenfilename()` por `select_archive_file()`
-   - Adicionada validação de extensão com mensagem amigável
+   - Adicionada validação de extensão com mensagem amigável (incluindo .7z)
+
+2. **`infra/archive_utils.py`**
+   - Adicionada constante `SUPPORTED_ARCHIVES = {".zip", ".rar", ".7z"}`
+   - Adicionado branch de extração para .7z usando `py7zr.SevenZipFile`
+
+3. **`tests/test_archives.py`**
+   - Adicionada classe `Test7ZExtraction` com 2 testes
+   - Total: 14 testes para extração (ZIP, RAR, 7Z)
+
+4. **`requirements.txt`**
+   - Adicionada dependência `py7zr>=1.0.0`
 
 2. **`src/ui/dialogs/__init__.py`**
    - Exportado `select_archive_file`, `select_archive_files`, `validate_archive_extension`
