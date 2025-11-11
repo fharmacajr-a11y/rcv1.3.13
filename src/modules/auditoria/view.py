@@ -57,6 +57,52 @@ def _guess_mime(path: str) -> str:
     return mt or "application/octet-stream"
 
 
+# --- HELPERS DE BUSCA ROBUSTA ---
+
+def _norm_text(s: str | None) -> str:
+    """Remove acentos, faz casefold e trim; seguro para None."""
+    if not s:
+        return ""
+    s = unicodedata.normalize("NFKD", s)
+    s = "".join(ch for ch in s if not unicodedata.combining(ch))
+    return s.casefold().strip()
+
+
+def _digits(s: str | None) -> str:
+    """Mantém só dígitos (CNPJ, telefones etc.)."""
+    return re.sub(r"\D+", "", s or "")
+
+
+def _collect_name_like_fields(row: dict) -> list[str]:  # type: ignore[type-arg]
+    """
+    Varre o dict e pega valores de chaves que parecem conter nomes de pessoas:
+    'nome', 'contato', 'responsavel', 'representante', 'proprietario', etc.
+    É tolerante a variações/capitalizações.
+    """
+    if not isinstance(row, dict):
+        return []
+    name_keys = []
+    for k, v in row.items():
+        kl = str(k).casefold()
+        if any(tag in kl for tag in ("nome", "contat", "respons", "represent", "propriet", "socio", "sócio")):
+            if isinstance(v, str) and v.strip():
+                name_keys.append(v)
+    return name_keys
+
+
+def _build_search_index(row: dict) -> dict:  # type: ignore[type-arg]
+    """
+    Retorna um índice com textos prontos para busca:
+    - 'razao': razão social normalizada
+    - 'cnpj': apenas dígitos
+    - 'nomes': lista de nomes de contato/responsável etc. (normalizados)
+    """
+    razao = _norm_text(row.get("razao_social") or row.get("Razao Social") or row.get("razao") or "")
+    cnpj = _digits(row.get("cnpj") or row.get("CNPJ") or "")
+    nomes = [_norm_text(x) for x in _collect_name_like_fields(row)]
+    return {"razao": razao, "cnpj": cnpj, "nomes": nomes}
+
+
 class AuditoriaFrame(ttk.Frame):
     """
     Tela de Auditoria:
@@ -135,6 +181,28 @@ class AuditoriaFrame(ttk.Frame):
         self.cmb_cliente.grid(row=4, column=0, sticky="ew", pady=(2, 8))
         self.lbl_notfound = ttk.Label(left, text="", foreground="#a33")
         self.lbl_notfound.grid(row=5, column=0, sticky="w", pady=(0, 8))
+
+        # Bindings para busca e seleção
+        def _on_busca_key(event=None):  # type: ignore[no-untyped-def]
+            if hasattr(self, "_busca_after") and self._busca_after:
+                try:
+                    self.after_cancel(self._busca_after)
+                except Exception:
+                    pass
+            self._busca_after = self.after(140, lambda: self._filtra_clientes(self.ent_busca.get()))
+
+        self.ent_busca.bind("<KeyRelease>", _on_busca_key)
+
+        def _on_select_cliente(event=None):  # type: ignore[no-untyped-def]
+            label = self.cmb_cliente.get()
+            self._cliente_selecionado = self._label2cliente.get(label) if hasattr(self, "_label2cliente") else None
+
+        self.cmb_cliente.bind("<<ComboboxSelected>>", _on_select_cliente)
+
+        # Inicializa variáveis
+        self._busca_after: str | None = None
+        self._label2cliente: dict[str, dict] = {}  # type: ignore[type-arg]
+        self._cliente_selecionado: dict | None = None  # type: ignore[type-arg]
 
         btns = ttk.Frame(left)
         btns.grid(row=6, column=0, sticky="ew", pady=(0, 8))
@@ -215,46 +283,72 @@ class AuditoriaFrame(ttk.Frame):
         """Limpa campo de busca."""
         self._search_var.set("")
 
-    def _apply_filter(self) -> None:
-        """Aplica filtro de busca nos clientes."""
-        q = self._normalize(self._search_var.get())
-        if not self._clientes_all:
-            self.cmb_cliente["values"] = []
-            self.cmb_cliente.set("")
-            self.lbl_notfound.configure(text="Nenhum cliente encontrado")
+    def _filtra_clientes(self, query: str) -> None:
+        """Filtra por razão, nomes (contato/responsável/representante) e CNPJ (com/sem máscara)."""
+        q_text = _norm_text(query)
+        q_digits = _digits(query)
+
+        base: list[dict] = getattr(self, "_clientes_all_rows", []) or []  # type: ignore[type-arg]
+
+        filtrados: list[dict] = []  # type: ignore[type-arg]
+        for cli in base:
+            idx = _build_search_index(cli)
+            # 1) Se o usuário digitou CNPJ (>= 5 dígitos), priorize match numérico
+            if len(q_digits) >= 5 and q_digits in idx["cnpj"]:
+                filtrados.append(cli)
+                continue
+            # 2) Match textual em razão social e nomes de contato
+            if q_text and (
+                q_text in idx["razao"]
+                or any(q_text in nome for nome in idx["nomes"])
+            ):
+                filtrados.append(cli)
+                continue
+            # 3) Query vazia -> mantém tudo
+            if not q_text and not q_digits:
+                filtrados = base
+                break
+
+        # monta labels e mapa label->obj
+        labels = [
+            f"{c.get('razao_social') or c.get('Razao Social') or 'Cliente'} — {c.get('cnpj') or ''}"
+            for c in filtrados
+        ]
+        
+        # Mapeia cliente_id para cada label
+        self._clientes = []
+        for c in filtrados:
+            try:
+                cid = int(c.get("id", 0))
+            except (ValueError, TypeError):
+                cid = 0
+            idx = filtrados.index(c)
+            if idx < len(labels):
+                self._clientes.append((cid, labels[idx]))
+
+        # Mapa label->cliente completo
+        self._label2cliente = {labels[i]: filtrados[i] for i in range(len(labels))}
+
+        # atualiza combobox
+        try:
+            self.cmb_cliente.configure(values=labels, state="readonly")
+        except Exception:
+            # fallback se a combobox ainda não existir no momento da chamada
             return
 
-        if not q:
-            self._clientes = list(self._clientes_all)
-            values = [label for _id, label in self._clientes]
-        else:
-            tokens = q.split()
-            filtered: list[tuple[int, str]] = []
-            for row, item in zip(self._clientes_all_rows, self._clientes_all):
-                hay = " ".join([
-                    str(row.get("razao_social") or ""),
-                    str(row.get("legal_name") or ""),
-                    str(row.get("name") or ""),
-                    str(row.get("display_name") or ""),
-                    str(row.get("cnpj") or row.get("tax_id") or ""),
-                    str(row.get("phone") or row.get("telefone") or ""),
-                    str(row.get("celular") or row.get("mobile") or ""),
-                    str(row.get("id") or "")
-                ])
-                hay_norm = self._normalize(hay)
-                if all(t in hay_norm for t in tokens):
-                    filtered.append(item)
-
-            self._clientes = filtered
-            values = [label for _id, label in filtered]
-
-        self.cmb_cliente["values"] = values
-        if values:
-            self.cmb_cliente.current(0)
-            self.lbl_notfound.configure(text="")
+        if labels:
+            # pré-seleciona 1º resultado
+            self.cmb_cliente.set(labels[0])
+            if hasattr(self, "lbl_notfound"):
+                self.lbl_notfound.configure(text="")
         else:
             self.cmb_cliente.set("")
-            self.lbl_notfound.configure(text="Nenhum cliente encontrado")
+            if hasattr(self, "lbl_notfound"):
+                self.lbl_notfound.configure(text="Nenhum cliente encontrado")
+
+    def _apply_filter(self) -> None:
+        """Aplica filtro de busca nos clientes (compatibilidade)."""
+        self._filtra_clientes(self._search_var.get())
 
     # ---------- Storage Helpers ----------
     def _client_storage_base(self, client_id: int | str) -> str:
