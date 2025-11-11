@@ -19,13 +19,13 @@ class TestArchiveFiletypes:
     def test_filetypes_structure(self) -> None:
         """Testa que ARCHIVE_FILETYPES tem a estrutura correta."""
         assert isinstance(ARCHIVE_FILETYPES, list)
-        assert len(ARCHIVE_FILETYPES) == 5
+        assert len(ARCHIVE_FILETYPES) == 6
 
-        # Primeiro item: tupla com label e tupla de padrões
+        # Primeiro item: tupla com label e tupla de padrões (incluindo volumes)
         first = ARCHIVE_FILETYPES[0]
         assert first[0] == "Arquivos compactados"
         assert isinstance(first[1], tuple)
-        assert first[1] == ("*.zip", "*.rar", "*.7z")
+        assert first[1] == ("*.zip", "*.rar", "*.7z", "*.7z.*")
 
         # Segundo item: ZIP
         assert ARCHIVE_FILETYPES[1] == ("ZIP", "*.zip")
@@ -36,8 +36,11 @@ class TestArchiveFiletypes:
         # Quarto item: 7-Zip
         assert ARCHIVE_FILETYPES[3] == ("7-Zip", "*.7z")
 
-        # Quinto item: Todos os arquivos
-        assert ARCHIVE_FILETYPES[4] == ("Todos os arquivos", "*.*")
+        # Quinto item: 7-Zip volumes
+        assert ARCHIVE_FILETYPES[4] == ("7-Zip (volumes)", "*.7z.*")
+
+        # Sexto item: Todos os arquivos
+        assert ARCHIVE_FILETYPES[5] == ("Todos os arquivos", "*.*")
 
     def test_filetypes_uses_tuples_not_strings(self) -> None:
         """
@@ -49,10 +52,11 @@ class TestArchiveFiletypes:
         first_pattern = ARCHIVE_FILETYPES[0][1]
         assert isinstance(first_pattern, tuple), \
             "O padrão deve ser uma tupla, não string"
-        assert len(first_pattern) == 3
+        assert len(first_pattern) == 4  # .zip, .rar, .7z, .7z.*
         assert "*.zip" in first_pattern
         assert "*.rar" in first_pattern
         assert "*.7z" in first_pattern
+        assert "*.7z.*" in first_pattern  # Padrão para volumes
         assert "*.rar" in first_pattern
 
 
@@ -101,6 +105,27 @@ class TestValidateArchiveExtension:
         """Testa que aceita .7Z em caso misto."""
         assert validate_archive_extension("arquivo.7Z") is True
 
+    def test_accepts_7z_volume_001(self) -> None:
+        """Testa que aceita volumes .7z.001."""
+        assert validate_archive_extension("arquivo.7z.001") is True
+        assert validate_archive_extension("/path/to/file.7z.001") is True
+
+    def test_accepts_7z_volume_002(self) -> None:
+        """Testa que aceita volumes .7z.002, .7z.003, etc."""
+        assert validate_archive_extension("arquivo.7z.002") is True
+        assert validate_archive_extension("arquivo.7z.003") is True
+        assert validate_archive_extension("arquivo.7z.999") is True
+
+    def test_accepts_7z_volume_uppercase(self) -> None:
+        """Testa que aceita volumes em maiúsculas."""
+        assert validate_archive_extension("ARQUIVO.7Z.001") is True
+        assert validate_archive_extension("ARQUIVO.7Z.002") is True
+
+    def test_rejects_invalid_7z_volume(self) -> None:
+        """Testa que rejeita volumes inválidos (sem números)."""
+        assert validate_archive_extension("arquivo.7z.txt") is False
+        assert validate_archive_extension("arquivo.7z.abc") is False
+
     def test_rejects_tar(self) -> None:
         """Testa que rejeita arquivos .tar."""
         assert validate_archive_extension("arquivo.tar") is False
@@ -118,12 +143,14 @@ class TestValidateArchiveExtension:
         assert validate_archive_extension(str(Path("arquivo.zip"))) is True
         assert validate_archive_extension(str(Path("arquivo.rar"))) is True
         assert validate_archive_extension(str(Path("arquivo.7z"))) is True
+        assert validate_archive_extension(str(Path("arquivo.7z.001"))) is True
 
     def test_handles_multiple_dots(self) -> None:
         """Testa arquivos com múltiplos pontos no nome."""
         assert validate_archive_extension("arquivo.backup.zip") is True
         assert validate_archive_extension("arquivo.v1.0.rar") is True
         assert validate_archive_extension("arquivo.old.7z") is True
+        assert validate_archive_extension("arquivo.backup.7z.001") is True
 
 
 class TestFileSelectIntegration:

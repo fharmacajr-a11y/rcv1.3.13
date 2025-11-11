@@ -680,6 +680,7 @@ class AuditoriaFrame(ttk.Frame):
             messagebox.showwarning(
                 "Arquivo não suportado",
                 "Apenas arquivos .zip, .rar e .7z são aceitos.\n"
+                "Volumes .7z (.7z.001, .7z.002...) também são suportados.\n"
                 f"Arquivo selecionado: {Path(path).name}"
             )
             return

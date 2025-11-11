@@ -17,10 +17,11 @@
   ],
   "venvPath": ".",
   "venv": ".venv",
-  "extraPaths": [
-    "src",
-    "infra",
-    "adapters"
+  "executionEnvironments": [
+    {
+      "root": ".",
+      "extraPaths": ["./src", "./infra", "./adapters"]
+    }
   ],
   "reportMissingImports": "warning",
   "reportMissingTypeStubs": false,

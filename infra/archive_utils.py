@@ -3,7 +3,7 @@ Utilitários para extração de arquivos compactados (ZIP, RAR e 7Z).
 
 ZIP: Usa zipfile (built-in Python)
 RAR: Usa 7-Zip CLI (empacotado com o aplicativo)
-7Z: Usa py7zr (biblioteca Python)
+7Z: Usa py7zr (biblioteca Python) - suporta senha e volumes (.7z.001, .7z.002...)
 """
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ from typing import Union
 
 # Constantes de extensões suportadas
 SUPPORTED_ARCHIVES = {".zip", ".rar", ".7z"}
+SUPPORTED_7Z_VOLUMES = True  # Suporta .7z.001, .7z.002, etc.
 
 
 class ArchiveError(Exception):
@@ -58,25 +59,40 @@ def find_7z() -> Path | None:
     return Path(exe_path) if exe_path else None
 
 
-def extract_archive(src: Union[str, Path], out_dir: Union[str, Path]) -> Path:
+def extract_archive(
+    src: Union[str, Path],
+    out_dir: Union[str, Path],
+    *,
+    password: str | None = None
+) -> Path:
     """
     Extrai arquivo compactado (ZIP, RAR ou 7Z) para o diretório de destino.
 
     Args:
-        src: Caminho para o arquivo compactado (.zip, .rar ou .7z)
+        src: Caminho para o arquivo compactado (.zip, .rar, .7z ou .7z.001 para volumes)
         out_dir: Diretório onde os arquivos serão extraídos
+        password: Senha opcional para arquivos protegidos (suportado apenas em .7z)
 
     Returns:
         Path para o diretório de extração
 
     Raises:
         ArchiveError: Se o formato não for suportado ou houver erro na extração
+
+    Nota:
+        - Volumes .7z (.7z.001, .7z.002...) devem ser abertos pelo primeiro volume (.7z.001)
+        - Senha é suportada apenas para arquivos .7z
     """
     src = Path(src)
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
 
+    # Detectar extensão e volumes
+    name_lower = src.name.lower()
     ext = src.suffix.lower()
+    
+    # Verificar se é volume .7z (ex: arquivo.7z.001)
+    is_7z_volume = ".7z." in name_lower and name_lower.split(".7z.")[-1].isdigit()
 
     if ext == ".zip":
         try:
@@ -89,6 +105,9 @@ def extract_archive(src: Union[str, Path], out_dir: Union[str, Path]) -> Path:
             raise ArchiveError(f"Erro ao extrair ZIP: {e}")
 
     elif ext == ".rar":
+        if password:
+            raise ArchiveError("Senha não é suportada para arquivos .rar via 7-Zip CLI.")
+        
         seven_zip = find_7z()
         if not seven_zip:
             raise ArchiveError(
@@ -120,7 +139,7 @@ def extract_archive(src: Union[str, Path], out_dir: Union[str, Path]) -> Path:
         except Exception as e:
             raise ArchiveError(f"Erro ao extrair RAR: {e}")
 
-    elif ext == ".7z":
+    elif ext == ".7z" or is_7z_volume:
         try:
             import py7zr  # Import tardio para não quebrar se py7zr não estiver instalado
         except ImportError as e:
@@ -130,16 +149,42 @@ def extract_archive(src: Union[str, Path], out_dir: Union[str, Path]) -> Path:
             ) from e
 
         try:
-            with py7zr.SevenZipFile(src, mode="r") as z:
+            # Para volumes, abrir diretamente pelo arquivo especificado (geralmente .7z.001)
+            with py7zr.SevenZipFile(src, mode="r", password=password) as z:
                 z.extractall(path=out)
             return out
+        except (py7zr.Bad7zFile, AttributeError) as e:
+            # Bad7zFile ou arquivo corrompido
+            if is_7z_volume:
+                raise ArchiveError(
+                    f"Arquivo .7z volume inválido/corrompido.\n"
+                    f"Certifique-se de que todos os volumes (.7z.001, .7z.002...) estão presentes.\n"
+                    f"Erro: {e}"
+                ) from e
+            else:
+                raise ArchiveError(f"Arquivo .7z corrompido ou inválido: {e}") from e
+        except PermissionError as e:
+            raise ArchiveError(f"Permissão negada ao extrair .7z: {e}") from e
         except Exception as e:
-            raise ArchiveError(f"Erro ao extrair 7Z: {e}")
+            # Capturar erros de senha ou CRC
+            error_msg = str(e).lower()
+            if "password" in error_msg or "encrypted" in error_msg:
+                raise ArchiveError(
+                    "Este arquivo .7z requer senha para extração.\n"
+                    "Atualmente a interface não suporta arquivos protegidos por senha."
+                ) from e
+            elif "crc" in error_msg or "checksum" in error_msg:
+                raise ArchiveError(
+                    "Erro de CRC: arquivo .7z corrompido ou senha incorreta."
+                ) from e
+            else:
+                raise ArchiveError(f"Erro ao extrair 7Z: {e}") from e
 
     else:
         raise ArchiveError(
             f"Formato não suportado: {ext}\n"
-            f"Apenas arquivos {', '.join(SUPPORTED_ARCHIVES)} são aceitos."
+            f"Apenas arquivos {', '.join(SUPPORTED_ARCHIVES)} são aceitos.\n"
+            f"Volumes .7z (.7z.001, .7z.002...) também são suportados."
         )
 
 
