@@ -90,7 +90,7 @@ def extract_archive(
     # Detectar extensão e volumes
     name_lower = src.name.lower()
     ext = src.suffix.lower()
-    
+
     # Verificar se é volume .7z (ex: arquivo.7z.001)
     is_7z_volume = ".7z." in name_lower and name_lower.split(".7z.")[-1].isdigit()
 
@@ -107,7 +107,7 @@ def extract_archive(
     elif ext == ".rar":
         if password:
             raise ArchiveError("Senha não é suportada para arquivos .rar via 7-Zip CLI.")
-        
+
         seven_zip = find_7z()
         if not seven_zip:
             raise ArchiveError(

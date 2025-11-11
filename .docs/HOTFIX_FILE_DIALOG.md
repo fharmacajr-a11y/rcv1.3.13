@@ -1,4 +1,4 @@
-# HOTFIX: Diálogo de Arquivo ZIP/RAR/7Z
+# HOTFIX: Diálogo de Arquivo ZIP/RAR/7Z (com volumes e senha)
 
 ## 🎯 Problema Identificado
 
@@ -20,17 +20,18 @@ filetypes=[
 
 ## ✅ Solução Implementada
 
-### 1. Usar **Tupla de Padrões**
+### 1. Usar **Tupla de Padrões** (incluindo volumes)
 
 A API do Tkinter `filedialog` aceita **tupla** (ou lista) de padrões:
 
 ```python
 # ✅ CORRETO - Funciona no Tkinter
 filetypes=[
-    ("Arquivos compactados", ("*.zip", "*.rar", "*.7z")),  # Tupla de padrões
+    ("Arquivos compactados", ("*.zip", "*.rar", "*.7z", "*.7z.*")),  # Inclui volumes
     ("ZIP", "*.zip"),
     ("RAR", "*.rar"),
     ("7-Zip", "*.7z"),
+    ("7-Zip (volumes)", "*.7z.*"),  # Padrão para .7z.001, .7z.002...
     ("Todos os arquivos", "*.*"),
 ]
 ```
@@ -43,10 +44,11 @@ Criado `src/ui/dialogs/file_select.py` com:
 
 ```python
 ARCHIVE_FILETYPES = [
-    ("Arquivos compactados", ("*.zip", "*.rar", "*.7z")),  # ✅ Tupla
+    ("Arquivos compactados", ("*.zip", "*.rar", "*.7z", "*.7z.*")),
     ("ZIP", "*.zip"),
     ("RAR", "*.rar"),
     ("7-Zip", "*.7z"),
+    ("7-Zip (volumes)", "*.7z.*"),
     ("Todos os arquivos", "*.*"),
 ]
 
@@ -66,45 +68,94 @@ def select_archive_file(title: str = "...") -> str:
 - ✅ Filetypes padronizado em um único local
 - ✅ Facilita debugging (vê no console o `filetypes` exato usado)
 
-### 3. Validação de Extensão
+### 3. Validação de Extensão (incluindo volumes)
 
 Adicionada função `validate_archive_extension()` para rejeitar extensões não suportadas:
 
 ```python
 def validate_archive_extension(path: str) -> bool:
-    return path.lower().endswith((".zip", ".rar", ".7z"))
+    path_lower = path.lower()
+
+    # Verificar extensões simples
+    if path_lower.endswith((".zip", ".rar", ".7z")):
+        return True
+
+    # Verificar volumes .7z (ex: arquivo.7z.001, arquivo.7z.002)
+    if ".7z." in path_lower:
+        parts = path_lower.split(".7z.")
+        if len(parts) == 2 and parts[1].isdigit():
+            return True
+
+    return False
 ```
 
 **Uso**:
 ```python
 path = select_archive_file()
 if not validate_archive_extension(path):
-    messagebox.showwarning("Arquivo não suportado",
-                          "Apenas .zip, .rar e .7z são aceitos")
+    messagebox.showwarning(
+        "Arquivo não suportado",
+        "Apenas .zip, .rar e .7z são aceitos.\n"
+        "Volumes .7z (.7z.001, .7z.002...) também são suportados."
+    )
     return
 ```
 
 Isso evita que usuários selecionem `.tar.gz`, etc., através do filtro "Todos os arquivos".
 
-### 4. Suporte a .7z via py7zr
+### 4. Suporte a .7z via py7zr (com senha e volumes)
 
-Adicionada extração de arquivos `.7z` usando a biblioteca `py7zr`:
+Adicionada extração de arquivos `.7z` usando a biblioteca `py7zr`, com suporte a:
+- **Senha** (arquivos protegidos)
+- **Volumes** (.7z.001, .7z.002, .7z.003...)
+- **Mensagens de erro específicas** (CRC, senha requerida, volumes incompletos)
 
 ```python
-elif ext == ".7z":
-    try:
-        import py7zr  # Import tardio
-    except ImportError as e:
-        raise ArchiveError("Suporte a .7z indisponível.\nInstale: pip install py7zr") from e
-    try:
-        with py7zr.SevenZipFile(src, mode="r") as z:
-            z.extractall(path=out)
-        return out
-    except Exception as e:
-        raise ArchiveError(f"Erro ao extrair 7Z: {e}")
+def extract_archive(
+    src: Union[str, Path],
+    out_dir: Union[str, Path],
+    *,
+    password: str | None = None
+) -> Path:
+    # Detectar volumes .7z (ex: arquivo.7z.001)
+    is_7z_volume = ".7z." in name_lower and name_lower.split(".7z.")[-1].isdigit()
+
+    if ext == ".7z" or is_7z_volume:
+        try:
+            import py7zr
+        except ImportError as e:
+            raise ArchiveError("Suporte a .7z indisponível.\nInstale: pip install py7zr") from e
+
+        try:
+            # Para volumes, abrir diretamente pelo arquivo especificado (.7z.001)
+            with py7zr.SevenZipFile(src, mode="r", password=password) as z:
+                z.extractall(path=out)
+            return out
+        except (py7zr.Bad7zFile, AttributeError) as e:
+            if is_7z_volume:
+                raise ArchiveError(
+                    "Arquivo .7z volume inválido/corrompido.\n"
+                    "Certifique-se de que todos os volumes (.7z.001, .7z.002...) estão presentes."
+                ) from e
+            else:
+                raise ArchiveError(f"Arquivo .7z corrompido ou inválido: {e}") from e
+        except Exception as e:
+            # Detectar erros de senha ou CRC
+            error_msg = str(e).lower()
+            if "password" in error_msg or "encrypted" in error_msg:
+                raise ArchiveError("Este arquivo .7z requer senha para extração.") from e
+            elif "crc" in error_msg:
+                raise ArchiveError("Erro de CRC: arquivo corrompido ou senha incorreta.") from e
 ```
 
 **Dependência**: `py7zr>=1.0.0` adicionada ao `requirements.txt`
+
+**Recursos**:
+- ✅ Extração de arquivos .7z simples
+- ✅ Extração de volumes multi-partes (.7z.001, .7z.002...)
+- ✅ Suporte a senha (parâmetro `password=`)
+- ✅ Mensagens de erro amigáveis e específicas
+- ✅ Detecção automática de volumes vs. arquivos únicos
 
 ---
 
@@ -112,8 +163,10 @@ elif ext == ".7z":
 
 ### Novos Arquivos
 1. **`src/ui/dialogs/file_select.py`** - Helper de seleção de arquivo
-2. **`tests/test_file_select.py`** - 18 testes unitários (incluindo .7z)
-3. **`scripts/test_file_dialog_manual.py`** - Script de teste manual
+2. **`tests/test_file_select.py`** - 21 testes unitários (incluindo .7z e volumes)
+3. **`tests/conftest.py`** - Configuração padrão do pytest
+4. **`pytest.ini`** - Configuração de pythonpath para testes
+5. **`scripts/test_file_dialog_manual.py`** - Script de teste manual
 
 ### Arquivos Modificados
 1. **`src/modules/auditoria/view.py`**
@@ -246,22 +299,79 @@ No console, procure por:
 DEBUG - rc.ui.file_select - Abrindo askopenfilename | ... | filetypes=[('Arquivos compactados', ('*.zip', '*.rar')), ...]
 ```
 
-Se aparecer `('*.zip', '*.rar')` como **tupla**, está correto! ✅
+Se aparecer `('*.zip', '*.rar', '*.7z', '*.7z.*')` como **tupla**, está correto! ✅
 
 ### 3. Testar Validação
 
 1. No diálogo, selecionar filtro: **"Todos os arquivos (*.*)"**
-2. Selecionar um arquivo `.7z` ou `.txt`
-3. Deve aparecer mensagem: **"Apenas arquivos .zip e .rar são aceitos"**
+2. Selecionar um arquivo `.tar` ou `.txt`
+3. Deve aparecer mensagem: **"Apenas arquivos .zip, .rar e .7z são aceitos. Volumes .7z (.7z.001, .7z.002...) também são suportados."**
+
+### 4. Testar Volumes .7z
+
+1. Selecionar arquivo `arquivo.7z.001` no diálogo
+2. Deve aparecer no filtro **"7-Zip (volumes)"**
+3. Extração deve funcionar normalmente (py7zr lida com volumes automaticamente)
+
+---
+
+## ❓ FAQ: Volumes e Senha
+
+### Como funcionam volumes .7z?
+
+Volumes são arquivos .7z divididos em múltiplas partes:
+- `arquivo.7z.001` (primeira parte)
+- `arquivo.7z.002` (segunda parte)
+- `arquivo.7z.003` (terceira parte)
+- ...
+
+**Para extrair**: Selecione o **primeiro volume** (`arquivo.7z.001`). O `py7zr` automaticamente procura e usa os outros volumes.
+
+**Importante**: Todos os volumes devem estar na **mesma pasta** que o primeiro arquivo.
+
+### Como usar arquivos .7z com senha?
+
+Atualmente, a **interface não suporta** entrada de senha. Arquivos protegidos retornarão erro amigável:
+
+```
+"Este arquivo .7z requer senha para extração.
+Atualmente a interface não suporta arquivos protegidos por senha."
+```
+
+**Futuro**: Adicionar diálogo de senha no `view.py`:
+```python
+# Exemplo de implementação futura:
+from tkinter.simpledialog import askstring
+
+password = askstring("Senha", "Digite a senha do arquivo .7z:", show="*")
+extract_archive(path, dest, password=password)
+```
+
+### Diferença entre .7z e volumes .7z?
+
+| Tipo | Extensão | Uso |
+|------|----------|-----|
+| Arquivo único | `.7z` | Arquivo compactado normal |
+| Volumes | `.7z.001`, `.7z.002`... | Arquivo dividido em partes (ex: para upload limitado) |
+
+Ambos são extraídos pelo `py7zr`, mas volumes precisam de **todas as partes presentes**.
 
 ---
 
 ## 📝 Commits
 
 ```bash
-git add -A
-git commit -m "fix(ui): file dialog usa tupla de padrões ('*.zip','*.rar') + logging do filetypes; RAR aparece no seletor"
-git push --set-upstream origin fix/rar-dialog-filetypes
+# Commit 1: Suporte inicial ZIP/RAR
+git commit -m "fix(ui): file dialog usa tupla de padrões ('*.zip','*.rar') + logging"
+
+# Commit 2: Suporte .7z básico
+git commit -m "feat(files): adiciona suporte a arquivos .7z via py7zr"
+
+# Commit 3: Volumes e senha
+git commit -m "feat(archives): suporte a .7z com senha e volumes .7z.001"
+
+# Commit 4: Configuração Pylance
+git commit -m "chore(config): configura Pylance/Pyright para testes"
 ```
 
 ---
@@ -269,6 +379,9 @@ git push --set-upstream origin fix/rar-dialog-filetypes
 ## 🔗 Referências
 
 - **Tkinter filedialog**: https://docs.python.org/3/library/dialog.html#module-tkinter.filedialog
+- **py7zr documentation**: https://py7zr.readthedocs.io/
+- **py7zr password support**: https://py7zr.readthedocs.io/en/latest/user_guide.html#password-protected-archive
+- **py7zr volumes**: https://py7zr.readthedocs.io/en/latest/user_guide.html#multi-volume-archive
 - **Issue original**: Arquivos RAR não apareciam no seletor
 - **Branch**: `fix/rar-dialog-filetypes`
 
@@ -278,22 +391,31 @@ git push --set-upstream origin fix/rar-dialog-filetypes
 
 ### Desenvolvimento
 - [x] Helper `file_select.py` criado
-- [x] `ARCHIVE_FILETYPES` usa tupla de padrões
+- [x] `ARCHIVE_FILETYPES` usa tupla de padrões (incluindo `*.7z.*`)
 - [x] Logging de debug implementado
-- [x] Validação de extensão implementada
+- [x] Validação de extensão implementada (inclui volumes)
+- [x] Suporte a senha no `extract_archive()`
+- [x] Suporte a volumes .7z.001+
+- [x] Mensagens de erro específicas (senha, CRC, volumes)
 - [x] Código em `view.py` atualizado
-- [x] 15 testes unitários criados
+- [x] 21 testes unitários criados
 - [x] Script de teste manual criado
+- [x] Configuração Pylance/Pyright
+- [x] pytest.ini e conftest.py
 
 ### Testes
-- [x] Testes unitários passando (15/15)
-- [x] Testes de integração passando (12/12 em `test_archives.py`)
+- [x] Testes unitários passando (35/35 + 1 skipped)
+- [x] Testes de volumes .7z adicionados
+- [x] Testes de validação de extensão atualizados
 - [ ] Teste manual: RAR aparece no diálogo
+- [ ] Teste manual: Volumes .7z aparecem no filtro
 - [ ] Teste manual: Logs mostram tupla de padrões
 - [ ] Teste manual: Validação rejeita extensões inválidas
+- [ ] Teste manual: Mensagem de erro para arquivo com senha
 
 ### Documentação
-- [x] README do hotfix criado
+- [x] README do hotfix atualizado
+- [x] FAQ sobre volumes e senha adicionado
 - [x] Logs explicados
 - [x] Antes/depois documentado
 

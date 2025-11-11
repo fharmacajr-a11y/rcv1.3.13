@@ -109,16 +109,16 @@ def validate_archive_extension(path: str) -> bool:
         False
     """
     path_lower = path.lower()
-    
+
     # Verificar extensões simples
     if path_lower.endswith((".zip", ".rar", ".7z")):
         return True
-    
+
     # Verificar volumes .7z (ex: arquivo.7z.001, arquivo.7z.002)
     if ".7z." in path_lower:
         # Extrair a parte após .7z.
         parts = path_lower.split(".7z.")
         if len(parts) == 2 and parts[1].isdigit():
             return True
-    
+
     return False
