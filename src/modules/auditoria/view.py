@@ -745,7 +745,8 @@ class AuditoriaFrame(ttk.Frame):
                 org_id=org_id,
                 razao=row["cliente_nome"],
                 cnpj=row["cnpj"],
-                start_prefix=prefix
+                start_prefix=prefix,
+                module="auditoria"
             )
 
             # Registra janela
@@ -1070,7 +1071,8 @@ class AuditoriaFrame(ttk.Frame):
                     org_id=org_id,
                     razao=cliente_nome,
                     cnpj=cnpj,
-                    start_prefix=base_prefix
+                    start_prefix=base_prefix,
+                    module="auditoria"
                 )
             except Exception as e:
                 print(f"[AUDITORIA][UPLOAD] Não foi possível abrir browser: {e}")
@@ -1403,7 +1405,7 @@ class AuditoriaFrame(ttk.Frame):
                     )
                     messagebox.showinfo("Upload Cancelado", msg)
                     self._close_busy()
-                
+
                 self.after(0, _show_cancel_summary)
                 return
 

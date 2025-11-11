@@ -91,7 +91,8 @@ def open_files_browser(
     razao: str = "",
     cnpj: str = "",
     supabase=None,  # type: ignore[no-untyped-def]
-    start_prefix: str = ""
+    start_prefix: str = "",
+    module: str = ""
 ) -> tk.Toplevel:
     """
     Abre uma janela para navegar/baixar arquivos do Storage.
@@ -105,6 +106,7 @@ def open_files_browser(
         supabase: Cliente Supabase (opcional)
         start_prefix: Prefixo inicial opcional (ex: "{org_id}/{client_id}/GERAL/Auditoria")
                      Se fornecido, substitui o root_prefix padrão
+        module: Nome do módulo que está abrindo o browser (ex: "auditoria")
 
     Returns:
         Janela Toplevel criada
@@ -259,25 +261,32 @@ def open_files_browser(
     btn_download_sel.pack(side="left", padx=(0, 6))
     btn_zip_folder.pack(side="left")
 
-    # À direita: Visualizar
+    # À direita: Visualizar + Excluir (se auditoria)
     btn_preview = ttk.Button(right_box, text="Visualizar", state="disabled")
-    btn_preview.pack(side="right")
+    btn_preview.pack(side="right", padx=(0, 6) if module == "auditoria" else (0, 0))
+    
+    # Botão de exclusão (apenas para auditoria)
+    if module == "auditoria":
+        btn_delete = ttk.Button(right_box, text="Excluir selecionado", state="disabled")
+        btn_delete.pack(side="right")
+    else:
+        btn_delete = None  # type: ignore[assignment]
 
     # Frame de filtro (Ctrl+F)
     filter_frame = ttk.Frame(docs_window)
     filter_frame.pack(side="top", fill="x", padx=8, pady=(0, 4))
-    
+
     ttk.Label(filter_frame, text="🔍 Filtrar:").pack(side="left", padx=(0, 4))
     filter_var = tk.StringVar()
     filter_entry = ttk.Entry(filter_frame, textvariable=filter_var, width=40)
     filter_entry.pack(side="left", fill="x", expand=True)
-    
+
     btn_clear_filter = ttk.Button(filter_frame, text="✕", width=3, command=lambda: filter_var.set(""))
     btn_clear_filter.pack(side="left", padx=(4, 0))
-    
+
     # Bind Enter para aplicar filtro
     filter_entry.bind("<Return>", lambda e: _refresh_listing())  # type: ignore[name-defined]
-    
+
     # Bind Ctrl+F para focar no filtro
     docs_window.bind("<Control-f>", lambda e: filter_entry.focus_set())
     docs_window.bind("<Control-F>", lambda e: filter_entry.focus_set())
@@ -285,7 +294,7 @@ def open_files_browser(
     # TreeView (listagem de arquivos) com coluna de tamanho
     tree_container = ttk.Frame(docs_window)
     tree_container.pack(expand=True, fill="both", padx=8, pady=8)
-    
+
     tree = ttk.Treeview(
         tree_container, columns=("type", "size"), show="tree headings", selectmode="browse"
     )
@@ -295,25 +304,25 @@ def open_files_browser(
     tree.column("#0", width=400, stretch=True)
     tree.column("type", width=100, anchor="center", stretch=False)
     tree.column("size", width=100, anchor="e", stretch=False)
-    
+
     # Scrollbars (vertical e horizontal)
     scroll_y = ttk.Scrollbar(tree_container, orient="vertical", command=tree.yview)
     scroll_x = ttk.Scrollbar(tree_container, orient="horizontal", command=tree.xview)
     tree.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
-    
+
     tree.grid(row=0, column=0, sticky="nsew")
     scroll_y.grid(row=0, column=1, sticky="ns")
     scroll_x.grid(row=1, column=0, sticky="ew")
-    
+
     tree_container.rowconfigure(0, weight=1)
     tree_container.columnconfigure(0, weight=1)
-    
+
     # Label "Carregando..." (oculto por padrão)
     loading_label = ttk.Label(tree_container, text="⏳ Carregando...", foreground="#888")
-    
+
     # Variáveis para ordenação
     sort_column = {"col": None, "reverse": False}
-    
+
     def _sort_tree(col: str):
         """Ordena a Treeview por coluna clicada."""
         # Inverte direção se clicar na mesma coluna
@@ -322,10 +331,10 @@ def open_files_browser(
         else:
             sort_column["col"] = col
             sort_column["reverse"] = False
-        
+
         # Coleta itens (apenas raiz, ignorando filhos expandidos)
         items = [(tree.set(k, col), k) for k in tree.get_children("")]
-        
+
         # Ordenação especial para tamanho (numérico)
         if col == "size":
             def _parse_size(s: str) -> float:
@@ -344,19 +353,19 @@ def open_files_browser(
             items.sort(key=lambda x: _parse_size(x[0]), reverse=sort_column["reverse"])
         else:
             items.sort(reverse=sort_column["reverse"])
-        
+
         # Reordena itens
         for idx, (_, k) in enumerate(items):
             tree.move(k, "", idx)
-        
+
         # Atualiza indicador de ordenação no cabeçalho
         for c in ["#0", "type", "size"]:
             tree.heading(c, text=tree.heading(c)["text"].split(" ")[0])  # Remove setas
-        
+
         arrow = " ▼" if sort_column["reverse"] else " ▲"
         current_text = tree.heading(col)["text"].split(" ")[0]
         tree.heading(col, text=current_text + arrow)
-    
+
     # Bind click nos cabeçalhos
     tree.heading("#0", command=lambda: _sort_tree("#0"))
     tree.heading("type", command=lambda: _sort_tree("type"))
@@ -387,7 +396,7 @@ def open_files_browser(
         """Formata tamanho em bytes para string legível."""
         if bytes_val is None or bytes_val == 0:
             return "-"
-        
+
         if bytes_val < 1024:
             return f"{bytes_val} B"
         elif bytes_val < 1024 * 1024:
@@ -396,33 +405,33 @@ def open_files_browser(
             return f"{bytes_val / (1024 * 1024):.1f} MB"
         else:
             return f"{bytes_val / (1024 * 1024 * 1024):.2f} GB"
-    
+
     def populate_tree(parent_item, rel_prefix: str):
         # Mostra label "Carregando..." se for chamada da raiz
         if not parent_item:
             loading_label.grid(row=0, column=0, sticky="nsew")
             docs_window.update_idletasks()
-        
+
         # Usa o prefixo atual da navegação
         current = docs_window._current_prefix  # type: ignore[attr-defined]
         full_prefix = (
             current if not rel_prefix else f"{current}/{rel_prefix}".rstrip("/")
         )
-        
+
         # Obter filtro
         filter_text = filter_var.get().strip().lower()
-        
+
         objects = list_storage_objects(BUCKET, prefix=full_prefix) or []
         for obj in objects:
             name = (obj.get("name") or "").strip("/")
             is_folder = bool(obj.get("is_folder"))
             size_bytes = obj.get("metadata", {}).get("size") if not is_folder else None
-            
+
             # Aplicar filtro (apenas arquivos, pastas sempre mostradas)
             if filter_text and not is_folder:
                 if filter_text not in name.lower():
                     continue
-            
+
             item_id = tree.insert(
                 parent_item,
                 "end",
@@ -432,7 +441,7 @@ def open_files_browser(
             )
             if is_folder:
                 tree.insert(item_id, "end", text="", values=("...", "-"))
-        
+
         # Oculta label "Carregando..."
         if not parent_item:
             loading_label.grid_forget()
@@ -474,18 +483,26 @@ def open_files_browser(
         info = _current_item_info()
         if not info:
             btn_preview.configure(state="disabled")
+            if btn_delete:
+                btn_delete.configure(state="disabled")
             return
         _, tipo, rel, nome = info
         if tipo != "Arquivo" or not rel:
             btn_preview.configure(state="disabled")
+            if btn_delete:
+                btn_delete.configure(state="disabled")
             return
-        
+
         # Habilitar visualização para PDF e imagens (JPG, PNG, GIF)
         ext = nome.lower().split(".")[-1] if "." in nome else ""
         if ext in ("pdf", "jpg", "jpeg", "png", "gif"):
             btn_preview.configure(state="normal")
         else:
             btn_preview.configure(state="disabled")
+        
+        # Habilitar exclusão para qualquer arquivo selecionado (auditoria)
+        if btn_delete:
+            btn_delete.configure(state="normal")
 
     def do_download():
         info = _current_item_info()
@@ -676,7 +693,7 @@ def open_files_browser(
 
         # Detectar extensão
         ext = nome.lower().split(".")[-1] if "." in nome else ""
-        
+
         btn_preview.configure(state="disabled")
         # Usa o prefixo atual ao invés do root_prefix fixo
         current = docs_window._current_prefix  # type: ignore[attr-defined]
@@ -692,45 +709,18 @@ def open_files_browser(
                     f"Não foi possível carregar este arquivo.",
                     parent=docs_window,
                 )
-            elif ext == "pdf":
-                # Visualizador de PDF
-                tmp_path = None
+            elif ext in ("pdf", "jpg", "jpeg", "png", "gif"):
+                # Visualizador unificado para PDF e imagens
                 try:
-                    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-                    try:
-                        tmp.write(data)
-                        tmp_path = tmp.name
-                    finally:
-                        tmp.close()
-                    viewer = open_pdf_viewer(docs_window, tmp_path, display_name=nome)
-
-                    def _cleanup(_event=None):
-                        try:
-                            os.unlink(tmp_path)
-                        except OSError:
-                            pass
-
-                    viewer.bind("<Destroy>", _cleanup, add="+")
-                except Exception as exc:
-                    if tmp_path:
-                        try:
-                            os.unlink(tmp_path)
-                        except OSError:
-                            pass
-                    messagebox.showerror(
-                        "Visualizar",
-                        f"Falha ao abrir visualização PDF: {exc}",
-                        parent=docs_window,
+                    viewer = open_pdf_viewer(
+                        docs_window,
+                        data_bytes=data,
+                        display_name=nome,
                     )
-            elif ext in ("jpg", "jpeg", "png", "gif"):
-                # Visualizador de imagens
-                try:
-                    from src.ui.image_viewer import open_image_viewer
-                    open_image_viewer(docs_window, data, display_name=nome)
                 except Exception as exc:
                     messagebox.showerror(
                         "Visualizar",
-                        f"Falha ao abrir visualização de imagem: {exc}",
+                        f"Falha ao abrir visualização: {exc}",
                         parent=docs_window,
                     )
             else:
@@ -745,8 +735,90 @@ def open_files_browser(
 
     btn_preview.configure(command=on_preview)
 
+    def on_delete_selected():
+        """Exclui arquivo selecionado (apenas no módulo auditoria)."""
+        if module != "auditoria":
+            return
+        
+        info = _current_item_info()
+        if not info:
+            return
+        
+        item, tipo, rel, nome = info
+        if tipo != "Arquivo" or not rel:
+            messagebox.showwarning(
+                "Excluir",
+                "Por favor, selecione um arquivo para excluir.",
+                parent=docs_window,
+            )
+            return
+        
+        # Confirma exclusão
+        resposta = messagebox.askyesno(
+            "Confirmar exclusão",
+            f"Deseja realmente excluir o arquivo:\n\n{nome}\n\nEsta ação não pode ser desfeita.",
+            parent=docs_window,
+        )
+        
+        if not resposta:
+            return
+        
+        # Monta caminho completo
+        current = docs_window._current_prefix  # type: ignore[attr-defined]
+        remote_path = f"{current}/{rel}".strip("/")
+        
+        def _target():
+            # Usa cliente supabase para remover
+            if supabase:
+                storage = supabase.storage.from_(BUCKET)
+                result = storage.remove([remote_path])
+                return result
+            return None
+        
+        def _done(result, err):
+            if err:
+                messagebox.showerror(
+                    "Erro ao excluir",
+                    f"Não foi possível excluir o arquivo:\n{err}",
+                    parent=docs_window,
+                )
+            else:
+                messagebox.showinfo(
+                    "Arquivo excluído",
+                    f"O arquivo '{nome}' foi excluído com sucesso.",
+                    parent=docs_window,
+                )
+                # Recarrega a árvore
+                current_prefix = docs_window._current_prefix  # type: ignore[attr-defined]
+                rel_prefix = current_prefix.replace(root_prefix, "").lstrip("/")
+                populate_tree("", rel_prefix=rel_prefix)
+                _update_preview_state()
+        
+        _run_bg(_target, _done)
+    
+    # Conecta botão de exclusão
+    if btn_delete:
+        btn_delete.configure(command=on_delete_selected)
+        # Bind tecla Delete
+        tree.bind("<Delete>", lambda _e: on_delete_selected())
+
     def on_double_click(_event=None):
-        do_download()
+        """Duplo-clique: visualiza arquivo ou expande/colapsa pasta."""
+        info = _current_item_info()
+        if not info:
+            return
+        
+        item, tipo, rel, nome = info
+        
+        if tipo == "Pasta":
+            # Toggle expansão de pastas
+            if tree.item(item, "open"):
+                tree.item(item, open=False)
+            else:
+                tree.item(item, open=True)
+        else:
+            # Visualiza arquivo
+            on_preview()
 
     tree.bind("<<TreeviewOpen>>", on_tree_open)
     tree.bind("<Double-1>", on_double_click)
