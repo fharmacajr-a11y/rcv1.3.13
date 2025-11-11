@@ -1,11 +1,12 @@
 """View principal do módulo Auditoria."""
 from __future__ import annotations
 
+import os
 import re
 import tkinter as tk
 import unicodedata
 from tkinter import messagebox
-from typing import Callable
+from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 from ttkbootstrap import ttk
 
@@ -16,6 +17,10 @@ except Exception:
         return None
 
 OFFLINE_MSG = "Recurso on-line. Verifique internet e credenciais do Supabase."
+
+# === Storage config ===
+STO_BUCKET = os.getenv("RC_STORAGE_BUCKET_CLIENTS", "").strip()
+STO_CLIENT_FOLDER_FMT = os.getenv("RC_STORAGE_CLIENTS_FOLDER_FMT", "{client_id}").strip() or "{client_id}"
 
 
 class AuditoriaFrame(ttk.Frame):
@@ -100,8 +105,19 @@ class AuditoriaFrame(ttk.Frame):
         self.btn_refresh = ttk.Button(btns, text="Atualizar lista", command=self._load_clientes)
         self.btn_refresh.grid(row=0, column=1, sticky="ew")
 
+        # --- BOTÕES DE STORAGE ---
+        btns2 = ttk.Frame(left)
+        btns2.grid(row=7, column=0, sticky="ew", pady=(0, 8))
+        btns2.columnconfigure((0, 1), weight=1)
+
+        self.btn_subpastas = ttk.Button(btns2, text="Ver subpastas", command=self._open_subpastas)
+        self.btn_subpastas.grid(row=0, column=0, sticky="ew", padx=(0, 6))
+
+        self.btn_criar_aud = ttk.Button(btns2, text="Criar pasta Auditoria", command=self._create_auditoria_folder)
+        self.btn_criar_aud.grid(row=0, column=1, sticky="ew")
+
         if self._go_back:
-            ttk.Button(left, text="Voltar", command=self._go_back).grid(row=7, column=0, sticky="ew")
+            ttk.Button(left, text="Voltar", command=self._go_back).grid(row=8, column=0, sticky="ew")
 
         # Centro: tabela
         center = ttk.Frame(self)
@@ -190,6 +206,36 @@ class AuditoriaFrame(ttk.Frame):
             self.cmb_cliente.set("")
             self.lbl_notfound.configure(text="Nenhum cliente encontrado")
 
+    # ---------- Storage Helpers ----------
+    def _client_storage_base(self, client_id: int | str) -> str:
+        """Monta o prefixo do Storage para um cliente."""
+        try:
+            cid = int(client_id)
+        except Exception:
+            cid = client_id
+        return STO_CLIENT_FOLDER_FMT.format(client_id=cid)
+
+    def _require_storage_ready(self) -> bool:
+        """Valida se storage está configurado/online."""
+        if not self._sb:
+            messagebox.showwarning("Storage", "Modo offline: sem Supabase inicializado.")
+            return False
+        if not STO_BUCKET:
+            messagebox.showwarning("Storage", "Defina RC_STORAGE_BUCKET_CLIENTS no .env (bucket de clientes).")
+            return False
+        return True
+
+    def _selected_client_id(self) -> Optional[int]:
+        """Retorna o id do cliente atualmente selecionado no combobox."""
+        try:
+            idx = self.cmb_cliente.current()
+            if idx is None or idx < 0:
+                return None
+            cid = self._clientes[idx][0]
+            return int(cid)
+        except Exception:
+            return None
+
     # ---------- Loaders ----------
     def _lazy_load(self) -> None:
         """Carrega dados após inicialização da UI."""
@@ -197,13 +243,13 @@ class AuditoriaFrame(ttk.Frame):
             self._set_offline(True)
             return
         self._set_offline(False)
-        
+
         # rastrear digitação no campo de busca
         try:
             self._search_var.trace_add("write", lambda *args: self._apply_filter())
         except Exception:
             pass
-        
+
         self._load_clientes()
         self._load_auditorias()
 
@@ -219,6 +265,12 @@ class AuditoriaFrame(ttk.Frame):
         self.cmb_cliente.configure(state="disabled" if is_offline else "readonly")
         self.btn_iniciar.configure(state=state)
         self.btn_refresh.configure(state=state)
+        
+        # Botões de storage
+        for w in (getattr(self, "btn_subpastas", None), getattr(self, "btn_criar_aud", None)):
+            if w:
+                w.configure(state=state)
+        
         self.lbl_offline.configure(text=OFFLINE_MSG if is_offline else "")
 
     def _load_clientes(self) -> None:
@@ -341,3 +393,133 @@ class AuditoriaFrame(ttk.Frame):
                 "Auditoria",
                 f"Não foi possível iniciar a auditoria.\n{e}"
             )
+
+    def _open_subpastas(self) -> None:
+        """Abre janela de navegação de subpastas do cliente no Storage."""
+        if not self._require_storage_ready():
+            return
+        cid = self._selected_client_id()
+        if cid is None:
+            messagebox.showinfo("Subpastas", "Selecione um cliente primeiro.")
+            return
+
+        base = self._client_storage_base(cid)
+        StorageBrowser(self, self._sb, STO_BUCKET, base, title=f"Subpastas — Cliente #{cid}")
+
+    def _create_auditoria_folder(self) -> None:
+        """Cria a pasta 'Auditoria' no Storage do cliente (prefixo cliente/Auditoria/)."""
+        if not self._require_storage_ready():
+            return
+        cid = self._selected_client_id()
+        if cid is None:
+            messagebox.showinfo("Criar pasta", "Selecione um cliente primeiro.")
+            return
+
+        base = self._client_storage_base(cid)
+        target_prefix = f"{base}/Auditoria"
+        try:
+            # "Pasta" em Storage é prefixo. Criamos subpasta garantindo um objeto placeholder.
+            path_keep = f"{target_prefix}/.keep"
+            # upload de bytes vazios com content-type simples
+            self._sb.storage.from_(STO_BUCKET).upload(path_keep, b"", {"content-type": "text/plain"})  # type: ignore[union-attr]
+            messagebox.showinfo("Criar pasta", f"Pasta criada: {target_prefix}/")
+        except Exception as e:
+            messagebox.showwarning("Criar pasta", f"Falhou ao criar pasta.\n{e}")
+
+
+class StorageBrowser(tk.Toplevel):
+    """Navegador simples de subpastas no Storage (somente diretórios)."""
+
+    def __init__(
+        self,
+        parent: tk.Misc,
+        sb_client,  # type: ignore[no-untyped-def]
+        bucket: str,
+        base_prefix: str,
+        title: str = "Subpastas"
+    ) -> None:
+        super().__init__(parent)
+        self.title(title)
+        self.geometry("720x420")
+        self._sb = sb_client
+        self._bucket = bucket
+        self._stack: list[str] = [base_prefix.rstrip("/")]
+        self._build_ui()
+        self._load()
+
+    def _build_ui(self) -> None:
+        """Constrói a interface do navegador."""
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(1, weight=1)
+
+        top = ttk.Frame(self)
+        top.grid(row=0, column=0, sticky="ew", pady=(8, 6))
+        top.columnconfigure(1, weight=1)
+
+        ttk.Label(top, text="Caminho:").grid(row=0, column=0, sticky="w", padx=(8, 6))
+        self.var_path = tk.StringVar(value=self._current_prefix())
+        ent = ttk.Entry(top, textvariable=self.var_path, state="readonly")
+        ent.grid(row=0, column=1, sticky="ew", padx=(0, 6))
+
+        ttk.Button(top, text="Subir", command=self._go_up).grid(row=0, column=2, padx=(0, 8))
+
+        self.tree = ttk.Treeview(self, columns=("tipo", "nome"), show="headings")
+        self.tree.grid(row=1, column=0, sticky="nsew", padx=8)
+        self.tree.heading("tipo", text="Tipo")
+        self.tree.heading("nome", text="Nome")
+        self.tree.bind("<Double-1>", lambda e: self._enter_selected())
+
+        btns = ttk.Frame(self)
+        btns.grid(row=2, column=0, sticky="ew", pady=(6, 8))
+        btns.columnconfigure(0, weight=1)
+        ttk.Button(btns, text="Fechar", command=self.destroy).grid(row=0, column=0, padx=8, sticky="e")
+
+    def _current_prefix(self) -> str:
+        """Retorna o prefixo atual da navegação."""
+        return self._stack[-1]
+
+    def _go_up(self) -> None:
+        """Navega para o diretório pai."""
+        if len(self._stack) > 1:
+            self._stack.pop()
+            self.var_path.set(self._current_prefix())
+            self._load()
+
+    def _enter_selected(self) -> None:
+        """Entra no diretório selecionado."""
+        sel = self.tree.selection()
+        if not sel:
+            return
+        item = self.tree.item(sel[0])
+        values = item.get("values", ["", ""])
+        if values[0] == "pasta":
+            name = values[1]
+            self._stack.append(f"{self._current_prefix().rstrip('/')}/{name}")
+            self.var_path.set(self._current_prefix())
+            self._load()
+
+    def _list_dir(self, prefix: str) -> list[dict]:  # type: ignore[type-arg]
+        """Lista diretórios no prefixo (paginação até 100 por chamada)."""
+        out: list[dict] = []  # type: ignore[type-arg]
+        offset = 0
+        while True:
+            resp = self._sb.storage.from_(self._bucket).list(prefix, limit=100, offset=offset)
+            data = getattr(resp, "data", []) or []
+            out.extend(data)
+            if len(data) < 100:
+                break
+            offset += 100
+        return out
+
+    def _load(self) -> None:
+        """Carrega e exibe os diretórios do prefixo atual."""
+        self.tree.delete(*self.tree.get_children())
+        prefix = self._current_prefix().rstrip("/")
+        try:
+            entries = self._list_dir(prefix)
+            # Em Storage, "pasta" é item com metadata == None (placeholder) e/ou itens sem '.'
+            dirs = [e for e in entries if e.get("metadata") is None]
+            for d in dirs:
+                self.tree.insert("", "end", values=("pasta", d.get("name", "")))
+        except Exception as e:
+            messagebox.showwarning("Storage", f"Falha ao listar pastas.\n{e}")
