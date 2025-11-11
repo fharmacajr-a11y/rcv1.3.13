@@ -116,6 +116,46 @@ class _ProgressState:
     ema_bps: float = 0.0  # Exponential Moving Average de bytes por segundo
 
 
+@dataclass
+class _UploadPlan:
+    """Plano de upload para um arquivo (com estratégia de duplicatas)."""
+    source_path: Path  # Caminho local do arquivo
+    dest_name: str     # Nome de destino no Storage
+    upsert: bool       # True = substituir se existir, False = erro se existir
+    file_size: int     # Tamanho em bytes
+
+
+def _next_copy_name(name: str, existing: set[str]) -> str:
+    """
+    Gera nome com sufixo (2), (3), ... evitando colisão.
+
+    Args:
+        name: Nome original do arquivo (ex: "doc.pdf")
+        existing: Set de nomes já existentes
+
+    Returns:
+        Nome sem colisão (ex: "doc (2).pdf")
+
+    Example:
+        >>> _next_copy_name("doc.pdf", {"doc.pdf", "doc (2).pdf"})
+        'doc (3).pdf'
+    """
+    if name not in existing:
+        return name
+
+    # Separar nome e extensão
+    stem = Path(name).stem
+    suffix = Path(name).suffix
+
+    # Tentar (2), (3), ... até encontrar disponível
+    counter = 2
+    while True:
+        candidate = f"{stem} ({counter}){suffix}"
+        if candidate not in existing:
+            return candidate
+        counter += 1
+
+
 class AuditoriaFrame(ttk.Frame):
     """
     Tela de Auditoria:
@@ -770,9 +810,68 @@ class AuditoriaFrame(ttk.Frame):
         s = int(seconds % 60)
         return f"{h:02d}:{m:02d}:{s:02d}"
 
+    def _list_existing_names(self, bucket: str, prefix: str) -> set[str]:
+        """
+        Lista nomes de arquivos existentes no Storage (com paginação).
+
+        Args:
+            bucket: Nome do bucket
+            prefix: Prefixo/caminho da pasta (ex: "org_id/client_id/GERAL/Auditoria")
+
+        Returns:
+            Set de nomes de arquivos existentes
+        """
+        existing: set[str] = set()
+        limit = 1000
+        offset = 0
+
+        try:
+            while True:
+                resp = self._sb.storage.from_(bucket).list(  # type: ignore[union-attr]
+                    prefix,
+                    {"limit": limit, "offset": offset}
+                )
+
+                if not resp:
+                    break
+
+                for item in resp:
+                    if item.get("name"):
+                        existing.add(item["name"])
+
+                # Se retornou menos que o limit, acabou
+                if len(resp) < limit:
+                    break
+
+                offset += limit
+        except Exception:
+            # Em caso de erro, retorna o que conseguiu até agora
+            pass
+
+        return existing
+
+    def _fmt_bytes(self, bytes_val: int) -> str:
+        """
+        Formata bytes em formato legível (KB, MB, GB).
+
+        Args:
+            bytes_val: Valor em bytes
+
+        Returns:
+            String formatada (ex: "1.5 MB", "320 KB")
+        """
+        if bytes_val < 1024:
+            return f"{bytes_val} B"
+        elif bytes_val < 1_048_576:  # < 1 MB
+            return f"{bytes_val / 1024:.1f} KB"
+        elif bytes_val < 1_073_741_824:  # < 1 GB
+            return f"{bytes_val / 1_048_576:.1f} MB"
+        else:
+            return f"{bytes_val / 1_073_741_824:.1f} GB"
+
     def _progress_update_ui(self, state: _ProgressState, alpha: float = 0.2) -> None:
         """
-        Atualiza UI da barra de progresso (thread-safe via after()).
+        Atualiza UI da barra de progresso com % por bytes, MB/s e ETA (thread-safe via after()).
 
         Args:
             state: Estado atual do progresso
@@ -795,13 +894,22 @@ class AuditoriaFrame(ttk.Frame):
         pct = 0.0
         eta_str = "00:00:00"
         speed_str = "0.0 MB/s"
+        bytes_str = "0 B / 0 B"
 
         if state.total_bytes > 0:
             pct = (state.done_bytes / state.total_bytes) * 100
+            bytes_str = f"{self._fmt_bytes(state.done_bytes)} / {self._fmt_bytes(state.total_bytes)}"
+
             if state.ema_bps > 0:
                 remaining_bytes = state.total_bytes - state.done_bytes
                 eta_sec = remaining_bytes / state.ema_bps
-                eta_str = self._fmt_eta(eta_sec)
+                # Formatar ETA (mm:ss se < 1h, senão HH:MM:SS)
+                if eta_sec < 3600:
+                    m = int(eta_sec // 60)
+                    s = int(eta_sec % 60)
+                    eta_str = f"{m:02d}:{s:02d}"
+                else:
+                    eta_str = self._fmt_eta(eta_sec)
                 speed_str = f"{state.ema_bps / 1_048_576:.1f} MB/s"
 
         # Atualizar barra
@@ -809,11 +917,14 @@ class AuditoriaFrame(ttk.Frame):
 
         # Atualizar labels (se existirem)
         if hasattr(self, "_lbl_status"):
-            status_text = f"{pct:.0f}% — {state.done_files}/{state.total_files} itens"
+            status_text = f"{pct:.0f}% — {state.done_files}/{state.total_files} itens • {bytes_str}"
             self._lbl_status.configure(text=status_text)
 
         if hasattr(self, "_lbl_eta"):
-            eta_text = f"{eta_str} restantes @ {speed_str}"
+            if eta_sec < 3600:
+                eta_text = f"ETA ~ {eta_str} @ {speed_str}"
+            else:
+                eta_text = f"{eta_str} restantes @ {speed_str}"
             self._lbl_eta.configure(text=eta_text)
 
     # ---------- Modal de Progresso ----------
@@ -874,6 +985,45 @@ class AuditoriaFrame(ttk.Frame):
         except Exception:
             pass
 
+    def _ask_rollback(self, uploaded_paths: list[str], bucket: str) -> None:
+        """
+        Pergunta ao usuário se deseja reverter arquivos já enviados após cancelamento.
+
+        Args:
+            uploaded_paths: Lista de caminhos completos dos arquivos enviados
+            bucket: Nome do bucket
+        """
+        self._close_busy()
+
+        if not uploaded_paths:
+            messagebox.showinfo("Cancelado", "Upload cancelado. Nenhum arquivo foi enviado.")
+            return
+
+        msg = f"Upload cancelado.\n\n{len(uploaded_paths)} arquivo(s) já foram enviados.\n\nDeseja remover esses arquivos?"
+        if messagebox.askyesno("Cancelar e Reverter", msg):
+            # Lançar thread para remover arquivos
+            def _do_rollback():
+                try:
+                    # Remover em lotes de 1000 (limite da API)
+                    batch_size = 1000
+                    for i in range(0, len(uploaded_paths), batch_size):
+                        batch = uploaded_paths[i:i + batch_size]
+                        self._sb.storage.from_(bucket).remove(batch)  # type: ignore[union-attr]
+
+                    self.after(0, lambda: messagebox.showinfo(
+                        "Revertido",
+                        f"{len(uploaded_paths)} arquivo(s) removido(s) com sucesso."
+                    ))
+                except Exception as e:
+                    self.after(0, lambda err=str(e): messagebox.showerror(
+                        "Erro ao Reverter",
+                        f"Falha ao remover arquivos:\n{err}"
+                    ))
+
+            threading.Thread(target=_do_rollback, daemon=True).start()
+        else:
+            messagebox.showinfo("Cancelado", "Upload cancelado. Arquivos já enviados foram mantidos.")
+
     def _busy_done(self, ok: int, fail: list[tuple[str, str]], base_prefix: str, cliente_nome: str, cnpj: str, client_id: int, org_id: str) -> None:
         """
         Callback de sucesso do upload (executado na thread principal via after()).
@@ -887,6 +1037,7 @@ class AuditoriaFrame(ttk.Frame):
             client_id: ID do cliente
             org_id: ID da organização
         """
+        # FASE 1: Fechar modal primeiro
         self._close_busy()
 
         if self._cancel_flag:
@@ -906,20 +1057,23 @@ class AuditoriaFrame(ttk.Frame):
 
         messagebox.showinfo("Auditoria", msg)
 
-        # Reabrir browser para visualizar arquivos enviados
-        try:
-            from src.ui.files_browser import open_files_browser
-            open_files_browser(
-                self,
-                supabase=self._sb,
-                client_id=client_id,
-                org_id=org_id,
-                razao=cliente_nome,
-                cnpj=cnpj,
-                start_prefix=base_prefix
-            )
-        except Exception as e:
-            print(f"[AUDITORIA][UPLOAD] Não foi possível abrir browser: {e}")
+        # FASE 2: Reabrir browser após 50ms (finalização suave)
+        def _refresh_browser():
+            try:
+                from src.ui.files_browser import open_files_browser
+                open_files_browser(
+                    self,
+                    supabase=self._sb,
+                    client_id=client_id,
+                    org_id=org_id,
+                    razao=cliente_nome,
+                    cnpj=cnpj,
+                    start_prefix=base_prefix
+                )
+            except Exception as e:
+                print(f"[AUDITORIA][UPLOAD] Não foi possível abrir browser: {e}")
+
+        self.after(50, _refresh_browser)
 
     def _busy_fail(self, err: str) -> None:
         """
@@ -994,7 +1148,11 @@ class AuditoriaFrame(ttk.Frame):
         cnpj: str
     ) -> None:
         """
-        Worker thread para extrair e fazer upload de arquivos com progresso determinístico.
+        Worker thread para extrair e fazer upload de arquivos com:
+        - Pré-check de duplicatas com diálogo de escolha
+        - Tracking de arquivos enviados para reversão
+        - Progresso determinístico por bytes
+        - Cancelamento com opção de rollback
 
         Args:
             archive_path: Caminho do arquivo compactado
@@ -1008,6 +1166,7 @@ class AuditoriaFrame(ttk.Frame):
         path = Path(archive_path)
 
         fail: list[tuple[str, str]] = []
+        uploaded_paths: list[str] = []  # Para rollback em caso de cancelamento
 
         try:
             # Detectar extensão
@@ -1023,102 +1182,332 @@ class AuditoriaFrame(ttk.Frame):
             else:
                 ext = ""
 
-            # Inicializar estado de progresso
-            state = _ProgressState()
-            state.start_ts = time.monotonic()
-
-            # ====== PRÉ-SCAN: calcular total de arquivos e bytes ======
-            if ext == "zip":
-                with zipfile.ZipFile(path, "r") as zf:
-                    for info in zf.infolist():
-                        if info.is_dir():
-                            continue
-                        rel = info.filename.lstrip("/").replace("\\", "/")
-                        if not rel or rel.startswith((".", "__MACOSX")) or ".." in rel:
-                            continue
-                        state.total_files += 1
-                        state.total_bytes += info.file_size
-
-            elif ext in ("rar", "7z"):
-                # Para RAR/7Z: extrai primeiro, depois conta
-                with tempfile.TemporaryDirectory() as tmpdir:
-                    extract_archive(path, tmpdir)
-                    if self._cancel_flag:
-                        return
-
-                    base = Path(tmpdir)
-                    for f in base.rglob("*"):
-                        if f.is_file():
-                            rel = f.relative_to(base).as_posix()
-                            if not rel or rel.startswith((".", "__MACOSX")) or ".." in rel:
-                                continue
-                            state.total_files += 1
-                            state.total_bytes += f.stat().st_size
-
-                    # ====== UPLOAD COM TRACKING ======
-                    for f in base.rglob("*"):
-                        if self._cancel_flag:
-                            break
-                        if f.is_file():
-                            rel = f.relative_to(base).as_posix()
-                            if not rel or rel.startswith((".", "__MACOSX")) or ".." in rel:
-                                continue
-                            try:
-                                dest = f"{base_prefix}/{rel}".strip("/")
-                                mime = _guess_mime(f.name)
-                                file_bytes = f.stat().st_size
-                                with open(f, "rb") as fh:
-                                    self._sb.storage.from_(bucket).upload(  # type: ignore[union-attr]
-                                        dest,
-                                        fh.read(),
-                                        {"content-type": mime, "upsert": "true", "cacheControl": "3600"}
-                                    )
-                                state.done_files += 1
-                                state.done_bytes += file_bytes
-                                # Atualizar UI a cada arquivo
-                                self.after(0, lambda s=state: self._progress_update_ui(s))
-                            except Exception as e:
-                                fail.append((rel, str(e)))
-                return  # RAR/7Z concluído
-
-            else:
+            if not ext:
                 self.after(0, lambda: self._busy_fail("Formato não suportado"))
                 return
 
-            # ====== UPLOAD ZIP COM TRACKING ======
+            # ====== FASE 1: PRÉ-SCAN + MONTAGEM DE LISTA DE ARQUIVOS ======
+            files_to_upload: list[tuple[str, int]] = []  # (rel_path, file_size)
+
             if ext == "zip":
                 with zipfile.ZipFile(path, "r") as zf:
                     for info in zf.infolist():
-                        if self._cancel_flag:
-                            break
                         if info.is_dir():
                             continue
                         rel = info.filename.lstrip("/").replace("\\", "/")
                         if not rel or rel.startswith((".", "__MACOSX")) or ".." in rel:
                             continue
+                        files_to_upload.append((rel, info.file_size))
+
+            elif ext in ("rar", "7z"):
+                # RAR/7Z: extrai para tmpdir
+                tmpdir_obj = tempfile.TemporaryDirectory()
+                tmpdir = tmpdir_obj.name
+                try:
+                    extract_archive(path, tmpdir)
+                except ArchiveError as e:
+                    self.after(0, lambda err=str(e): self._busy_fail(f"Erro ao extrair: {err}"))
+                    tmpdir_obj.cleanup()
+                    return
+
+                if self._cancel_flag:
+                    tmpdir_obj.cleanup()
+                    return
+
+                base = Path(tmpdir)
+                for f in base.rglob("*"):
+                    if f.is_file():
+                        rel = f.relative_to(base).as_posix()
+                        if not rel or rel.startswith((".", "__MACOSX")) or ".." in rel:
+                            continue
+                        files_to_upload.append((rel, f.stat().st_size))
+
+            # ====== FASE 2: PRÉ-CHECK DE DUPLICATAS ======
+            existing_names = self._list_existing_names(bucket, base_prefix)
+            file_names = {Path(rel).name for rel, _ in files_to_upload}
+            duplicates_names = file_names & existing_names
+
+            strategy = "skip"  # Padrão
+
+            if duplicates_names:
+                # Mostrar diálogo (thread-safe via after + wait)
+                dialog_result: dict[str, str | None] = {"strategy": None}
+
+                def _show_dup_dialog():
+                    dlg = DuplicatesDialog(self, len(duplicates_names), sorted(duplicates_names))
+                    self.wait_window(dlg)
+                    dialog_result["strategy"] = dlg.strategy
+
+                self.after(0, _show_dup_dialog)
+
+                # Aguardar resposta (polling simples)
+                while dialog_result["strategy"] is None:
+                    time.sleep(0.05)
+                    if self._cancel_flag:
+                        if ext in ("rar", "7z"):
+                            tmpdir_obj.cleanup()
+                        return
+
+                strategy = dialog_result["strategy"]
+
+                if strategy is None:  # Cancelou
+                    if ext in ("rar", "7z"):
+                        tmpdir_obj.cleanup()
+                    self.after(0, lambda: self._busy_fail("Upload cancelado pelo usuário"))
+                    return
+
+            # ====== FASE 3: MONTAR PLANO DE UPLOAD ======
+            upload_plans: list[_UploadPlan] = []
+
+            for rel, file_size in files_to_upload:
+                file_name = Path(rel).name
+                is_dup = file_name in duplicates_names
+
+                if is_dup:
+                    if strategy == "skip":
+                        continue  # Não adiciona ao plano
+                    elif strategy == "replace":
+                        # Substituir: usar nome original com upsert=True
+                        upload_plans.append(_UploadPlan(
+                            source_path=Path(rel),
+                            dest_name=rel,
+                            upsert=True,
+                            file_size=file_size
+                        ))
+                    elif strategy == "rename":
+                        # Renomear: gerar novo nome com sufixo
+                        new_name = _next_copy_name(file_name, existing_names)
+                        existing_names.add(new_name)  # Atualizar set para evitar colisões futuras
+                        # Manter estrutura de diretórios
+                        dir_part = str(Path(rel).parent)
+                        if dir_part == ".":
+                            new_rel = new_name
+                        else:
+                            new_rel = f"{dir_part}/{new_name}"
+                        upload_plans.append(_UploadPlan(
+                            source_path=Path(rel),
+                            dest_name=new_rel,
+                            upsert=False,
+                            file_size=file_size
+                        ))
+                else:
+                    # Não duplicado: upload normal
+                    upload_plans.append(_UploadPlan(
+                        source_path=Path(rel),
+                        dest_name=rel,
+                        upsert=False,
+                        file_size=file_size
+                    ))
+
+            if not upload_plans:
+                if ext in ("rar", "7z"):
+                    tmpdir_obj.cleanup()
+                self.after(0, lambda: self._busy_fail("Nenhum arquivo para enviar (todos pulados ou duplicados)"))
+                return
+
+            # ====== FASE 4: UPLOAD COM TRACKING ======
+            state = _ProgressState()
+            state.total_files = len(upload_plans)
+            state.total_bytes = sum(p.file_size for p in upload_plans)
+            state.start_ts = time.monotonic()
+
+            # Upload por extensão
+            if ext == "zip":
+                with zipfile.ZipFile(path, "r") as zf:
+                    for plan in upload_plans:
+                        if self._cancel_flag:
+                            break
+
                         try:
-                            data = zf.read(info)
-                            dest = f"{base_prefix}/{rel}".strip("/")
-                            mime = _guess_mime(rel)
+                            # Ler conteúdo
+                            data = zf.read(str(plan.source_path))
+                            dest = f"{base_prefix}/{plan.dest_name}".strip("/")
+                            mime = _guess_mime(plan.dest_name)
+
+                            # Upload
                             self._sb.storage.from_(bucket).upload(  # type: ignore[union-attr]
                                 dest,
                                 data,
-                                {"content-type": mime, "upsert": "true", "cacheControl": "3600"}
+                                {"content-type": mime, "upsert": str(plan.upsert).lower(), "cacheControl": "3600"}
                             )
+
+                            # Tracking
+                            uploaded_paths.append(dest)
                             state.done_files += 1
-                            state.done_bytes += info.file_size
-                            # Atualizar UI a cada arquivo
+                            state.done_bytes += plan.file_size
+
+                            # Atualizar UI
                             self.after(0, lambda s=state: self._progress_update_ui(s))
+
                         except Exception as e:
-                            fail.append((rel, str(e)))
+                            fail.append((plan.dest_name, str(e)))
+
+            elif ext in ("rar", "7z"):
+                base = Path(tmpdir)
+                for plan in upload_plans:
+                    if self._cancel_flag:
+                        break
+
+                    try:
+                        file_path = base / plan.source_path
+                        dest = f"{base_prefix}/{plan.dest_name}".strip("/")
+                        mime = _guess_mime(plan.dest_name)
+
+                        # Upload
+                        with open(file_path, "rb") as fh:
+                            self._sb.storage.from_(bucket).upload(  # type: ignore[union-attr]
+                                dest,
+                                fh.read(),
+                                {"content-type": mime, "upsert": str(plan.upsert).lower(), "cacheControl": "3600"}
+                            )
+
+                        # Tracking
+                        uploaded_paths.append(dest)
+                        state.done_files += 1
+                        state.done_bytes += plan.file_size
+
+                        # Atualizar UI
+                        self.after(0, lambda s=state: self._progress_update_ui(s))
+
+                    except Exception as e:
+                        fail.append((plan.dest_name, str(e)))
+
+                # Cleanup tmpdir
+                tmpdir_obj.cleanup()
+
+            # ====== FASE 5: VERIFICAR CANCELAMENTO ======
+            if self._cancel_flag:
+                self.after(0, lambda paths=uploaded_paths: self._ask_rollback(paths, bucket))
+                return
 
         except Exception as e:
-            self.after(0, lambda: self._busy_fail(str(e)))
+            self.after(0, lambda err=str(e): self._busy_fail(err))
             return
 
-        # Atualizar UI via after() (thread-safe)
+        # ====== FASE 6: FINALIZAÇÃO ======
         self.after(0, lambda: self._busy_done(state.done_files, fail, base_prefix, cliente_nome, cnpj, client_id, org_id))
 
+
+class DuplicatesDialog(tk.Toplevel):
+    """Diálogo para escolher estratégia ao encontrar arquivos duplicados."""
+
+    def __init__(self, parent: tk.Misc, duplicates_count: int, sample_names: list[str]):
+        """
+        Args:
+            parent: Janela pai
+            duplicates_count: Total de duplicatas encontradas
+            sample_names: Amostra de até 20 nomes duplicados
+        """
+        super().__init__(parent)
+        self.title("Duplicatas Detectadas")
+
+        # transient requer uma janela Toplevel/Tk
+        if hasattr(parent, 'winfo_toplevel'):
+            self.transient(parent.winfo_toplevel())
+
+        self.grab_set()
+        self.resizable(False, False)
+
+        # Resultado
+        self.strategy: str | None = None  # "skip", "replace", "rename" ou None (cancelou)
+
+        # Centralizar
+        self.update_idletasks()
+        w = 500
+        h = 450
+        x = (self.winfo_screenwidth() // 2) - (w // 2)
+        y = (self.winfo_screenheight() // 2) - (h // 2)
+        self.geometry(f"{w}x{h}+{x}+{y}")
+
+        # Cabeçalho
+        msg = f"Encontrados {duplicates_count} arquivo(s) duplicado(s).\nEscolha como proceder:"
+        lbl_msg = ttk.Label(self, text=msg, font=("-size", 10), wraplength=460)
+        lbl_msg.pack(padx=20, pady=(20, 10))
+
+        # Frame de amostra (scrollable)
+        frame_sample = ttk.LabelFrame(self, text="Amostra (até 20 nomes)", padding=10)
+        frame_sample.pack(padx=20, pady=(0, 16), fill="both", expand=True)
+
+        # Text widget com scrollbar
+        txt_frame = ttk.Frame(frame_sample)
+        txt_frame.pack(fill="both", expand=True)
+
+        txt_scroll = ttk.Scrollbar(txt_frame)
+        txt_scroll.pack(side="right", fill="y")
+
+        self.txt_sample = tk.Text(
+            txt_frame,
+            height=8,
+            width=50,
+            yscrollcommand=txt_scroll.set,
+            wrap="none",
+            font=("Consolas", 9),
+            state="normal"
+        )
+        self.txt_sample.pack(side="left", fill="both", expand=True)
+        txt_scroll.config(command=self.txt_sample.yview)
+
+        # Preencher amostra
+        for name in sample_names[:20]:
+            self.txt_sample.insert("end", f"• {name}\n")
+        self.txt_sample.config(state="disabled")
+
+        # Frame de opções
+        frame_opts = ttk.LabelFrame(self, text="Estratégia", padding=10)
+        frame_opts.pack(padx=20, pady=(0, 16), fill="x")
+
+        self.var_strategy = tk.StringVar(value="skip")
+
+        rb_skip = ttk.Radiobutton(
+            frame_opts,
+            text="⊘ Pular duplicatas (não envia arquivos que já existem)",
+            variable=self.var_strategy,
+            value="skip"
+        )
+        rb_skip.pack(anchor="w", pady=2)
+
+        rb_replace = ttk.Radiobutton(
+            frame_opts,
+            text="♻ Substituir duplicatas (sobrescrever com novos arquivos)",
+            variable=self.var_strategy,
+            value="replace"
+        )
+        rb_replace.pack(anchor="w", pady=2)
+
+        rb_rename = ttk.Radiobutton(
+            frame_opts,
+            text="✏ Renomear duplicatas (adicionar sufixo: arquivo (2).pdf)",
+            variable=self.var_strategy,
+            value="rename"
+        )
+        rb_rename.pack(anchor="w", pady=2)
+
+        # Botões
+        frame_btns = ttk.Frame(self)
+        frame_btns.pack(padx=20, pady=(0, 20))
+
+        btn_ok = ttk.Button(frame_btns, text="OK", command=self._on_ok, width=12)
+        btn_ok.pack(side="left", padx=5)
+
+        btn_cancel = ttk.Button(frame_btns, text="Cancelar", command=self._on_cancel, width=12)
+        btn_cancel.pack(side="left", padx=5)
+
+        # Focus no OK
+        btn_ok.focus_set()
+
+        # Bind Enter/Escape
+        self.bind("<Return>", lambda e: self._on_ok())
+        self.bind("<Escape>", lambda e: self._on_cancel())
+
+    def _on_ok(self) -> None:
+        """Confirma a escolha."""
+        self.strategy = self.var_strategy.get()
+        self.destroy()
+
+    def _on_cancel(self) -> None:
+        """Cancela o upload."""
+        self.strategy = None
+        self.destroy()
 
 
 class StorageBrowser(tk.Toplevel):

@@ -51,7 +51,7 @@ class TestProgressWindow(tk.Tk):
 
         # Frame do progresso (inicialmente oculto)
         self.progress_frame = ttk.Frame(self)
-        
+
         # Label de mensagem
         self.lbl_msg = ttk.Label(self.progress_frame, text="Enviando arquivos...", font=("-size", 10))
         self.lbl_msg.pack(padx=20, pady=(12, 8))
