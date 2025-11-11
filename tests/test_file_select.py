@@ -11,6 +11,23 @@ from src.ui.dialogs.file_select import (
     ARCHIVE_FILETYPES,
     validate_archive_extension,
 )
+from infra.archive_utils import (
+    ARCHIVE_GLOBS,
+    is_supported_archive,
+)
+
+
+class TestArchiveConstants:
+    """Testes para constantes de arquivos."""
+
+    def test_archive_globs(self) -> None:
+        """Testa que ARCHIVE_GLOBS contém os padrões corretos."""
+        assert isinstance(ARCHIVE_GLOBS, tuple)
+        assert len(ARCHIVE_GLOBS) == 4
+        assert "*.zip" in ARCHIVE_GLOBS
+        assert "*.rar" in ARCHIVE_GLOBS
+        assert "*.7z" in ARCHIVE_GLOBS
+        assert "*.7z.*" in ARCHIVE_GLOBS
 
 
 class TestArchiveFiletypes:
@@ -151,6 +168,62 @@ class TestValidateArchiveExtension:
         assert validate_archive_extension("arquivo.v1.0.rar") is True
         assert validate_archive_extension("arquivo.old.7z") is True
         assert validate_archive_extension("arquivo.backup.7z.001") is True
+
+
+class TestIsSupportedArchive:
+    """Testes para a função is_supported_archive (centralizada)."""
+
+    def test_accepts_zip(self) -> None:
+        """Testa que aceita arquivos .zip."""
+        assert is_supported_archive("arquivo.zip") is True
+        assert is_supported_archive("/path/to/file.ZIP") is True
+
+    def test_accepts_rar(self) -> None:
+        """Testa que aceita arquivos .rar."""
+        assert is_supported_archive("arquivo.rar") is True
+        assert is_supported_archive("ARQUIVO.RAR") is True
+
+    def test_accepts_7z(self) -> None:
+        """Testa que aceita arquivos .7z."""
+        assert is_supported_archive("arquivo.7z") is True
+        assert is_supported_archive("ARQUIVO.7Z") is True
+
+    def test_accepts_7z_volumes(self) -> None:
+        """Testa que aceita volumes .7z."""
+        assert is_supported_archive("arquivo.7z.001") is True
+        assert is_supported_archive("arquivo.7z.002") is True
+        assert is_supported_archive("arquivo.7z.999") is True
+        assert is_supported_archive("ARQUIVO.7Z.001") is True
+
+    def test_rejects_invalid_7z_volume(self) -> None:
+        """Testa que rejeita volumes inválidos."""
+        assert is_supported_archive("arquivo.7z.txt") is False
+        assert is_supported_archive("arquivo.7z.abc") is False
+
+    def test_rejects_other_extensions(self) -> None:
+        """Testa que rejeita outras extensões."""
+        assert is_supported_archive("arquivo.tar") is False
+        assert is_supported_archive("arquivo.tar.gz") is False
+        assert is_supported_archive("arquivo.txt") is False
+        assert is_supported_archive("arquivo.pdf") is False
+
+    def test_accepts_path_objects(self) -> None:
+        """Testa que funciona com objetos Path."""
+        assert is_supported_archive(Path("arquivo.zip")) is True
+        assert is_supported_archive(Path("arquivo.7z.001")) is True
+
+    def test_validate_archive_extension_delegates_to_is_supported(self) -> None:
+        """Testa que validate_archive_extension delega para is_supported_archive."""
+        # Ambas devem ter o mesmo comportamento
+        test_cases = [
+            ("arquivo.zip", True),
+            ("arquivo.rar", True),
+            ("arquivo.7z", True),
+            ("arquivo.7z.001", True),
+            ("arquivo.tar", False),
+        ]
+        for path, expected in test_cases:
+            assert validate_archive_extension(path) == is_supported_archive(path) == expected
 
 
 class TestFileSelectIntegration:

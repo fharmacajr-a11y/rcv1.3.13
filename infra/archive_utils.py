@@ -18,10 +18,45 @@ from typing import Union
 SUPPORTED_ARCHIVES = {".zip", ".rar", ".7z"}
 SUPPORTED_7Z_VOLUMES = True  # Suporta .7z.001, .7z.002, etc.
 
+# Padrões glob para uso em file dialogs (Tkinter filetypes)
+ARCHIVE_GLOBS = ("*.zip", "*.rar", "*.7z", "*.7z.*")
+
 
 class ArchiveError(Exception):
     """Erro ao processar arquivo compactado."""
     pass
+
+
+def is_supported_archive(path: str | Path) -> bool:
+    """
+    Verifica se o arquivo tem extensão suportada (.zip, .rar, .7z ou volumes .7z.001+).
+
+    Args:
+        path: Caminho do arquivo (str ou Path)
+
+    Returns:
+        True se a extensão for suportada, False caso contrário
+
+    Exemplos:
+        >>> is_supported_archive("arquivo.zip")
+        True
+        >>> is_supported_archive("arquivo.7z.001")
+        True
+        >>> is_supported_archive("arquivo.tar")
+        False
+    """
+    p = str(path).lower()
+    
+    # Extensões simples
+    if p.endswith((".zip", ".rar", ".7z")):
+        return True
+    
+    # Volumes .7z: arquivo.7z.001, arquivo.7z.002, etc.
+    if ".7z." in p:
+        tail = p.split(".7z.", 1)[1]
+        return tail.isdigit()
+    
+    return False
 
 
 def resource_path(*parts: str) -> Path:
