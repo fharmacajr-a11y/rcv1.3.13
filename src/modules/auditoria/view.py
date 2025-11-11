@@ -125,9 +125,19 @@ class AuditoriaFrame(ttk.Frame):
         center.rowconfigure(1, weight=1)
         center.columnconfigure(0, weight=1)
 
+        # Header com label + toolbar
         hdr = ttk.Frame(center)
         hdr.grid(row=0, column=0, sticky="ew")
-        ttk.Label(hdr, text="Auditorias recentes").pack(side="left")
+        hdr.columnconfigure(0, weight=1)
+        
+        ttk.Label(hdr, text="Auditorias recentes").grid(row=0, column=0, sticky="w")
+        
+        toolbar = ttk.Frame(hdr)
+        toolbar.grid(row=0, column=1, sticky="e")
+        self.btn_h_ver = ttk.Button(toolbar, text="Ver subpastas", command=self._open_subpastas)
+        self.btn_h_ver.grid(row=0, column=0, padx=(0, 6))
+        self.btn_h_criar = ttk.Button(toolbar, text="Criar pasta Auditoria", command=self._create_auditoria_folder)
+        self.btn_h_criar.grid(row=0, column=1)
 
         self.tree = ttk.Treeview(
             center,
@@ -266,8 +276,13 @@ class AuditoriaFrame(ttk.Frame):
         self.btn_iniciar.configure(state=state)
         self.btn_refresh.configure(state=state)
         
-        # Botões de storage
-        for w in (getattr(self, "btn_subpastas", None), getattr(self, "btn_criar_aud", None)):
+        # Botões de storage (painel esquerdo + header direita)
+        for w in (
+            getattr(self, "btn_subpastas", None),
+            getattr(self, "btn_criar_aud", None),
+            getattr(self, "btn_h_ver", None),
+            getattr(self, "btn_h_criar", None)
+        ):
             if w:
                 w.configure(state=state)
         
@@ -395,33 +410,41 @@ class AuditoriaFrame(ttk.Frame):
             )
 
     def _open_subpastas(self) -> None:
-        """Abre janela de navegação de subpastas do cliente no Storage."""
-        if not self._require_storage_ready():
+        """Abre janela de navegação de arquivos do cliente (reutiliza janela dos Clientes)."""
+        if not self._sb:
+            messagebox.showwarning("Storage", "Modo offline: sem Supabase.")
             return
         cid = self._selected_client_id()
         if cid is None:
             messagebox.showinfo("Subpastas", "Selecione um cliente primeiro.")
             return
-
-        base = self._client_storage_base(cid)
-        StorageBrowser(self, self._sb, STO_BUCKET, base, title=f"Subpastas — Cliente #{cid}")
+        try:
+            from src.shared.storage_ui_bridge import open_client_files_window
+            open_client_files_window(self, self._sb, int(cid))
+        except Exception as e:
+            messagebox.showwarning("Subpastas", f"Falha ao abrir arquivos do cliente.\n{e}")
 
     def _create_auditoria_folder(self) -> None:
         """Cria a pasta 'Auditoria' no Storage do cliente (prefixo cliente/Auditoria/)."""
-        if not self._require_storage_ready():
+        if not self._sb:
+            messagebox.showwarning("Criar pasta", "Modo offline.")
             return
         cid = self._selected_client_id()
         if cid is None:
             messagebox.showinfo("Criar pasta", "Selecione um cliente primeiro.")
             return
 
-        base = self._client_storage_base(cid)
-        target_prefix = f"{base}/Auditoria"
         try:
-            # "Pasta" em Storage é prefixo. Criamos subpasta garantindo um objeto placeholder.
+            from src.shared.storage_ui_bridge import get_clients_bucket, client_prefix_for_id, _get_org_id_from_supabase
+            
+            bucket = get_clients_bucket()
+            org_id = _get_org_id_from_supabase(self._sb) or ""
+            base = client_prefix_for_id(int(cid), org_id)
+            target_prefix = f"{base}/Auditoria"
             path_keep = f"{target_prefix}/.keep"
-            # upload de bytes vazios com content-type simples
-            self._sb.storage.from_(STO_BUCKET).upload(path_keep, b"", {"content-type": "text/plain"})  # type: ignore[union-attr]
+            
+            # Em Storage "pasta" é prefixo; criar = subir placeholder com content-type
+            self._sb.storage.from_(bucket).upload(path_keep, b"", {"content-type": "text/plain"})  # type: ignore[union-attr]
             messagebox.showinfo("Criar pasta", f"Pasta criada: {target_prefix}/")
         except Exception as e:
             messagebox.showwarning("Criar pasta", f"Falhou ao criar pasta.\n{e}")
