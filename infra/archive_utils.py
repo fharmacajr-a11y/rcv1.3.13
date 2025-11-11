@@ -46,16 +46,16 @@ def is_supported_archive(path: str | Path) -> bool:
         False
     """
     p = str(path).lower()
-    
+
     # Extensões simples
     if p.endswith((".zip", ".rar", ".7z")):
         return True
-    
+
     # Volumes .7z: arquivo.7z.001, arquivo.7z.002, etc.
     if ".7z." in p:
         tail = p.split(".7z.", 1)[1]
         return tail.isdigit()
-    
+
     return False
 
 

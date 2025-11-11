@@ -6,6 +6,7 @@ import mimetypes
 import os
 import re
 import tempfile
+import threading
 import tkinter as tk
 import unicodedata
 import zipfile
@@ -50,7 +51,7 @@ def _guess_mime(path: str) -> str:
         return "application/zip"
     elif ext == "rar":
         return "application/x-rar-compressed"
-    
+
     # Fallback para mimetypes
     mt, _ = mimetypes.guess_type(path)
     return mt or "application/octet-stream"
@@ -652,6 +653,112 @@ class AuditoriaFrame(ttk.Frame):
         base = fb.client_prefix_for_id(client_id, org_id)  # ex: "{org_id}/{client_id}"
         return bucket, f"{base}/GERAL/Auditoria"
 
+    # ---------- Modal de Progresso ----------
+    def _show_busy(self, titulo: str, msg: str) -> None:
+        """
+        Mostra janela modal de progresso indeterminado com opção de cancelar.
+
+        Args:
+            titulo: Título da janela
+            msg: Mensagem exibida
+        """
+        self._busy = tk.Toplevel(self)
+        self._busy.title(titulo)
+        self._busy.transient(self)
+        self._busy.grab_set()  # bloqueia interação no pai
+        self._busy.resizable(False, False)
+
+        # Centralizar janela
+        self._busy.update_idletasks()
+        w = 360
+        h = 160
+        x = (self._busy.winfo_screenwidth() // 2) - (w // 2)
+        y = (self._busy.winfo_screenheight() // 2) - (h // 2)
+        self._busy.geometry(f"{w}x{h}+{x}+{y}")
+
+        lbl = ttk.Label(self._busy, text=msg, font=("-size", 10))
+        lbl.pack(padx=20, pady=(20, 12))
+
+        self._pb = ttk.Progressbar(self._busy, mode="indeterminate", length=300)
+        self._pb.pack(padx=20, pady=(0, 16), fill="x")
+        self._pb.start(12)  # animação
+
+        self._cancel_flag = False
+
+        def _cancel():
+            self._cancel_flag = True
+            btn_cancel.configure(state="disabled", text="Cancelando...")
+
+        btn_cancel = ttk.Button(self._busy, text="Cancelar", command=_cancel)
+        btn_cancel.pack(pady=(0, 20))
+
+    def _close_busy(self) -> None:
+        """Fecha a janela modal de progresso (se existir)."""
+        try:
+            if hasattr(self, "_pb") and self._pb:
+                self._pb.stop()
+            if hasattr(self, "_busy") and self._busy:
+                self._busy.destroy()
+        except Exception:
+            pass
+
+    def _busy_done(self, ok: int, fail: list[tuple[str, str]], base_prefix: str, cliente_nome: str, cnpj: str, client_id: int, org_id: str) -> None:
+        """
+        Callback de sucesso do upload (executado na thread principal via after()).
+
+        Args:
+            ok: Número de arquivos enviados com sucesso
+            fail: Lista de falhas [(path, erro)]
+            base_prefix: Prefixo do Storage onde foram enviados
+            cliente_nome: Nome do cliente
+            cnpj: CNPJ do cliente
+            client_id: ID do cliente
+            org_id: ID da organização
+        """
+        self._close_busy()
+
+        if self._cancel_flag:
+            messagebox.showinfo("Upload cancelado", "O upload foi cancelado pelo usuário.")
+            return
+
+        cnpj_fmt = format_cnpj_for_display(cnpj)
+        msg = f"Upload concluído para {cliente_nome} — {cnpj_fmt}.\n"
+        msg += f"{ok} arquivo(s) enviado(s)."
+
+        if fail:
+            msg += f"\n\nFalhas: {len(fail)}"
+            for path, err in fail[:3]:  # limita a 3 erros
+                msg += f"\n• {Path(path).name}: {err}"
+            if len(fail) > 3:
+                msg += f"\n... e mais {len(fail) - 3} erro(s)"
+
+        messagebox.showinfo("Auditoria", msg)
+
+        # Reabrir browser para visualizar arquivos enviados
+        try:
+            from src.ui.files_browser import open_files_browser
+            open_files_browser(
+                self,
+                supabase=self._sb,
+                client_id=client_id,
+                org_id=org_id,
+                razao=cliente_nome,
+                cnpj=cnpj,
+                start_prefix=base_prefix
+            )
+        except Exception as e:
+            print(f"[AUDITORIA][UPLOAD] Não foi possível abrir browser: {e}")
+
+    def _busy_fail(self, err: str) -> None:
+        """
+        Callback de erro do upload (executado na thread principal via after()).
+
+        Args:
+            err: Mensagem de erro
+        """
+        self._close_busy()
+        messagebox.showerror("Erro no upload", f"Falha no envio:\n\n{err}")
+
     def _upload_archive_to_auditoria(self) -> None:
         """Upload de arquivo .zip, .rar ou .7z para Auditoria preservando subpastas."""
         if not self._sb:
@@ -679,8 +786,6 @@ class AuditoriaFrame(ttk.Frame):
         client_id = row["cliente_id"]
         cliente_nome = row["cliente_nome"]
         cnpj = row.get("cnpj", "")
-        bucket = "rc-docs"
-        base_prefix = f"{org_id}/{client_id}/GERAL/Auditoria".strip("/")
 
         # 2) Escolher arquivo .zip, .rar ou .7z
         path = select_archive_file(title="Selecione arquivo .ZIP, .RAR ou .7Z (volumes: selecione .7z.001)")
@@ -698,28 +803,62 @@ class AuditoriaFrame(ttk.Frame):
             )
             return
 
-        # Detectar extensão (simplificado - detecta .7z ou volume .7z.001)
-        path_lower = path.lower()
-        is_7z_volume = ".7z." in path_lower and path_lower.split(".7z.")[-1].isdigit()
+        # 3) Mostrar modal de progresso
+        self._show_busy("Processando arquivos", f"Enviando {Path(path).name}...")
+
+        # 4) Lançar thread worker
+        threading.Thread(
+            target=self._worker_upload,
+            args=(path, client_id, org_id, cliente_nome, cnpj),
+            daemon=True
+        ).start()
+
+    def _worker_upload(
+        self,
+        archive_path: str,
+        client_id: int,
+        org_id: str,
+        cliente_nome: str,
+        cnpj: str
+    ) -> None:
+        """
+        Worker thread para extrair e fazer upload de arquivos.
+
+        Args:
+            archive_path: Caminho do arquivo compactado
+            client_id: ID do cliente
+            org_id: ID da organização
+            cliente_nome: Nome do cliente
+            cnpj: CNPJ do cliente
+        """
+        bucket = "rc-docs"
+        base_prefix = f"{org_id}/{client_id}/GERAL/Auditoria".strip("/")
+        path = Path(archive_path)
         
-        if path_lower.endswith(".zip"):
-            ext = "zip"
-        elif path_lower.endswith(".rar"):
-            ext = "rar"
-        elif path_lower.endswith(".7z") or is_7z_volume:
-            ext = "7z"
-        else:
-            ext = ""
-
         enviados = 0
-        erro = None
+        fail: list[tuple[str, str]] = []
 
-        # 3) Estratégia baseada na extensão
         try:
+            # Detectar extensão
+            path_lower = str(path).lower()
+            is_7z_volume = ".7z." in path_lower and path_lower.split(".7z.")[-1].isdigit()
+
+            if path_lower.endswith(".zip"):
+                ext = "zip"
+            elif path_lower.endswith(".rar"):
+                ext = "rar"
+            elif path_lower.endswith(".7z") or is_7z_volume:
+                ext = "7z"
+            else:
+                ext = ""
+
+            # Estratégia baseada na extensão
             if ext == "zip":
                 # ZIP: leitura direta de membros preservando estrutura
                 with zipfile.ZipFile(path, "r") as zf:
                     for info in zf.infolist():
+                        if self._cancel_flag:
+                            break
                         if info.is_dir():
                             continue
                         rel = info.filename.lstrip("/").replace("\\", "/")
@@ -729,15 +868,18 @@ class AuditoriaFrame(ttk.Frame):
                         if ".." in rel:
                             continue
                         # Upload mantendo subpastas
-                        data = zf.read(info)
-                        dest = f"{base_prefix}/{rel}".strip("/")
-                        mime = _guess_mime(rel)
-                        self._sb.storage.from_(bucket).upload(  # type: ignore[union-attr]
-                            dest,
-                            data,
-                            {"content-type": mime, "upsert": "true", "cacheControl": "3600"}
-                        )
-                        enviados += 1
+                        try:
+                            data = zf.read(info)
+                            dest = f"{base_prefix}/{rel}".strip("/")
+                            mime = _guess_mime(rel)
+                            self._sb.storage.from_(bucket).upload(  # type: ignore[union-attr]
+                                dest,
+                                data,
+                                {"content-type": mime, "upsert": "true", "cacheControl": "3600"}
+                            )
+                            enviados += 1
+                        except Exception as e:
+                            fail.append((rel, str(e)))
 
             elif ext == "rar":
                 # RAR: extração temporária via 7-Zip + upload
@@ -746,8 +888,13 @@ class AuditoriaFrame(ttk.Frame):
                         # Extrai usando 7-Zip
                         extract_archive(path, tmpdir)
 
+                        if self._cancel_flag:
+                            return
+
                         base = Path(tmpdir)
                         for f in base.rglob("*"):
+                            if self._cancel_flag:
+                                break
                             if f.is_file():
                                 rel = f.relative_to(base).as_posix()
                                 # Segurança e limpeza
@@ -755,20 +902,20 @@ class AuditoriaFrame(ttk.Frame):
                                     continue
                                 if ".." in rel:
                                     continue
-                                dest = f"{base_prefix}/{rel}".strip("/")
-                                mime = _guess_mime(f.name)
-                                with open(f, "rb") as fh:
-                                    self._sb.storage.from_(bucket).upload(  # type: ignore[union-attr]
-                                        dest,
-                                        fh.read(),
-                                        {"content-type": mime, "upsert": "true", "cacheControl": "3600"}
-                                    )
-                                enviados += 1
+                                try:
+                                    dest = f"{base_prefix}/{rel}".strip("/")
+                                    mime = _guess_mime(f.name)
+                                    with open(f, "rb") as fh:
+                                        self._sb.storage.from_(bucket).upload(  # type: ignore[union-attr]
+                                            dest,
+                                            fh.read(),
+                                            {"content-type": mime, "upsert": "true", "cacheControl": "3600"}
+                                        )
+                                    enviados += 1
+                                except Exception as e:
+                                    fail.append((rel, str(e)))
                 except ArchiveError as e:
-                    messagebox.showerror(
-                        "Erro ao extrair RAR",
-                        f"Não foi possível extrair o arquivo RAR.\n\n{e}"
-                    )
+                    self.after(0, lambda: self._busy_fail(f"Erro ao extrair RAR: {e}"))
                     return
 
             elif ext == "7z":
@@ -778,8 +925,13 @@ class AuditoriaFrame(ttk.Frame):
                         # Extrai usando py7zr (suporta volumes .7z.001 automaticamente)
                         extract_archive(path, tmpdir)
 
+                        if self._cancel_flag:
+                            return
+
                         base = Path(tmpdir)
                         for f in base.rglob("*"):
+                            if self._cancel_flag:
+                                break
                             if f.is_file():
                                 rel = f.relative_to(base).as_posix()
                                 # Segurança e limpeza
@@ -787,63 +939,32 @@ class AuditoriaFrame(ttk.Frame):
                                     continue
                                 if ".." in rel:
                                     continue
-                                dest = f"{base_prefix}/{rel}".strip("/")
-                                mime = _guess_mime(f.name)
-                                with open(f, "rb") as fh:
-                                    self._sb.storage.from_(bucket).upload(  # type: ignore[union-attr]
-                                        dest,
-                                        fh.read(),
-                                        {"content-type": mime, "upsert": "true", "cacheControl": "3600"}
-                                    )
-                                enviados += 1
+                                try:
+                                    dest = f"{base_prefix}/{rel}".strip("/")
+                                    mime = _guess_mime(f.name)
+                                    with open(f, "rb") as fh:
+                                        self._sb.storage.from_(bucket).upload(  # type: ignore[union-attr]
+                                            dest,
+                                            fh.read(),
+                                            {"content-type": mime, "upsert": "true", "cacheControl": "3600"}
+                                        )
+                                    enviados += 1
+                                except Exception as e:
+                                    fail.append((rel, str(e)))
                 except ArchiveError as e:
-                    messagebox.showerror(
-                        "Erro ao extrair 7Z",
-                        f"Não foi possível extrair o arquivo .7z.\n\n{e}"
-                    )
+                    self.after(0, lambda: self._busy_fail(f"Erro ao extrair 7Z: {e}"))
                     return
 
             else:
-                # Nunca deve chegar aqui devido à validação anterior
-                messagebox.showwarning(
-                    "Atenção",
-                    "Formato não suportado. Selecione um arquivo .zip, .rar ou .7z.\n"
-                    "Para volumes, selecione o arquivo .7z.001."
-                )
+                self.after(0, lambda: self._busy_fail("Formato não suportado"))
                 return
 
-        except ArchiveError as e:
-            messagebox.showerror("Erro no arquivo", f"{e}")
-            return
         except Exception as e:
-            erro = e
-
-        if erro:
-            messagebox.showerror("Erro no upload", f"{erro}")
+            self.after(0, lambda: self._busy_fail(str(e)))
             return
 
-        # Mensagem de sucesso com Razão Social + CNPJ formatado
-        cnpj_fmt = format_cnpj_for_display(cnpj)
-        messagebox.showinfo(
-            "Auditoria",
-            f"Upload concluído para {cliente_nome} — {cnpj_fmt}.\n"
-            f"{enviados} arquivo(s) enviados para {base_prefix}/"
-        )
-
-        # Reabrir/atualizar browser para visualizar arquivos enviados
-        try:
-            from src.ui.files_browser import open_files_browser
-            open_files_browser(
-                self,
-                supabase=self._sb,
-                client_id=client_id,
-                org_id=org_id,
-                razao=cliente_nome,
-                cnpj=cnpj,
-                start_prefix=base_prefix
-            )
-        except Exception as e:
-            print(f"[AUDITORIA][UPLOAD] Não foi possível abrir browser: {e}")
+        # Atualizar UI via after() (thread-safe)
+        self.after(0, lambda: self._busy_done(enviados, fail, base_prefix, cliente_nome, cnpj, client_id, org_id))
 
 
 
