@@ -105,19 +105,8 @@ class AuditoriaFrame(ttk.Frame):
         self.btn_refresh = ttk.Button(btns, text="Atualizar lista", command=self._load_clientes)
         self.btn_refresh.grid(row=0, column=1, sticky="ew")
 
-        # --- BOTÕES DE STORAGE ---
-        btns2 = ttk.Frame(left)
-        btns2.grid(row=7, column=0, sticky="ew", pady=(0, 8))
-        btns2.columnconfigure((0, 1), weight=1)
-
-        self.btn_subpastas = ttk.Button(btns2, text="Ver subpastas", command=self._open_subpastas)
-        self.btn_subpastas.grid(row=0, column=0, sticky="ew", padx=(0, 6))
-
-        self.btn_criar_aud = ttk.Button(btns2, text="Criar pasta Auditoria", command=self._create_auditoria_folder)
-        self.btn_criar_aud.grid(row=0, column=1, sticky="ew")
-
         if self._go_back:
-            ttk.Button(left, text="Voltar", command=self._go_back).grid(row=8, column=0, sticky="ew")
+            ttk.Button(left, text="Voltar", command=self._go_back).grid(row=7, column=0, sticky="ew")
 
         # Centro: tabela
         center = ttk.Frame(self)
@@ -126,18 +115,16 @@ class AuditoriaFrame(ttk.Frame):
         center.columnconfigure(0, weight=1)
 
         # Header com label + toolbar
-        hdr = ttk.Frame(center)
-        hdr.grid(row=0, column=0, sticky="ew")
-        hdr.columnconfigure(0, weight=1)
+        header = ttk.Frame(center)
+        header.grid(row=0, column=0, sticky="ew", padx=(6, 6), pady=(4, 6))
+        header.grid_columnconfigure(0, weight=1)
         
-        ttk.Label(hdr, text="Auditorias recentes").grid(row=0, column=0, sticky="w")
+        ttk.Label(header, text="Auditorias recentes").grid(row=0, column=0, sticky="w")
         
-        toolbar = ttk.Frame(hdr)
-        toolbar.grid(row=0, column=1, sticky="e")
-        self.btn_h_ver = ttk.Button(toolbar, text="Ver subpastas", command=self._open_subpastas)
-        self.btn_h_ver.grid(row=0, column=0, padx=(0, 6))
-        self.btn_h_criar = ttk.Button(toolbar, text="Criar pasta Auditoria", command=self._create_auditoria_folder)
-        self.btn_h_criar.grid(row=0, column=1)
+        self._btn_h_ver = ttk.Button(header, text="Ver subpastas", command=self._open_subpastas)
+        self._btn_h_criar = ttk.Button(header, text="Criar pasta Auditoria", command=self._create_auditoria_folder)
+        self._btn_h_ver.grid(row=0, column=1, padx=(8, 4))
+        self._btn_h_criar.grid(row=0, column=2)
 
         self.tree = ttk.Treeview(
             center,
@@ -275,17 +262,15 @@ class AuditoriaFrame(ttk.Frame):
         self.cmb_cliente.configure(state="disabled" if is_offline else "readonly")
         self.btn_iniciar.configure(state=state)
         self.btn_refresh.configure(state=state)
-        
-        # Botões de storage (painel esquerdo + header direita)
+
+        # Botões de storage (header direita)
         for w in (
-            getattr(self, "btn_subpastas", None),
-            getattr(self, "btn_criar_aud", None),
-            getattr(self, "btn_h_ver", None),
-            getattr(self, "btn_h_criar", None)
+            getattr(self, "_btn_h_ver", None),
+            getattr(self, "_btn_h_criar", None)
         ):
             if w:
                 w.configure(state=state)
-        
+
         self.lbl_offline.configure(text=OFFLINE_MSG if is_offline else "")
 
     def _load_clientes(self) -> None:
@@ -410,42 +395,54 @@ class AuditoriaFrame(ttk.Frame):
             )
 
     def _open_subpastas(self) -> None:
-        """Abre janela de navegação de arquivos do cliente (reutiliza janela dos Clientes)."""
+        """Abre a mesma janela de arquivos usada em Clientes."""
         if not self._sb:
-            messagebox.showwarning("Storage", "Modo offline: sem Supabase.")
+            messagebox.showwarning("Storage", "Sem conexão com a nuvem.")
             return
         cid = self._selected_client_id()
         if cid is None:
-            messagebox.showinfo("Subpastas", "Selecione um cliente primeiro.")
+            messagebox.showinfo("Storage", "Selecione um cliente.")
             return
         try:
+            # Usa a MESMA janela dos Clientes (com todos os recursos)
             from src.shared.storage_ui_bridge import open_client_files_window
             open_client_files_window(self, self._sb, int(cid))
         except Exception as e:
-            messagebox.showwarning("Subpastas", f"Falha ao abrir arquivos do cliente.\n{e}")
+            messagebox.showwarning("Storage", f"Falhou ao abrir subpastas.\n{e}")
 
     def _create_auditoria_folder(self) -> None:
-        """Cria a pasta 'Auditoria' no Storage do cliente (prefixo cliente/Auditoria/)."""
+        """Cria a pasta 'GERAL/Auditoria' no Storage do cliente."""
         if not self._sb:
-            messagebox.showwarning("Criar pasta", "Modo offline.")
+            messagebox.showwarning("Criar pasta", "Sem conexão com a nuvem.")
             return
         cid = self._selected_client_id()
         if cid is None:
-            messagebox.showinfo("Criar pasta", "Selecione um cliente primeiro.")
+            messagebox.showinfo("Criar pasta", "Selecione um cliente.")
             return
 
         try:
-            from src.shared.storage_ui_bridge import get_clients_bucket, client_prefix_for_id, _get_org_id_from_supabase
-            
-            bucket = get_clients_bucket()
-            org_id = _get_org_id_from_supabase(self._sb) or ""
-            base = client_prefix_for_id(int(cid), org_id)
-            target_prefix = f"{base}/Auditoria"
-            path_keep = f"{target_prefix}/.keep"
-            
-            # Em Storage "pasta" é prefixo; criar = subir placeholder com content-type
-            self._sb.storage.from_(bucket).upload(path_keep, b"", {"content-type": "text/plain"})  # type: ignore[union-attr]
-            messagebox.showinfo("Criar pasta", f"Pasta criada: {target_prefix}/")
+            # Reutiliza helpers do módulo de arquivos dos Clientes
+            from src.shared.storage_ui_bridge import (
+                get_clients_bucket,
+                client_prefix_for_id,
+                _get_org_id_from_supabase
+            )
+
+            bucket = get_clients_bucket()  # ex.: 'rc-docs'
+            org_id = _get_org_id_from_supabase(self._sb) or ""  # mesmo org usado nos Clientes
+            base = client_prefix_for_id(int(cid), org_id)  # ex.: '<ORG>/<CLIENTE>'
+            target = f"{base}/GERAL/Auditoria/.keep"
+
+            # Upload do placeholder
+            resp = self._sb.storage.from_(bucket).upload(  # type: ignore[union-attr]
+                file=target,
+                file_data=b"",
+                file_options={"contentType": "text/plain", "upsert": False}
+            )
+            if getattr(resp, "error", None):
+                raise RuntimeError(resp.error.get("message") or str(resp.error))  # type: ignore[union-attr]
+
+            messagebox.showinfo("Criar pasta", "Pasta 'GERAL/Auditoria' criada com sucesso.")
         except Exception as e:
             messagebox.showwarning("Criar pasta", f"Falhou ao criar pasta.\n{e}")
 

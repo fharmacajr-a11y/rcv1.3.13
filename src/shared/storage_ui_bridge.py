@@ -20,7 +20,7 @@ def get_clients_bucket() -> str:
 def client_prefix_for_id(client_id: int | str, org_id: str = "") -> str:
     """
     Monta o prefixo do cliente no Storage.
-    
+
     O padrão do files_browser é: {org_id}/{client_id}
     Mas suporta override via RC_STORAGE_CLIENTS_FOLDER_FMT.
     """
@@ -43,7 +43,7 @@ def _get_org_id_from_supabase(sb) -> Optional[str]:  # type: ignore[no-untyped-d
         if not user or not user.user:
             return None
         uid = user.user.id
-        
+
         # Busca org_id na tabela public.users
         res = (
             sb.table("users")
@@ -75,10 +75,10 @@ def _client_title(row: dict[str, Any]) -> tuple[str, str]:
 def open_client_files_window(parent, sb, client_id: int) -> None:  # type: ignore[no-untyped-def]
     """
     Abre a mesma janela de arquivos usada em Clientes para o client_id informado.
-    
+
     Usa open_files_browser de src.ui.files_browser (janela completa com visualizar PDF,
     baixar arquivo, baixar pasta .zip, etc).
-    
+
     Fallback: se open_files_browser não estiver disponível, usa StorageBrowser simples.
     """
     if not sb:
@@ -104,7 +104,7 @@ def open_client_files_window(parent, sb, client_id: int) -> None:  # type: ignor
 
     # Obtém org_id do usuário logado
     org_id = _get_org_id_from_supabase(sb) or ""
-    
+
     if open_files_browser is not None:
         try:
             # Usa a janela completa dos Clientes
