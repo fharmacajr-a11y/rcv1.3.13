@@ -8,7 +8,7 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter.scrolledtext import ScrolledText
 from collections import OrderedDict
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Tuple, List, cast
 
 try:
     import fitz  # PyMuPDF
@@ -78,7 +78,7 @@ class PdfViewerWin(tk.Toplevel):
         self._page_label_suffix = ""
         self._has_text = False
         self._ocr_loaded = False
-        
+
         # Controle para modo de imagem
         self._is_pdf = True
         self._img_ref: PILPhotoImage | None = None  # type: ignore[name-defined]
@@ -193,6 +193,17 @@ class PdfViewerWin(tk.Toplevel):
             self._page_sizes = [(800, 1100)]
             self._text_buffer = ["Texto indisponível (PyMuPDF não detectado)."]
 
+        # Garantir que _text_buffer contém apenas strings
+        safe_text_buffer: List[str] = []
+        for t in self._text_buffer:
+            if isinstance(t, (bytes, bytearray)):
+                safe_text_buffer.append(t.decode("utf-8", "ignore"))
+            elif t is None:
+                safe_text_buffer.append("")
+            else:
+                safe_text_buffer.append(str(t))
+        self._text_buffer = safe_text_buffer
+        
         self._has_text = any((t or "").strip() for t in self._text_buffer)
         self._page_label_suffix = "\u2022  OCR: OK" if self._has_text else "\u2022  OCR: vazio"
         self._ocr_loaded = False
@@ -287,7 +298,9 @@ class PdfViewerWin(tk.Toplevel):
         pix = page.get_pixmap(matrix=mat, alpha=False)
         if Image is not None and ImageTk is not None:
             mode = "RGB" if pix.n < 4 else "RGBA"
-            img = Image.frombytes(mode, [pix.width, pix.height], pix.samples)
+            # Converter list para tuple[int, int] para Image.frombytes
+            size_tuple: Tuple[int, int] = (int(pix.width), int(pix.height))
+            img = Image.frombytes(mode, size_tuple, pix.samples)
             return ImageTk.PhotoImage(img)
         # fallback sem Pillow (ppm)
         data = pix.tobytes("ppm")
@@ -391,7 +404,9 @@ class PdfViewerWin(tk.Toplevel):
     def _populate_ocr_text(self):
         sep = "\n" + ("\u2014" * 40) + "\n"
         self.ocr_text.delete("1.0", "end")
-        self.ocr_text.insert("1.0", sep.join(self._text_buffer))
+        # _text_buffer já foi normalizado para List[str] em _load_pdf
+        text_buffer_str: List[str] = cast(List[str], self._text_buffer)
+        self.ocr_text.insert("1.0", sep.join(text_buffer_str))
         self._ocr_loaded = True
 
     def focus_canvas(self):
@@ -417,8 +432,11 @@ class PdfViewerWin(tk.Toplevel):
                 ctypes.POINTER(ctypes.c_wchar_p),
             ]
             p_path = ctypes.c_wchar_p()
+            # Converter bytes_le para int via int.from_bytes
+            guid_bytes = folder_id_downloads.bytes_le
+            guid_int = int.from_bytes(guid_bytes, byteorder="little")
             hr = SHGetKnownFolderPath(
-                ctypes.c_void_p(folder_id_downloads.bytes_le),
+                ctypes.c_void_p(guid_int),
                 0,
                 None,
                 ctypes.byref(p_path),
@@ -634,7 +652,7 @@ class PdfViewerWin(tk.Toplevel):
         """
         # Detecta tipo MIME
         mime, _ = mimetypes.guess_type(filename)
-        
+
         if mime == "application/pdf":
             # Renderiza como PDF
             return self._open_pdf_bytes(data)
@@ -648,7 +666,7 @@ class PdfViewerWin(tk.Toplevel):
     def _open_pdf_bytes(self, data: bytes) -> bool:
         """Abre PDF a partir de bytes."""
         import tempfile
-        
+
         try:
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
             try:
@@ -656,18 +674,18 @@ class PdfViewerWin(tk.Toplevel):
                 tmp_path = tmp.name
             finally:
                 tmp.close()
-            
+
             # Carrega PDF normalmente
             self._is_pdf = True
             self._load_pdf(tmp_path)
-            
+
             # Limpa arquivo temporário ao fechar
             def _cleanup(_event=None):
                 try:
                     os.unlink(tmp_path)
                 except OSError:
                     pass
-            
+
             self.bind("<Destroy>", _cleanup, add="+")
             return True
         except Exception:
@@ -677,20 +695,20 @@ class PdfViewerWin(tk.Toplevel):
         """Abre imagem a partir de bytes."""
         if Image is None or ImageTk is None:
             return False
-        
+
         try:
             # Carrega imagem com PIL
             pil_img = Image.open(io.BytesIO(data))
-            
+
             # Marca como modo imagem
             self._is_pdf = False
-            
+
             # Oculta controles específicos de PDF
             self._toggle_pdf_controls(False)
-            
+
             # Renderiza imagem no canvas
             self._render_image(pil_img)
-            
+
             return True
         except Exception:
             return False
@@ -699,47 +717,47 @@ class PdfViewerWin(tk.Toplevel):
         """Renderiza uma imagem PIL no canvas."""
         if Image is None or ImageTk is None:
             return
-        
+
         # Limpa canvas
         self.canvas.delete("all")
         self._img_refs.clear()
-        
+
         # Obtém dimensões originais
         orig_w, orig_h = pil_img.size
-        
+
         # Calcula dimensões para caber no canvas mantendo aspect ratio
         canvas_w = self.canvas.winfo_width() or 800
         canvas_h = self.canvas.winfo_height() or 600
-        
+
         # Margem
         margin = 40
         max_w = canvas_w - margin * 2
         max_h = canvas_h - margin * 2
-        
+
         # Calcula escala para caber
         scale_w = max_w / orig_w if orig_w > max_w else 1.0
         scale_h = max_h / orig_h if orig_h > max_h else 1.0
         scale = min(scale_w, scale_h)
-        
+
         # Aplica zoom atual
         scale *= self.zoom
-        
+
         # Redimensiona
         new_w = int(orig_w * scale)
         new_h = int(orig_h * scale)
-        
+
         resized = pil_img.resize((new_w, new_h), Image.Resampling.LANCZOS)  # type: ignore[union-attr]
-        
+
         # Converte para PhotoImage
         self._img_ref = ImageTk.PhotoImage(resized)  # type: ignore[union-attr]
-        
+
         # Centraliza no canvas
         x = canvas_w // 2
         y = canvas_h // 2
-        
+
         self.canvas.create_image(x, y, image=self._img_ref, anchor="center")
         self.canvas.configure(scrollregion=(0, 0, canvas_w, canvas_h))
-        
+
         # Atualiza label
         zoom_pct = int(round(self.zoom * 100))
         self.lbl_zoom.config(text=f"{zoom_pct}%")
@@ -748,7 +766,7 @@ class PdfViewerWin(tk.Toplevel):
     def _toggle_pdf_controls(self, enabled: bool) -> None:
         """Habilita/desabilita controles específicos de PDF."""
         state = "normal" if enabled else "disabled"
-        
+
         # Desabilita checkbox de texto para imagens
         if hasattr(self, "chk_text"):
             self.chk_text.configure(state=state)
@@ -763,7 +781,7 @@ def open_pdf_viewer(
 ):
     """
     Abre visualizador unificado de PDF/imagem.
-    
+
     Args:
         master: widget pai
         pdf_path: caminho do arquivo (se disponível)
