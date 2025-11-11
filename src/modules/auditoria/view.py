@@ -7,10 +7,12 @@ import os
 import re
 import tempfile
 import threading
+import time
 import tkinter as tk
 import unicodedata
 import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from tkinter import messagebox
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
@@ -101,6 +103,17 @@ def _build_search_index(row: dict) -> dict:  # type: ignore[type-arg]
     cnpj = _digits(row.get("cnpj") or row.get("CNPJ") or "")
     nomes = [_norm_text(x) for x in _collect_name_like_fields(row)]
     return {"razao": razao, "cnpj": cnpj, "nomes": nomes}
+
+
+@dataclass
+class _ProgressState:
+    """Estado do progresso de upload para barra determinística."""
+    total_files: int = 0
+    total_bytes: int = 0
+    done_files: int = 0
+    done_bytes: int = 0
+    start_ts: float = 0.0
+    ema_bps: float = 0.0  # Exponential Moving Average de bytes por segundo
 
 
 class AuditoriaFrame(ttk.Frame):
@@ -314,7 +327,7 @@ class AuditoriaFrame(ttk.Frame):
             f"{c.get('razao_social') or c.get('Razao Social') or 'Cliente'} — {c.get('cnpj') or ''}"
             for c in filtrados
         ]
-        
+
         # Mapeia cliente_id para cada label
         self._clientes = []
         for c in filtrados:
@@ -747,10 +760,66 @@ class AuditoriaFrame(ttk.Frame):
         base = fb.client_prefix_for_id(client_id, org_id)  # ex: "{org_id}/{client_id}"
         return bucket, f"{base}/GERAL/Auditoria"
 
+    # ---------- Helper para progresso ----------
+    def _fmt_eta(self, seconds: float) -> str:
+        """Formata segundos em HH:MM:SS."""
+        if seconds <= 0:
+            return "00:00:00"
+        h = int(seconds // 3600)
+        m = int((seconds % 3600) // 60)
+        s = int(seconds % 60)
+        return f"{h:02d}:{m:02d}:{s:02d}"
+
+    def _progress_update_ui(self, state: _ProgressState, alpha: float = 0.2) -> None:
+        """
+        Atualiza UI da barra de progresso (thread-safe via after()).
+
+        Args:
+            state: Estado atual do progresso
+            alpha: Fator de suavização EMA (0.2 = suave)
+        """
+        if not hasattr(self, "_pb") or not hasattr(self, "_busy"):
+            return
+
+        # Calcular velocidade instantânea
+        elapsed = time.monotonic() - state.start_ts
+        if elapsed > 0:
+            instant_bps = state.done_bytes / elapsed
+            # EMA para suavizar
+            if state.ema_bps == 0:
+                state.ema_bps = instant_bps
+            else:
+                state.ema_bps = alpha * instant_bps + (1 - alpha) * state.ema_bps
+
+        # Calcular % e ETA
+        pct = 0.0
+        eta_str = "00:00:00"
+        speed_str = "0.0 MB/s"
+
+        if state.total_bytes > 0:
+            pct = (state.done_bytes / state.total_bytes) * 100
+            if state.ema_bps > 0:
+                remaining_bytes = state.total_bytes - state.done_bytes
+                eta_sec = remaining_bytes / state.ema_bps
+                eta_str = self._fmt_eta(eta_sec)
+                speed_str = f"{state.ema_bps / 1_048_576:.1f} MB/s"
+
+        # Atualizar barra
+        self._pb["value"] = pct
+
+        # Atualizar labels (se existirem)
+        if hasattr(self, "_lbl_status"):
+            status_text = f"{pct:.0f}% — {state.done_files}/{state.total_files} itens"
+            self._lbl_status.configure(text=status_text)
+
+        if hasattr(self, "_lbl_eta"):
+            eta_text = f"{eta_str} restantes @ {speed_str}"
+            self._lbl_eta.configure(text=eta_text)
+
     # ---------- Modal de Progresso ----------
     def _show_busy(self, titulo: str, msg: str) -> None:
         """
-        Mostra janela modal de progresso indeterminado com opção de cancelar.
+        Mostra janela modal de progresso determinístico com %, MB/s, ETA e opção de cancelar.
 
         Args:
             titulo: Título da janela
@@ -763,20 +832,30 @@ class AuditoriaFrame(ttk.Frame):
         self._busy.grab_set()  # bloqueia interação no pai
         self._busy.resizable(False, False)
 
-        # Centralizar janela
+        # Centralizar janela (ajustado para incluir labels de status/ETA)
         self._busy.update_idletasks()
-        w = 360
-        h = 160
+        w = 420
+        h = 220
         x = (self._busy.winfo_screenwidth() // 2) - (w // 2)
         y = (self._busy.winfo_screenheight() // 2) - (h // 2)
         self._busy.geometry(f"{w}x{h}+{x}+{y}")
 
+        # Label de mensagem principal
         lbl = ttk.Label(self._busy, text=msg, font=("-size", 10))
         lbl.pack(padx=20, pady=(20, 12))
 
-        self._pb = ttk.Progressbar(self._busy, mode="indeterminate", length=300)
-        self._pb.pack(padx=20, pady=(0, 16), fill="x")
-        self._pb.start(12)  # animação
+        # Progressbar determinística
+        self._pb = ttk.Progressbar(self._busy, mode="determinate", length=360, maximum=100)
+        self._pb.pack(padx=20, pady=(0, 8), fill="x")
+        self._pb["value"] = 0
+
+        # Label de status (% e itens)
+        self._lbl_status = ttk.Label(self._busy, text="0% — 0/0 itens", font=("-size", 9))
+        self._lbl_status.pack(padx=20, pady=(0, 4))
+
+        # Label de ETA e velocidade
+        self._lbl_eta = ttk.Label(self._busy, text="00:00:00 restantes @ 0.0 MB/s", font=("-size", 9), foreground="#666")
+        self._lbl_eta.pack(padx=20, pady=(0, 16))
 
         self._cancel_flag = False
 
@@ -790,8 +869,6 @@ class AuditoriaFrame(ttk.Frame):
     def _close_busy(self) -> None:
         """Fecha a janela modal de progresso (se existir)."""
         try:
-            if hasattr(self, "_pb") and self._pb:
-                self._pb.stop()
             if hasattr(self, "_busy") and self._busy:
                 self._busy.destroy()
         except Exception:
@@ -917,7 +994,7 @@ class AuditoriaFrame(ttk.Frame):
         cnpj: str
     ) -> None:
         """
-        Worker thread para extrair e fazer upload de arquivos.
+        Worker thread para extrair e fazer upload de arquivos com progresso determinístico.
 
         Args:
             archive_path: Caminho do arquivo compactado
@@ -930,7 +1007,6 @@ class AuditoriaFrame(ttk.Frame):
         base_prefix = f"{org_id}/{client_id}/GERAL/Auditoria".strip("/")
         path = Path(archive_path)
 
-        enviados = 0
         fail: list[tuple[str, str]] = []
 
         try:
@@ -947,9 +1023,70 @@ class AuditoriaFrame(ttk.Frame):
             else:
                 ext = ""
 
-            # Estratégia baseada na extensão
+            # Inicializar estado de progresso
+            state = _ProgressState()
+            state.start_ts = time.monotonic()
+
+            # ====== PRÉ-SCAN: calcular total de arquivos e bytes ======
             if ext == "zip":
-                # ZIP: leitura direta de membros preservando estrutura
+                with zipfile.ZipFile(path, "r") as zf:
+                    for info in zf.infolist():
+                        if info.is_dir():
+                            continue
+                        rel = info.filename.lstrip("/").replace("\\", "/")
+                        if not rel or rel.startswith((".", "__MACOSX")) or ".." in rel:
+                            continue
+                        state.total_files += 1
+                        state.total_bytes += info.file_size
+
+            elif ext in ("rar", "7z"):
+                # Para RAR/7Z: extrai primeiro, depois conta
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    extract_archive(path, tmpdir)
+                    if self._cancel_flag:
+                        return
+
+                    base = Path(tmpdir)
+                    for f in base.rglob("*"):
+                        if f.is_file():
+                            rel = f.relative_to(base).as_posix()
+                            if not rel or rel.startswith((".", "__MACOSX")) or ".." in rel:
+                                continue
+                            state.total_files += 1
+                            state.total_bytes += f.stat().st_size
+
+                    # ====== UPLOAD COM TRACKING ======
+                    for f in base.rglob("*"):
+                        if self._cancel_flag:
+                            break
+                        if f.is_file():
+                            rel = f.relative_to(base).as_posix()
+                            if not rel or rel.startswith((".", "__MACOSX")) or ".." in rel:
+                                continue
+                            try:
+                                dest = f"{base_prefix}/{rel}".strip("/")
+                                mime = _guess_mime(f.name)
+                                file_bytes = f.stat().st_size
+                                with open(f, "rb") as fh:
+                                    self._sb.storage.from_(bucket).upload(  # type: ignore[union-attr]
+                                        dest,
+                                        fh.read(),
+                                        {"content-type": mime, "upsert": "true", "cacheControl": "3600"}
+                                    )
+                                state.done_files += 1
+                                state.done_bytes += file_bytes
+                                # Atualizar UI a cada arquivo
+                                self.after(0, lambda s=state: self._progress_update_ui(s))
+                            except Exception as e:
+                                fail.append((rel, str(e)))
+                return  # RAR/7Z concluído
+
+            else:
+                self.after(0, lambda: self._busy_fail("Formato não suportado"))
+                return
+
+            # ====== UPLOAD ZIP COM TRACKING ======
+            if ext == "zip":
                 with zipfile.ZipFile(path, "r") as zf:
                     for info in zf.infolist():
                         if self._cancel_flag:
@@ -957,12 +1094,8 @@ class AuditoriaFrame(ttk.Frame):
                         if info.is_dir():
                             continue
                         rel = info.filename.lstrip("/").replace("\\", "/")
-                        # Segurança e limpeza
-                        if not rel or rel.startswith((".", "__MACOSX")):
+                        if not rel or rel.startswith((".", "__MACOSX")) or ".." in rel:
                             continue
-                        if ".." in rel:
-                            continue
-                        # Upload mantendo subpastas
                         try:
                             data = zf.read(info)
                             dest = f"{base_prefix}/{rel}".strip("/")
@@ -972,94 +1105,19 @@ class AuditoriaFrame(ttk.Frame):
                                 data,
                                 {"content-type": mime, "upsert": "true", "cacheControl": "3600"}
                             )
-                            enviados += 1
+                            state.done_files += 1
+                            state.done_bytes += info.file_size
+                            # Atualizar UI a cada arquivo
+                            self.after(0, lambda s=state: self._progress_update_ui(s))
                         except Exception as e:
                             fail.append((rel, str(e)))
-
-            elif ext == "rar":
-                # RAR: extração temporária via 7-Zip + upload
-                try:
-                    with tempfile.TemporaryDirectory() as tmpdir:
-                        # Extrai usando 7-Zip
-                        extract_archive(path, tmpdir)
-
-                        if self._cancel_flag:
-                            return
-
-                        base = Path(tmpdir)
-                        for f in base.rglob("*"):
-                            if self._cancel_flag:
-                                break
-                            if f.is_file():
-                                rel = f.relative_to(base).as_posix()
-                                # Segurança e limpeza
-                                if not rel or rel.startswith((".", "__MACOSX")):
-                                    continue
-                                if ".." in rel:
-                                    continue
-                                try:
-                                    dest = f"{base_prefix}/{rel}".strip("/")
-                                    mime = _guess_mime(f.name)
-                                    with open(f, "rb") as fh:
-                                        self._sb.storage.from_(bucket).upload(  # type: ignore[union-attr]
-                                            dest,
-                                            fh.read(),
-                                            {"content-type": mime, "upsert": "true", "cacheControl": "3600"}
-                                        )
-                                    enviados += 1
-                                except Exception as e:
-                                    fail.append((rel, str(e)))
-                except ArchiveError as e:
-                    self.after(0, lambda: self._busy_fail(f"Erro ao extrair RAR: {e}"))
-                    return
-
-            elif ext == "7z":
-                # 7Z: extração temporária via py7zr + upload (suporta senha e volumes)
-                try:
-                    with tempfile.TemporaryDirectory() as tmpdir:
-                        # Extrai usando py7zr (suporta volumes .7z.001 automaticamente)
-                        extract_archive(path, tmpdir)
-
-                        if self._cancel_flag:
-                            return
-
-                        base = Path(tmpdir)
-                        for f in base.rglob("*"):
-                            if self._cancel_flag:
-                                break
-                            if f.is_file():
-                                rel = f.relative_to(base).as_posix()
-                                # Segurança e limpeza
-                                if not rel or rel.startswith((".", "__MACOSX")):
-                                    continue
-                                if ".." in rel:
-                                    continue
-                                try:
-                                    dest = f"{base_prefix}/{rel}".strip("/")
-                                    mime = _guess_mime(f.name)
-                                    with open(f, "rb") as fh:
-                                        self._sb.storage.from_(bucket).upload(  # type: ignore[union-attr]
-                                            dest,
-                                            fh.read(),
-                                            {"content-type": mime, "upsert": "true", "cacheControl": "3600"}
-                                        )
-                                    enviados += 1
-                                except Exception as e:
-                                    fail.append((rel, str(e)))
-                except ArchiveError as e:
-                    self.after(0, lambda: self._busy_fail(f"Erro ao extrair 7Z: {e}"))
-                    return
-
-            else:
-                self.after(0, lambda: self._busy_fail("Formato não suportado"))
-                return
 
         except Exception as e:
             self.after(0, lambda: self._busy_fail(str(e)))
             return
 
         # Atualizar UI via after() (thread-safe)
-        self.after(0, lambda: self._busy_done(enviados, fail, base_prefix, cliente_nome, cnpj, client_id, org_id))
+        self.after(0, lambda: self._busy_done(state.done_files, fail, base_prefix, cliente_nome, cnpj, client_id, org_id))
 
 
 
