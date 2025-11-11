@@ -19,35 +19,40 @@ class TestArchiveFiletypes:
     def test_filetypes_structure(self) -> None:
         """Testa que ARCHIVE_FILETYPES tem a estrutura correta."""
         assert isinstance(ARCHIVE_FILETYPES, list)
-        assert len(ARCHIVE_FILETYPES) == 4
-        
+        assert len(ARCHIVE_FILETYPES) == 5
+
         # Primeiro item: tupla com label e tupla de padrões
         first = ARCHIVE_FILETYPES[0]
         assert first[0] == "Arquivos compactados"
         assert isinstance(first[1], tuple)
-        assert first[1] == ("*.zip", "*.rar")
-        
+        assert first[1] == ("*.zip", "*.rar", "*.7z")
+
         # Segundo item: ZIP
         assert ARCHIVE_FILETYPES[1] == ("ZIP", "*.zip")
-        
+
         # Terceiro item: RAR
         assert ARCHIVE_FILETYPES[2] == ("RAR", "*.rar")
-        
-        # Quarto item: Todos os arquivos
-        assert ARCHIVE_FILETYPES[3] == ("Todos os arquivos", "*.*")
+
+        # Quarto item: 7-Zip
+        assert ARCHIVE_FILETYPES[3] == ("7-Zip", "*.7z")
+
+        # Quinto item: Todos os arquivos
+        assert ARCHIVE_FILETYPES[4] == ("Todos os arquivos", "*.*")
 
     def test_filetypes_uses_tuples_not_strings(self) -> None:
         """
         Testa que o primeiro item usa tupla de padrões, não string concatenada.
-        
+
         Isso é importante porque Tkinter suporta tuplas, mas não strings
         concatenadas como "*.zip *.rar".
         """
         first_pattern = ARCHIVE_FILETYPES[0][1]
         assert isinstance(first_pattern, tuple), \
             "O padrão deve ser uma tupla, não string"
-        assert len(first_pattern) == 2
+        assert len(first_pattern) == 3
         assert "*.zip" in first_pattern
+        assert "*.rar" in first_pattern
+        assert "*.7z" in first_pattern
         assert "*.rar" in first_pattern
 
 
@@ -82,10 +87,19 @@ class TestValidateArchiveExtension:
         """Testa que aceita .RaR em caso misto."""
         assert validate_archive_extension("arquivo.RaR") is True
 
-    def test_rejects_7z(self) -> None:
-        """Testa que rejeita arquivos .7z."""
-        assert validate_archive_extension("arquivo.7z") is False
-        assert validate_archive_extension("ARQUIVO.7Z") is False
+    def test_accepts_7z_lowercase(self) -> None:
+        """Testa que aceita .7z em minúsculas."""
+        assert validate_archive_extension("arquivo.7z") is True
+        assert validate_archive_extension("/path/to/file.7z") is True
+
+    def test_accepts_7z_uppercase(self) -> None:
+        """Testa que aceita .7Z em maiúsculas."""
+        assert validate_archive_extension("ARQUIVO.7Z") is True
+        assert validate_archive_extension("/path/to/FILE.7Z") is True
+
+    def test_accepts_7z_mixedcase(self) -> None:
+        """Testa que aceita .7Z em caso misto."""
+        assert validate_archive_extension("arquivo.7Z") is True
 
     def test_rejects_tar(self) -> None:
         """Testa que rejeita arquivos .tar."""
@@ -103,13 +117,13 @@ class TestValidateArchiveExtension:
         """Testa que funciona com objetos Path."""
         assert validate_archive_extension(str(Path("arquivo.zip"))) is True
         assert validate_archive_extension(str(Path("arquivo.rar"))) is True
-        assert validate_archive_extension(str(Path("arquivo.7z"))) is False
+        assert validate_archive_extension(str(Path("arquivo.7z"))) is True
 
     def test_handles_multiple_dots(self) -> None:
         """Testa arquivos com múltiplos pontos no nome."""
         assert validate_archive_extension("arquivo.backup.zip") is True
         assert validate_archive_extension("arquivo.v1.0.rar") is True
-        assert validate_archive_extension("arquivo.old.7z") is False
+        assert validate_archive_extension("arquivo.old.7z") is True
 
 
 class TestFileSelectIntegration:
@@ -123,7 +137,7 @@ class TestFileSelectIntegration:
             validate_archive_extension,
             ARCHIVE_FILETYPES,
         )
-        
+
         # Verificar que as funções foram importadas
         assert callable(select_archive_file)
         assert callable(select_archive_files)
@@ -138,7 +152,7 @@ class TestFileSelectIntegration:
             validate_archive_extension,
             ARCHIVE_FILETYPES,
         )
-        
+
         assert callable(select_archive_file)
         assert callable(select_archive_files)
         assert callable(validate_archive_extension)

@@ -1,5 +1,5 @@
 """
-Testes para extração de arquivos compactados (ZIP e RAR).
+Testes para extração de arquivos compactados (ZIP, RAR e 7Z).
 """
 from __future__ import annotations
 
@@ -148,17 +148,86 @@ class TestRarExtraction:
             extract_archive(rar_path, extract_dir)
 
 
+class Test7ZExtraction:
+    """Testes para extração de arquivos .7z."""
+
+    def test_extract_7z_simple(self, tmp_path: Path) -> None:
+        """Testa extração de arquivo .7z simples."""
+        pytest.importorskip("py7zr", reason="py7zr não instalado")
+        import py7zr
+
+        # Criar arquivo .7z de teste
+        seven_z_path = tmp_path / "test.7z"
+        extract_dir = tmp_path / "extracted"
+
+        # Criar estrutura para compactar
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+        (source_dir / "file1.txt").write_text("Conteúdo do arquivo 1", encoding="utf-8")
+        subdir = source_dir / "subdir"
+        subdir.mkdir()
+        (subdir / "file2.txt").write_text("Conteúdo do arquivo 2", encoding="utf-8")
+
+        # Compactar
+        with py7zr.SevenZipFile(seven_z_path, "w") as archive:
+            archive.writeall(source_dir, arcname="")
+
+        # Extrair
+        result = extract_archive(seven_z_path, extract_dir)
+
+        # Verificar
+        assert result == extract_dir
+        assert (extract_dir / "file1.txt").exists()
+        assert (extract_dir / "subdir" / "file2.txt").exists()
+        assert (extract_dir / "file1.txt").read_text(encoding="utf-8") == "Conteúdo do arquivo 1"
+        assert (extract_dir / "subdir" / "file2.txt").read_text(encoding="utf-8") == "Conteúdo do arquivo 2"
+
+    def test_extract_7z_without_py7zr(self, tmp_path: Path, monkeypatch) -> None:
+        """Testa que .7z sem py7zr disponível levanta ArchiveError."""
+        # Simular ImportError ao importar py7zr
+        import sys
+        
+        # Guardar módulo original se existir
+        original_py7zr = sys.modules.get("py7zr")
+        
+        # Remover py7zr dos módulos
+        if "py7zr" in sys.modules:
+            sys.modules.pop("py7zr")
+        
+        # Forçar ImportError
+        def mock_import(name, *args, **kwargs):
+            if name == "py7zr":
+                raise ImportError("Mocked import error")
+            return original_import(name, *args, **kwargs)
+        
+        import builtins
+        original_import = builtins.__import__
+        monkeypatch.setattr(builtins, "__import__", mock_import)
+
+        seven_z_path = tmp_path / "test.7z"
+        seven_z_path.write_text("fake 7z")
+        extract_dir = tmp_path / "extracted"
+
+        try:
+            with pytest.raises(ArchiveError, match="Suporte a .7z indisponível"):
+                extract_archive(seven_z_path, extract_dir)
+        finally:
+            # Restaurar py7zr se estava carregado
+            if original_py7zr is not None:
+                sys.modules["py7zr"] = original_py7zr
+
+
 class TestArchiveUtils:
     """Testes para funções utilitárias."""
 
     def test_unsupported_format(self, tmp_path: Path) -> None:
         """Testa que formato não suportado levanta ArchiveError."""
-        seven_z_path = tmp_path / "test.7z"
-        seven_z_path.write_text("fake 7z")
+        tar_path = tmp_path / "test.tar"
+        tar_path.write_text("fake tar")
         extract_dir = tmp_path / "extracted"
 
-        with pytest.raises(ArchiveError, match="Formato não suportado: .7z"):
-            extract_archive(seven_z_path, extract_dir)
+        with pytest.raises(ArchiveError, match="Formato não suportado: .tar"):
+            extract_archive(tar_path, extract_dir)
 
     def test_extract_creates_output_dir(self, tmp_path: Path) -> None:
         """Testa que o diretório de saída é criado se não existir."""

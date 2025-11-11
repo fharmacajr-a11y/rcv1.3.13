@@ -679,7 +679,7 @@ class AuditoriaFrame(ttk.Frame):
         if not validate_archive_extension(path):
             messagebox.showwarning(
                 "Arquivo não suportado",
-                "Apenas arquivos .zip e .rar são aceitos.\n"
+                "Apenas arquivos .zip, .rar e .7z são aceitos.\n"
                 f"Arquivo selecionado: {Path(path).name}"
             )
             return

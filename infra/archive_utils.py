@@ -1,8 +1,9 @@
 """
-Utilitários para extração de arquivos compactados (ZIP e RAR).
+Utilitários para extração de arquivos compactados (ZIP, RAR e 7Z).
 
 ZIP: Usa zipfile (built-in Python)
 RAR: Usa 7-Zip CLI (empacotado com o aplicativo)
+7Z: Usa py7zr (biblioteca Python)
 """
 from __future__ import annotations
 
@@ -12,6 +13,9 @@ import zipfile
 import shutil
 from pathlib import Path
 from typing import Union
+
+# Constantes de extensões suportadas
+SUPPORTED_ARCHIVES = {".zip", ".rar", ".7z"}
 
 
 class ArchiveError(Exception):
@@ -56,10 +60,10 @@ def find_7z() -> Path | None:
 
 def extract_archive(src: Union[str, Path], out_dir: Union[str, Path]) -> Path:
     """
-    Extrai arquivo compactado (ZIP ou RAR) para o diretório de destino.
+    Extrai arquivo compactado (ZIP, RAR ou 7Z) para o diretório de destino.
 
     Args:
-        src: Caminho para o arquivo compactado (.zip ou .rar)
+        src: Caminho para o arquivo compactado (.zip, .rar ou .7z)
         out_dir: Diretório onde os arquivos serão extraídos
 
     Returns:
@@ -116,10 +120,26 @@ def extract_archive(src: Union[str, Path], out_dir: Union[str, Path]) -> Path:
         except Exception as e:
             raise ArchiveError(f"Erro ao extrair RAR: {e}")
 
+    elif ext == ".7z":
+        try:
+            import py7zr  # Import tardio para não quebrar se py7zr não estiver instalado
+        except ImportError as e:
+            raise ArchiveError(
+                "Suporte a .7z indisponível.\n"
+                "Instale a dependência: pip install py7zr"
+            ) from e
+
+        try:
+            with py7zr.SevenZipFile(src, mode="r") as z:
+                z.extractall(path=out)
+            return out
+        except Exception as e:
+            raise ArchiveError(f"Erro ao extrair 7Z: {e}")
+
     else:
         raise ArchiveError(
             f"Formato não suportado: {ext}\n"
-            "Apenas arquivos .zip e .rar são aceitos."
+            f"Apenas arquivos {', '.join(SUPPORTED_ARCHIVES)} são aceitos."
         )
 
 

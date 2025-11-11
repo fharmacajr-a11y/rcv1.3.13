@@ -203,6 +203,6 @@ filetypes=[("Arquivos compactados", ("*.zip", "*.rar"))]
 
 ---
 
-**Data**: 11/11/2025  
-**Status**: ✅ IMPLEMENTADO - AGUARDANDO VALIDAÇÃO MANUAL  
+**Data**: 11/11/2025
+**Status**: ✅ IMPLEMENTADO - AGUARDANDO VALIDAÇÃO MANUAL
 **Próximo Passo**: Executar teste manual e abrir PR

@@ -29,7 +29,7 @@ def main():
     """Função principal de teste."""
     root = tk.Tk()
     root.withdraw()  # Esconder a janela principal
-    
+
     print("=" * 70)
     print("TESTE MANUAL: Diálogo de Seleção de Arquivo ZIP/RAR")
     print("=" * 70)
@@ -43,27 +43,27 @@ def main():
     print()
     print("-" * 70)
     print()
-    
+
     # Abrir diálogo
     path = select_archive_file()
-    
+
     print()
     print("-" * 70)
     print()
-    
+
     if path:
         print(f"✅ Arquivo selecionado: {path}")
         print(f"📦 Nome: {Path(path).name}")
         print(f"📁 Diretório: {Path(path).parent}")
         print(f"🔍 Extensão válida: {validate_archive_extension(path)}")
-        
+
         if not validate_archive_extension(path):
             print()
             print("⚠️  AVISO: Arquivo selecionado não é ZIP nem RAR!")
             print("   (Usuário provavelmente escolheu 'Todos os arquivos')")
     else:
         print("❌ Nenhum arquivo selecionado (cancelado)")
-    
+
     print()
     print("=" * 70)
     print("TESTE CONCLUÍDO")
@@ -74,7 +74,7 @@ def main():
     print("  [ ] O filtro mostrou 'Arquivos compactados (*.zip; *.rar)'?")
     print("  [ ] Os logs mostraram filetypes=[('Arquivos compactados', ('*.zip', '*.rar')), ...]?")
     print()
-    
+
     root.destroy()
 
 

@@ -53,7 +53,7 @@ def select_archive_file(title: str = "...") -> str:
     caller = inspect.stack()[1]
     log.debug("Abrindo askopenfilename | caller=%s:%s | filetypes=%r",
               caller.filename, caller.lineno, ARCHIVE_FILETYPES)
-    
+
     path = fd.askopenfilename(title=title, filetypes=ARCHIVE_FILETYPES)
     log.debug("askopenfilename retornou: %r", path)
     return path or ""
@@ -77,7 +77,7 @@ def validate_archive_extension(path: str) -> bool:
 ```python
 path = select_archive_file()
 if not validate_archive_extension(path):
-    messagebox.showwarning("Arquivo não suportado", 
+    messagebox.showwarning("Arquivo não suportado",
                           "Apenas .zip e .rar são aceitos")
     return
 ```
