@@ -1,8 +1,8 @@
 # 7-Zip
 
-**Version**: 24.09 (2024-11-25)  
-**Architecture**: x64 (64-bit)  
-**License**: GNU LGPL + unRAR restriction + BSD 3-clause  
+**Version**: 24.09 (2024-11-25)
+**Architecture**: x64 (64-bit)
+**License**: GNU LGPL + unRAR restriction + BSD 3-clause
 **Official Website**: https://www.7-zip.org/
 
 ## About
