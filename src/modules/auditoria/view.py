@@ -15,7 +15,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from tkinter import messagebox
-from typing import Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Tuple, Any
 
 from ttkbootstrap import ttk
 
@@ -114,6 +114,8 @@ class _ProgressState:
     done_bytes: int = 0
     start_ts: float = 0.0
     ema_bps: float = 0.0  # Exponential Moving Average de bytes por segundo
+    skipped_count: int = 0  # Arquivos pulados (duplicatas com strategy=skip)
+    failed_count: int = 0   # Arquivos que falharam no upload
 
 
 @dataclass
@@ -1228,15 +1230,17 @@ class AuditoriaFrame(ttk.Frame):
             duplicates_names = file_names & existing_names
 
             strategy = "skip"  # Padrão
+            apply_once = True  # Padrão
 
             if duplicates_names:
                 # Mostrar diálogo (thread-safe via after + wait)
-                dialog_result: dict[str, str | None] = {"strategy": None}
+                dialog_result: dict[str, Any] = {"strategy": None, "apply_once": True}
 
                 def _show_dup_dialog():
                     dlg = DuplicatesDialog(self, len(duplicates_names), sorted(duplicates_names))
                     self.wait_window(dlg)
                     dialog_result["strategy"] = dlg.strategy
+                    dialog_result["apply_once"] = dlg.apply_once
 
                 self.after(0, _show_dup_dialog)
 
@@ -1249,6 +1253,7 @@ class AuditoriaFrame(ttk.Frame):
                         return
 
                 strategy = dialog_result["strategy"]
+                apply_once = dialog_result["apply_once"]
 
                 if strategy is None:  # Cancelou
                     if ext in ("rar", "7z"):
@@ -1256,8 +1261,12 @@ class AuditoriaFrame(ttk.Frame):
                     self.after(0, lambda: self._busy_fail("Upload cancelado pelo usuário"))
                     return
 
+                # TODO: Se apply_once=False, persistir strategy em preferências para próximos envios
+                # Por enquanto, apenas aplica à sessão atual
+
             # ====== FASE 3: MONTAR PLANO DE UPLOAD ======
             upload_plans: list[_UploadPlan] = []
+            skipped_count = 0  # Contador de arquivos pulados
 
             for rel, file_size in files_to_upload:
                 file_name = Path(rel).name
@@ -1265,6 +1274,7 @@ class AuditoriaFrame(ttk.Frame):
 
                 if is_dup:
                     if strategy == "skip":
+                        skipped_count += 1  # Incrementa contador
                         continue  # Não adiciona ao plano
                     elif strategy == "replace":
                         # Substituir: usar nome original com upsert=True
@@ -1310,6 +1320,7 @@ class AuditoriaFrame(ttk.Frame):
             state.total_files = len(upload_plans)
             state.total_bytes = sum(p.file_size for p in upload_plans)
             state.start_ts = time.monotonic()
+            state.skipped_count = skipped_count  # Inicializar contador de pulados
 
             # Upload por extensão
             if ext == "zip":
@@ -1340,6 +1351,7 @@ class AuditoriaFrame(ttk.Frame):
                             self.after(0, lambda s=state: self._progress_update_ui(s))
 
                         except Exception as e:
+                            state.failed_count += 1  # Incrementar contador de falhas
                             fail.append((plan.dest_name, str(e)))
 
             elif ext in ("rar", "7z"):
@@ -1370,6 +1382,7 @@ class AuditoriaFrame(ttk.Frame):
                         self.after(0, lambda s=state: self._progress_update_ui(s))
 
                     except Exception as e:
+                        state.failed_count += 1  # Incrementar contador de falhas
                         fail.append((plan.dest_name, str(e)))
 
                 # Cleanup tmpdir
@@ -1377,7 +1390,21 @@ class AuditoriaFrame(ttk.Frame):
 
             # ====== FASE 5: VERIFICAR CANCELAMENTO ======
             if self._cancel_flag:
-                self.after(0, lambda paths=uploaded_paths: self._ask_rollback(paths, bucket))
+                # Mostrar resumo de cancelamento ao invés de rollback
+                def _show_cancel_summary():
+                    uploaded = state.done_files
+                    skipped = state.skipped_count
+                    failed = state.failed_count
+                    msg = (
+                        f"Upload cancelado.\n\n"
+                        f"📤 {uploaded} arquivo(s) enviado(s)\n"
+                        f"⊘ {skipped} pulado(s) (duplicatas)\n"
+                        f"❌ {failed} falha(s)"
+                    )
+                    messagebox.showinfo("Upload Cancelado", msg)
+                    self._close_busy()
+                
+                self.after(0, _show_cancel_summary)
                 return
 
         except Exception as e:
@@ -1410,47 +1437,60 @@ class DuplicatesDialog(tk.Toplevel):
 
         # Resultado
         self.strategy: str | None = None  # "skip", "replace", "rename" ou None (cancelou)
+        self.apply_once: bool = True  # Checkbox "Aplicar só a este envio"
 
         # Centralizar
         self.update_idletasks()
-        w = 500
-        h = 450
+        w = 560
+        h = 480
         x = (self.winfo_screenwidth() // 2) - (w // 2)
         y = (self.winfo_screenheight() // 2) - (h // 2)
         self.geometry(f"{w}x{h}+{x}+{y}")
 
         # Cabeçalho
         msg = f"Encontrados {duplicates_count} arquivo(s) duplicado(s).\nEscolha como proceder:"
-        lbl_msg = ttk.Label(self, text=msg, font=("-size", 10), wraplength=460)
+        lbl_msg = ttk.Label(self, text=msg, font=("-size", 10), wraplength=520)
         lbl_msg.pack(padx=20, pady=(20, 10))
 
-        # Frame de amostra (scrollable)
-        frame_sample = ttk.LabelFrame(self, text="Amostra (até 20 nomes)", padding=10)
-        frame_sample.pack(padx=20, pady=(0, 16), fill="both", expand=True)
+        # Frame de amostra com Treeview
+        frame_sample = ttk.LabelFrame(self, text="Amostra (até 20 arquivos)", padding=10)
+        frame_sample.pack(padx=20, pady=(0, 12), fill="both", expand=True)
 
-        # Text widget com scrollbar
-        txt_frame = ttk.Frame(frame_sample)
-        txt_frame.pack(fill="both", expand=True)
+        # Treeview com scrollbar
+        tree_frame = ttk.Frame(frame_sample)
+        tree_frame.pack(fill="both", expand=True)
 
-        txt_scroll = ttk.Scrollbar(txt_frame)
-        txt_scroll.pack(side="right", fill="y")
-
-        self.txt_sample = tk.Text(
-            txt_frame,
-            height=8,
-            width=50,
-            yscrollcommand=txt_scroll.set,
-            wrap="none",
-            font=("Consolas", 9),
-            state="normal"
+        self.tree_sample = ttk.Treeview(
+            tree_frame,
+            columns=("arquivo",),
+            show="tree headings",
+            height=min(len(sample_names[:20]), 10),
+            selectmode="none"
         )
-        self.txt_sample.pack(side="left", fill="both", expand=True)
-        txt_scroll.config(command=self.txt_sample.yview)
+        self.tree_sample.heading("#0", text="")
+        self.tree_sample.heading("arquivo", text="Arquivo", anchor="w")
+        self.tree_sample.column("#0", width=0, stretch=False)
+        self.tree_sample.column("arquivo", width=500, anchor="w", stretch=True)
+
+        scroll = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree_sample.yview)
+        self.tree_sample.configure(yscrollcommand=scroll.set)
+        self.tree_sample.pack(side="left", fill="both", expand=True)
+        scroll.pack(side="right", fill="y")
 
         # Preencher amostra
         for name in sample_names[:20]:
-            self.txt_sample.insert("end", f"• {name}\n")
-        self.txt_sample.config(state="disabled")
+            self.tree_sample.insert("", "end", values=(name,))
+        if len(sample_names) > 20:
+            self.tree_sample.insert("", "end", values=(f"... e mais {len(sample_names) - 20} arquivo(s)",))
+
+        # Checkbox "Aplicar só a este envio"
+        self.var_apply_once = tk.BooleanVar(value=True)
+        chk_apply = ttk.Checkbutton(
+            self,
+            text="✓ Aplicar só a este envio (não lembrar esta escolha)",
+            variable=self.var_apply_once
+        )
+        chk_apply.pack(padx=20, pady=(0, 12), anchor="w")
 
         # Frame de opções
         frame_opts = ttk.LabelFrame(self, text="Estratégia", padding=10)
@@ -1502,11 +1542,13 @@ class DuplicatesDialog(tk.Toplevel):
     def _on_ok(self) -> None:
         """Confirma a escolha."""
         self.strategy = self.var_strategy.get()
+        self.apply_once = self.var_apply_once.get()
         self.destroy()
 
     def _on_cancel(self) -> None:
         """Cancela o upload."""
         self.strategy = None
+        self.apply_once = True
         self.destroy()
 
 

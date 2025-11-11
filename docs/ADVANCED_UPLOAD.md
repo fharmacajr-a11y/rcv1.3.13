@@ -147,7 +147,7 @@ plan = _UploadPlan(Path("doc.pdf"), "doc (2).pdf", upsert=False, file_size=1024)
 def _next_copy_name(name: str, existing: set[str]) -> str:
     """
     Gera nome com sufixo (2), (3), ... evitando colisão.
-    
+
     Example:
         >>> _next_copy_name("doc.pdf", {"doc.pdf", "doc (2).pdf"})
         'doc (3).pdf'
@@ -168,11 +168,11 @@ def _next_copy_name(name: str, existing: set[str]) -> str:
 def _list_existing_names(self, bucket: str, prefix: str) -> set[str]:
     """
     Lista nomes de arquivos existentes no Storage (com paginação).
-    
+
     Args:
         bucket: Nome do bucket (ex: "rc-docs")
         prefix: Caminho da pasta (ex: "org/client/GERAL/Auditoria")
-    
+
     Returns:
         Set de nomes (ex: {"doc.pdf", "foto.jpg"})
     """
@@ -190,7 +190,7 @@ def _list_existing_names(self, bucket: str, prefix: str) -> set[str]:
 def _ask_rollback(self, uploaded_paths: list[str], bucket: str) -> None:
     """
     Pergunta ao usuário se deseja reverter arquivos após cancelamento.
-    
+
     Args:
         uploaded_paths: Lista de caminhos completos
         bucket: Nome do bucket
@@ -268,14 +268,14 @@ duplicates_names = file_names & existing_names
 if duplicates_names:
     # Mostrar diálogo (thread-safe)
     dialog_result = {"strategy": None}
-    
+
     def _show_dup_dialog():
         dlg = DuplicatesDialog(self, len(duplicates_names), sorted(duplicates_names))
         self.wait_window(dlg)
         dialog_result["strategy"] = dlg.strategy
-    
+
     self.after(0, _show_dup_dialog)
-    
+
     # Aguardar resposta (polling)
     while dialog_result["strategy"] is None:
         time.sleep(0.05)
@@ -286,7 +286,7 @@ if duplicates_names:
 for rel, file_size in files_to_upload:
     file_name = Path(rel).name
     is_dup = file_name in duplicates_names
-    
+
     if is_dup and strategy == "skip":
         continue  # Não adiciona ao plano
     elif is_dup and strategy == "replace":
@@ -297,7 +297,7 @@ for rel, file_size in files_to_upload:
         plan = _UploadPlan(Path(rel), new_rel_with_new_name, upsert=False, file_size)
     else:
         plan = _UploadPlan(Path(rel), rel, upsert=False, file_size)
-    
+
     upload_plans.append(plan)
 ```
 
@@ -310,15 +310,15 @@ state.total_bytes = sum(p.file_size for p in upload_plans)
 for plan in upload_plans:
     if self._cancel_flag:
         break
-    
+
     # Upload
     storage.upload(dest, data, {"upsert": str(plan.upsert).lower()})
-    
+
     # Tracking
     uploaded_paths.append(dest)
     state.done_files += 1
     state.done_bytes += plan.file_size
-    
+
     # UI update
     self.after(0, lambda s=state: self._progress_update_ui(s))
 ```
