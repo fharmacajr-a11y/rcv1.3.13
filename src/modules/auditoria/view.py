@@ -42,6 +42,16 @@ STO_CLIENT_FOLDER_FMT = os.getenv("RC_STORAGE_CLIENTS_FOLDER_FMT", "{client_id}"
 
 def _guess_mime(path: str) -> str:
     """Detecta MIME type de um arquivo pelo nome/extensão."""
+    # Mapeamento explícito para extensões de arquivo compactado
+    ext = path.lower().rsplit(".", 1)[-1] if "." in path else ""
+    if ext == "7z" or ".7z." in path.lower():  # .7z ou volumes .7z.001
+        return "application/x-7z-compressed"
+    elif ext == "zip":
+        return "application/zip"
+    elif ext == "rar":
+        return "application/x-rar-compressed"
+    
+    # Fallback para mimetypes
     mt, _ = mimetypes.guess_type(path)
     return mt or "application/octet-stream"
 
@@ -154,7 +164,7 @@ class AuditoriaFrame(ttk.Frame):
         self._btn_h_ver = ttk.Button(header, text="Ver subpastas", command=self._open_subpastas, state="disabled")
         # Botão desativado (upload com upsert já cria as pastas necessárias)
         # self._btn_h_criar = ttk.Button(header, text="Criar pasta Auditoria", command=self._create_auditoria_folder)
-        self._btn_h_enviar_zip = ttk.Button(header, text="Enviar ZIP/RAR p/ Auditoria", command=self._upload_archive_to_auditoria)
+        self._btn_h_enviar_zip = ttk.Button(header, text="Enviar ZIP/RAR/7Z p/ Auditoria", command=self._upload_archive_to_auditoria)
         self._btn_h_delete = ttk.Button(header, text="Excluir auditoria(s)", command=self._delete_auditorias, state="disabled")
 
         self._btn_h_ver.grid(row=0, column=1, padx=(8, 4))
@@ -191,11 +201,13 @@ class AuditoriaFrame(ttk.Frame):
 
     # ---------- Search Helpers ----------
     def _normalize(self, s: str) -> str:
-        """Normaliza texto para busca (remove acentos, lowercase, só alfanum)."""
+        """Normaliza texto para busca (remove acentos, casefold, só alfanum)."""
         s = s or ""
+        # Remove acentos (decomposição Unicode)
         s = unicodedata.normalize("NFKD", s)
         s = "".join(c for c in s if not unicodedata.combining(c))
-        s = s.lower()
+        # casefold() é mais robusto que lower() para comparações i18n
+        s = s.casefold()
         return re.sub(r"[^a-z0-9]+", " ", s).strip()
 
     def _clear_search(self) -> None:
@@ -641,7 +653,7 @@ class AuditoriaFrame(ttk.Frame):
         return bucket, f"{base}/GERAL/Auditoria"
 
     def _upload_archive_to_auditoria(self) -> None:
-        """Upload de arquivo .zip ou .rar para Auditoria preservando subpastas."""
+        """Upload de arquivo .zip, .rar ou .7z para Auditoria preservando subpastas."""
         if not self._sb:
             messagebox.showwarning("Nuvem", "Sem conexão com o Supabase.")
             return
@@ -670,23 +682,34 @@ class AuditoriaFrame(ttk.Frame):
         bucket = "rc-docs"
         base_prefix = f"{org_id}/{client_id}/GERAL/Auditoria".strip("/")
 
-        # 2) Escolher arquivo .zip ou .rar
-        path = select_archive_file(title="Selecione um arquivo .ZIP ou .RAR")
+        # 2) Escolher arquivo .zip, .rar ou .7z
+        path = select_archive_file(title="Selecione arquivo .ZIP, .RAR ou .7Z (volumes: selecione .7z.001)")
         if not path:
             return
 
-        # Validar extensão
-        if not validate_archive_extension(path):
+        # Validar extensão usando função centralizada
+        from infra.archive_utils import is_supported_archive
+        if not is_supported_archive(path):
             messagebox.showwarning(
                 "Arquivo não suportado",
-                "Apenas arquivos .zip, .rar e .7z são aceitos.\n"
-                "Volumes .7z (.7z.001, .7z.002...) também são suportados.\n"
+                "Formato não suportado. Selecione um arquivo .zip, .rar ou .7z.\n"
+                "Para volumes, selecione o arquivo .7z.001.\n"
                 f"Arquivo selecionado: {Path(path).name}"
             )
             return
 
-        # Detectar extensão
-        ext = path.lower().rsplit('.', 1)[-1] if '.' in path else ""
+        # Detectar extensão (simplificado - detecta .7z ou volume .7z.001)
+        path_lower = path.lower()
+        is_7z_volume = ".7z." in path_lower and path_lower.split(".7z.")[-1].isdigit()
+        
+        if path_lower.endswith(".zip"):
+            ext = "zip"
+        elif path_lower.endswith(".rar"):
+            ext = "rar"
+        elif path_lower.endswith(".7z") or is_7z_volume:
+            ext = "7z"
+        else:
+            ext = ""
 
         enviados = 0
         erro = None
@@ -748,8 +771,45 @@ class AuditoriaFrame(ttk.Frame):
                     )
                     return
 
+            elif ext == "7z":
+                # 7Z: extração temporária via py7zr + upload (suporta senha e volumes)
+                try:
+                    with tempfile.TemporaryDirectory() as tmpdir:
+                        # Extrai usando py7zr (suporta volumes .7z.001 automaticamente)
+                        extract_archive(path, tmpdir)
+
+                        base = Path(tmpdir)
+                        for f in base.rglob("*"):
+                            if f.is_file():
+                                rel = f.relative_to(base).as_posix()
+                                # Segurança e limpeza
+                                if not rel or rel.startswith((".", "__MACOSX")):
+                                    continue
+                                if ".." in rel:
+                                    continue
+                                dest = f"{base_prefix}/{rel}".strip("/")
+                                mime = _guess_mime(f.name)
+                                with open(f, "rb") as fh:
+                                    self._sb.storage.from_(bucket).upload(  # type: ignore[union-attr]
+                                        dest,
+                                        fh.read(),
+                                        {"content-type": mime, "upsert": "true", "cacheControl": "3600"}
+                                    )
+                                enviados += 1
+                except ArchiveError as e:
+                    messagebox.showerror(
+                        "Erro ao extrair 7Z",
+                        f"Não foi possível extrair o arquivo .7z.\n\n{e}"
+                    )
+                    return
+
             else:
-                messagebox.showwarning("Atenção", "Formato não suportado. Selecione um arquivo .zip ou .rar.")
+                # Nunca deve chegar aqui devido à validação anterior
+                messagebox.showwarning(
+                    "Atenção",
+                    "Formato não suportado. Selecione um arquivo .zip, .rar ou .7z.\n"
+                    "Para volumes, selecione o arquivo .7z.001."
+                )
                 return
 
         except ArchiveError as e:
