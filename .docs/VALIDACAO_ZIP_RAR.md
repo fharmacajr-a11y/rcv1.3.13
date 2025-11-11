@@ -96,11 +96,11 @@ with tempfile.TemporaryDirectory() as tmp:
     zip_path = Path(tmp) / "test.zip"
     with zipfile.ZipFile(zip_path, "w") as zf:
         zf.writestr("arquivo.txt", "conteúdo")
-    
+
     # Extrair
     out = Path(tmp) / "out"
     extract_archive(zip_path, out)
-    
+
     # Validar
     assert (out / "arquivo.txt").exists()
     assert (out / "arquivo.txt").read_text() == "conteúdo"
@@ -128,7 +128,7 @@ with tempfile.TemporaryDirectory() as tmp:
     # Arquivo .7z não suportado
     fake = Path(tmp) / "test.7z"
     fake.write_text("fake")
-    
+
     try:
         extract_archive(fake, Path(tmp) / "out")
         assert False, "Deveria ter levantado ArchiveError"
@@ -226,6 +226,6 @@ Se encontrar problemas:
 
 ---
 
-**Data da Validação**: 11/11/2025  
-**Status**: ✅ PRONTO PARA MERGE  
+**Data da Validação**: 11/11/2025
+**Status**: ✅ PRONTO PARA MERGE
 **Responsável**: GitHub Copilot Agent

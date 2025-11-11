@@ -11,12 +11,13 @@ import unicodedata
 import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path, PurePosixPath
-from tkinter import filedialog, messagebox
+from tkinter import messagebox
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 from ttkbootstrap import ttk
 
 from src.ui import files_browser as fb
+from src.ui.dialogs.file_select import select_archive_file, validate_archive_extension
 from infra.archive_utils import extract_archive, ArchiveError
 
 try:
@@ -670,16 +671,17 @@ class AuditoriaFrame(ttk.Frame):
         base_prefix = f"{org_id}/{client_id}/GERAL/Auditoria".strip("/")
 
         # 2) Escolher arquivo .zip ou .rar
-        path = filedialog.askopenfilename(
-            title="Selecione um arquivo .ZIP ou .RAR",
-            filetypes=[
-                ("Arquivos compactados", ("*.zip", "*.rar")),
-                ("ZIP", "*.zip"),
-                ("RAR", "*.rar"),
-                ("Todos os arquivos", "*.*"),
-            ]
-        )
+        path = select_archive_file(title="Selecione um arquivo .ZIP ou .RAR")
         if not path:
+            return
+
+        # Validar extensão
+        if not validate_archive_extension(path):
+            messagebox.showwarning(
+                "Arquivo não suportado",
+                "Apenas arquivos .zip e .rar são aceitos.\n"
+                f"Arquivo selecionado: {Path(path).name}"
+            )
             return
 
         # Detectar extensão
