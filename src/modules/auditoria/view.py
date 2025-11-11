@@ -662,9 +662,10 @@ class AuditoriaFrame(ttk.Frame):
             titulo: Título da janela
             msg: Mensagem exibida
         """
-        self._busy = tk.Toplevel(self)
+        parent = self.winfo_toplevel()
+        self._busy = tk.Toplevel(parent)
         self._busy.title(titulo)
-        self._busy.transient(self)
+        self._busy.transient(parent)
         self._busy.grab_set()  # bloqueia interação no pai
         self._busy.resizable(False, False)
 
@@ -834,7 +835,7 @@ class AuditoriaFrame(ttk.Frame):
         bucket = "rc-docs"
         base_prefix = f"{org_id}/{client_id}/GERAL/Auditoria".strip("/")
         path = Path(archive_path)
-        
+
         enviados = 0
         fail: list[tuple[str, str]] = []
 
