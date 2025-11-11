@@ -1,16 +1,22 @@
 # -*- coding: utf-8 -*-
 """Visualizador de imagens com zoom e pan."""
+from __future__ import annotations
+
 import io
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 try:
     from PIL import Image, ImageTk
 except ImportError:
     Image = None  # type: ignore[assignment, misc]
     ImageTk = None  # type: ignore[assignment, misc]
+
+if TYPE_CHECKING:
+    from PIL.Image import Image as PILImage
+    from PIL.ImageTk import PhotoImage as PILPhotoImage
 
 
 class ImageViewer(tk.Toplevel):
@@ -44,9 +50,9 @@ class ImageViewer(tk.Toplevel):
         # Estado
         self.image_data = image_data
         self.display_name = display_name
-        self.original_image = None  # type: Optional[Image.Image]
-        self.current_image = None  # type: Optional[Image.Image]
-        self.photo = None  # type: Optional[ImageTk.PhotoImage]
+        self.original_image: Optional["PILImage"] = None
+        self.current_image: Optional["PILImage"] = None
+        self.photo: Optional["PILPhotoImage"] = None
         self.zoom_level = 1.0
         self.pan_start: Optional[tuple[int, int]] = None
         self.canvas_image_id: Optional[int] = None
@@ -89,7 +95,7 @@ class ImageViewer(tk.Toplevel):
         ttk.Button(toolbar, text="Ajustar à largura", command=self._fit_to_width).pack(side="left", padx=2)
         ttk.Button(toolbar, text="100%", command=self._reset_zoom).pack(side="left", padx=2)
         ttk.Button(toolbar, text="Salvar como...", command=self._save_as).pack(side="left", padx=2)
-        
+
         self.zoom_label = ttk.Label(toolbar, text="100%")
         self.zoom_label.pack(side="left", padx=12)
 
