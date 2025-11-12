@@ -84,6 +84,7 @@ class PdfViewerWin(tk.Toplevel):
         self.page_count: int = 1  # evita AttributeError antes do carregamento
         self._img_pil: Optional[Image.Image] = None  # type: ignore[name-defined]
         self._img_ref: Optional[ImageTk.PhotoImage] = None  # type: ignore[name-defined]  # manter referência viva
+        self._img_zoom: float = 1.0
 
         # Top bar
         top = ttk.Frame(self)
@@ -205,7 +206,7 @@ class PdfViewerWin(tk.Toplevel):
             else:
                 safe_text_buffer.append(str(t))
         self._text_buffer = safe_text_buffer
-        
+
         self._has_text = any((t or "").strip() for t in self._text_buffer)
         self._page_label_suffix = "\u2022  OCR: OK" if self._has_text else "\u2022  OCR: vazio"
         self._ocr_loaded = False
@@ -347,7 +348,11 @@ class PdfViewerWin(tk.Toplevel):
             return "break"
         steps = wheel_steps(event)
         if steps:
-            self._zoom_by(steps, event)
+            if self._is_pdf:
+                self._zoom_by(steps, event)
+            else:
+                # Zoom para imagem
+                self._zoom_image_by(steps)
         return "break"
 
     def _zoom_by(self, wheel_steps_count, event=None):
@@ -382,7 +387,29 @@ class PdfViewerWin(tk.Toplevel):
         self._render_visible_pages()
         self._update_scrollregion()
 
+    def _zoom_image_by(self, wheel_steps_count):
+        """Ajusta zoom da imagem com Ctrl+MouseWheel."""
+        Z_MIN, Z_MAX, Z_STEP = 0.1, 5.0, 0.1
+        old = self._img_zoom
+        new = max(Z_MIN, min(Z_MAX, round(old + wheel_steps_count * Z_STEP, 2)))
+        if abs(new - old) < 1e-9:
+            return
+        self._img_zoom = new
+        if self._img_pil is not None:
+            self._render_image(self._img_pil)
+
     def _set_zoom_fit_width(self):
+        if not self._is_pdf and self._img_pil is not None:
+            # Modo imagem: ajusta zoom baseado na largura
+            cwidth = max(1, self.canvas.winfo_width() - 2 * GAP)
+            img_width = self._img_pil.width
+            if img_width > 0:
+                self._img_zoom = max(0.1, min(5.0, round(cwidth / img_width, 2)))
+                self._render_image(self._img_pil)
+            return
+        # Modo PDF
+        if not self._page_sizes:
+            return
         cwidth = max(1, self.canvas.winfo_width() - 2 * GAP)
         base_w = max(w for (w, h) in self._page_sizes)
         target = max(0.2, min(6.0, round(cwidth / base_w, 2)))
@@ -680,10 +707,11 @@ class PdfViewerWin(tk.Toplevel):
         # IMAGEM
         if Image is None or ImageTk is None:
             return False
-        
+
         try:
             bio = io.BytesIO(data)
             self._img_pil = Image.open(bio)
+            self._img_zoom = 1.0
             self.page_count = 1
             if self._img_pil:
                 self._render_image(self._img_pil)
@@ -720,7 +748,7 @@ class PdfViewerWin(tk.Toplevel):
             return False
 
     def _render_image(self, pil_img: Image.Image) -> None:  # type: ignore[name-defined]
-        """Renderiza uma imagem PIL no canvas."""
+        """Renderiza uma imagem PIL no canvas com zoom."""
         if Image is None or ImageTk is None:
             return
 
@@ -731,9 +759,10 @@ class PdfViewerWin(tk.Toplevel):
             self.after(20, lambda: self._render_image(pil_img))
             return
 
-        img = pil_img.copy()
-        # Encaixa mantendo proporção; margenzinha pro visual
-        img.thumbnail((max(32, w - 24), max(32, h - 24)))
+        # Aplica zoom
+        zw = int(pil_img.width * self._img_zoom)
+        zh = int(pil_img.height * self._img_zoom)
+        img = pil_img.resize((zw, zh), Image.LANCZOS)  # type: ignore[union-attr]
         self._img_ref = ImageTk.PhotoImage(img)  # type: ignore[union-attr]  # manter referência viva!
         self.canvas.delete("all")
         self.canvas.create_image(w // 2, h // 2, image=self._img_ref, anchor="center")
@@ -744,19 +773,19 @@ class PdfViewerWin(tk.Toplevel):
         """Habilita/desabilita controles específicos de PDF."""
         # Ex.: desabilita paginação/OCR quando for imagem
         state = "normal" if enabled else "disabled"
-        
+
         for btn in getattr(self, "pdf_nav_buttons", []):
             try:
                 btn.configure(state=state)
             except Exception:
                 pass
-        
+
         if hasattr(self, "chk_text"):
             try:
                 self.chk_text.configure(state=state)
             except Exception:
                 pass
-        
+
         # Atualizar texto do botão de download se existir
         # (assumindo que não temos referência direta ao botão)
 

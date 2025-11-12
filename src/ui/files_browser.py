@@ -160,8 +160,13 @@ def open_files_browser(
         s = _re.sub(_invalid_chars, "_", name).strip()
         return s.rstrip(" .")
 
-    # Centraliza a janela
-    _center_on_parent(docs_window, parent, width=760, height=520)
+    # Centraliza a janela com tamanho maior
+    _center_on_parent(docs_window, parent, width=980, height=620)
+    
+    # Configuração de grid para layout estável
+    docs_window.minsize(980, 620)
+    docs_window.columnconfigure(0, weight=1)
+    docs_window.rowconfigure(3, weight=1)  # linha da Treeview/scroll
 
     # --- NAV BAR (setas + caminho) ---
     nav = ttk.Frame(docs_window)
@@ -256,8 +261,8 @@ def open_files_browser(
     right_box.pack(side="right")
 
     # À esquerda: Baixar selecionado e Baixar pasta (.zip)
-    btn_download_sel = ttk.Button(left_box, text="Baixar selecionado", command=lambda: do_download())  # type: ignore[name-defined]
-    btn_zip_folder = ttk.Button(left_box, text="Baixar pasta (.zip)")
+    btn_download_sel = ttk.Button(left_box, text="Baixar selecionado", command=lambda: do_download(), width=18)  # type: ignore[name-defined]
+    btn_zip_folder = ttk.Button(left_box, text="Baixar pasta (.zip)", width=18)
     btn_download_sel.pack(side="left", padx=(0, 6))
     btn_zip_folder.pack(side="left")
 
@@ -304,6 +309,14 @@ def open_files_browser(
     tree.column("#0", width=400, stretch=True)
     tree.column("type", width=100, anchor="center", stretch=False)
     tree.column("size", width=100, anchor="e", stretch=False)
+
+    # Ocultar coluna "size" conforme solicitação do usuário
+    try:
+        tree["displaycolumns"] = ("type",)
+        tree.heading("size", text="")
+        tree.column("size", width=0, stretch=False, minwidth=0)
+    except Exception:
+        pass
 
     # Scrollbars (vertical e horizontal)
     scroll_y = ttk.Scrollbar(tree_container, orient="vertical", command=tree.yview)
@@ -426,8 +439,10 @@ def open_files_browser(
             current if not rel_prefix else f"{current}/{rel_prefix}".rstrip("/")
         )
 
-        # Obter filtro
-        filter_text = filter_var.get().strip().lower()
+        # Obter filtro (desativado por padrão)
+        filter_text = ""
+        if getattr(docs_window, "_filter_enabled", False):
+            filter_text = filter_var.get().strip().lower()
 
         objects = list_storage_objects(BUCKET, prefix=full_prefix) or []
         for obj in objects:
@@ -832,9 +847,21 @@ def open_files_browser(
     tree.bind("<Double-1>", on_double_click)
     tree.bind("<<TreeviewSelect>>", lambda _e: _update_preview_state())
 
+    # ---- Filtro desativado por solicitação do usuário ----
+    def _disable_filter_ui():
+        """Oculta os widgets do filtro."""
+        for w in (filter_frame, ):
+            try:
+                if w:
+                    w.pack_forget()
+            except Exception:
+                pass
+        docs_window._filter_enabled = False  # type: ignore[attr-defined]
+
     # Inicialização
     _sync_path_label()
     populate_tree("", rel_prefix="")
     _update_preview_state()
+    _disable_filter_ui()  # Desabilita filtro
 
     return docs_window
