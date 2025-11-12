@@ -264,7 +264,7 @@ def open_files_browser(
     # À direita: Visualizar + Excluir (se auditoria)
     btn_preview = ttk.Button(right_box, text="Visualizar", state="disabled")
     btn_preview.pack(side="right", padx=(0, 6) if module == "auditoria" else (0, 0))
-    
+
     # Botão de exclusão (apenas para auditoria)
     if module == "auditoria":
         btn_delete = ttk.Button(right_box, text="Excluir selecionado", state="disabled")
@@ -320,27 +320,26 @@ def open_files_browser(
     # Label "Carregando..." (oculto por padrão)
     loading_label = ttk.Label(tree_container, text="⏳ Carregando...", foreground="#888")
 
-    # Variáveis para ordenação
-    sort_column = {"col": None, "reverse": False}
-
-    def _sort_tree(col: str):
+    # Função de ordenação da Treeview
+    def _sort_tree(col: str, reverse: bool = False):
         """Ordena a Treeview por coluna clicada."""
-        # Inverte direção se clicar na mesma coluna
-        if sort_column["col"] == col:
-            sort_column["reverse"] = not sort_column["reverse"]
-        else:
-            sort_column["col"] = col
-            sort_column["reverse"] = False
+        # Lê valores atuais
+        items = []
+        for k in tree.get_children(""):
+            if col == "#0":
+                val = tree.item(k, "text")  # coluna árvore: pega via item()
+            else:
+                val = tree.set(k, col)      # demais colunas: pega via set()
+            items.append((val, k))
 
-        # Coleta itens (apenas raiz, ignorando filhos expandidos)
-        items = [(tree.set(k, col), k) for k in tree.get_children("")]
-
-        # Ordenação especial para tamanho (numérico)
-        if col == "size":
-            def _parse_size(s: str) -> float:
-                if not s or s == "-":
+        # Ordena (numérico se der, senão string)
+        def _key(x):
+            v = x[0]
+            # Ordenação especial para tamanho
+            if col == "size":
+                if not v or v == "-":
                     return 0.0
-                s = s.strip()
+                s = str(v).strip()
                 if s.endswith(" GB"):
                     return float(s[:-3]) * 1024 * 1024 * 1024
                 elif s.endswith(" MB"):
@@ -350,19 +349,28 @@ def open_files_browser(
                 elif s.endswith(" B"):
                     return float(s[:-2])
                 return 0.0
-            items.sort(key=lambda x: _parse_size(x[0]), reverse=sort_column["reverse"])
-        else:
-            items.sort(reverse=sort_column["reverse"])
+            # Ordenação numérica genérica
+            try:
+                return float(str(v).replace(",", "."))
+            except Exception:
+                return str(v).lower()
 
-        # Reordena itens
+        items.sort(key=_key, reverse=reverse)
+
+        # Reposiciona
         for idx, (_, k) in enumerate(items):
             tree.move(k, "", idx)
 
+        # Alterna ordem no próximo clique
+        tree.heading(col, command=lambda: _sort_tree(col, not reverse))
+
         # Atualiza indicador de ordenação no cabeçalho
         for c in ["#0", "type", "size"]:
-            tree.heading(c, text=tree.heading(c)["text"].split(" ")[0])  # Remove setas
+            current_text = tree.heading(c)["text"]
+            base_text = current_text.split(" ")[0] if current_text else ""
+            tree.heading(c, text=base_text)  # Remove setas
 
-        arrow = " ▼" if sort_column["reverse"] else " ▲"
+        arrow = " ▼" if reverse else " ▲"
         current_text = tree.heading(col)["text"].split(" ")[0]
         tree.heading(col, text=current_text + arrow)
 
@@ -499,7 +507,7 @@ def open_files_browser(
             btn_preview.configure(state="normal")
         else:
             btn_preview.configure(state="disabled")
-        
+
         # Habilitar exclusão para qualquer arquivo selecionado (auditoria)
         if btn_delete:
             btn_delete.configure(state="normal")
@@ -739,11 +747,11 @@ def open_files_browser(
         """Exclui arquivo selecionado (apenas no módulo auditoria)."""
         if module != "auditoria":
             return
-        
+
         info = _current_item_info()
         if not info:
             return
-        
+
         item, tipo, rel, nome = info
         if tipo != "Arquivo" or not rel:
             messagebox.showwarning(
@@ -752,21 +760,21 @@ def open_files_browser(
                 parent=docs_window,
             )
             return
-        
+
         # Confirma exclusão
         resposta = messagebox.askyesno(
             "Confirmar exclusão",
             f"Deseja realmente excluir o arquivo:\n\n{nome}\n\nEsta ação não pode ser desfeita.",
             parent=docs_window,
         )
-        
+
         if not resposta:
             return
-        
+
         # Monta caminho completo
         current = docs_window._current_prefix  # type: ignore[attr-defined]
         remote_path = f"{current}/{rel}".strip("/")
-        
+
         def _target():
             # Usa cliente supabase para remover
             if supabase:
@@ -774,7 +782,7 @@ def open_files_browser(
                 result = storage.remove([remote_path])
                 return result
             return None
-        
+
         def _done(result, err):
             if err:
                 messagebox.showerror(
@@ -793,9 +801,9 @@ def open_files_browser(
                 rel_prefix = current_prefix.replace(root_prefix, "").lstrip("/")
                 populate_tree("", rel_prefix=rel_prefix)
                 _update_preview_state()
-        
+
         _run_bg(_target, _done)
-    
+
     # Conecta botão de exclusão
     if btn_delete:
         btn_delete.configure(command=on_delete_selected)
@@ -807,9 +815,9 @@ def open_files_browser(
         info = _current_item_info()
         if not info:
             return
-        
+
         item, tipo, rel, nome = info
-        
+
         if tipo == "Pasta":
             # Toggle expansão de pastas
             if tree.item(item, "open"):

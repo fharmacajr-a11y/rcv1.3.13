@@ -80,8 +80,10 @@ class PdfViewerWin(tk.Toplevel):
         self._ocr_loaded = False
 
         # Controle para modo de imagem
-        self._is_pdf = True
-        self._img_ref: PILPhotoImage | None = None  # type: ignore[name-defined]
+        self._is_pdf: bool = False
+        self.page_count: int = 1  # evita AttributeError antes do carregamento
+        self._img_pil: Optional[Image.Image] = None  # type: ignore[name-defined]
+        self._img_ref: Optional[ImageTk.PhotoImage] = None  # type: ignore[name-defined]  # manter referência viva
 
         # Top bar
         top = ttk.Frame(self)
@@ -255,8 +257,13 @@ class PdfViewerWin(tk.Toplevel):
 
     def _on_canvas_configure(self, event):
         # manter scrollregion atualizada
-        self._render_visible_pages()
-        self._update_scrollregion()
+        if self._is_pdf:
+            self._render_visible_pages()
+            self._update_scrollregion()
+        else:
+            # re-renderiza a IMAGEM para o novo tamanho do canvas
+            if self._img_pil is not None:
+                self._render_image(self._img_pil)
 
     def _render_visible_pages(self):
         if self._closing or not self.canvas.winfo_exists():
@@ -307,12 +314,15 @@ class PdfViewerWin(tk.Toplevel):
         return tk.PhotoImage(data=data)
 
     def _update_page_label(self, index):
-        total = max(1, self.page_count)
+        total = max(1, getattr(self, "page_count", 1))
         clamped = max(0, min(index, total - 1))
         zoom_pct = int(round(self.zoom * 100))
         suffix = f"  {self._page_label_suffix}" if self._page_label_suffix else ""
-        self.lbl_page.config(text=f"Página {clamped + 1}/{total}{suffix}")
-        self.lbl_zoom.config(text=f"{zoom_pct}%")
+        try:
+            self.lbl_page.config(text=f"Página {clamped + 1}/{total}{suffix}")
+            self.lbl_zoom.config(text=f"{zoom_pct}%")
+        except Exception:
+            pass
 
     # ======== Wheel / Zoom ========
     def _on_wheel_scroll(self, event):
@@ -323,8 +333,13 @@ class PdfViewerWin(tk.Toplevel):
             return "break"
         steps = wheel_steps(event)
         if steps:
-            self.canvas.yview_scroll(-steps, "units")
-            self._render_visible_pages()
+            if self._is_pdf:
+                self.canvas.yview_scroll(-steps, "units")
+                self._render_visible_pages()
+            else:
+                # scrolling em imagem: re-render se quiser zoom sob roda
+                if self._img_pil is not None:
+                    self._render_image(self._img_pil)
         return "break"
 
     def _on_wheel_zoom(self, event):
@@ -651,19 +666,32 @@ class PdfViewerWin(tk.Toplevel):
         Retorna True se abriu com sucesso.
         """
         # Detecta tipo MIME
-        mime, _ = mimetypes.guess_type(filename)
+        mime, _ = mimetypes.guess_type(filename or "")
+        self._is_pdf = bool(mime == "application/pdf" or filename.lower().endswith(".pdf"))
 
-        if mime == "application/pdf":
-            # Renderiza como PDF
-            return self._open_pdf_bytes(data)
-        elif mime and mime.startswith("image/"):
-            # Renderiza como imagem
-            return self._open_image_bytes(data)
-        else:
-            # Tipo desconhecido
+        # alterna os controles específicos de PDF (paginação, OCR, etc.)
+        self._toggle_pdf_controls(self._is_pdf)
+
+        if self._is_pdf:
+            # evita label quebrar antes de setar contagem real
+            self.page_count = 1
+            return self._open_pdf_bytes(data, filename)
+
+        # IMAGEM
+        if Image is None or ImageTk is None:
+            return False
+        
+        try:
+            bio = io.BytesIO(data)
+            self._img_pil = Image.open(bio)
+            self.page_count = 1
+            if self._img_pil:
+                self._render_image(self._img_pil)
+            return True
+        except Exception:
             return False
 
-    def _open_pdf_bytes(self, data: bytes) -> bool:
+    def _open_pdf_bytes(self, data: bytes, filename: str = "") -> bool:
         """Abre PDF a partir de bytes."""
         import tempfile
 
@@ -691,85 +719,46 @@ class PdfViewerWin(tk.Toplevel):
         except Exception:
             return False
 
-    def _open_image_bytes(self, data: bytes) -> bool:
-        """Abre imagem a partir de bytes."""
-        if Image is None or ImageTk is None:
-            return False
-
-        try:
-            # Carrega imagem com PIL
-            pil_img = Image.open(io.BytesIO(data))
-
-            # Marca como modo imagem
-            self._is_pdf = False
-
-            # Oculta controles específicos de PDF
-            self._toggle_pdf_controls(False)
-
-            # Renderiza imagem no canvas
-            self._render_image(pil_img)
-
-            return True
-        except Exception:
-            return False
-
-    def _render_image(self, pil_img: PILImage) -> None:  # type: ignore[name-defined]
+    def _render_image(self, pil_img: Image.Image) -> None:  # type: ignore[name-defined]
         """Renderiza uma imagem PIL no canvas."""
         if Image is None or ImageTk is None:
             return
 
-        # Limpa canvas
+        # Garante canvas com tamanho válido (ao abrir, pode ser 1x1)
+        w = self.canvas.winfo_width()
+        h = self.canvas.winfo_height()
+        if w <= 1 or h <= 1:
+            self.after(20, lambda: self._render_image(pil_img))
+            return
+
+        img = pil_img.copy()
+        # Encaixa mantendo proporção; margenzinha pro visual
+        img.thumbnail((max(32, w - 24), max(32, h - 24)))
+        self._img_ref = ImageTk.PhotoImage(img)  # type: ignore[union-attr]  # manter referência viva!
         self.canvas.delete("all")
-        self._img_refs.clear()
-
-        # Obtém dimensões originais
-        orig_w, orig_h = pil_img.size
-
-        # Calcula dimensões para caber no canvas mantendo aspect ratio
-        canvas_w = self.canvas.winfo_width() or 800
-        canvas_h = self.canvas.winfo_height() or 600
-
-        # Margem
-        margin = 40
-        max_w = canvas_w - margin * 2
-        max_h = canvas_h - margin * 2
-
-        # Calcula escala para caber
-        scale_w = max_w / orig_w if orig_w > max_w else 1.0
-        scale_h = max_h / orig_h if orig_h > max_h else 1.0
-        scale = min(scale_w, scale_h)
-
-        # Aplica zoom atual
-        scale *= self.zoom
-
-        # Redimensiona
-        new_w = int(orig_w * scale)
-        new_h = int(orig_h * scale)
-
-        resized = pil_img.resize((new_w, new_h), Image.Resampling.LANCZOS)  # type: ignore[union-attr]
-
-        # Converte para PhotoImage
-        self._img_ref = ImageTk.PhotoImage(resized)  # type: ignore[union-attr]
-
-        # Centraliza no canvas
-        x = canvas_w // 2
-        y = canvas_h // 2
-
-        self.canvas.create_image(x, y, image=self._img_ref, anchor="center")
-        self.canvas.configure(scrollregion=(0, 0, canvas_w, canvas_h))
-
-        # Atualiza label
-        zoom_pct = int(round(self.zoom * 100))
-        self.lbl_zoom.config(text=f"{zoom_pct}%")
-        self.lbl_page.config(text=f"{orig_w}×{orig_h} px")
+        self.canvas.create_image(w // 2, h // 2, image=self._img_ref, anchor="center")
+        # Atualiza label como "1/1"
+        self._update_page_label(1)
 
     def _toggle_pdf_controls(self, enabled: bool) -> None:
         """Habilita/desabilita controles específicos de PDF."""
+        # Ex.: desabilita paginação/OCR quando for imagem
         state = "normal" if enabled else "disabled"
-
-        # Desabilita checkbox de texto para imagens
+        
+        for btn in getattr(self, "pdf_nav_buttons", []):
+            try:
+                btn.configure(state=state)
+            except Exception:
+                pass
+        
         if hasattr(self, "chk_text"):
-            self.chk_text.configure(state=state)
+            try:
+                self.chk_text.configure(state=state)
+            except Exception:
+                pass
+        
+        # Atualizar texto do botão de download se existir
+        # (assumindo que não temos referência direta ao botão)
 
 
 # Helper para abrir a janela (ex.: integrar ao seu app principal)
