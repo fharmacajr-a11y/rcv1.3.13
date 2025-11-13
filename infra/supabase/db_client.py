@@ -4,7 +4,7 @@ import logging
 import os
 import threading
 import time
-from typing import Optional, Tuple
+from typing import Any, TypeVar
 
 from supabase import Client, ClientOptions, create_client  # type: ignore[import-untyped]
 
@@ -12,9 +12,12 @@ from infra.http.retry import retry_call
 from infra.supabase import types as supa_types
 from infra.supabase.http_client import HTTPX_CLIENT, HTTPX_TIMEOUT_LIGHT
 
+# Type variable for PostgREST responses
+T = TypeVar("T")
+
 log = logging.getLogger(__name__)
 
-_SUPABASE_SINGLETON: Optional[Client] = None
+_SUPABASE_SINGLETON: Client | None = None
 _SINGLETON_REUSE_LOGGED: bool = False
 _SINGLETON_LOCK = threading.Lock()
 
@@ -202,7 +205,7 @@ def is_really_online() -> bool:
     return time_since_success < supa_types.HEALTHCHECK_UNSTABLE_THRESHOLD
 
 
-def get_supabase_state() -> Tuple[str, str]:
+def get_supabase_state() -> tuple[str, str]:
     """
     Retorna estado detalhado da conectividade com o Supabase.
 
@@ -232,7 +235,7 @@ def get_supabase_state() -> Tuple[str, str]:
     )
 
 
-def get_cloud_status_for_ui() -> Tuple[str, str, str]:
+def get_cloud_status_for_ui() -> tuple[str, str, str]:
     """
     Retorna (texto, estilo, tooltip) para exibir no UI.
 
@@ -303,6 +306,13 @@ class _SupabaseLazy:
 supabase = _SupabaseLazy()  # <- não instancia nada na importação
 
 
-def exec_postgrest(request_builder):
-    """Executa request_builder.execute() com tentativas e backoff."""
+def exec_postgrest(request_builder: Any) -> Any:
+    """Executa request_builder.execute() com tentativas e backoff.
+
+    Args:
+        request_builder: PostgREST request builder (from .table(), .rpc(), etc.)
+
+    Returns:
+        APIResponse object with .data, .error, .count attributes
+    """
     return retry_call(request_builder.execute, tries=3, backoff=0.7, jitter=0.3)
