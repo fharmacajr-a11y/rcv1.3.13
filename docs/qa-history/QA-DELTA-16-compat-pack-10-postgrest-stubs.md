@@ -1,8 +1,8 @@
 # QA-DELTA-16: CompatPack-10 - PostgREST Type Stubs
 
-**Data**: 2025-11-13  
-**Branch**: `qa/fixpack-04`  
-**Autor**: QA Session 16  
+**Data**: 2025-11-13
+**Branch**: `qa/fixpack-04`
+**Autor**: QA Session 16
 **Status**: ✅ Concluído
 
 ---

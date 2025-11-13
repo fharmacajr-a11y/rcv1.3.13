@@ -26,7 +26,7 @@ def env_str(name: str, default: Optional[str] = None) -> Optional[str]:
 
 def env_bool(name: str, default: bool = False) -> bool:
     """Get environment variable as boolean.
-    
+
     Treats '1', 'true', 'yes', 'y', 'on' (case-insensitive) as True.
     """
     v = os.getenv(name)

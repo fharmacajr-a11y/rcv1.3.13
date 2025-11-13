@@ -188,11 +188,17 @@ def form_cliente(self, row=None, preset: dict | None = None) -> None:
         numero_val = val.get("WhatsApp")
         nome_val = val.get("Nome")
 
+        # Garantir str (não None) para checar_duplicatas_info
+        cnpj_str: str = cnpj_val if isinstance(cnpj_val, str) else ""
+        razao_str: str = razao_val if isinstance(razao_val, str) else ""
+        numero_str: str = numero_val if isinstance(numero_val, str) else ""
+        nome_str: str = nome_val if isinstance(nome_val, str) else ""
+
         info = checar_duplicatas_info(
-            cnpj=cnpj_val if is_optional_str(cnpj_val) else "",
-            razao=razao_val if is_optional_str(razao_val) else "",
-            numero=numero_val if is_optional_str(numero_val) else "",
-            nome=nome_val if is_optional_str(nome_val) else "",
+            cnpj=cnpj_str,
+            razao=razao_str,
+            numero=numero_str,
+            nome=nome_str,
             exclude_id=current_id,
         )
 
@@ -212,8 +218,9 @@ def form_cliente(self, row=None, preset: dict | None = None) -> None:
 
         header = "Existe outro cliente com a mesma Razão Social mas CNPJ diferente. Deseja continuar?\n\n"
         msg = header + "\n".join(lines)
-        win_parent: tk.Misc | None = win if isinstance(win, tk.Misc) else None
-        return messagebox.askokcancel("Razão Social repetida", msg, parent=win_parent)
+        if isinstance(win, tk.Misc):
+            return messagebox.askokcancel("Razão Social repetida", msg, parent=win)
+        return messagebox.askokcancel("Razão Social repetida", msg)
 
     def _perform_save(*, show_success: bool, close_window: bool) -> bool:
         nonlocal row

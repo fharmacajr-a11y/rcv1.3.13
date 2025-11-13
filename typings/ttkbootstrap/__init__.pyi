@@ -14,7 +14,7 @@ from tkinter.font import Font
 # Style management
 class Style:
     """ttkbootstrap Style manager."""
-    
+
     def __init__(self, theme: str | None = None) -> None: ...
     def theme_use(self, themename: str | None = None) -> str: ...
     def theme_names(self) -> list[str]: ...
@@ -23,13 +23,13 @@ class Style:
 # Window class (extends Misc with common window methods)
 class Window(Misc):
     """ttkbootstrap Window class."""
-    
+
     def __init__(self, *args: Any, **kwargs: Any) -> None: ...
 
 # Base widget types with ttkbootstrap extensions
 class Frame(Misc):
     """ttkbootstrap Frame widget."""
-    
+
     def __init__(
         self,
         master: Misc | None = None,
@@ -38,7 +38,7 @@ class Frame(Misc):
         bootstyle: str | None = None,
         **kwargs: Any
     ) -> None: ...
-    
+
     def pack(self, **kwargs: Any) -> None: ...
     def grid(self, **kwargs: Any) -> None: ...
     def place(self, **kwargs: Any) -> None: ...
@@ -48,7 +48,7 @@ class Frame(Misc):
 
 class Label(Misc):
     """ttkbootstrap Label widget."""
-    
+
     def __init__(
         self,
         master: Misc | None = None,
@@ -59,7 +59,7 @@ class Label(Misc):
         bootstyle: str | None = None,
         **kwargs: Any
     ) -> None: ...
-    
+
     def pack(self, **kwargs: Any) -> None: ...
     def grid(self, **kwargs: Any) -> None: ...
     def place(self, **kwargs: Any) -> None: ...
@@ -70,7 +70,7 @@ class Label(Misc):
 
 class Button(Misc):
     """ttkbootstrap Button widget."""
-    
+
     def __init__(
         self,
         master: Misc | None = None,
@@ -81,7 +81,7 @@ class Button(Misc):
         bootstyle: str | None = None,
         **kwargs: Any
     ) -> None: ...
-    
+
     def pack(self, **kwargs: Any) -> None: ...
     def grid(self, **kwargs: Any) -> None: ...
     def place(self, **kwargs: Any) -> None: ...
@@ -90,7 +90,7 @@ class Button(Misc):
 
 class Entry(Misc):
     """ttkbootstrap Entry widget."""
-    
+
     def __init__(
         self,
         master: Misc | None = None,
@@ -101,7 +101,7 @@ class Entry(Misc):
         bootstyle: str | None = None,
         **kwargs: Any
     ) -> None: ...
-    
+
     def pack(self, **kwargs: Any) -> None: ...
     def grid(self, **kwargs: Any) -> None: ...
     def place(self, **kwargs: Any) -> None: ...
@@ -113,7 +113,7 @@ class Entry(Misc):
 
 class Text(Misc):
     """ttkbootstrap Text widget."""
-    
+
     def __init__(
         self,
         master: Misc | None = None,
@@ -125,7 +125,7 @@ class Text(Misc):
         bootstyle: str | None = None,
         **kwargs: Any
     ) -> None: ...
-    
+
     def pack(self, **kwargs: Any) -> None: ...
     def grid(self, **kwargs: Any) -> None: ...
     def place(self, **kwargs: Any) -> None: ...
@@ -137,7 +137,7 @@ class Text(Misc):
 
 class Toplevel(Wm, Misc):
     """ttkbootstrap Toplevel window."""
-    
+
     def __init__(
         self,
         master: Misc | None = None,
@@ -145,7 +145,7 @@ class Toplevel(Wm, Misc):
         bootstyle: str | None = None,
         **kwargs: Any
     ) -> None: ...
-    
+
     def destroy(self) -> None: ...
     def wm_transient(self, master: Misc | str | None = None) -> str: ...
     def wm_attributes(self, *args: Any) -> Any: ...
@@ -158,7 +158,7 @@ class Toplevel(Wm, Misc):
 
 class Canvas(Misc):
     """ttkbootstrap Canvas widget."""
-    
+
     def __init__(
         self,
         master: Misc | None = None,
@@ -169,7 +169,7 @@ class Canvas(Misc):
         bootstyle: str | None = None,
         **kwargs: Any
     ) -> None: ...
-    
+
     def pack(self, **kwargs: Any) -> None: ...
     def grid(self, **kwargs: Any) -> None: ...
     def place(self, **kwargs: Any) -> None: ...
@@ -180,7 +180,7 @@ class Canvas(Misc):
 
 class Scrollbar(Misc):
     """ttkbootstrap Scrollbar widget."""
-    
+
     def __init__(
         self,
         master: Misc | None = None,
@@ -190,7 +190,7 @@ class Scrollbar(Misc):
         bootstyle: str | None = None,
         **kwargs: Any
     ) -> None: ...
-    
+
     def pack(self, **kwargs: Any) -> None: ...
     def grid(self, **kwargs: Any) -> None: ...
     def place(self, **kwargs: Any) -> None: ...
@@ -198,7 +198,7 @@ class Scrollbar(Misc):
 
 class Checkbutton(Misc):
     """ttkbootstrap Checkbutton widget."""
-    
+
     def __init__(
         self,
         master: Misc | None = None,
@@ -209,7 +209,7 @@ class Checkbutton(Misc):
         bootstyle: str | None = None,
         **kwargs: Any
     ) -> None: ...
-    
+
     def pack(self, **kwargs: Any) -> None: ...
     def grid(self, **kwargs: Any) -> None: ...
     def place(self, **kwargs: Any) -> None: ...
@@ -218,7 +218,7 @@ class Checkbutton(Misc):
 
 class Radiobutton(Misc):
     """ttkbootstrap Radiobutton widget."""
-    
+
     def __init__(
         self,
         master: Misc | None = None,
@@ -230,7 +230,7 @@ class Radiobutton(Misc):
         bootstyle: str | None = None,
         **kwargs: Any
     ) -> None: ...
-    
+
     def pack(self, **kwargs: Any) -> None: ...
     def grid(self, **kwargs: Any) -> None: ...
     def place(self, **kwargs: Any) -> None: ...
@@ -239,7 +239,7 @@ class Radiobutton(Misc):
 
 class Combobox(Misc):
     """ttkbootstrap Combobox widget."""
-    
+
     def __init__(
         self,
         master: Misc | None = None,
@@ -250,7 +250,7 @@ class Combobox(Misc):
         bootstyle: str | None = None,
         **kwargs: Any
     ) -> None: ...
-    
+
     def pack(self, **kwargs: Any) -> None: ...
     def grid(self, **kwargs: Any) -> None: ...
     def place(self, **kwargs: Any) -> None: ...
@@ -261,7 +261,7 @@ class Combobox(Misc):
 
 class Treeview(Misc):
     """ttkbootstrap Treeview widget."""
-    
+
     def __init__(
         self,
         master: Misc | None = None,
@@ -272,7 +272,7 @@ class Treeview(Misc):
         bootstyle: str | None = None,
         **kwargs: Any
     ) -> None: ...
-    
+
     def pack(self, **kwargs: Any) -> None: ...
     def grid(self, **kwargs: Any) -> None: ...
     def place(self, **kwargs: Any) -> None: ...
@@ -288,7 +288,7 @@ class Treeview(Misc):
 
 class Notebook(Misc):
     """ttkbootstrap Notebook widget."""
-    
+
     def __init__(
         self,
         master: Misc | None = None,
@@ -296,7 +296,7 @@ class Notebook(Misc):
         bootstyle: str | None = None,
         **kwargs: Any
     ) -> None: ...
-    
+
     def pack(self, **kwargs: Any) -> None: ...
     def grid(self, **kwargs: Any) -> None: ...
     def place(self, **kwargs: Any) -> None: ...
@@ -307,7 +307,7 @@ class Notebook(Misc):
 
 class Progressbar(Misc):
     """ttkbootstrap Progressbar widget."""
-    
+
     def __init__(
         self,
         master: Misc | None = None,
@@ -320,7 +320,7 @@ class Progressbar(Misc):
         bootstyle: str | None = None,
         **kwargs: Any
     ) -> None: ...
-    
+
     def pack(self, **kwargs: Any) -> None: ...
     def grid(self, **kwargs: Any) -> None: ...
     def place(self, **kwargs: Any) -> None: ...
@@ -331,7 +331,7 @@ class Progressbar(Misc):
 
 class Separator(Misc):
     """ttkbootstrap Separator widget."""
-    
+
     def __init__(
         self,
         master: Misc | None = None,
@@ -340,14 +340,14 @@ class Separator(Misc):
         bootstyle: str | None = None,
         **kwargs: Any
     ) -> None: ...
-    
+
     def pack(self, **kwargs: Any) -> None: ...
     def grid(self, **kwargs: Any) -> None: ...
     def place(self, **kwargs: Any) -> None: ...
 
 class Labelframe(Misc):
     """ttkbootstrap Labelframe widget."""
-    
+
     def __init__(
         self,
         master: Misc | None = None,
@@ -357,14 +357,14 @@ class Labelframe(Misc):
         bootstyle: str | None = None,
         **kwargs: Any
     ) -> None: ...
-    
+
     def pack(self, **kwargs: Any) -> None: ...
     def grid(self, **kwargs: Any) -> None: ...
     def place(self, **kwargs: Any) -> None: ...
 
 class Spinbox(Misc):
     """ttkbootstrap Spinbox widget."""
-    
+
     def __init__(
         self,
         master: Misc | None = None,
@@ -377,7 +377,7 @@ class Spinbox(Misc):
         bootstyle: str | None = None,
         **kwargs: Any
     ) -> None: ...
-    
+
     def pack(self, **kwargs: Any) -> None: ...
     def grid(self, **kwargs: Any) -> None: ...
     def place(self, **kwargs: Any) -> None: ...
@@ -386,7 +386,7 @@ class Spinbox(Misc):
 
 class Scale(Misc):
     """ttkbootstrap Scale widget."""
-    
+
     def __init__(
         self,
         master: Misc | None = None,
@@ -399,7 +399,7 @@ class Scale(Misc):
         bootstyle: str | None = None,
         **kwargs: Any
     ) -> None: ...
-    
+
     def pack(self, **kwargs: Any) -> None: ...
     def grid(self, **kwargs: Any) -> None: ...
     def place(self, **kwargs: Any) -> None: ...
@@ -409,7 +409,7 @@ class Scale(Misc):
 
 class Panedwindow(Misc):
     """ttkbootstrap Panedwindow widget."""
-    
+
     def __init__(
         self,
         master: Misc | None = None,
@@ -418,7 +418,7 @@ class Panedwindow(Misc):
         bootstyle: str | None = None,
         **kwargs: Any
     ) -> None: ...
-    
+
     def pack(self, **kwargs: Any) -> None: ...
     def grid(self, **kwargs: Any) -> None: ...
     def place(self, **kwargs: Any) -> None: ...
@@ -427,7 +427,7 @@ class Panedwindow(Misc):
 
 class Menu(Misc):
     """ttkbootstrap Menu widget."""
-    
+
     def __init__(
         self,
         master: Misc | None = None,
@@ -435,7 +435,7 @@ class Menu(Misc):
         bootstyle: str | None = None,
         **kwargs: Any
     ) -> None: ...
-    
+
     def add_command(self, **kwargs: Any) -> None: ...
     def add_cascade(self, **kwargs: Any) -> None: ...
     def add_separator(self, **kwargs: Any) -> None: ...
@@ -445,7 +445,7 @@ class Menu(Misc):
 
 class Menubutton(Misc):
     """ttkbootstrap Menubutton widget."""
-    
+
     def __init__(
         self,
         master: Misc | None = None,
@@ -455,7 +455,7 @@ class Menubutton(Misc):
         bootstyle: str | None = None,
         **kwargs: Any
     ) -> None: ...
-    
+
     def pack(self, **kwargs: Any) -> None: ...
     def grid(self, **kwargs: Any) -> None: ...
     def place(self, **kwargs: Any) -> None: ...
@@ -463,7 +463,7 @@ class Menubutton(Misc):
 
 class Listbox(Misc):
     """ttkbootstrap Listbox widget."""
-    
+
     def __init__(
         self,
         master: Misc | None = None,
@@ -473,7 +473,7 @@ class Listbox(Misc):
         bootstyle: str | None = None,
         **kwargs: Any
     ) -> None: ...
-    
+
     def pack(self, **kwargs: Any) -> None: ...
     def grid(self, **kwargs: Any) -> None: ...
     def place(self, **kwargs: Any) -> None: ...

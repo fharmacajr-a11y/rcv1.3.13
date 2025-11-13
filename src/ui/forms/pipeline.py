@@ -260,11 +260,17 @@ def validate_inputs(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
         numero_val = valores.get("WhatsApp")
         nome_val = valores.get("Nome")
 
+        # Garantir str (não None) para checar_duplicatas_info
+        cnpj_str: str = cnpj_val if isinstance(cnpj_val, str) else ""
+        razao_str: str = razao_val if isinstance(razao_val, str) else ""
+        numero_str: str = numero_val if isinstance(numero_val, str) else ""
+        nome_str: str = nome_val if isinstance(nome_val, str) else ""
+
         info = checar_duplicatas_info(
-            cnpj=cnpj_val if is_optional_str(cnpj_val) else "",
-            razao=razao_val if is_optional_str(razao_val) else "",
-            numero=numero_val if is_optional_str(numero_val) else "",
-            nome=nome_val if is_optional_str(nome_val) else "",
+            cnpj=cnpj_str,
+            razao=razao_str,
+            numero=numero_str,
+            nome=nome_str,
             exclude_id=current_id,
         )
 
@@ -590,7 +596,10 @@ def finalize_state(*args, ctx_override: Optional[UploadCtx] = None, **kwargs) ->
     )
 
     try:
-        messagebox.showinfo("Sucesso", msg, parent=ctx.parent_win)
+        if ctx.parent_win is not None:
+            messagebox.showinfo("Sucesso", msg, parent=ctx.parent_win)
+        else:
+            messagebox.showinfo("Sucesso", msg)
     except Exception:
         pass
 

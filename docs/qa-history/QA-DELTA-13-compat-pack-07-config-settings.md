@@ -1,8 +1,8 @@
 # QA-DELTA-13: CompatPack-07 - Config/Settings & Simple Returns
 
-**Data**: 2025-11-13  
-**Branch**: `qa/fixpack-04`  
-**Autor**: QA Session 13  
+**Data**: 2025-11-13
+**Branch**: `qa/fixpack-04`
+**Autor**: QA Session 13
 **Status**: ✅ Concluído
 
 ---
@@ -156,7 +156,7 @@ def cloud_only_default() -> bool:
 ```python
 def env_bool(name: str, default: bool = False) -> bool:
     """Get environment variable as boolean.
-    
+
     Treats '1', 'true', 'yes', 'y', 'on' (case-insensitive) as True.
     """
     v = os.getenv(name)

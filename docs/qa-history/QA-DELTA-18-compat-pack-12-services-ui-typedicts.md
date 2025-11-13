@@ -1,8 +1,8 @@
 # QA-DELTA-18: CompatPack-12 - Services/UI TypedDicts Alignment
 
-**Data**: 2025-11-13  
-**Branch**: `qa/fixpack-04`  
-**Autor**: QA Session 18  
+**Data**: 2025-11-13
+**Branch**: `qa/fixpack-04`
+**Autor**: QA Session 18
 **Status**: ✅ Concluído
 
 ---
@@ -253,7 +253,7 @@ class PasswordsScreen(tb.Frame):
 
 ### Testes Executados
 
-1. **Module Imports**: 
+1. **Module Imports**:
    ```bash
    python -c "import src.ui.passwords_screen; import src.ui.widgets.client_picker"
    ```

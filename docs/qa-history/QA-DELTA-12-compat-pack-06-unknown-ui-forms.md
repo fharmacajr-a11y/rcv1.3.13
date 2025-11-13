@@ -1,8 +1,8 @@
 # QA-DELTA-12: CompatPack-06 - Unknown Types in UI/Forms
 
-**Data**: 2025-11-13  
-**Branch**: `qa/fixpack-04`  
-**Autor**: QA Session 12  
+**Data**: 2025-11-13
+**Branch**: `qa/fixpack-04`
+**Autor**: QA Session 12
 **Status**: ✅ Concluído
 
 ---
@@ -50,7 +50,7 @@ L199: razao_conflicts = info.get("razao_conflicts") or []
       # razao_conflicts: object | list[Unknown]
 
 L204: for idx, cliente in enumerate(razao_conflicts, start=1):
-      # ❌ Argument of type "object | list[Unknown]" cannot be assigned to 
+      # ❌ Argument of type "object | list[Unknown]" cannot be assigned to
       #    parameter "iterable" of type "Iterable[_T@enumerate]"
 
 L208: remaining = max(0, len(razao_conflicts) - len(lines))
@@ -125,7 +125,7 @@ if razao_conflicts:
         if idx > 3:
             break
         lines.append(f"- ID {getattr(cliente, 'id', '?')} — ...")
-    
+
     remaining = max(0, len(razao_conflicts) - len(lines))  # ✅ list[Any] é Sized
     # ...
 ```

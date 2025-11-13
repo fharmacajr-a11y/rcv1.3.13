@@ -2,16 +2,26 @@
 """
 Script de análise de relatórios de linters (Ruff, Flake8, Pyright).
 Agrupa issues por arquivo e classifica em grupos A/B/C para facilitar triagem.
+
+Uso: Execute a partir da raiz do projeto com:
+    python devtools/qa/analyze_linters.py
 """
 
 import json
+import os
 from collections import Counter, defaultdict
+from pathlib import Path
 from typing import Any, DefaultDict, Dict, List, Tuple
 
 # Type aliases para clareza
 JsonObj = Dict[str, Any]
 IssueInfo = Dict[str, Any]
 GrupoIssues = List[Tuple[str, List[IssueInfo]]]
+
+# Determinar diretório dos relatórios (mesmo diretório do script)
+SCRIPT_DIR = Path(__file__).parent
+RUFF_JSON = SCRIPT_DIR / "ruff.json"
+FLAKE8_TXT = SCRIPT_DIR / "flake8.txt"
 
 # Análise Ruff
 print("=" * 80)
@@ -20,10 +30,10 @@ print("=" * 80)
 
 # Detectar encoding automaticamente (ruff pode gerar UTF-8 ou UTF-16)
 try:
-    with open('ruff.json', encoding='utf-8') as f:
+    with open(RUFF_JSON, encoding='utf-8') as f:
         ruff_data: List[JsonObj] = json.load(f)
 except UnicodeDecodeError:
-    with open('ruff.json', encoding='utf-16') as f:
+    with open(RUFF_JSON, encoding='utf-16') as f:
         ruff_data = json.load(f)
 
 print(f"\nTotal issues Ruff: {len(ruff_data)}\n")
@@ -90,10 +100,10 @@ print("=" * 80)
 
 # Detectar encoding automaticamente (flake8 pode gerar UTF-8 ou UTF-16)
 try:
-    with open('flake8.txt', encoding='utf-8') as f:
+    with open(FLAKE8_TXT, encoding='utf-8') as f:
         flake8_lines: List[str] = [line.strip() for line in f.readlines() if line.strip()]
 except UnicodeDecodeError:
-    with open('flake8.txt', encoding='utf-16') as f:
+    with open(FLAKE8_TXT, encoding='utf-16') as f:
         flake8_lines = [line.strip() for line in f.readlines() if line.strip()]
 
 print(f"\nTotal issues Flake8: {len(flake8_lines)}\n")

@@ -23,35 +23,35 @@ total_warnings = 0
 for diag in data.get('generalDiagnostics', []):
     file_path = diag['file']
     severity = diag['severity']
-    
+
     # Contar totais
     if severity == 'error':
         total_errors += 1
     elif severity == 'warning':
         total_warnings += 1
-    
+
     # Filtrar apenas errors em src/infra/adapters
     if severity != 'error':
         continue
-    
+
     # Verificar se está nos diretórios de interesse
     path_lower = file_path.lower().replace('\\', '/')
     if not any(x in path_lower for x in ['/src/', '/infra/', '/adapters/']):
         continue
-    
+
     # Ignorar tests e devtools
     if '/tests/' in path_lower or '/devtools/' in path_lower:
         continue
-    
+
     # Extrair path relativo
     if 'v1.1.31 - Copia' in file_path:
         rel_path = file_path.split('v1.1.31 - Copia\\')[-1]
     else:
         rel_path = Path(file_path).name
-    
+
     if rel_path not in errors_by_file:
         errors_by_file[rel_path] = []
-    
+
     errors_by_file[rel_path].append({
         'line': diag['range']['start']['line'] + 1,  # 0-indexed → 1-indexed
         'message': diag['message'],

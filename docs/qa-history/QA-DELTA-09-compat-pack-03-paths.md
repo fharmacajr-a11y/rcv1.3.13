@@ -2,9 +2,9 @@
 
 ## 📊 Resumo Executivo
 
-**Data**: 13 de novembro de 2025  
-**Branch**: qa/fixpack-04  
-**Estado Inicial**: 97 errors (CompatPack-02)  
+**Data**: 13 de novembro de 2025
+**Branch**: qa/fixpack-04
+**Estado Inicial**: 97 errors (CompatPack-02)
 **Estado Final**: 95 errors
 
 ### Redução Alcançada
@@ -47,7 +47,7 @@ def ensure_str_path(path: PathLikeStr) -> str:
 - PEP 519: https://peps.python.org/pep-0519/
 - Stack Overflow: https://stackoverflow.com/questions/60524617/how-to-type-hint-pathlike-objects
 
-**Justificativa**: 
+**Justificativa**:
 - Segue recomendações da comunidade Python para aceitar `str`, `pathlib.Path`, e qualquer objeto com `__fspath__`
 - Usa `os.fspath` como método canônico de conversão (PEP 519)
 - Evita repetir `Union[str, Path, os.PathLike[str]]` em múltiplos arquivos
@@ -60,7 +60,7 @@ def ensure_str_path(path: PathLikeStr) -> str:
 
 **Mensagem Pyright**:
 ```
-Argument of type "Path" cannot be assigned to parameter "root" of type "str" 
+Argument of type "Path" cannot be assigned to parameter "root" of type "str"
 in function "_find_by_marker"
   "Path" is not assignable to "str"
 ```
@@ -101,7 +101,7 @@ def _find_by_marker(root: PathLikeStr, pk: int, *, skip_names: set[str] | None =
 
 **Mensagem Pyright**:
 ```
-Argument of type "Path" cannot be assigned to parameter "path" of type "str" 
+Argument of type "Path" cannot be assigned to parameter "path" of type "str"
 in function "read_pdf_text"
   "Path" is not assignable to "str"
 ```
@@ -159,9 +159,9 @@ python main.py
 2025-11-13 08:26:21,815 | INFO | health | HEALTH: ok=True | itens={'session': {'ok': True}, ...}
 ```
 
-✅ App inicia normalmente  
-✅ Login OK  
-✅ Health check OK  
+✅ App inicia normalmente
+✅ Login OK
+✅ Health check OK
 ✅ 0 tracebacks ou exceções
 
 ---
@@ -180,8 +180,8 @@ Path-related errors in src/infra/adapters: 0
 Total: 0 Path-related errors a corrigir
 ```
 
-✅ Todos os 2 erros de Path eliminados  
-✅ 0 novos erros introduzidos  
+✅ Todos os 2 erros de Path eliminados
+✅ 0 novos erros introduzidos
 ✅ Erros totais: 97 → 95 (-2)
 
 ---

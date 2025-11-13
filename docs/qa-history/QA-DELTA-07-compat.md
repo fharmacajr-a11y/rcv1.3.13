@@ -2,8 +2,8 @@
 
 ## 📊 Resumo Executivo
 
-**Data**: 13 de novembro de 2025  
-**Branch**: qa/fixpack-04  
+**Data**: 13 de novembro de 2025
+**Branch**: qa/fixpack-04
 **Estado Inicial**: 113 errors, 3554 warnings no Pyright
 
 ### Escopo da Análise
@@ -240,6 +240,6 @@ Em vez disso:
 
 ---
 
-_Análise realizada em: 13/11/2025_  
-_Tool: devtools/qa/analyze_pyright_errors.py_  
+_Análise realizada em: 13/11/2025_
+_Tool: devtools/qa/analyze_pyright_errors.py_
 _Metodologia: Classificação manual + análise de risco_

@@ -1,8 +1,8 @@
 # QA-DELTA-11: CompatPack-05 - Clean UnknownVariableType Warnings
 
-**Data**: 2025-11-13  
-**Branch**: `qa/fixpack-04`  
-**Autor**: QA Session 11  
+**Data**: 2025-11-13
+**Branch**: `qa/fixpack-04`
+**Autor**: QA Session 11
 **Status**: ✅ Concluído
 
 ---

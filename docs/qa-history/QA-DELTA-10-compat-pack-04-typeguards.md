@@ -1,8 +1,8 @@
 # QA-DELTA-10: CompatPack-04 - Type Narrowing com TypeGuard
 
-**Data**: 2025-01-XX  
-**Branch**: `qa/fixpack-04`  
-**Autor**: QA Session 10  
+**Data**: 2025-01-XX
+**Branch**: `qa/fixpack-04`
+**Autor**: QA Session 10
 **Status**: ✅ Concluído
 
 ---

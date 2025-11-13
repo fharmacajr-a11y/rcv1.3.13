@@ -130,60 +130,6 @@ def _resolve_org_id() -> str:
     raise RuntimeError("Não foi possível resolver a organização do usuário.")
 
 
-def _sanitize_key_component(s: str | None) -> str:
-    return storage_slug_part(s)
-
-
-# -----------------------------------------------------------------------------
-# Telinha de carregamento
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
-# utils locais
-# -----------------------------------------------------------------------------
-
-
-def _now_iso_z() -> str:
-    return datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
-
-
-def _get_bucket_name(default_env: str | None = None) -> str:
-    return (default_env or os.getenv("SUPABASE_BUCKET") or "rc-docs").strip()
-
-
-def _current_user_id() -> Optional[str]:
-    try:
-        resp = supabase.auth.get_user()
-        u = getattr(resp, "user", None)
-        if u and getattr(u, "id", None):
-            return u.id
-        if isinstance(resp, dict):
-            u = resp.get("user") or (resp.get("data") or {}).get("user") or {}
-            return u.get("id") or u.get("uid")
-    except Exception:
-        pass
-    return None
-
-
-def _resolve_org_id() -> str:
-    uid = _current_user_id()
-    fallback = (os.getenv("SUPABASE_DEFAULT_ORG") or "").strip()
-    if not uid and not fallback:
-        raise RuntimeError("Usuário não autenticado e SUPABASE_DEFAULT_ORG não definido.")
-    try:
-        if uid:
-            res = exec_postgrest(supabase.table("memberships").select("org_id").eq("user_id", uid).limit(1))
-            data = getattr(res, "data", None) or []
-            if data:
-                return data[0]["org_id"]
-    except Exception:
-        pass
-    if fallback:
-        return fallback
-    raise RuntimeError("Não foi possível resolver a organização do usuário.")
-
-
 # -----------------------------------------------------------------------------
 # Telinha de carregamento
 

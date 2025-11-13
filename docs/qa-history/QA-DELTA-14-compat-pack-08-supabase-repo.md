@@ -1,8 +1,8 @@
 # QA-DELTA-14: CompatPack-08 - Supabase Repo Return Types
 
-**Data**: 2025-11-13  
-**Branch**: `qa/fixpack-04`  
-**Autor**: QA Session 14  
+**Data**: 2025-11-13
+**Branch**: `qa/fixpack-04`
+**Autor**: QA Session 14
 **Status**: ✅ Concluído
 
 ---
@@ -567,14 +567,14 @@ Os seguintes módulos/funções foram **intencionalmente não tocados** por sere
 - **Ação Futura**: CompatPack-09 ou após revisão completa de infra/supabase/*
 
 ### ❌ data/supabase_repo.py - getattr em exceptions (7 erros residuais)
-- **Erros**: 
+- **Erros**:
   - Line 96: `getattr(res, "data", None)` - Return type unknown
   - Line 197-402: `getattr(e, "args", e)` em exception handlers
-- **Razão**: 
+- **Razão**:
   - `APIResponse` do postgrest não é tipado (biblioteca externa)
   - `Exception.args` é dinâmico e não vale criar overload complexo
 - **Impacto**: Baixo - são warnings, não erros de runtime
-- **Ação Futura**: 
+- **Ação Futura**:
   - Esperar supabase-py adicionar tipos públicos
   - Ou criar stub `postgrest.pyi` em typings/ (CompatPack futuro)
 

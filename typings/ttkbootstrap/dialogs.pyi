@@ -10,7 +10,7 @@ from tkinter import Misc
 
 class Messagebox:
     """ttkbootstrap Messagebox dialog."""
-    
+
     @staticmethod
     def show_info(
         message: str,
@@ -18,7 +18,7 @@ class Messagebox:
         parent: Misc | None = None,
         **kwargs: Any
     ) -> str: ...
-    
+
     @staticmethod
     def show_warning(
         message: str,
@@ -26,7 +26,7 @@ class Messagebox:
         parent: Misc | None = None,
         **kwargs: Any
     ) -> str: ...
-    
+
     @staticmethod
     def show_error(
         message: str,
@@ -34,7 +34,7 @@ class Messagebox:
         parent: Misc | None = None,
         **kwargs: Any
     ) -> str: ...
-    
+
     @staticmethod
     def show_question(
         message: str,
@@ -42,7 +42,7 @@ class Messagebox:
         parent: Misc | None = None,
         **kwargs: Any
     ) -> str: ...
-    
+
     @staticmethod
     def ok(
         message: str,
@@ -50,7 +50,7 @@ class Messagebox:
         parent: Misc | None = None,
         **kwargs: Any
     ) -> str: ...
-    
+
     @staticmethod
     def okcancel(
         message: str,
@@ -58,7 +58,7 @@ class Messagebox:
         parent: Misc | None = None,
         **kwargs: Any
     ) -> str: ...
-    
+
     @staticmethod
     def yesno(
         message: str,
@@ -66,7 +66,7 @@ class Messagebox:
         parent: Misc | None = None,
         **kwargs: Any
     ) -> str: ...
-    
+
     @staticmethod
     def yesnocancel(
         message: str,
@@ -74,7 +74,7 @@ class Messagebox:
         parent: Misc | None = None,
         **kwargs: Any
     ) -> str: ...
-    
+
     @staticmethod
     def retrycancel(
         message: str,

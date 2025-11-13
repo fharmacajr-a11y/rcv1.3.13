@@ -1,8 +1,8 @@
 # QA-DELTA-17: CompatPack-11 - Domain TypedDicts
 
-**Data**: 2025-11-13  
-**Branch**: `qa/fixpack-04`  
-**Autor**: QA Session 17  
+**Data**: 2025-11-13
+**Branch**: `qa/fixpack-04`
+**Autor**: QA Session 17
 **Status**: ✅ Concluído
 
 ---
@@ -356,7 +356,7 @@ CompatPack-11: introduce domain TypedDicts for Supabase tables
 
 - Add data/domain_types.py with PasswordRow/ClientRow/MembershipRow TypedDicts
 - Update data/supabase_repo.py to return typed rows instead of dict[str, Any]
-- Refine 5 function signatures: list_passwords, add_password, update_password, 
+- Refine 5 function signatures: list_passwords, add_password, update_password,
   search_clients, list_clients_for_picker
 - Document all fields inline with comments (purpose, data type)
 - Use total=False for MembershipRow (RLS-only usage, minimal fields)
