@@ -15,7 +15,7 @@ class Misc(Protocol):
     """Protocol for tkinter Misc mixin."""
 
     def wm_transient(self, master: Misc | None = None) -> str | None: ...
-    
+
     def grid_bbox(
         self,
         column: int | None = None,
@@ -23,7 +23,7 @@ class Misc(Protocol):
         col2: int | None = None,
         row2: int | None = None,
     ) -> tuple[int, int, int, int]: ...
-    
+
     def grid_columnconfigure(
         self,
         index: int,
@@ -32,7 +32,7 @@ class Misc(Protocol):
         pad: int | None = None,
         **kw: Any
     ) -> Any: ...
-    
+
     def grid_rowconfigure(
         self,
         index: int,
@@ -41,7 +41,7 @@ class Misc(Protocol):
         pad: int | None = None,
         **kw: Any
     ) -> Any: ...
-    
+
     def winfo_exists(self) -> bool: ...
     def winfo_toplevel(self) -> Misc: ...
     def update_idletasks(self) -> None: ...

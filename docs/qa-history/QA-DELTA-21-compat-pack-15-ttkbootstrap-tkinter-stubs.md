@@ -89,7 +89,7 @@ class Toplevel(Wm, Misc):
 
 ### Categoria 3: `grid_bbox()` Signature (2 errors → 0)
 
-**Problema:** 
+**Problema:**
 - `src/ui/components/misc.py:178` - `tree.bbox(iid, column)` onde `column: str` → erro "No overloads for 'grid_bbox' match"
 - `src/ui/main_screen.py:329` - `grid_bbox(col)` onde `col: str` → erro "Argument of type 'Literal[...]' cannot be assigned to parameter 'row' of type 'int'"
 
@@ -346,7 +346,7 @@ class Treeview(Misc):
 
 ---
 
-**Generated:** 2025-11-13 14:03 BRT  
-**Author:** GitHub Copilot (Claude Sonnet 4.5)  
-**Branch:** qa/fixpack-04  
+**Generated:** 2025-11-13 14:03 BRT
+**Author:** GitHub Copilot (Claude Sonnet 4.5)
+**Branch:** qa/fixpack-04
 **Commit:** (pending)

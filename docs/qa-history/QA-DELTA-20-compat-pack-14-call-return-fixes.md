@@ -1,9 +1,9 @@
 # QA-DELTA-20 — CompatPack-14: Safe Call/Return-Type Fixes (Batch #2)
 
-**Branch:** `qa/fixpack-04`  
-**Commit:** `<pending>`  
-**Data:** 2025-11-13  
-**Tipo:** CompatPack - Correção de erros de call/return type seguros  
+**Branch:** `qa/fixpack-04`
+**Commit:** `<pending>`
+**Data:** 2025-11-13
+**Tipo:** CompatPack - Correção de erros de call/return type seguros
 
 ---
 
@@ -79,7 +79,7 @@ Total de erros `reportCallIssue` e `reportReturnType` identificados: **10+**
 
 ### Correção 1: reportReturnType em `api_clients.py`
 
-**Arquivo:** `src/core/api/api_clients.py` linha 189  
+**Arquivo:** `src/core/api/api_clients.py` linha 189
 **Problema:** Função `search_clients()` retorna `list[Cliente]` mas annotada como `List[Dict[str, Any]]`
 
 **Contexto:**
@@ -106,7 +106,7 @@ from src.core.models import Cliente  # ← Adicionar import
 def search_clients(query: str, org_id: Optional[str] = None) -> list[Cliente]:  # ✅ Correto
     """
     Search for clients by CNPJ, razão social, or nome fantasia.
-    
+
     Returns:
         List of matching Cliente objects  # ← Atualizar docstring
     """
@@ -127,7 +127,7 @@ def search_clients(query: str, org_id: Optional[str] = None) -> list[Cliente]:  
 
 ### Correção 2-5: reportCallIssue em `main_screen.py` (Treeview API)
 
-**Arquivo:** `src/ui/main_screen.py` linhas 244, 262, 332, 337  
+**Arquivo:** `src/ui/main_screen.py` linhas 244, 262, 332, 337
 **Problema:** Métodos `heading()` e `column()` do `ttk.Treeview` chamados incorretamente
 
 **API do tkinter.ttk.Treeview:**
