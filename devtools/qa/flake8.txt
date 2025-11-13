@@ -15,6 +15,7 @@
 .\scripts\test_file_dialog_manual.py:23:1:E402:module level import not at top of file
 .\scripts\test_progress_e2e.py:172:161:E501:line too long (171 > 160 characters)
 .\src\app_gui.py:39:1:E402:module level import not at top of file
+.\src\core\api\api_clients.py:4:1:F401:'typing.List' imported but unused
 .\src\core\services\clientes_service.py:50:5:F824:`global _clients_lock` is unused: name is never assigned in scope
 .\src\core\services\notes_service.py:201:13:F811:redefinition of unused 'EMAIL_PREFIX_ALIASES' from line 188
 .\src\core\services\upload_service.py:30:1:E402:module level import not at top of file
@@ -22,10 +23,9 @@
 .\src\core\services\upload_service.py:32:1:E402:module level import not at top of file
 .\src\core\services\upload_service.py:35:1:E402:module level import not at top of file
 .\src\modules\auditoria\view.py:1604:17:F841:local variable '_apply_once' is assigned to but never used
-.\src\ui\forms\actions.py:147:1:F811:redefinition of unused '_now_iso_z' from line 93
-.\src\ui\forms\actions.py:151:1:F811:redefinition of unused '_get_bucket_name' from line 97
-.\src\ui\forms\actions.py:155:1:F811:redefinition of unused '_current_user_id' from line 101
-.\src\ui\forms\actions.py:169:1:F811:redefinition of unused '_resolve_org_id' from line 115
+.\src\ui\forms\actions.py:38:1:F401:'src.core.storage_key.storage_slug_part' imported but unused
+.\src\ui\forms\actions.py:275:23:F821:undefined name '_sanitize_key_component'
+.\src\ui\forms\forms.py:16:1:F401:'src.utils.typing_helpers.is_optional_str' imported but unused
 .\src\ui\forms\pipeline.py:23:1:E402:module level import not at top of file
 .\src\ui\forms\pipeline.py:24:1:E402:module level import not at top of file
 .\src\ui\forms\pipeline.py:25:1:E402:module level import not at top of file
@@ -34,6 +34,7 @@
 .\src\ui\forms\pipeline.py:28:1:E402:module level import not at top of file
 .\src\ui\forms\pipeline.py:29:1:E402:module level import not at top of file
 .\src\ui\forms\pipeline.py:30:1:E402:module level import not at top of file
+.\src\ui\forms\pipeline.py:31:1:F401:'src.utils.typing_helpers.is_optional_str' imported but unused
 .\src\ui\forms\pipeline.py:31:1:E402:module level import not at top of file
 .\src\ui\forms\pipeline.py:32:1:E402:module level import not at top of file
 .\src\ui\forms\pipeline.py:33:1:E402:module level import not at top of file
@@ -56,6 +57,3 @@
 .\src\ui\hub_screen.py:40:1:E402:module level import not at top of file
 .\src\ui\hub_screen.py:41:1:E402:module level import not at top of file
 .\src\ui\hub_screen.py:42:1:E402:module level import not at top of file
-.\src\ui\widgets\client_picker.py:139:27:F821:undefined name 'ClientRow'
-.\src\ui\widgets\client_picker.py:158:27:F821:undefined name 'ClientRow'
-.\src\ui\widgets\client_picker.py:172:41:F821:undefined name 'ClientRow'
