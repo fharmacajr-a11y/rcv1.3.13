@@ -408,17 +408,18 @@ def salvar_e_enviar_para_supabase(self, row, ents, win=None):
     if not is_really_online():
         state, description = get_supabase_state()
 
+        win_parent: tk.Misc | None = win if isinstance(win, tk.Misc) else None
         if state == "unstable":
             messagebox.showwarning(
                 "Conexão Instável",
                 f"A conexão com o Supabase está instável.\n\n{description}\n\nNão é possível enviar dados no momento.",
-                parent=win,
+                parent=win_parent,
             )
         else:
             messagebox.showwarning(
                 "Sistema Offline",
                 f"Não foi possível conectar ao Supabase.\n\n{description}\n\nVerifique sua conexão e tente novamente.",
-                parent=win,
+                parent=win_parent,
             )
 
         log.warning("Envio bloqueado no wrapper: Estado = %s", state.upper())

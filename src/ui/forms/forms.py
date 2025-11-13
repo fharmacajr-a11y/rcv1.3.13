@@ -6,7 +6,7 @@ import logging
 import re
 import tkinter as tk
 from tkinter import messagebox, ttk
-from typing import Optional
+from typing import Any, Optional
 
 from src.core.cnpj_norm import normalize_cnpj as normalize_cnpj_norm
 from src.core.db_manager import find_cliente_by_cnpj_norm
@@ -196,7 +196,8 @@ def form_cliente(self, row=None, preset: dict | None = None) -> None:
             exclude_id=current_id,
         )
 
-        razao_conflicts = info.get("razao_conflicts") or []
+        razao_conflicts_raw = info.get("razao_conflicts")
+        razao_conflicts: list[Any] = razao_conflicts_raw if isinstance(razao_conflicts_raw, list) else []
         if not razao_conflicts:
             return True
 
@@ -211,7 +212,8 @@ def form_cliente(self, row=None, preset: dict | None = None) -> None:
 
         header = "Existe outro cliente com a mesma Razão Social mas CNPJ diferente. Deseja continuar?\n\n"
         msg = header + "\n".join(lines)
-        return messagebox.askokcancel("Razão Social repetida", msg, parent=win)
+        win_parent: tk.Misc | None = win if isinstance(win, tk.Misc) else None
+        return messagebox.askokcancel("Razão Social repetida", msg, parent=win_parent)
 
     def _perform_save(*, show_success: bool, close_window: bool) -> bool:
         nonlocal row

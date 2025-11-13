@@ -268,7 +268,8 @@ def validate_inputs(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
             exclude_id=current_id,
         )
 
-        razao_conflicts = info.get("razao_conflicts") or []
+        razao_conflicts_raw = info.get("razao_conflicts")
+        razao_conflicts: list[Any] = razao_conflicts_raw if isinstance(razao_conflicts_raw, list) else []
         if razao_conflicts:
             lines: list[str] = []
             for idx, cliente in enumerate(razao_conflicts, start=1):

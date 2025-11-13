@@ -265,7 +265,8 @@ class HubScreen(tb.Frame):
         """Verifica se autenticação está pronta (sem levantar exceção)."""
         try:
             app = self._get_app()
-            return app and hasattr(app, "auth") and app.auth and app.auth.is_authenticated
+            result = app and hasattr(app, "auth") and app.auth and app.auth.is_authenticated
+            return bool(result)
         except Exception:
             return False
 
@@ -439,10 +440,12 @@ class HubScreen(tb.Frame):
                     if new_hash != old_hash:
                         # força um único re-render
                         self._last_render_hash = None
-                        if getattr(self, "_notes_last_data", None):
-                            self.render_notes(self._notes_last_data)
-                        elif getattr(self, "_notes_last_snapshot", None):
-                            self.render_notes(self._notes_last_snapshot)
+                        notes_last_data = getattr(self, "_notes_last_data", None)
+                        notes_last_snapshot = getattr(self, "_notes_last_snapshot", None)
+                        if notes_last_data and isinstance(notes_last_data, list):
+                            self.render_notes(notes_last_data)
+                        elif notes_last_snapshot and isinstance(notes_last_snapshot, list):
+                            self.render_notes(notes_last_snapshot)
                 finally:
                     self._names_cache_loading = False
 
