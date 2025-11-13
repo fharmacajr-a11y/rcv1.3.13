@@ -16,8 +16,8 @@ try:
 except Exception:
     import logging
 
-    def get_logger(name: str | None = None):
-        return logging.getLogger(name or __name__)
+    def get_logger(name: str = __name__):
+        return logging.getLogger(name)
 
 
 logger = get_logger(__name__)
@@ -188,7 +188,8 @@ class HubScreen(tb.Frame):
         mk_btn("Sifap", self.open_mod_sifap)
         # --- Fluxo de Caixa (novo módulo) ---
         if _open_cashflow_window:
-            mk_btn("Fluxo de Caixa", lambda: _open_cashflow_window(self), yellow=True)
+            cashflow_fn = _open_cashflow_window  # captura local, type narrowing
+            mk_btn("Fluxo de Caixa", lambda: cashflow_fn(self), yellow=True)
         else:
             _btn_cf = mk_btn("Fluxo de Caixa", None, yellow=True)
             _btn_cf.configure(state="disabled")
@@ -634,7 +635,8 @@ class HubScreen(tb.Frame):
                     tag = None  # segue sem tag
 
                 created_at = n.get("created_at")
-                ts = _format_timestamp(created_at)
+                created_at_str = str(created_at) if created_at is not None else ""
+                ts = _format_timestamp(created_at_str) if created_at_str else "??"
                 body = (n.get("body") or "").rstrip("\n")
 
                 # Inserir: [data] <nome colorido>: corpo
@@ -643,7 +645,7 @@ class HubScreen(tb.Frame):
                     self.notes_history.insert("end", name, (tag,))
                     self.notes_history.insert("end", f": {body}\n")
                 else:
-                    line = _format_note_line(created_at, name or email, body)
+                    line = _format_note_line(created_at_str, name or email, body) if created_at_str else f"?? {name or email}: {body}"
                     self.notes_history.insert("end", f"{line}\n")
 
             self.notes_history.configure(state="disabled")

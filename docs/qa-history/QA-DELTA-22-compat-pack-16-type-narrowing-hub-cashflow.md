@@ -1,8 +1,8 @@
 # QA-DELTA-22 – CompatPack-16: Type Narrowing em hub/cashflow + bbox None Guard
 
-**Data:** 13 de novembro de 2025  
-**Branch:** `qa/fixpack-04`  
-**Commit:** (a ser gerado após este documento)  
+**Data:** 13 de novembro de 2025
+**Branch:** `qa/fixpack-04`
+**Commit:** (a ser gerado após este documento)
 **Estratégia:** Type narrowing defensivo + None guards para eliminar `reportArgumentType` e `reportCallIssue`
 
 ---
@@ -45,7 +45,7 @@ src/ui/hub/controller.py:65 - reportArgumentType
 Argument of type "Any | None" cannot be assigned to parameter "org_id" of type "str" in function "list_notes_since"
 ```
 
-**Causa:**  
+**Causa:**
 `org_id = getattr(screen, "_live_org_id", None)` retorna `Any | None`, mas `list_notes_since(org_id, since)` espera `str`.
 
 **Correção aplicada:**
@@ -63,7 +63,7 @@ since = getattr(screen, "_live_last_ts", None)
 new_notes = list_notes_since(org_id, since)
 ```
 
-**Justificativa:**  
+**Justificativa:**
 O polling de notas não faz sentido sem `org_id` (organização não definida). O `return` precoce é seguro e semanticamente correto.
 
 ---
@@ -76,7 +76,7 @@ src/ui/hub/controller.py:143 - reportArgumentType
 Argument of type "Any | None" cannot be assigned to parameter "created_at" of type "str" in function "_format_timestamp"
 ```
 
-**Causa:**  
+**Causa:**
 `created_at = note.get("created_at")` retorna `Any | None` (dict vindo de Supabase), mas `_format_timestamp(created_at)` espera `str`.
 
 **Correção aplicada:**
@@ -94,14 +94,14 @@ ts_local = _format_timestamp(created_at)
 body = (note.get("body") or "").rstrip("\n")
 ```
 
-**Justificativa:**  
+**Justificativa:**
 Timestamp ausente/inválido → exibe string vazia no histórico (comportamento degradado graciosamente, sem crash).
 
 ---
 
 ### 3. hub/controller.py: Linha 151 – `created_at` repetido
 
-**Observação:**  
+**Observação:**
 Este erro foi resolvido automaticamente pela correção #2 acima (mesmo fluxo de código, linha 143-151).
 
 ---
@@ -114,7 +114,7 @@ src/features/cashflow/ui.py:225 - reportCallIssue
 No overloads for "get" match argument types (Any | None)
 ```
 
-**Causa:**  
+**Causa:**
 `r.get("type")` duas vezes na mesma linha:
 ```python
 tipo_label = self.TYPE_CODE_TO_LABEL.get(r.get("type"), r.get("type"))
@@ -138,7 +138,7 @@ for r in rows:
     values = (...)
 ```
 
-**Justificativa:**  
+**Justificativa:**
 Se `type` estiver ausente, exibe string vazia na coluna "Tipo" da tabela (melhor que crash ou valor None).
 
 ---
@@ -151,7 +151,7 @@ src/ui/main_screen.py:332 - reportArgumentType (2x)
 src/ui/main_screen.py:337 - reportArgumentType (2x)
 ```
 
-**Causa:**  
+**Causa:**
 O código original tinha:
 ```python
 for col in self._col_order:
@@ -161,7 +161,7 @@ for col in self._col_order:
             # fallback...
     else:
         # fallback...
-    
+
     # Pyright não consegue inferir que bx sempre está definido aqui
     col_x_rel, _, col_w, _ = bx  # ❌ bx pode ser None (teoricamente)
 ```
@@ -180,10 +180,10 @@ for col in self._col_order:
     else:
         col_w = int(self.client_list.column(col, option="width"))
         bx = (cumulative_x, 0, col_w, 0)
-    
+
     if not bx:
         continue
-    
+
     col_x_rel, _, col_w, _ = bx
 
 # DEPOIS
@@ -199,14 +199,14 @@ for col in self._col_order:
         col_w = int(self.client_list.column(col, option="width"))
         bx = (cumulative_x, 0, col_w, 0)
         cumulative_x += col_w
-    
+
     if not bx:
         continue
-    
+
     col_x_rel, _, col_w, _ = bx  # ✅ Pyright agora entende que bx não é None aqui
 ```
 
-**Justificativa:**  
+**Justificativa:**
 A inicialização explícita `bx = None` no início do loop torna o fluxo mais claro para o Pyright. Comportamento idêntico ao anterior (nunca chegamos na desempacotação se `bx` for None, pois o `if not bx: continue` aborta).
 
 ---
@@ -219,7 +219,7 @@ A inicialização explícita `bx = None` no início do loop torna o fluxo mais c
 python -m src.app_gui
 ```
 
-**Resultado:** ✅ Sucesso  
+**Resultado:** ✅ Sucesso
 - Login abre normalmente
 - Tela principal renderiza lista de clientes
 - Tela do Hub: histórico de notas e polling funcionando
@@ -317,7 +317,7 @@ App fechado
 2. ✅ `src/features/cashflow/ui.py` (guard tipo_raw)
 3. ✅ `src/ui/main_screen.py` (inicialização bx explícita)
 
-**Total:** 3 arquivos de aplicação  
+**Total:** 3 arquivos de aplicação
 **Risco:** 🟢 BAIXO (type guards defensivos, zero lógica alterada)
 
 ---
@@ -325,7 +325,7 @@ App fechado
 ## 📚 Lições Aprendidas
 
 ### 1. Type Narrowing com `getattr()` e `dict.get()`
-**Problema:** Pyright não consegue inferir tipos quando valores vêm de `getattr(obj, "attr", None)` ou `dict.get("key")`.  
+**Problema:** Pyright não consegue inferir tipos quando valores vêm de `getattr(obj, "attr", None)` ou `dict.get("key")`.
 **Solução:** Sempre adicionar guard explícito:
 ```python
 # Padrão: getattr com guard obrigatório
@@ -344,7 +344,7 @@ if raw is None:
 ```
 
 ### 2. Inicialização Explícita para Variáveis Condicionais
-**Problema:** Pyright não consegue rastrear todas as branches de `if/else` se a variável não for inicializada explicitamente.  
+**Problema:** Pyright não consegue rastrear todas as branches de `if/else` se a variável não for inicializada explicitamente.
 **Solução:** Sempre inicializar antes do `if`:
 ```python
 # ❌ MAL (Pyright não garante que bx está definido)
@@ -362,7 +362,7 @@ else:
 ```
 
 ### 3. isinstance() para Discriminated Unions
-**Quando usar:** Quando `getattr` ou `dict.get` pode retornar tipos mistos (str | int | None).  
+**Quando usar:** Quando `getattr` ou `dict.get` pode retornar tipos mistos (str | int | None).
 **Exemplo:**
 ```python
 created_at = note.get("created_at")  # pode ser str, int, None, etc.
@@ -372,9 +372,9 @@ if not isinstance(created_at, str):
 ```
 
 ### 4. Warnings vs Errors
-**Observação:** Warnings aumentaram ligeiramente (+1958 no CP-15, -2 no CP-16).  
-**Causa:** Expansão de cobertura de stubs (tkinter/ttkbootstrap) expõe mais reportUnknownMemberType.  
-**Conclusão:** Aumento de warnings não é regressão funcional; indica áreas onde stubs ainda estão incompletos.  
+**Observação:** Warnings aumentaram ligeiramente (+1958 no CP-15, -2 no CP-16).
+**Causa:** Expansão de cobertura de stubs (tkinter/ttkbootstrap) expõe mais reportUnknownMemberType.
+**Conclusão:** Aumento de warnings não é regressão funcional; indica áreas onde stubs ainda estão incompletos.
 **Próximo passo:** CP futuros podem atacar warnings (mas prioridade baixa vs errors).
 
 ---
@@ -382,23 +382,23 @@ if not isinstance(created_at, str):
 ## 📝 Próximos Passos (Sugestões para CP-17)
 
 ### Alvos de Alta Prioridade
-1. **files_browser.py (5 errors)**: reportIndexIssue  
+1. **files_browser.py (5 errors)**: reportIndexIssue
    - Adicionar guards de bounds checking em list access
    - Padrão: `if len(lista) > index: ... else: fallback`
 
-2. **hub/colors.py (3 errors)**: reportOperatorIssue + reportOptionalSubscript  
+2. **hub/colors.py (3 errors)**: reportOperatorIssue + reportOptionalSubscript
    - Adicionar guards para Optional types em comparações
    - Verificar se dict keys existem antes de acessar
 
-3. **core/api_clients.py (1 error)**: reportCallIssue (Cliente constructor)  
+3. **core/api_clients.py (1 error)**: reportCallIssue (Cliente constructor)
    - Verificar se argumentos obrigatórios estão sendo passados
    - Pode ser erro real de chamada incorreta
 
 ### Alvos de Média Prioridade
-4. **core/auth.py (2 errors)**: reportArgumentType (int | None → ConvertibleToInt)  
+4. **core/auth.py (2 errors)**: reportArgumentType (int | None → ConvertibleToInt)
    - Adicionar guard para converter None em valor padrão
 
-5. **core/session/session.py (2 errors)**: reportArgumentType (session_id guards)  
+5. **core/session/session.py (2 errors)**: reportArgumentType (session_id guards)
    - Type narrowing similar ao hub/controller.py
 
 ### Estratégia Geral
@@ -412,8 +412,8 @@ if not isinstance(created_at, str):
 
 ## 🎯 Meta de Longo Prazo
 
-**Estado Atual (CP-16):** 59 errors, 4469 warnings  
-**Meta Próxima (CP-17-18):** <50 errors (~8-10 errors a eliminar)  
+**Estado Atual (CP-16):** 59 errors, 4469 warnings
+**Meta Próxima (CP-17-18):** <50 errors (~8-10 errors a eliminar)
 **Meta Final (CP-19-20):** <30 errors (tipo "Pyright limpo para revisão de produção")
 
 **Estratégia:**

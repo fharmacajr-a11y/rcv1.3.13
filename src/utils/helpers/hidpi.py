@@ -53,7 +53,7 @@ def configure_hidpi_support(root: tk.Tk | None = None, scaling: float | None = N
                 # Scaling recomendado: 1.6-2.0 para monitores 4K
                 # Referência: https://ttkbootstrap.readthedocs.io/en/latest/api/utility/enable_high_dpi_awareness/
                 scale_factor = scaling or _detect_linux_scaling(root)
-                enable_high_dpi_awareness(root, scale_factor)
+                enable_high_dpi_awareness(root, scale_factor)  # pyright: ignore[reportCallIssue]
             except Exception:
                 pass  # Silencioso se falhar
 

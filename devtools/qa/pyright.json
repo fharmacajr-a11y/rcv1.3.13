@@ -1,6 +1,6 @@
 ﻿{
     "version": "1.1.407",
-    "time": "1763054438233",
+    "time": "1763055957065",
     "generalDiagnostics": [
         {
             "file": "c:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\adapters\\__init__.py",
@@ -72456,7 +72456,7 @@
         "errorCount": 59,
         "warningCount": 4469,
         "informationCount": 0,
-        "timeInSec": 8.022
+        "timeInSec": 8.278
     }
 }
 

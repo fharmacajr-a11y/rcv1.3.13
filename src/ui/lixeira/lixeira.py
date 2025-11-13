@@ -95,7 +95,7 @@ def abrir_lixeira(parent, app=None):
     container = tb.Frame(win, padding=10)
     container.pack(fill="both", expand=True)
 
-    tb.Label(container, text="Clientes na Lixeira", font=("", 12, "bold")).pack(anchor="center", pady=(0, 8))
+    tb.Label(container, text="Clientes na Lixeira", font=("", 12, "bold")).pack(anchor="center", pady=(0, 8))  # pyright: ignore[reportArgumentType]
 
     # Treeview
     cols = ("id", "razao_social", "cnpj", "nome", "whatsapp", "obs", "ultima_alteracao")

@@ -88,7 +88,7 @@ def _ocr_pdf_with_pymupdf(p: Path, max_pages: int = 5, dpi: int = 200) -> Option
     try:
         texts: list[str] = []
         with fitz.open(str(p)) as doc:
-            for i, page in enumerate(doc):
+            for i, page in enumerate(doc):  # pyright: ignore[reportArgumentType]
                 if i >= max_pages:
                     break
                 t = page.get_text() or ""

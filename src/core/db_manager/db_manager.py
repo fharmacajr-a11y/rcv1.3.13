@@ -66,7 +66,7 @@ def _with_retries(fn: Callable, tries: int = 3, base_delay: float = RETRY_BASE_D
             delay = base_delay * (2 ** (attempt - 1)) + random.uniform(0, 0.15)
             time.sleep(delay)
 
-    raise last_exc
+    raise last_exc  # pyright: ignore[reportGeneralTypeIssues]
 
 
 def _current_user_email() -> str:

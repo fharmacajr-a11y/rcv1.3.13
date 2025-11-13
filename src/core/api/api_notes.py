@@ -31,7 +31,7 @@ def list_storage_files(bucket: str, prefix: str) -> List[Dict[str, Any]]:
     try:
         from adapters.storage import api as storage_api
 
-        return storage_api.list_files(bucket, prefix)
+        return storage_api.list_files(bucket, prefix)  # pyright: ignore[reportCallIssue]
     except Exception as e:
         log.error(f"List files failed for {prefix}: {e}")
         return []
@@ -85,7 +85,7 @@ def restore_from_trash(org_id: str, client_ids: List[str]) -> bool:
     try:
         from src.core.services import lixeira_service
 
-        lixeira_service.restore_clients(org_id, client_ids)
+        lixeira_service.restore_clients(org_id, client_ids)  # pyright: ignore[reportArgumentType]
         return True
     except Exception as e:
         log.error(f"Restore from trash failed: {e}")

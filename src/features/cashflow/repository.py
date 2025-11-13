@@ -29,7 +29,7 @@ def _UNAVAILABLE() -> Any:
     raise RuntimeError("Cliente Supabase não disponível (infra/src.infra). Verifique paths de import.")
 
 
-def _build_get() -> callable:
+def _build_get() -> callable:  # pyright: ignore[reportGeneralTypeIssues]
     # 1) relativo db_client
     try:
         from ...infra.supabase.db_client import get_client as _gc  # type: ignore

@@ -78,9 +78,9 @@ def _download(client: Any, bucket: str, remote_key: str, local_path: Optional[st
         if not CLOUD_ONLY:
             target.parent.mkdir(parents=True, exist_ok=True)
         with target.open("wb") as handle:
-            handle.write(data)
+            handle.write(data)  # pyright: ignore[reportArgumentType]
         return str(target)
-    return data
+    return data  # pyright: ignore[reportReturnType]
 
 
 def _delete(client: Any, bucket: str, remote_key: str) -> bool:

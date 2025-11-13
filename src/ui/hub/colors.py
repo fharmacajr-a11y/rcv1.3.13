@@ -54,7 +54,7 @@ def _ensure_author_tag(text_widget, email: str, tag_cache: Optional[Dict[str, st
         tag_cache = cache
 
     # 2) Já existe no cache?
-    if email in tag_cache:
+    if tag_cache is not None and email in tag_cache:
         return tag_cache[email]
 
     # 3) Cria uma tag nova
@@ -74,7 +74,8 @@ def _ensure_author_tag(text_widget, email: str, tag_cache: Optional[Dict[str, st
 
     # 4) Atualiza cache (se existir)
     try:
-        tag_cache[email] = tag_name
+        if tag_cache is not None:
+            tag_cache[email] = tag_name
     except Exception:
         pass
 

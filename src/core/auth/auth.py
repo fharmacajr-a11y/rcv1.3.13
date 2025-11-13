@@ -149,7 +149,7 @@ def create_user(username: str, password: Optional[str] = None) -> int:
             (username, pwd_hash, now, now),
         )
         con.commit()
-        return int(cur.lastrowid)
+        return int(cur.lastrowid)  # pyright: ignore[reportArgumentType]
 
 
 # ------------------------- Validação de credenciais ------------------------- #

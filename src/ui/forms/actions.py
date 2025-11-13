@@ -64,8 +64,18 @@ try:
     from src.utils.validators import only_digits as _only_digits
 except Exception:  # pragma: no cover
 
-    def _only_digits(value: str | None) -> str:
-        return "".join(ch for ch in str(value or "") if ch.isdigit())
+    def _only_digits(s: str | None) -> str:
+        return "".join(ch for ch in str(s or "") if ch.isdigit())
+
+
+try:
+    from src.utils.validators import sanitize_key_component as _sanitize_key_component
+except Exception:  # pragma: no cover
+
+    def _sanitize_key_component(s: str | None) -> str:
+        """Remove caracteres não alfanuméricos/hífen/underscore."""
+        import re
+        return re.sub(r"[^\w\-]+", "", str(s or "").strip())
 
 
 try:

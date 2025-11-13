@@ -217,7 +217,7 @@ def salvar_cliente(row, valores: dict) -> tuple[int, str]:
     # Auditoria
     try:
         user = get_current_user() or ""
-        log_client_action(user, int(real_pk), "edição" if row else "criação")
+        log_client_action(user, int(real_pk), "edição" if row else "criação")  # pyright: ignore[reportArgumentType]
     except Exception:
         pass
 

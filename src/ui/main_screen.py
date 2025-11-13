@@ -116,7 +116,7 @@ STATUS_PREFIX_RE = re.compile(r"^\s*\[(?P<st>[^\]]+)\]\s*")
 __all__ = ["MainScreenFrame", "DEFAULT_ORDER_LABEL", "ORDER_CHOICES"]
 
 
-class MainScreenFrame(tb.Frame):
+class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
     """
     Frame da tela principal (lista de clientes + ações).
     Recebe callbacks do App para operações de negócio.
@@ -275,7 +275,7 @@ class MainScreenFrame(tb.Frame):
         # Atualiza _on_toggle para incluir atualização de labels
         _original_on_toggle = _on_toggle
 
-        def _on_toggle(col: str):
+        def _on_toggle_with_labels(col: str):
             _original_on_toggle(col)
             _update_toggle_labels()
 
@@ -288,7 +288,7 @@ class MainScreenFrame(tb.Frame):
             chk = tk.Checkbutton(
                 grp,
                 variable=self._col_content_visible[col],
-                command=lambda c=col: _on_toggle(c),
+                command=lambda c=col: _on_toggle_with_labels(c),
                 bd=0,
                 highlightthickness=0,
                 padx=0,
@@ -330,12 +330,12 @@ class MainScreenFrame(tb.Frame):
                         bx = self.client_list.bbox(first_item, col)
                         if not bx:
                             # se bbox vier vazio, usa fallback acumulado
-                            col_w = int(self.client_list.column(col, option="width"))
+                            col_w = int(self.client_list.column(col, option="width"))  # pyright: ignore[reportArgumentType]
                             bx = (cumulative_x, 0, col_w, 0)
                             cumulative_x += col_w
                     else:
                         # fallback: calcula posição acumulada das colunas
-                        col_w = int(self.client_list.column(col, option="width"))
+                        col_w = int(self.client_list.column(col, option="width"))  # pyright: ignore[reportArgumentType]
                         bx = (cumulative_x, 0, col_w, 0)
                         cumulative_x += col_w
 
@@ -440,7 +440,7 @@ class MainScreenFrame(tb.Frame):
         self._pick_label = tb.Label(
             self._pick_banner_frame,
             text="🔍 Modo seleção: dê duplo clique em um cliente ou pressione Enter",
-            font=("", 10, "bold"),
+            font=("", 10, "bold"),  # pyright: ignore[reportArgumentType]
             bootstyle="info-inverse",
         )
         self._pick_label.pack(side="left", padx=10, pady=5)
@@ -1093,7 +1093,7 @@ class MainScreenFrame(tb.Frame):
             has_sel = False
 
         # Obtém estado detalhado da nuvem
-        state, _ = get_supabase_state()
+        state, _ = get_supabase_state()  # pyright: ignore[reportAssignmentType]
         online = state == "online"  # Somente "online" permite envio
 
         allow_send = has_sel and online and not self._uploading_busy

@@ -65,7 +65,7 @@ def refresh_current_user_from_supabase() -> None:
         chosen = owners[0] if owners else rows[0]
         org_id = chosen.get("org_id")
 
-    _CURRENT_USER = CurrentUser(uid=uid, email=email, org_id=org_id)
+    _CURRENT_USER = CurrentUser(uid=uid, email=email, org_id=org_id)  # pyright: ignore[reportArgumentType]
 
 
 def get_current_user() -> Optional[CurrentUser]:

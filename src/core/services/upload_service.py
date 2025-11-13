@@ -123,8 +123,8 @@ def upload_folder_to_supabase(
 
         storage_path = make_storage_key(
             org_id,
-            client_id,
-            subdir,
+            str(client_id),  # Convert int to str
+            str(subdir),  # Convert str to match signature
             *dir_segments_raw,
             filename=filename_raw,
         )

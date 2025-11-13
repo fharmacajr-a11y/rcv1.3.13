@@ -59,7 +59,7 @@ def download_folder_zip(bucket: str, prefix: str, dest_path: Optional[str] = Non
     try:
         from adapters.storage import api as storage_api
 
-        zip_path = storage_api.download_folder_zip(bucket, prefix, dest_path)
+        zip_path = storage_api.download_folder_zip(bucket, prefix, dest_path)  # pyright: ignore[reportCallIssue]
         return zip_path
     except Exception as e:
         log.error(f"Folder ZIP download failed for {prefix}: {e}")

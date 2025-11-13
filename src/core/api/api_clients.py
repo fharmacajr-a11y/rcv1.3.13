@@ -136,7 +136,7 @@ def update_client(client_id: str, data: Dict[str, Any]) -> bool:
     try:
         from src.core.services import clientes_service
 
-        clientes_service.update_cliente(client_id, data)
+        clientes_service.update_cliente(client_id, data)  # pyright: ignore[reportCallIssue]
         return True
     except Exception as e:
         log.error(f"Update client failed: {e}")

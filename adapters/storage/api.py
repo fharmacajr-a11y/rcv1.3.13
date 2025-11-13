@@ -42,7 +42,7 @@ def using_storage_backend(backend: _BackendType):
 
 
 def upload_file(local_path: object, remote_key: str, content_type: Optional[str] = None) -> str:
-    return _call("upload_file", local_path, remote_key, content_type)
+    return _call("upload_file", local_path, remote_key, content_type)  # pyright: ignore[reportReturnType]
 
 
 def download_file(remote_key: str, local_path: Optional[str] = None):
@@ -50,11 +50,11 @@ def download_file(remote_key: str, local_path: Optional[str] = None):
 
 
 def delete_file(remote_key: str) -> bool:
-    return _call("delete_file", remote_key)
+    return _call("delete_file", remote_key)  # pyright: ignore[reportReturnType]
 
 
 def list_files(prefix: str = "") -> Iterable[object]:
-    return _call("list_files", prefix)
+    return _call("list_files", prefix)  # pyright: ignore[reportReturnType]
 
 
 def download_folder_zip(

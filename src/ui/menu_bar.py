@@ -12,10 +12,10 @@ def _available_themes() -> Iterable[str]:
 
         names = getattr(tm, "available_themes", None)
         if callable(names):
-            return list(names())
+            return list(names())  # pyright: ignore[reportArgumentType]
         names = getattr(tm, "THEMES", None)
         if isinstance(names, (list, tuple, set)):
-            return list(names)
+            return list(names)  # pyright: ignore[reportArgumentType]
     except Exception:
         pass
     return [

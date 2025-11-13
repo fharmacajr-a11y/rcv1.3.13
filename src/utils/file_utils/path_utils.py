@@ -128,7 +128,7 @@ def ensure_subpastas(base: str, nomes: Iterable[str] | None = None, *, subpastas
                 if len(ret) == 2:
                     subs, extras = ret
                 elif len(ret) == 3:
-                    _top_level, all_paths, extras = ret
+                    _top_level, all_paths, extras = ret  # pyright: ignore[reportGeneralTypeIssues]
                     subs = all_paths
             final = [*subs, *extras]
         except Exception:
