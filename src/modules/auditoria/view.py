@@ -1579,7 +1579,6 @@ class AuditoriaFrame(ttk.Frame):
             duplicates_names = file_names & existing_names
 
             strategy = "skip"  # Padrão
-            apply_once = True  # Padrão
 
             if duplicates_names:
                 # Mostrar diálogo (thread-safe via after + wait)

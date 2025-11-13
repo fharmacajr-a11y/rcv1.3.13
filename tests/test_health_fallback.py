@@ -71,7 +71,7 @@ def test_health_fallback_continues_on_auth_failure():
                 mock_table.select.return_value = mock_select
                 mock_select.limit.return_value = mock_limit
 
-                result = _health_check_once(mock_client)
+                _ = _health_check_once(mock_client)  # Test that it doesn't raise
 
     # Deve ter tentado o fallback de tabela após falha do /auth/v1/health
     assert mock_client.table.called
@@ -103,7 +103,7 @@ def test_health_rpc_non_404_error_skips_auth_fallback():
                 mock_table.select.return_value = mock_select
                 mock_select.limit.return_value = mock_limit
 
-                result = _health_check_once(mock_client)
+                _ = _health_check_once(mock_client)  # Test that it doesn't raise
 
     # Verificar que httpx.get NÃO foi chamado (não entrou no fallback /auth/v1/health)
     mock_httpx_get.assert_not_called()
@@ -138,7 +138,7 @@ def test_health_auth_fallback_requires_valid_response():
                 mock_table.select.return_value = mock_select
                 mock_select.limit.return_value = mock_limit
 
-                result = _health_check_once(mock_client)
+                _ = _health_check_once(mock_client)  # Test that it doesn't raise
 
     # Deve ter prosseguido para fallback de tabela
     assert mock_client.table.called
@@ -170,7 +170,7 @@ def test_health_auth_fallback_on_401_unauthorized():
                 mock_table.select.return_value = mock_select
                 mock_select.limit.return_value = mock_limit
 
-                result = _health_check_once(mock_client)
+                _ = _health_check_once(mock_client)  # Test that it doesn't raise
 
     # Deve ter prosseguido para fallback de tabela após 401
     assert mock_client.table.called
@@ -202,7 +202,7 @@ def test_health_auth_fallback_on_403_forbidden():
                 mock_table.select.return_value = mock_select
                 mock_select.limit.return_value = mock_limit
 
-                result = _health_check_once(mock_client)
+                _ = _health_check_once(mock_client)  # Test that it doesn't raise
 
     # Deve ter prosseguido para fallback de tabela após 403
     assert mock_client.table.called
@@ -233,7 +233,7 @@ def test_health_auth_fallback_on_timeout():
                 mock_table.select.return_value = mock_select
                 mock_select.limit.return_value = mock_limit
 
-                result = _health_check_once(mock_client)
+                _ = _health_check_once(mock_client)  # Test that it doesn't raise
 
     # Deve ter prosseguido para fallback de tabela após timeout
     assert mock_client.table.called

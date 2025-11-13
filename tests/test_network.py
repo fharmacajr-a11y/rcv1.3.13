@@ -23,8 +23,6 @@ def test_check_internet_connectivity_handles_failure(monkeypatch):
     monkeypatch.delenv("RC_NO_NET_CHECK", raising=False)
 
     # Mock socket.create_connection to raise OSError
-    original_create = socket.create_connection
-
     def mock_create_connection(*args, **kwargs):
         raise OSError("Network unreachable")
 

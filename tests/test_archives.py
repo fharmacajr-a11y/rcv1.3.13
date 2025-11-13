@@ -60,7 +60,7 @@ class TestZipExtraction:
         zip_path = tmp_path / "empty.zip"
         extract_dir = tmp_path / "extracted"
 
-        with zipfile.ZipFile(zip_path, "w") as zf:
+        with zipfile.ZipFile(zip_path, "w"):
             pass  # ZIP vazio
 
         result = extract_archive(zip_path, extract_dir)
