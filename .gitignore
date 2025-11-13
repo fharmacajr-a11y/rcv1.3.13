@@ -63,6 +63,10 @@ devtools/qa/*.txt
 devtools/qa/*.log
 !devtools/qa/README.md
 
+# Arquivos de árvore gerados localmente
+tree_full.txt
+tree_dirs_only.txt
+
 # SQL backups
 migrations/*.sql~
 
