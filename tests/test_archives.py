@@ -3,7 +3,6 @@ Testes para extração de arquivos compactados (ZIP, RAR e 7Z).
 """
 from __future__ import annotations
 
-import tempfile
 import zipfile
 from pathlib import Path
 

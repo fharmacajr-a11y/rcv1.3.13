@@ -11,7 +11,6 @@ from __future__ import annotations
 import time
 import tkinter as tk
 from dataclasses import dataclass
-from pathlib import Path
 
 from ttkbootstrap import ttk
 

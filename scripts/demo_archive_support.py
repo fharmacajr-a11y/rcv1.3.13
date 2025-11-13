@@ -52,8 +52,8 @@ def main():
         extract_dir = tmp_path / "extracted_zip"
         try:
             extract_archive(zip_file, extract_dir)
-            print(f"   ✅ ZIP extraído com sucesso")
-            print(f"   📁 Arquivos extraídos:")
+            print("   ✅ ZIP extraído com sucesso")
+            print("   📁 Arquivos extraídos:")
             for f in extract_dir.rglob("*"):
                 if f.is_file():
                     print(f"      - {f.relative_to(extract_dir)}")
@@ -65,8 +65,8 @@ def main():
     # 3. Status final
     print("3. Status do sistema:")
     print(f"   🔧 7-Zip disponível: {is_7z_available()}")
-    print(f"   📦 Formatos suportados: ZIP, RAR")
-    print(f"   💾 Instalação necessária: NENHUMA (binários embarcados)")
+    print("   📦 Formatos suportados: ZIP, RAR")
+    print("   💾 Instalação necessária: NENHUMA (binários embarcados)")
 
     print()
     print("=" * 60)

@@ -4,7 +4,6 @@ import datetime
 import hashlib
 import logging
 import os
-import re
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk

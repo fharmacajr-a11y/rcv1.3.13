@@ -89,7 +89,7 @@ class TestUploadWindow(tk.Tk):
         try:
             self._pb.stop()
             self._busy.destroy()
-        except:
+        except Exception:
             pass
 
         self.label_status.configure(text=msg)

@@ -8,7 +8,7 @@ import os
 import sys
 import threading
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import messagebox, ttk
 from typing import Any, Optional
 
 import ttkbootstrap as tb

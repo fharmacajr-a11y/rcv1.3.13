@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Auditoria**: Mensagem de sucesso agora inclui Razão Social + CNPJ formatado
 - **UI**: Botão renomeado para "Enviar ZIP/RAR p/ Auditoria"
 - **ZIP**: Estratégia otimizada - leitura direta de membros (sem extração temporária)
+- v1.1.19-dev-auditoria-ui: duplo clique Treeview; viewer centralizado; botões dinâmicos; fix tela preta subpastas
 
 ### Removed
 - **Auditoria**: Removido suporte a arquivos `.7z`

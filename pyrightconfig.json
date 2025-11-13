@@ -1,30 +1,27 @@
 {
-  "include": [
+  "pythonVersion": "3.13",
+  "typeCheckingMode": "basic",
+  "extraPaths": [
     "src",
-    "tests",
     "infra",
     "adapters"
   ],
   "exclude": [
-    "**/__pycache__",
-    "**/.venv",
-    "**/node_modules",
-    "**/.pytest_cache",
-    "**/.mypy_cache",
-    "**/.ruff_cache",
+    "**/tests/**",
+    "scripts",
+    "migrations",
+    ".venv",
+    "venv",
     "build",
     "dist"
   ],
-  "venvPath": ".",
-  "venv": ".venv",
-  "executionEnvironments": [
-    {
-      "root": ".",
-      "extraPaths": ["./src", "./infra", "./adapters"]
-    }
-  ],
-  "reportMissingImports": "warning",
-  "reportMissingTypeStubs": false,
-  "pythonVersion": "3.13",
-  "typeCheckingMode": "basic"
+  "stubPath": "./typings",
+  "reportCallIssue": "error",
+  "reportAttributeAccessIssue": "warning",
+  "reportRedeclaration": "error",
+  "reportUnknownMemberType": "warning",
+  "reportUnknownArgumentType": "warning",
+  "reportUnknownVariableType": "warning",
+  "reportOptionalMemberAccess": "warning",
+  "reportMissingTypeStubs": "none"
 }

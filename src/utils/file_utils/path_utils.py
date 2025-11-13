@@ -95,10 +95,19 @@ def ensure_subtree(base: str | Path, spec: SubSpecList) -> None:
             ensure_subtree(p, children)
 
 
-def ensure_subpastas(base: str, nomes: Iterable[str] | None = None) -> bool:
+def ensure_subpastas(base: str, nomes: Iterable[str] | None = None, *, subpastas: Iterable[str] | None = None) -> bool:
     """
     Garante a criação das subpastas em 'base'.
+
+    Args:
+        base: Diretório base
+        nomes: Lista de nomes de subpastas (novo parâmetro padrão)
+        subpastas: Alias para 'nomes' (mantido para compatibilidade)
     """
+    # Compat: se vier 'subpastas' e 'nomes' não vier, usa 'subpastas'
+    if subpastas is not None and nomes is None:
+        nomes = subpastas
+
     if not CLOUD_ONLY:
         os.makedirs(base, exist_ok=True)
 

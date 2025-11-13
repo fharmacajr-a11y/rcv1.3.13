@@ -1,7 +1,6 @@
 """View principal do módulo Auditoria."""
 from __future__ import annotations
 
-import io
 import mimetypes
 import os
 import re
@@ -11,17 +10,15 @@ import time
 import tkinter as tk
 import unicodedata
 import zipfile
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from pathlib import Path, PurePosixPath
-from tkinter import messagebox
-from typing import Callable, Dict, Iterable, List, Optional, Tuple, Any
-
-from ttkbootstrap import ttk
+from pathlib import Path
+from tkinter import messagebox, ttk
+from typing import Callable, Optional, Any
 
 from src.ui import files_browser as fb
-from src.ui.dialogs.file_select import select_archive_file, validate_archive_extension
+from src.ui.dialogs.file_select import select_archive_file
 from infra.archive_utils import extract_archive, ArchiveError
+from helpers.formatters import format_cnpj, fmt_datetime_br
 
 try:
     from infra.supabase_client import get_supabase  # type: ignore[import-untyped]
@@ -41,6 +38,99 @@ OFFLINE_MSG = "Recurso on-line. Verifique internet e credenciais do Supabase."
 # === Storage config ===
 STO_BUCKET = os.getenv("RC_STORAGE_BUCKET_CLIENTS", "").strip()
 STO_CLIENT_FOLDER_FMT = os.getenv("RC_STORAGE_CLIENTS_FOLDER_FMT", "{client_id}").strip() or "{client_id}"
+
+
+# === Auditoria status helpers ===
+DEFAULT_AUDITORIA_STATUS = "em_andamento"
+
+# valores aceitos no BD (ajuste se sua tabela tiver outros)
+STATUS_OPEN = {"em_andamento", "pendente", "em_processo"}
+STATUS_LABELS: dict[str, str] = {
+    "em_andamento": "Em andamento",
+    "pendente": "Pendente",
+    "finalizado": "Finalizado",
+    "cancelado": "Cancelado",
+}
+
+# aliases legados -> status canônico aceito pelo banco
+STATUS_ALIASES: dict[str, str] = {
+    "em_processo": DEFAULT_AUDITORIA_STATUS,
+}
+
+
+def canonical_status(value: str | None) -> str:
+    """Normaliza o status recebido para a forma aceita pelo banco."""
+    raw = (value or "").strip()
+    if not raw:
+        return DEFAULT_AUDITORIA_STATUS
+    normalized = raw.lower().replace(" ", "_")
+    normalized = STATUS_ALIASES.get(normalized, normalized)
+    return normalized
+
+
+STATUS_MENU_ITEMS = tuple(STATUS_LABELS.keys())
+STATUS_OPEN_CANONICAL = {canonical_status(status) for status in STATUS_OPEN}
+
+
+def status_to_label(value: str | None) -> str:
+    """Retorna o rótulo amigável para exibição na UI."""
+    canon = canonical_status(value)
+    label = STATUS_LABELS.get(canon)
+    if label:
+        return label
+    safe = canon.replace("_", " ").strip()
+    return safe.capitalize() if safe else ""
+
+
+def label_to_status(label: str | None) -> str:
+    """Converte um rótulo exibido em tela de volta para o valor salvo no banco."""
+    if not label:
+        return canonical_status("")
+    lowered = label.strip().lower()
+    for key, friendly in STATUS_LABELS.items():
+        if friendly.lower() == lowered:
+            return key
+    raw = lowered.replace(" ", "_")
+    return canonical_status(raw)
+
+
+def is_status_open(value: str | None) -> bool:
+    """Retorna True se o status estiver entre os considerados 'abertos'."""
+    return canonical_status(value) in STATUS_OPEN_CANONICAL
+
+
+def _cliente_display_id_first(cliente_id, razao, cnpj) -> str:
+    """Mostra: ID 123 — RAZÃO — 00.000.000/0001-00."""
+    parts: list[str] = []
+    if cliente_id not in (None, "", 0):
+        parts.append(f"ID {cliente_id}")
+    if razao:
+        parts.append(str(razao).strip())
+    c = format_cnpj(cnpj or "")
+    if c:
+        parts.append(c)
+    return " — ".join(parts)
+
+
+def _cliente_razao_from_row(row: dict | None) -> str:
+    """Extrai a razão social/nome mais representativo do registro do cliente."""
+    if not isinstance(row, dict):
+        return ""
+    return (
+        row.get("display_name")
+        or row.get("razao_social")
+        or row.get("Razao Social")
+        or row.get("legal_name")
+        or row.get("name")
+        or ""
+    ).strip()
+
+
+def _cliente_cnpj_from_row(row: dict | None) -> str:
+    """Extrai o CNPJ (ou tax_id) cru do registro do cliente."""
+    if not isinstance(row, dict):
+        return ""
+    return (row.get("cnpj") or row.get("tax_id") or "").strip()
 
 
 def _guess_mime(path: str) -> str:
@@ -187,11 +277,12 @@ class AuditoriaFrame(ttk.Frame):
         self._go_back = go_back
 
         self._search_var = tk.StringVar()
-        self._clientes: list[tuple[int, str]] = []  # [(id BIGINT, label)] - filtrada
-        self._clientes_all: list[tuple[int, str]] = []  # lista completa (id, label)
         self._clientes_all_rows: list[dict] = []  # linhas cruas p/ busca (todos os campos)
-        self._clientes_map: dict[int, str] = {}  # {id: label}
+        self._cliente_display_to_id: dict[str, int] = {}
+        self._cliente_display_map: dict[str, str] = {}
+        self._clientes_rows_map: dict[str, dict] = {}
         self._cliente_var = tk.StringVar()
+        self._selected_cliente_id: int | None = None
 
         # Índice de auditorias: {iid: {db_id, auditoria_id, cliente_nome, cnpj, ...}}
         self._aud_index: dict[str, dict] = {}
@@ -201,127 +292,212 @@ class AuditoriaFrame(ttk.Frame):
 
         # Org ID do usuário logado (cache)
         self._org_id: str = ""
+        self._status_menu: tk.Menu | None = None
+        self._status_menu_items: tuple[str, ...] = STATUS_MENU_ITEMS
+        self._status_click_iid: str | None = None
+        self._menu_refresh_added = False
+
+        UI_GAP = 6   # espacinho horizontal curto entre botões
+        UI_PADX = 8
+        UI_PADY = 6
+        self.UI_GAP = UI_GAP
+        self.UI_PADX = UI_PADX
+        self.UI_PADY = UI_PADY
 
         self._build_ui()
-        self.after(100, self._lazy_load)    # ---------- UI ----------
+
+        try:
+            import ttkbootstrap as tb  # type: ignore[import]  # noqa: F401
+        except Exception:
+            style = ttk.Style(self)
+            style.configure("RC.Success.TButton", foreground="white")
+            style.map(
+                "RC.Success.TButton",
+                background=[("!disabled", "#198754"), ("active", "#157347")]
+            )
+            self.btn_iniciar.configure(style="RC.Success.TButton")
+
+            style.configure("RC.Danger.TButton", foreground="white")
+            style.map(
+                "RC.Danger.TButton",
+                background=[("!disabled", "#DC3545"), ("active", "#BB2D3B")]
+            )
+            self.btn_excluir.configure(style="RC.Danger.TButton")
+        else:
+            self.btn_iniciar.configure(bootstyle="success")  # type: ignore[arg-type]
+            self.btn_excluir.configure(bootstyle="danger")  # type: ignore[arg-type]
+
+        # ---------- UI ----------
+        self.after(100, self._lazy_load)
+
     def _build_ui(self) -> None:
         """Constrói a interface da tela."""
-        self.columnconfigure(0, weight=0)  # painel esquerdo
-        self.columnconfigure(1, weight=1)  # centro (tabela)
-        self.rowconfigure(1, weight=1)
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(2, weight=1)
 
-        # Título
-        title = ttk.Label(
-            self,
-            text="Auditoria",
-            font=("-size", 16, "-weight", "bold")
-        )
-        title.grid(row=0, column=0, columnspan=2, sticky="w", padx=12, pady=(10, 6))
+        UI_GAP = getattr(self, "UI_GAP", 6)
+        UI_PADX = getattr(self, "UI_PADX", 8)
+        UI_PADY = getattr(self, "UI_PADY", 6)
 
-        # Painel esquerdo (filtros/ações)
-        left = ttk.Frame(self)
-        left.grid(row=1, column=0, sticky="nsw", padx=12, pady=8)
-        left.columnconfigure(0, weight=1)
+        # ===== Toolbar superior =====
+        self.toolbar = ttk.Frame(self)
+        self.toolbar.grid(row=0, column=0, sticky="ew", padx=UI_PADX, pady=(UI_PADY, 0))
+        self.toolbar.configure(padding=(UI_PADX, UI_PADY, UI_PADX, UI_PADY))
+        for col in range(0, 8):
+            self.toolbar.columnconfigure(col, weight=0)
+        self.toolbar.columnconfigure(7, weight=1)
 
-        # --- BUSCAR ---
-        ttk.Label(left, text="Buscar cliente:").grid(row=0, column=0, sticky="w")
-        self.ent_busca = ttk.Entry(left, textvariable=self._search_var, width=40)
-        self.ent_busca.grid(row=1, column=0, sticky="ew", pady=(2, 6))
-        btn_clear = ttk.Button(left, text="Limpar", command=lambda: self._clear_search())
-        btn_clear.grid(row=2, column=0, sticky="ew", pady=(0, 10))
+        # Buscar cliente
+        self.search_var = getattr(self, "search_var", self._search_var if hasattr(self, "_search_var") else tk.StringVar())
+        self._search_var = self.search_var
+        if not hasattr(self, "on_limpar_busca"):
+            self.on_limpar_busca = self._clear_search
 
-        # --- COMBOBOX DE CLIENTE ---
-        ttk.Label(left, text="Cliente para auditoria:").grid(row=3, column=0, sticky="w")
-        self.cmb_cliente = ttk.Combobox(left, textvariable=self._cliente_var, state="readonly", width=40)
-        self.cmb_cliente.grid(row=4, column=0, sticky="ew", pady=(2, 8))
-        self.lbl_notfound = ttk.Label(left, text="", foreground="#a33")
-        self.lbl_notfound.grid(row=5, column=0, sticky="w", pady=(0, 8))
+        ttk.Label(self.toolbar, text="Buscar cliente:").grid(row=0, column=0, sticky="w", padx=(0, UI_GAP))
+        self.entry_busca = ttk.Entry(self.toolbar, textvariable=self.search_var, width=32)
+        self.entry_busca.grid(row=0, column=1, sticky="w", padx=(0, UI_GAP))
+        self.ent_busca = self.entry_busca
 
-        # Bindings para busca e seleção
         def _on_busca_key(event=None):  # type: ignore[no-untyped-def]
-            if hasattr(self, "_busca_after") and self._busca_after:
+            after_id = getattr(self, "_busca_after", None)
+            if after_id:
                 try:
-                    self.after_cancel(self._busca_after)
+                    self.after_cancel(after_id)
                 except Exception:
                     pass
             self._busca_after = self.after(140, lambda: self._filtra_clientes(self.ent_busca.get()))
 
-        self.ent_busca.bind("<KeyRelease>", _on_busca_key)
+        self.entry_busca.bind("<KeyRelease>", _on_busca_key)
+
+        self.btn_limpar = ttk.Button(self.toolbar, text="Limpar", command=getattr(self, "on_limpar_busca", self._clear_search))
+        self.btn_limpar.grid(row=0, column=2, padx=(0, UI_GAP))
+
+        # Cliente para auditoria
+        self.cliente_var = getattr(self, "cliente_var", self._cliente_var if hasattr(self, "_cliente_var") else tk.StringVar())
+        self._cliente_var = self.cliente_var
+        ttk.Label(self.toolbar, text="Cliente para auditoria:").grid(row=0, column=3, sticky="e", padx=(UI_GAP, UI_GAP))
+        self.combo_cliente = ttk.Combobox(self.toolbar, textvariable=self.cliente_var, state="readonly", width=48)
+        self.combo_cliente.grid(row=0, column=4, sticky="w")
+        self.cmb_cliente = self.combo_cliente
+
+        ttk.Label(self.toolbar, text="").grid(row=0, column=7, sticky="ew")
 
         def _on_select_cliente(event=None):  # type: ignore[no-untyped-def]
-            label = self.cmb_cliente.get()
-            self._cliente_selecionado = self._label2cliente.get(label) if hasattr(self, "_label2cliente") else None
+            self._selected_cliente_id = self._get_selected_cliente_id()
 
-        self.cmb_cliente.bind("<<ComboboxSelected>>", _on_select_cliente)
+        self.combo_cliente.bind("<<ComboboxSelected>>", _on_select_cliente)
 
-        # Inicializa variáveis
+        btn_refresh = getattr(self, "btn_refresh", None)
+        if btn_refresh and getattr(btn_refresh, "winfo_exists", lambda: False)():
+            btn_refresh.destroy()
+        self.btn_refresh = None  # type: ignore[assignment]
+
+        for attr in ("btn_subpastas", "btn_enviar", "btn_excluir", "btn_iniciar"):
+            widget = getattr(self, attr, None)
+            if widget and getattr(widget, "winfo_exists", lambda: False)():
+                widget.destroy()
+            setattr(self, attr, None)
+
+        # Remover botões obsoletos herdados
+        btn_voltar = getattr(self, "btn_voltar", None)
+        if btn_voltar and getattr(btn_voltar, "winfo_exists", lambda: False)():
+            btn_voltar.destroy()
+        btn_atualizar = getattr(self, "btn_atualizar", None)
+        if btn_atualizar and getattr(btn_atualizar, "winfo_exists", lambda: False)():
+            btn_atualizar.destroy()
+
+        # Inicializa variáveis auxiliares de busca
         self._busca_after: str | None = None
-        self._label2cliente: dict[str, dict] = {}  # type: ignore[type-arg]
-        self._cliente_selecionado: dict | None = None  # type: ignore[type-arg]
 
-        btns = ttk.Frame(left)
-        btns.grid(row=6, column=0, sticky="ew", pady=(0, 8))
-        btns.columnconfigure((0, 1), weight=1)
+        # Linha divisória após toolbar
+        self.sep_top = ttk.Separator(self, orient="horizontal")
+        self.sep_top.grid(row=1, column=0, sticky="ew", padx=UI_PADX, pady=(0, UI_GAP))
 
-        self.btn_iniciar = ttk.Button(btns, text="Iniciar auditoria", command=self._on_iniciar)
-        self.btn_iniciar.grid(row=0, column=0, sticky="ew", padx=(0, 6))
+        # Container da lista (Labelframe)
+        self.list_frame = ttk.Labelframe(self, text="Auditorias recentes", padding=(6, 4, 6, 6))
+        self.list_frame.grid(row=2, column=0, sticky="nsew", padx=UI_PADX, pady=(0, UI_PADY))
+        self.rowconfigure(2, weight=1)
+        self.columnconfigure(0, weight=1)
+        self.list_frame.columnconfigure(0, weight=1)
+        self.list_frame.rowconfigure(0, weight=1)
 
-        self.btn_refresh = ttk.Button(btns, text="Atualizar lista", command=self._load_clientes)
-        self.btn_refresh.grid(row=0, column=1, sticky="ew")
-
-        if self._go_back:
-            ttk.Button(left, text="Voltar", command=self._go_back).grid(row=7, column=0, sticky="ew")
-
-        # Centro: tabela
-        center = ttk.Frame(self)
-        center.grid(row=1, column=1, sticky="nsew", padx=(8, 12), pady=8)
-        center.rowconfigure(1, weight=1)
-        center.columnconfigure(0, weight=1)
-
-        # Header com label + toolbar
-        header = ttk.Frame(center)
-        header.grid(row=0, column=0, sticky="ew", padx=(6, 6), pady=(4, 6))
-        header.grid_columnconfigure(0, weight=1)
-
-        ttk.Label(header, text="Auditorias recentes").grid(row=0, column=0, sticky="w")
-
-        self._btn_h_ver = ttk.Button(header, text="Ver subpastas", command=self._open_subpastas, state="disabled")
-        # Botão desativado (upload com upsert já cria as pastas necessárias)
-        # self._btn_h_criar = ttk.Button(header, text="Criar pasta Auditoria", command=self._create_auditoria_folder)
-        self._btn_h_enviar_zip = ttk.Button(header, text="Enviar ZIP/RAR/7Z p/ Auditoria", command=self._upload_archive_to_auditoria)
-        self._btn_h_delete = ttk.Button(header, text="Excluir auditoria(s)", command=self._delete_auditorias, state="disabled")
-
-        self._btn_h_ver.grid(row=0, column=1, padx=(8, 4))
-        # self._btn_h_criar.grid(row=0, column=2, padx=(4, 4))
-        self._btn_h_enviar_zip.grid(row=0, column=2, padx=(4, 4))
-        self._btn_h_delete.grid(row=0, column=3, padx=(4, 6))
+        # Grade / Treeview dentro da list_frame
+        self.tree_container = ttk.Frame(self.list_frame)
+        self.tree_container.grid(row=0, column=0, sticky="nsew")
+        self.tree_container.columnconfigure(0, weight=1)
+        self.tree_container.rowconfigure(0, weight=1)
 
         self.tree = ttk.Treeview(
-            center,
-            columns=("cliente", "status", "created", "updated"),
+            self.tree_container,
+            columns=("cliente", "status", "criado", "atualizado"),
             show="headings",
             selectmode="extended",
             height=16
         )
-        self.tree.heading("cliente", text="Cliente")
-        self.tree.heading("status", text="Status")
-        self.tree.heading("created", text="Criado em")
-        self.tree.heading("updated", text="Atualizado em")
-        self.tree.column("cliente", width=320, anchor="w")
-        self.tree.column("status", width=120, anchor="center")
-        self.tree.column("created", width=140, anchor="center")
-        self.tree.column("updated", width=140, anchor="center")
-        self.tree.grid(row=1, column=0, sticky="nsew")
+        for cid, title in (
+            ("cliente", "Cliente"),
+            ("status", "Status"),
+            ("criado", "Criado em"),
+            ("atualizado", "Atualizado em"),
+        ):
+            self.tree.heading(cid, text=title, anchor="center")
+            self.tree.column(cid, anchor="center", stretch=True)
+        self.tree.grid(row=0, column=0, sticky="nsew")
 
-        # Bind para habilitar/desabilitar botão Ver subpastas
         self.tree.bind("<<TreeviewSelect>>", self._on_auditoria_select)
+        self.tree.bind("<Button-3>", self._open_status_menu)
 
-        scrollbar = ttk.Scrollbar(center, orient="vertical", command=self.tree.yview)
-        scrollbar.grid(row=1, column=1, sticky="ns")
+        scrollbar = ttk.Scrollbar(self.tree_container, orient="vertical", command=self.tree.yview)
+        scrollbar.grid(row=0, column=1, sticky="ns")
         self.tree.configure(yscrollcommand=scrollbar.set)
 
-        self.lbl_offline = ttk.Label(center, text=OFFLINE_MSG, foreground="#666")
-        self.lbl_offline.grid(row=2, column=0, sticky="w", pady=(6, 0))
+        self.lbl_notfound = ttk.Label(self.list_frame, text="", foreground="#a33")
+        self.lbl_notfound.grid(row=1, column=0, sticky="w", pady=(UI_GAP, 0))
+
+        # Barra de ações dentro do Labelframe
+        if hasattr(self, "actions_bottom") and getattr(self.actions_bottom, "winfo_exists", lambda: False)():  # type: ignore[attr-defined]
+            self.actions_bottom.destroy()  # type: ignore[attr-defined]
+        if hasattr(self, "lf_actions") and getattr(self.lf_actions, "winfo_exists", lambda: False)():  # type: ignore[attr-defined]
+            self.lf_actions.destroy()  # type: ignore[attr-defined]
+
+        self.lf_actions = ttk.Frame(self.list_frame, padding=(UI_PADX, UI_PADY, UI_PADX, UI_PADY))
+        self.lf_actions.grid(row=1, column=0, sticky="ew")
+        self.list_frame.rowconfigure(1, weight=0)
+
+        self.lf_actions.columnconfigure(0, weight=1)
+        for col in (1, 2, 3, 4):
+            self.lf_actions.columnconfigure(col, weight=0)
+
+        iniciar_cmd = getattr(self, "on_iniciar_auditoria", self._on_iniciar)
+        subpastas_cmd = getattr(self, "on_ver_subpastas", self._open_subpastas)
+        enviar_cmd = getattr(self, "on_enviar_arquivos", self._upload_archive_to_auditoria)
+        excluir_cmd = getattr(self, "on_excluir", self._delete_auditorias)
+
+        self.btn_iniciar = ttk.Button(self.lf_actions, text="Iniciar auditoria", command=iniciar_cmd)
+        self.btn_subpastas = ttk.Button(self.lf_actions, text="Ver subpastas", command=subpastas_cmd, state="disabled")
+        self.btn_enviar = ttk.Button(self.lf_actions, text="Enviar arquivos para Auditoria", command=enviar_cmd)
+        self.btn_excluir = ttk.Button(self.lf_actions, text="Excluir auditoria(s)", command=excluir_cmd, state="disabled")
+
+        ttk.Label(self.lf_actions, text="").grid(row=0, column=0, sticky="ew")
+
+        self.btn_iniciar.grid(row=0, column=1, padx=(0, UI_GAP), sticky="e")
+        self.btn_subpastas.grid(row=0, column=2, padx=(0, UI_GAP), sticky="e")
+        self.btn_enviar.grid(row=0, column=3, padx=(0, UI_GAP), sticky="e")
+        self.btn_excluir.grid(row=0, column=4, padx=(0, 0), sticky="e")
+
+        # Aliases para manter compatibilidade com trechos existentes
+        self._btn_h_ver = self.btn_subpastas
+        self._btn_h_enviar_zip = self.btn_enviar
+        self._btn_h_delete = self.btn_excluir
+
+        try:
+            self.bind_all("<F5>", lambda event: self._load_auditorias())
+        except Exception:
+            pass
+        self._add_refresh_menu_entry()
+
+        self.lbl_offline = ttk.Label(self, text=OFFLINE_MSG, foreground="#666")
+        self.lbl_offline.grid(row=4, column=0, sticky="w", padx=UI_PADX, pady=(UI_PADY, 0))
 
     # ---------- Search Helpers ----------
     def _normalize(self, s: str) -> str:
@@ -347,6 +523,8 @@ class AuditoriaFrame(ttk.Frame):
 
         filtrados: list[dict] = []  # type: ignore[type-arg]
         for cli in base:
+            if not isinstance(cli, dict):
+                continue
             idx = _build_search_index(cli)
             # 1) Se o usuário digitou CNPJ (>= 5 dígitos), priorize match numérico
             if len(q_digits) >= 5 and q_digits in idx["cnpj"]:
@@ -364,46 +542,200 @@ class AuditoriaFrame(ttk.Frame):
                 filtrados = base
                 break
 
-        # monta labels e mapa label->obj
-        labels = [
-            f"{c.get('razao_social') or c.get('Razao Social') or 'Cliente'} — {c.get('cnpj') or ''}"
-            for c in filtrados
-        ]
+        self._fill_clientes_combo(filtrados)
 
-        # Mapeia cliente_id para cada label
-        self._clientes = []
-        for c in filtrados:
-            try:
-                cid = int(c.get("id", 0))
-            except (ValueError, TypeError):
-                cid = 0
-            idx = filtrados.index(c)
-            if idx < len(labels):
-                self._clientes.append((cid, labels[idx]))
-
-        # Mapa label->cliente completo
-        self._label2cliente = {labels[i]: filtrados[i] for i in range(len(labels))}
-
-        # atualiza combobox
-        try:
-            self.cmb_cliente.configure(values=labels, state="readonly")
-        except Exception:
-            # fallback se a combobox ainda não existir no momento da chamada
-            return
-
-        if labels:
-            # pré-seleciona 1º resultado
-            self.cmb_cliente.set(labels[0])
+        if filtrados:
             if hasattr(self, "lbl_notfound"):
                 self.lbl_notfound.configure(text="")
         else:
-            self.cmb_cliente.set("")
             if hasattr(self, "lbl_notfound"):
                 self.lbl_notfound.configure(text="Nenhum cliente encontrado")
+
+    @staticmethod
+    def _status_label(status: str) -> str:
+        return status_to_label(status)
 
     def _apply_filter(self) -> None:
         """Aplica filtro de busca nos clientes (compatibilidade)."""
         self._filtra_clientes(self._search_var.get())
+
+    def _fill_clientes_combo(self, clientes: list[dict]) -> None:  # type: ignore[type-arg]
+        """Atualiza a combobox com a lista filtrada de clientes."""
+        values: list[str] = []
+        mapping: dict[str, int] = {}
+
+        for cli in clientes:
+            if not isinstance(cli, dict):
+                continue
+            raw_id = cli.get("id")
+            try:
+                cid_int = int(raw_id) if raw_id not in (None, "") else None
+            except Exception:
+                cid_int = None
+
+            razao = _cliente_razao_from_row(cli)
+            cnpj_raw = _cliente_cnpj_from_row(cli)
+            ident = cid_int if cid_int is not None else raw_id
+            display = _cliente_display_id_first(ident, razao, cnpj_raw)
+            values.append(display)
+
+            if cid_int is not None:
+                mapping[display] = cid_int
+                self._cliente_display_map[str(cid_int)] = display
+            elif raw_id not in (None, ""):
+                try:
+                    mapping[display] = int(str(raw_id))
+                except Exception:
+                    # sem ID numérico -> não fornece mapping para criação
+                    pass
+
+            if raw_id not in (None, ""):
+                self._cliente_display_map[str(raw_id)] = display
+
+        self._cliente_display_to_id = mapping
+
+        try:
+            self.combo_cliente.configure(values=values, state="readonly")
+        except Exception:
+            return
+
+        current = self.cliente_var.get()
+        if values and (not current or current not in values):
+            self.cliente_var.set(values[0])
+        elif not values:
+            self.cliente_var.set("")
+
+        self._selected_cliente_id = self._get_selected_cliente_id()
+
+    def _get_selected_cliente_id(self) -> int | None:
+        """Retorna o cliente_id selecionado na combobox (ou None)."""
+        try:
+            display = self.cliente_var.get().strip()
+        except Exception:
+            return None
+        if not display:
+            return None
+        raw = self._cliente_display_to_id.get(display)
+        if raw is None:
+            return None
+        try:
+            return int(raw)
+        except Exception:
+            try:
+                return int(str(raw))
+            except Exception:
+                return None
+
+    def _has_open_auditoria_for(self, cliente_id: int | str | None) -> bool:
+        """Procura na lista atual se há auditoria 'aberta' para o cliente."""
+        if cliente_id in (None, "", 0):
+            return False
+
+        target_str = str(cliente_id)
+        target_int: int | None
+        try:
+            target_int = int(cliente_id)
+        except Exception:
+            target_int = None
+
+        for rec in self._aud_index.values():
+            rec_cliente = rec.get("cliente_id")
+            if rec_cliente is None:
+                continue
+
+            match = False
+            if target_int is not None:
+                try:
+                    match = int(rec_cliente) == target_int
+                except Exception:
+                    match = False
+            if not match and str(rec_cliente) == target_str:
+                match = True
+
+            if match and is_status_open(rec.get("status")):
+                return True
+        return False
+
+    def _do_refresh(self) -> None:
+        """Recarrega listas de clientes e auditorias."""
+        client_loader = getattr(self, "_load_clientes", None)
+        if callable(client_loader):
+            client_loader()
+
+        loader = getattr(self, "_load_auditorias", None)
+        if callable(loader):
+            loader()
+            return
+
+        fallback = getattr(self, "load_rows", None)
+        if callable(fallback):
+            fallback([])
+
+    def _add_refresh_menu_entry(self) -> None:
+        """Adiciona ação de recarregar à barra de menus, se existir."""
+        if getattr(self, "_menu_refresh_added", False):
+            return
+
+        try:
+            root = self.winfo_toplevel()
+        except Exception:
+            return
+        if not root or not root.winfo_exists():
+            return
+
+        try:
+            menu_name = root["menu"]
+        except Exception:
+            menu_name = None
+        if not menu_name:
+            return
+
+        try:
+            top_menu = root.nametowidget(menu_name)
+        except Exception:
+            return
+        if not isinstance(top_menu, tk.Menu):
+            return
+
+        exibir_menu: tk.Menu | None = None
+        try:
+            end_index = top_menu.index("end")
+        except Exception:
+            end_index = None
+        if end_index is not None:
+            for idx in range(end_index + 1):
+                try:
+                    if top_menu.type(idx) == "cascade" and top_menu.entrycget(idx, "label") == "Exibir":
+                        exibir_menu = top_menu.nametowidget(top_menu.entrycget(idx, "menu"))  # type: ignore[arg-type]
+                        break
+                except Exception:
+                    continue
+
+        if exibir_menu is None:
+            exibir_menu = tk.Menu(top_menu, tearoff=False)
+            top_menu.add_cascade(label="Exibir", menu=exibir_menu)
+
+        if not isinstance(exibir_menu, tk.Menu):
+            return
+
+        try:
+            end_index = exibir_menu.index("end")
+        except Exception:
+            end_index = None
+        if end_index is not None:
+            for idx in range(end_index + 1):
+                try:
+                    if exibir_menu.entrycget(idx, "label") == "Recarregar lista":
+                        self._menu_refresh_added = True
+                        return
+                except Exception:
+                    continue
+
+        try:
+            exibir_menu.add_command(label="Recarregar lista", accelerator="F5", command=self._do_refresh)
+            self._menu_refresh_added = True
+        except Exception:
+            pass
 
     # ---------- Storage Helpers ----------
     def _client_storage_base(self, client_id: int | str) -> str:
@@ -426,14 +758,7 @@ class AuditoriaFrame(ttk.Frame):
 
     def _selected_client_id(self) -> Optional[int]:
         """Retorna o id do cliente atualmente selecionado no combobox."""
-        try:
-            idx = self.cmb_cliente.current()
-            if idx is None or idx < 0:
-                return None
-            cid = self._clientes[idx][0]
-            return int(cid)
-        except Exception:
-            return None
+        return self._get_selected_cliente_id()
 
     # ---------- Loaders ----------
     def _lazy_load(self) -> None:
@@ -463,7 +788,6 @@ class AuditoriaFrame(ttk.Frame):
         self.ent_busca.configure(state=state)
         self.cmb_cliente.configure(state="disabled" if is_offline else "readonly")
         self.btn_iniciar.configure(state=state)
-        self.btn_refresh.configure(state=state)
 
         # Botões de storage (header direita)
         for w in (
@@ -490,29 +814,32 @@ class AuditoriaFrame(ttk.Frame):
             )
             data = getattr(res, "data", []) or []
 
-            self._clientes_all = []
-            self._clientes_all_rows = data
-            self._clientes_map = {}
+            self._clientes_all_rows = [row for row in data if isinstance(row, dict)]  # type: ignore[list-item]
+            self._cliente_display_map.clear()
+            self._clientes_rows_map.clear()
 
-            tmp_list = []
-            for row in data:
+            for row in self._clientes_all_rows:
+                raw_id = row.get("id")
+                ident_int: int | None
                 try:
-                    cid = int(row.get("id"))
+                    ident_int = int(raw_id) if raw_id not in (None, "") else None
                 except Exception:
-                    cid = row.get("id")  # type: ignore[assignment]
-                nome = (
-                    row.get("razao_social")
-                    or row.get("legal_name")
-                    or row.get("name")
-                    or row.get("display_name")
-                    or f"Cliente {cid}"
-                )
-                cnpj = row.get("cnpj") or row.get("tax_id") or ""
-                label = f"{nome} — {cnpj}" if cnpj else nome
-                tmp_list.append((cid, label))
-                self._clientes_map[cid] = label
+                    ident_int = None
 
-            self._clientes_all = tmp_list
+                razao = _cliente_razao_from_row(row)
+                cnpj_raw = _cliente_cnpj_from_row(row)
+                ident = ident_int if ident_int is not None else raw_id
+                display = _cliente_display_id_first(ident, razao, cnpj_raw)
+
+                if raw_id is not None:
+                    key = str(raw_id)
+                    self._cliente_display_map[key] = display
+                    self._clientes_rows_map[key] = row
+                if ident_int is not None:
+                    key_int = str(ident_int)
+                    self._cliente_display_map[key_int] = display
+                    self._clientes_rows_map[key_int] = row
+
             # aplica o filtro atual (se houver texto digitado)
             self._apply_filter()
 
@@ -526,7 +853,7 @@ class AuditoriaFrame(ttk.Frame):
         """
         Carrega lista de auditorias do Supabase.
 
-        Monta o nome do cliente via self._clientes_map, sem usar embed FK.
+    Monta o nome do cliente via cache local (sem usar embed FK).
         Popula self._aud_index para rastreamento de IDs.
         """
         if not self._sb:
@@ -546,48 +873,71 @@ class AuditoriaFrame(ttk.Frame):
             self.tree.delete(*self.tree.get_children())
 
             for r in rows:
-                # Busca nome do cliente via mapa em memória
-                cliente_id = r.get("cliente_id")
-                cnpj = ""
-                if cliente_id is not None:
+                if not isinstance(r, dict):
+                    continue
+
+                aud_id = r.get("id")
+                if aud_id is None:
+                    continue
+
+                iid = str(aud_id)
+
+                raw_cliente_id = r.get("cliente_id")
+                cliente_row = None
+                cliente_id_int: int | None = None
+                if raw_cliente_id not in (None, ""):
+                    key_raw = str(raw_cliente_id)
+                    cliente_row = self._clientes_rows_map.get(key_raw)
+                    if cliente_row is None:
+                        try:
+                            cliente_row = self._clientes_rows_map.get(str(int(raw_cliente_id)))
+                        except Exception:
+                            cliente_row = None
                     try:
-                        cid = int(cliente_id)
-                        cliente_nome = self._clientes_map.get(cid, f"#{cid}")
-                        # Busca CNPJ do cliente
-                        for row_data in self._clientes_all_rows:
-                            if row_data.get("id") == cid:
-                                cnpj = row_data.get("cnpj", "")
-                                break
-                    except (ValueError, TypeError):
-                        cliente_nome = str(cliente_id)
-                        cid = 0
-                else:
-                    cliente_nome = ""
-                    cid = 0
+                        cliente_id_int = int(raw_cliente_id)
+                    except Exception:
+                        cliente_id_int = None
 
-                # Formata timestamps (remove T e microssegundos)
-                created = (r.get("created_at") or "")[:19].replace("T", " ")
-                updated = (r.get("updated_at") or "")[:19].replace("T", " ")
+                razao = _cliente_razao_from_row(cliente_row) or _cliente_razao_from_row(r)
+                cnpj_raw = _cliente_cnpj_from_row(cliente_row)
+                if not cnpj_raw:
+                    cnpj_raw = (r.get("cnpj") or r.get("tax_id") or "")
+                cliente_ident = cliente_id_int if cliente_id_int is not None else raw_cliente_id
+                cliente_txt = _cliente_display_id_first(cliente_ident, razao, cnpj_raw)
+                if not cliente_txt:
+                    cliente_txt = self._cliente_display_map.get(str(raw_cliente_id), "")
 
-                # IID = string do id (sempre disponível)
-                iid = str(r["id"])
+                status_raw = r.get("status") or DEFAULT_AUDITORIA_STATUS
+                status_db = canonical_status(status_raw)
+                status_display = status_to_label(status_db)
 
-                # Popula índice de auditoria
+                created_iso = r.get("created_at") or r.get("criado")
+                updated_iso = r.get("updated_at") or r.get("atualizado")
+                created_br = fmt_datetime_br(created_iso)
+                updated_br = fmt_datetime_br(updated_iso)
+
+                cliente_cnpj_fmt = format_cnpj(cnpj_raw)
+
                 self._aud_index[iid] = {
-                    "db_id": r["id"],  # ID inteiro para DELETE
-                    "cliente_id": cid,
-                    "cliente_nome": cliente_nome,
-                    "cnpj": cnpj,
-                    "status": r.get("status", ""),
-                    "created_at": created,
-                    "updated_at": updated
+                    "db_id": aud_id,
+                    "cliente_id": cliente_id_int if cliente_id_int is not None else raw_cliente_id,
+                    "cliente_display": cliente_txt,
+                    "cliente_nome": razao or cliente_txt,
+                    "cliente_razao": razao,
+                    "cnpj": cliente_cnpj_fmt,
+                    "status": status_db,
+                    "status_display": status_display,
+                    "created_at": created_br,
+                    "created_at_iso": created_iso,
+                    "updated_at": updated_br,
+                    "updated_at_iso": updated_iso,
                 }
 
                 self.tree.insert(
                     "",
                     "end",
                     iid=iid,
-                    values=(cliente_nome, r.get("status", ""), created, updated)
+                    values=(cliente_txt, status_display, created_br, updated_br)
                 )
         except Exception as e:
             messagebox.showwarning(
@@ -595,23 +945,111 @@ class AuditoriaFrame(ttk.Frame):
                 f"Falha ao carregar auditorias.\n{e}"
             )
 
+    def _ensure_status_menu(self) -> tk.Menu:
+        if self._status_menu and self._status_menu.winfo_exists():
+            return self._status_menu
+
+        menu = tk.Menu(self, tearoff=0)
+        for status in self._status_menu_items:
+            menu.add_command(
+                label=self._status_label(status),
+                command=lambda value=status: self._apply_status_from_menu(value)
+            )
+        self._status_menu = menu
+        return menu
+
+    def _open_status_menu(self, event: tk.Event) -> None:  # type: ignore[name-defined]
+        """Exibe menu de contexto de status apenas quando o clique for na coluna 'status'."""
+        row = self.tree.identify_row(event.y)
+        col = self.tree.identify_column(event.x)
+        if not row or col != "#2":
+            return
+
+        try:
+            self.tree.selection_set(row)
+        except Exception:
+            pass
+
+        self._status_click_iid = row
+        menu = self._ensure_status_menu()
+        try:
+            menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            menu.grab_release()
+
+    def _apply_status_from_menu(self, new_status: str) -> None:
+        iid = self._status_click_iid or next(iter(self.tree.selection()), None)
+        self._status_click_iid = None
+        if not iid:
+            return
+        self._set_auditoria_status(iid, new_status)
+
+    def _set_auditoria_status(self, iid: str, new_status: str) -> None:
+        row = self._aud_index.get(iid)
+        if not row:
+            return
+
+        normalized = label_to_status(new_status)
+        desired_db = canonical_status(normalized or new_status)
+        if desired_db not in STATUS_LABELS:
+            messagebox.showerror("Auditoria", "Status selecionado inválido.")
+            return
+
+        current = canonical_status(row.get("status"))
+        if current == desired_db:
+            return
+
+        if not self._sb:
+            messagebox.showwarning("Auditoria", "Sem conexão com o banco de dados.")
+            return
+
+        try:
+            res = (
+                self._sb.table("auditorias")
+                .update({"status": desired_db})
+                .eq("id", row["db_id"])
+                .select("status, updated_at")
+                .execute()
+            )
+            data = getattr(res, "data", None) or []
+            updated_iso = data[0].get("updated_at") if data else None
+        except Exception as e:
+            messagebox.showerror("Auditoria", f"Falha ao atualizar status.\n{e}")
+            return
+
+        row["status"] = desired_db
+        row["status_display"] = status_to_label(desired_db)
+        if updated_iso:
+            row["updated_at_iso"] = updated_iso
+            row["updated_at"] = fmt_datetime_br(updated_iso)
+
+        self.tree.set(iid, "status", row["status_display"])
+        if row.get("updated_at"):
+            self.tree.set(iid, "atualizado", row["updated_at"])
+
     # ---------- Actions ----------
     def _on_iniciar(self) -> None:
         """Handler do botão 'Iniciar auditoria'."""
         if not self._sb:
             return
 
-        idx = self.cmb_cliente.current()
-        if idx < 0 or idx >= len(self._clientes):
-            messagebox.showinfo("Auditoria", "Selecione um cliente.")
+        cliente_id = self._get_selected_cliente_id()
+        if not cliente_id:
+            messagebox.showwarning("Auditoria", "Selecione um cliente para iniciar a auditoria.")
             return
 
-        cliente_id = int(self._clientes[idx][0])
+        if self._has_open_auditoria_for(cliente_id):
+            msg = (
+                "Já existe uma auditoria em andamento para este cliente.\n\n"
+                "Deseja iniciar outra auditoria para a mesma farmácia?"
+            )
+            if not messagebox.askyesno("Confirmar", msg):
+                return
 
         try:
             ins = (
                 self._sb.table("auditorias")
-                .insert({"cliente_id": cliente_id, "status": "em_andamento"})
+                .insert({"cliente_id": cliente_id, "status": DEFAULT_AUDITORIA_STATUS})
                 .execute()
             )
             if getattr(ins, "data", None):
@@ -1255,7 +1693,7 @@ class AuditoriaFrame(ttk.Frame):
                         return
 
                 strategy = dialog_result["strategy"]
-                apply_once = dialog_result["apply_once"]
+                _apply_once = dialog_result["apply_once"]  # Reserved for future use (TODO)
 
                 if strategy is None:  # Cancelou
                     if ext in ("rar", "7z"):
@@ -1552,101 +1990,3 @@ class DuplicatesDialog(tk.Toplevel):
         self.strategy = None
         self.apply_once = True
         self.destroy()
-
-
-class StorageBrowser(tk.Toplevel):
-    """Navegador simples de subpastas no Storage (somente diretórios)."""
-
-    def __init__(
-        self,
-        parent: tk.Misc,
-        sb_client,  # type: ignore[no-untyped-def]
-        bucket: str,
-        base_prefix: str,
-        title: str = "Subpastas"
-    ) -> None:
-        super().__init__(parent)
-        self.title(title)
-        self.geometry("720x420")
-        self._sb = sb_client
-        self._bucket = bucket
-        self._stack: list[str] = [base_prefix.rstrip("/")]
-        self._build_ui()
-        self._load()
-
-    def _build_ui(self) -> None:
-        """Constrói a interface do navegador."""
-        self.columnconfigure(0, weight=1)
-        self.rowconfigure(1, weight=1)
-
-        top = ttk.Frame(self)
-        top.grid(row=0, column=0, sticky="ew", pady=(8, 6))
-        top.columnconfigure(1, weight=1)
-
-        ttk.Label(top, text="Caminho:").grid(row=0, column=0, sticky="w", padx=(8, 6))
-        self.var_path = tk.StringVar(value=self._current_prefix())
-        ent = ttk.Entry(top, textvariable=self.var_path, state="readonly")
-        ent.grid(row=0, column=1, sticky="ew", padx=(0, 6))
-
-        ttk.Button(top, text="Subir", command=self._go_up).grid(row=0, column=2, padx=(0, 8))
-
-        self.tree = ttk.Treeview(self, columns=("tipo", "nome"), show="headings")
-        self.tree.grid(row=1, column=0, sticky="nsew", padx=8)
-        self.tree.heading("tipo", text="Tipo")
-        self.tree.heading("nome", text="Nome")
-        self.tree.bind("<Double-1>", lambda e: self._enter_selected())
-
-        btns = ttk.Frame(self)
-        btns.grid(row=2, column=0, sticky="ew", pady=(6, 8))
-        btns.columnconfigure(0, weight=1)
-        ttk.Button(btns, text="Fechar", command=self.destroy).grid(row=0, column=0, padx=8, sticky="e")
-
-    def _current_prefix(self) -> str:
-        """Retorna o prefixo atual da navegação."""
-        return self._stack[-1]
-
-    def _go_up(self) -> None:
-        """Navega para o diretório pai."""
-        if len(self._stack) > 1:
-            self._stack.pop()
-            self.var_path.set(self._current_prefix())
-            self._load()
-
-    def _enter_selected(self) -> None:
-        """Entra no diretório selecionado."""
-        sel = self.tree.selection()
-        if not sel:
-            return
-        item = self.tree.item(sel[0])
-        values = item.get("values", ["", ""])
-        if values[0] == "pasta":
-            name = values[1]
-            self._stack.append(f"{self._current_prefix().rstrip('/')}/{name}")
-            self.var_path.set(self._current_prefix())
-            self._load()
-
-    def _list_dir(self, prefix: str) -> list[dict]:  # type: ignore[type-arg]
-        """Lista diretórios no prefixo (paginação até 100 por chamada)."""
-        out: list[dict] = []  # type: ignore[type-arg]
-        offset = 0
-        while True:
-            resp = self._sb.storage.from_(self._bucket).list(prefix, limit=100, offset=offset)
-            data = getattr(resp, "data", []) or []
-            out.extend(data)
-            if len(data) < 100:
-                break
-            offset += 100
-        return out
-
-    def _load(self) -> None:
-        """Carrega e exibe os diretórios do prefixo atual."""
-        self.tree.delete(*self.tree.get_children())
-        prefix = self._current_prefix().rstrip("/")
-        try:
-            entries = self._list_dir(prefix)
-            # Em Storage, "pasta" é item com metadata == None (placeholder) e/ou itens sem '.'
-            dirs = [e for e in entries if e.get("metadata") is None]
-            for d in dirs:
-                self.tree.insert("", "end", values=("pasta", d.get("name", "")))
-        except Exception as e:
-            messagebox.showwarning("Storage", f"Falha ao listar pastas.\n{e}")

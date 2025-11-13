@@ -17,6 +17,8 @@ log = logging.getLogger(__name__)
 
 APP_FOLDER_NAME = "RegularizeConsultoria"
 PREFS_FILENAME = "columns_visibility.json"
+BROWSER_STATE_FILENAME = "browser_state.json"
+BROWSER_STATUS_FILENAME = "browser_status.json"
 
 
 def _get_base_dir() -> str:
@@ -101,5 +103,78 @@ def _save_prefs_unlocked(path: str, user_key: str, mapping: Dict[str, bool]) -> 
         except Exception:
             db = {}
     db[user_key] = mapping
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(db, f, ensure_ascii=False, indent=2)
+
+
+# --- Browser state helpers ---
+
+
+def _browser_state_path() -> str:
+    base = _get_base_dir()
+    return os.path.join(base, BROWSER_STATE_FILENAME)
+
+
+def _browser_status_path() -> str:
+    base = _get_base_dir()
+    return os.path.join(base, BROWSER_STATUS_FILENAME)
+
+
+def load_last_prefix(key: str) -> str:
+    """Retorna o último prefixo salvo para a chave informada ou string vazia."""
+    path = _browser_state_path()
+    if not os.path.exists(path):
+        return ""
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f) or {}
+        value = data.get(key, "")
+        return str(value or "")
+    except Exception:
+        return ""
+
+
+def save_last_prefix(key: str, prefix: str) -> None:
+    """Salva o último prefixo visitado para a chave informada."""
+    path = _browser_state_path()
+    db: Dict[str, str] = {}
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                db = json.load(f) or {}
+        except Exception:
+            db = {}
+    db[key] = prefix
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(db, f, ensure_ascii=False, indent=2)
+
+
+def load_browser_status_map(key: str) -> Dict[str, str]:
+    """Carrega o mapa de status do browser associado à chave fornecida."""
+    path = _browser_status_path()
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f) or {}
+        raw = data.get(key, {})
+        if isinstance(raw, dict):
+            return {str(k): str(v) for k, v in raw.items()}
+    except Exception:
+        pass
+    return {}
+
+
+def save_browser_status_map(key: str, mapping: Dict[str, str]) -> None:
+    """Persiste o mapa de status do browser para a chave informada."""
+    path = _browser_status_path()
+    db: Dict[str, Dict[str, str]] = {}
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                db = json.load(f) or {}
+        except Exception:
+            db = {}
+    db[key] = mapping
     with open(path, "w", encoding="utf-8") as f:
         json.dump(db, f, ensure_ascii=False, indent=2)

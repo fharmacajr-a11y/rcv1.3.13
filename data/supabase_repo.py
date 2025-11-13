@@ -138,11 +138,13 @@ def with_retries(fn: Callable, tries: int = 3, base_delay: float = 0.4):
                 last_exc = e
             else:
                 raise
-        
+
         if attempt < tries:
             delay = base_delay * (2 ** (attempt - 1)) + random.uniform(0, 0.15)
             time.sleep(delay)
-    
+
+    if last_exc is None:
+        raise RuntimeError("Unexpected None error from Postgrest")
     raise last_exc
 
 
@@ -160,15 +162,15 @@ def list_passwords(org_id: str) -> List[Dict[str, Any]]:
     Lista todas as senhas da organização.
     Retorna lista de dicts com campos: id, org_id, client_name, service,
     username, password_enc, notes, created_by, created_at, updated_at.
-    
+
     A senha vem criptografada (password_enc); use decrypt_for_view() para exibir.
     """
     if not org_id:
         raise ValueError("org_id é obrigatório")
-    
+
     try:
         _ensure_postgrest_auth(supabase)  # Autenticação antes da operação
-        
+
         def _do():
             return exec_postgrest(
                 supabase.table("client_passwords")
@@ -176,7 +178,7 @@ def list_passwords(org_id: str) -> List[Dict[str, Any]]:
                 .eq("org_id", org_id)
                 .order("updated_at", desc=True)
             )
-        
+
         res = with_retries(_do)
         data = getattr(res, "data", None) or []
         log.info("list_passwords: %d registro(s) encontrado(s) para org_id=%s", len(data), org_id)
@@ -202,17 +204,17 @@ def add_password(
     """
     if not org_id or not client_name or not service:
         raise ValueError("org_id, client_name e service são obrigatórios")
-    
+
     try:
         # 1) Garante autenticação (required=True levanta erro se sem token)
         _ensure_postgrest_auth(supabase, required=True)
-        
+
         # 2) Precheck RLS - confere membership com o token atual
         _rls_precheck_membership(supabase, org_id, created_by)
-        
+
         # 3) Criptografia
         password_enc = encrypt_text(password_plain) if password_plain else ""
-        
+
         payload = {
             "org_id": org_id,
             "client_name": client_name,
@@ -224,17 +226,17 @@ def add_password(
             "created_at": _now_iso(),
             "updated_at": _now_iso(),
         }
-        
+
         log.info(
             "pwd.add -> org_id=%s created_by=%s client=%s service=%s username=%s",
             org_id, created_by, client_name, service, username
         )
-        
+
         def _insert():
             return exec_postgrest(
                 supabase.table("client_passwords").insert(payload)
             )
-        
+
         res = with_retries(_insert)
         data = getattr(res, "data", None) or []
         if not data:
@@ -261,12 +263,12 @@ def update_password(
     """
     if not id:
         raise ValueError("id é obrigatório")
-    
+
     try:
         _ensure_postgrest_auth(supabase)  # Autenticação antes da operação
-        
+
         payload: Dict[str, Any] = {"updated_at": _now_iso()}
-        
+
         if client_name is not None:
             payload["client_name"] = client_name
         if service is not None:
@@ -277,7 +279,7 @@ def update_password(
             payload["notes"] = notes
         if password_plain is not None:
             payload["password_enc"] = encrypt_text(password_plain) if password_plain else ""
-        
+
         res = with_retries(
             lambda: exec_postgrest(
                 supabase.table("client_passwords").update(payload).eq("id", id)
@@ -299,10 +301,10 @@ def delete_password(id: int) -> None:
     """
     if not id:
         raise ValueError("id é obrigatório")
-    
+
     try:
         _ensure_postgrest_auth(supabase)  # Autenticação antes da operação
-        
+
         with_retries(
             lambda: exec_postgrest(
                 supabase.table("client_passwords").delete().eq("id", id)
@@ -339,25 +341,25 @@ def search_clients(org_id: str, query: str, limit: int = 20) -> List[Dict[str, A
     q = (query or "").strip()
     if not org_id:
         return []
-    
+
     _ensure_postgrest_auth(supabase)  # Autenticação antes da operação
-    
+
     ilike = f"%{q}%"
-    
+
     def _do():
         sel = supabase.table("clients") \
             .select("id, org_id, razao_social, nome_fantasia, cnpj") \
             .eq("org_id", org_id)
-        
+
         if len(q) >= 2:
             sel = sel.or_(f"razao_social.ilike.{ilike},nome_fantasia.ilike.{ilike},cnpj.ilike.{ilike}") \
                      .order("razao_social") \
                      .limit(limit)
         else:
             sel = sel.order("razao_social").limit(limit)
-        
+
         return exec_postgrest(sel)
-    
+
     try:
         res = with_retries(_do)
         data = getattr(res, "data", None) or []
@@ -372,19 +374,19 @@ def list_clients_for_picker(org_id: str, limit: int = 200) -> List[Dict[str, Any
     """
     Lista todos os clientes da organização para exibição no modal picker.
     Usado para carregar lista inicial ao abrir o modal.
-    
+
     Args:
         org_id: UUID da organização
         limit: Número máximo de resultados (padrão: 200)
-    
+
     Returns:
         Lista de dicts com: id, org_id, razao_social, nome_fantasia, cnpj
     """
     if not org_id:
         return []
-    
+
     _ensure_postgrest_auth(supabase)  # Autenticação antes da operação
-    
+
     def _do():
         return exec_postgrest(
             supabase.table("clients")
@@ -393,7 +395,7 @@ def list_clients_for_picker(org_id: str, limit: int = 200) -> List[Dict[str, Any
             .order("razao_social")
             .limit(limit)
         )
-    
+
     try:
         res = with_retries(_do)
         data = getattr(res, "data", None) or []

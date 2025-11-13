@@ -21,10 +21,7 @@ class OkCancelMixin:
             self.result = value  # type: ignore[attr-defined]
         except Exception:
             pass
-        try:
-            self.destroy()
-        except Exception:
-            pass
+        safe_destroy(self)
 
     def _cancel(self):
         """Close the dialog indicating cancellation."""
@@ -33,10 +30,7 @@ class OkCancelMixin:
             self.result = False  # type: ignore[attr-defined]
         except Exception:
             pass
-        try:
-            self.destroy()
-        except Exception:
-            pass
+        safe_destroy(self)
 
 
 def center_window(win, w: int = 1200, h: int = 500) -> None:
@@ -80,4 +74,23 @@ def center_on_parent(win, parent=None, pad: int = 0):
     return win
 
 
-__all__ = ["OkCancelMixin", "center_window", "center_on_parent"]
+def safe_destroy(win: object | None) -> None:
+    """Destroy a Tk widget if it exists."""
+    if win is None:
+        return
+    exists_fn = getattr(win, "winfo_exists", None)
+    if callable(exists_fn):
+        try:
+            if not bool(exists_fn()):
+                return
+        except Exception:
+            pass
+    destroy_fn = getattr(win, "destroy", None)
+    if callable(destroy_fn):
+        try:
+            destroy_fn()
+        except Exception:
+            pass
+
+
+__all__ = ["OkCancelMixin", "center_window", "center_on_parent", "safe_destroy"]

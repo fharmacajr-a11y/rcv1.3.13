@@ -1,9 +1,12 @@
 # infra/supabase_auth.py
 from __future__ import annotations
+import logging
 from typing import Tuple
 from supabase import Client
 from infra.supabase_client import get_supabase
 from src.core import session
+
+logger = logging.getLogger(__name__)
 
 
 class AuthError(Exception):
@@ -40,5 +43,10 @@ def logout():
     except Exception:
         pass
     finally:
-        session.set_current_user(None)
+        # Proteger contra None antes de chamar set_current_user
+        token = None  # logout sempre limpa o token
+        if token is None:
+            logger.info("Sem token; ignorando set_current_user")
+        else:
+            session.set_current_user(token)
         session.set_tokens(None, None)

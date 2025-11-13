@@ -13,14 +13,15 @@ CLOUD_COLORS = {
 class StatusFooter(ttk.Frame):
     def __init__(self, master, on_lixeira_click=None, show_trash=False):
         super().__init__(master)
+        self.configure(padding=(6, 2, 6, 2))
         self.columnconfigure(0, weight=1)
         self.columnconfigure(1, weight=0)
 
         self._lbl_count = ttk.Label(self, text="")
-        self._lbl_count.grid(row=0, column=0, sticky="w", padx=(8, 0), pady=6)
+        self._lbl_count.grid(row=0, column=0, sticky="w", padx=(6, 0), pady=3)
 
         right = ttk.Frame(self)
-        right.grid(row=0, column=1, sticky="e", padx=8, pady=4)
+        right.grid(row=0, column=1, sticky="e", padx=6, pady=2)
 
         self._dot = tk.Canvas(right, width=14, height=14, highlightthickness=0, bd=0)
         self._dot.create_oval(2, 2, 12, 12, fill=CLOUD_COLORS["UNKNOWN"], outline="")
@@ -32,7 +33,7 @@ class StatusFooter(ttk.Frame):
         self._dot.grid(row=0, column=0, sticky="e")
         self._lbl_cloud.grid(row=0, column=1, sticky="e", padx=(6, 0))
         sep.grid(row=0, column=2, sticky="e")
-        self._lbl_user.grid(row=0, column=3, sticky="e", padx=(0, 8))
+        self._lbl_user.grid(row=0, column=3, sticky="e", padx=(0, 6))
 
         # Botão Lixeira opcional (apenas se show_trash=True)
         self._btn_lixeira = None

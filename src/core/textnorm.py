@@ -6,7 +6,6 @@ Search text normalization helpers (accent/punctuation insensitive).
 from __future__ import annotations
 
 import unicodedata as ud
-from typing import Iterable
 
 __all__ = [
     "_strip_diacritics",

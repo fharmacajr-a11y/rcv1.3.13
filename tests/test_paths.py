@@ -2,9 +2,7 @@
 
 import os
 import sys
-from pathlib import Path
 
-import pytest  # type: ignore[import-untyped]
 
 
 def test_resource_path_dev_mode():

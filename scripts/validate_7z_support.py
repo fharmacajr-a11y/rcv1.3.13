@@ -128,7 +128,6 @@ def test_py7zr_extraction():
     try:
         import py7zr
         import tempfile
-        import io
 
         # Cria um .7z em memória para teste
         with tempfile.TemporaryDirectory() as tmpd:

@@ -202,7 +202,7 @@ def test_eta_calculation():
 
         assert eta_str == expected_eta, f"ETA incorreto: esperado {expected_eta}, obteve {eta_str}"
 
-    print(f"  ✓ Cálculo de ETA correto para todos os casos")
+    print("  ✓ Cálculo de ETA correto para todos os casos")
 
 
 def test_percentage_accuracy():

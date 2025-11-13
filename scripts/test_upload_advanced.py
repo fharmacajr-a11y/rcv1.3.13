@@ -11,8 +11,6 @@ Uso:
 """
 from __future__ import annotations
 
-import tempfile
-import zipfile
 from pathlib import Path
 
 
@@ -43,7 +41,7 @@ def test_next_copy_name():
     result = _next_copy_name("doc.pdf", existing)
     assert result == "doc (10).pdf", f"Esperado 'doc (10).pdf', obteve '{result}'"
 
-    print(f"  ✓ _next_copy_name correto para todos os casos")
+    print("  ✓ _next_copy_name correto para todos os casos")
 
 
 def test_upload_plan_dataclass():
@@ -77,7 +75,7 @@ def test_upload_plan_dataclass():
 
     assert plan2.upsert is True
 
-    print(f"  ✓ _UploadPlan funciona corretamente")
+    print("  ✓ _UploadPlan funciona corretamente")
 
 
 def test_progress_state():
@@ -115,7 +113,7 @@ def test_progress_state():
 
     assert state.ema_bps > 0, "EMA deve ser > 0"
 
-    print(f"  ✓ _ProgressState tracking correto")
+    print("  ✓ _ProgressState tracking correto")
 
 
 def test_fmt_bytes():
@@ -145,7 +143,7 @@ def test_fmt_bytes():
 
     root.destroy()
 
-    print(f"  ✓ _fmt_bytes formata corretamente (B, KB, MB, GB)")
+    print("  ✓ _fmt_bytes formata corretamente (B, KB, MB, GB)")
 
 
 def test_fmt_eta():
@@ -174,7 +172,7 @@ def test_fmt_eta():
 
     root.destroy()
 
-    print(f"  ✓ _fmt_eta formata HH:MM:SS corretamente")
+    print("  ✓ _fmt_eta formata HH:MM:SS corretamente")
 
 
 if __name__ == "__main__":

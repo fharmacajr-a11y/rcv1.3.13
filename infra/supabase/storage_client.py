@@ -7,7 +7,7 @@ import tempfile
 import unicodedata
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Callable
 from urllib.parse import unquote as url_unquote
 import threading
 
@@ -59,6 +59,7 @@ def baixar_pasta_zip(
     out_dir: Optional[os.PathLike[str] | str] = None,
     timeout_s: int = 300,
     cancel_event: Optional[threading.Event] = None,
+    progress_cb: Optional[Callable[[int], None]] = None,
 ) -> Path:
     """
     Baixa uma PASTA do Storage (prefix) em .zip via Edge Function 'zipper' (GET).
@@ -146,12 +147,26 @@ def baixar_pasta_zip(
                                 tmp_path.unlink(missing_ok=True)
                             except Exception:
                                 pass
-                        raise DownloadCancelledError("Download cancelado pelo usuário.")
+                        raise DownloadCancelledError("Operação cancelada pelo usuário.")
 
                     if not chunk:
                         continue
+
                     f.write(chunk)
                     written += len(chunk)
+
+                    if progress_cb is not None:
+                        try:
+                            progress_cb(len(chunk))
+                        except Exception:
+                            pass
+
+            if cancel_event is not None and cancel_event.is_set():
+                try:
+                    tmp_path.unlink(missing_ok=True)
+                except Exception:
+                    pass
+                raise DownloadCancelledError("Operação cancelada no final do download.")
 
             if expected and written != expected:
                 try:
@@ -160,7 +175,7 @@ def baixar_pasta_zip(
                     pass
                 raise IOError(f"Download truncado: {written}B != {expected}B")
 
-            tmp_path.replace(out_path)
+            os.replace(tmp_path, out_path)
             return out_path
 
     except (req_exc.ConnectTimeout, req_exc.ReadTimeout, req_exc.Timeout) as e:

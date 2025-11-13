@@ -5,7 +5,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 
 from src.ui.dialogs.file_select import (
     ARCHIVE_FILETYPES,

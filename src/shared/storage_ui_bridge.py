@@ -77,9 +77,8 @@ def open_client_files_window(parent, sb, client_id: int) -> None:  # type: ignor
     Abre a mesma janela de arquivos usada em Clientes para o client_id informado.
 
     Usa open_files_browser de src.ui.files_browser (janela completa com visualizar PDF,
-    baixar arquivo, baixar pasta .zip, etc).
-
-    Fallback: se open_files_browser não estiver disponível, usa StorageBrowser simples.
+    baixar arquivo, baixar pasta .zip, etc). Se a janela não puder ser aberta, exibe
+    um aviso informando a falha.
     """
     if not sb:
         from tkinter import messagebox
@@ -105,9 +104,10 @@ def open_client_files_window(parent, sb, client_id: int) -> None:  # type: ignor
     # Obtém org_id do usuário logado
     org_id = _get_org_id_from_supabase(sb) or ""
 
+    from tkinter import messagebox
+
     if open_files_browser is not None:
         try:
-            # Usa a janela completa dos Clientes
             open_files_browser(
                 parent,
                 org_id=org_id,
@@ -116,17 +116,8 @@ def open_client_files_window(parent, sb, client_id: int) -> None:  # type: ignor
                 cnpj=cnpj
             )
             return
-        except Exception as e:
-            # Se falhar, cai no fallback
-            print(f"Falha ao abrir open_files_browser: {e}")
+        except Exception:
+            messagebox.showwarning("Arquivos", "Falha ao abrir janela de arquivos.")
+            return
 
-    # Fallback: usa StorageBrowser simples
-    try:
-        from src.modules.auditoria.view import StorageBrowser
-        bucket = get_clients_bucket()
-        prefix = client_prefix_for_id(client_id, org_id)
-        title = f"Arquivos: {razao} — {cnpj}  —  ID {client_id}" if cnpj else f"Arquivos: {razao}  —  ID {client_id}"
-        StorageBrowser(parent, sb, bucket=bucket, base_prefix=prefix, title=title)
-    except Exception as e:
-        from tkinter import messagebox
-        messagebox.showwarning("Arquivos", f"Falha ao abrir janela de arquivos.\n{e}")
+    messagebox.showwarning("Arquivos", "Falha ao abrir janela de arquivos.")

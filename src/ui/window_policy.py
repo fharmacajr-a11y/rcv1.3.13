@@ -1,6 +1,5 @@
 # src/ui/window_policy.py
 from __future__ import annotations
-import sys
 import ctypes
 import platform
 import tkinter as tk

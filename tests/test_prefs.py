@@ -1,10 +1,7 @@
 """
 Testes para src/utils/prefs.py - persistência de preferências.
 """
-import json
 import os
-import tempfile
-from pathlib import Path
 
 import pytest  # type: ignore[import-untyped]
 

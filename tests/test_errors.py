@@ -1,7 +1,6 @@
 """Tests for global exception handling."""
 
 import logging
-import os
 import sys
 
 import pytest  # type: ignore[import-untyped]

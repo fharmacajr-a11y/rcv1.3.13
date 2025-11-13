@@ -5,10 +5,9 @@ from __future__ import annotations
 import logging
 import re
 import tkinter as tk
-from tkinter import Listbox, messagebox, ttk
+from tkinter import messagebox, ttk
 from typing import Optional
 
-from infra.supabase_client import exec_postgrest, supabase  # cliente Supabase
 from src.core.cnpj_norm import normalize_cnpj as normalize_cnpj_norm
 from src.core.db_manager import find_cliente_by_cnpj_norm
 from src.core.services.clientes_service import checar_duplicatas_info, salvar_cliente

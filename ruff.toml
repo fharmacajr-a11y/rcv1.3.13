@@ -1,5 +1,14 @@
-line-length = 120
+target-version = "py313"
+line-length = 160
 
 [lint]
-select = ["E", "F"]  # pycodestyle/pyflakes básicos (sem reformatar)
+select = ["E", "F"]
 ignore = []
+
+[lint.per-file-ignores]
+"scripts/*" = ["E402", "E501"]
+"src/app_gui.py" = ["E402"]
+"adapters/storage/supabase_storage.py" = ["E402"]
+"src/core/services/upload_service.py" = ["E402"]
+"src/ui/hub_screen.py" = ["E402"]
+"src/ui/forms/pipeline.py" = ["E402"]

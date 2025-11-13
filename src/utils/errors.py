@@ -9,8 +9,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
-import traceback
-from typing import Any, Callable, Final
+from typing import Any, Final
 
 logger = logging.getLogger(__name__)
 

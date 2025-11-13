@@ -6,7 +6,6 @@ Validates that the loading order is correct:
 """
 
 import os
-from pathlib import Path
 
 import pytest  # type: ignore[import-untyped]
 
