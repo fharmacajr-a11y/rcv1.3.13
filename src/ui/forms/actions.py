@@ -30,6 +30,7 @@ from src.ui.forms.pipeline import (
     validate_inputs,
 )
 from src.utils.file_utils import find_cartao_cnpj_pdf, list_and_classify_pdfs
+from src.utils.paths import ensure_str_path
 from src.utils.pdf_reader import read_pdf_text
 from src.utils.resource_path import resource_path
 from src.utils.text_utils import extract_company_fields
@@ -359,7 +360,8 @@ def preencher_via_pasta(ents: dict) -> None:
     if not (cnpj or razao):
         pdf = find_cartao_cnpj_pdf(base)
         if pdf:
-            text = read_pdf_text(pdf) or ""
+            # Normalize Path to str for read_pdf_text (PEP 519)
+            text = read_pdf_text(ensure_str_path(pdf)) or ""
             fields = extract_company_fields(text) if text else {}
             cnpj = fields.get("cnpj")
             razao = fields.get("razao_social")

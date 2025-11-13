@@ -9,6 +9,7 @@ from src.app_utils import safe_base_from_fields
 from src.config.paths import DOCS_DIR
 from src.core.db_manager import get_cliente_by_id
 from src.utils.file_utils import read_marker_id
+from src.utils.paths import PathLikeStr, ensure_str_path
 
 if TYPE_CHECKING:
     import sqlite3
@@ -47,15 +48,17 @@ def _candidate_by_slug(pk: int) -> Optional[str]:
     return base
 
 
-def _find_by_marker(root: str, pk: int, *, skip_names: set[str] | None = None) -> Optional[str]:
-    if not os.path.isdir(root):
+def _find_by_marker(root: PathLikeStr, pk: int, *, skip_names: set[str] | None = None) -> Optional[str]:
+    # Normalize path-like to str (PEP 519)
+    root_str = ensure_str_path(root)
+    if not os.path.isdir(root_str):
         return None
     if skip_names is None:
         skip_names = set()
-    for name in os.listdir(root):
+    for name in os.listdir(root_str):
         if name in skip_names:
             continue
-        path = os.path.join(root, name)
+        path = os.path.join(root_str, name)
         if not os.path.isdir(path):
             continue
         try:
