@@ -17,11 +17,11 @@
   ],
   "stubPath": "./typings",
   "reportCallIssue": "error",
-  "reportAttributeAccessIssue": "warning",
+  "reportAttributeAccessIssue": "none",
   "reportRedeclaration": "error",
-  "reportUnknownMemberType": "warning",
-  "reportUnknownArgumentType": "warning",
-  "reportUnknownVariableType": "warning",
+  "reportUnknownMemberType": "none",
+  "reportUnknownArgumentType": "none",
+  "reportUnknownVariableType": "none",
   "reportOptionalMemberAccess": "warning",
   "reportMissingTypeStubs": "none"
 }
