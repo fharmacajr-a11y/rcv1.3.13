@@ -22,9 +22,8 @@
 .\src\core\services\upload_service.py:31:1:E402:module level import not at top of file
 .\src\core\services\upload_service.py:32:1:E402:module level import not at top of file
 .\src\core\services\upload_service.py:35:1:E402:module level import not at top of file
-.\src\modules\auditoria\view.py:1604:17:F841:local variable '_apply_once' is assigned to but never used
+.\src\modules\auditoria\view.py:1606:17:F841:local variable '_apply_once' is assigned to but never used
 .\src\ui\forms\actions.py:38:1:F401:'src.core.storage_key.storage_slug_part' imported but unused
-.\src\ui\forms\actions.py:275:23:F821:undefined name '_sanitize_key_component'
 .\src\ui\forms\forms.py:16:1:F401:'src.utils.typing_helpers.is_optional_str' imported but unused
 .\src\ui\forms\pipeline.py:23:1:E402:module level import not at top of file
 .\src\ui\forms\pipeline.py:24:1:E402:module level import not at top of file

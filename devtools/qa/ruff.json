@@ -6,7 +6,7 @@
       "column": 68,
       "row": 18
     },
-    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\data\\supabase_repo.py",
+    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.45\\data\\supabase_repo.py",
     "fix": {
       "applicability": "safe",
       "edits": [
@@ -39,7 +39,7 @@
       "column": 10,
       "row": 11
     },
-    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\devtools\\qa\\analyze_linters.py",
+    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.45\\devtools\\qa\\analyze_linters.py",
     "fix": {
       "applicability": "safe",
       "edits": [
@@ -72,7 +72,7 @@
       "column": 84,
       "row": 115
     },
-    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\devtools\\qa\\analyze_unknown_errors.py",
+    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.45\\devtools\\qa\\analyze_unknown_errors.py",
     "fix": {
       "applicability": "safe",
       "edits": [
@@ -105,7 +105,7 @@
       "column": 35,
       "row": 4
     },
-    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\src\\core\\api\\api_clients.py",
+    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.45\\src\\core\\api\\api_clients.py",
     "fix": {
       "applicability": "safe",
       "edits": [
@@ -138,7 +138,7 @@
       "column": 51,
       "row": 38
     },
-    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\src\\ui\\forms\\actions.py",
+    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.45\\src\\ui\\forms\\actions.py",
     "fix": {
       "applicability": "safe",
       "edits": [
@@ -166,29 +166,12 @@
   },
   {
     "cell": null,
-    "code": "F821",
-    "end_location": {
-      "column": 46,
-      "row": 275
-    },
-    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\src\\ui\\forms\\actions.py",
-    "fix": null,
-    "location": {
-      "column": 23,
-      "row": 275
-    },
-    "message": "Undefined name `_sanitize_key_component`",
-    "noqa_row": 275,
-    "url": "https://docs.astral.sh/ruff/rules/undefined-name"
-  },
-  {
-    "cell": null,
     "code": "F401",
     "end_location": {
       "column": 53,
       "row": 16
     },
-    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\src\\ui\\forms\\forms.py",
+    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.45\\src\\ui\\forms\\forms.py",
     "fix": {
       "applicability": "safe",
       "edits": [
@@ -221,7 +204,7 @@
       "column": 53,
       "row": 31
     },
-    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\src\\ui\\forms\\pipeline.py",
+    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.45\\src\\ui\\forms\\pipeline.py",
     "fix": {
       "applicability": "safe",
       "edits": [
@@ -252,9 +235,9 @@
     "code": "F401",
     "end_location": {
       "column": 53,
-      "row": 10
+      "row": 5
     },
-    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\typings\\tkinter\\__init__.pyi",
+    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.45\\typings\\tkinter\\__init__.pyi",
     "fix": {
       "applicability": "safe",
       "edits": [
@@ -262,11 +245,11 @@
           "content": "from typing import Any, Callable, Protocol, runtime_checkable",
           "end_location": {
             "column": 72,
-            "row": 10
+            "row": 5
           },
           "location": {
             "column": 1,
-            "row": 10
+            "row": 5
           }
         }
       ],
@@ -274,11 +257,113 @@
     },
     "location": {
       "column": 45,
-      "row": 10
+      "row": 5
     },
     "message": "`typing.overload` imported but unused",
-    "noqa_row": 10,
+    "noqa_row": 5,
     "url": "https://docs.astral.sh/ruff/rules/unused-import"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 173,
+      "row": 18
+    },
+    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.45\\typings\\tkinter\\ttk.pyi",
+    "fix": null,
+    "location": {
+      "column": 161,
+      "row": 18
+    },
+    "message": "Line too long (172 > 160)",
+    "noqa_row": 18,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 170,
+      "row": 53
+    },
+    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.45\\typings\\tkinter\\ttk.pyi",
+    "fix": null,
+    "location": {
+      "column": 161,
+      "row": 53
+    },
+    "message": "Line too long (169 > 160)",
+    "noqa_row": 53,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 162,
+      "row": 72
+    },
+    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.45\\typings\\tkinter\\ttk.pyi",
+    "fix": null,
+    "location": {
+      "column": 161,
+      "row": 72
+    },
+    "message": "Line too long (161 > 160)",
+    "noqa_row": 72,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 184,
+      "row": 94
+    },
+    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.45\\typings\\tkinter\\ttk.pyi",
+    "fix": null,
+    "location": {
+      "column": 161,
+      "row": 94
+    },
+    "message": "Line too long (183 > 160)",
+    "noqa_row": 94,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 173,
+      "row": 159
+    },
+    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.45\\typings\\tkinter\\ttk.pyi",
+    "fix": null,
+    "location": {
+      "column": 161,
+      "row": 159
+    },
+    "message": "Line too long (172 > 160)",
+    "noqa_row": 159,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 209,
+      "row": 178
+    },
+    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.45\\typings\\tkinter\\ttk.pyi",
+    "fix": null,
+    "location": {
+      "column": 161,
+      "row": 178
+    },
+    "message": "Line too long (208 > 160)",
+    "noqa_row": 178,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
   },
   {
     "cell": null,
@@ -287,7 +372,7 @@
       "column": 42,
       "row": 10
     },
-    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\typings\\ttkbootstrap\\__init__.pyi",
+    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.45\\typings\\ttkbootstrap\\__init__.pyi",
     "fix": {
       "applicability": "safe",
       "edits": [
@@ -320,7 +405,7 @@
       "column": 62,
       "row": 10
     },
-    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\typings\\ttkbootstrap\\__init__.pyi",
+    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.45\\typings\\ttkbootstrap\\__init__.pyi",
     "fix": {
       "applicability": "safe",
       "edits": [
@@ -353,7 +438,7 @@
       "column": 46,
       "row": 11
     },
-    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\typings\\ttkbootstrap\\__init__.pyi",
+    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.45\\typings\\ttkbootstrap\\__init__.pyi",
     "fix": {
       "applicability": "safe",
       "edits": [
@@ -386,7 +471,7 @@
       "column": 32,
       "row": 8
     },
-    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\typings\\ttkbootstrap\\dialogs.pyi",
+    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.45\\typings\\ttkbootstrap\\dialogs.pyi",
     "fix": {
       "applicability": "safe",
       "edits": [
@@ -419,7 +504,7 @@
       "column": 23,
       "row": 8
     },
-    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\typings\\ttkbootstrap\\utility.pyi",
+    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.45\\typings\\ttkbootstrap\\utility.pyi",
     "fix": {
       "applicability": "safe",
       "edits": [
