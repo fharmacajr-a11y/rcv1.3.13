@@ -222,7 +222,10 @@ class CashflowWindow(Toplevel):
             self.tree.delete(iid)
 
         for r in rows:
-            tipo_label = self.TYPE_CODE_TO_LABEL.get(r.get("type"), r.get("type"))
+            tipo_raw = r.get("type")
+            if tipo_raw is None:
+                tipo_raw = ""  # fallback para tipo ausente
+            tipo_label = self.TYPE_CODE_TO_LABEL.get(tipo_raw, tipo_raw)
             values = (
                 r.get("date"),
                 tipo_label,

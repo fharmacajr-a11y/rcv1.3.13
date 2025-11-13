@@ -61,6 +61,8 @@ def poll_notes_if_needed(screen) -> None:
         from src.core.services.notes_service import list_notes_since
 
         org_id = getattr(screen, "_live_org_id", None)
+        if org_id is None:
+            return  # org_id obrigatório para polling
         since = getattr(screen, "_live_last_ts", None)
         new_notes = list_notes_since(org_id, since)
         if new_notes:
@@ -140,6 +142,8 @@ def append_note_incremental(screen, row: Dict[str, Any]) -> None:
             tag = None
 
         created_at = note.get("created_at")
+        if not isinstance(created_at, str):
+            created_at = ""  # fallback para string vazia se tipo inesperado
         ts_local = _format_timestamp(created_at)
         body = (note.get("body") or "").rstrip("\n")
 

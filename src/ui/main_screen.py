@@ -325,6 +325,7 @@ class MainScreenFrame(tb.Frame):
 
                 for col in self._col_order:
                     # largura e posição reais da coluna via bbox
+                    bx = None  # inicializa explicitamente
                     if first_item:
                         bx = self.client_list.bbox(first_item, col)
                         if not bx:
