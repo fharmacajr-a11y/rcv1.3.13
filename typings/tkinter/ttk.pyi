@@ -13,10 +13,18 @@ This stub file extends tkinter.ttk with type hints for ttkbootstrap extensions
 Created for CompatPack-15 on 2025-11-13.
 """
 Bootstyle = str
+
 class Frame(Misc):
     """ttk.Frame widget with ttkbootstrap extensions."""
-    def __init__(self, master: Misc | None = ..., *, padding: int | tuple[int, ...] | Sequence[int] | None = ..., bootstyle: Bootstyle | None = ..., **kwargs: Any) -> None:
-        ...
+
+    def __init__(
+        self,
+        master: Misc | None = ...,
+        *,
+        padding: int | tuple[int, ...] | Sequence[int] | None = ...,
+        bootstyle: Bootstyle | None = ...,
+        **kwargs: Any,
+    ) -> None: ...
 
     def pack(self, **kwargs: Any) -> None:
         ...
@@ -50,8 +58,16 @@ class Label(Misc):
 
 class Button(Misc):
     """ttk.Button widget with ttkbootstrap extensions."""
-    def __init__(self, master: Misc | None = ..., *, text: str = ..., command: Callable[[], Any] | None = ..., bootstyle: Bootstyle | None = ..., **kwargs: Any) -> None:
-        ...
+
+    def __init__(
+        self,
+        master: Misc | None = ...,
+        *,
+        text: str = ...,
+        command: Callable[[], Any] | None = ...,
+        bootstyle: Bootstyle | None = ...,
+        **kwargs: Any,
+    ) -> None: ...
 
     def pack(self, **kwargs: Any) -> None:
         ...
@@ -69,8 +85,16 @@ class Button(Misc):
 
 class Entry(Misc):
     """ttk.Entry widget with ttkbootstrap extensions."""
-    def __init__(self, master: Misc | None = ..., *, textvariable: Any = ..., width: int | None = ..., bootstyle: Bootstyle | None = ..., **kwargs: Any) -> None:
-        ...
+
+    def __init__(
+        self,
+        master: Misc | None = ...,
+        *,
+        textvariable: Any = ...,
+        width: int | None = ...,
+        bootstyle: Bootstyle | None = ...,
+        **kwargs: Any,
+    ) -> None: ...
 
     def pack(self, **kwargs: Any) -> None:
         ...
@@ -91,8 +115,17 @@ class Entry(Misc):
 
 class Combobox(Entry):
     """ttk.Combobox widget with ttkbootstrap extensions."""
-    def __init__(self, master: Misc | None = ..., *, textvariable: Any = ..., values: Sequence[str] = ..., state: str = ..., bootstyle: Bootstyle | None = ..., **kwargs: Any) -> None:
-        ...
+
+    def __init__(
+        self,
+        master: Misc | None = ...,
+        *,
+        textvariable: Any = ...,
+        values: Sequence[str] = ...,
+        state: str = ...,
+        bootstyle: Bootstyle | None = ...,
+        **kwargs: Any,
+    ) -> None: ...
 
     def configure(self, **kwargs: Any) -> None:
         ...
@@ -156,8 +189,16 @@ class Treeview(Misc):
 
 class Scrollbar(Misc):
     """ttk.Scrollbar widget."""
-    def __init__(self, master: Misc | None = ..., *, orient: str = ..., command: Callable[..., Any] | None = ..., bootstyle: Bootstyle | None = ..., **kwargs: Any) -> None:
-        ...
+
+    def __init__(
+        self,
+        master: Misc | None = ...,
+        *,
+        orient: str = ...,
+        command: Callable[..., Any] | None = ...,
+        bootstyle: Bootstyle | None = ...,
+        **kwargs: Any,
+    ) -> None: ...
 
     def pack(self, **kwargs: Any) -> None:
         ...
@@ -175,8 +216,19 @@ class Scrollbar(Misc):
 
 class Progressbar(Misc):
     """ttk.Progressbar widget."""
-    def __init__(self, master: Misc | None = ..., *, orient: str = ..., length: int = ..., mode: str = ..., maximum: float = ..., value: float = ..., bootstyle: Bootstyle | None = ..., **kwargs: Any) -> None:
-        ...
+
+    def __init__(
+        self,
+        master: Misc | None = ...,
+        *,
+        orient: str = ...,
+        length: int = ...,
+        mode: str = ...,
+        maximum: float = ...,
+        value: float = ...,
+        bootstyle: Bootstyle | None = ...,
+        **kwargs: Any,
+    ) -> None: ...
 
     def pack(self, **kwargs: Any) -> None:
         ...

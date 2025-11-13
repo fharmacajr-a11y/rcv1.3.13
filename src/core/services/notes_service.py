@@ -198,8 +198,6 @@ def _normalize_author_emails(rows: List[dict], org_id: str) -> List[dict]:
     for r in rows:
         email = (r.get("author_email") or "").strip()
         if email and "@" not in email:
-            from src.core.services.profiles_service import EMAIL_PREFIX_ALIASES
-
             email_lc = email.lower()
             # Aplicar alias antes de consultar o mapa
             prefix = EMAIL_PREFIX_ALIASES.get(email_lc, email_lc)

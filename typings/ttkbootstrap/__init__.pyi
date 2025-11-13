@@ -7,8 +7,8 @@ by covering the API surface actually used by our codebase.
 Generated for CompatPack-02 on 2025-11-13.
 """
 
-from typing import Any, Callable, Literal, Sequence, overload
-from tkinter import Misc, Widget, Wm, Tcl_Obj
+from typing import Any, Callable, Sequence
+from tkinter import Misc, Widget, Wm
 from tkinter.font import Font
 
 # Style management

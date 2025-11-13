@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List
 
+
 def main():
     pyright_file = Path("devtools/qa/pyright.json")
     if not pyright_file.exists():
@@ -62,6 +63,7 @@ def main():
         print(f"{idx}. {file_short}:{line+1}")
         print(f"   {msg_short}")
         print()
+
 
 if __name__ == "__main__":
     main()

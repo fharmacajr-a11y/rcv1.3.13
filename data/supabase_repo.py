@@ -15,7 +15,7 @@ import httpx
 
 from infra.supabase_client import exec_postgrest, get_supabase
 from security.crypto import encrypt_text, decrypt_text
-from data.domain_types import ClientRow, PasswordRow, MembershipRow
+from data.domain_types import ClientRow, PasswordRow
 
 log = logging.getLogger(__name__)
 

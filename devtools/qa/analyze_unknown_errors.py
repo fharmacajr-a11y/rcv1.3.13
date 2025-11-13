@@ -112,5 +112,5 @@ for file_path in sorted(unknown_errors_by_file.keys()):
 
 print("\n" + "=" * 80)
 print(f"Total: {total_unknown_errors} Unknown-related errors")
-print(f"Target para CompatPack-04: 10 erros mais fáceis (forms, pipeline, lixeira)")
+print("Target para CompatPack-04: 10 erros mais fáceis (forms, pipeline, lixeira)")
 print("=" * 80)

@@ -698,7 +698,7 @@ class AuditoriaFrame(ttk.Frame):
 
         if not isinstance(exibir_menu, tk.Menu):
             return
-        
+
         assert exibir_menu is not None  # Type narrowing for Pyright
 
         try:
@@ -1603,7 +1603,7 @@ class AuditoriaFrame(ttk.Frame):
                         return
 
                 strategy = dialog_result["strategy"]
-                _apply_once = dialog_result["apply_once"]  # Reserved for future use (TODO)
+                _ = dialog_result["apply_once"]  # Reserved for future use (TODO)
 
                 if strategy is None:  # Cancelou
                     if ext in ("rar", "7z"):

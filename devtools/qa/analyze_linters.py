@@ -8,7 +8,6 @@ Uso: Execute a partir da raiz do projeto com:
 """
 
 import json
-import os
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, DefaultDict, Dict, List, Tuple

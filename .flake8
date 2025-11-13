@@ -1,4 +1,7 @@
 [flake8]
 max-line-length = 160
-extend-ignore = E203,W503
-exclude = .venv,venv,build,dist,migrations,tests,__pycache__,.git
+extend-ignore = E203,W503,E402
+exclude = .venv,venv,build,dist,migrations,tests,__pycache__,.git,typings
+per-file-ignores =
+    __init__.py:F401
+    typings/**/*.pyi:F401,E501

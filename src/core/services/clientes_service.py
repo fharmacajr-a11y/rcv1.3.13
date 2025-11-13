@@ -47,7 +47,7 @@ def count_clients(*, max_retries: int = 2, base_delay: float = 0.2) -> int:
     - Se falhar, retorna o último valor conhecido sem quebrar a UI.
     - Mantém cache em memória (_LAST_CLIENTS_COUNT) para resiliência.
     """
-    global _LAST_CLIENTS_COUNT, _clients_lock
+    global _LAST_CLIENTS_COUNT
 
     attempt = 0
     while True:

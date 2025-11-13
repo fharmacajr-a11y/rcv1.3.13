@@ -13,7 +13,6 @@ from src.core.db_manager import find_cliente_by_cnpj_norm
 from src.core.services.clientes_service import checar_duplicatas_info, salvar_cliente
 from src.ui.components import labeled_entry, toolbar_button
 from src.ui.forms.actions import preencher_via_pasta, salvar_e_enviar_para_supabase
-from src.utils.typing_helpers import is_optional_str
 
 try:
     from ui import center_on_parent

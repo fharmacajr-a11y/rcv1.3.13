@@ -5,7 +5,7 @@ Provides type hints for dialog utilities used in RC Gestor project.
 Generated for CompatPack-02 on 2025-11-13.
 """
 
-from typing import Any, Literal
+from typing import Any
 from tkinter import Misc
 
 class Messagebox:

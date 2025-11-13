@@ -42,7 +42,7 @@ def ensure_signed_in(client) -> None:
 
     if email and password:
         # Login de desenvolvimento (sem UI), apenas para não travar inserções
-        _res = client.auth.sign_in_with_password({"email": email, "password": password})
+        _ = client.auth.sign_in_with_password({"email": email, "password": password})
         token = _get_access_token(client)
         if not token:
             raise RuntimeError("Falha no login DEV (.env). Verifique SUPABASE_EMAIL/SUPABASE_PASSWORD.")

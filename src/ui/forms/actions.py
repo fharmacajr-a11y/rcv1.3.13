@@ -35,7 +35,6 @@ from src.utils.pdf_reader import read_pdf_text
 from src.utils.resource_path import resource_path
 from src.utils.text_utils import extract_company_fields
 
-from src.core.storage_key import storage_slug_part
 from uploader_supabase import (
     _select_pdfs_dialog,
     build_items_from_files,

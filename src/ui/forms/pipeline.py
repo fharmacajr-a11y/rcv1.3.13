@@ -28,7 +28,6 @@ from infra.supabase_client import exec_postgrest, get_supabase_state, supabase
 from src.config.paths import CLOUD_ONLY
 from src.core.logger import get_logger
 from src.core.cnpj_norm import normalize_cnpj as normalize_cnpj_norm
-from src.utils.typing_helpers import is_optional_str
 from src.core.db_manager import find_cliente_by_cnpj_norm
 from src.core.services.clientes_service import checar_duplicatas_info, salvar_cliente
 from src.core.storage_key import make_storage_key, storage_slug_part

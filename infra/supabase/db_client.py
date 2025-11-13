@@ -101,7 +101,7 @@ def _start_health_checker() -> None:
     - _IS_ONLINE: True se última tentativa teve sucesso
     - _LAST_SUCCESS_TIMESTAMP: Timestamp Unix da última verificação bem-sucedida
     """
-    global _HEALTH_CHECKER_STARTED, _IS_ONLINE, _LAST_SUCCESS_TIMESTAMP
+    global _HEALTH_CHECKER_STARTED
 
     if _HEALTH_CHECKER_STARTED:
         return
