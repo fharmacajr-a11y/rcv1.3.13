@@ -10,7 +10,7 @@ References:
 
 from __future__ import annotations
 
-from typing import Any, Iterable, TypeGuard
+from typing import Any, Iterable, TypeGuard, cast
 
 
 def is_str(value: Any) -> TypeGuard[str]:
@@ -69,7 +69,14 @@ def is_str_dict(value: Any) -> TypeGuard[dict[str, str]]:
     """
     if not isinstance(value, dict):
         return False
-    return all(isinstance(k, str) and isinstance(v, str) for k, v in value.items())
+
+    for k_raw, v_raw in value.items():  # type: ignore[reportUnknownVariableType]
+        k = cast(Any, k_raw)
+        v = cast(Any, v_raw)
+        if not isinstance(k, str) or not isinstance(v, str):
+            return False
+
+    return True
 
 
 def is_str_iterable(value: Any) -> TypeGuard[Iterable[str]]:
@@ -97,7 +104,13 @@ def is_str_iterable(value: Any) -> TypeGuard[Iterable[str]]:
         items = list(value) if not isinstance(value, (list, tuple)) else value  # type: ignore[arg-type]
     except (TypeError, ValueError):
         return False
-    return all(isinstance(item, str) for item in items)
+
+    for item_raw in items:  # type: ignore[reportUnknownVariableType]
+        item = cast(Any, item_raw)
+        if not isinstance(item, str):
+            return False
+
+    return True
 
 
 def is_optional_str(value: Any) -> TypeGuard[str | None]:
