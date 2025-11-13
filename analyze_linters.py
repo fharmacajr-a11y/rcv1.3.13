@@ -1,27 +1,44 @@
+# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
+"""
+Script de análise de relatórios de linters (Ruff, Flake8, Pyright).
+Agrupa issues por arquivo e classifica em grupos A/B/C para facilitar triagem.
+"""
+
 import json
 from collections import Counter, defaultdict
+from typing import Any, DefaultDict, Dict, List, Tuple
+
+# Type aliases para clareza
+JsonObj = Dict[str, Any]
+IssueInfo = Dict[str, Any]
+GrupoIssues = List[Tuple[str, List[IssueInfo]]]
 
 # Análise Ruff
 print("=" * 80)
 print("ANÁLISE RUFF.JSON")
 print("=" * 80)
 
-with open('ruff.json', encoding='utf-16') as f:
-    ruff_data = json.load(f)
+# Detectar encoding automaticamente (ruff pode gerar UTF-8 ou UTF-16)
+try:
+    with open('ruff.json', encoding='utf-8') as f:
+        ruff_data: List[JsonObj] = json.load(f)
+except UnicodeDecodeError:
+    with open('ruff.json', encoding='utf-16') as f:
+        ruff_data = json.load(f)
 
 print(f"\nTotal issues Ruff: {len(ruff_data)}\n")
 
 # Agrupar por código
-ruff_by_code = Counter(d['code'] for d in ruff_data)
+ruff_by_code: Counter[str] = Counter(d['code'] for d in ruff_data)
 print("Issues por código:")
 for code, count in ruff_by_code.most_common():
     print(f"  {code}: {count}x")
 
 # Agrupar por arquivo
-ruff_by_file = defaultdict(list)
+ruff_by_file: DefaultDict[str, List[IssueInfo]] = defaultdict(list)
 for issue in ruff_data:
-    filename = issue['filename'].replace('\\', '/').split('/')[-1]
-    filepath = issue['filename'].replace('\\', '/')
+    filename: str = issue['filename'].replace('\\', '/').split('/')[-1]
+    filepath: str = issue['filename'].replace('\\', '/')
     ruff_by_file[filepath].append({
         'code': issue['code'],
         'line': issue['location']['row'],
@@ -32,19 +49,19 @@ print("\n" + "=" * 80)
 print("CLASSIFICAÇÃO POR GRUPO")
 print("=" * 80)
 
-grupo_a = []  # tests/, scripts/
-grupo_b = []  # app seguro
-grupo_c = []  # sensível
+grupo_a: GrupoIssues = []  # tests/, scripts/
+grupo_b: GrupoIssues = []  # app seguro
+grupo_c: GrupoIssues = []  # sensível
 
 for filepath, issues in ruff_by_file.items():
-    is_test = 'tests/' in filepath or 'test_' in filepath
-    is_script = 'scripts/' in filepath
-    
+    is_test: bool = 'tests/' in filepath or 'test_' in filepath
+    is_script: bool = 'scripts/' in filepath
+
     if is_test or is_script:
         grupo_a.append((filepath, issues))
     else:
         # Verificar se é F841 óbvio
-        all_f841 = all(i['code'] == 'F841' for i in issues)
+        all_f841: bool = all(i['code'] == 'F841' for i in issues)
         if all_f841 and len(issues) <= 2:
             grupo_b.append((filepath, issues))
         else:
@@ -71,8 +88,13 @@ print("\n" + "=" * 80)
 print("ANÁLISE FLAKE8.TXT")
 print("=" * 80)
 
-with open('flake8.txt', encoding='utf-16') as f:
-    flake8_lines = [line.strip() for line in f.readlines() if line.strip()]
+# Detectar encoding automaticamente (flake8 pode gerar UTF-8 ou UTF-16)
+try:
+    with open('flake8.txt', encoding='utf-8') as f:
+        flake8_lines: List[str] = [line.strip() for line in f.readlines() if line.strip()]
+except UnicodeDecodeError:
+    with open('flake8.txt', encoding='utf-16') as f:
+        flake8_lines = [line.strip() for line in f.readlines() if line.strip()]
 
 print(f"\nTotal issues Flake8: {len(flake8_lines)}\n")
 
