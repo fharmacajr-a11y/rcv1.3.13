@@ -15,6 +15,7 @@ import httpx
 
 from infra.supabase_client import exec_postgrest, get_supabase
 from security.crypto import encrypt_text, decrypt_text
+from data.domain_types import ClientRow, PasswordRow, MembershipRow
 
 log = logging.getLogger(__name__)
 
@@ -37,11 +38,6 @@ class SupabaseResponse(TypedDict, total=False):
     data: Sequence[dict[str, Any]] | None
     error: SupabaseError | None
     count: int | None
-
-
-# Type aliases for client records
-ClientRow = dict[str, Any]  # Generic client row (future: can be TypedDict)
-PasswordRow = dict[str, Any]  # Generic password row (future: can be TypedDict)
 
 
 # -----------------------------------------------------------------------------
@@ -179,7 +175,7 @@ def _now_iso() -> str:
 # -----------------------------------------------------------------------------
 
 
-def list_passwords(org_id: str) -> list[dict[str, Any]]:
+def list_passwords(org_id: str) -> list[PasswordRow]:
     """
     Lista todas as senhas da organização.
     Retorna lista de dicts com campos: id, org_id, client_name, service,
@@ -198,7 +194,7 @@ def list_passwords(org_id: str) -> list[dict[str, Any]]:
 
         res: Any = with_retries(_do)
         raw_data = getattr(res, "data", None)
-        data: list[dict[str, Any]] = list(raw_data) if raw_data is not None else []
+        data: list[PasswordRow] = list(raw_data) if raw_data is not None else []
         log.info("list_passwords: %d registro(s) encontrado(s) para org_id=%s", len(data), org_id)
         return data
     except Exception as e:
@@ -214,7 +210,7 @@ def add_password(
     password_plain: str,
     notes: str,
     created_by: str,
-) -> dict[str, Any]:
+) -> PasswordRow:
     """
     Adiciona uma nova senha na tabela.
     A senha é criptografada antes de ser inserida.
@@ -252,7 +248,7 @@ def add_password(
 
         res: Any = with_retries(_insert)
         raw_data = getattr(res, "data", None)
-        data: list[dict[str, Any]] = list(raw_data) if raw_data is not None else []
+        data: list[PasswordRow] = list(raw_data) if raw_data is not None else []
         if not data:
             raise RuntimeError("Insert não retornou dados")
         log.info("add_password: registro criado com id=%s", data[0].get("id"))
@@ -269,7 +265,7 @@ def update_password(
     username: str | None = None,
     password_plain: str | None = None,
     notes: str | None = None,
-) -> dict[str, Any]:
+) -> PasswordRow:
     """
     Atualiza um registro existente.
     Se password_plain for fornecido, atualiza o password_enc criptografado.
@@ -299,7 +295,7 @@ def update_password(
 
         res: Any = with_retries(_do)
         raw_data = getattr(res, "data", None)
-        data: list[dict[str, Any]] = list(raw_data) if raw_data is not None else []
+        data: list[PasswordRow] = list(raw_data) if raw_data is not None else []
         if not data:
             raise RuntimeError("Update não retornou dados")
         log.info("update_password: registro id=%s atualizado", id)
@@ -346,7 +342,7 @@ def decrypt_for_view(token: str) -> str:
 # -----------------------------------------------------------------------------
 
 
-def search_clients(org_id: str, query: str, limit: int = 20) -> list[dict[str, Any]]:
+def search_clients(org_id: str, query: str, limit: int = 20) -> list[ClientRow]:
     """
     Busca clientes por razão social, nome fantasia ou CNPJ (ORG-aware).
     Retorna lista de dicts com: id, org_id, razao_social, nome_fantasia, cnpj.
@@ -373,7 +369,7 @@ def search_clients(org_id: str, query: str, limit: int = 20) -> list[dict[str, A
     try:
         res: Any = with_retries(_do)
         raw_data = getattr(res, "data", None)
-        data: list[dict[str, Any]] = list(raw_data) if raw_data is not None else []
+        data: list[ClientRow] = list(raw_data) if raw_data is not None else []
         log.debug("search_clients: %d resultado(s) para query='%s' org_id=%s", len(data), q, org_id)
         return data
     except Exception as e:
@@ -381,7 +377,7 @@ def search_clients(org_id: str, query: str, limit: int = 20) -> list[dict[str, A
         return []
 
 
-def list_clients_for_picker(org_id: str, limit: int = 200) -> list[dict[str, Any]]:
+def list_clients_for_picker(org_id: str, limit: int = 200) -> list[ClientRow]:
     """
     Lista todos os clientes da organização para exibição no modal picker.
     Usado para carregar lista inicial ao abrir o modal.
@@ -406,7 +402,7 @@ def list_clients_for_picker(org_id: str, limit: int = 200) -> list[dict[str, Any
     try:
         res: Any = with_retries(_do)
         raw_data = getattr(res, "data", None)
-        data: list[dict[str, Any]] = list(raw_data) if raw_data is not None else []
+        data: list[ClientRow] = list(raw_data) if raw_data is not None else []
         log.debug("list_clients_for_picker: %d cliente(s) carregados para org_id=%s", len(data), org_id)
         return data
     except Exception as e:
