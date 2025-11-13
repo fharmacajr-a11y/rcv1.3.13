@@ -7,6 +7,7 @@ Valida:
 3. Busca por CNPJ com máscara (07.816.095/0001-65)
 4. Busca por CNPJ sem máscara (07816095000165)
 """
+
 import sys
 from pathlib import Path
 

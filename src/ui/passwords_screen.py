@@ -97,9 +97,7 @@ class PasswordsScreen(tb.Frame):
         row = 0
 
         # Cliente com botão de seleção
-        tb.Label(frame, text="Cliente (CNPJ):").grid(
-            row=row, column=0, sticky="w", pady=4
-        )
+        tb.Label(frame, text="Cliente (CNPJ):").grid(row=row, column=0, sticky="w", pady=4)
 
         cliente_container = tb.Frame(frame)
         cliente_container.grid(row=row, column=1, sticky="ew", pady=4, padx=(5, 0))
@@ -201,9 +199,7 @@ class PasswordsScreen(tb.Frame):
             command=self._copy_password,
             bootstyle="warning",
         )
-        self.btn_copiar_senha.grid(
-            row=2, column=0, columnspan=2, sticky="ew", padx=2, pady=2
-        )
+        self.btn_copiar_senha.grid(row=2, column=0, columnspan=2, sticky="ew", padx=2, pady=2)
 
         self.btn_limpar = tb.Button(
             btn_frame,
@@ -242,9 +238,7 @@ class PasswordsScreen(tb.Frame):
             self.main_window.open_clients_picker(on_pick=_on_client_picked)
         except Exception as e:
             log.exception("Erro ao abrir seleção de clientes")
-            messagebox.showerror(
-                "Erro", f"Não foi possível abrir a lista de clientes.\n{e}"
-            )
+            messagebox.showerror("Erro", f"Não foi possível abrir a lista de clientes.\n{e}")
 
     def _on_tree_select(self, event) -> None:
         """Carrega dados do registro selecionado no formulário."""
@@ -323,9 +317,7 @@ class PasswordsScreen(tb.Frame):
     def _add_password(self) -> None:
         """Adiciona novo registro."""
         if not self._org_id or not self._user_id:
-            messagebox.showerror(
-                "Erro", "Usuário não autenticado ou organização não definida."
-            )
+            messagebox.showerror("Erro", "Usuário não autenticado ou organização não definida.")
             return
 
         cliente = self.entry_cliente.get().strip()
@@ -457,9 +449,7 @@ class PasswordsScreen(tb.Frame):
         try:
             self.clipboard_clear()
             self.clipboard_append(usuario)
-            messagebox.showinfo(
-                "Sucesso", "Usuário copiado para a área de transferência!"
-            )
+            messagebox.showinfo("Sucesso", "Usuário copiado para a área de transferência!")
         except Exception as e:
             log.exception("Erro ao copiar usuário")
             messagebox.showerror("Erro", f"Falha ao copiar:\n{e}")
@@ -469,9 +459,7 @@ class PasswordsScreen(tb.Frame):
         Descriptografa e copia a senha para o clipboard SEM exibir em tela.
         """
         if not self._current_id:
-            messagebox.showwarning(
-                "Atenção", "Selecione um registro para copiar a senha."
-            )
+            messagebox.showwarning("Atenção", "Selecione um registro para copiar a senha.")
             return
 
         # Buscar token criptografado do cache
@@ -570,9 +558,7 @@ class PasswordsScreen(tb.Frame):
             return
 
         if not self._org_id:
-            messagebox.showerror(
-                "Erro", "Organização não identificada. Faça login novamente."
-            )
+            messagebox.showerror("Erro", "Organização não identificada. Faça login novamente.")
             return
 
         self.refresh()

@@ -183,6 +183,5 @@ def _debug_resolve_author(screen, email: str) -> dict:
         "name": name,
         "source": source,
         "cache_hit": resolved_email in author_cache,
-        "prefix_map_hit": (key in prefix_map)
-        or (resolved_email in prefix_map.values()),
+        "prefix_map_hit": (key in prefix_map) or (resolved_email in prefix_map.values()),
     }

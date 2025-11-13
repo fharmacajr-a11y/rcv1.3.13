@@ -1,6 +1,7 @@
 """
 Testes para src/utils/prefs.py - persistência de preferências.
 """
+
 import os
 
 import pytest  # type: ignore[import-untyped]
@@ -77,10 +78,7 @@ def test_corrupted_prefs_file_returns_empty(temp_prefs_dir):
     assert loaded == {}
 
 
-@pytest.mark.skipif(
-    not os.getenv("TEST_FILELOCK"),
-    reason="Requer filelock instalado. Execute: pip install filelock"
-)
+@pytest.mark.skipif(not os.getenv("TEST_FILELOCK"), reason="Requer filelock instalado. Execute: pip install filelock")
 def test_filelock_integration(temp_prefs_dir):
     """
     Testa integração com filelock (requer filelock instalado).

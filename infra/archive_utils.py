@@ -5,6 +5,7 @@ ZIP: Usa zipfile (built-in Python)
 RAR: Usa 7-Zip CLI (empacotado com o aplicativo)
 7Z: Usa py7zr (biblioteca Python) - suporta senha e volumes (.7z.001, .7z.002...)
 """
+
 from __future__ import annotations
 
 import sys
@@ -24,6 +25,7 @@ ARCHIVE_GLOBS = ("*.zip", "*.rar", "*.7z", "*.7z.*")
 
 class ArchiveError(Exception):
     """Erro ao processar arquivo compactado."""
+
     pass
 
 
@@ -94,12 +96,7 @@ def find_7z() -> Path | None:
     return Path(exe_path) if exe_path else None
 
 
-def extract_archive(
-    src: Union[str, Path],
-    out_dir: Union[str, Path],
-    *,
-    password: str | None = None
-) -> Path:
+def extract_archive(src: Union[str, Path], out_dir: Union[str, Path], *, password: str | None = None) -> Path:
     """
     Extrai arquivo compactado (ZIP, RAR ou 7Z) para o diretório de destino.
 
@@ -145,20 +142,11 @@ def extract_archive(
 
         seven_zip = find_7z()
         if not seven_zip:
-            raise ArchiveError(
-                "7-Zip não encontrado para extrair .rar.\n"
-                "Certifique-se de que o 7z.exe está incluído no build ou instalado no sistema."
-            )
+            raise ArchiveError("7-Zip não encontrado para extrair .rar.\nCertifique-se de que o 7z.exe está incluído no build ou instalado no sistema.")
 
         try:
             cmd = [str(seven_zip), "x", "-y", f"-o{out}", str(src)]
-            proc = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace"
-            )
+            proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
 
             if proc.returncode != 0:
                 error_msg = f"Falha ao extrair .rar (7-Zip retornou código {proc.returncode})."
@@ -178,10 +166,7 @@ def extract_archive(
         try:
             import py7zr  # Import tardio para não quebrar se py7zr não estiver instalado
         except ImportError as e:
-            raise ArchiveError(
-                "Suporte a .7z indisponível.\n"
-                "Instale a dependência: pip install py7zr"
-            ) from e
+            raise ArchiveError("Suporte a .7z indisponível.\nInstale a dependência: pip install py7zr") from e
 
         try:
             # Para volumes, abrir diretamente pelo arquivo especificado (geralmente .7z.001)
@@ -192,9 +177,7 @@ def extract_archive(
             # Bad7zFile ou arquivo corrompido
             if is_7z_volume:
                 raise ArchiveError(
-                    f"Arquivo .7z volume inválido/corrompido.\n"
-                    f"Certifique-se de que todos os volumes (.7z.001, .7z.002...) estão presentes.\n"
-                    f"Erro: {e}"
+                    f"Arquivo .7z volume inválido/corrompido.\nCertifique-se de que todos os volumes (.7z.001, .7z.002...) estão presentes.\nErro: {e}"
                 ) from e
             else:
                 raise ArchiveError(f"Arquivo .7z corrompido ou inválido: {e}") from e
@@ -204,14 +187,9 @@ def extract_archive(
             # Capturar erros de senha ou CRC
             error_msg = str(e).lower()
             if "password" in error_msg or "encrypted" in error_msg:
-                raise ArchiveError(
-                    "Este arquivo .7z requer senha para extração.\n"
-                    "Atualmente a interface não suporta arquivos protegidos por senha."
-                ) from e
+                raise ArchiveError("Este arquivo .7z requer senha para extração.\nAtualmente a interface não suporta arquivos protegidos por senha.") from e
             elif "crc" in error_msg or "checksum" in error_msg:
-                raise ArchiveError(
-                    "Erro de CRC: arquivo .7z corrompido ou senha incorreta."
-                ) from e
+                raise ArchiveError("Erro de CRC: arquivo .7z corrompido ou senha incorreta.") from e
             else:
                 raise ArchiveError(f"Erro ao extrair 7Z: {e}") from e
 

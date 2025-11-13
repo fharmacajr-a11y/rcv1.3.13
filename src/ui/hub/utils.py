@@ -34,14 +34,8 @@ def _normalize_note(n: Any) -> Dict[str, str]:
     if isinstance(n, dict):
         return {
             "id": n.get("id") or "",
-            "created_at": n.get("created_at")
-            or n.get("ts")
-            or n.get("timestamp")
-            or "",
-            "author_email": n.get("author_email")
-            or n.get("author")
-            or n.get("email")
-            or "",
+            "created_at": n.get("created_at") or n.get("ts") or n.get("timestamp") or "",
+            "author_email": n.get("author_email") or n.get("author") or n.get("email") or "",
             "body": n.get("body") or n.get("text") or n.get("message") or "",
         }
 

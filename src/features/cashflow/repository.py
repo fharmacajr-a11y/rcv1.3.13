@@ -9,8 +9,10 @@ from datetime import date as date_cls
 try:
     from postgrest import APIError as PostgrestAPIError  # type: ignore
 except Exception:  # fallback se lib mudar
+
     class PostgrestAPIError(Exception):  # type: ignore
         pass
+
 
 # ---------------------------------------------------------------------------
 # Cliente Supabase do projeto — compatível com vários layouts
@@ -26,48 +28,57 @@ except Exception:  # fallback se lib mudar
 def _UNAVAILABLE() -> Any:
     raise RuntimeError("Cliente Supabase não disponível (infra/src.infra). Verifique paths de import.")
 
+
 def _build_get() -> callable:
     # 1) relativo db_client
     try:
         from ...infra.supabase.db_client import get_client as _gc  # type: ignore
+
         return _gc
     except Exception:
         pass
     # 2) relativo supabase_client
     try:
         from ...infra.supabase_client import get_supabase as _gs  # type: ignore
+
         return _gs
     except Exception:
         pass
     # 3) absoluto sem 'src.' db_client
     try:
         from infra.supabase.db_client import get_client as _gc  # type: ignore
+
         return _gc
     except Exception:
         pass
     # 4) absoluto sem 'src.' supabase_client
     try:
         from infra.supabase_client import get_supabase as _gs  # type: ignore
+
         return _gs
     except Exception:
         pass
     # 5) absoluto com 'src.' db_client
     try:
         from src.infra.supabase.db_client import get_client as _gc  # type: ignore
+
         return _gc
     except Exception:
         pass
     # 6) absoluto com 'src.' supabase_client
     try:
         from src.infra.supabase_client import get_supabase as _gs  # type: ignore
+
         return _gs
     except Exception:
         pass
     return _UNAVAILABLE
 
+
 _GET = _build_get()
 
 TABLE = "cashflow_entries"
+
 
 # ---------------------------------------------------------------------------
 # Utilitários
@@ -78,6 +89,7 @@ def _get_client():
         # compat: se algum wrapper retornar None
         raise RuntimeError("Cliente Supabase não disponível (infra/src.infra). Verifique paths de import.")
     return c
+
 
 def _fmt_api_error(e: PostgrestAPIError, op: str) -> RuntimeError:
     """Constrói mensagem amigável mantendo o código/status quando disponíveis."""
@@ -91,8 +103,10 @@ def _fmt_api_error(e: PostgrestAPIError, op: str) -> RuntimeError:
         msg += f" | hint: {hint}"
     return RuntimeError(msg)
 
+
 def _iso(d: date_cls | str) -> str:
     return d if isinstance(d, str) else d.isoformat()
+
 
 # ---------------------------------------------------------------------------
 # Repositório do Fluxo de Caixa
@@ -134,6 +148,7 @@ def list_entries(
     except PostgrestAPIError as e:
         raise _fmt_api_error(e, "SELECT")
 
+
 def totals(
     dfrom: date_cls | str,
     dto: date_cls | str,
@@ -152,6 +167,7 @@ def totals(
             t_out += amt
     return {"in": t_in, "out": t_out, "balance": t_in - t_out}
 
+
 def create_entry(data: Dict[str, Any], org_id: Optional[str] = None) -> Dict[str, Any]:
     """Cria um lançamento e retorna o registro inserido."""
     c = _get_client()
@@ -165,6 +181,7 @@ def create_entry(data: Dict[str, Any], org_id: Optional[str] = None) -> Dict[str
     except PostgrestAPIError as e:
         raise _fmt_api_error(e, "INSERT")
 
+
 def update_entry(entry_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
     """Atualiza um lançamento pelo id e retorna o registro atualizado."""
     c = _get_client()
@@ -174,6 +191,7 @@ def update_entry(entry_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
         return rows[0] if rows else {"id": entry_id, **data}
     except PostgrestAPIError as e:
         raise _fmt_api_error(e, "UPDATE")
+
 
 def delete_entry(entry_id: str) -> None:
     """Exclui um lançamento pelo id."""

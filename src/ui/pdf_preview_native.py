@@ -73,10 +73,10 @@ class PdfViewerWin(tk.Toplevel):
         self.title(f"Visualizar: {self._display_name}")
         self.geometry("1200x800")
         self.zoom = 1.0
-        self._img_refs = {}          # id_canvas -> PhotoImage
-        self._items = []             # ids de imagens por página
-        self._page_tops = []         # y de cada página
-        self._page_sizes = []        # (w,h) em 1.0
+        self._img_refs = {}  # id_canvas -> PhotoImage
+        self._items = []  # ids de imagens por página
+        self._page_tops = []  # y de cada página
+        self._page_sizes = []  # (w,h) em 1.0
         self.cache = LRUCache(12)
         self._pan_active = False
         self._closing = False
@@ -168,7 +168,7 @@ class PdfViewerWin(tk.Toplevel):
         control_bindings = [
             ("<Control-0>", lambda e: (self._set_zoom_fit_width(), "break")),
             ("<Control-1>", lambda e: (self._set_zoom_exact(1.0), "break")),
-            ("<Control-plus>",  lambda e: (self._zoom_by(+1, e), "break")),
+            ("<Control-plus>", lambda e: (self._zoom_by(+1, e), "break")),
             ("<Control-equal>", lambda e: (self._zoom_by(+1, e), "break")),
             ("<Control-minus>", lambda e: (self._zoom_by(-1, e), "break")),
         ]
@@ -184,7 +184,7 @@ class PdfViewerWin(tk.Toplevel):
 
         # Busca (F3/Shift+F3) para o painel de texto
         self.search_nav = SearchNavigator(self.ocr_text)
-        self.ocr_text.bind("<F3>",       lambda e: (self.search_nav.next(), "break"))
+        self.ocr_text.bind("<F3>", lambda e: (self.search_nav.next(), "break"))
         self.ocr_text.bind("<Shift-F3>", lambda e: (self.search_nav.prev(), "break"))
         self.ocr_text.tag_raise("sel")
 
@@ -267,7 +267,7 @@ class PdfViewerWin(tk.Toplevel):
         self._page_tops = []
         y = GAP
         cw = 0
-        for (w1, h1) in self._page_sizes:
+        for w1, h1 in self._page_sizes:
             w = int(w1 * self.zoom)
             h = int(h1 * self.zoom)
             self._page_tops.append(y)
@@ -569,7 +569,9 @@ class PdfViewerWin(tk.Toplevel):
         try:
             downloads = self._get_downloads_dir()
             base = (getattr(self, "_display_name", "") or "arquivo").rsplit(".", 1)[0]
-            import os, shutil
+            import os
+            import shutil
+
             dst = os.path.join(downloads, f"{base}.pdf")
             root, ext_cur = os.path.splitext(dst)
             i = 1

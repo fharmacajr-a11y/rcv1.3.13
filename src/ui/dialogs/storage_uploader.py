@@ -3,6 +3,7 @@
 Módulo para upload avançado de arquivos/pastas para Supabase Storage.
 Permite escolher destino (bucket/pasta), upload múltiplo e progresso visual.
 """
+
 import logging
 import mimetypes
 import os
@@ -33,9 +34,7 @@ class StorageDestinationDialog(tk.Toplevel):
         self.cb_bucket = ttk.Combobox(frm, state="readonly", width=40)
         self.cb_bucket.grid(row=0, column=1, sticky="we", padx=(6, 0))
 
-        ttk.Label(frm, text="Pasta (prefix):").grid(
-            row=1, column=0, sticky="w", pady=(8, 0)
-        )
+        ttk.Label(frm, text="Pasta (prefix):").grid(row=1, column=0, sticky="w", pady=(8, 0))
         self.ent_prefix = ttk.Entry(frm, width=42)
         self.ent_prefix.grid(row=1, column=1, sticky="we", padx=(6, 0), pady=(8, 0))
 
@@ -47,9 +46,7 @@ class StorageDestinationDialog(tk.Toplevel):
 
         btns = ttk.Frame(frm)
         btns.grid(row=3, column=0, columnspan=2, sticky="e", pady=(10, 0))
-        ttk.Button(btns, text="Cancelar", command=self._cancel).grid(
-            row=0, column=0, padx=(0, 6)
-        )
+        ttk.Button(btns, text="Cancelar", command=self._cancel).grid(row=0, column=0, padx=(0, 6))
         ttk.Button(btns, text="OK", command=self._ok).grid(row=0, column=1)
 
         frm.columnconfigure(1, weight=1)
@@ -107,9 +104,7 @@ class StorageDestinationDialog(tk.Toplevel):
         # Lista "pastas" do bucket (nível 1)
         for item in self._list(bucket, ""):
             if item.get("id") == "folder" or item.get("name", "").endswith("/"):
-                node = self.tree.insert(
-                    "", "end", text=item["name"], values=(item["name"],)
-                )
+                node = self.tree.insert("", "end", text=item["name"], values=(item["name"],))
                 self.tree.insert(node, "end", text="…")  # marcador para expandir
 
     def _on_open_node(self, _evt=None):
@@ -126,9 +121,7 @@ class StorageDestinationDialog(tk.Toplevel):
 
         for item in self._list(bucket, prefix):
             if item.get("id") == "folder" or item.get("name", "").endswith("/"):
-                child = self.tree.insert(
-                    node, "end", text=item["name"], values=(item["name"],)
-                )
+                child = self.tree.insert(node, "end", text=item["name"], values=(item["name"],))
                 self.tree.insert(child, "end", text="…")  # expansível
 
     def _node_to_path(self, node):
@@ -176,9 +169,7 @@ class StorageDestinationDialog(tk.Toplevel):
 
             return list(folders.values())
         except Exception as e:
-            log.warning(
-                "Erro ao listar pasta '%s' no bucket '%s': %s", prefix, bucket, e
-            )
+            log.warning("Erro ao listar pasta '%s' no bucket '%s': %s", prefix, bucket, e)
             return []
 
 
@@ -191,16 +182,12 @@ def enviar_para_supabase_avancado(parent, supabase_client) -> None:
         supabase_client: Cliente Supabase configurado
     """
     if supabase_client is None:
-        messagebox.showerror(
-            "Supabase", "Cliente Supabase não configurado.", parent=parent
-        )
+        messagebox.showerror("Supabase", "Cliente Supabase não configurado.", parent=parent)
         return
 
     # 1) Escolha de arquivos (um ou vários). Se cancelar, oferecemos pasta.
     try:
-        file_paths = filedialog.askopenfilenames(
-            title="Selecione arquivo(s) para enviar ao Supabase", parent=parent
-        )
+        file_paths = filedialog.askopenfilenames(title="Selecione arquivo(s) para enviar ao Supabase", parent=parent)
     except Exception:
         file_paths = ()
 
@@ -212,9 +199,7 @@ def enviar_para_supabase_avancado(parent, supabase_client) -> None:
         ):
             return
 
-        folder = filedialog.askdirectory(
-            title="Escolha a PASTA para enviar ao Supabase", parent=parent
-        )
+        folder = filedialog.askdirectory(title="Escolha a PASTA para enviar ao Supabase", parent=parent)
         if not folder:
             return
         sources = ("folder", folder)
@@ -222,9 +207,7 @@ def enviar_para_supabase_avancado(parent, supabase_client) -> None:
         sources = ("files", list(file_paths))
 
     # 2) Selecionar destino no Storage (bucket + prefix)
-    dlg = StorageDestinationDialog(
-        parent, supabase_client, title="Escolha o destino no Storage"
-    )
+    dlg = StorageDestinationDialog(parent, supabase_client, title="Escolha o destino no Storage")
     parent.wait_window(dlg)
     if not dlg.result:
         return
@@ -255,9 +238,7 @@ def enviar_para_supabase_avancado(parent, supabase_client) -> None:
     prog.transient(parent)
     prog.grab_set()
 
-    ttk.Label(prog, text="Enviando arquivos para o Supabase...").grid(
-        row=0, column=0, padx=16, pady=(16, 8)
-    )
+    ttk.Label(prog, text="Enviando arquivos para o Supabase...").grid(row=0, column=0, padx=16, pady=(16, 8))
     pb = ttk.Progressbar(prog, length=360, mode="determinate", maximum=max(total, 1))
     pb.grid(row=1, column=0, padx=16, pady=(0, 16))
 
@@ -278,14 +259,8 @@ def enviar_para_supabase_avancado(parent, supabase_client) -> None:
         def _upload_file(local_path, remote_rel):
             nonlocal ok, fail
             try:
-                remote_path = (
-                    posixpath.join(prefix, remote_rel).strip("/")
-                    if prefix
-                    else remote_rel.strip("/")
-                )
-                content_type = (
-                    mimetypes.guess_type(local_path)[0] or "application/octet-stream"
-                )
+                remote_path = posixpath.join(prefix, remote_rel).strip("/") if prefix else remote_rel.strip("/")
+                content_type = mimetypes.guess_type(local_path)[0] or "application/octet-stream"
 
                 with open(local_path, "rb") as fh:
                     supabase_client.storage.from_(bucket).upload(
@@ -338,9 +313,7 @@ def enviar_para_supabase_avancado(parent, supabase_client) -> None:
             log.warning("Erro ao inserir metadados em 'documents': %s", e)
 
         if fail == 0:
-            messagebox.showinfo(
-                "Supabase", f"Envio concluído: {ok} arquivo(s).", parent=parent
-            )
+            messagebox.showinfo("Supabase", f"Envio concluído: {ok} arquivo(s).", parent=parent)
         else:
             error_detail = "\n".join(errors[:5])
             if len(errors) > 5:

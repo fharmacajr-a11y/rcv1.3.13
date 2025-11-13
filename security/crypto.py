@@ -18,10 +18,7 @@ def _get_encryption_key() -> bytes:
     """
     key_str = os.getenv("RC_CLIENT_SECRET_KEY")
     if not key_str:
-        raise RuntimeError(
-            "RC_CLIENT_SECRET_KEY não encontrada no .env. "
-            "Defina uma chave Fernet válida (base64)."
-        )
+        raise RuntimeError("RC_CLIENT_SECRET_KEY não encontrada no .env. Defina uma chave Fernet válida (base64).")
     try:
         return key_str.encode("utf-8")
     except Exception as e:

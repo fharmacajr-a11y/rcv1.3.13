@@ -62,9 +62,7 @@ class ClientPicker(tk.Toplevel):
         self.entry_search.bind("<Return>", lambda e: self._do_search())
         self.entry_search.bind("<KeyRelease>", self._on_key_release)
 
-        btn_search = tb.Button(
-            search_frame, text="🔍 Buscar", command=self._do_search, bootstyle="primary"
-        )
+        btn_search = tb.Button(search_frame, text="🔍 Buscar", command=self._do_search, bootstyle="primary")
         btn_search.pack(side="left", padx=5)
 
         # Treeview
@@ -88,9 +86,7 @@ class ClientPicker(tk.Toplevel):
         self.tree.column("fantasia", width=250)
         self.tree.column("cnpj", width=150)
 
-        scrollbar = ttk.Scrollbar(
-            tree_frame, orient="vertical", command=self.tree.yview
-        )
+        scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
 
         self.tree.pack(side="left", fill="both", expand=True)
@@ -103,12 +99,8 @@ class ClientPicker(tk.Toplevel):
         btn_frame = tb.Frame(main)
         btn_frame.pack(fill="x")
 
-        tb.Button(
-            btn_frame, text="Selecionar", command=self._confirm, bootstyle="success"
-        ).pack(side="right", padx=5)
-        tb.Button(
-            btn_frame, text="Cancelar", command=self._cancel, bootstyle="secondary"
-        ).pack(side="right")
+        tb.Button(btn_frame, text="Selecionar", command=self._confirm, bootstyle="success").pack(side="right", padx=5)
+        tb.Button(btn_frame, text="Cancelar", command=self._cancel, bootstyle="secondary").pack(side="right")
 
     def _center_window(self) -> None:
         """Centraliza janela na tela."""
@@ -205,9 +197,7 @@ class ClientPicker(tk.Toplevel):
         """Confirma seleção e fecha modal."""
         selection = self.tree.selection()
         if not selection:
-            messagebox.showwarning(
-                "Atenção", "Selecione um cliente primeiro.", parent=self
-            )
+            messagebox.showwarning("Atenção", "Selecione um cliente primeiro.", parent=self)
             return
 
         # Obter ID do cliente selecionado

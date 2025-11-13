@@ -2,6 +2,7 @@
 """
 Gerenciamento de versão do RC-Gestor.
 """
+
 import os
 
 __version__ = "v1.1.0"
@@ -20,4 +21,3 @@ def get_version() -> str:
         return os.getenv("RC_APP_VERSION", __version__)
     except Exception:
         return __version__
-

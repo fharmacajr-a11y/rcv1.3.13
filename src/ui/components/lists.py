@@ -53,9 +53,7 @@ def create_clients_treeview(
         tree.heading(key, text=heading, anchor="center")
 
     for key, _, width, can_stretch in columns:
-        tree.column(
-            key, width=width, minwidth=width, anchor="center", stretch=can_stretch
-        )
+        tree.column(key, width=width, minwidth=width, anchor="center", stretch=can_stretch)
 
     def _block_header_resize(event: Any) -> str | None:
         if tree.identify_region(event.x, event.y) == "separator":

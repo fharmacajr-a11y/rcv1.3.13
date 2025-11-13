@@ -18,18 +18,14 @@ class SessionGuard:
         try:
             # get_session tenta renovar se preciso (doc supabase-py)
             res = sb.auth.get_session()
-            if getattr(res, "session", None) and getattr(
-                res.session, "access_token", None
-            ):
+            if getattr(res, "session", None) and getattr(res.session, "access_token", None):
                 return True
         except Exception:
             pass
         # Tentativa explícita de refresh
         try:
             res = sb.auth.refresh_session()
-            if getattr(res, "session", None) and getattr(
-                res.session, "access_token", None
-            ):
+            if getattr(res, "session", None) and getattr(res.session, "access_token", None):
                 session.set_tokens(res.session.access_token, res.session.refresh_token)
                 return True
         except Exception:

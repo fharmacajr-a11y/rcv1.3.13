@@ -46,6 +46,7 @@ ORDER_CHOICES: Dict[str, Tuple[Optional[str], bool]] = {
     "Ultima Alteracao (mais antiga)": ("ultima_alteracao", True),
 }
 
+
 def _load_status_choices() -> list[str]:
     default = [
         "Novo lead",
@@ -103,7 +104,7 @@ def _build_status_menu(menu: tk.Menu, on_pick: Callable[[str], None]) -> None:
             menu.add_separator()
         menu.add_command(label=f"— {name} —", state="disabled")
         for label in items:
-            menu.add_command(label=label, command=lambda l=label: on_pick(l))
+            menu.add_command(label=label, command=lambda l=label: on_pick(l))  # noqa: E741
 
     menu.add_separator()
     menu.add_command(label="Limpar", command=lambda: on_pick(""))
@@ -200,17 +201,11 @@ class MainScreenFrame(tb.Frame):
 
         # Estado por usuário (mantemos persistência)
         def _user_key():
-            return (
-                getattr(self, "current_user_email", None)
-                or getattr(self, "status_user_email", None)
-                or "default"
-            )
+            return getattr(self, "current_user_email", None) or getattr(self, "status_user_email", None) or "default"
 
         self._user_key = _user_key()
         _saved = load_columns_visibility(self._user_key)
-        self._col_content_visible = {
-            c: tk.BooleanVar(value=_saved.get(c, True)) for c in self._col_order
-        }
+        self._col_content_visible = {c: tk.BooleanVar(value=_saved.get(c, True)) for c in self._col_order}
 
         # Lista atual de clientes (para refresh)
         self._all_clientes: list[Any] = []
@@ -319,10 +314,7 @@ class MainScreenFrame(tb.Frame):
                 self.client_list.update_idletasks()
 
                 # base X do Treeview em relação à barra (corrige deslocamento de janela)
-                base_left = (
-                    self.client_list.winfo_rootx()
-                    - self.columns_align_bar.winfo_rootx()
-                )
+                base_left = self.client_list.winfo_rootx() - self.columns_align_bar.winfo_rootx()
 
                 # pegue o primeiro item visível para medir as colunas com bbox
                 items = self.client_list.get_children()
@@ -356,9 +348,7 @@ class MainScreenFrame(tb.Frame):
 
                     # largura necessária do bloquinho = label + check + margens
                     parts = self._col_ctrls[col]
-                    req_w = (
-                        parts["label"].winfo_reqwidth() + 12 + 4
-                    )  # label + checkbox (~12px) + margem (4px)
+                    req_w = parts["label"].winfo_reqwidth() + 12 + 4  # label + checkbox (~12px) + margem (4px)
                     # limite por coluna
                     min_w, max_w = 70, 160
                     gw = max(min_w, min(max_w, min(req_w, col_w - 8)))
@@ -371,9 +361,7 @@ class MainScreenFrame(tb.Frame):
                     if gx + gw > col_right - 2:
                         gx = max(col_left + 2, col_right - gw - 2)
 
-                    parts["frame"].place_configure(
-                        x=gx, y=2, width=gw, height=HEADER_CTRL_H - 4
-                    )
+                    parts["frame"].place_configure(x=gx, y=2, width=gw, height=HEADER_CTRL_H - 4)
 
             except Exception:
                 pass
@@ -505,11 +493,7 @@ class MainScreenFrame(tb.Frame):
                 pass
         else:
             try:
-                if (
-                    hasattr(self, "btn_enviar")
-                    and self.btn_enviar
-                    and self._send_button_prev_text is not None
-                ):
+                if hasattr(self, "btn_enviar") and self.btn_enviar and self._send_button_prev_text is not None:
                     self.btn_enviar.configure(text=self._send_button_prev_text)
             except Exception:
                 pass
@@ -549,9 +533,7 @@ class MainScreenFrame(tb.Frame):
                     if state == "online":
                         self.btn_enviar.configure(text="Enviar Para SupaBase")
                     elif state == "unstable":
-                        self.btn_enviar.configure(
-                            text="Envio suspenso – Conexão instável"
-                        )
+                        self.btn_enviar.configure(text="Envio suspenso – Conexão instável")
                     else:  # offline
                         self.btn_enviar.configure(text="Envio suspenso – Offline")
 
@@ -571,10 +553,7 @@ class MainScreenFrame(tb.Frame):
                         pass
 
                 # Log apenas em mudanças de estado
-                if (
-                    not hasattr(self, "_last_cloud_state")
-                    or self._last_cloud_state != state
-                ):
+                if not hasattr(self, "_last_cloud_state") or self._last_cloud_state != state:
                     log.info(
                         "Status da nuvem mudou: %s → %s (%s)",
                         getattr(self, "_last_cloud_state", "unknown"),
@@ -601,13 +580,7 @@ class MainScreenFrame(tb.Frame):
     def _row_dict_from_cliente(self, cliente: Any) -> dict:
         """Converte objeto cliente em dicionário de valores por coluna."""
         # Normaliza WhatsApp
-        wa = normalize_br_whatsapp(
-            str(
-                getattr(cliente, "whatsapp", "")
-                or getattr(cliente, "numero", "")
-                or getattr(cliente, "telefone", "")
-            )
-        )
+        wa = normalize_br_whatsapp(str(getattr(cliente, "whatsapp", "") or getattr(cliente, "numero", "") or getattr(cliente, "telefone", "")))
 
         # Formata CNPJ
         cnpj_raw = str(getattr(cliente, "cnpj", "") or "")
@@ -619,11 +592,7 @@ class MainScreenFrame(tb.Frame):
             cnpj_fmt = cnpj_raw
 
         # Formata data
-        updated_at = (
-            getattr(cliente, "ultima_alteracao", "")
-            or getattr(cliente, "updated_at", "")
-            or ""
-        )
+        updated_at = getattr(cliente, "ultima_alteracao", "") or getattr(cliente, "updated_at", "") or ""
         if updated_at:
             try:
                 from src.app_utils import fmt_data
@@ -659,26 +628,16 @@ class MainScreenFrame(tb.Frame):
             updated_fmt = f"{updated_fmt} ({initial})"
 
         # Separa Status das Observações
-        _obs_raw = str(
-            getattr(cliente, "observacoes", "") or getattr(cliente, "obs", "")
-        )
+        _obs_raw = str(getattr(cliente, "observacoes", "") or getattr(cliente, "obs", ""))
         _m = STATUS_PREFIX_RE.match(_obs_raw)
         _status = _m.group("st") if _m else ""
         _obs_body = STATUS_PREFIX_RE.sub("", _obs_raw, count=1).strip()
 
         row = {
-            "ID": str(
-                getattr(cliente, "id", "")
-                or getattr(cliente, "pk", "")
-                or getattr(cliente, "client_id", "")
-            ),
-            "Razao Social": str(
-                getattr(cliente, "razao_social", "") or getattr(cliente, "razao", "")
-            ),
+            "ID": str(getattr(cliente, "id", "") or getattr(cliente, "pk", "") or getattr(cliente, "client_id", "")),
+            "Razao Social": str(getattr(cliente, "razao_social", "") or getattr(cliente, "razao", "")),
             "CNPJ": cnpj_fmt,
-            "Nome": str(
-                getattr(cliente, "nome", "") or getattr(cliente, "contato", "")
-            ),
+            "Nome": str(getattr(cliente, "nome", "") or getattr(cliente, "contato", "")),
             "WhatsApp": wa["display"],
             "Observacoes": _obs_body,
             "Status": _status,
@@ -752,11 +711,7 @@ class MainScreenFrame(tb.Frame):
     def _sort_by(self, column: str) -> None:
         current = self.var_ordem.get()
         if column == "updated_at":
-            new_value = (
-                "Ultima Alteracao (mais antiga)"
-                if current == "Ultima Alteracao (mais recente)"
-                else "Ultima Alteracao (mais recente)"
-            )
+            new_value = "Ultima Alteracao (mais antiga)" if current == "Ultima Alteracao (mais recente)" else "Ultima Alteracao (mais recente)"
             self.var_ordem.set(new_value)
         elif column in ("razao_social", "cnpj", "nome"):
             mapping = {
@@ -912,11 +867,7 @@ class MainScreenFrame(tb.Frame):
 
     @staticmethod
     def _key_id(cliente: Any) -> tuple[bool, int]:
-        raw = (
-            getattr(cliente, "id", None)
-            or getattr(cliente, "pk", None)
-            or getattr(cliente, "client_id", None)
-        )
+        raw = getattr(cliente, "id", None) or getattr(cliente, "pk", None) or getattr(cliente, "client_id", None)
         try:
             value = int(str(raw).strip())
             return (False, value)
@@ -1001,15 +952,9 @@ class MainScreenFrame(tb.Frame):
             row = self._row_dict_from_cliente(cli)
             obs_txt = row.get("Observacoes", "").strip()
             tags = ("has_obs",) if obs_txt else ()
-            self.client_list.insert(
-                "", "end", values=self._row_values_masked(row), tags=tags
-            )
+            self.client_list.insert("", "end", values=self._row_values_masked(row), tags=tags)
 
-        count = (
-            len(clientes)
-            if isinstance(clientes, (list, tuple))
-            else len(self.client_list.get_children())
-        )
+        count = len(clientes) if isinstance(clientes, (list, tuple)) else len(self.client_list.get_children())
         self._set_count_text(count)
         self._update_main_buttons_state()
 
@@ -1023,9 +968,7 @@ class MainScreenFrame(tb.Frame):
         if menu is None:
             menu = tk.Menu(self, tearoff=0)
             self.status_menu = menu
-        menu.configure(
-            postcommand=lambda: _build_status_menu(menu, self._on_status_pick)
-        )
+        menu.configure(postcommand=lambda: _build_status_menu(menu, self._on_status_pick))
         return menu
 
     def _show_status_menu(self, row_id: str, cliente_id: int, event: Any) -> None:
@@ -1106,9 +1049,7 @@ class MainScreenFrame(tb.Frame):
         if col != "#5":
             return
         try:
-            cell = (
-                self.client_list.item(item, "values")[4] or ""
-            )  # índice 4 = 5ª coluna (WhatsApp)
+            cell = self.client_list.item(item, "values")[4] or ""  # índice 4 = 5ª coluna (WhatsApp)
         except Exception:
             cell = ""
 
@@ -1118,9 +1059,7 @@ class MainScreenFrame(tb.Frame):
             return
 
         msg = "Olá, tudo bem?"
-        webbrowser.open_new_tab(
-            f"https://wa.me/{wa['e164']}?text={urllib.parse.quote(msg)}"
-        )
+        webbrowser.open_new_tab(f"https://wa.me/{wa['e164']}?text={urllib.parse.quote(msg)}")
 
     def _apply_status_for(self, cliente_id: int, chosen: str) -> None:
         """Atualiza o [STATUS] no campo Observações e recarrega a grade."""
@@ -1128,9 +1067,7 @@ class MainScreenFrame(tb.Frame):
             cli = get_cliente_by_id(cliente_id)
             if not cli:
                 return
-            old_obs = (
-                getattr(cli, "obs", None) or getattr(cli, "observacoes", None) or ""
-            ).strip()
+            old_obs = (getattr(cli, "obs", None) or getattr(cli, "observacoes", None) or "").strip()
             body = STATUS_PREFIX_RE.sub("", old_obs, count=1).strip()
             new_obs = f"[{chosen}] {body}".strip() if chosen else body
             update_status_only(cliente_id=cliente_id, obs=new_obs)
@@ -1161,12 +1098,8 @@ class MainScreenFrame(tb.Frame):
         allow_send = has_sel and online and not self._uploading_busy
         try:
             # Botões que dependem de conexão E seleção
-            self.btn_editar.configure(
-                state=("normal" if (has_sel and online) else "disabled")
-            )
-            self.btn_subpastas.configure(
-                state=("normal" if (has_sel and online) else "disabled")
-            )
+            self.btn_editar.configure(state=("normal" if (has_sel and online) else "disabled"))
+            self.btn_subpastas.configure(state=("normal" if (has_sel and online) else "disabled"))
             if allow_send:
                 self.btn_enviar.state(["!disabled"])
             else:
@@ -1227,9 +1160,7 @@ class MainScreenFrame(tb.Frame):
         if enable:
             # Exibir banner
             if hasattr(self, "_pick_banner_frame"):
-                self._pick_banner_frame.pack(
-                    fill="x", padx=10, pady=(0, 10), before=self.client_list
-                )
+                self._pick_banner_frame.pack(fill="x", padx=10, pady=(0, 10), before=self.client_list)
 
             # Ocultar botões CRUD
             crud_buttons = [
@@ -1269,9 +1200,7 @@ class MainScreenFrame(tb.Frame):
             self.client_list.unbind("<Return>")
             self.unbind_all("<Escape>")
             # Restaurar binding normal de edição via duplo-clique
-            self.client_list.bind(
-                "<Double-1>", lambda _event: self._invoke_safe(self.on_edit)
-            )
+            self.client_list.bind("<Double-1>", lambda _event: self._invoke_safe(self.on_edit))
 
     def _get_selected_client_dict(self) -> dict | None:
         """Retorna dict com dados do cliente selecionado."""
@@ -1316,9 +1245,7 @@ class MainScreenFrame(tb.Frame):
 
         info = self._get_selected_client_dict()
         if not info:
-            messagebox.showwarning(
-                "Atenção", "Selecione um cliente primeiro.", parent=self
-            )
+            messagebox.showwarning("Atenção", "Selecione um cliente primeiro.", parent=self)
             return
 
         # Normalizar CNPJ com máscara
@@ -1343,9 +1270,7 @@ class MainScreenFrame(tb.Frame):
         digits = re.sub(r"\D", "", cnpj or "")
         if len(digits) != 14:
             return cnpj or ""
-        return (
-            f"{digits[0:2]}.{digits[2:5]}.{digits[5:8]}/{digits[8:12]}-{digits[12:14]}"
-        )
+        return f"{digits[0:2]}.{digits[2:5]}.{digits[5:8]}/{digits[8:12]}-{digits[12:14]}"
 
     @staticmethod
     def _invoke(callback: Optional[Callable[[], None]]) -> None:

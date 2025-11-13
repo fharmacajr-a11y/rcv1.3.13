@@ -9,6 +9,7 @@ Script de teste para validar funcionalidades de upload avançado:
 Uso:
     python scripts/test_upload_advanced.py
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -20,6 +21,7 @@ def test_next_copy_name():
 
     # Importar função
     import sys
+
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from src.modules.auditoria.view import _next_copy_name
 
@@ -49,16 +51,12 @@ def test_upload_plan_dataclass():
     print("\n[2/5] Testando _UploadPlan dataclass...")
 
     import sys
+
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from src.modules.auditoria.view import _UploadPlan
 
     # Criar plano de upload
-    plan = _UploadPlan(
-        source_path=Path("test/doc.pdf"),
-        dest_name="doc.pdf",
-        upsert=False,
-        file_size=1024
-    )
+    plan = _UploadPlan(source_path=Path("test/doc.pdf"), dest_name="doc.pdf", upsert=False, file_size=1024)
 
     assert plan.source_path == Path("test/doc.pdf")
     assert plan.dest_name == "doc.pdf"
@@ -66,12 +64,7 @@ def test_upload_plan_dataclass():
     assert plan.file_size == 1024
 
     # Teste com upsert=True
-    plan2 = _UploadPlan(
-        source_path=Path("doc2.pdf"),
-        dest_name="doc2.pdf",
-        upsert=True,
-        file_size=2048
-    )
+    plan2 = _UploadPlan(source_path=Path("doc2.pdf"), dest_name="doc2.pdf", upsert=True, file_size=2048)
 
     assert plan2.upsert is True
 
@@ -83,6 +76,7 @@ def test_progress_state():
     print("\n[3/5] Testando _ProgressState...")
 
     import sys
+
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from src.modules.auditoria.view import _ProgressState
     import time
@@ -121,6 +115,7 @@ def test_fmt_bytes():
     print("\n[4/5] Testando _fmt_bytes...")
 
     import sys
+
     sys.path.insert(0, str(Path(__file__).parent.parent))
 
     # Precisamos criar uma instância temporária
@@ -151,6 +146,7 @@ def test_fmt_eta():
     print("\n[5/5] Testando _fmt_eta...")
 
     import sys
+
     sys.path.insert(0, str(Path(__file__).parent.parent))
 
     import tkinter as tk
@@ -204,5 +200,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n❌ ERRO: {e}")
         import traceback
+
         traceback.print_exc()
         exit(1)

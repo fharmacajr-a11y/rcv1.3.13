@@ -5,6 +5,7 @@ from typing import Optional
 
 log = logging.getLogger(__name__)
 
+
 def _get_access_token(client) -> Optional[str]:
     try:
         sess = client.auth.get_session()
@@ -13,6 +14,7 @@ def _get_access_token(client) -> Optional[str]:
     except Exception:
         return None
 
+
 def _postgrest_bind(client, token: Optional[str]) -> None:
     if not token:
         return
@@ -20,6 +22,7 @@ def _postgrest_bind(client, token: Optional[str]) -> None:
         client.postgrest.auth(token)
     except Exception as e:
         log.warning("postgrest.auth falhou: %s", e)
+
 
 def ensure_signed_in(client) -> None:
     """
@@ -49,5 +52,6 @@ def ensure_signed_in(client) -> None:
 
     # Sem sessão e sem credenciais de DEV -> peça à GUI para abrir tela de login
     raise RuntimeError("Sem sessão Supabase. Abra a tela de login e autentique-se.")
+
 
 # ----------------------------------------------------------------------------------------

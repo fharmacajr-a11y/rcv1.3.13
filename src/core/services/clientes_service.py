@@ -35,9 +35,7 @@ def _count_clients_raw() -> int:
     Executa a contagem real de clientes no Supabase.
     Código original extraído para isolamento de retry.
     """
-    resp = exec_postgrest(
-        supabase.table("clients").select("id", count="exact").is_("deleted_at", "null")
-    )
+    resp = exec_postgrest(supabase.table("clients").select("id", count="exact").is_("deleted_at", "null"))
     return resp.count or 0
 
 
@@ -67,18 +65,14 @@ def count_clients(*, max_retries: int = 2, base_delay: float = 0.2) -> int:
             if getattr(e, "winerror", 0) == 10035:
                 if attempt < max_retries:
                     delay = base_delay * (attempt + 1)
-                    log.warning(
-                        "Clientes: socket ocupada (10035); retry em %.1fs...", delay
-                    )
+                    log.warning("Clientes: socket ocupada (10035); retry em %.1fs...", delay)
                     time.sleep(delay)
                     attempt += 1
                     continue
 
                 # Devolve o último valor conhecido com lock
                 with _clients_lock:
-                    log.info(
-                        "Clientes: usando last-known=%s após 10035", _LAST_CLIENTS_COUNT
-                    )
+                    log.info("Clientes: usando last-known=%s após 10035", _LAST_CLIENTS_COUNT)
                     return _LAST_CLIENTS_COUNT
 
             # Outros erros de rede → warning + last-known
@@ -126,11 +120,7 @@ def checar_duplicatas_info(
     """
 
     cnpj_norm = normalize_cnpj_norm(cnpj)
-    cnpj_conflict = (
-        find_cliente_by_cnpj_norm(cnpj_norm, exclude_id=exclude_id)
-        if cnpj_norm
-        else None
-    )
+    cnpj_conflict = find_cliente_by_cnpj_norm(cnpj_norm, exclude_id=exclude_id) if cnpj_norm else None
 
     razao_norm = normalize_text(razao or "")
     razao_conflicts: list = []
@@ -140,11 +130,7 @@ def checar_duplicatas_info(
                 continue
             if normalize_text(cliente.razao_social or "") != razao_norm:
                 continue
-            cliente_norm = (
-                (cliente.cnpj_norm or "")
-                if getattr(cliente, "cnpj_norm", None) is not None
-                else normalize_cnpj_norm(cliente.cnpj or "")
-            )
+            cliente_norm = (cliente.cnpj_norm or "") if getattr(cliente, "cnpj_norm", None) is not None else normalize_cnpj_norm(cliente.cnpj or "")
             if cnpj_norm:
                 if cliente_norm == cnpj_norm:
                     continue
@@ -202,10 +188,7 @@ def salvar_cliente(row, valores: dict) -> tuple[int, str]:
         if conflict:
             raiser = conflict.razao_social or "-"
             stored_cnpj = conflict.cnpj or "-"
-            raise ValueError(
-                "CNPJ já cadastrado para o cliente "
-                f"ID {conflict.id} — {raiser}. CNPJ: {stored_cnpj}."
-            )
+            raise ValueError(f"CNPJ já cadastrado para o cliente ID {conflict.id} — {raiser}. CNPJ: {stored_cnpj}.")
 
     if row:
         pk = int(row[0])

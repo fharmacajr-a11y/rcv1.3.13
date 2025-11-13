@@ -67,9 +67,7 @@ def probe(url: str = "", timeout: float = 2.0) -> Status:
 
     headers_no_key = {"User-Agent": "rc-net-probe"}
     anon = (os.getenv("SUPABASE_ANON_KEY") or "").strip()
-    headers_with_key = (
-        {"User-Agent": "rc-net-probe", "apikey": anon} if anon else headers_no_key
-    )
+    headers_with_key = {"User-Agent": "rc-net-probe", "apikey": anon} if anon else headers_no_key
 
     # monta a lista de alvos conforme existência de apikey
     targets: list[tuple[str, dict[str, str]]] = []
@@ -86,9 +84,7 @@ def probe(url: str = "", timeout: float = 2.0) -> Status:
     targets.append(("https://www.google.com/generate_204", headers_no_key))
 
     try:
-        with httpx.Client(
-            http2=True, timeout=timeout, verify=True, follow_redirects=True
-        ) as c:
+        with httpx.Client(http2=True, timeout=timeout, verify=True, follow_redirects=True) as c:
             for u, h in targets:
                 try:
                     r = c.get(u, headers=h)

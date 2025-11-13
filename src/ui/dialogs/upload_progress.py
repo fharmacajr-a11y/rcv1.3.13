@@ -11,9 +11,7 @@ from src.utils.resource_path import resource_path
 from ui import center_on_parent
 
 
-def show_upload_progress(
-    app: tk.Misc, pasta: str, client_id: int, *, subdir: str = "SIFAP"
-) -> None:
+def show_upload_progress(app: tk.Misc, pasta: str, client_id: int, *, subdir: str = "SIFAP") -> None:
     dlg = tk.Toplevel(app)
     dlg.withdraw()
     dlg.title("Aguarde…")
@@ -29,9 +27,7 @@ def show_upload_progress(
     frm = ttk.Frame(dlg, padding=12)
     frm.pack(fill="both", expand=True)
 
-    ttk.Label(frm, text="Enviando arquivos para o Supabase…").pack(
-        anchor="w", pady=(0, 8)
-    )
+    ttk.Label(frm, text="Enviando arquivos para o Supabase…").pack(anchor="w", pady=(0, 8))
     pb = ttk.Progressbar(frm, mode="indeterminate", length=300)
     pb.pack(fill="x")
     pb.start(12)

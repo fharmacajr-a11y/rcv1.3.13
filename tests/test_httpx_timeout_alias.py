@@ -12,8 +12,7 @@ def test_httpx_timeout_alias_import():
     from infra.supabase.http_client import HTTPX_TIMEOUT, HTTPX_TIMEOUT_LIGHT
 
     # Deve existir e ser o mesmo objeto (alias, não cópia)
-    assert HTTPX_TIMEOUT is HTTPX_TIMEOUT_LIGHT, \
-        "HTTPX_TIMEOUT deve ser alias de HTTPX_TIMEOUT_LIGHT"
+    assert HTTPX_TIMEOUT is HTTPX_TIMEOUT_LIGHT, "HTTPX_TIMEOUT deve ser alias de HTTPX_TIMEOUT_LIGHT"
 
 
 def test_httpx_timeout_alias_config():

@@ -76,6 +76,7 @@ def test_network_module_imports():
     """Test that network module can be imported."""
     try:
         import src.utils.network
+
         assert hasattr(src.utils.network, "check_internet_connectivity")
         assert hasattr(src.utils.network, "require_internet_or_alert")
     except Exception as e:

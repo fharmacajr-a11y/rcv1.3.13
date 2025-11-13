@@ -75,6 +75,7 @@ def test_errors_module_imports():
     """Test that errors module can be imported."""
     try:
         import src.utils.errors
+
         assert hasattr(src.utils.errors, "install_global_exception_hook")
         assert hasattr(src.utils.errors, "uninstall_global_exception_hook")
     except Exception as e:

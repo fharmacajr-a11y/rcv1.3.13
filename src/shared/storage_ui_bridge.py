@@ -1,4 +1,5 @@
 """Bridge para reutilizar a janela de arquivos dos Clientes no módulo Auditoria."""
+
 from __future__ import annotations
 
 import os
@@ -45,13 +46,7 @@ def _get_org_id_from_supabase(sb) -> Optional[str]:  # type: ignore[no-untyped-d
         uid = user.user.id
 
         # Busca org_id na tabela public.users
-        res = (
-            sb.table("users")
-            .select("org_id")
-            .eq("id", uid)
-            .limit(1)
-            .execute()
-        )
+        res = sb.table("users").select("org_id").eq("id", uid).limit(1).execute()
         if getattr(res, "data", None) and res.data[0].get("org_id"):
             return res.data[0]["org_id"]
     except Exception:
@@ -61,13 +56,7 @@ def _get_org_id_from_supabase(sb) -> Optional[str]:  # type: ignore[no-untyped-d
 
 def _client_title(row: dict[str, Any]) -> tuple[str, str]:
     """Extrai razao_social e cnpj do cliente."""
-    nome = (
-        row.get("razao_social")
-        or row.get("legal_name")
-        or row.get("name")
-        or row.get("display_name")
-        or f"Cliente #{row.get('id')}"
-    )
+    nome = row.get("razao_social") or row.get("legal_name") or row.get("name") or row.get("display_name") or f"Cliente #{row.get('id')}"
     cnpj = row.get("cnpj") or row.get("tax_id") or ""
     return nome, cnpj
 
@@ -82,6 +71,7 @@ def open_client_files_window(parent, sb, client_id: int) -> None:  # type: ignor
     """
     if not sb:
         from tkinter import messagebox
+
         messagebox.showwarning("Arquivos", "Modo offline.")
         return
 
@@ -91,11 +81,13 @@ def open_client_files_window(parent, sb, client_id: int) -> None:  # type: ignor
         data = getattr(res, "data", []) or []
         if not data:
             from tkinter import messagebox
+
             messagebox.showwarning("Arquivos", f"Cliente #{client_id} não encontrado.")
             return
         row = data[0]
     except Exception as e:
         from tkinter import messagebox
+
         messagebox.showwarning("Arquivos", f"Não foi possível carregar o cliente #{client_id}.\n{e}")
         return
 
@@ -108,13 +100,7 @@ def open_client_files_window(parent, sb, client_id: int) -> None:  # type: ignor
 
     if open_files_browser is not None:
         try:
-            open_files_browser(
-                parent,
-                org_id=org_id,
-                client_id=client_id,
-                razao=razao,
-                cnpj=cnpj
-            )
+            open_files_browser(parent, org_id=org_id, client_id=client_id, razao=razao, cnpj=cnpj)
             return
         except Exception:
             messagebox.showwarning("Arquivos", "Falha ao abrir janela de arquivos.")

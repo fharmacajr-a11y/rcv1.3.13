@@ -46,7 +46,6 @@ def _iter_files(base: Path) -> Iterable[Path]:
             yield item
 
 
-
 def _current_user_id() -> Optional[str]:
     """Return the currently authenticated Supabase user id (SDK-version agnostic)."""
     try:
@@ -68,12 +67,7 @@ def _resolve_org_id() -> str:
     if not user_id:
         return fallback
     try:
-        response = exec_postgrest(
-            supabase.table("memberships")
-            .select("org_id")
-            .eq("user_id", user_id)
-            .limit(1)
-        )
+        response = exec_postgrest(supabase.table("memberships").select("org_id").eq("user_id", user_id).limit(1))
         data = getattr(response, "data", None) or []
         if data:
             return data[0]["org_id"]
@@ -100,9 +94,7 @@ def upload_folder_to_supabase(
 
     user_id = _current_user_id()
     if not user_id:
-        raise RuntimeError(
-            "Usuario nao autenticado no Supabase. Faca login antes de enviar."
-        )
+        raise RuntimeError("Usuario nao autenticado no Supabase. Faca login antes de enviar.")
 
     org_id = _resolve_org_id()
     results: List[Dict[str, Any]] = []
@@ -166,9 +158,7 @@ def upload_folder_to_supabase(
         )
 
         if not document_response.data:
-            raise RuntimeError(
-                f"INSERT bloqueado por RLS em 'documents' para arquivo: {path.name}"
-            )
+            raise RuntimeError(f"INSERT bloqueado por RLS em 'documents' para arquivo: {path.name}")
 
         document_id = document_response.data[0]["id"]
 
@@ -186,17 +176,11 @@ def upload_folder_to_supabase(
         )
 
         if not version_response.data:
-            raise RuntimeError(
-                f"INSERT bloqueado por RLS em 'document_versions' para arquivo: {path.name}"
-            )
+            raise RuntimeError(f"INSERT bloqueado por RLS em 'document_versions' para arquivo: {path.name}")
 
         version_id = version_response.data[0]["id"]
 
-        exec_postgrest(
-            supabase.table("documents")
-            .update({"current_version": version_id})
-            .eq("id", document_id)
-        )
+        exec_postgrest(supabase.table("documents").update({"current_version": version_id}).eq("id", document_id))
 
         results.append(
             {

@@ -6,9 +6,7 @@ from typing import Any, Callable, Dict, Optional
 
 
 class AuthController:
-    def __init__(
-        self, on_user_change: Optional[Callable[[Optional[str]], None]] = None
-    ) -> None:
+    def __init__(self, on_user_change: Optional[Callable[[Optional[str]], None]] = None) -> None:
         self._user: Optional[str] = None
         self._user_data: Optional[Dict[str, Any]] = None  # Dados completos do usuário
         self._on_user_change = on_user_change

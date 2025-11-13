@@ -6,6 +6,7 @@ Testa:
 2. Busca por "Ocimar" ou "Ósimar" funciona
 3. Busca por CNPJ sem formatação funciona
 """
+
 import unicodedata
 import re
 
@@ -57,11 +58,13 @@ def test_search_simulation():
     print(f"  Query normalizada: '{query}'")
     results = []
     for c in clientes:
-        hay = " ".join([
-            str(c.get("razao_social") or ""),
-            str(c.get("nome") or ""),
-            str(c.get("cnpj") or ""),
-        ])
+        hay = " ".join(
+            [
+                str(c.get("razao_social") or ""),
+                str(c.get("nome") or ""),
+                str(c.get("cnpj") or ""),
+            ]
+        )
         hay_norm = _normalize(hay)
         print(f"  Comparando com: '{hay_norm[:50]}...'")
         if query in hay_norm:
@@ -76,11 +79,13 @@ def test_search_simulation():
     query = _normalize("OCIMAR")
     results = []
     for c in clientes:
-        hay = " ".join([
-            str(c.get("razao_social") or ""),
-            str(c.get("nome") or ""),
-            str(c.get("cnpj") or ""),
-        ])
+        hay = " ".join(
+            [
+                str(c.get("razao_social") or ""),
+                str(c.get("nome") or ""),
+                str(c.get("cnpj") or ""),
+            ]
+        )
         hay_norm = _normalize(hay)
         if query in hay_norm:
             results.append(c)
@@ -93,11 +98,13 @@ def test_search_simulation():
     query = _normalize("José")
     results = []
     for c in clientes:
-        hay = " ".join([
-            str(c.get("razao_social") or ""),
-            str(c.get("nome") or ""),
-            str(c.get("cnpj") or ""),
-        ])
+        hay = " ".join(
+            [
+                str(c.get("razao_social") or ""),
+                str(c.get("nome") or ""),
+                str(c.get("cnpj") or ""),
+            ]
+        )
         hay_norm = _normalize(hay)
         if query in hay_norm:
             results.append(c)
@@ -110,11 +117,13 @@ def test_search_simulation():
     query = _normalize("jose")
     results = []
     for c in clientes:
-        hay = " ".join([
-            str(c.get("razao_social") or ""),
-            str(c.get("nome") or ""),
-            str(c.get("cnpj") or ""),
-        ])
+        hay = " ".join(
+            [
+                str(c.get("razao_social") or ""),
+                str(c.get("nome") or ""),
+                str(c.get("cnpj") or ""),
+            ]
+        )
         hay_norm = _normalize(hay)
         if query in hay_norm:
             results.append(c)
@@ -140,11 +149,13 @@ def test_search_simulation():
     query = _normalize("12.345.678/0001-90")
     results = []
     for c in clientes:
-        hay = " ".join([
-            str(c.get("razao_social") or ""),
-            str(c.get("nome") or ""),
-            str(c.get("cnpj") or ""),
-        ])
+        hay = " ".join(
+            [
+                str(c.get("razao_social") or ""),
+                str(c.get("nome") or ""),
+                str(c.get("cnpj") or ""),
+            ]
+        )
         hay_norm = _normalize(hay)
         # Busca com tokens
         tokens = query.split()

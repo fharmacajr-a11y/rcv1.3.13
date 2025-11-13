@@ -124,13 +124,9 @@ def form_cliente(self, row=None, preset: dict | None = None) -> None:
 
     # --- Seção: Status do Cliente ---
     status_frame = ttk.LabelFrame(win, text="Status do Cliente")
-    status_frame.grid(
-        row=len(campos), column=0, columnspan=2, sticky="ew", padx=6, pady=(2, 6)
-    )
+    status_frame.grid(row=len(campos), column=0, columnspan=2, sticky="ew", padx=6, pady=(2, 6))
     status_var = tk.StringVar(value="")
-    cb_status = ttk.Combobox(
-        status_frame, textvariable=status_var, values=STATUS_CHOICES, state="readonly"
-    )
+    cb_status = ttk.Combobox(status_frame, textvariable=status_var, values=STATUS_CHOICES, state="readonly")
     cb_status.grid(row=0, column=0, sticky="w", padx=6, pady=6)
 
     # preencher valores iniciais
@@ -148,9 +144,7 @@ def form_cliente(self, row=None, preset: dict | None = None) -> None:
             if m:
                 status_var.set(m.group("st"))
                 ents["Observações"].delete("1.0", "end")
-                ents["Observações"].insert(
-                    "1.0", STATUS_PREFIX_RE.sub("", obs_raw, count=1).strip()
-                )
+                ents["Observações"].insert("1.0", STATUS_PREFIX_RE.sub("", obs_raw, count=1).strip())
         except Exception:
             pass
     elif preset:
@@ -203,19 +197,12 @@ def form_cliente(self, row=None, preset: dict | None = None) -> None:
         for idx, cliente in enumerate(razao_conflicts, start=1):
             if idx > 3:
                 break
-            lines.append(
-                f"- ID {getattr(cliente, 'id', '?')} — "
-                f"{getattr(cliente, 'razao_social', '') or '-'} "
-                f"(CNPJ: {getattr(cliente, 'cnpj', '') or '-'})"
-            )
+            lines.append(f"- ID {getattr(cliente, 'id', '?')} — {getattr(cliente, 'razao_social', '') or '-'} (CNPJ: {getattr(cliente, 'cnpj', '') or '-'})")
         remaining = max(0, len(razao_conflicts) - len(lines))
         if remaining:
             lines.append(f"- ... e mais {remaining} registro(s)")
 
-        header = (
-            "Existe outro cliente com a mesma Razão Social mas CNPJ diferente."
-            " Deseja continuar?\n\n"
-        )
+        header = "Existe outro cliente com a mesma Razão Social mas CNPJ diferente. Deseja continuar?\n\n"
         msg = header + "\n".join(lines)
         return messagebox.askokcancel("Razão Social repetida", msg, parent=win)
 
@@ -287,6 +274,7 @@ def form_cliente(self, row=None, preset: dict | None = None) -> None:
     def _salvar_e_enviar():
         if _perform_save(show_success=False, close_window=False):
             salvar_e_enviar_para_supabase(self, row, ents, win)
+
     # --- Botões ---
     btns = ttk.Frame(win)
     btns.grid(row=len(campos) + 1, column=0, columnspan=2, pady=10)
@@ -350,9 +338,7 @@ def form_cliente(self, row=None, preset: dict | None = None) -> None:
             pass
         win.destroy()
 
-    toolbar_button(btns, text="Cancelar", command=_cancelar).pack(
-        side="left", padx=5
-    )
+    toolbar_button(btns, text="Cancelar", command=_cancelar).pack(side="left", padx=5)
 
     def _on_close() -> None:
         try:

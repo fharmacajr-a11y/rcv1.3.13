@@ -1,12 +1,13 @@
 """
 Testes para o fallback de health check quando RPC ping retorna 404.
 """
-from unittest.mock import MagicMock, patch
 
+from unittest.mock import MagicMock, patch
 
 
 class MockResponse:
     """Mock de resposta HTTP para simular /auth/v1/health."""
+
     def __init__(self, status_code, json_data):
         self.status_code = status_code
         self._json_data = json_data
@@ -25,10 +26,7 @@ def test_health_fallback_on_rpc_404():
     mock_client = MagicMock()
 
     # Mock de resposta do /auth/v1/health (sucesso)
-    mock_health_response = MockResponse(
-        status_code=200,
-        json_data={"version": "2.x.x", "name": "GoTrue", "description": "GoTrue Auth"}
-    )
+    mock_health_response = MockResponse(status_code=200, json_data={"version": "2.x.x", "name": "GoTrue", "description": "GoTrue Auth"})
 
     # Simular RPC ping retornando 404 e /auth/v1/health retornando 200
     with patch("infra.supabase.db_client.exec_postgrest", side_effect=Exception("404 Not Found")):
@@ -41,10 +39,7 @@ def test_health_fallback_on_rpc_404():
     assert result is True, "Health check deveria retornar True com fallback bem-sucedido"
 
     # Verificar que httpx.get foi chamado com URL correta
-    mock_httpx_get.assert_called_once_with(
-        "https://test.supabase.co/auth/v1/health",
-        timeout=10.0
-    )
+    mock_httpx_get.assert_called_once_with("https://test.supabase.co/auth/v1/health", timeout=10.0)
 
 
 def test_health_fallback_continues_on_auth_failure():
@@ -62,7 +57,7 @@ def test_health_fallback_continues_on_auth_failure():
         # Segunda chamada (tabela fallback): sucesso
         mock_exec.side_effect = [
             Exception("404 Not Found"),
-            MagicMock()  # fallback de tabela bem-sucedido
+            MagicMock(),  # fallback de tabela bem-sucedido
         ]
 
         with patch("httpx.get", side_effect=Exception("Connection timeout")):
@@ -94,7 +89,7 @@ def test_health_rpc_non_404_error_skips_auth_fallback():
     with patch("infra.supabase.db_client.exec_postgrest") as mock_exec:
         mock_exec.side_effect = [
             Exception("Connection refused"),  # RPC falha com erro de rede
-            MagicMock()  # fallback de tabela bem-sucedido
+            MagicMock(),  # fallback de tabela bem-sucedido
         ]
 
         with patch("httpx.get") as mock_httpx_get:
@@ -125,15 +120,12 @@ def test_health_auth_fallback_requires_valid_response():
     # Mock de resposta inválida (sem version ou name)
     mock_invalid_response = MockResponse(
         status_code=200,
-        json_data={"status": "unknown"}  # sem 'version' ou 'name': 'GoTrue'
+        json_data={"status": "unknown"},  # sem 'version' ou 'name': 'GoTrue'
     )
 
     with patch("infra.supabase.db_client.exec_postgrest") as mock_exec:
         # RPC 404, depois tabela bem-sucedida
-        mock_exec.side_effect = [
-            Exception("404 Not Found"),
-            MagicMock()
-        ]
+        mock_exec.side_effect = [Exception("404 Not Found"), MagicMock()]
 
         with patch("httpx.get", return_value=mock_invalid_response):
             with patch.dict("os.environ", {"SUPABASE_URL": "https://test.supabase.co"}):
@@ -161,17 +153,11 @@ def test_health_auth_fallback_on_401_unauthorized():
     mock_client = MagicMock()
 
     # Mock de resposta 401 Unauthorized
-    mock_unauthorized_response = MockResponse(
-        status_code=401,
-        json_data={"error": "Unauthorized"}
-    )
+    mock_unauthorized_response = MockResponse(status_code=401, json_data={"error": "Unauthorized"})
 
     with patch("infra.supabase.db_client.exec_postgrest") as mock_exec:
         # RPC 404, depois tabela bem-sucedida
-        mock_exec.side_effect = [
-            Exception("404 Not Found"),
-            MagicMock()
-        ]
+        mock_exec.side_effect = [Exception("404 Not Found"), MagicMock()]
 
         with patch("httpx.get", return_value=mock_unauthorized_response):
             with patch.dict("os.environ", {"SUPABASE_URL": "https://test.supabase.co"}):
@@ -199,17 +185,11 @@ def test_health_auth_fallback_on_403_forbidden():
     mock_client = MagicMock()
 
     # Mock de resposta 403 Forbidden
-    mock_forbidden_response = MockResponse(
-        status_code=403,
-        json_data={"error": "Forbidden"}
-    )
+    mock_forbidden_response = MockResponse(status_code=403, json_data={"error": "Forbidden"})
 
     with patch("infra.supabase.db_client.exec_postgrest") as mock_exec:
         # RPC 404, depois tabela bem-sucedida
-        mock_exec.side_effect = [
-            Exception("404 Not Found"),
-            MagicMock()
-        ]
+        mock_exec.side_effect = [Exception("404 Not Found"), MagicMock()]
 
         with patch("httpx.get", return_value=mock_forbidden_response):
             with patch.dict("os.environ", {"SUPABASE_URL": "https://test.supabase.co"}):
@@ -239,10 +219,7 @@ def test_health_auth_fallback_on_timeout():
 
     with patch("infra.supabase.db_client.exec_postgrest") as mock_exec:
         # RPC 404, depois tabela bem-sucedida
-        mock_exec.side_effect = [
-            Exception("404 Not Found"),
-            MagicMock()
-        ]
+        mock_exec.side_effect = [Exception("404 Not Found"), MagicMock()]
 
         # Simular timeout do httpx.get
         with patch("httpx.get", side_effect=httpx.TimeoutException("Request timed out")):
@@ -260,4 +237,3 @@ def test_health_auth_fallback_on_timeout():
 
     # Deve ter prosseguido para fallback de tabela após timeout
     assert mock_client.table.called
-

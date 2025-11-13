@@ -84,9 +84,7 @@ def is_valid_cnpj(cnpj: Optional[str]) -> bool:
 # -------------------------- campos requeridos --------------------------
 
 
-def validate_required_fields(
-    data: Dict[str, Any], required: Iterable[str]
-) -> Dict[str, str]:
+def validate_required_fields(data: Dict[str, Any], required: Iterable[str]) -> Dict[str, str]:
     """
     Retorna dict de erros {campo: 'mensagem'} para os campos vazios.
     """
@@ -137,9 +135,7 @@ def check_duplicates(
             union_sql = []
 
             if cnpj_d:
-                union_sql.append(
-                    "SELECT 'CNPJ' AS K, ID FROM clientes WHERE DELETED_AT IS NULL AND CNPJ = ?"
-                )
+                union_sql.append("SELECT 'CNPJ' AS K, ID FROM clientes WHERE DELETED_AT IS NULL AND CNPJ = ?")
                 params.append(cnpj_d)
 
             # (removido) bloqueio por número/WhatsApp
@@ -150,10 +146,7 @@ def check_duplicates(
             #     params.append(numero_d)
 
             if razao_n:
-                union_sql.append(
-                    "SELECT 'RAZAO_SOCIAL' AS K, ID FROM clientes "
-                    "WHERE DELETED_AT IS NULL AND RAZAO_SOCIAL = ? COLLATE NOCASE"
-                )
+                union_sql.append("SELECT 'RAZAO_SOCIAL' AS K, ID FROM clientes WHERE DELETED_AT IS NULL AND RAZAO_SOCIAL = ? COLLATE NOCASE")
                 params.append(razao_n)
 
             if not union_sql:
@@ -182,21 +175,12 @@ def check_duplicates(
                 rid = int(row.get("ID") or row.get("id") or 0)
                 if exclude_id and rid == exclude_id:
                     continue
-                if (
-                    cnpj_d
-                    and normalize_cnpj(row.get("CNPJ") or row.get("cnpj")) == cnpj_d
-                ):
+                if cnpj_d and normalize_cnpj(row.get("CNPJ") or row.get("cnpj")) == cnpj_d:
                     dup["CNPJ"].append(rid)
                 # (removido) bloqueio por número/WhatsApp
                 # if numero_d and only_digits(row.get("NUMERO") or row.get("numero")) == numero_d:
                 #     dup["NUMERO"].append(rid)
-                if (
-                    razao_n
-                    and normalize_text(
-                        row.get("RAZAO_SOCIAL") or row.get("razao_social")
-                    ).lower()
-                    == razao_n.lower()
-                ):
+                if razao_n and normalize_text(row.get("RAZAO_SOCIAL") or row.get("razao_social")).lower() == razao_n.lower():
                     dup["RAZAO_SOCIAL"].append(rid)
         except Exception as e:
             log.exception("Erro ao processar duplicatas em memória: %s", e)

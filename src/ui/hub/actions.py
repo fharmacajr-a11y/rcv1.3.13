@@ -154,9 +154,7 @@ def on_add_note_clicked(screen) -> None:
                 try:
                     messagebox.showerror(
                         "Sem Permissão",
-                        "Sem permissão para anotar nesta organização.\n"
-                        "Verifique seu cadastro em 'profiles'.\n\n"
-                        f"Detalhes: {error_msg}",
+                        f"Sem permissão para anotar nesta organização.\nVerifique seu cadastro em 'profiles'.\n\nDetalhes: {error_msg}",
                         parent=screen,
                     )
                 except Exception:

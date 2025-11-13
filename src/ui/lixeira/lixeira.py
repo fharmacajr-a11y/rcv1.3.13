@@ -95,9 +95,7 @@ def abrir_lixeira(parent, app=None):
     container = tb.Frame(win, padding=10)
     container.pack(fill="both", expand=True)
 
-    tb.Label(container, text="Clientes na Lixeira", font=("", 12, "bold")).pack(
-        anchor="center", pady=(0, 8)
-    )
+    tb.Label(container, text="Clientes na Lixeira", font=("", 12, "bold")).pack(anchor="center", pady=(0, 8))
 
     # Treeview
     cols = ("id", "razao_social", "cnpj", "nome", "whatsapp", "obs", "ultima_alteracao")
@@ -133,9 +131,7 @@ def abrir_lixeira(parent, app=None):
     btn_restore = tb.Button(toolbar, text="Restaurar Selecionados", bootstyle="success")
     btn_purge = tb.Button(toolbar, text="Apagar Selecionados", bootstyle="danger")
     btn_refresh = tb.Button(toolbar, text="⟳", width=3)
-    btn_close = tb.Button(
-        toolbar, text="Fechar", bootstyle="secondary", command=win.destroy
-    )
+    btn_close = tb.Button(toolbar, text="Fechar", bootstyle="secondary", command=win.destroy)
 
     btn_restore.pack(side="left")
     tb.Separator(toolbar, orient="vertical").pack(side="left", padx=6, fill="y")
@@ -193,11 +189,7 @@ def abrir_lixeira(parent, app=None):
         for r in rows:
             whatsapp = getattr(r, "whatsapp", "") if hasattr(r, "whatsapp") else ""
             obs = getattr(r, "obs", "") or ""
-            ultima_raw = (
-                getattr(r, "ultima_alteracao", "")
-                or getattr(r, "updated_at", "")
-                or ""
-            )
+            ultima_raw = getattr(r, "ultima_alteracao", "") or getattr(r, "updated_at", "") or ""
             if ultima_raw:
                 try:
                     from src.app_utils import fmt_data
@@ -256,9 +248,7 @@ def abrir_lixeira(parent, app=None):
         if not ids:
             _warn("Lixeira", "Selecione pelo menos um registro para restaurar.")
             return
-        if not _ask_yesno(
-            "Restaurar", f"Restaurar {len(ids)} registro(s) para a lista principal?"
-        ):
+        if not _ask_yesno("Restaurar", f"Restaurar {len(ids)} registro(s) para a lista principal?"):
             return
 
         _set_busy(win, [btn_restore, btn_purge, btn_refresh, btn_close], True)
@@ -293,9 +283,7 @@ def abrir_lixeira(parent, app=None):
 
         _set_busy(win, [btn_restore, btn_purge, btn_refresh, btn_close], True)
         try:
-            ok, errs = lixeira_service.hard_delete_clients(
-                ids, parent=win
-            )  # DB + Storage
+            ok, errs = lixeira_service.hard_delete_clients(ids, parent=win)  # DB + Storage
             if errs:
                 msg = "\n".join([f"ID {cid}: {err}" for cid, err in errs])
                 _err("Falha parcial", f"{ok} apagado(s), erros:\n{msg}")

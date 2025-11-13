@@ -47,9 +47,7 @@ def _candidate_by_slug(pk: int) -> Optional[str]:
     return base
 
 
-def _find_by_marker(
-    root: str, pk: int, *, skip_names: set[str] | None = None
-) -> Optional[str]:
+def _find_by_marker(root: str, pk: int, *, skip_names: set[str] | None = None) -> Optional[str]:
     if not os.path.isdir(root):
         return None
     if skip_names is None:
@@ -69,9 +67,7 @@ def _find_by_marker(
     return None
 
 
-def resolve_cliente_path(
-    pk: int, *, prefer: Literal["active", "trash", "both"] = "both"
-) -> ResolveResult:
+def resolve_cliente_path(pk: int, *, prefer: Literal["active", "trash", "both"] = "both") -> ResolveResult:
     """Resolve o caminho real (pasta) de um cliente pelo PK.
     Estratégia:
       1) Tenta pelo marcador (mais confiável) no ativos e na lixeira.

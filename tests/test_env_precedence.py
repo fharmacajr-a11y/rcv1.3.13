@@ -101,7 +101,7 @@ def test_env_loading_order_matches_app(tmp_path, monkeypatch):
 
     # Exact order from app_gui.py:
     load_dotenv(str(bundled), override=False)  # empacotado
-    load_dotenv(str(local), override=True)     # externo sobrescreve
+    load_dotenv(str(local), override=True)  # externo sobrescreve
 
     assert os.getenv("RC_LOG_LEVEL") == "INFO", "Bundled-only should work"
     assert os.getenv("SUPABASE_URL") == "local_url", "Local should overwrite"

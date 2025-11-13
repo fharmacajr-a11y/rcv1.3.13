@@ -6,6 +6,7 @@ Simula upload com tracking de %, MB/s, ETA e contagem de itens.
 Uso:
     python scripts/test_deterministic_progress.py
 """
+
 from __future__ import annotations
 
 import time
@@ -18,6 +19,7 @@ from ttkbootstrap import ttk
 @dataclass
 class _ProgressState:
     """Estado do progresso de upload para barra determinística."""
+
     total_files: int = 0
     total_bytes: int = 0
     done_files: int = 0
@@ -36,12 +38,7 @@ class TestProgressWindow(tk.Tk):
         self.resizable(False, False)
 
         # Label de instruções
-        lbl_info = ttk.Label(
-            self,
-            text="Clique em 'Iniciar' para simular upload com progresso determinístico",
-            font=("-size", 10),
-            wraplength=460
-        )
+        lbl_info = ttk.Label(self, text="Clique em 'Iniciar' para simular upload com progresso determinístico", font=("-size", 10), wraplength=460)
         lbl_info.pack(padx=20, pady=(20, 16))
 
         # Botão de iniciar
@@ -126,6 +123,7 @@ class TestProgressWindow(tk.Tk):
 
         # Simular 50 arquivos, tamanhos variados (1-10 MB)
         import random
+
         state = _ProgressState()
         state.total_files = 50
         state.total_bytes = sum(random.randint(1_000_000, 10_000_000) for _ in range(50))

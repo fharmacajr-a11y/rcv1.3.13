@@ -56,8 +56,7 @@ def install_global_exception_hook() -> None:
                     error_msg = f"{exc_type.__name__}: {exc_value}"
                     messagebox.showerror(
                         "Erro Inesperado",
-                        f"Ocorreu um erro inesperado:\n\n{error_msg}\n\n"
-                        "Consulte os logs para mais detalhes.",
+                        f"Ocorreu um erro inesperado:\n\n{error_msg}\n\nConsulte os logs para mais detalhes.",
                     )
             except Exception as e:
                 # If GUI fails, just log it

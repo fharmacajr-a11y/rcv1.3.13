@@ -84,6 +84,7 @@ def _build_storage_prefix(*parts: str | None) -> str:
             sanitized.append(value)
     return "/".join(sanitized).strip("/")
 
+
 def _ask_subpasta(parent: Any) -> Optional[str]:
     """
     Abre o diálogo de subpasta de forma lazy para evitar ciclos de import.
@@ -126,17 +127,10 @@ def _resolve_org_id() -> str:
     uid = _current_user_id()
     fallback = (os.getenv("SUPABASE_DEFAULT_ORG") or "").strip()
     if not uid and not fallback:
-        raise RuntimeError(
-            "Usuário não autenticado e SUPABASE_DEFAULT_ORG não definido."
-        )
+        raise RuntimeError("Usuário não autenticado e SUPABASE_DEFAULT_ORG não definido.")
     try:
         if uid:
-            res = exec_postgrest(
-                supabase.table("memberships")
-                .select("org_id")
-                .eq("user_id", uid)
-                .limit(1)
-            )
+            res = exec_postgrest(supabase.table("memberships").select("org_id").eq("user_id", uid).limit(1))
             data = getattr(res, "data", None) or []
             if data:
                 return data[0]["org_id"]
@@ -274,18 +268,13 @@ def validate_inputs(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
                 if idx > 3:
                     break
                 lines.append(
-                    f"- ID {getattr(cliente, 'id', '?')} — "
-                    f"{getattr(cliente, 'razao_social', '') or '-'} "
-                    f"(CNPJ: {getattr(cliente, 'cnpj', '') or '-'})"
+                    f"- ID {getattr(cliente, 'id', '?')} — {getattr(cliente, 'razao_social', '') or '-'} (CNPJ: {getattr(cliente, 'cnpj', '') or '-'})"
                 )
             remaining = max(0, len(razao_conflicts) - len(lines))
             if remaining:
                 lines.append(f"- ... e mais {remaining} registro(s)")
 
-            header = (
-                "Existe outro cliente com a mesma Razão Social mas CNPJ diferente."
-                " Deseja continuar?\n\n"
-            )
+            header = "Existe outro cliente com a mesma Razão Social mas CNPJ diferente. Deseja continuar?\n\n"
             msg = header + "\n".join(lines)
             if not messagebox.askokcancel(
                 "Razão Social repetida",
@@ -342,9 +331,7 @@ def prepare_payload(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
 
     ctx.storage_adapter = SupabaseStorageAdapter(bucket=ctx.bucket)
 
-    parent_win = (
-        win if (win and hasattr(win, "winfo_exists") and win.winfo_exists()) else self
-    )
+    parent_win = win if (win and hasattr(win, "winfo_exists") and win.winfo_exists()) else self
     ctx.parent_win = parent_win
 
     subpasta = _ask_subpasta(parent_win)
@@ -360,10 +347,7 @@ def prepare_payload(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
 
     src = filedialog.askdirectory(
         parent=parent_win,
-        title=(
-            f"Escolha a PASTA para importar (irá para '{DEFAULT_IMPORT_SUBFOLDER}"
-            f"{'/' + ctx.subpasta if ctx.subpasta else ''}')"
-        ),
+        title=(f"Escolha a PASTA para importar (irá para '{DEFAULT_IMPORT_SUBFOLDER}{'/' + ctx.subpasta if ctx.subpasta else ''}')"),
     )
     ctx.src_dir = src or ""
 
@@ -384,9 +368,7 @@ def prepare_payload(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
     ctx.files = files
 
     if not src and not (ctx.arquivos_selecionados or []):
-        messagebox.showinfo(
-            "Nada a enviar", "Cliente salvo, mas nenhum arquivo foi selecionado."
-        )
+        messagebox.showinfo("Nada a enviar", "Cliente salvo, mas nenhum arquivo foi selecionado.")
         try:
             self.carregar()
         except Exception:
@@ -438,11 +420,7 @@ def perform_uploads(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
                 if not CLOUD_ONLY:
                     os.makedirs(base_local_inner, exist_ok=True)
                 for lp, rel in ctx.files:
-                    dest = (
-                        os.path.join(base_local_inner, rel)
-                        if ctx.src_dir and rel
-                        else os.path.join(base_local_inner, os.path.basename(lp))
-                    )
+                    dest = os.path.join(base_local_inner, rel) if ctx.src_dir and rel else os.path.join(base_local_inner, os.path.basename(lp))
                     if not CLOUD_ONLY:
                         os.makedirs(os.path.dirname(dest), exist_ok=True)
                     try:
@@ -484,10 +462,7 @@ def perform_uploads(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
 
                     data = Path(local_path).read_bytes()
                     sanitized_filename = storage_path.split("/")[-1]
-                    content_type = (
-                        mimetypes.guess_type(sanitized_filename)[0]
-                        or "application/octet-stream"
-                    )
+                    content_type = mimetypes.guess_type(sanitized_filename)[0] or "application/octet-stream"
                     storage_delete_file(storage_path)
                     storage_upload_file(data, storage_path, content_type)
 
@@ -519,11 +494,7 @@ def perform_uploads(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
                         )
                     )
                     version_id = ver.data[0]["id"]
-                    exec_postgrest(
-                        supabase.table("documents")
-                        .update({"current_version": version_id})
-                        .eq("id", document_id)
-                    )
+                    exec_postgrest(supabase.table("documents").update({"current_version": version_id}).eq("id", document_id))
 
                     logger.info("Upload OK: %s", storage_path)
                 except Exception as exc:
@@ -571,9 +542,7 @@ def perform_uploads(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
     return args, kwargs
 
 
-def finalize_state(
-    *args, ctx_override: Optional[UploadCtx] = None, **kwargs
-) -> Tuple[tuple, Dict[str, Any]]:
+def finalize_state(*args, ctx_override: Optional[UploadCtx] = None, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
     self, row, ents, arquivos, win = _unpack_call(args, kwargs)
     ctx = ctx_override or getattr(self, "_upload_ctx", None)
     if not ctx:
@@ -604,9 +573,7 @@ def finalize_state(
         falhas_info = "\\n\\nArquivos que falharam:\\n- " + "\\n- ".join(lista)
         if len(arquivos_falhados) > 10:
             falhas_info += f"\\n... e mais {len(arquivos_falhados) - 10} arquivo(s)"
-        logger.warning(
-            "Arquivos que falharam no upload: %s", ", ".join(arquivos_falhados)
-        )
+        logger.warning("Arquivos que falharam no upload: %s", ", ".join(arquivos_falhados))
 
     msg = (
         f"Cliente salvo e documentos enviados com sucesso!{prefix_info}"

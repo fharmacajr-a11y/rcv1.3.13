@@ -8,6 +8,7 @@ Caminhos centrais do app RC.
 - Em modo local (RC_NO_LOCAL_FS != 1), as pastas db/ e clientes_docs/
   são criadas (se necessário) dentro do diretório base do app (ou RC_APP_DATA).
 """
+
 from __future__ import annotations
 
 import os
@@ -33,9 +34,7 @@ if CLOUD_ONLY:
     TMP_BASE = Path(tempfile.gettempdir()) / "rc_void"
 
     DB_DIR: Path = TMP_BASE / "db"
-    DB_PATH: Path = (
-        DB_DIR / "disabled.db"
-    )  # não deve ser usado no cloud, mas mantemos o path
+    DB_PATH: Path = DB_DIR / "disabled.db"  # não deve ser usado no cloud, mas mantemos o path
 
     USERS_DB_PATH: Path = TMP_BASE / "users" / "disabled_users.db"
     DOCS_DIR: Path = TMP_BASE / "docs"

@@ -106,9 +106,7 @@ def create_status_bar(
 
     count_var = count_var or tk.StringVar(master=parent, value="0 clientes")
     status_dot_var = status_dot_var or tk.StringVar(master=parent, value=STATUS_DOT)
-    status_text_var = status_text_var or tk.StringVar(
-        master=parent, value=default_status_text
-    )
+    status_text_var = status_text_var or tk.StringVar(master=parent, value=default_status_text)
 
     tb.Label(frame, textvariable=count_var).pack(side="left")
 
@@ -119,9 +117,7 @@ def create_status_bar(
     status_dot.configure(font=("", 14))
     status_dot.pack(side="left", padx=(0, 6))
 
-    status_label = tb.Label(
-        right_box, textvariable=status_text_var, bootstyle="inverse"
-    )
+    status_label = tb.Label(right_box, textvariable=status_text_var, bootstyle="inverse")
     status_label.pack(side="left")
 
     return StatusIndicators(

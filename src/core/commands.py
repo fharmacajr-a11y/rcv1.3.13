@@ -176,9 +176,7 @@ def _bootstrap_commands() -> None:
     )
 
     # Upload commands
-    def _upload_folder(
-        local_dir: str, org_id: str, client_id: str, subdir: str = "GERAL"
-    ) -> Dict:
+    def _upload_folder(local_dir: str, org_id: str, client_id: str, subdir: str = "GERAL") -> Dict:
         from src.core.api import upload_folder
 
         return upload_folder(local_dir, org_id, client_id, subdir)
@@ -191,9 +189,7 @@ def _bootstrap_commands() -> None:
     )
 
     # Download commands
-    def _download_zip(
-        bucket: str, prefix: str, dest: Optional[str] = None
-    ) -> Optional[str]:
+    def _download_zip(bucket: str, prefix: str, dest: Optional[str] = None) -> Optional[str]:
         from src.core.api import download_folder_zip
 
         return download_folder_zip(bucket, prefix, dest)

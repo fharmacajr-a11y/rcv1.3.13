@@ -20,7 +20,7 @@ HTTPX_CLIENT = httpx.Client(
 # Exportação pública explícita
 __all__ = [
     "HTTPX_CLIENT",
-    "HTTPX_TIMEOUT",        # alias compatível (legado)
+    "HTTPX_TIMEOUT",  # alias compatível (legado)
     "HTTPX_TIMEOUT_LIGHT",  # novo (30s)
     "HTTPX_TIMEOUT_HEAVY",  # novo (60s)
     "Timeout",

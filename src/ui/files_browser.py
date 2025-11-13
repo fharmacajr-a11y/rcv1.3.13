@@ -92,13 +92,7 @@ def get_current_org_id(sb) -> str:  # type: ignore[no-untyped-def]
         uid = user.user.id
 
         # Busca org_id na tabela memberships
-        res = (
-            sb.table("memberships")
-            .select("org_id")
-            .eq("user_id", uid)
-            .limit(1)
-            .execute()
-        )
+        res = sb.table("memberships").select("org_id").eq("user_id", uid).limit(1).execute()
         if getattr(res, "data", None) and res.data and res.data[0].get("org_id"):
             return res.data[0]["org_id"]
     except Exception:
@@ -165,6 +159,7 @@ def open_files_browser(
                 docs_window.after(ms, fn)
         except Exception:
             pass
+
     docs_window.title(f"Arquivos: {razao_clean} — {cnpj_fmt} — ID {client_id}")
     try:
         docs_window.iconbitmap(resource_path("rc.ico"))
@@ -489,7 +484,7 @@ def open_files_browser(
             return
         if col == f"#{status_index}" and _is_folder_iid(iid):
             _cycle_folder_status(iid)
-    
+
     def _ensure_status_menu() -> tk.Menu:
         ctx = getattr(docs_window, "_ctx_folder_menu", None)
         if ctx is None:
@@ -538,7 +533,6 @@ def open_files_browser(
             except Exception:
                 pass
 
-
     # Função de ordenação da Treeview
     def _sort_tree(col: str, reverse: bool = False):
         """Ordena a Treeview por coluna clicada."""
@@ -548,7 +542,7 @@ def open_files_browser(
             if col == "#0":
                 val = tree.item(k, "text")  # coluna árvore: pega via item()
             else:
-                val = tree.set(k, col)      # demais colunas: pega via set()
+                val = tree.set(k, col)  # demais colunas: pega via set()
             items.append((val, k))
 
         # Ordena (numérico se der, senão string)
@@ -740,11 +734,13 @@ def open_files_browser(
             display_name = raw_name.rsplit("/", 1)[-1]
             is_folder = bool(obj.get("is_folder"))
             size_bytes = obj.get("metadata", {}).get("size") if not is_folder else None
-            items.append({
-                "name": display_name,
-                "is_folder": is_folder,
-                "size": size_bytes,
-            })
+            items.append(
+                {
+                    "name": display_name,
+                    "is_folder": is_folder,
+                    "size": size_bytes,
+                }
+            )
         return items
 
     def _clear_children(parent_iid: str) -> None:
@@ -970,17 +966,13 @@ def open_files_browser(
         sufixo = cnpj or f"ID {client_id}"
         suggest = _sanitize_filename(f"{stem} - {sufixo}{ext}")
 
-        local_path = filedialog.asksaveasfilename(
-            parent=docs_window, title="Salvar como", initialfile=suggest
-        )
+        local_path = filedialog.asksaveasfilename(parent=docs_window, title="Salvar como", initialfile=suggest)
         if local_path:
             try:
                 download_file(BUCKET, file_path, local_path)
                 messagebox.showinfo("Sucesso", "Arquivo baixado!", parent=docs_window)
             except Exception as e:
-                messagebox.showerror(
-                    "Erro", f"Falha ao baixar: {e}", parent=docs_window
-                )
+                messagebox.showerror("Erro", f"Falha ao baixar: {e}", parent=docs_window)
 
     # Baixar pasta como ZIP (com Cancelar)
     def on_zip_folder():
@@ -995,9 +987,7 @@ def open_files_browser(
         item = sel[0]
         tipo = (tree.item(item).get("values") or [""])[0]
         if (tipo or "").lower() != "pasta":
-            messagebox.showinfo(
-                "Baixar pasta", "O item selecionado nao e pasta.", parent=docs_window
-            )
+            messagebox.showinfo("Baixar pasta", "O item selecionado nao e pasta.", parent=docs_window)
             return
 
         rel = _get_rel_path(item)
@@ -1122,17 +1112,14 @@ def open_files_browser(
                 try:
                     messagebox.showerror(
                         "Tempo esgotado",
-                        "O servidor nao respondeu a tempo (conexao ou leitura). "
-                        "Verifique sua internet e tente novamente.",
+                        "O servidor nao respondeu a tempo (conexao ou leitura). Verifique sua internet e tente novamente.",
                         parent=docs_window,
                     )
                 except Exception:
                     pass
             except Exception as err:
                 try:
-                    messagebox.showerror(
-                        "Erro ao baixar pasta", str(err), parent=docs_window
-                    )
+                    messagebox.showerror("Erro ao baixar pasta", str(err), parent=docs_window)
                 except Exception:
                     pass
             else:
@@ -1207,11 +1194,7 @@ def open_files_browser(
                         parent=docs_window,
                     )
             else:
-                messagebox.showinfo(
-                    "Visualizar",
-                    f"Tipo de arquivo não suportado para visualização: .{ext}",
-                    parent=docs_window
-                )
+                messagebox.showinfo("Visualizar", f"Tipo de arquivo não suportado para visualização: .{ext}", parent=docs_window)
             _update_preview_state()
 
         _run_bg(_target, _done)

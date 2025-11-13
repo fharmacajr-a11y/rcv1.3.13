@@ -1,6 +1,7 @@
 """
 Testes para o módulo de seleção de arquivos (file_select).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -66,8 +67,7 @@ class TestArchiveFiletypes:
         concatenadas como "*.zip *.rar".
         """
         first_pattern = ARCHIVE_FILETYPES[0][1]
-        assert isinstance(first_pattern, tuple), \
-            "O padrão deve ser uma tupla, não string"
+        assert isinstance(first_pattern, tuple), "O padrão deve ser uma tupla, não string"
         assert len(first_pattern) == 4  # .zip, .rar, .7z, .7z.*
         assert "*.zip" in first_pattern
         assert "*.rar" in first_pattern

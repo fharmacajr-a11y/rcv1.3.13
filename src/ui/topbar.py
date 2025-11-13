@@ -10,9 +10,7 @@ import ttkbootstrap as tb
 class TopBar(tb.Frame):
     """Barra superior simples com botão 'Início'."""
 
-    def __init__(
-        self, master=None, on_home: Optional[Callable[[], None]] = None, **kwargs
-    ):
+    def __init__(self, master=None, on_home: Optional[Callable[[], None]] = None, **kwargs):
         super().__init__(master, **kwargs)
         self._on_home = on_home
 

@@ -41,9 +41,7 @@ def using_storage_backend(backend: _BackendType):
         set_storage_backend(previous)
 
 
-def upload_file(
-    local_path: object, remote_key: str, content_type: Optional[str] = None
-) -> str:
+def upload_file(local_path: object, remote_key: str, content_type: Optional[str] = None) -> str:
     return _call("upload_file", local_path, remote_key, content_type)
 
 

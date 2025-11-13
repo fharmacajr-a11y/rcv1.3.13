@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Helpers para o fluxo de upload de documentos ao Supabase."""
+
 from __future__ import annotations
 
 import logging
@@ -184,10 +185,7 @@ def _confirm_large_volume(parent: tk.Misc, total: int) -> bool:
         return True
     return messagebox.askyesno(
         "Confirmar envio",
-        (
-            f"Voce selecionou {total} arquivos.\n\n"
-            "Esse volume pode levar algum tempo. Deseja continuar?"
-        ),
+        (f"Voce selecionou {total} arquivos.\n\nEsse volume pode levar algum tempo. Deseja continuar?"),
         parent=parent,
     )
 

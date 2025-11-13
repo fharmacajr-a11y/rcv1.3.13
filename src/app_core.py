@@ -124,13 +124,9 @@ def excluir_cliente(app: Any, selected_values: Sequence[Any]) -> None:
 
         deleted_at = datetime.now(timezone.utc).isoformat()
         update_payload = {"deleted_at": deleted_at, "ultima_alteracao": deleted_at}
-        exec_postgrest(
-            supabase.table("clients").update(update_payload).eq("id", client_id)
-        )
+        exec_postgrest(supabase.table("clients").update(update_payload).eq("id", client_id))
     except Exception as exc:
-        _safe_messagebox(
-            "showerror", "Erro ao excluir", f"Falha ao enviar para a Lixeira: {exc}"
-        )
+        _safe_messagebox("showerror", "Erro ao excluir", f"Falha ao enviar para a Lixeira: {exc}")
         log.exception("Failed to soft-delete client %s", label_cli)
         return
 
@@ -146,9 +142,7 @@ def excluir_cliente(app: Any, selected_values: Sequence[Any]) -> None:
     except Exception:
         log.debug("Lixeira refresh skipped", exc_info=True)
 
-    _safe_messagebox(
-        "showinfo", "Lixeira", f"Cliente {label_cli} enviado para a Lixeira."
-    )
+    _safe_messagebox("showinfo", "Lixeira", f"Cliente {label_cli} enviado para a Lixeira.")
     log.info("Cliente %s enviado para a Lixeira com sucesso", label_cli)
 
 
@@ -184,11 +178,7 @@ def dir_base_cliente_from_pk(pk: int) -> str:
     numero = getattr(c, "numero", "") or ""
     cnpj = getattr(c, "cnpj", "") or ""
     razao = getattr(c, "razao_social", "") or ""
-    base_name = (
-        safe_base_from_fields(cnpj, numero, razao, pk)
-        if callable(safe_base_from_fields)
-        else str(pk)
-    )
+    base_name = safe_base_from_fields(cnpj, numero, razao, pk) if callable(safe_base_from_fields) else str(pk)
     return os.path.join(str(DOCS_DIR), base_name)
 
 
@@ -216,9 +206,7 @@ def _ensure_live_folder_ready(pk: int) -> str:
             content_ok = False
             if marker_path.is_file():
                 try:
-                    content_ok = marker_path.read_text(encoding="utf-8").strip() == str(
-                        pk
-                    )
+                    content_ok = marker_path.read_text(encoding="utf-8").strip() == str(pk)
                 except Exception:
                     content_ok = False
             if not content_ok:
@@ -242,8 +230,7 @@ def abrir_pasta(app: Any, pk: int) -> None:
         _safe_messagebox(
             "showinfo",
             "Somente Nuvem",
-            "Este app está em modo somente nuvem.\n"
-            "Use o botão 'Ver Subpastas' para navegar e baixar arquivos do Supabase.",
+            "Este app está em modo somente nuvem.\nUse o botão 'Ver Subpastas' para navegar e baixar arquivos do Supabase.",
         )
         return
 

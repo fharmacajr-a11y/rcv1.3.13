@@ -37,9 +37,7 @@ def _get_supabase_and_org():
         uid = getattr(u, "id", None)
         if not uid:
             raise RuntimeError("Usuário não autenticado no Supabase.")
-        res = exec_postgrest(
-            supabase.table("memberships").select("org_id").eq("user_id", uid).limit(1)
-        )
+        res = exec_postgrest(supabase.table("memberships").select("org_id").eq("user_id", uid).limit(1))
         org_id = res.data[0]["org_id"] if getattr(res, "data", None) else None
         if not org_id:
             raise RuntimeError("Organização não encontrada para o usuário atual.")
@@ -143,9 +141,7 @@ def _ensure_mandatory_subfolders(prefix: str) -> None:
 
 
 # ----------------- Ações públicas -----------------
-def restore_clients(
-    client_ids: Iterable[int], parent=None
-) -> Tuple[int, List[Tuple[int, str]]]:
+def restore_clients(client_ids: Iterable[int], parent=None) -> Tuple[int, List[Tuple[int, str]]]:
     """
     Restaura clientes (deleted_at = null).
     Retorna: (qtd_ok, [(client_id, err), ...])
@@ -160,11 +156,7 @@ def restore_clients(
 
     for cid in client_ids:
         try:
-            exec_postgrest(
-                supabase.table("clients")
-                .update({"deleted_at": None})
-                .eq("id", int(cid))
-            )
+            exec_postgrest(supabase.table("clients").update({"deleted_at": None}).eq("id", int(cid)))
             prefix = f"{org_id}/{int(cid)}"
             try:
                 _ensure_mandatory_subfolders(prefix)
@@ -181,9 +173,7 @@ def restore_clients(
     return ok, errs
 
 
-def hard_delete_clients(
-    client_ids: Iterable[int], parent=None
-) -> Tuple[int, List[Tuple[int, str]]]:
+def hard_delete_clients(client_ids: Iterable[int], parent=None) -> Tuple[int, List[Tuple[int, str]]]:
     """
     Apaga DEFINITIVAMENTE clientes (DB + Storage).
     - Remove do Storage: bucket rc-docs/<org_id>/<client_id>/**
@@ -205,9 +195,7 @@ def hard_delete_clients(
             # 1) Limpa Storage
             try:
                 removed = _remove_storage_prefix(org_id, cid)
-                log.info(
-                    "Storage: removidos %s objeto(s) de %s/%s", removed, org_id, cid
-                )
+                log.info("Storage: removidos %s objeto(s) de %s/%s", removed, org_id, cid)
             except Exception as e:
                 # Não aborta; reporta erro mas tenta seguir para DB
                 log.exception("Falha ao limpar Storage de %s/%s", org_id, cid)

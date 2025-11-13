@@ -28,9 +28,7 @@ class FooterButtons:
 __all__ = ["FooterButtons", "toolbar_button", "create_footer_buttons"]
 
 
-def toolbar_button(
-    parent: tk.Misc, text: str, command: Callable[[], Any]
-) -> ttk.Button:
+def toolbar_button(parent: tk.Misc, text: str, command: Callable[[], Any]) -> ttk.Button:
     """Create a standard toolbar button and return it."""
     return ttk.Button(parent, text=text, command=command)
 
@@ -48,21 +46,15 @@ def create_footer_buttons(
     """Create the footer buttons frame used on the main window."""
     frame = tb.Frame(parent)
 
-    btn_novo = tb.Button(
-        frame, text="Novo Cliente", command=on_novo, bootstyle="success"
-    )
+    btn_novo = tb.Button(frame, text="Novo Cliente", command=on_novo, bootstyle="success")
     btn_editar = tb.Button(frame, text="Editar", command=on_editar, bootstyle="primary")
-    btn_subpastas = tb.Button(
-        frame, text="Ver Subpastas", command=on_subpastas, bootstyle="secondary"
-    )
+    btn_subpastas = tb.Button(frame, text="Ver Subpastas", command=on_subpastas, bootstyle="secondary")
     btn_enviar = ttk.Menubutton(frame, text="Enviar Para SupaBase")
     menu_enviar = tk.Menu(btn_enviar, tearoff=0)
     menu_enviar.add_command(label="Selecionar PDFs...", command=on_enviar)
     menu_enviar.add_command(label="Selecionar Pasta...", command=on_enviar_pasta)
     btn_enviar["menu"] = menu_enviar
-    btn_lixeira = tb.Button(
-        frame, text="Lixeira", command=on_lixeira, bootstyle="warning"
-    )
+    btn_lixeira = tb.Button(frame, text="Lixeira", command=on_lixeira, bootstyle="warning")
 
     btn_novo.pack(side="left", padx=5)
     btn_editar.pack(side="left", padx=5)

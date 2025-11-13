@@ -27,9 +27,7 @@ def _author_color(email: str) -> str:
     return _hsl_to_hex(hue, 0.90, 0.28)
 
 
-def _ensure_author_tag(
-    text_widget, email: str, tag_cache: Optional[Dict[str, str]] = None
-) -> str:
+def _ensure_author_tag(text_widget, email: str, tag_cache: Optional[Dict[str, str]] = None) -> str:
     """
     Garante que exista uma tag de estilo para o autor e retorna o nome da tag.
 
@@ -52,9 +50,7 @@ def _ensure_author_tag(
                 setattr(text_widget, "_author_tags", cache)
             except Exception:
                 # Se o widget bloquear setattr, segue sem cache persistente
-                logger.debug(
-                    "Hub: widget não aceita atributo _author_tags; usando cache efêmero."
-                )
+                logger.debug("Hub: widget não aceita atributo _author_tags; usando cache efêmero.")
         tag_cache = cache
 
     # 2) Já existe no cache?
@@ -70,9 +66,7 @@ def _ensure_author_tag(
         if tag_name not in text_widget.tag_names():
             color = _author_color(email)
             # Aplica foreground com fonte padrão
-            text_widget.tag_configure(
-                tag_name, foreground=color, font=("TkDefaultFont", 10, "bold")
-            )
+            text_widget.tag_configure(tag_name, foreground=color, font=("TkDefaultFont", 10, "bold"))
     except Exception:
         logger.exception("Hub: falha ao configurar tag do autor '%s'.", email)
         # Fallback: retorna um nome simples para não quebrar o fluxo

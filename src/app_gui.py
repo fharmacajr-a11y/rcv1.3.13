@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Entry-point fino que reexporta a janela principal."""
+
 import os
 
 # Versão do aplicativo
@@ -46,6 +47,7 @@ if __name__ == "__main__":
     # Install global exception hook early
     try:
         from src.utils.errors import install_global_exception_hook
+
         install_global_exception_hook()
     except Exception:
         pass  # Don't fail startup if hook installation fails
@@ -53,10 +55,12 @@ if __name__ == "__main__":
     # Parse CLI arguments
     try:
         from src.cli import get_args
+
         app_args = get_args()
     except Exception:
         # Fallback if CLI parsing fails
         from src.cli import AppArgs
+
         app_args = AppArgs()
 
     from src.ui.login_dialog import LoginDialog  # Novo diálogo simplificado
@@ -136,9 +140,11 @@ if __name__ == "__main__":
     # Check internet connectivity if in cloud-only mode
     try:
         from src.utils.network import require_internet_or_alert
+
         if not require_internet_or_alert():
             log.error("Internet check failed in cloud-only mode. Exiting.")
             import sys
+
             sys.exit(1)
     except Exception as e:
         log.warning("Failed to check internet connectivity: %s", e)

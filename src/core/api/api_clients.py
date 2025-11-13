@@ -58,9 +58,7 @@ def get_current_theme() -> str:
         return "flatly"  # fallback
 
 
-def upload_folder(
-    local_dir: str, org_id: str, client_id: str, subdir: str = "GERAL"
-) -> Dict[str, Any]:
+def upload_folder(local_dir: str, org_id: str, client_id: str, subdir: str = "GERAL") -> Dict[str, Any]:
     """
     Upload a folder of documents to storage (e.g., SIFAP, Farmacia Popular).
 
@@ -85,9 +83,7 @@ def upload_folder(
         from src.core.services import upload_service
 
         # Note: Actual implementation may differ; adapt as needed
-        result = upload_service.upload_folder(
-            local_dir, org_id=org_id, client_id=client_id, subdir=subdir
-        )
+        result = upload_service.upload_folder(local_dir, org_id=org_id, client_id=client_id, subdir=subdir)
         return result
     except Exception as e:
         log.error(f"Folder upload failed: {e}")

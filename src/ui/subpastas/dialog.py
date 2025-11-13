@@ -52,9 +52,7 @@ def open_subpastas_dialog(
         var_filter.set("")
         _refresh_rows()
 
-    tb.Button(tools, text="Limpar", bootstyle="secondary", command=_clear_filter).grid(
-        row=0, column=2, padx=(6, 12)
-    )
+    tb.Button(tools, text="Limpar", bootstyle="secondary", command=_clear_filter).grid(row=0, column=2, padx=(6, 12))
 
     var_only_missing = tk.BooleanVar(value=False)
     tb.Checkbutton(
@@ -74,9 +72,7 @@ def open_subpastas_dialog(
     vsb = tb.Scrollbar(list_box, orient="vertical", command=canvas.yview)
     rows_holder = tb.Frame(canvas)
 
-    rows_holder.bind(
-        "<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-    )
+    rows_holder.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
     canvas.create_window((0, 0), window=rows_holder, anchor="nw")
     canvas.configure(yscrollcommand=vsb.set)
 
@@ -114,9 +110,7 @@ def open_subpastas_dialog(
             ensure_subpastas(base_path, None)  # fallback: loader interno do file_utils
         _refresh_rows()
 
-    tb.Button(
-        footer, text="Criar todas", bootstyle="primary", command=_criar_todas
-    ).grid(row=0, column=0, sticky="w")
+    tb.Button(footer, text="Criar todas", bootstyle="primary", command=_criar_todas).grid(row=0, column=0, sticky="w")
 
     tb.Button(
         footer,
@@ -125,14 +119,10 @@ def open_subpastas_dialog(
         command=lambda: open_folder(base_path),
     ).grid(row=0, column=1, padx=6, sticky="w")
 
-    tb.Button(footer, text="Fechar", bootstyle="secondary", command=win.destroy).grid(
-        row=0, column=2, sticky="e"
-    )
+    tb.Button(footer, text="Fechar", bootstyle="secondary", command=win.destroy).grid(row=0, column=2, sticky="e")
 
     # ---------- Dados ----------
-    all_items: List[str] = list(
-        sorted(set(list(subpastas or []) + list(extras_visiveis or [])))
-    )
+    all_items: List[str] = list(sorted(set(list(subpastas or []) + list(extras_visiveis or []))))
 
     # Se vier vazio, tenta carregar do YAML aqui mesmo
     if not all_items:
@@ -174,9 +164,7 @@ def open_subpastas_dialog(
             open_folder(full_path)
             _refresh_rows()
 
-        tb.Button(r, text="Abrir", bootstyle="secondary", command=_open).grid(
-            row=0, column=2, sticky="e"
-        )
+        tb.Button(r, text="Abrir", bootstyle="secondary", command=_open).grid(row=0, column=2, sticky="e")
 
     def _refresh_rows():
         for c in rows_holder.winfo_children():

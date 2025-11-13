@@ -1,6 +1,7 @@
 """
 Testes para extração de arquivos compactados (ZIP, RAR e 7Z).
 """
+
 from __future__ import annotations
 
 import zipfile
@@ -133,6 +134,7 @@ class TestRarExtraction:
 
     def test_extract_rar_without_7z(self, tmp_path: Path, monkeypatch) -> None:
         """Testa que RAR sem 7-Zip disponível levanta ArchiveError."""
+
         # Simular que 7-Zip não está disponível
         def mock_find_7z():
             return None
@@ -200,6 +202,7 @@ class Test7ZExtraction:
             return original_import(name, *args, **kwargs)
 
         import builtins
+
         original_import = builtins.__import__
         monkeypatch.setattr(builtins, "__import__", mock_import)
 

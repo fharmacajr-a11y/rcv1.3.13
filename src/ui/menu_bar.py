@@ -56,15 +56,9 @@ class AppMenuBar(tk.Menu):
         menu_arquivo = tk.Menu(self, tearoff=False)
         menu_arquivo.add_command(label="Início", command=self._handle_home)
         menu_arquivo.add_separator()
-        menu_arquivo.add_command(
-            label="Subpastas", command=self._safe(self._on_open_subpastas)
-        )
-        menu_arquivo.add_command(
-            label="Lixeira", command=self._safe(self._on_open_lixeira)
-        )
-        menu_arquivo.add_command(
-            label="Enviar para Supabase", command=self._safe(self._on_upload)
-        )
+        menu_arquivo.add_command(label="Subpastas", command=self._safe(self._on_open_subpastas))
+        menu_arquivo.add_command(label="Lixeira", command=self._safe(self._on_open_lixeira))
+        menu_arquivo.add_command(label="Enviar para Supabase", command=self._safe(self._on_upload))
         menu_arquivo.add_separator()
         menu_arquivo.add_command(label="Sair", command=self._safe(self._on_quit))
         self.add_cascade(label="Arquivo", menu=menu_arquivo)

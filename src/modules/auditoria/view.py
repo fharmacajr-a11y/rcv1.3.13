@@ -1,4 +1,5 @@
 """View principal do módulo Auditoria."""
+
 from __future__ import annotations
 
 import mimetypes
@@ -23,15 +24,19 @@ from helpers.formatters import format_cnpj, fmt_datetime_br
 try:
     from infra.supabase_client import get_supabase  # type: ignore[import-untyped]
 except Exception:
+
     def get_supabase():  # type: ignore[no-redef]
         return None
+
 
 try:
     from src.ui.files_browser import format_cnpj_for_display  # type: ignore[import-untyped]
 except Exception:
+
     def format_cnpj_for_display(cnpj: str) -> str:  # fallback defensivo
-        c = ''.join(filter(str.isdigit, cnpj or ''))
+        c = "".join(filter(str.isdigit, cnpj or ""))
         return f"{c[:2]}.{c[2:5]}.{c[5:8]}/{c[8:12]}-{c[12:14]}" if len(c) == 14 else (cnpj or "")
+
 
 OFFLINE_MSG = "Recurso on-line. Verifique internet e credenciais do Supabase."
 
@@ -116,14 +121,7 @@ def _cliente_razao_from_row(row: dict | None) -> str:
     """Extrai a razão social/nome mais representativo do registro do cliente."""
     if not isinstance(row, dict):
         return ""
-    return (
-        row.get("display_name")
-        or row.get("razao_social")
-        or row.get("Razao Social")
-        or row.get("legal_name")
-        or row.get("name")
-        or ""
-    ).strip()
+    return (row.get("display_name") or row.get("razao_social") or row.get("Razao Social") or row.get("legal_name") or row.get("name") or "").strip()
 
 
 def _cliente_cnpj_from_row(row: dict | None) -> str:
@@ -150,6 +148,7 @@ def _guess_mime(path: str) -> str:
 
 
 # --- HELPERS DE BUSCA ROBUSTA ---
+
 
 def _norm_text(s: str | None) -> str:
     """Remove acentos, faz casefold e trim; seguro para None."""
@@ -198,6 +197,7 @@ def _build_search_index(row: dict) -> dict:  # type: ignore[type-arg]
 @dataclass
 class _ProgressState:
     """Estado do progresso de upload para barra determinística."""
+
     total_files: int = 0
     total_bytes: int = 0
     done_files: int = 0
@@ -205,16 +205,17 @@ class _ProgressState:
     start_ts: float = 0.0
     ema_bps: float = 0.0  # Exponential Moving Average de bytes por segundo
     skipped_count: int = 0  # Arquivos pulados (duplicatas com strategy=skip)
-    failed_count: int = 0   # Arquivos que falharam no upload
+    failed_count: int = 0  # Arquivos que falharam no upload
 
 
 @dataclass
 class _UploadPlan:
     """Plano de upload para um arquivo (com estratégia de duplicatas)."""
+
     source_path: Path  # Caminho local do arquivo
-    dest_name: str     # Nome de destino no Storage
-    upsert: bool       # True = substituir se existir, False = erro se existir
-    file_size: int     # Tamanho em bytes
+    dest_name: str  # Nome de destino no Storage
+    upsert: bool  # True = substituir se existir, False = erro se existir
+    file_size: int  # Tamanho em bytes
 
 
 def _next_copy_name(name: str, existing: set[str]) -> str:
@@ -258,12 +259,7 @@ class AuditoriaFrame(ttk.Frame):
     Não altera nenhuma lógica global; funciona isolada.
     """
 
-    def __init__(
-        self,
-        master: tk.Misc,
-        go_back: Callable[[], None] | None = None,
-        **kwargs
-    ) -> None:
+    def __init__(self, master: tk.Misc, go_back: Callable[[], None] | None = None, **kwargs) -> None:
         """
         Inicializa a tela de Auditoria.
 
@@ -297,7 +293,7 @@ class AuditoriaFrame(ttk.Frame):
         self._status_click_iid: str | None = None
         self._menu_refresh_added = False
 
-        UI_GAP = 6   # espacinho horizontal curto entre botões
+        UI_GAP = 6  # espacinho horizontal curto entre botões
         UI_PADX = 8
         UI_PADY = 6
         self.UI_GAP = UI_GAP
@@ -311,17 +307,11 @@ class AuditoriaFrame(ttk.Frame):
         except Exception:
             style = ttk.Style(self)
             style.configure("RC.Success.TButton", foreground="white")
-            style.map(
-                "RC.Success.TButton",
-                background=[("!disabled", "#198754"), ("active", "#157347")]
-            )
+            style.map("RC.Success.TButton", background=[("!disabled", "#198754"), ("active", "#157347")])
             self.btn_iniciar.configure(style="RC.Success.TButton")
 
             style.configure("RC.Danger.TButton", foreground="white")
-            style.map(
-                "RC.Danger.TButton",
-                background=[("!disabled", "#DC3545"), ("active", "#BB2D3B")]
-            )
+            style.map("RC.Danger.TButton", background=[("!disabled", "#DC3545"), ("active", "#BB2D3B")])
             self.btn_excluir.configure(style="RC.Danger.TButton")
         else:
             self.btn_iniciar.configure(bootstyle="success")  # type: ignore[arg-type]
@@ -427,13 +417,7 @@ class AuditoriaFrame(ttk.Frame):
         self.tree_container.columnconfigure(0, weight=1)
         self.tree_container.rowconfigure(0, weight=1)
 
-        self.tree = ttk.Treeview(
-            self.tree_container,
-            columns=("cliente", "status", "criado", "atualizado"),
-            show="headings",
-            selectmode="extended",
-            height=16
-        )
+        self.tree = ttk.Treeview(self.tree_container, columns=("cliente", "status", "criado", "atualizado"), show="headings", selectmode="extended", height=16)
         for cid, title in (
             ("cliente", "Cliente"),
             ("status", "Status"),
@@ -531,10 +515,7 @@ class AuditoriaFrame(ttk.Frame):
                 filtrados.append(cli)
                 continue
             # 2) Match textual em razão social e nomes de contato
-            if q_text and (
-                q_text in idx["razao"]
-                or any(q_text in nome for nome in idx["nomes"])
-            ):
+            if q_text and (q_text in idx["razao"] or any(q_text in nome for nome in idx["nomes"])):
                 filtrados.append(cli)
                 continue
             # 3) Query vazia -> mantém tudo
@@ -793,7 +774,7 @@ class AuditoriaFrame(ttk.Frame):
         for w in (
             getattr(self, "_btn_h_ver", None),
             # getattr(self, "_btn_h_criar", None),  # botão comentado
-            getattr(self, "_btn_h_enviar_zip", None)
+            getattr(self, "_btn_h_enviar_zip", None),
         ):
             if w:
                 w.configure(state=state)
@@ -806,12 +787,7 @@ class AuditoriaFrame(ttk.Frame):
             return
 
         try:
-            res = (
-                self._sb.table("clients")
-                .select("*")
-                .order("id")
-                .execute()
-            )
+            res = self._sb.table("clients").select("*").order("id").execute()
             data = getattr(res, "data", []) or []
 
             self._clientes_all_rows = [row for row in data if isinstance(row, dict)]  # type: ignore[list-item]
@@ -844,17 +820,14 @@ class AuditoriaFrame(ttk.Frame):
             self._apply_filter()
 
         except Exception as e:
-            messagebox.showwarning(
-                "Clientes",
-                f"Não foi possível carregar os clientes.\n{e}"
-            )
+            messagebox.showwarning("Clientes", f"Não foi possível carregar os clientes.\n{e}")
 
     def _load_auditorias(self) -> None:
         """
-        Carrega lista de auditorias do Supabase.
+            Carrega lista de auditorias do Supabase.
 
-    Monta o nome do cliente via cache local (sem usar embed FK).
-        Popula self._aud_index para rastreamento de IDs.
+        Monta o nome do cliente via cache local (sem usar embed FK).
+            Popula self._aud_index para rastreamento de IDs.
         """
         if not self._sb:
             return
@@ -863,12 +836,7 @@ class AuditoriaFrame(ttk.Frame):
             # Limpa índice anterior
             self._aud_index.clear()
 
-            res = (
-                self._sb.table("auditorias")
-                .select("id, cliente_id, status, created_at, updated_at")
-                .order("updated_at", desc=True)
-                .execute()
-            )
+            res = self._sb.table("auditorias").select("id, cliente_id, status, created_at, updated_at").order("updated_at", desc=True).execute()
             rows = getattr(res, "data", []) or []
             self.tree.delete(*self.tree.get_children())
 
@@ -901,7 +869,7 @@ class AuditoriaFrame(ttk.Frame):
                 razao = _cliente_razao_from_row(cliente_row) or _cliente_razao_from_row(r)
                 cnpj_raw = _cliente_cnpj_from_row(cliente_row)
                 if not cnpj_raw:
-                    cnpj_raw = (r.get("cnpj") or r.get("tax_id") or "")
+                    cnpj_raw = r.get("cnpj") or r.get("tax_id") or ""
                 cliente_ident = cliente_id_int if cliente_id_int is not None else raw_cliente_id
                 cliente_txt = _cliente_display_id_first(cliente_ident, razao, cnpj_raw)
                 if not cliente_txt:
@@ -933,17 +901,9 @@ class AuditoriaFrame(ttk.Frame):
                     "updated_at_iso": updated_iso,
                 }
 
-                self.tree.insert(
-                    "",
-                    "end",
-                    iid=iid,
-                    values=(cliente_txt, status_display, created_br, updated_br)
-                )
+                self.tree.insert("", "end", iid=iid, values=(cliente_txt, status_display, created_br, updated_br))
         except Exception as e:
-            messagebox.showwarning(
-                "Auditorias",
-                f"Falha ao carregar auditorias.\n{e}"
-            )
+            messagebox.showwarning("Auditorias", f"Falha ao carregar auditorias.\n{e}")
 
     def _ensure_status_menu(self) -> tk.Menu:
         if self._status_menu and self._status_menu.winfo_exists():
@@ -951,10 +911,7 @@ class AuditoriaFrame(ttk.Frame):
 
         menu = tk.Menu(self, tearoff=0)
         for status in self._status_menu_items:
-            menu.add_command(
-                label=self._status_label(status),
-                command=lambda value=status: self._apply_status_from_menu(value)
-            )
+            menu.add_command(label=self._status_label(status), command=lambda value=status: self._apply_status_from_menu(value))
         self._status_menu = menu
         return menu
 
@@ -1004,13 +961,7 @@ class AuditoriaFrame(ttk.Frame):
             return
 
         try:
-            res = (
-                self._sb.table("auditorias")
-                .update({"status": desired_db})
-                .eq("id", row["db_id"])
-                .select("status, updated_at")
-                .execute()
-            )
+            res = self._sb.table("auditorias").update({"status": desired_db}).eq("id", row["db_id"]).select("status, updated_at").execute()
             data = getattr(res, "data", None) or []
             updated_iso = data[0].get("updated_at") if data else None
         except Exception as e:
@@ -1039,27 +990,17 @@ class AuditoriaFrame(ttk.Frame):
             return
 
         if self._has_open_auditoria_for(cliente_id):
-            msg = (
-                "Já existe uma auditoria em andamento para este cliente.\n\n"
-                "Deseja iniciar outra auditoria para a mesma farmácia?"
-            )
+            msg = "Já existe uma auditoria em andamento para este cliente.\n\nDeseja iniciar outra auditoria para a mesma farmácia?"
             if not messagebox.askyesno("Confirmar", msg):
                 return
 
         try:
-            ins = (
-                self._sb.table("auditorias")
-                .insert({"cliente_id": cliente_id, "status": DEFAULT_AUDITORIA_STATUS})
-                .execute()
-            )
+            ins = self._sb.table("auditorias").insert({"cliente_id": cliente_id, "status": DEFAULT_AUDITORIA_STATUS}).execute()
             if getattr(ins, "data", None):
                 self._load_auditorias()
                 messagebox.showinfo("Auditoria", "Auditoria iniciada com sucesso.")
         except Exception as e:
-            messagebox.showerror(
-                "Auditoria",
-                f"Não foi possível iniciar a auditoria.\n{e}"
-            )
+            messagebox.showerror("Auditoria", f"Não foi possível iniciar a auditoria.\n{e}")
 
     def _on_auditoria_select(self, event=None) -> None:  # type: ignore[no-untyped-def]
         """Handler de seleção na Treeview de auditorias. Habilita/desabilita botões Ver subpastas e Excluir."""
@@ -1097,11 +1038,7 @@ class AuditoriaFrame(ttk.Frame):
         nomes = [self._aud_index[i]["cliente_nome"] for i in sels if i in self._aud_index]
         lista_nomes = "\n".join(nomes[:5]) + ("..." if len(nomes) > 5 else "")
 
-        if not messagebox.askyesno(
-            "Confirmar exclusão",
-            f"Excluir {len(ids)} auditoria(s)?\n\n{lista_nomes}",
-            parent=self
-        ):
+        if not messagebox.askyesno("Confirmar exclusão", f"Excluir {len(ids)} auditoria(s)?\n\n{lista_nomes}", parent=self):
             return
 
         try:
@@ -1184,7 +1121,7 @@ class AuditoriaFrame(ttk.Frame):
                 razao=row["cliente_nome"],
                 cnpj=row["cnpj"],
                 start_prefix=prefix,
-                module="auditoria"
+                module="auditoria",
             )
 
             # Registra janela
@@ -1210,11 +1147,7 @@ class AuditoriaFrame(ttk.Frame):
             return
 
         try:
-            from src.ui.files_browser import (
-                get_clients_bucket,
-                client_prefix_for_id,
-                get_current_org_id
-            )
+            from src.ui.files_browser import get_clients_bucket, client_prefix_for_id, get_current_org_id
 
             bucket = get_clients_bucket()  # "rc-docs"
             org_id = get_current_org_id(self._sb)
@@ -1223,9 +1156,7 @@ class AuditoriaFrame(ttk.Frame):
 
             # Upload do placeholder com API correta (upsert string para evitar 409)
             resp = self._sb.storage.from_(bucket).upload(  # type: ignore[union-attr]
-                path=target,
-                file=b"",
-                file_options={"content-type": "text/plain", "upsert": "true"}
+                path=target, file=b"", file_options={"content-type": "text/plain", "upsert": "true"}
             )
             if hasattr(resp, "error") and resp.error:
                 raise RuntimeError(getattr(resp.error, "message", str(resp.error)))
@@ -1269,8 +1200,7 @@ class AuditoriaFrame(ttk.Frame):
         try:
             while True:
                 resp = self._sb.storage.from_(bucket).list(  # type: ignore[union-attr]
-                    prefix,
-                    {"limit": limit, "offset": offset}
+                    prefix, {"limit": limit, "offset": offset}
                 )
 
                 if not resp:
@@ -1448,18 +1378,12 @@ class AuditoriaFrame(ttk.Frame):
                     # Remover em lotes de 1000 (limite da API)
                     batch_size = 1000
                     for i in range(0, len(uploaded_paths), batch_size):
-                        batch = uploaded_paths[i:i + batch_size]
+                        batch = uploaded_paths[i : i + batch_size]
                         self._sb.storage.from_(bucket).remove(batch)  # type: ignore[union-attr]
 
-                    self.after(0, lambda: messagebox.showinfo(
-                        "Revertido",
-                        f"{len(uploaded_paths)} arquivo(s) removido(s) com sucesso."
-                    ))
+                    self.after(0, lambda: messagebox.showinfo("Revertido", f"{len(uploaded_paths)} arquivo(s) removido(s) com sucesso."))
                 except Exception as e:
-                    self.after(0, lambda err=str(e): messagebox.showerror(
-                        "Erro ao Reverter",
-                        f"Falha ao remover arquivos:\n{err}"
-                    ))
+                    self.after(0, lambda err=str(e): messagebox.showerror("Erro ao Reverter", f"Falha ao remover arquivos:\n{err}"))
 
             threading.Thread(target=_do_rollback, daemon=True).start()
         else:
@@ -1502,15 +1426,9 @@ class AuditoriaFrame(ttk.Frame):
         def _refresh_browser():
             try:
                 from src.ui.files_browser import open_files_browser
+
                 open_files_browser(
-                    self,
-                    supabase=self._sb,
-                    client_id=client_id,
-                    org_id=org_id,
-                    razao=cliente_nome,
-                    cnpj=cnpj,
-                    start_prefix=base_prefix,
-                    module="auditoria"
+                    self, supabase=self._sb, client_id=client_id, org_id=org_id, razao=cliente_nome, cnpj=cnpj, start_prefix=base_prefix, module="auditoria"
                 )
             except Exception as e:
                 print(f"[AUDITORIA][UPLOAD] Não foi possível abrir browser: {e}")
@@ -1548,6 +1466,7 @@ class AuditoriaFrame(ttk.Frame):
         # Cache org_id se necessário
         if not self._org_id:
             from src.ui.files_browser import get_current_org_id
+
             self._org_id = get_current_org_id(self._sb)
 
         org_id = self._org_id
@@ -1562,12 +1481,13 @@ class AuditoriaFrame(ttk.Frame):
 
         # Validar extensão usando função centralizada
         from infra.archive_utils import is_supported_archive
+
         if not is_supported_archive(path):
             messagebox.showwarning(
                 "Arquivo não suportado",
                 "Formato não suportado. Selecione um arquivo .zip, .rar ou .7z.\n"
                 "Para volumes, selecione o arquivo .7z.001.\n"
-                f"Arquivo selecionado: {Path(path).name}"
+                f"Arquivo selecionado: {Path(path).name}",
             )
             return
 
@@ -1575,20 +1495,9 @@ class AuditoriaFrame(ttk.Frame):
         self._show_busy("Processando arquivos", f"Enviando {Path(path).name}...")
 
         # 4) Lançar thread worker
-        threading.Thread(
-            target=self._worker_upload,
-            args=(path, client_id, org_id, cliente_nome, cnpj),
-            daemon=True
-        ).start()
+        threading.Thread(target=self._worker_upload, args=(path, client_id, org_id, cliente_nome, cnpj), daemon=True).start()
 
-    def _worker_upload(
-        self,
-        archive_path: str,
-        client_id: int,
-        org_id: str,
-        cliente_nome: str,
-        cnpj: str
-    ) -> None:
+    def _worker_upload(self, archive_path: str, client_id: int, org_id: str, cliente_nome: str, cnpj: str) -> None:
         """
         Worker thread para extrair e fazer upload de arquivos com:
         - Pré-check de duplicatas com diálogo de escolha
@@ -1718,12 +1627,7 @@ class AuditoriaFrame(ttk.Frame):
                         continue  # Não adiciona ao plano
                     elif strategy == "replace":
                         # Substituir: usar nome original com upsert=True
-                        upload_plans.append(_UploadPlan(
-                            source_path=Path(rel),
-                            dest_name=rel,
-                            upsert=True,
-                            file_size=file_size
-                        ))
+                        upload_plans.append(_UploadPlan(source_path=Path(rel), dest_name=rel, upsert=True, file_size=file_size))
                     elif strategy == "rename":
                         # Renomear: gerar novo nome com sufixo
                         new_name = _next_copy_name(file_name, existing_names)
@@ -1734,20 +1638,10 @@ class AuditoriaFrame(ttk.Frame):
                             new_rel = new_name
                         else:
                             new_rel = f"{dir_part}/{new_name}"
-                        upload_plans.append(_UploadPlan(
-                            source_path=Path(rel),
-                            dest_name=new_rel,
-                            upsert=False,
-                            file_size=file_size
-                        ))
+                        upload_plans.append(_UploadPlan(source_path=Path(rel), dest_name=new_rel, upsert=False, file_size=file_size))
                 else:
                     # Não duplicado: upload normal
-                    upload_plans.append(_UploadPlan(
-                        source_path=Path(rel),
-                        dest_name=rel,
-                        upsert=False,
-                        file_size=file_size
-                    ))
+                    upload_plans.append(_UploadPlan(source_path=Path(rel), dest_name=rel, upsert=False, file_size=file_size))
 
             if not upload_plans:
                 if ext in ("rar", "7z"):
@@ -1777,9 +1671,7 @@ class AuditoriaFrame(ttk.Frame):
 
                             # Upload
                             self._sb.storage.from_(bucket).upload(  # type: ignore[union-attr]
-                                dest,
-                                data,
-                                {"content-type": mime, "upsert": str(plan.upsert).lower(), "cacheControl": "3600"}
+                                dest, data, {"content-type": mime, "upsert": str(plan.upsert).lower(), "cacheControl": "3600"}
                             )
 
                             # Tracking
@@ -1808,9 +1700,7 @@ class AuditoriaFrame(ttk.Frame):
                         # Upload
                         with open(file_path, "rb") as fh:
                             self._sb.storage.from_(bucket).upload(  # type: ignore[union-attr]
-                                dest,
-                                fh.read(),
-                                {"content-type": mime, "upsert": str(plan.upsert).lower(), "cacheControl": "3600"}
+                                dest, fh.read(), {"content-type": mime, "upsert": str(plan.upsert).lower(), "cacheControl": "3600"}
                             )
 
                         # Tracking
@@ -1835,12 +1725,7 @@ class AuditoriaFrame(ttk.Frame):
                     uploaded = state.done_files
                     skipped = state.skipped_count
                     failed = state.failed_count
-                    msg = (
-                        f"Upload cancelado.\n\n"
-                        f"📤 {uploaded} arquivo(s) enviado(s)\n"
-                        f"⊘ {skipped} pulado(s) (duplicatas)\n"
-                        f"❌ {failed} falha(s)"
-                    )
+                    msg = f"Upload cancelado.\n\n📤 {uploaded} arquivo(s) enviado(s)\n⊘ {skipped} pulado(s) (duplicatas)\n❌ {failed} falha(s)"
                     messagebox.showinfo("Upload Cancelado", msg)
                     self._close_busy()
 
@@ -1869,7 +1754,7 @@ class DuplicatesDialog(tk.Toplevel):
         self.title("Duplicatas Detectadas")
 
         # transient requer uma janela Toplevel/Tk
-        if hasattr(parent, 'winfo_toplevel'):
+        if hasattr(parent, "winfo_toplevel"):
             self.transient(parent.winfo_toplevel())
 
         self.grab_set()
@@ -1900,13 +1785,7 @@ class DuplicatesDialog(tk.Toplevel):
         tree_frame = ttk.Frame(frame_sample)
         tree_frame.pack(fill="both", expand=True)
 
-        self.tree_sample = ttk.Treeview(
-            tree_frame,
-            columns=("arquivo",),
-            show="tree headings",
-            height=min(len(sample_names[:20]), 10),
-            selectmode="none"
-        )
+        self.tree_sample = ttk.Treeview(tree_frame, columns=("arquivo",), show="tree headings", height=min(len(sample_names[:20]), 10), selectmode="none")
         self.tree_sample.heading("#0", text="")
         self.tree_sample.heading("arquivo", text="Arquivo", anchor="w")
         self.tree_sample.column("#0", width=0, stretch=False)
@@ -1925,11 +1804,7 @@ class DuplicatesDialog(tk.Toplevel):
 
         # Checkbox "Aplicar só a este envio"
         self.var_apply_once = tk.BooleanVar(value=True)
-        chk_apply = ttk.Checkbutton(
-            self,
-            text="✓ Aplicar só a este envio (não lembrar esta escolha)",
-            variable=self.var_apply_once
-        )
+        chk_apply = ttk.Checkbutton(self, text="✓ Aplicar só a este envio (não lembrar esta escolha)", variable=self.var_apply_once)
         chk_apply.pack(padx=20, pady=(0, 12), anchor="w")
 
         # Frame de opções
@@ -1938,28 +1813,13 @@ class DuplicatesDialog(tk.Toplevel):
 
         self.var_strategy = tk.StringVar(value="skip")
 
-        rb_skip = ttk.Radiobutton(
-            frame_opts,
-            text="⊘ Pular duplicatas (não envia arquivos que já existem)",
-            variable=self.var_strategy,
-            value="skip"
-        )
+        rb_skip = ttk.Radiobutton(frame_opts, text="⊘ Pular duplicatas (não envia arquivos que já existem)", variable=self.var_strategy, value="skip")
         rb_skip.pack(anchor="w", pady=2)
 
-        rb_replace = ttk.Radiobutton(
-            frame_opts,
-            text="♻ Substituir duplicatas (sobrescrever com novos arquivos)",
-            variable=self.var_strategy,
-            value="replace"
-        )
+        rb_replace = ttk.Radiobutton(frame_opts, text="♻ Substituir duplicatas (sobrescrever com novos arquivos)", variable=self.var_strategy, value="replace")
         rb_replace.pack(anchor="w", pady=2)
 
-        rb_rename = ttk.Radiobutton(
-            frame_opts,
-            text="✏ Renomear duplicatas (adicionar sufixo: arquivo (2).pdf)",
-            variable=self.var_strategy,
-            value="rename"
-        )
+        rb_rename = ttk.Radiobutton(frame_opts, text="✏ Renomear duplicatas (adicionar sufixo: arquivo (2).pdf)", variable=self.var_strategy, value="rename")
         rb_rename.pack(anchor="w", pady=2)
 
         # Botões

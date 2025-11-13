@@ -34,9 +34,7 @@ class _NetStatusWorker:
         if self._thread and self._thread.is_alive():
             return
         self._stop_event.clear()
-        self._thread = threading.Thread(
-            target=self._run, daemon=True, name="NetStatusWorker"
-        )
+        self._thread = threading.Thread(target=self._run, daemon=True, name="NetStatusWorker")
         self._thread.start()
 
     def stop(self) -> None:
@@ -89,9 +87,7 @@ class StatusMonitor:
     def start(self) -> None:
         """Inicia monitoramento de status de rede."""
         if self._net is None:
-            self._net = _NetStatusWorker(
-                callback=self._on_net_change, interval_ms=self._interval_ms
-            )
+            self._net = _NetStatusWorker(callback=self._on_net_change, interval_ms=self._interval_ms)
         try:
             self._net.start()
         except Exception:

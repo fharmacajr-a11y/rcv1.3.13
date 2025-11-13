@@ -8,19 +8,20 @@ from typing import cast
 
 log = logging.getLogger(__name__)
 
+
 def _workarea_win32() -> tuple[int, int, int, int] | None:
     """Retorna (x, y, w, h) da área útil (sem taskbar) no Windows."""
     SPI_GETWORKAREA = 48  # 0x0030
+
     class RECT(ctypes.Structure):
-        _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long),
-                    ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
+        _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long), ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
+
     rect = RECT()
-    ok = ctypes.windll.user32.SystemParametersInfoW(
-        SPI_GETWORKAREA, 0, ctypes.byref(rect), 0
-    )
+    ok = ctypes.windll.user32.SystemParametersInfoW(SPI_GETWORKAREA, 0, ctypes.byref(rect), 0)
     if not ok:
         return None
     return rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top
+
 
 def get_workarea(root: tk.Misc) -> tuple[int, int, int, int]:
     """Área útil do monitor atual: (x,y,w,h). No Windows exclui taskbar."""
@@ -31,6 +32,7 @@ def get_workarea(root: tk.Misc) -> tuple[int, int, int, int]:
     # Fallback: área total do Tk (pode incluir barra em Linux/macOS)
     root.update_idletasks()
     return 0, 0, root.winfo_screenwidth(), root.winfo_screenheight()
+
 
 def fit_geometry_for_device(root: tk.Misc) -> str:
     """
@@ -59,6 +61,7 @@ def fit_geometry_for_device(root: tk.Misc) -> str:
     gx = x + (W - w) // 2
     gy = y + (H - h) // 2
     return f"{w}x{h}+{gx}+{gy}"
+
 
 def apply_fit_policy(win: tk.Misc) -> None:
     """Aplica a política Fit-to-WorkArea e garante foco/elevação."""

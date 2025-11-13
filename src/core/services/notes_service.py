@@ -69,9 +69,7 @@ def _is_transient_net_error(e: Exception) -> bool:
     return False
 
 
-def _with_retry(
-    fn: Callable[[], Any], *, retries: int = 3, base_sleep: float = 0.25
-) -> Any:
+def _with_retry(fn: Callable[[], Any], *, retries: int = 3, base_sleep: float = 0.25) -> Any:
     """
     Wrapper de retry com backoff exponencial + jitter para erros transitórios.
 
@@ -109,9 +107,7 @@ def _with_retry(
             raise
 
     # Esgotou todas as tentativas
-    raise NotesTransientError(
-        str(last_exc) if last_exc else "Falha transitória esgotada"
-    )
+    raise NotesTransientError(str(last_exc) if last_exc else "Falha transitória esgotada")
 
 
 # -------------------- Helpers de Tratamento de Erro --------------------
@@ -130,28 +126,18 @@ def _check_table_missing_error(exception: Exception) -> None:
     error_str = str(exception).lower()
 
     # Verificar código PGRST205 ou mensagens relacionadas
-    if (
-        "pgrst205" in error_str
-        or "relation" in error_str
-        and "does not exist" in error_str
-    ):
-        raise NotesTableMissingError(
-            f"Tabela '{TABLE}' ausente no Supabase. Execute a migration: migrations/rc_notes_migration.sql"
-        )
+    if "pgrst205" in error_str or "relation" in error_str and "does not exist" in error_str:
+        raise NotesTableMissingError(f"Tabela '{TABLE}' ausente no Supabase. Execute a migration: migrations/rc_notes_migration.sql")
 
     # Verificar atributos do erro (se disponível)
     if hasattr(exception, "code") and getattr(exception, "code") == "PGRST205":
-        raise NotesTableMissingError(
-            f"Tabela '{TABLE}' ausente no Supabase. Execute a migration: migrations/rc_notes_migration.sql"
-        )
+        raise NotesTableMissingError(f"Tabela '{TABLE}' ausente no Supabase. Execute a migration: migrations/rc_notes_migration.sql")
 
     # Verificar dict-like errors
     if hasattr(exception, "get"):
         code = exception.get("code")  # type: ignore
         if code == "PGRST205":
-            raise NotesTableMissingError(
-                f"Tabela '{TABLE}' ausente no Supabase. Execute a migration: migrations/rc_notes_migration.sql"
-            )
+            raise NotesTableMissingError(f"Tabela '{TABLE}' ausente no Supabase. Execute a migration: migrations/rc_notes_migration.sql")
 
 
 def _check_auth_error(exception: Exception) -> None:
@@ -168,23 +154,17 @@ def _check_auth_error(exception: Exception) -> None:
 
     # Verificar código 42501 (permission denied)
     if "42501" in error_str or "permission denied" in error_str:
-        raise NotesAuthError(
-            "Sem permissão (RLS): verifique seu org_id em public.profiles."
-        )
+        raise NotesAuthError("Sem permissão (RLS): verifique seu org_id em public.profiles.")
 
     # Verificar atributos do erro (se disponível)
     if hasattr(exception, "code") and getattr(exception, "code") == "42501":
-        raise NotesAuthError(
-            "Sem permissão (RLS): verifique seu org_id em public.profiles."
-        )
+        raise NotesAuthError("Sem permissão (RLS): verifique seu org_id em public.profiles.")
 
     # Verificar dict-like errors
     if hasattr(exception, "get"):
         code = exception.get("code")  # type: ignore
         if code == "42501":
-            raise NotesAuthError(
-                "Sem permissão (RLS): verifique seu org_id em public.profiles."
-            )
+            raise NotesAuthError("Sem permissão (RLS): verifique seu org_id em public.profiles.")
 
 
 # -------------------- Funções Públicas --------------------
@@ -248,13 +228,7 @@ def list_notes(org_id: str, limit: int = 500) -> List[Dict[str, Any]]:
 
     def _call():
         supa = get_supabase()
-        resp = exec_postgrest(
-            supa.table(TABLE)
-            .select("id, author_email, body, created_at")
-            .eq("org_id", org_id)
-            .order("created_at", desc=False)
-            .limit(limit)
-        )
+        resp = exec_postgrest(supa.table(TABLE).select("id, author_email, body, created_at").eq("org_id", org_id).order("created_at", desc=False).limit(limit))
         rows = resp.data or []
         # Normalizar emails legados (prefixo → email completo, com aliases)
         return _normalize_author_emails(rows, org_id)
@@ -325,9 +299,7 @@ def add_note(org_id: str, author_email: str, body: str) -> Dict[str, Any]:
         author_email = emap.get(prefix, author_email)
 
     # Log de diagnóstico
-    email_prefix = (
-        author_email.split("@")[0][:8] if "@" in author_email else author_email[:8]
-    )
+    email_prefix = author_email.split("@")[0][:8] if "@" in author_email else author_email[:8]
     log.info("notes.add", extra={"org_id": org_id, "author_email_prefix": email_prefix})
 
     payload = {"org_id": org_id, "author_email": author_email, "body": body}

@@ -29,18 +29,12 @@ class LoginDialog(tk.Toplevel):
         self.login_success = False
 
         # Layout
-        ttk.Label(self, text="E-mail").grid(
-            row=0, column=0, sticky="w", padx=8, pady=(8, 2)
-        )
+        ttk.Label(self, text="E-mail").grid(row=0, column=0, sticky="w", padx=8, pady=(8, 2))
         self.email_entry = ttk.Entry(self, textvariable=self.email_var, width=36)
         self.email_entry.grid(row=1, column=0, padx=8, pady=(0, 8))
 
-        ttk.Label(self, text="Senha").grid(
-            row=2, column=0, sticky="w", padx=8, pady=(8, 2)
-        )
-        self.pass_entry = ttk.Entry(
-            self, textvariable=self.pass_var, width=36, show="•"
-        )
+        ttk.Label(self, text="Senha").grid(row=2, column=0, sticky="w", padx=8, pady=(8, 2))
+        self.pass_entry = ttk.Entry(self, textvariable=self.pass_var, width=36, show="•")
         self.pass_entry.grid(row=3, column=0, padx=8, pady=(0, 8))
 
         self.login_btn = ttk.Button(self, text="Entrar", command=self._do_login)
@@ -110,13 +104,9 @@ class LoginDialog(tk.Toplevel):
             # >>>>>>> HEALTHCHECK PÓS-LOGIN (INSERT/DELETE em public.test_health + storage + tesseract)
             try:
                 hc = healthcheck()
-                logging.getLogger("health").info(
-                    "HEALTH: ok=%s | itens=%s", hc["ok"], hc["items"]
-                )
+                logging.getLogger("health").info("HEALTH: ok=%s | itens=%s", hc["ok"], hc["items"])
             except Exception as e:
-                logging.getLogger("health").warning(
-                    "HEALTH: falhou ao executar healthcheck: %r", e
-                )
+                logging.getLogger("health").warning("HEALTH: falhou ao executar healthcheck: %r", e)
 
             # Sucesso
             self.login_success = True

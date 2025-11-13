@@ -5,6 +5,7 @@ Configuração de suporte HiDPI para monitores de alta resolução.
 Baseado na documentação oficial do ttkbootstrap:
 https://ttkbootstrap.readthedocs.io/en/latest/api/utility/enable_high_dpi_awareness/
 """
+
 from __future__ import annotations
 
 import platform
@@ -14,9 +15,7 @@ if TYPE_CHECKING:
     import tkinter as tk
 
 
-def configure_hidpi_support(
-    root: tk.Tk | None = None, scaling: float | None = None
-) -> None:
+def configure_hidpi_support(root: tk.Tk | None = None, scaling: float | None = None) -> None:
     """
     Configura suporte HiDPI para monitores de alta resolução (4K, etc).
 

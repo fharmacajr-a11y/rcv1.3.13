@@ -32,9 +32,7 @@ class EntryDialog(Toplevel):
         frm.grid(row=0, column=0, sticky="nsew")
 
         ttk.Label(frm, text="Tipo").grid(row=0, column=0, sticky="w")
-        cb_type = ttk.Combobox(
-            frm, textvariable=self.var_type, values=["IN", "OUT"], state="readonly", width=10
-        )
+        cb_type = ttk.Combobox(frm, textvariable=self.var_type, values=["IN", "OUT"], state="readonly", width=10)
         cb_type.grid(row=0, column=1, sticky="ew", pady=2)
 
         ttk.Label(frm, text="Data").grid(row=1, column=0, sticky="w")
@@ -62,12 +60,8 @@ class EntryDialog(Toplevel):
 
         btns = ttk.Frame(frm)
         btns.grid(row=6, column=0, columnspan=2, sticky="ew", pady=(8, 0))
-        ttk.Button(btns, text="Cancelar", command=self._cancel, bootstyle="secondary").pack(
-            side="right", padx=4
-        )
-        ttk.Button(btns, text="Salvar", command=self._ok, bootstyle="success").pack(
-            side="right", padx=4
-        )
+        ttk.Button(btns, text="Cancelar", command=self._cancel, bootstyle="secondary").pack(side="right", padx=4)
+        ttk.Button(btns, text="Salvar", command=self._ok, bootstyle="success").pack(side="right", padx=4)
 
         frm.columnconfigure(1, weight=1)
         cb_type.bind("<<ComboboxSelected>>", lambda e: self._update_cats())

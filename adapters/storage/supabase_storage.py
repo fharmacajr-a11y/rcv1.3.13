@@ -68,9 +68,7 @@ def _upload(
     return key
 
 
-def _download(
-    client: Any, bucket: str, remote_key: str, local_path: Optional[str]
-) -> str | bytes:
+def _download(client: Any, bucket: str, remote_key: str, local_path: Optional[str]) -> str | bytes:
     key = _normalize_key(remote_key)
     data = client.storage.from_(bucket).download(key)
     if isinstance(data, dict) and "data" in data:
@@ -130,9 +128,7 @@ class SupabaseStorageAdapter(StoragePort):
         self._bucket = _normalize_bucket(bucket)
         self._overwrite = overwrite
 
-    def upload_file(
-        self, local_path: Any, remote_key: str, content_type: Optional[str] = None
-    ) -> str:
+    def upload_file(self, local_path: Any, remote_key: str, content_type: Optional[str] = None) -> str:
         return _upload(
             self._client,
             self._bucket,
@@ -142,9 +138,7 @@ class SupabaseStorageAdapter(StoragePort):
             upsert=self._overwrite,
         )
 
-    def download_file(
-        self, remote_key: str, local_path: Optional[str] = None
-    ) -> str | bytes:
+    def download_file(self, remote_key: str, local_path: Optional[str] = None) -> str | bytes:
         return _download(self._client, self._bucket, remote_key, local_path)
 
     def delete_file(self, remote_key: str) -> bool:
@@ -176,9 +170,7 @@ class SupabaseStorageAdapter(StoragePort):
 _default_adapter = SupabaseStorageAdapter()
 
 
-def upload_file(
-    local_path: Any, remote_key: str, content_type: Optional[str] = None
-) -> str:
+def upload_file(local_path: Any, remote_key: str, content_type: Optional[str] = None) -> str:
     return _default_adapter.upload_file(local_path, remote_key, content_type)
 
 
@@ -203,9 +195,7 @@ def download_folder_zip(
     timeout_s: int = 300,
     cancel_event: Optional[Any] = None,
 ):
-    adapter = (
-        _default_adapter if bucket is None else SupabaseStorageAdapter(bucket=bucket)
-    )
+    adapter = _default_adapter if bucket is None else SupabaseStorageAdapter(bucket=bucket)
     return adapter.download_folder_zip(
         prefix,
         zip_name=zip_name,

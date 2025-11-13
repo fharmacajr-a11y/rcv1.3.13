@@ -60,9 +60,7 @@ class CashflowWindow(Toplevel):
 
         # --- estado/variáveis ---
         try:
-            self._org_id = (
-                master._get_org_id_safe() if hasattr(master, "_get_org_id_safe") else None
-            )
+            self._org_id = master._get_org_id_safe() if hasattr(master, "_get_org_id_safe") else None
         except Exception:
             self._org_id = None
 
@@ -134,9 +132,7 @@ class CashflowWindow(Toplevel):
         # (Se quiser a descrição à esquerda, troque anchor=tk.W nas 2 linhas acima para "description")
 
         # --- totais ---
-        self.lbl_totals = ttk.Label(
-            self, text="Receitas: 0.00 | Despesas: 0.00 | Saldo: 0.00", padding=8
-        )
+        self.lbl_totals = ttk.Label(self, text="Receitas: 0.00 | Despesas: 0.00 | Saldo: 0.00", padding=8)
         self.lbl_totals.pack(fill="x")
 
         # --- mostrar centralizada ---
@@ -209,9 +205,7 @@ class CashflowWindow(Toplevel):
 
         # busca
         try:
-            rows = repo.list_entries(
-                dfrom, dto, tfilter, self.var_text.get().strip(), org_id=self._org_id
-            )
+            rows = repo.list_entries(dfrom, dto, tfilter, self.var_text.get().strip(), org_id=self._org_id)
         except Exception as e:
             messagebox.showwarning(
                 "Fluxo de Caixa",
@@ -246,9 +240,7 @@ class CashflowWindow(Toplevel):
         net = self._to_float(tot.get("balance")) if tot.get("balance") is not None else inc - out
 
         if self._guard_widgets():
-            self.lbl_totals.configure(
-                text=f"Receitas: {inc:.2f} | Despesas: {out:.2f} | Saldo: {net:.2f}"
-            )
+            self.lbl_totals.configure(text=f"Receitas: {inc:.2f} | Despesas: {out:.2f} | Saldo: {net:.2f}")
 
     def _selected_id(self) -> Optional[str]:
         sel = self.tree.selection()

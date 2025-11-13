@@ -74,8 +74,7 @@ def require_internet_or_alert() -> bool:
 
             result = messagebox.askokcancel(
                 "Internet Necessária",
-                "Este aplicativo requer conexão com a internet para funcionar.\n\n"
-                "Verifique sua conexão e tente novamente.",
+                "Este aplicativo requer conexão com a internet para funcionar.\n\nVerifique sua conexão e tente novamente.",
                 icon="warning",
             )
 

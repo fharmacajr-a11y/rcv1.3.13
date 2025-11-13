@@ -100,14 +100,10 @@ class LoginDialog(tb.Toplevel):
         self.ent_pass = tb.Entry(frame, width=28, show="•")
         self.ent_pass.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(0, 12))
 
-        self.btn_login = tb.Button(
-            frame, text="Entrar", bootstyle="success", command=self._do_login
-        )
+        self.btn_login = tb.Button(frame, text="Entrar", bootstyle="success", command=self._do_login)
         self.btn_login.grid(row=4, column=0, sticky="e")
 
-        btn_cancel = tb.Button(
-            frame, text="Sair", bootstyle="danger", command=self._cancel
-        )
+        btn_cancel = tb.Button(frame, text="Sair", bootstyle="danger", command=self._cancel)
         btn_cancel.grid(row=4, column=1, sticky="w")
 
         # atalhos
@@ -184,9 +180,7 @@ class LoginDialog(tb.Toplevel):
                 # Não falhar o login se houver erro aqui
                 import logging
 
-                logging.getLogger(__name__).warning(
-                    "Não foi possível hidratar dados do usuário: %s", e
-                )
+                logging.getLogger(__name__).warning("Não foi possível hidratar dados do usuário: %s", e)
 
             self.result = True
             try:

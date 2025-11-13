@@ -37,9 +37,7 @@ def upload_file(file_path: str, bucket: str, remote_path: str) -> bool:
         return False
 
 
-def download_folder_zip(
-    bucket: str, prefix: str, dest_path: Optional[str] = None
-) -> Optional[str]:
+def download_folder_zip(bucket: str, prefix: str, dest_path: Optional[str] = None) -> Optional[str]:
     """
     Download a folder from storage as a ZIP file.
 

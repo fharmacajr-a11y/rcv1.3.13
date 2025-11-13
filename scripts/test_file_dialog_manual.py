@@ -7,6 +7,7 @@ para validar que:
 2. O filetypes está correto (tupla de padrões)
 3. Os logs mostram as informações de debug
 """
+
 import logging
 import sys
 from pathlib import Path
@@ -16,10 +17,7 @@ root = Path(__file__).parent.parent
 sys.path.insert(0, str(root))
 
 # Configurar logging em DEBUG
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 import tkinter as tk
 from src.ui.dialogs.file_select import select_archive_file, validate_archive_extension

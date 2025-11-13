@@ -147,9 +147,7 @@ def find_cartao_cnpj_pdf(base: str | Path, max_mb: int = 10) -> Optional[Path]:
 
     limit = max(1, max_mb) * 1024 * 1024
     try:
-        pdfs = [
-            p for p in base.rglob("*.pdf") if p.is_file() and p.stat().st_size <= limit
-        ]
+        pdfs = [p for p in base.rglob("*.pdf") if p.is_file() and p.stat().st_size <= limit]
     except Exception:
         pdfs = []
     if not pdfs:

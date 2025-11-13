@@ -72,4 +72,3 @@ def make_storage_key(*parts: str | None, filename: str | None) -> str:
         key = re.sub(r"/{2,}", "/", key).strip("/")
 
     return key
-

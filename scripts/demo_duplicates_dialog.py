@@ -5,6 +5,7 @@ Script de demonstração do diálogo de duplicatas.
 Uso:
     python scripts/demo_duplicates_dialog.py
 """
+
 from __future__ import annotations
 
 import tkinter as tk
@@ -13,6 +14,7 @@ from pathlib import Path
 
 if __name__ == "__main__":
     import sys
+
     sys.path.insert(0, str(Path(__file__).parent.parent))
 
     from src.modules.auditoria.view import DuplicatesDialog
@@ -39,11 +41,10 @@ if __name__ == "__main__":
 
     lbl_info = tk.Label(
         frame_info,
-        text="Clique no botão abaixo para ver o diálogo de duplicatas.\n\n"
-             "Simula 15 arquivos duplicados encontrados.",
+        text="Clique no botão abaixo para ver o diálogo de duplicatas.\n\nSimula 15 arquivos duplicados encontrados.",
         font=("-size", 10),
         justify="left",
-        wraplength=360
+        wraplength=360,
     )
     lbl_info.pack(pady=(0, 20))
 
@@ -68,7 +69,7 @@ if __name__ == "__main__":
             "anexo_1.pdf",
             "anexo_2.pdf",
             "tabela_precos.csv",
-            "comprovante.pdf"
+            "comprovante.pdf",
         ]
 
         dlg = DuplicatesDialog(root, len(sample_names), sample_names)
@@ -85,14 +86,7 @@ if __name__ == "__main__":
 
         print(f"\n📊 Resultado: {dlg.strategy}")
 
-    btn_show = tk.Button(
-        frame_info,
-        text="Mostrar Diálogo de Duplicatas",
-        command=show_dialog,
-        font=("-size", 10),
-        padx=20,
-        pady=10
-    )
+    btn_show = tk.Button(frame_info, text="Mostrar Diálogo de Duplicatas", command=show_dialog, font=("-size", 10), padx=20, pady=10)
     btn_show.pack()
 
     print("\n🎬 Janela de demo aberta. Clique no botão para ver o diálogo.")

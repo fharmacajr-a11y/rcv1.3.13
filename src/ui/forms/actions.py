@@ -115,17 +115,10 @@ def _resolve_org_id() -> str:
     uid = _current_user_id()
     fallback = (os.getenv("SUPABASE_DEFAULT_ORG") or "").strip()
     if not uid and not fallback:
-        raise RuntimeError(
-            "Usuário não autenticado e SUPABASE_DEFAULT_ORG não definido."
-        )
+        raise RuntimeError("Usuário não autenticado e SUPABASE_DEFAULT_ORG não definido.")
     try:
         if uid:
-            res = exec_postgrest(
-                supabase.table("memberships")
-                .select("org_id")
-                .eq("user_id", uid)
-                .limit(1)
-            )
+            res = exec_postgrest(supabase.table("memberships").select("org_id").eq("user_id", uid).limit(1))
             data = getattr(res, "data", None) or []
             if data:
                 return data[0]["org_id"]
@@ -176,17 +169,10 @@ def _resolve_org_id() -> str:
     uid = _current_user_id()
     fallback = (os.getenv("SUPABASE_DEFAULT_ORG") or "").strip()
     if not uid and not fallback:
-        raise RuntimeError(
-            "Usuário não autenticado e SUPABASE_DEFAULT_ORG não definido."
-        )
+        raise RuntimeError("Usuário não autenticado e SUPABASE_DEFAULT_ORG não definido.")
     try:
         if uid:
-            res = exec_postgrest(
-                supabase.table("memberships")
-                .select("org_id")
-                .eq("user_id", uid)
-                .limit(1)
-            )
+            res = exec_postgrest(supabase.table("memberships").select("org_id").eq("user_id", uid).limit(1))
             data = getattr(res, "data", None) or []
             if data:
                 return data[0]["org_id"]
@@ -195,8 +181,11 @@ def _resolve_org_id() -> str:
     if fallback:
         return fallback
     raise RuntimeError("Não foi possível resolver a organização do usuário.")
+
+
 # -----------------------------------------------------------------------------
 # Telinha de carregamento
+
 
 # -----------------------------------------------------------------------------
 class BusyDialog(tk.Toplevel):
@@ -316,9 +305,7 @@ class SubpastaDialog(tk.Toplevel):
         btns = ttk.Frame(frm)
         btns.pack(fill="x")
         ttk.Button(btns, text="OK", command=self._ok).pack(side="left", padx=4)
-        ttk.Button(btns, text="Cancelar", command=self._cancel).pack(
-            side="left", padx=4
-        )
+        ttk.Button(btns, text="Cancelar", command=self._cancel).pack(side="left", padx=4)
 
         self.bind("<Return>", lambda e: self._ok())
         self.bind("<Escape>", lambda e: self._cancel())
@@ -356,9 +343,7 @@ def _ask_subpasta_nome(parent: tk.Misc, default: str = "") -> Optional[str]:
 # Preenchimento via Cartão CNPJ
 # -----------------------------------------------------------------------------
 def preencher_via_pasta(ents: dict) -> None:
-    base = filedialog.askdirectory(
-        title="Escolha a pasta do cliente (com o Cartão CNPJ)"
-    )
+    base = filedialog.askdirectory(title="Escolha a pasta do cliente (com o Cartão CNPJ)")
     if not base:
         return
 
@@ -407,9 +392,7 @@ def _classify_storage_error(exc: Exception) -> str:
     return "other"
 
 
-def _salvar_e_upload_docs_impl(
-    self, row, ents: dict, arquivos_selecionados: list | None, win=None
-) -> None:
+def _salvar_e_upload_docs_impl(self, row, ents: dict, arquivos_selecionados: list | None, win=None) -> None:
     ctx = getattr(self, "_upload_ctx", None)
     if not ctx:
         return
@@ -426,17 +409,13 @@ def salvar_e_enviar_para_supabase(self, row, ents, win=None):
         if state == "unstable":
             messagebox.showwarning(
                 "Conexão Instável",
-                f"A conexão com o Supabase está instável.\n\n"
-                f"{description}\n\n"
-                f"Não é possível enviar dados no momento.",
+                f"A conexão com o Supabase está instável.\n\n{description}\n\nNão é possível enviar dados no momento.",
                 parent=win,
             )
         else:
             messagebox.showwarning(
                 "Sistema Offline",
-                f"Não foi possível conectar ao Supabase.\n\n"
-                f"{description}\n\n"
-                f"Verifique sua conexão e tente novamente.",
+                f"Não foi possível conectar ao Supabase.\n\n{description}\n\nVerifique sua conexão e tente novamente.",
                 parent=win,
             )
 
@@ -498,12 +477,8 @@ def list_storage_objects(bucket_name: str | None, prefix: str = "") -> list:
             if isinstance(obj, dict):
                 is_folder = obj.get("metadata") is None
                 name = obj.get("name")
-                full_path = obj.get("full_path") or (
-                    f"{prefix}/{name}".strip("/") if prefix else name
-                )
-                objects.append(
-                    {"name": name, "is_folder": is_folder, "full_path": full_path}
-                )
+                full_path = obj.get("full_path") or (f"{prefix}/{name}".strip("/") if prefix else name)
+                objects.append({"name": name, "is_folder": is_folder, "full_path": full_path})
         return objects
     except Exception as e:
         log.error("Erro ao listar objetos: %s", e)
@@ -521,9 +496,7 @@ def download_file(bucket_name: str | None, file_path: str, local_path: str):
         log.error("Erro ao baixar %s: %s", file_path, e)
 
 
-def salvar_e_upload_docs(
-    self, row, ents: dict, arquivos_selecionados: list | None, win=None
-):
+def salvar_e_upload_docs(self, row, ents: dict, arquivos_selecionados: list | None, win=None):
     args = (self, row, ents, arquivos_selecionados, win)
     kwargs: dict = {}
     args, kwargs = validate_inputs(*args, **kwargs)

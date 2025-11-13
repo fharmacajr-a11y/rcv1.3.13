@@ -13,9 +13,7 @@ def check_python_version():
     print(f"✓ Python {version.major}.{version.minor}.{version.micro}")
 
     if version.major < 3 or (version.major == 3 and version.minor < 9):
-        print("  ⚠️ AVISO: Python 3.9+ recomendado (você tem {}.{})".format(
-            version.major, version.minor
-        ))
+        print("  ⚠️ AVISO: Python 3.9+ recomendado (você tem {}.{})".format(version.major, version.minor))
         return False
     return True
 
@@ -24,6 +22,7 @@ def check_py7zr():
     """Verifica se py7zr está instalado."""
     try:
         import py7zr
+
         print(f"✓ py7zr {py7zr.__version__} instalado")
         return True
     except ImportError:

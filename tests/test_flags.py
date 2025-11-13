@@ -53,6 +53,7 @@ def test_cli_module_imports_without_error():
     """Test that CLI module can be imported without breaking."""
     try:
         import src.cli
+
         assert hasattr(src.cli, "parse_args")
         assert hasattr(src.cli, "get_args")
         assert hasattr(src.cli, "AppArgs")

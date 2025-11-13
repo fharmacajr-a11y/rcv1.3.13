@@ -56,9 +56,7 @@ def refresh_current_user_from_supabase() -> None:
     email = getattr(user, "email", None)
 
     # Busca memberships do usuário
-    resp = exec_postgrest(
-        supabase.table("memberships").select("org_id, role").eq("user_id", uid)
-    )
+    resp = exec_postgrest(supabase.table("memberships").select("org_id, role").eq("user_id", uid))
     rows: List[dict] = resp.data or []
 
     org_id: Optional[str] = None

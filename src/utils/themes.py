@@ -65,6 +65,7 @@ def load_theme(force_reload: bool = False) -> str:
     # Check for safe-mode (returns default ttk theme)
     try:
         from src.cli import get_args
+
         if get_args().safe_mode:
             return "default"  # Standard ttk theme
     except Exception:
@@ -82,21 +83,13 @@ def load_theme(force_reload: bool = False) -> str:
     # Modo normal: com arquivo
     try:
         if not force_reload and _CACHED_THEME is not None:
-            mtime = (
-                os.path.getmtime(CONFIG_FILE)
-                if (CONFIG_FILE and os.path.exists(CONFIG_FILE))
-                else None
-            )
+            mtime = os.path.getmtime(CONFIG_FILE) if (CONFIG_FILE and os.path.exists(CONFIG_FILE)) else None
             if _CACHED_MTIME == mtime:
                 return _CACHED_THEME
 
         theme = _load_theme_from_disk()
         _CACHED_THEME = theme
-        _CACHED_MTIME = (
-            os.path.getmtime(CONFIG_FILE)
-            if (CONFIG_FILE and os.path.exists(CONFIG_FILE))
-            else None
-        )
+        _CACHED_MTIME = os.path.getmtime(CONFIG_FILE) if (CONFIG_FILE and os.path.exists(CONFIG_FILE)) else None
         return theme
     except Exception:
         logging.exception("themes: load_theme falhou; usando default")
@@ -180,9 +173,7 @@ def apply_button_styles(app, *, theme: str | None = None) -> None:
             _ = has_subp and app.btn_subpastas.configure(bootstyle="secondary")
     except Exception:
         # Não falhar se algum botão ainda não existir
-        logging.debug(
-            "themes: apply_button_styles silencioso (componentes podem não existir ainda)"
-        )
+        logging.debug("themes: apply_button_styles silencioso (componentes podem não existir ainda)")
 
 
 def apply_theme(win, *, theme: str | None = None) -> None:

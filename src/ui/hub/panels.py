@@ -48,9 +48,7 @@ def build_notes_panel(screen, parent=None):
     entry_frame.grid(row=1, column=0, sticky="ew", pady=(0, 0))
     entry_frame.columnconfigure(0, weight=1)
 
-    tb.Label(entry_frame, text=NEW_NOTE_LABEL, font=("", 9)).grid(
-        row=0, column=0, sticky="w", pady=(0, 4)
-    )
+    tb.Label(entry_frame, text=NEW_NOTE_LABEL, font=("", 9)).grid(row=0, column=0, sticky="w", pady=(0, 4))
 
     screen.new_note = tk.Text(entry_frame, height=3, wrap="word")
     screen.new_note.grid(row=1, column=0, sticky="ew", pady=(0, 6))

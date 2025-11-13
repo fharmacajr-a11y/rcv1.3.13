@@ -56,9 +56,7 @@ def _ensure_postgrest_auth(client, *, required: bool = False) -> None:
     else:
         log.warning("postgrest: sem access_token na sessão; RLS pode negar (auth.uid() = NULL).")
         if required:
-            raise RuntimeError(
-                "Sessão sem access_token. Faça login novamente para que o RLS reconheça auth.uid()."
-            )
+            raise RuntimeError("Sessão sem access_token. Faça login novamente para que o RLS reconheça auth.uid().")
 
 
 def _rls_precheck_membership(client, org_id: str, user_id: str) -> None:
@@ -69,13 +67,7 @@ def _rls_precheck_membership(client, org_id: str, user_id: str) -> None:
     _ensure_postgrest_auth(client, required=True)
 
     def _query():
-        return exec_postgrest(
-            client.table("memberships")
-            .select("user_id", count="exact")
-            .eq("org_id", org_id)
-            .eq("user_id", user_id)
-            .limit(1)
-        )
+        return exec_postgrest(client.table("memberships").select("user_id", count="exact").eq("org_id", org_id).eq("user_id", user_id).limit(1))
 
     res = with_retries(_query)
 
@@ -96,10 +88,12 @@ def _rls_precheck_membership(client, org_id: str, user_id: str) -> None:
 # Cliente Supabase SINGLETON (sempre usar get_supabase do infra)
 # -----------------------------------------------------------------------------
 
+
 # Proxy para compatibilidade com código existente
 class _SupabaseProxy:
     def __getattr__(self, name):
         return getattr(get_supabase(), name)
+
 
 supabase = _SupabaseProxy()
 
@@ -157,6 +151,7 @@ def _now_iso() -> str:
 # CRUD para client_passwords (ORG-aware)
 # -----------------------------------------------------------------------------
 
+
 def list_passwords(org_id: str) -> List[Dict[str, Any]]:
     """
     Lista todas as senhas da organização.
@@ -172,12 +167,7 @@ def list_passwords(org_id: str) -> List[Dict[str, Any]]:
         _ensure_postgrest_auth(supabase)  # Autenticação antes da operação
 
         def _do():
-            return exec_postgrest(
-                supabase.table("client_passwords")
-                .select("*")
-                .eq("org_id", org_id)
-                .order("updated_at", desc=True)
-            )
+            return exec_postgrest(supabase.table("client_passwords").select("*").eq("org_id", org_id).order("updated_at", desc=True))
 
         res = with_retries(_do)
         data = getattr(res, "data", None) or []
@@ -227,15 +217,10 @@ def add_password(
             "updated_at": _now_iso(),
         }
 
-        log.info(
-            "pwd.add -> org_id=%s created_by=%s client=%s service=%s username=%s",
-            org_id, created_by, client_name, service, username
-        )
+        log.info("pwd.add -> org_id=%s created_by=%s client=%s service=%s username=%s", org_id, created_by, client_name, service, username)
 
         def _insert():
-            return exec_postgrest(
-                supabase.table("client_passwords").insert(payload)
-            )
+            return exec_postgrest(supabase.table("client_passwords").insert(payload))
 
         res = with_retries(_insert)
         data = getattr(res, "data", None) or []
@@ -280,11 +265,7 @@ def update_password(
         if password_plain is not None:
             payload["password_enc"] = encrypt_text(password_plain) if password_plain else ""
 
-        res = with_retries(
-            lambda: exec_postgrest(
-                supabase.table("client_passwords").update(payload).eq("id", id)
-            )
-        )
+        res = with_retries(lambda: exec_postgrest(supabase.table("client_passwords").update(payload).eq("id", id)))
         data = getattr(res, "data", None) or []
         if not data:
             raise RuntimeError("Update não retornou dados")
@@ -305,11 +286,7 @@ def delete_password(id: int) -> None:
     try:
         _ensure_postgrest_auth(supabase)  # Autenticação antes da operação
 
-        with_retries(
-            lambda: exec_postgrest(
-                supabase.table("client_passwords").delete().eq("id", id)
-            )
-        )
+        with_retries(lambda: exec_postgrest(supabase.table("client_passwords").delete().eq("id", id)))
         log.info("delete_password: registro id=%s removido", id)
     except Exception as e:
         log.exception("Erro ao excluir senha id=%s", id)
@@ -332,6 +309,7 @@ def decrypt_for_view(token: str) -> str:
 # Autocomplete de Clientes
 # -----------------------------------------------------------------------------
 
+
 def search_clients(org_id: str, query: str, limit: int = 20) -> List[Dict[str, Any]]:
     """
     Busca clientes por razão social, nome fantasia ou CNPJ (ORG-aware).
@@ -347,14 +325,10 @@ def search_clients(org_id: str, query: str, limit: int = 20) -> List[Dict[str, A
     ilike = f"%{q}%"
 
     def _do():
-        sel = supabase.table("clients") \
-            .select("id, org_id, razao_social, nome_fantasia, cnpj") \
-            .eq("org_id", org_id)
+        sel = supabase.table("clients").select("id, org_id, razao_social, nome_fantasia, cnpj").eq("org_id", org_id)
 
         if len(q) >= 2:
-            sel = sel.or_(f"razao_social.ilike.{ilike},nome_fantasia.ilike.{ilike},cnpj.ilike.{ilike}") \
-                     .order("razao_social") \
-                     .limit(limit)
+            sel = sel.or_(f"razao_social.ilike.{ilike},nome_fantasia.ilike.{ilike},cnpj.ilike.{ilike}").order("razao_social").limit(limit)
         else:
             sel = sel.order("razao_social").limit(limit)
 
@@ -389,11 +363,7 @@ def list_clients_for_picker(org_id: str, limit: int = 200) -> List[Dict[str, Any
 
     def _do():
         return exec_postgrest(
-            supabase.table("clients")
-            .select("id, org_id, razao_social, nome_fantasia, cnpj")
-            .eq("org_id", org_id)
-            .order("razao_social")
-            .limit(limit)
+            supabase.table("clients").select("id, org_id, razao_social, nome_fantasia, cnpj").eq("org_id", org_id).order("razao_social").limit(limit)
         )
 
     try:

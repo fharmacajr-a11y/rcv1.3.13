@@ -42,22 +42,16 @@ def list_profiles_by_org(org_id: str) -> List[Dict[str, Any]]:
     supa = get_supabase()
 
     try:
-        resp = exec_postgrest(
-            supa.table(_TABLE).select("email, display_name").eq("org_id", org_id)
-        )
+        resp = exec_postgrest(supa.table(_TABLE).select("email, display_name").eq("org_id", org_id))
         return resp.data or []
     except Exception as e:
         # Fallback se coluna display_name não existir
         if _is_missing_column_error(e):
             if not _WARNED_MISSING_COL:
-                log.warning(
-                    "profiles_service: coluna display_name ausente; usando fallback."
-                )
+                log.warning("profiles_service: coluna display_name ausente; usando fallback.")
                 _WARNED_MISSING_COL = True
             try:
-                resp = exec_postgrest(
-                    supa.table(_TABLE).select("email").eq("org_id", org_id)
-                )
+                resp = exec_postgrest(supa.table(_TABLE).select("email").eq("org_id", org_id))
                 return resp.data or []
             except Exception:
                 pass
@@ -104,9 +98,7 @@ def get_display_name_by_email(email: str) -> Optional[str]:
     email_lc = email.strip().lower()
     try:
         supa = get_supabase()
-        resp = exec_postgrest(
-            supa.table("profiles").select("display_name").eq("email", email_lc).limit(1)
-        )
+        resp = exec_postgrest(supa.table("profiles").select("display_name").eq("email", email_lc).limit(1))
         rows = getattr(resp, "data", None) or []
         if rows:
             dn = (rows[0].get("display_name") or "").strip()
@@ -132,9 +124,7 @@ def get_email_prefix_map(org_id: str) -> Dict[str, str]:
     out: Dict[str, str] = {}
     try:
         supa = get_supabase()
-        resp = exec_postgrest(
-            supa.table("profiles").select("email").eq("org_id", org_id)
-        )
+        resp = exec_postgrest(supa.table("profiles").select("email").eq("org_id", org_id))
         rows = getattr(resp, "data", None) or []
         for r in rows:
             em = (r.get("email") or "").strip().lower()

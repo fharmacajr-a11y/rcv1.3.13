@@ -81,9 +81,7 @@ def _filter_clientes(clientes: List[Cliente], term: str) -> List[Cliente]:
     return [cli for cli in clientes if query_norm in _cliente_search_blob(cli)]
 
 
-def search_clientes(
-    term: str | None, order_by: Optional[str] = None, org_id: Optional[str] = None
-) -> list[Cliente]:
+def search_clientes(term: str | None, order_by: Optional[str] = None, org_id: Optional[str] = None) -> list[Cliente]:
     """
     Busca clientes por *term* (nome/razao/CNPJ/numero) priorizando Supabase.
     Fallback para filtro local quando offline.
@@ -101,19 +99,10 @@ def search_clientes(
                 raise ValueError("org_id obrigatorio")
 
             def _fetch_rows(search_term: str | None) -> List[dict]:
-                qb = (
-                    supabase.table("clients")
-                    .select(CLIENT_COLUMNS)
-                    .is_("deleted_at", "null")
-                    .eq("org_id", org_id)
-                )
+                qb = supabase.table("clients").select(CLIENT_COLUMNS).is_("deleted_at", "null").eq("org_id", org_id)
                 if search_term:
                     pat = f"%{search_term}%"
-                    qb = qb.or_(
-                        "nome.ilike.{pat},razao_social.ilike.{pat},cnpj.ilike.{pat},numero.ilike.{pat}".format(
-                            pat=pat
-                        )
-                    )
+                    qb = qb.or_("nome.ilike.{pat},razao_social.ilike.{pat},cnpj.ilike.{pat},numero.ilike.{pat}".format(pat=pat))
                 if col:
                     qb = qb.order(col, desc=desc)
                 resp_inner = exec_postgrest(qb)
@@ -135,9 +124,7 @@ def search_clientes(
         raise ValueError("org_id obrigatorio")
     from src.core.db_manager.db_manager import list_clientes_by_org  # evita ciclo
 
-    clientes = list_clientes_by_org(
-        org_id, order_by=col or None, descending=desc if col else None
-    )
+    clientes = list_clientes_by_org(org_id, order_by=col or None, descending=desc if col else None)
     if not term:
         return clientes
     return _filter_clientes(clientes, term)

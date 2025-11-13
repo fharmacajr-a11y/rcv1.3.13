@@ -49,6 +49,7 @@ def _sess():
 
 class DownloadCancelledError(Exception):
     """Sinaliza cancelamento voluntário do usuário durante o download."""
+
     pass
 
 
@@ -100,9 +101,7 @@ def baixar_pasta_zip(
                     detail = resp.json()
                 except Exception:
                     detail = (resp.text or "")[:600]
-                raise RuntimeError(
-                    f"Erro do servidor (HTTP {resp.status_code}): {detail}"
-                )
+                raise RuntimeError(f"Erro do servidor (HTTP {resp.status_code}): {detail}")
 
             ct = (resp.headers.get("Content-Type") or "").lower()
             if "application/zip" not in ct:
@@ -110,9 +109,7 @@ def baixar_pasta_zip(
                     detail = resp.json()
                 except Exception:
                     detail = (resp.text or "")[:600]
-                raise RuntimeError(
-                    f"Resposta inesperada do servidor (Content-Type={ct}). Detalhe: {detail}"
-                )
+                raise RuntimeError(f"Resposta inesperada do servidor (Content-Type={ct}). Detalhe: {detail}")
 
             cd = resp.headers.get("Content-Disposition", "")
             fname = _pick_name_from_cd(cd, desired_name)
@@ -179,10 +176,7 @@ def baixar_pasta_zip(
             return out_path
 
     except (req_exc.ConnectTimeout, req_exc.ReadTimeout, req_exc.Timeout) as e:
-        raise TimeoutError(
-            "Tempo esgotado ao baixar (conexão ou leitura). "
-            "Verifique sua internet e tente novamente."
-        ) from e
+        raise TimeoutError("Tempo esgotado ao baixar (conexão ou leitura). Verifique sua internet e tente novamente.") from e
     except DownloadCancelledError:
         raise
     except req_exc.RequestException as e:
@@ -240,10 +234,7 @@ def ensure_client_storage_prefix(
     prefix = build_client_prefix(org_id, cnpj, razao_social, client_id)
     key = f"{prefix}/.keep"
 
-    logger.info(
-        "ensure_client_storage_prefix: criando placeholder bucket=%s key=%s",
-        bucket, key
-    )
+    logger.info("ensure_client_storage_prefix: criando placeholder bucket=%s key=%s", bucket, key)
 
     tmp_path = None
     # Compat entre storage3.from_ e .from_
@@ -261,16 +252,10 @@ def ensure_client_storage_prefix(
             {"contentType": "text/plain", "upsert": "true"},
         )
 
-        logger.info(
-            "Storage placeholder OK | bucket=%s key=%s resp=%s",
-            bucket, key, getattr(res, "data", res)
-        )
+        logger.info("Storage placeholder OK | bucket=%s key=%s resp=%s", bucket, key, getattr(res, "data", res))
         return prefix.rstrip("/")
     except Exception as exc:
-        logger.exception(
-            "Erro ao criar placeholder no Storage: bucket=%s key=%s erro=%s",
-            bucket, key, exc
-        )
+        logger.exception("Erro ao criar placeholder no Storage: bucket=%s key=%s erro=%s", bucket, key, exc)
         raise
     finally:
         if tmp_path and os.path.exists(tmp_path):

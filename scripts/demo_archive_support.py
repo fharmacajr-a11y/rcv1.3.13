@@ -7,6 +7,7 @@ Demonstra que:
 3. A extração de RAR funciona com 7-Zip CLI
 4. Não é necessário instalar nada no PC do usuário
 """
+
 from pathlib import Path
 import tempfile
 import zipfile

@@ -7,6 +7,7 @@ Baseado em:
 - requests.Session: https://requests.readthedocs.io/en/latest/user/advanced/#session-objects
 - HTTPAdapter: https://requests.readthedocs.io/en/latest/user/advanced/#transport-adapters
 """
+
 from __future__ import annotations
 
 from requests import Session

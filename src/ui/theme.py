@@ -10,9 +10,7 @@ DEFAULT_THEME = "flatly"  # pode trocar para "darkly" se preferir escuro
 DEFAULT_SCALING = 1.25  # escala para monitores 125%; ajuste se necessário
 
 
-def init_theme(
-    root: tk.Tk, theme: str = DEFAULT_THEME, scaling: float = DEFAULT_SCALING
-) -> Style:
+def init_theme(root: tk.Tk, theme: str = DEFAULT_THEME, scaling: float = DEFAULT_SCALING) -> Style:
     """
     Inicializa o tema do ttkbootstrap e ajusta a escala do Tk.
 

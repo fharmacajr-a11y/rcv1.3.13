@@ -110,19 +110,13 @@ def append_note_incremental(screen, row: Dict[str, Any]) -> None:
         note = _normalize_note(row)
 
     notes = getattr(screen, "_notes_last_data", None) or []
-    if any(
-        str(n.get("id")) == str(note.get("id"))
-        for n in notes
-        if n.get("id") is not None
-    ):
+    if any(str(n.get("id")) == str(note.get("id")) for n in notes if n.get("id") is not None):
         return
 
     notes = notes + [note]
     screen._notes_last_data = notes
     try:
-        screen._notes_last_snapshot = [
-            (n.get("id"), n.get("created_at")) for n in notes
-        ]
+        screen._notes_last_snapshot = [(n.get("id"), n.get("created_at")) for n in notes]
     except Exception:
         pass
 
@@ -142,9 +136,7 @@ def append_note_incremental(screen, row: Dict[str, Any]) -> None:
         try:
             tag = _ensure_author_tag(screen.notes_history, email, hub_state.author_tags)
         except Exception:
-            logger.exception(
-                "Hub: falha ao aplicar estilo/tag do autor; renderizando sem cor."
-            )
+            logger.exception("Hub: falha ao aplicar estilo/tag do autor; renderizando sem cor.")
             tag = None
 
         created_at = note.get("created_at")
@@ -162,9 +154,7 @@ def append_note_incremental(screen, row: Dict[str, Any]) -> None:
         screen.notes_history.configure(state="disabled")
         screen.notes_history.see("end")
     except Exception:
-        logger.exception(
-            "Hub: falha crítica ao inserir nota, restaurando estado do widget."
-        )
+        logger.exception("Hub: falha crítica ao inserir nota, restaurando estado do widget.")
         try:
             screen.notes_history.configure(state="disabled")
         except Exception:
@@ -188,20 +178,14 @@ def refresh_notes_async(screen, force: bool = False) -> None:
 
     auth_retry_ms = getattr(screen, "AUTH_RETRY_MS", 2000)
     if not screen._auth_ready():
-        log.debug(
-            "HubScreen: Autenticação não pronta para refresh_notes, aguardando..."
-        )
-        screen._notes_after_handle = screen.after(
-            auth_retry_ms, lambda: refresh_notes_async(screen, force)
-        )
+        log.debug("HubScreen: Autenticação não pronta para refresh_notes, aguardando...")
+        screen._notes_after_handle = screen.after(auth_retry_ms, lambda: refresh_notes_async(screen, force))
         return
 
     org_id = screen._get_org_id_safe()
     if not org_id:
         log.debug("HubScreen: org_id não disponível para refresh_notes, aguardando...")
-        screen._notes_after_handle = screen.after(
-            auth_retry_ms, lambda: refresh_notes_async(screen, force)
-        )
+        screen._notes_after_handle = screen.after(auth_retry_ms, lambda: refresh_notes_async(screen, force))
         return
 
     def _work():
@@ -223,9 +207,7 @@ def refresh_notes_async(screen, force: bool = False) -> None:
             def _schedule_transient_retry():
                 if getattr(screen, "_polling_active", False):
                     try:
-                        screen._notes_after_handle = screen.after(
-                            2000, lambda: refresh_notes_async(screen)
-                        )
+                        screen._notes_after_handle = screen.after(2000, lambda: refresh_notes_async(screen))
                     except Exception:
                         pass
 
@@ -267,8 +249,7 @@ def refresh_notes_async(screen, force: bool = False) -> None:
                 try:
                     messagebox.showwarning(
                         "Sem Permissão",
-                        "Sem permissão para anotar nesta organização.\n"
-                        "Verifique seu cadastro em 'profiles'.",
+                        "Sem permissão para anotar nesta organização.\nVerifique seu cadastro em 'profiles'.",
                         parent=screen,
                     )
                 except Exception:
@@ -286,9 +267,7 @@ def refresh_notes_async(screen, force: bool = False) -> None:
             notes = [_normalize_note(x) for x in notes]
 
             snapshot = [(n.get("id"), n.get("created_at")) for n in notes]
-            changed = (
-                snapshot != getattr(screen, "_notes_last_snapshot", None)
-            ) or force
+            changed = (snapshot != getattr(screen, "_notes_last_snapshot", None)) or force
 
             if changed:
                 screen._notes_last_snapshot = snapshot

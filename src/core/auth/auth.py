@@ -40,12 +40,7 @@ def _get_auth_pepper() -> str:
                 if os.path.isfile(candidate):
                     with open(candidate, "r", encoding="utf-8") as fh:
                         data = yaml.safe_load(fh) or {}
-                        pep = (
-                            str(
-                                data.get("AUTH_PEPPER") or data.get("auth_pepper") or ""
-                            )
-                            or ""
-                        )
+                        pep = str(data.get("AUTH_PEPPER") or data.get("auth_pepper") or "") or ""
                         if pep:
                             return pep
     except Exception:
@@ -94,9 +89,7 @@ def pbkdf2_hash(
     if salt is None:
         salt = os.urandom(16)
     pepper = _get_auth_pepper()
-    dk = pbkdf2_hmac(
-        "sha256", (password + pepper).encode("utf-8"), salt, iterations, dklen
-    )
+    dk = pbkdf2_hmac("sha256", (password + pepper).encode("utf-8"), salt, iterations, dklen)
     return f"pbkdf2_sha256${iterations}${binascii.hexlify(salt).decode()}${binascii.hexlify(dk).decode()}"
 
 

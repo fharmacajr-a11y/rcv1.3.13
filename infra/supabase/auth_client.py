@@ -14,12 +14,12 @@ def bind_postgrest_auth_if_any(client: Client) -> None:
     Se falhar ao aplicar, loga WARNING mas não estoura exceção.
     """
     from data.auth_bootstrap import _get_access_token
-    
+
     token = _get_access_token(client)
     if not token:
         log.debug("bind_postgrest_auth_if_any: sem token para aplicar")
         return
-    
+
     try:
         client.postgrest.auth(token)
         log.info("PostgREST: token aplicado (sessão presente).")

@@ -55,6 +55,7 @@ def _health_check_once(client: Client) -> bool:
                 try:
                     # Tentar endpoint de health do GoTrue (Auth)
                     import httpx
+
                     supabase_url = os.getenv("SUPABASE_URL", "").rstrip("/")
                     health_url = f"{supabase_url}/auth/v1/health"
                     resp = httpx.get(health_url, timeout=10.0)
@@ -72,11 +73,7 @@ def _health_check_once(client: Client) -> bool:
 
     # Tentativa 2: Fallback leve via tabela
     try:
-        exec_postgrest(
-            client.table(supa_types.HEALTHCHECK_FALLBACK_TABLE)
-            .select("id", count="exact")
-            .limit(1)
-        )
+        exec_postgrest(client.table(supa_types.HEALTHCHECK_FALLBACK_TABLE).select("id", count="exact").limit(1))
         # Se não deu erro de PGRST e retornou normally, consideramos online
         return True
     except Exception as e:
@@ -119,7 +116,7 @@ def _start_health_checker() -> None:
             "Health checker iniciado (intervalo: %.1fs, threshold instabilidade: %.1fs, via RPC '%s')",
             supa_types.HEALTHCHECK_INTERVAL_SECONDS,
             supa_types.HEALTHCHECK_UNSTABLE_THRESHOLD,
-            supa_types.HEALTHCHECK_RPC_NAME
+            supa_types.HEALTHCHECK_RPC_NAME,
         )
 
         last_bad = None

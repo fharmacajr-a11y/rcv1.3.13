@@ -6,6 +6,7 @@ Testa:
 2. Cancelamento funciona
 3. UI não trava durante processamento
 """
+
 import tkinter as tk
 from ttkbootstrap import ttk
 import threading
@@ -18,23 +19,11 @@ class TestUploadWindow(tk.Tk):
         self.title("Teste de Upload Responsivo")
         self.geometry("400x300")
 
-        ttk.Label(
-            self,
-            text="Teste de Upload com Thread",
-            font=("-size", 14, "-weight", "bold")
-        ).pack(pady=20)
+        ttk.Label(self, text="Teste de Upload com Thread", font=("-size", 14, "-weight", "bold")).pack(pady=20)
 
-        ttk.Button(
-            self,
-            text="Iniciar Upload (5s)",
-            command=self.start_upload
-        ).pack(pady=10)
+        ttk.Button(self, text="Iniciar Upload (5s)", command=self.start_upload).pack(pady=10)
 
-        ttk.Button(
-            self,
-            text="Teste: UI ainda responde?",
-            command=lambda: print("✓ UI responsiva!")
-        ).pack(pady=10)
+        ttk.Button(self, text="Teste: UI ainda responde?", command=lambda: print("✓ UI responsiva!")).pack(pady=10)
 
         self.label_status = ttk.Label(self, text="", foreground="green")
         self.label_status.pack(pady=10)

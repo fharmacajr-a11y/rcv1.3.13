@@ -3,6 +3,7 @@
 Diálogo mínimo de subpastas para listar objetos do Storage.
 Backup caso src.ui.subpastas.dialog não esteja disponível.
 """
+
 from __future__ import annotations
 
 import logging
@@ -61,9 +62,7 @@ class SubpastaDialog(tk.Toplevel):
         tree_frame = ttk.Frame(main_frame)
         tree_frame.pack(fill="both", expand=True, pady=(0, 10))
 
-        ttk.Label(
-            tree_frame, text="Subpastas existentes (clique duplo para selecionar):"
-        ).pack(anchor="w", pady=(0, 5))
+        ttk.Label(tree_frame, text="Subpastas existentes (clique duplo para selecionar):").pack(anchor="w", pady=(0, 5))
 
         # Scrollbar e Treeview
         tree_scroll = ttk.Scrollbar(tree_frame)
@@ -84,15 +83,9 @@ class SubpastaDialog(tk.Toplevel):
         btn_frame = ttk.Frame(main_frame)
         btn_frame.pack(fill="x")
 
-        ttk.Button(btn_frame, text="OK", command=self._ok).pack(
-            side="left", padx=(0, 5)
-        )
-        ttk.Button(btn_frame, text="Cancelar", command=self._cancel).pack(
-            side="left", padx=(0, 5)
-        )
-        ttk.Button(
-            btn_frame, text="Atualizar Lista", command=self._load_subpastas
-        ).pack(side="left")
+        ttk.Button(btn_frame, text="OK", command=self._ok).pack(side="left", padx=(0, 5))
+        ttk.Button(btn_frame, text="Cancelar", command=self._cancel).pack(side="left", padx=(0, 5))
+        ttk.Button(btn_frame, text="Atualizar Lista", command=self._load_subpastas).pack(side="left")
 
         # Bindings
         self.bind("<Return>", lambda e: self._ok())
@@ -145,9 +138,7 @@ class SubpastaDialog(tk.Toplevel):
             for subpasta in sorted(subpastas):
                 self.tree.insert("", "end", text=subpasta, values=(subpasta,))
 
-            logger.info(
-                "Carregadas %d subpastas do prefixo %s", len(subpastas), self.prefix
-            )
+            logger.info("Carregadas %d subpastas do prefixo %s", len(subpastas), self.prefix)
 
         except Exception as exc:
             logger.exception("Erro ao listar subpastas do Storage: %s", exc)

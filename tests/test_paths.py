@@ -4,7 +4,6 @@ import os
 import sys
 
 
-
 def test_resource_path_dev_mode():
     """Test resource_path in development mode (no _MEIPASS)."""
     from src.utils.paths import resource_path
@@ -24,6 +23,7 @@ def test_resource_path_bundled_mode(monkeypatch, tmp_path):
 
     # Need to set attribute before importing, use setattr on sys module itself
     import sys
+
     if not hasattr(sys, "_MEIPASS"):
         # Create the attribute first
         object.__setattr__(sys, "_MEIPASS", fake_meipass)
@@ -61,6 +61,7 @@ def test_is_bundled_in_bundle(monkeypatch, tmp_path):
     # Simulate PyInstaller environment usando tmp_path
     fake_bundle = str(tmp_path / "fake_bundle")
     import sys
+
     if not hasattr(sys, "_MEIPASS"):
         object.__setattr__(sys, "_MEIPASS", fake_bundle)
     else:

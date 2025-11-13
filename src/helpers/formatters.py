@@ -3,6 +3,7 @@ from datetime import datetime, date, time
 
 APP_DATETIME_FMT = "%Y-%m-%d %H:%M:%S"
 
+
 def format_cnpj(raw: str) -> str:
     if not raw:
         return ""
@@ -10,6 +11,7 @@ def format_cnpj(raw: str) -> str:
     if len(digits) != 14:
         return str(raw)
     return f"{digits[0:2]}.{digits[2:5]}.{digits[5:8]}/{digits[8:12]}-{digits[12:14]}"
+
 
 def fmt_datetime(value) -> str:
     if value is None or value == "":

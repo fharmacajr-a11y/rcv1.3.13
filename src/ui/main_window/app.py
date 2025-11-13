@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Main application window (App class)."""
+
 # gui/main_window.py
 import functools as _functools
 import hashlib
@@ -98,8 +99,8 @@ class App(tb.Window):
                 style = ttk.Style()
                 # Use a valid ttk theme
                 available_themes = style.theme_names()
-                if 'clam' in available_themes:
-                    style.theme_use('clam')
+                if "clam" in available_themes:
+                    style.theme_use("clam")
                 elif available_themes:
                     style.theme_use(available_themes[0])
                 log.info("Initialized with standard Tk/ttk (theme: %s)", style.theme_use())
@@ -221,9 +222,7 @@ class App(tb.Window):
 
         self._content_container = tb.Frame(self)
         self._content_container.pack(fill="both", expand=True)
-        self.nav = NavigationController(
-            self._content_container, frame_factory=self._frame_factory
-        )
+        self.nav = NavigationController(self._content_container, frame_factory=self._frame_factory)
 
         # --- StatusBar Global (sempre visível no rodapé) ---
         from src.ui.status_footer import StatusFooter
@@ -234,9 +233,7 @@ class App(tb.Window):
         self.footer.set_user(None)
         self.footer.set_cloud("UNKNOWN")
 
-        self._status_monitor = StatusMonitor(
-            self._handle_status_update, app_after=self.after
-        )
+        self._status_monitor = StatusMonitor(self._handle_status_update, app_after=self.after)
         try:
             self._status_monitor.set_cloud_only(NO_FS)
         except Exception:
@@ -247,9 +244,7 @@ class App(tb.Window):
         self._wire_session_and_health()
 
         # Auth
-        self.auth = AuthController(
-            on_user_change=lambda user: self._refresh_status_display()
-        )
+        self.auth = AuthController(on_user_change=lambda user: self._refresh_status_display())
 
         # Keybindings
         bind_global_shortcuts(
@@ -264,8 +259,7 @@ class App(tb.Window):
                 "lixeira": self.abrir_lixeira,
                 "subpastas": self.ver_subpastas,
                 "hub": self.show_hub_screen,
-                "find": lambda: getattr(self, "_main_frame_ref", None)
-                and getattr(self._main_frame_ref, "_buscar", lambda: None)(),
+                "find": lambda: getattr(self, "_main_frame_ref", None) and getattr(self._main_frame_ref, "_buscar", lambda: None)(),
             },
         )
 
@@ -401,9 +395,7 @@ class App(tb.Window):
     # ---------- Confirmação de saída ----------
     def _confirm_exit(self, *_):
         try:
-            if messagebox.askokcancel(
-                "Sair", "Tem certeza de que deseja sair?", parent=self
-            ):
+            if messagebox.askokcancel("Sair", "Tem certeza de que deseja sair?", parent=self):
                 self.destroy()
         except Exception:
             self.destroy()
@@ -480,9 +472,7 @@ class App(tb.Window):
             log.warning("Erro ao atualizar usuário no rodapé: %s", e)
 
     # ---------- Helpers de Status ----------
-    def _handle_status_update(
-        self, base_text: str, is_online: Optional[bool] = None
-    ) -> None:
+    def _handle_status_update(self, base_text: str, is_online: Optional[bool] = None) -> None:
         self._status_base_text = base_text.strip()
         self._apply_online_state(is_online)
         self._update_status_dot(is_online)
@@ -624,9 +614,7 @@ class App(tb.Window):
             messagebox.showerror("Erro", "Organizacao nao encontrado para o usuario.")
             return
 
-        open_files_browser(
-            self, org_id=org_id, client_id=client_id, razao=razao, cnpj=cnpj
-        )
+        open_files_browser(self, org_id=org_id, client_id=client_id, razao=razao, cnpj=cnpj)
 
     def abrir_lixeira(self) -> None:
         abrir_lixeira_ui(self)
@@ -691,9 +679,7 @@ class App(tb.Window):
             )
         except Exception as e:
             log.error("Erro ao enviar para Supabase: %s", e)
-            messagebox.showerror(
-                "Erro", f"Erro ao enviar para Supabase:\n{str(e)}", parent=self
-            )
+            messagebox.showerror("Erro", f"Erro ao enviar para Supabase:\n{str(e)}", parent=self)
 
     def enviar_pasta_supabase(self) -> None:
         """Seleciona uma pasta e envia PDFs recursivamente para o Supabase."""
@@ -747,9 +733,7 @@ class App(tb.Window):
         try:
             from infra.supabase_client import exec_postgrest, supabase
 
-            res = exec_postgrest(
-                supabase.table("memberships").select("role").eq("user_id", uid).limit(1)
-            )
+            res = exec_postgrest(supabase.table("memberships").select("role").eq("user_id", uid).limit(1))
             if getattr(res, "data", None):
                 self._role_cache = (res.data[0].get("role") or "user").lower()
             else:
@@ -764,12 +748,7 @@ class App(tb.Window):
         try:
             from infra.supabase_client import exec_postgrest, supabase
 
-            res = exec_postgrest(
-                supabase.table("memberships")
-                .select("org_id")
-                .eq("user_id", uid)
-                .limit(1)
-            )
+            res = exec_postgrest(supabase.table("memberships").select("org_id").eq("user_id", uid).limit(1))
             if getattr(res, "data", None) and res.data[0].get("org_id"):
                 self._org_id_cache = res.data[0]["org_id"]
                 return self._org_id_cache
@@ -808,9 +787,7 @@ class App(tb.Window):
 
     def _show_changelog(self) -> None:
         try:
-            with open(
-                resource_path("runtime_docs/CHANGELOG.md"), "r", encoding="utf-8"
-            ) as f:
+            with open(resource_path("runtime_docs/CHANGELOG.md"), "r", encoding="utf-8") as f:
                 conteudo = f.read()
             preview = "\n".join(conteudo.splitlines()[:20])
             messagebox.showinfo("Changelog", preview, parent=self)

@@ -55,11 +55,7 @@ def fix_mojibake(s: str) -> str:
 
 def normalize_ascii(s: str) -> str:
     """Remove acentos e retorna string ASCII simples."""
-    return "".join(
-        c
-        for c in unicodedata.normalize("NFKD", s or "")
-        if not unicodedata.combining(c)
-    )
+    return "".join(c for c in unicodedata.normalize("NFKD", s or "") if not unicodedata.combining(c))
 
 
 def clean_text(s: str) -> str:

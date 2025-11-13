@@ -15,8 +15,10 @@ try:
     from src.core.logger import get_logger
 except Exception:
     import logging
+
     def get_logger(name: str | None = None):
         return logging.getLogger(name or __name__)
+
 
 logger = get_logger(__name__)
 log = logger
@@ -115,27 +117,12 @@ class HubScreen(tb.Frame):
         **kwargs,
     ) -> None:
         # Compatibilidade com kwargs antigos (mantém snjpc para retrocompatibilidade)
-        open_clientes = (
-            open_clientes
-            or kwargs.pop("on_open_clientes", None)
-            or open_sifap
-            or kwargs.pop("on_open_sifap", None)
-        )
+        open_clientes = open_clientes or kwargs.pop("on_open_clientes", None) or open_sifap or kwargs.pop("on_open_sifap", None)
         open_anvisa = open_anvisa or kwargs.pop("on_open_anvisa", None)
         open_auditoria = open_auditoria or kwargs.pop("on_open_auditoria", None)
-        open_farmacia_popular = open_farmacia_popular or kwargs.pop(
-            "on_open_farmacia_popular", None
-        )
-        open_sngpc = (
-            open_sngpc
-            or kwargs.pop("on_open_sngpc", None)
-            or kwargs.pop("on_open_snjpc", None)
-        )
-        open_senhas = (
-            open_senhas
-            or kwargs.pop("on_open_passwords", None)
-            or kwargs.pop("on_open_senhas", None)
-        )
+        open_farmacia_popular = open_farmacia_popular or kwargs.pop("on_open_farmacia_popular", None)
+        open_sngpc = open_sngpc or kwargs.pop("on_open_sngpc", None) or kwargs.pop("on_open_snjpc", None)
+        open_senhas = open_senhas or kwargs.pop("on_open_passwords", None) or kwargs.pop("on_open_senhas", None)
         open_mod_sifap = open_mod_sifap or kwargs.pop("on_open_mod_sifap", None)
 
         super().__init__(master, padding=0, **kwargs)
@@ -221,12 +208,8 @@ class HubScreen(tb.Frame):
 
         # Estado de polling
         self._notes_poll_ms = 10000  # 10 segundos
-        self._notes_last_snapshot: Optional[List[tuple]] = (
-            None  # snapshot (id, ts) para detectar mudanças
-        )
-        self._notes_last_data: Optional[List[Dict[str, Any]]] = (
-            None  # dados completos normalizados
-        )
+        self._notes_last_snapshot: Optional[List[tuple]] = None  # snapshot (id, ts) para detectar mudanças
+        self._notes_last_data: Optional[List[Dict[str, Any]]] = None  # dados completos normalizados
         self._polling_active = False
         self._notes_after_handle = None
         self._clients_after_handle = None
@@ -238,9 +221,7 @@ class HubScreen(tb.Frame):
 
         # Cache de nomes de autores (email lowercase -> display_name)
         self._author_names_cache: Dict[str, str] = {}
-        self._email_prefix_map: Dict[str, str] = (
-            {}
-        )  # {prefixo: email_completo} para notas legadas
+        self._email_prefix_map: Dict[str, str] = {}  # {prefixo: email_completo} para notas legadas
         self._names_cache_loaded = False
         self._names_refreshing = False
         self._names_last_refresh = 0.0
@@ -284,9 +265,7 @@ class HubScreen(tb.Frame):
         """Verifica se autenticação está pronta (sem levantar exceção)."""
         try:
             app = self._get_app()
-            return (
-                app and hasattr(app, "auth") and app.auth and app.auth.is_authenticated
-            )
+            return app and hasattr(app, "auth") and app.auth and app.auth.is_authenticated
         except Exception:
             return False
 
@@ -440,9 +419,7 @@ class HubScreen(tb.Frame):
                     import hashlib
                     import json
 
-                    cache_json = json.dumps(
-                        self._author_names_cache, sort_keys=True, ensure_ascii=False
-                    )
+                    cache_json = json.dumps(self._author_names_cache, sort_keys=True, ensure_ascii=False)
                     new_hash = hashlib.md5(cache_json.encode("utf-8")).hexdigest()
                     self._last_names_cache_hash = new_hash
                     self._names_cache_loaded = True
@@ -558,20 +535,10 @@ class HubScreen(tb.Frame):
         """
         Coleta informações de debug sobre notas e resolução de autores.
         """
-        notes = (
-            getattr(self, "_notes_last_data", None)
-            or getattr(self, "_notes_last_snapshot", None)
-            or []
-        )
+        notes = getattr(self, "_notes_last_data", None) or getattr(self, "_notes_last_snapshot", None) or []
         out = {
-            "org_id": (
-                self._get_org_id_safe() if hasattr(self, "_get_org_id_safe") else None
-            ),
-            "current_user": (
-                getattr(self, "_current_user_email", None) or self._get_email_safe()
-                if hasattr(self, "_get_email_safe")
-                else ""
-            ),
+            "org_id": (self._get_org_id_safe() if hasattr(self, "_get_org_id_safe") else None),
+            "current_user": (getattr(self, "_current_user_email", None) or self._get_email_safe() if hasattr(self, "_get_email_safe") else ""),
             "names_cache_size": len(getattr(self, "_author_names_cache", {}) or {}),
             "prefix_map_size": len(getattr(self, "_email_prefix_map", {}) or {}),
             "names_cache": dict(getattr(self, "_author_names_cache", {}) or {}),
@@ -633,9 +600,7 @@ class HubScreen(tb.Frame):
         import hashlib
         import json
 
-        render_hash = hashlib.md5(
-            json.dumps(sig_items, ensure_ascii=False).encode("utf-8")
-        ).hexdigest()
+        render_hash = hashlib.md5(json.dumps(sig_items, ensure_ascii=False).encode("utf-8")).hexdigest()
 
         # Se não forçado, verificar se hash é igual (skip re-render)
         if not force:
@@ -662,9 +627,7 @@ class HubScreen(tb.Frame):
                 try:
                     tag = _ensure_author_tag(self.notes_history, email, author_tags)
                 except Exception:
-                    logger.exception(
-                        "Hub: falha ao aplicar estilo/tag do autor; renderizando sem cor."
-                    )
+                    logger.exception("Hub: falha ao aplicar estilo/tag do autor; renderizando sem cor.")
                     tag = None  # segue sem tag
 
                 created_at = n.get("created_at")

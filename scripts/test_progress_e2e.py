@@ -11,12 +11,14 @@ Cria um ZIP com arquivos de diferentes tamanhos e valida:
 Uso:
     python scripts/test_progress_e2e.py
 """
+
 from __future__ import annotations
 
 import tempfile
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
+
 
 # Simular _ProgressState
 @dataclass
@@ -32,6 +34,7 @@ class _ProgressState:
 def _norm_text(s: str) -> str:
     """Normaliza texto (lowercase, sem acentos)."""
     import unicodedata
+
     nfkd = unicodedata.normalize("NFKD", s)
     return "".join(c for c in nfkd if not unicodedata.combining(c)).casefold()
 
@@ -46,9 +49,9 @@ def test_zip_prescan():
 
         # Criar arquivos com tamanhos conhecidos
         file_sizes = {
-            "doc1.txt": 1024,         # 1 KB
+            "doc1.txt": 1024,  # 1 KB
             "subdir/doc2.pdf": 5120,  # 5 KB
-            "subdir/doc3.xlsx": 10240 # 10 KB
+            "subdir/doc3.xlsx": 10240,  # 10 KB
         }
 
         with zipfile.ZipFile(zip_path, "w") as zf:
@@ -162,10 +165,12 @@ def test_ema_smoothing():
 
     # Validar que EMA suaviza (variação < 50% entre amostras consecutivas)
     for i in range(1, len(speeds)):
-        variation = abs(speeds[i] - speeds[i-1]) / speeds[i-1]
-        assert variation < 0.5, f"Variação muito alta: {variation*100:.1f}% entre amostras {i-1} e {i}"
+        variation = abs(speeds[i] - speeds[i - 1]) / speeds[i - 1]
+        assert variation < 0.5, f"Variação muito alta: {variation * 100:.1f}% entre amostras {i - 1} e {i}"
 
-    print(f"  ✓ EMA suaviza corretamente: variação média {sum(abs(speeds[i]-speeds[i-1])/speeds[i-1] for i in range(1, len(speeds)))/(len(speeds)-1)*100:.1f}%")
+    print(
+        f"  ✓ EMA suaviza corretamente: variação média {sum(abs(speeds[i] - speeds[i - 1]) / speeds[i - 1] for i in range(1, len(speeds))) / (len(speeds) - 1) * 100:.1f}%"
+    )
 
 
 def test_eta_calculation():
@@ -185,12 +190,12 @@ def test_eta_calculation():
     state = _ProgressState()
     state.start_ts = time.monotonic()
     state.total_bytes = 100_000_000  # 100 MB
-    state.ema_bps = 10_000_000        # 10 MB/s constante
+    state.ema_bps = 10_000_000  # 10 MB/s constante
 
     test_cases = [
-        (10_000_000, "00:00:09"),   # 10% → 90 MB restantes @ 10 MB/s = 9s
-        (50_000_000, "00:00:05"),   # 50% → 50 MB restantes @ 10 MB/s = 5s
-        (90_000_000, "00:00:01"),   # 90% → 10 MB restantes @ 10 MB/s = 1s
+        (10_000_000, "00:00:09"),  # 10% → 90 MB restantes @ 10 MB/s = 9s
+        (50_000_000, "00:00:05"),  # 50% → 50 MB restantes @ 10 MB/s = 5s
+        (90_000_000, "00:00:01"),  # 90% → 10 MB restantes @ 10 MB/s = 1s
         (100_000_000, "00:00:00"),  # 100% → 0 MB restantes = 0s
     ]
 
@@ -210,13 +215,13 @@ def test_percentage_accuracy():
     print("\n[5/5] Testando precisão de %...")
 
     test_cases = [
-        (0, 100, 0.0),      # 0/100 = 0%
-        (25, 100, 25.0),    # 25/100 = 25%
-        (50, 100, 50.0),    # 50/100 = 50%
-        (75, 100, 75.0),    # 75/100 = 75%
+        (0, 100, 0.0),  # 0/100 = 0%
+        (25, 100, 25.0),  # 25/100 = 25%
+        (50, 100, 50.0),  # 50/100 = 50%
+        (75, 100, 75.0),  # 75/100 = 75%
         (100, 100, 100.0),  # 100/100 = 100%
-        (1, 3, 33.33),      # 1/3 = 33.33%
-        (2, 3, 66.67),      # 2/3 = 66.67%
+        (1, 3, 33.33),  # 1/3 = 33.33%
+        (2, 3, 66.67),  # 2/3 = 66.67%
     ]
 
     for done, total, expected_pct in test_cases:
@@ -255,5 +260,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n❌ ERRO: {e}")
         import traceback
+
         traceback.print_exc()
         exit(1)
