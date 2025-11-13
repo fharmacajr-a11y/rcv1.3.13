@@ -20,10 +20,15 @@ def load_env() -> None:
 
 
 def env_str(name: str, default: Optional[str] = None) -> Optional[str]:
+    """Get environment variable as string with optional default."""
     return os.getenv(name, default)
 
 
 def env_bool(name: str, default: bool = False) -> bool:
+    """Get environment variable as boolean.
+    
+    Treats '1', 'true', 'yes', 'y', 'on' (case-insensitive) as True.
+    """
     v = os.getenv(name)
     if v is None:
         return default
@@ -31,11 +36,14 @@ def env_bool(name: str, default: bool = False) -> bool:
 
 
 def env_int(name: str, default: int = 0) -> int:
+    """Get environment variable as integer with fallback to default."""
     try:
-        return int(os.getenv(name, str(default)))
-    except Exception:
+        raw_val = os.getenv(name, str(default))
+        return int(raw_val)
+    except (ValueError, TypeError):
         return default
 
 
 def cloud_only_default() -> bool:
+    """Determine if app should run in cloud-only mode (no local filesystem)."""
     return env_bool("RC_NO_LOCAL_FS", True)

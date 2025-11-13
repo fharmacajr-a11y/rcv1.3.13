@@ -93,7 +93,8 @@ def load_subpastas_config(
 MANDATORY_SUBPASTAS = ("SIFAP", "ANVISA", "FARMACIA_POPULAR", "AUDITORIA")
 
 
-def get_mandatory_subpastas():
+def get_mandatory_subpastas() -> tuple[str, ...]:
+    """Return tuple of mandatory subfolder names."""
     return tuple(MANDATORY_SUBPASTAS)
 
 

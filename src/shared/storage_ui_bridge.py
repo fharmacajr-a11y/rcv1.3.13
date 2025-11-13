@@ -15,7 +15,8 @@ except Exception:
 def get_clients_bucket() -> str:
     """Retorna o nome do bucket de clientes."""
     # O files_browser usa "rc-docs" hardcoded
-    return os.getenv("RC_STORAGE_BUCKET_CLIENTS", "rc-docs").strip() or "rc-docs"
+    bucket = os.getenv("RC_STORAGE_BUCKET_CLIENTS", "rc-docs")
+    return bucket.strip() if bucket else "rc-docs"
 
 
 def client_prefix_for_id(client_id: int | str, org_id: str = "") -> str:

@@ -1,7 +1,8 @@
 import re
 from datetime import datetime, date, time
+from typing import Any, Final
 
-APP_DATETIME_FMT = "%Y-%m-%d %H:%M:%S"
+APP_DATETIME_FMT: Final[str] = "%Y-%m-%d %H:%M:%S"
 
 
 def format_cnpj(raw: str) -> str:
@@ -44,10 +45,11 @@ def fmt_datetime(value) -> str:
     return dt.strftime(APP_DATETIME_FMT)
 
 
-APP_DATETIME_FMT_BR = "%d/%m/%Y - %H:%M:%S"
+APP_DATETIME_FMT_BR: Final[str] = "%d/%m/%Y - %H:%M:%S"
 
 
-def _parse_any_dt(value):
+def _parse_any_dt(value: Any) -> datetime | None:
+    """Parse various date/time formats to datetime object."""
     if value is None or value == "":
         return None
     if isinstance(value, datetime):

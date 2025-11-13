@@ -1,6 +1,8 @@
 # ui/utils.py
 from __future__ import annotations
 
+from typing import Any
+
 
 class OkCancelMixin:
     """Mixin for simple OK/Cancel dialogs."""
@@ -9,7 +11,7 @@ class OkCancelMixin:
         super().__init__(*args, **kwargs)  # type: ignore[misc]
         self._cancel_result = None
 
-    def _ok(self, value=True):
+    def _ok(self, value: Any = True) -> None:
         """Close the dialog reporting success."""
         try:
             self._finalize_ok(value)  # type: ignore[attr-defined]
@@ -23,7 +25,7 @@ class OkCancelMixin:
             pass
         safe_destroy(self)
 
-    def _cancel(self):
+    def _cancel(self) -> None:
         """Close the dialog indicating cancellation."""
         self._cancel_result = False
         try:
@@ -49,7 +51,7 @@ def center_window(win, w: int = 1200, h: int = 500) -> None:
             pass
 
 
-def center_on_parent(win, parent=None, pad: int = 0):
+def center_on_parent(win: Any, parent: Any = None, pad: int = 0) -> Any:
     """Center ``win`` over ``parent`` (or over the screen as a fallback)."""
     try:
         win.update_idletasks()
