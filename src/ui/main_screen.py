@@ -539,17 +539,18 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
                         self.btn_enviar.configure(text="Envio suspenso – Offline")
 
                 # Atualiza indicador visual na UI (se existir)
-                if hasattr(self.app, "status_var_text") and self.app.status_var_text:
+                status_var = getattr(self.app, "status_var_text", None)
+                if status_var is not None:
                     try:
-                        current_text = self.app.status_var_text.get()
+                        current_text = status_var.get()
                         # Atualiza apenas a parte da nuvem, preservando info do usuário
                         if "Nuvem:" in current_text:
                             parts = current_text.split("|")
                             parts[0] = f"Nuvem: {text}"
-                            self.app.status_var_text.set(" | ".join(parts))
+                            status_var.set(" | ".join(parts))
                         else:
                             # Se não tem info ainda, adiciona
-                            self.app.status_var_text.set(f"Nuvem: {text}")
+                            status_var.set(f"Nuvem: {text}")
                     except Exception:
                         pass
 
@@ -1130,6 +1131,8 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
         return self._order_choices.get(label, (None, False))
 
     def _set_count_text(self, count: int) -> None:
+        if self.clients_count_var is None:
+            return
         try:
             text = "1 cliente" if count == 1 else f"{count} clientes"
             self.clients_count_var.set(text)

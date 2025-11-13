@@ -67,7 +67,7 @@ def print_sample_by_rule(grouped_rules: dict[str, list[dict]], sample_per_rule: 
     print("=" * 60)
     print("=== SAMPLE BY RULE (first N per rule) ===")
     print("=" * 60)
-    
+
     sorted_rules = sorted(grouped_rules.items(), key=lambda x: len(x[1]), reverse=True)
     for rule, items in sorted_rules[:10]:  # Top 10 regras
         print(f"\n{rule}: ({len(items)} total)")
@@ -84,26 +84,26 @@ def print_sample_by_rule(grouped_rules: dict[str, list[dict]], sample_per_rule: 
 def main() -> None:
     """Main entry point."""
     pyright_json_path = Path(__file__).parent / "pyright.json"
-    
+
     if not pyright_json_path.exists():
         print(f"[X] Arquivo nao encontrado: {pyright_json_path}")
         return
-    
+
     print(f"[*] Carregando {pyright_json_path}...")
     data = load_pyright_json(pyright_json_path)
-    
+
     warnings = extract_warnings(data)
     print(f"[OK] Total de warnings encontrados: {len(warnings)}\n")
-    
+
     # Agrupamentos
     grouped_rules = group_by_rule(warnings)
     grouped_files = group_by_file(warnings)
-    
+
     # Relatórios
     print_top_rules(grouped_rules, top_n=15)
     print_top_files(grouped_files, top_n=15)
     print_sample_by_rule(grouped_rules, sample_per_rule=3)
-    
+
     print("=" * 60)
     print("[OK] Analise concluida!")
     print("=" * 60)

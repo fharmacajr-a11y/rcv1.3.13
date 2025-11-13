@@ -698,6 +698,8 @@ class AuditoriaFrame(ttk.Frame):
 
         if not isinstance(exibir_menu, tk.Menu):
             return
+        
+        assert exibir_menu is not None  # Type narrowing for Pyright
 
         try:
             end_index = exibir_menu.index("end")

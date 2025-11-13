@@ -71,6 +71,8 @@ def abrir_lixeira(parent, app=None):
     # Se já existe: traz pra frente, foca e recarrega
     if _is_open():
         w = _OPEN_WINDOW  # type: ignore[assignment]
+        if w is None:
+            return None
         try:
             w.deiconify()
             w.lift()

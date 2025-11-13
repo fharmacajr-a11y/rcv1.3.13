@@ -1,7 +1,7 @@
 # QA-DELTA-24 – WarningsPack-01: Mapeamento e Redução de Warnings
 
-**Data:** 13 de novembro de 2025  
-**Branch:** `qa/fixpack-04`  
+**Data:** 13 de novembro de 2025
+**Branch:** `qa/fixpack-04`
 **Objetivo:** Mapear, analisar e reduzir os warnings do Pyright mantendo 0 errors
 
 ---
@@ -188,5 +188,5 @@ python devtools/qa/analyze_pyright_warnings.py > devtools/qa/warnings_summary.tx
 
 ---
 
-**Assinado:** WarningsPack-01  
+**Assinado:** WarningsPack-01
 **Status:** ✅ Completo e validado

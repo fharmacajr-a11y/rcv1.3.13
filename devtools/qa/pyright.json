@@ -1,6 +1,6 @@
 ﻿{
     "version": "1.1.407",
-    "time": "1763059053223",
+    "time": "1763064228221",
     "generalDiagnostics": [
         {
             "file": "c:\\Users\\Pichau\\Desktop\\v1.1.45\\src\\modules\\auditoria\\view.py",
@@ -312,7 +312,7 @@
         "errorCount": 0,
         "warningCount": 19,
         "informationCount": 0,
-        "timeInSec": 6.578
+        "timeInSec": 6.914
     }
 }
 

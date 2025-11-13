@@ -154,6 +154,7 @@ class AutocompleteEntry(ttk.Entry):
             yscrollcommand=scrollbar.set,
             exportselection=False,
         )
+        assert self._listbox is not None  # Type narrowing for Pyright
         scrollbar.config(command=self._listbox.yview)
 
         self._listbox.pack(side="left", fill="both", expand=True)
