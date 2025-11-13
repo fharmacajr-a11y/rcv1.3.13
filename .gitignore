@@ -57,6 +57,12 @@ ruff-report.json
 pip-audit.json
 .coverage
 
+# QA reports (devtools)
+devtools/qa/*.json
+devtools/qa/*.txt
+devtools/qa/*.log
+!devtools/qa/README.md
+
 # SQL backups
 migrations/*.sql~
 
