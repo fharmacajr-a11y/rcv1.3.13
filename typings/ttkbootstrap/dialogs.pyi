@@ -1,0 +1,112 @@
+"""Type stubs for ttkbootstrap.dialogs module.
+
+Provides type hints for dialog utilities used in RC Gestor project.
+
+Generated for CompatPack-02 on 2025-11-13.
+"""
+
+from typing import Any, Literal
+from tkinter import Misc
+
+class Messagebox:
+    """ttkbootstrap Messagebox dialog."""
+    
+    @staticmethod
+    def show_info(
+        message: str,
+        title: str = "",
+        parent: Misc | None = None,
+        **kwargs: Any
+    ) -> str: ...
+    
+    @staticmethod
+    def show_warning(
+        message: str,
+        title: str = "",
+        parent: Misc | None = None,
+        **kwargs: Any
+    ) -> str: ...
+    
+    @staticmethod
+    def show_error(
+        message: str,
+        title: str = "",
+        parent: Misc | None = None,
+        **kwargs: Any
+    ) -> str: ...
+    
+    @staticmethod
+    def show_question(
+        message: str,
+        title: str = "",
+        parent: Misc | None = None,
+        **kwargs: Any
+    ) -> str: ...
+    
+    @staticmethod
+    def ok(
+        message: str,
+        title: str = "",
+        parent: Misc | None = None,
+        **kwargs: Any
+    ) -> str: ...
+    
+    @staticmethod
+    def okcancel(
+        message: str,
+        title: str = "",
+        parent: Misc | None = None,
+        **kwargs: Any
+    ) -> str: ...
+    
+    @staticmethod
+    def yesno(
+        message: str,
+        title: str = "",
+        parent: Misc | None = None,
+        **kwargs: Any
+    ) -> str: ...
+    
+    @staticmethod
+    def yesnocancel(
+        message: str,
+        title: str = "",
+        parent: Misc | None = None,
+        **kwargs: Any
+    ) -> str: ...
+    
+    @staticmethod
+    def retrycancel(
+        message: str,
+        title: str = "",
+        parent: Misc | None = None,
+        **kwargs: Any
+    ) -> str: ...
+
+def show_info(
+    message: str,
+    title: str = "",
+    parent: Misc | None = None,
+    **kwargs: Any
+) -> str: ...
+
+def show_warning(
+    message: str,
+    title: str = "",
+    parent: Misc | None = None,
+    **kwargs: Any
+) -> str: ...
+
+def show_error(
+    message: str,
+    title: str = "",
+    parent: Misc | None = None,
+    **kwargs: Any
+) -> str: ...
+
+def show_question(
+    message: str,
+    title: str = "",
+    parent: Misc | None = None,
+    **kwargs: Any
+) -> str: ...
