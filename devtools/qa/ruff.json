@@ -100,6 +100,57 @@
   },
   {
     "cell": null,
+    "code": "F821",
+    "end_location": {
+      "column": 36,
+      "row": 139
+    },
+    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\src\\ui\\widgets\\client_picker.py",
+    "fix": null,
+    "location": {
+      "column": 27,
+      "row": 139
+    },
+    "message": "Undefined name `ClientRow`",
+    "noqa_row": 139,
+    "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+  },
+  {
+    "cell": null,
+    "code": "F821",
+    "end_location": {
+      "column": 36,
+      "row": 158
+    },
+    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\src\\ui\\widgets\\client_picker.py",
+    "fix": null,
+    "location": {
+      "column": 27,
+      "row": 158
+    },
+    "message": "Undefined name `ClientRow`",
+    "noqa_row": 158,
+    "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+  },
+  {
+    "cell": null,
+    "code": "F821",
+    "end_location": {
+      "column": 50,
+      "row": 172
+    },
+    "filename": "C:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\src\\ui\\widgets\\client_picker.py",
+    "fix": null,
+    "location": {
+      "column": 41,
+      "row": 172
+    },
+    "message": "Undefined name `ClientRow`",
+    "noqa_row": 172,
+    "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+  },
+  {
+    "cell": null,
     "code": "F401",
     "end_location": {
       "column": 42,

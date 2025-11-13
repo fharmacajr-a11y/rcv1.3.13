@@ -56,3 +56,6 @@
 .\src\ui\hub_screen.py:40:1:E402:module level import not at top of file
 .\src\ui\hub_screen.py:41:1:E402:module level import not at top of file
 .\src\ui\hub_screen.py:42:1:E402:module level import not at top of file
+.\src\ui\widgets\client_picker.py:139:27:F821:undefined name 'ClientRow'
+.\src\ui\widgets\client_picker.py:158:27:F821:undefined name 'ClientRow'
+.\src\ui\widgets\client_picker.py:172:41:F821:undefined name 'ClientRow'

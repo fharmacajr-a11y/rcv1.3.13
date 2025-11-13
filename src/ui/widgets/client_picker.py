@@ -11,6 +11,8 @@ from typing import Any, Dict, Optional
 
 import ttkbootstrap as tb
 
+from data.domain_types import ClientRow
+
 log = logging.getLogger(__name__)
 
 
@@ -136,7 +138,7 @@ class ClientPicker(tk.Toplevel):
         try:
             from data.supabase_repo import list_clients_for_picker
 
-            results = list_clients_for_picker(self.org_id, limit=500)
+            results: list[ClientRow] = list_clients_for_picker(self.org_id, limit=500)
             self._fill_table(results)
             log.debug(f"ClientPicker: {len(results)} clientes carregados inicialmente")
         except Exception as e:
@@ -155,6 +157,7 @@ class ClientPicker(tk.Toplevel):
         try:
             from data.supabase_repo import list_clients_for_picker, search_clients
 
+            results: list[ClientRow]
             if len(query) < 2:
                 # Lista todos os clientes
                 results = list_clients_for_picker(self.org_id, limit=500)
@@ -168,7 +171,7 @@ class ClientPicker(tk.Toplevel):
             log.error(f"ClientPicker: erro ao buscar clientes: {e}")
             messagebox.showerror("Erro", f"Falha ao buscar clientes:\n{e}", parent=self)
 
-    def _fill_table(self, results: list) -> None:
+    def _fill_table(self, results: list[ClientRow]) -> None:
         """Preenche Treeview com resultados."""
         # Limpar árvore
         for item in self.tree.get_children():

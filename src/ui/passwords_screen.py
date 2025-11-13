@@ -11,6 +11,7 @@ from typing import Optional
 
 import ttkbootstrap as tb
 
+from data.domain_types import PasswordRow
 from data.supabase_repo import (
     add_password,
     decrypt_for_view,
@@ -496,7 +497,7 @@ class PasswordsScreen(tb.Frame):
             return
 
         try:
-            records = list_passwords(self._org_id)
+            records: list[PasswordRow] = list_passwords(self._org_id)
             self._cached_records = records
 
             # Limpar árvore

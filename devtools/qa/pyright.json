@@ -1,6 +1,6 @@
 ﻿{
     "version": "1.1.407",
-    "time": "1763038743848",
+    "time": "1763039555587",
     "generalDiagnostics": [
         {
             "file": "c:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\adapters\\__init__.py",
@@ -32760,11 +32760,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"master\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 32,
+                    "line": 33,
                     "character": 25
                 },
                 "end": {
-                    "line": 32,
+                    "line": 33,
                     "character": 31
                 }
             },
@@ -32776,11 +32776,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"bootstyle\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 32,
+                    "line": 33,
                     "character": 47
                 },
                 "end": {
-                    "line": 32,
+                    "line": 33,
                     "character": 53
                 }
             },
@@ -32792,11 +32792,11 @@
             "message": "Type of \"main_window\" is partially unknown\n┬á┬áType of \"main_window\" is \"Unknown | None\"",
             "range": {
                 "start": {
-                    "line": 38,
+                    "line": 39,
                     "character": 8
                 },
                 "end": {
-                    "line": 38,
+                    "line": 39,
                     "character": 24
                 }
             },
@@ -32808,11 +32808,11 @@
             "message": "Type of \"yview\" is partially unknown\n┬á┬áType of \"yview\" is \"Overload[() -> tuple[float, float], (*args: Unknown) -> None]\"",
             "range": {
                 "start": {
-                    "line": 81,
+                    "line": 82,
                     "character": 68
                 },
                 "end": {
-                    "line": 81,
+                    "line": 82,
                     "character": 83
                 }
             },
@@ -32824,11 +32824,11 @@
             "message": "Argument type is partially unknown\n┬á┬áArgument corresponds to parameter \"command\" in function \"__init__\"\n┬á┬áArgument type is \"Overload[() -> tuple[float, float], (*args: Unknown) -> None]\"",
             "range": {
                 "start": {
-                    "line": 81,
+                    "line": 82,
                     "character": 68
                 },
                 "end": {
-                    "line": 81,
+                    "line": 82,
                     "character": 83
                 }
             },
@@ -32840,11 +32840,11 @@
             "message": "Type of \"_on_tree_select\" is partially unknown\n┬á┬áType of \"_on_tree_select\" is \"(event: Unknown) -> None\"",
             "range": {
                 "start": {
-                    "line": 88,
+                    "line": 89,
                     "character": 45
                 },
                 "end": {
-                    "line": 88,
+                    "line": 89,
                     "character": 65
                 }
             },
@@ -32856,11 +32856,11 @@
             "message": "Argument type is partially unknown\n┬á┬áArgument corresponds to parameter \"func\" in function \"bind\"\n┬á┬áArgument type is \"(event: Unknown) -> None\"",
             "range": {
                 "start": {
-                    "line": 88,
+                    "line": 89,
                     "character": 45
                 },
                 "end": {
-                    "line": 88,
+                    "line": 89,
                     "character": 65
                 }
             },
@@ -32872,11 +32872,11 @@
             "message": "Type of \"main_window\" is partially unknown\n┬á┬áType of \"main_window\" is \"Unknown | None\"",
             "range": {
                 "start": {
-                    "line": 226,
+                    "line": 227,
                     "character": 11
                 },
                 "end": {
-                    "line": 226,
+                    "line": 227,
                     "character": 27
                 }
             },
@@ -32888,11 +32888,11 @@
             "message": "Type of \"cnpj_fmt\" is unknown",
             "range": {
                 "start": {
-                    "line": 231,
+                    "line": 232,
                     "character": 12
                 },
                 "end": {
-                    "line": 231,
+                    "line": 232,
                     "character": 20
                 }
             },
@@ -32904,11 +32904,11 @@
             "message": "Type of \"get\" is partially unknown\n┬á┬áType of \"get\" is \"Overload[(key: Unknown, default: None = None, /) -> (Unknown | None), (key: Unknown, default: Unknown, /) -> Unknown, (key: Unknown, default: _T@get, /) -> (Unknown | _T@get)]\"",
             "range": {
                 "start": {
-                    "line": 231,
+                    "line": 232,
                     "character": 23
                 },
                 "end": {
-                    "line": 231,
+                    "line": 232,
                     "character": 39
                 }
             },
@@ -32920,11 +32920,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"string\" in function \"insert\"",
             "range": {
                 "start": {
-                    "line": 234,
+                    "line": 235,
                     "character": 41
                 },
                 "end": {
-                    "line": 234,
+                    "line": 235,
                     "character": 49
                 }
             },
@@ -32936,11 +32936,11 @@
             "message": "Type of \"main_window\" is unknown",
             "range": {
                 "start": {
-                    "line": 237,
+                    "line": 238,
                     "character": 12
                 },
                 "end": {
-                    "line": 237,
+                    "line": 238,
                     "character": 28
                 }
             },
@@ -32952,11 +32952,11 @@
             "message": "Type of \"open_clients_picker\" is unknown",
             "range": {
                 "start": {
-                    "line": 237,
+                    "line": 238,
                     "character": 12
                 },
                 "end": {
-                    "line": 237,
+                    "line": 238,
                     "character": 48
                 }
             },
@@ -32968,11 +32968,11 @@
             "message": "Type of \"_get_access_token\" is partially unknown\n┬á┬áType of \"_get_access_token\" is \"(client: Unknown) -> (str | None)\"",
             "range": {
                 "start": {
-                    "line": 299,
+                    "line": 300,
                     "character": 40
                 },
                 "end": {
-                    "line": 299,
+                    "line": 300,
                     "character": 57
                 }
             },
@@ -32984,11 +32984,11 @@
             "message": "Type of \"_get_org_id_cached\" is unknown",
             "range": {
                 "start": {
-                    "line": 552,
+                    "line": 553,
                     "character": 35
                 },
                 "end": {
-                    "line": 552,
+                    "line": 553,
                     "character": 57
                 }
             },
@@ -33000,11 +33000,11 @@
             "message": "Cannot access attribute \"_get_org_id_cached\" for class \"Tk\"\n┬á┬áAttribute \"_get_org_id_cached\" is unknown",
             "range": {
                 "start": {
-                    "line": 552,
+                    "line": 553,
                     "character": 39
                 },
                 "end": {
-                    "line": 552,
+                    "line": 553,
                     "character": 57
                 }
             },
@@ -33016,11 +33016,11 @@
             "message": "Cannot access attribute \"_get_org_id_cached\" for class \"Toplevel\"\n┬á┬áAttribute \"_get_org_id_cached\" is unknown",
             "range": {
                 "start": {
-                    "line": 552,
+                    "line": 553,
                     "character": 39
                 },
                 "end": {
-                    "line": 552,
+                    "line": 553,
                     "character": 57
                 }
             },
@@ -33032,11 +33032,11 @@
             "message": "Type of \"_org_id\" is partially unknown\n┬á┬áType of \"_org_id\" is \"Unknown | str | None\"",
             "range": {
                 "start": {
-                    "line": 559,
+                    "line": 560,
                     "character": 15
                 },
                 "end": {
-                    "line": 559,
+                    "line": 560,
                     "character": 27
                 }
             },
@@ -38824,11 +38824,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"master\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 26,
+                    "line": 28,
                     "character": 25
                 },
                 "end": {
-                    "line": 26,
+                    "line": 28,
                     "character": 31
                 }
             },
@@ -38840,11 +38840,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"cnf\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 26,
+                    "line": 28,
                     "character": 35
                 },
                 "end": {
-                    "line": 26,
+                    "line": 28,
                     "character": 41
                 }
             },
@@ -38856,11 +38856,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"background\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 26,
+                    "line": 28,
                     "character": 35
                 },
                 "end": {
-                    "line": 26,
+                    "line": 28,
                     "character": 41
                 }
             },
@@ -38872,11 +38872,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"bd\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 26,
+                    "line": 28,
                     "character": 35
                 },
                 "end": {
-                    "line": 26,
+                    "line": 28,
                     "character": 41
                 }
             },
@@ -38888,11 +38888,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"bg\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 26,
+                    "line": 28,
                     "character": 35
                 },
                 "end": {
-                    "line": 26,
+                    "line": 28,
                     "character": 41
                 }
             },
@@ -38904,11 +38904,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"border\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 26,
+                    "line": 28,
                     "character": 35
                 },
                 "end": {
-                    "line": 26,
+                    "line": 28,
                     "character": 41
                 }
             },
@@ -38920,11 +38920,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"borderwidth\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 26,
+                    "line": 28,
                     "character": 35
                 },
                 "end": {
-                    "line": 26,
+                    "line": 28,
                     "character": 41
                 }
             },
@@ -38936,11 +38936,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"class_\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 26,
+                    "line": 28,
                     "character": 35
                 },
                 "end": {
-                    "line": 26,
+                    "line": 28,
                     "character": 41
                 }
             },
@@ -38952,11 +38952,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"colormap\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 26,
+                    "line": 28,
                     "character": 35
                 },
                 "end": {
-                    "line": 26,
+                    "line": 28,
                     "character": 41
                 }
             },
@@ -38968,11 +38968,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"container\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 26,
+                    "line": 28,
                     "character": 35
                 },
                 "end": {
-                    "line": 26,
+                    "line": 28,
                     "character": 41
                 }
             },
@@ -38984,11 +38984,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"cursor\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 26,
+                    "line": 28,
                     "character": 35
                 },
                 "end": {
-                    "line": 26,
+                    "line": 28,
                     "character": 41
                 }
             },
@@ -39000,11 +39000,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"height\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 26,
+                    "line": 28,
                     "character": 35
                 },
                 "end": {
-                    "line": 26,
+                    "line": 28,
                     "character": 41
                 }
             },
@@ -39016,11 +39016,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"highlightbackground\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 26,
+                    "line": 28,
                     "character": 35
                 },
                 "end": {
-                    "line": 26,
+                    "line": 28,
                     "character": 41
                 }
             },
@@ -39032,11 +39032,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"highlightcolor\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 26,
+                    "line": 28,
                     "character": 35
                 },
                 "end": {
-                    "line": 26,
+                    "line": 28,
                     "character": 41
                 }
             },
@@ -39048,11 +39048,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"highlightthickness\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 26,
+                    "line": 28,
                     "character": 35
                 },
                 "end": {
-                    "line": 26,
+                    "line": 28,
                     "character": 41
                 }
             },
@@ -39064,11 +39064,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"menu\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 26,
+                    "line": 28,
                     "character": 35
                 },
                 "end": {
-                    "line": 26,
+                    "line": 28,
                     "character": 41
                 }
             },
@@ -39080,11 +39080,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"name\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 26,
+                    "line": 28,
                     "character": 35
                 },
                 "end": {
-                    "line": 26,
+                    "line": 28,
                     "character": 41
                 }
             },
@@ -39096,11 +39096,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"padx\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 26,
+                    "line": 28,
                     "character": 35
                 },
                 "end": {
-                    "line": 26,
+                    "line": 28,
                     "character": 41
                 }
             },
@@ -39112,11 +39112,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"pady\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 26,
+                    "line": 28,
                     "character": 35
                 },
                 "end": {
-                    "line": 26,
+                    "line": 28,
                     "character": 41
                 }
             },
@@ -39128,11 +39128,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"relief\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 26,
+                    "line": 28,
                     "character": 35
                 },
                 "end": {
-                    "line": 26,
+                    "line": 28,
                     "character": 41
                 }
             },
@@ -39144,11 +39144,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"screen\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 26,
+                    "line": 28,
                     "character": 35
                 },
                 "end": {
-                    "line": 26,
+                    "line": 28,
                     "character": 41
                 }
             },
@@ -39160,11 +39160,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"takefocus\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 26,
+                    "line": 28,
                     "character": 35
                 },
                 "end": {
-                    "line": 26,
+                    "line": 28,
                     "character": 41
                 }
             },
@@ -39176,11 +39176,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"use\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 26,
+                    "line": 28,
                     "character": 35
                 },
                 "end": {
-                    "line": 26,
+                    "line": 28,
                     "character": 41
                 }
             },
@@ -39192,11 +39192,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"visual\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 26,
+                    "line": 28,
                     "character": 35
                 },
                 "end": {
-                    "line": 26,
+                    "line": 28,
                     "character": 41
                 }
             },
@@ -39208,11 +39208,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"width\" in function \"__init__\"",
             "range": {
                 "start": {
-                    "line": 26,
+                    "line": 28,
                     "character": 35
                 },
                 "end": {
-                    "line": 26,
+                    "line": 28,
                     "character": 41
                 }
             },
@@ -39224,11 +39224,11 @@
             "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"master\" in function \"wm_transient\"",
             "range": {
                 "start": {
-                    "line": 35,
+                    "line": 37,
                     "character": 23
                 },
                 "end": {
-                    "line": 35,
+                    "line": 37,
                     "character": 29
                 }
             },
@@ -39240,11 +39240,11 @@
             "message": "Type of \"_clear_placeholder\" is partially unknown\n┬á┬áType of \"_clear_placeholder\" is \"(event: Unknown) -> None\"",
             "range": {
                 "start": {
-                    "line": 60,
+                    "line": 62,
                     "character": 44
                 },
                 "end": {
-                    "line": 60,
+                    "line": 62,
                     "character": 67
                 }
             },
@@ -39256,11 +39256,11 @@
             "message": "Argument type is partially unknown\n┬á┬áArgument corresponds to parameter \"func\" in function \"bind\"\n┬á┬áArgument type is \"(event: Unknown) -> None\"",
             "range": {
                 "start": {
-                    "line": 60,
+                    "line": 62,
                     "character": 44
                 },
                 "end": {
-                    "line": 60,
+                    "line": 62,
                     "character": 67
                 }
             },
@@ -39272,11 +39272,11 @@
             "message": "Argument type is partially unknown\n┬á┬áArgument corresponds to parameter \"func\" in function \"bind\"\n┬á┬áArgument type is \"(e: Unknown) -> None\"",
             "range": {
                 "start": {
-                    "line": 61,
+                    "line": 63,
                     "character": 43
                 },
                 "end": {
-                    "line": 61,
+                    "line": 63,
                     "character": 70
                 }
             },
@@ -39288,11 +39288,11 @@
             "message": "Type of \"_on_key_release\" is partially unknown\n┬á┬áType of \"_on_key_release\" is \"(event: Unknown) -> None\"",
             "range": {
                 "start": {
-                    "line": 62,
+                    "line": 64,
                     "character": 47
                 },
                 "end": {
-                    "line": 62,
+                    "line": 64,
                     "character": 67
                 }
             },
@@ -39304,11 +39304,11 @@
             "message": "Argument type is partially unknown\n┬á┬áArgument corresponds to parameter \"func\" in function \"bind\"\n┬á┬áArgument type is \"(event: Unknown) -> None\"",
             "range": {
                 "start": {
-                    "line": 62,
+                    "line": 64,
                     "character": 47
                 },
                 "end": {
-                    "line": 62,
+                    "line": 64,
                     "character": 67
                 }
             },
@@ -39320,11 +39320,11 @@
             "message": "Type of \"yview\" is partially unknown\n┬á┬áType of \"yview\" is \"Overload[() -> tuple[float, float], (*args: Unknown) -> None]\"",
             "range": {
                 "start": {
-                    "line": 88,
+                    "line": 90,
                     "character": 73
                 },
                 "end": {
-                    "line": 88,
+                    "line": 90,
                     "character": 88
                 }
             },
@@ -39336,11 +39336,11 @@
             "message": "Argument type is partially unknown\n┬á┬áArgument corresponds to parameter \"command\" in function \"__init__\"\n┬á┬áArgument type is \"Overload[() -> tuple[float, float], (*args: Unknown) -> None]\"",
             "range": {
                 "start": {
-                    "line": 88,
+                    "line": 90,
                     "character": 73
                 },
                 "end": {
-                    "line": 88,
+                    "line": 90,
                     "character": 88
                 }
             },
@@ -39352,11 +39352,11 @@
             "message": "Type of \"keysym\" is unknown",
             "range": {
                 "start": {
-                    "line": 121,
+                    "line": 123,
                     "character": 11
                 },
                 "end": {
-                    "line": 121,
+                    "line": 123,
                     "character": 23
                 }
             },
@@ -39365,274 +39365,18 @@
         {
             "file": "c:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\src\\ui\\widgets\\client_picker.py",
             "severity": "warning",
-            "message": "Type of \"_fill_table\" is partially unknown\n┬á┬áType of \"_fill_table\" is \"(results: list[Unknown]) -> None\"",
+            "message": "Cannot assign to attribute \"_result\" for class \"ClientPicker*\"\n┬á┬áType \"ClientRow\" is not assignable to type \"Dict[str, Any] | None\"\n┬á┬á┬á┬á\"ClientRow\" is not assignable to \"Dict[str, Any]\"\n┬á┬á┬á┬á\"ClientRow\" is not assignable to \"None\"",
             "range": {
                 "start": {
-                    "line": 139,
-                    "character": 12
+                    "line": 220,
+                    "character": 35
                 },
                 "end": {
-                    "line": 139,
-                    "character": 28
+                    "line": 220,
+                    "character": 41
                 }
             },
-            "rule": "reportUnknownMemberType"
-        },
-        {
-            "file": "c:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\src\\ui\\widgets\\client_picker.py",
-            "severity": "warning",
-            "message": "Type of \"_fill_table\" is partially unknown\n┬á┬áType of \"_fill_table\" is \"(results: list[Unknown]) -> None\"",
-            "range": {
-                "start": {
-                    "line": 143,
-                    "character": 12
-                },
-                "end": {
-                    "line": 143,
-                    "character": 28
-                }
-            },
-            "rule": "reportUnknownMemberType"
-        },
-        {
-            "file": "c:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\src\\ui\\widgets\\client_picker.py",
-            "severity": "warning",
-            "message": "Type of \"_fill_table\" is partially unknown\n┬á┬áType of \"_fill_table\" is \"(results: list[Unknown]) -> None\"",
-            "range": {
-                "start": {
-                    "line": 164,
-                    "character": 12
-                },
-                "end": {
-                    "line": 164,
-                    "character": 28
-                }
-            },
-            "rule": "reportUnknownMemberType"
-        },
-        {
-            "file": "c:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\src\\ui\\widgets\\client_picker.py",
-            "severity": "warning",
-            "message": "Type of \"_clients_data\" is partially unknown\n┬á┬áType of \"_clients_data\" is \"list[Unknown]\"",
-            "range": {
-                "start": {
-                    "line": 177,
-                    "character": 8
-                },
-                "end": {
-                    "line": 177,
-                    "character": 26
-                }
-            },
-            "rule": "reportUnknownMemberType"
-        },
-        {
-            "file": "c:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\src\\ui\\widgets\\client_picker.py",
-            "severity": "warning",
-            "message": "Type of \"client\" is unknown",
-            "range": {
-                "start": {
-                    "line": 183,
-                    "character": 12
-                },
-                "end": {
-                    "line": 183,
-                    "character": 18
-                }
-            },
-            "rule": "reportUnknownVariableType"
-        },
-        {
-            "file": "c:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\src\\ui\\widgets\\client_picker.py",
-            "severity": "warning",
-            "message": "Type of \"razao\" is unknown",
-            "range": {
-                "start": {
-                    "line": 184,
-                    "character": 12
-                },
-                "end": {
-                    "line": 184,
-                    "character": 17
-                }
-            },
-            "rule": "reportUnknownVariableType"
-        },
-        {
-            "file": "c:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\src\\ui\\widgets\\client_picker.py",
-            "severity": "warning",
-            "message": "Type of \"get\" is unknown",
-            "range": {
-                "start": {
-                    "line": 184,
-                    "character": 20
-                },
-                "end": {
-                    "line": 184,
-                    "character": 30
-                }
-            },
-            "rule": "reportUnknownMemberType"
-        },
-        {
-            "file": "c:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\src\\ui\\widgets\\client_picker.py",
-            "severity": "warning",
-            "message": "Type of \"fantasia\" is unknown",
-            "range": {
-                "start": {
-                    "line": 185,
-                    "character": 12
-                },
-                "end": {
-                    "line": 185,
-                    "character": 20
-                }
-            },
-            "rule": "reportUnknownVariableType"
-        },
-        {
-            "file": "c:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\src\\ui\\widgets\\client_picker.py",
-            "severity": "warning",
-            "message": "Type of \"get\" is unknown",
-            "range": {
-                "start": {
-                    "line": 185,
-                    "character": 23
-                },
-                "end": {
-                    "line": 185,
-                    "character": 33
-                }
-            },
-            "rule": "reportUnknownMemberType"
-        },
-        {
-            "file": "c:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\src\\ui\\widgets\\client_picker.py",
-            "severity": "warning",
-            "message": "Type of \"cnpj\" is unknown",
-            "range": {
-                "start": {
-                    "line": 186,
-                    "character": 12
-                },
-                "end": {
-                    "line": 186,
-                    "character": 16
-                }
-            },
-            "rule": "reportUnknownVariableType"
-        },
-        {
-            "file": "c:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\src\\ui\\widgets\\client_picker.py",
-            "severity": "warning",
-            "message": "Type of \"get\" is unknown",
-            "range": {
-                "start": {
-                    "line": 186,
-                    "character": 19
-                },
-                "end": {
-                    "line": 186,
-                    "character": 29
-                }
-            },
-            "rule": "reportUnknownMemberType"
-        },
-        {
-            "file": "c:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\src\\ui\\widgets\\client_picker.py",
-            "severity": "warning",
-            "message": "Argument type is partially unknown\n┬á┬áArgument corresponds to parameter \"values\" in function \"insert\"\n┬á┬áArgument type is \"tuple[Unknown, Unknown, Unknown]\"",
-            "range": {
-                "start": {
-                    "line": 191,
-                    "character": 23
-                },
-                "end": {
-                    "line": 191,
-                    "character": 46
-                }
-            },
-            "rule": "reportUnknownArgumentType"
-        },
-        {
-            "file": "c:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\src\\ui\\widgets\\client_picker.py",
-            "severity": "warning",
-            "message": "Type of \"get\" is unknown",
-            "range": {
-                "start": {
-                    "line": 192,
-                    "character": 26
-                },
-                "end": {
-                    "line": 192,
-                    "character": 36
-                }
-            },
-            "rule": "reportUnknownMemberType"
-        },
-        {
-            "file": "c:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\src\\ui\\widgets\\client_picker.py",
-            "severity": "warning",
-            "message": "Argument type is unknown\n┬á┬áArgument corresponds to parameter \"object\" in function \"__new__\"",
-            "range": {
-                "start": {
-                    "line": 192,
-                    "character": 26
-                },
-                "end": {
-                    "line": 192,
-                    "character": 46
-                }
-            },
-            "rule": "reportUnknownArgumentType"
-        },
-        {
-            "file": "c:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\src\\ui\\widgets\\client_picker.py",
-            "severity": "warning",
-            "message": "Type of \"client\" is unknown",
-            "range": {
-                "start": {
-                    "line": 215,
-                    "character": 16
-                },
-                "end": {
-                    "line": 215,
-                    "character": 22
-                }
-            },
-            "rule": "reportUnknownVariableType"
-        },
-        {
-            "file": "c:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\src\\ui\\widgets\\client_picker.py",
-            "severity": "warning",
-            "message": "Type of \"_clients_data\" is partially unknown\n┬á┬áType of \"_clients_data\" is \"list[Unknown]\"",
-            "range": {
-                "start": {
-                    "line": 215,
-                    "character": 26
-                },
-                "end": {
-                    "line": 215,
-                    "character": 44
-                }
-            },
-            "rule": "reportUnknownMemberType"
-        },
-        {
-            "file": "c:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\src\\ui\\widgets\\client_picker.py",
-            "severity": "warning",
-            "message": "Type of \"get\" is unknown",
-            "range": {
-                "start": {
-                    "line": 216,
-                    "character": 19
-                },
-                "end": {
-                    "line": 216,
-                    "character": 29
-                }
-            },
-            "rule": "reportUnknownMemberType"
+            "rule": "reportAttributeAccessIssue"
         },
         {
             "file": "c:\\Users\\Pichau\\Desktop\\v1.1.31 - Copia\\src\\ui\\window_policy.py",
@@ -42070,9 +41814,9 @@
     "summary": {
         "filesAnalyzed": 187,
         "errorCount": 88,
-        "warningCount": 2541,
+        "warningCount": 2525,
         "informationCount": 0,
-        "timeInSec": 7.367
+        "timeInSec": 7.268
     }
 }
 
