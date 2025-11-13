@@ -1,9 +1,9 @@
 # QA-DELTA-19 — CompatPack-13: Top Pyright Errors Sweep #1
 
-**Branch:** `qa/fixpack-04`  
-**Commit:** `<pending>`  
-**Data:** 2025-01-XX  
-**Tipo:** CompatPack - Correção de erros óbvios  
+**Branch:** `qa/fixpack-04`
+**Commit:** `<pending>`
+**Data:** 2025-01-XX
+**Tipo:** CompatPack - Correção de erros óbvios
 
 ---
 
@@ -389,5 +389,5 @@ python devtools/qa/analyze_top_errors.py
 
 ---
 
-**Status:** ✅ **COMPLETO**  
+**Status:** ✅ **COMPLETO**
 **Próximo CompatPack:** #14 (sweep de reportCallIssue ou reportReturnType)

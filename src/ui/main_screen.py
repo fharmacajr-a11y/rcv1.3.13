@@ -241,7 +241,7 @@ class MainScreenFrame(tb.Frame):
         for col in self._col_order:
             try:
                 # mantém o texto atual (com acento) se já veio do componente
-                cur = self.client_list.heading(col, "text")
+                cur = self.client_list.heading(col, option="text")
                 if not cur:
                     # fallback para IDs internos sem acento
                     friendly = {
@@ -259,7 +259,7 @@ class MainScreenFrame(tb.Frame):
         self._col_widths = {}
         for c in self._col_order:
             try:
-                self._col_widths[c] = self.client_list.column(c, "width")
+                self._col_widths[c] = self.client_list.column(c, option="width")
             except Exception:
                 self._col_widths[c] = 120
 
@@ -329,12 +329,12 @@ class MainScreenFrame(tb.Frame):
                         bx = self.client_list.bbox(first_item, col)
                         if not bx:
                             # se bbox vier vazio, usa fallback acumulado
-                            col_w = int(self.client_list.column(col, "width"))
+                            col_w = int(self.client_list.column(col, option="width"))
                             bx = (cumulative_x, 0, col_w, 0)
                             cumulative_x += col_w
                     else:
                         # fallback: calcula posição acumulada das colunas
-                        col_w = int(self.client_list.column(col, "width"))
+                        col_w = int(self.client_list.column(col, option="width"))
                         bx = (cumulative_x, 0, col_w, 0)
                         cumulative_x += col_w
 

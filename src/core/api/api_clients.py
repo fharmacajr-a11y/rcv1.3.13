@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
+from src.core.models import Cliente
+
 log = logging.getLogger(__name__)
 
 __all__ = [
@@ -165,7 +167,7 @@ def delete_client(client_id: str, soft: bool = True) -> bool:
         return False
 
 
-def search_clients(query: str, org_id: Optional[str] = None) -> List[Dict[str, Any]]:
+def search_clients(query: str, org_id: Optional[str] = None) -> list[Cliente]:
     """
     Search for clients by CNPJ, razão social, or nome fantasia.
 
@@ -174,7 +176,7 @@ def search_clients(query: str, org_id: Optional[str] = None) -> List[Dict[str, A
         org_id: Optional organization ID filter
 
     Returns:
-        List of matching client dicts
+        List of matching Cliente objects
 
     Delegates to:
         - core/search/search.py::search_clientes()
