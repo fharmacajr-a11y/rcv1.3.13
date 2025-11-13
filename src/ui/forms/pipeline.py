@@ -28,6 +28,7 @@ from infra.supabase_client import exec_postgrest, get_supabase_state, supabase
 from src.config.paths import CLOUD_ONLY
 from src.core.logger import get_logger
 from src.core.cnpj_norm import normalize_cnpj as normalize_cnpj_norm
+from src.utils.typing_helpers import is_optional_str
 from src.core.db_manager import find_cliente_by_cnpj_norm
 from src.core.services.clientes_service import checar_duplicatas_info, salvar_cliente
 from src.core.storage_key import make_storage_key, storage_slug_part
@@ -253,11 +254,17 @@ def validate_inputs(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
                 ctx.abort = True
                 return args, kwargs
 
+        # Type narrowing: valores.get() retorna Unknown | None, validamos antes
+        cnpj_val = valores.get("CNPJ")
+        razao_val = valores.get("Razão Social")
+        numero_val = valores.get("WhatsApp")
+        nome_val = valores.get("Nome")
+
         info = checar_duplicatas_info(
-            cnpj=valores.get("CNPJ"),
-            razao=valores.get("Razão Social"),
-            numero=valores.get("WhatsApp"),
-            nome=valores.get("Nome"),
+            cnpj=cnpj_val if is_optional_str(cnpj_val) else "",
+            razao=razao_val if is_optional_str(razao_val) else "",
+            numero=numero_val if is_optional_str(numero_val) else "",
+            nome=nome_val if is_optional_str(nome_val) else "",
             exclude_id=current_id,
         )
 

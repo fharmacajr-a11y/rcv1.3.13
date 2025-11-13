@@ -13,6 +13,7 @@ from src.core.db_manager import find_cliente_by_cnpj_norm
 from src.core.services.clientes_service import checar_duplicatas_info, salvar_cliente
 from src.ui.components import labeled_entry, toolbar_button
 from src.ui.forms.actions import preencher_via_pasta, salvar_e_enviar_para_supabase
+from src.utils.typing_helpers import is_optional_str
 
 try:
     from ui import center_on_parent
@@ -181,11 +182,17 @@ def form_cliente(self, row=None, preset: dict | None = None) -> None:
         except Exception:
             current_id = None
 
+        # Type narrowing: val.get() retorna Unknown | None, validamos antes
+        cnpj_val = val.get("CNPJ")
+        razao_val = val.get("Razão Social")
+        numero_val = val.get("WhatsApp")
+        nome_val = val.get("Nome")
+
         info = checar_duplicatas_info(
-            cnpj=val.get("CNPJ"),
-            razao=val.get("Razão Social"),
-            numero=val.get("WhatsApp"),
-            nome=val.get("Nome"),
+            cnpj=cnpj_val if is_optional_str(cnpj_val) else "",
+            razao=razao_val if is_optional_str(razao_val) else "",
+            numero=numero_val if is_optional_str(numero_val) else "",
+            nome=nome_val if is_optional_str(nome_val) else "",
             exclude_id=current_id,
         )
 

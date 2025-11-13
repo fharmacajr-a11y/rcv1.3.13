@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import os
+import tkinter as tk
 from tempfile import NamedTemporaryFile
 from tkinter import messagebox
 from typing import Iterable, List, Tuple
@@ -148,10 +149,12 @@ def restore_clients(client_ids: Iterable[int], parent=None) -> Tuple[int, List[T
     """
     ok = 0
     errs: List[Tuple[int, str]] = []
+    # Type narrowing: parent pode ser None ou Misc (Tkinter widget)
+    parent_widget: tk.Misc | None = parent if isinstance(parent, tk.Misc) else None
     try:
         supabase, org_id = _get_supabase_and_org()
     except Exception as e:
-        messagebox.showerror("Erro", str(e), parent=parent)
+        messagebox.showerror("Erro", str(e), parent=parent_widget)
         return 0, [(0, str(e))]
 
     for cid in client_ids:
@@ -183,10 +186,12 @@ def hard_delete_clients(client_ids: Iterable[int], parent=None) -> Tuple[int, Li
     ok = 0
     errs: List[Tuple[int, str]] = []
 
+    # Type narrowing: parent pode ser None ou Misc (Tkinter widget)
+    parent_widget: tk.Misc | None = parent if isinstance(parent, tk.Misc) else None
     try:
         supabase, org_id = _get_supabase_and_org()
     except Exception as e:
-        messagebox.showerror("Erro", str(e), parent=parent)
+        messagebox.showerror("Erro", str(e), parent=parent_widget)
         return 0, [(0, str(e))]
 
     for cid in client_ids:
