@@ -237,16 +237,43 @@
 
 ### Testes
 
-- [ ] **TEST-001: Aumentar cobertura para 85%+**
+- [>] **TEST-001: Aumentar cobertura para 85%+** ⏳ **FASE 1 CONCLUÍDA**
   - **Área:** Módulos com baixa cobertura
   - **Descrição:** Adicionar testes em:
-    - `src/modules/cashflow/`
-    - `src/modules/passwords/`
-    - `src/ui/components/`
+    - ✅ `src/modules/cashflow/` (FASE 1)
+    - ✅ `src/modules/passwords/` (FASE 1)
+    - ⏳ `src/ui/components/` (FASE 2 - pendente)
   - **Ferramenta:** `pytest --cov` para medir
   - **Benefício:** Redução de bugs
   - **Esforço:** 8-12h
   - **Automável:** Manual (escrever testes)
+  - **Fase 1 - Resultados (cashflow + passwords):**
+    - ✅ **Arquivos criados:**
+      * `tests/test_cashflow_service.py`: 14 testes para fluxo de caixa
+      * `tests/test_passwords_service.py`: 20 testes para gerenciamento de senhas
+    - ✅ **Total:** 34 testes novos (249 testes no total, antes: 215)
+    - ✅ **Cobertura:**
+      * Antes: ~25.85%
+      * Depois: **26.15%** (+0.30pp)
+      * `src/features/cashflow/repository.py`: 63% coverage (74/118 linhas)
+    - ✅ **Cenários testados (cashflow):**
+      * Listagem com filtros (tipo IN/OUT, texto, período)
+      * Cálculo de totais (entradas, saídas, saldo)
+      * CRUD completo (create, update, delete)
+      * Edge cases (valores None, listas vazias, datas extremas)
+    - ✅ **Cenários testados (passwords):**
+      * Listagem com busca case-insensitive
+      * Filtros por cliente
+      * CRUD completo com dados criptografados
+      * Busca em múltiplos campos (client_name, service, username)
+    - ✅ **Validação:**
+      * pytest: 249/249 passed
+      * coverage: 26.15% (≥25% threshold)
+      * pre-commit: ✅ all hooks passed
+  - **Próximas fases:**
+    - Fase 2: Componentes UI (`src/ui/components/`) - target: +5-10pp
+    - Fase 3: Módulos de baixa cobertura (auditoria, hub, etc)
+    - Meta final: 85%+
 
 - [x] **TEST-002: Configurar coverage report no CI**
   - **Área:** `.github/workflows/ci.yml`
