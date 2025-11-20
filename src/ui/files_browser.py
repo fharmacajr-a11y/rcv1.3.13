@@ -1090,7 +1090,7 @@ def open_files_browser(
         _item, tipo, rel, nome = info
         if tipo != "Arquivo" or not rel:
             return
-        # Usa o prefixo atual ao invÃ©s do root_prefix fixo
+        # Usa o prefixo atual ao invés do root_prefix fixo
         current = docs_window._current_prefix  # type: ignore[attr-defined]
         file_path = f"{current}/{rel}".strip("/")
         root_remote = docs_window._root_remote  # type: ignore[attr-defined]
@@ -1104,11 +1104,37 @@ def open_files_browser(
 
         local_path = filedialog.asksaveasfilename(parent=docs_window, title="Salvar como", initialfile=suggest)
         if local_path:
-            try:
-                uploads_service.download_file(BUCKET, file_path, local_path)
-                messagebox.showinfo("Sucesso", "Arquivo baixado!", parent=docs_window)
-            except Exception as e:
-                messagebox.showerror("Erro", f"Falha ao baixar: {e}", parent=docs_window)
+            # Desabilitar botão durante download
+            btn_baixar.configure(state="disabled")
+
+            def _download_worker():
+                try:
+                    uploads_service.download_file(BUCKET, file_path, local_path)
+                    return None  # sucesso
+                except Exception as e:
+                    return e  # erro
+
+            def _on_download_complete(error):
+                # Reabilitar botão
+                btn_baixar.configure(state="normal")
+
+                if error is None:
+                    try:
+                        messagebox.showinfo("Sucesso", "Arquivo baixado!", parent=docs_window)
+                    except Exception:
+                        pass
+                else:
+                    try:
+                        messagebox.showerror("Erro", f"Falha ao baixar: {error}", parent=docs_window)
+                    except Exception:
+                        pass
+
+            # Executar download em thread de fundo
+            def _worker():
+                result = _download_worker()
+                _safe_after(0, lambda: _on_download_complete(result))
+
+            threading.Thread(target=_worker, daemon=True).start()
 
     # Baixar pasta como ZIP (com Cancelar)
     def on_zip_folder():

@@ -145,25 +145,76 @@ def _upload_batch(
     client_id: Optional[int] = None,
     org_id: Optional[str] = None,
 ) -> Tuple[int, List[Tuple[UploadItem, Exception]]]:
+    """
+    Upload batch with threading support.
+
+    PERF-002: Movido I/O de rede para thread background para evitar
+    travamento da GUI durante uploads. A janela de progresso é atualizada
+    via widget.after() chamado da thread de I/O.
+    """
+    import threading
+    import queue
+
     progress = UploadProgressDialog(parent, len(items))
+    result_queue: queue.Queue = queue.Queue()
+
+    def _safe_after(delay: int, callback):
+        """Schedule callback on main thread safely."""
+        try:
+            progress.after(delay, callback)
+        except Exception as e:
+            log.debug("Failed to schedule callback: %s", e)
 
     def _progress(item: UploadItem) -> None:
         label = Path(item.relative_path).name
-        progress.advance(f"Enviando {label}")
+        # Atualiza progresso via main thread
+        _safe_after(0, lambda: progress.advance(f"Enviando {label}"))
 
-    ok, failures = uploads_service.upload_items_for_client(
-        items,
-        cnpj_digits=cnpj_digits,
-        bucket=bucket or CLIENTS_BUCKET,
-        supabase_client=getattr(app, "supabase", None),
-        subfolder=subfolder,
-        progress_callback=_progress,
-        client_id=client_id,
-        org_id=org_id,
-    )
+    def _upload_worker():
+        """Execute upload em thread background."""
+        try:
+            ok, failures = uploads_service.upload_items_for_client(
+                items,
+                cnpj_digits=cnpj_digits,
+                bucket=bucket or CLIENTS_BUCKET,
+                supabase_client=getattr(app, "supabase", None),
+                subfolder=subfolder,
+                progress_callback=_progress,
+                client_id=client_id,
+                org_id=org_id,
+            )
+            result_queue.put(("success", ok, failures))
+        except Exception as exc:
+            log.error("Upload batch error: %s", exc, exc_info=True)
+            result_queue.put(("error", exc))
 
-    progress.close()
-    return ok, failures
+    # Inicia upload em background thread
+    worker = threading.Thread(target=_upload_worker, daemon=True)
+    worker.start()
+
+    # Aguarda resultado bloqueando apenas esta janela, não a GUI principal
+    # A janela de progresso continua processando eventos via update_idletasks
+    while worker.is_alive():
+        try:
+            progress.update_idletasks()
+            progress.update()
+        except Exception:
+            pass
+        worker.join(timeout=0.05)
+
+    # Recupera resultado
+    try:
+        result = result_queue.get_nowait()
+        progress.close()
+
+        if result[0] == "success":
+            return result[1], result[2]
+        else:
+            # Se houve erro, relança
+            raise result[1]
+    except queue.Empty:
+        progress.close()
+        raise RuntimeError("Upload thread finished without result")
 
 
 def upload_files_to_supabase(

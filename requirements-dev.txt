@@ -1,0 +1,116 @@
+# ============================================================================
+# DEPENDÊNCIAS DE DESENVOLVIMENTO - RC Gestor v1.2.31
+# ============================================================================
+# Este arquivo contém todas as ferramentas necessárias para desenvolvimento,
+# testes, build e CI/CD. Para instalação:
+#
+#   pip install -r requirements-dev.txt
+#
+# Este arquivo herda automaticamente todas as dependências de produção.
+# ============================================================================
+
+# Herdar todas as dependências de produção
+-r requirements.txt
+
+# ============================================================================
+# TESTING
+# ============================================================================
+pytest==8.4.2             # Framework de testes
+pytest-cov==7.0.0         # Cobertura de testes
+coverage==7.10.7          # Relatórios de cobertura
+
+# ============================================================================
+# CODE QUALITY & LINTING
+# ============================================================================
+ruff==0.14.0              # Linter rápido (substitui flake8/isort)
+black==25.9.0             # Formatador de código
+mypy==1.18.2              # Type checker
+mypy_extensions==1.1.0    # Extensões para mypy
+bandit==1.8.6             # Security linter
+vulture==2.14             # Dead code finder
+deptry==0.23.1            # Dependency checker
+import-linter==2.5.2      # Import rules enforcer
+
+# ============================================================================
+# SECURITY AUDIT
+# ============================================================================
+pip_audit==2.9.0          # CVE scanner
+cyclonedx-python-lib==9.1.0  # SBOM generation (transitive)
+license-expression==30.4.4   # License parsing (transitive)
+packageurl-python==0.17.5    # Package URL (transitive)
+py-serializable==2.1.0       # Serialization (transitive)
+defusedxml==0.7.1            # XML parsing (transitive)
+sortedcontainers==2.4.0      # Data structures (transitive)
+
+# ============================================================================
+# DEPENDENCY MANAGEMENT
+# ============================================================================
+pip-tools==7.5.1          # pip-compile/pip-sync
+pipdeptree==2.29.0        # Visualização de árvore de deps
+pip-api==0.0.34           # API programática do pip
+pip-requirements-parser==32.0.1  # Parser de requirements
+requirements-parser==0.13.0      # Parser alternativo
+
+# ============================================================================
+# BUILD & PACKAGING
+# ============================================================================
+pyinstaller==6.16.0       # Empacotador de executáveis
+pyinstaller-hooks-contrib==2025.9  # Hooks para libs populares
+build==1.3.0              # Build backend PEP 517
+wheel==0.45.1             # Wheel packaging
+setuptools==80.9.0        # Setup tools (legacy)
+pefile==2023.2.7          # PE file parser (Windows)
+altgraph==0.17.4          # Graph data structure (PyInstaller)
+pywin32-ctypes==0.2.3     # Windows API (PyInstaller)
+
+# ============================================================================
+# PRE-COMMIT & VCS HOOKS
+# ============================================================================
+pre_commit==4.3.0         # Framework de pre-commit hooks
+cfgv==3.4.0               # Config validation
+identify==2.6.15          # File identification
+nodeenv==1.9.1            # Node.js env (para hooks JS)
+virtualenv==20.35.3       # Virtualenv management
+filelock==3.20.0          # File locking
+
+# ============================================================================
+# DOCUMENTATION & ANALYSIS
+# ============================================================================
+graphviz==0.21            # Geração de grafos
+pydeps==3.0.1             # Visualização de deps Python
+grimp==3.12               # Import graph analysis
+libcst==1.8.5             # Concrete Syntax Tree (refactoring)
+annotated-doc==0.0.3      # Doc annotations
+boolean.py==5.0           # Boolean algebra
+pyparsing==3.2.5          # Parser combinators
+pytokens==0.2.0           # Token utilities
+Pygments==2.19.2          # Syntax highlighting
+markdown-it-py==4.0.0     # Markdown parser
+mdurl==0.1.2              # Markdown URL utilities
+MarkupSafe==3.0.3         # Safe string markup
+
+# ============================================================================
+# API DEVELOPMENT (Supabase Edge Functions local testing)
+# ============================================================================
+fastapi==0.121.1          # Framework API (se usado em dev)
+uvicorn==0.30.6           # ASGI server
+starlette==0.49.3         # ASGI framework (transitive)
+
+# ============================================================================
+# AUXILIARY LIBRARIES
+# ============================================================================
+toml==0.10.2              # TOML parser
+Mako==1.3.10              # Template engine (alembic)
+deprecation==2.1.0        # Deprecation warnings
+stdlib-list==0.11.1       # List of stdlib modules
+stevedore==5.5.0          # Plugin loader
+StrEnum==0.4.15           # String enums backport
+CacheControl==0.14.3      # HTTP caching
+msgpack==1.1.2            # MessagePack serialization
+multidict==6.7.0          # Multi-value dict
+propcache==0.4.1          # Property caching
+yarl==1.22.0              # URL parsing
+distlib==0.4.0            # Distribution utilities
+pathspec==0.12.1          # Path matching (gitignore)
+pluggy==1.6.0             # Plugin system (pytest)
+pyproject_hooks==1.2.0    # PEP 517 hooks
