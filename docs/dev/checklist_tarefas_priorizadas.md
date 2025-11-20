@@ -146,12 +146,34 @@
     - ✅ **Pre-commit:** All hooks passed
     - 📊 **Impacto:** GUI nunca congela durante uploads/downloads de qualquer tamanho
 
-- [ ] **PERF-003: Implementar lazy loading em listas grandes**
+- [x] **PERF-003: Implementar lazy loading em listas grandes** ✅ **CONCLUÍDO**
   - **Área:** `src/ui/files_browser.py`, Treeviews
   - **Descrição:** Virtual scrolling ou paginação para > 1000 itens
   - **Benefício:** Performance em listagens grandes
   - **Esforço:** 8-12h
   - **Automável:** Manual (complexo)
+  - **Resultado:**
+    - ✅ **Estratégia implementada:** Paginação incremental por blocos de 200 itens
+    - ✅ **Estrutura de controle criada:**
+      - Atributos: `_children_all`, `_children_page_size` (200), `_children_offset`
+      - Método `_insert_children_page()`: insere próxima página de itens
+      - Método `_load_next_page()`: carrega mais itens via botão
+      - Método `_update_load_more_button_state()`: controla visibilidade/estado do botão
+    - ✅ **Modificação em `_populate_tree_async()`:**
+      - Lista completa guardada em `_children_all` após fetch assíncrono
+      - Apenas primeira página inserida automaticamente
+      - Resto carregado sob demanda via botão "Carregar mais"
+    - ✅ **UI:** Botão "Carregar mais arquivos" adicionado ao footer (lado esquerdo)
+      - Aparece apenas para listagem raiz (não em subpastas)
+      - Desabilitado automaticamente quando não há mais itens
+    - ✅ **Compatibilidade com threading preservada:**
+      - Fetch assíncrono continua via ThreadPoolExecutor (FUNC-001)
+      - Inserção na Treeview sempre no thread principal (via `after()`)
+    - ✅ **Arquivos modificados:** `src/ui/files_browser.py`
+    - ✅ **Testes:** 327 passed, 1 skipped (0 regressões)
+    - ✅ **Cobertura:** 26.81% (≥25%)
+    - ✅ **Pre-commit:** All hooks passed
+    - 📊 **Impacto:** Pastas com >1000 arquivos não travam mais a GUI; carregamento progressivo sob demanda
 
 ### Dependências
 

@@ -161,6 +161,12 @@ def open_files_browser(
     docs_window._zip_cancel_evt = threading.Event()  # type: ignore[attr-defined]
     docs_window._folder_status = dict(status_cache) if enable_status_column else {}  # type: ignore[attr-defined]
     docs_window._preview_in_progress = False  # type: ignore[attr-defined]
+    # Atributos para paginação de listagem
+    docs_window._children_all = []  # type: ignore[attr-defined]
+    docs_window._children_page_size = 200  # type: ignore[attr-defined]
+    docs_window._children_offset = 0  # type: ignore[attr-defined]
+    docs_window._current_parent_iid = ""  # type: ignore[attr-defined]
+    docs_window._current_parent_prefix = ""  # type: ignore[attr-defined]
 
     # Helpers
     def _center_on_parent(
@@ -632,8 +638,18 @@ def open_files_browser(
         except Exception:
             pass
 
+    # Botão "Carregar mais" (lado esquerdo)
+    btn_load_more = ttk.Button(
+        footer,
+        text="Carregar mais arquivos",
+        command=lambda: _load_next_page(),  # type: ignore[name-defined]
+        state="disabled",
+    )
+    btn_load_more.grid(row=0, column=0, sticky="w")
+    setattr(docs_window, "btn_load_more", btn_load_more)
+
     btn_close = ttk.Button(footer, text="Fechar", command=_on_close)
-    btn_close.pack(side="right")
+    btn_close.grid(row=0, column=1, sticky="e")
     docs_window.bind("<Escape>", lambda e: _on_close())
     docs_window.protocol("WM_DELETE_WINDOW", _on_close)
     docs_window.destroy = _on_close  # type: ignore[assignment]
@@ -842,7 +858,7 @@ def open_files_browser(
         Versão assíncrona de populate_tree() para evitar travamento da GUI.
 
         Carrega a listagem de arquivos em thread de fundo e atualiza a UI
-        no thread principal via after().
+        no thread principal via after(). Usa paginação para listas grandes.
         """
         target_parent = parent_item or ""
         _clear_children(target_parent)
@@ -886,9 +902,16 @@ def open_files_browser(
                         return
                     _set_actions_normal_state()
 
-                parent_full_prefix = _resolve_full_prefix(rel_prefix)
-                inserted = _insert_children(target_parent, data, parent_full_prefix)
-                if target_parent and inserted == 0:
+                # Guardar lista completa e resetar offset para paginação
+                docs_window._children_all = data  # type: ignore[attr-defined]
+                docs_window._children_offset = 0  # type: ignore[attr-defined]
+                docs_window._current_parent_iid = target_parent  # type: ignore[attr-defined]
+                docs_window._current_parent_prefix = _resolve_full_prefix(rel_prefix)  # type: ignore[attr-defined]
+
+                # Inserir primeira página
+                _insert_children_page()  # type: ignore[name-defined]
+
+                if target_parent and len(data) == 0:
                     info_values = ["Info"] + [""] * (len(tree["columns"]) - 1)
                     tree.insert(
                         target_parent,
@@ -905,6 +928,88 @@ def open_files_browser(
                 pass
 
         _executor.submit(work)
+
+    def _insert_children_page() -> None:
+        """
+        Insere próxima página de arquivos/pastas na Treeview.
+        Usa os atributos _children_all, _children_offset, _children_page_size.
+        """
+        all_children = docs_window._children_all  # type: ignore[attr-defined]
+        offset = docs_window._children_offset  # type: ignore[attr-defined]
+        page_size = docs_window._children_page_size  # type: ignore[attr-defined]
+        parent_iid = docs_window._current_parent_iid  # type: ignore[attr-defined]
+        parent_full_prefix = docs_window._current_parent_prefix  # type: ignore[attr-defined]
+
+        start = offset
+        end = min(start + page_size, len(all_children))
+        page = all_children[start:end]
+
+        # Inserir itens da página atual
+        for entry in page:
+            name = entry.get("name", "").strip()
+            if not name:
+                continue
+            is_folder = bool(entry.get("is_folder"))
+            size_bytes = entry.get("size") if not is_folder else None
+            values = ("Pasta" if is_folder else "Arquivo", _format_size(size_bytes))
+            full_path = "/".join(part for part in (parent_full_prefix, name) if part).strip("/")
+            item_id = _insert_row(parent_iid, name, values, full_path, is_folder)
+            if is_folder:
+                blank_values = [""] * len(tree["columns"])
+                tree.insert(
+                    item_id,
+                    "end",
+                    text="",
+                    values=blank_values,
+                    open=False,
+                    tags=(PLACEHOLDER_TAG,),
+                )
+
+        # Atualizar offset
+        docs_window._children_offset = end  # type: ignore[attr-defined]
+
+        # Atualizar estado do botão "Carregar mais"
+        _update_load_more_button_state()  # type: ignore[name-defined]
+
+    def _load_next_page() -> None:
+        """
+        Carrega e insere a próxima página de itens na Treeview.
+        Chamado pelo botão "Carregar mais".
+        """
+        _insert_children_page()
+
+    def _update_load_more_button_state() -> None:
+        """
+        Habilita/desabilita o botão "Carregar mais" dependendo se há mais itens.
+        """
+        btn_load_more = getattr(docs_window, "btn_load_more", None)
+        if btn_load_more is None:
+            return
+
+        all_children = docs_window._children_all  # type: ignore[attr-defined]
+        offset = docs_window._children_offset  # type: ignore[attr-defined]
+        parent_iid = docs_window._current_parent_iid  # type: ignore[attr-defined]
+
+        # Só mostrar botão para listagem raiz (parent_iid == "")
+        if parent_iid != "":
+            try:
+                btn_load_more.grid_remove()
+            except Exception:
+                pass
+            return
+
+        # Habilitar/desabilitar conforme há mais itens
+        if offset >= len(all_children):
+            try:
+                btn_load_more.configure(state="disabled")
+            except Exception:
+                pass
+        else:
+            try:
+                btn_load_more.configure(state="normal")
+                btn_load_more.grid()
+            except Exception:
+                pass
 
     def _populate_children_async(parent_iid: str, rel_prefix: str) -> None:
         if not tree.exists(parent_iid):
