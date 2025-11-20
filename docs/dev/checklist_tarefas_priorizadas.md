@@ -115,16 +115,23 @@
 
 ### Dependências
 
-- [ ] **DEP-001: Remover dependências duplicadas**
+- [x] **DEP-001: Remover dependências duplicadas** ✅ **CONCLUÍDO**
   - **Área:** `requirements.txt`
   - **Descrição:** Investigar e remover:
-    - `pypdf` + `PyPDF2` (duplicação)
-    - `requests` (httpx já cobre)
-    - `py7zr` (já removido segundo CHANGELOG?)
+    - ~~`pypdf` + `PyPDF2` (duplicação)~~ → **PyPDF2 já removido (Sprint P1)**
+    - ~~`requests` (httpx já cobre)~~ → **requests já removido (Sprint P1)**
+    - ~~`py7zr` (já removido segundo CHANGELOG?)~~ → **py7zr USADO (infra/archive_utils.py)**
+    - `rarfile` → **REMOVIDO** (usa 7-Zip CLI, não biblioteca)
   - **Ação:** `pipdeptree` para análise, remover não usados
   - **Benefício:** Redução de 10-20MB no executável
   - **Esforço:** 2-4h
   - **Automável:** Parcial (detecção com `deptry`)
+  - **Resultado:**
+    - ✅ **Removido:** `rarfile>=4.2` (não usado - extração .rar via 7-Zip CLI)
+    - ✅ **Verificado:** `pypdf`, `py7zr` estão em uso ativo
+    - ✅ **Histórico:** `PyPDF2`, `requests`, `pdfminer.six` já removidos (Sprint P1-SEG/DEP)
+    - ✅ **Testes:** 215/215 passando (incluindo 49 testes de archive)
+    - 📊 **Impacto:** -1 dependência direta (~3-5MB de redução)
 
 - [x] **DEP-002: Separar requirements dev/prod** ✅ **CONCLUÍDO**
   - **Área:** `requirements.txt` → `requirements-dev.txt`

@@ -66,7 +66,7 @@ pytesseract==0.3.13       # OCR para PDFs escaneados
 pillow==10.4.0            # Manipulação de imagens
 
 # Arquivos Compactados
-rarfile>=4.2              # Suporte a RAR
+# rarfile>=4.2            # ❌ REMOVIDO: Não usado (usa 7-Zip CLI para .rar via subprocess)
 py7zr>=1.0.0              # Suporte a 7z
 
 # ============================================================================
@@ -108,3 +108,4 @@ platformdirs==4.5.0       # Diretórios específicos de plataforma
 # pdfminer.six==20251107  # ❌ REMOVIDO: CVE GHSA-f83h-ghpp-7wcc (CVSS 7.8 HIGH)
 # PyPDF2==3.0.1           # ❌ REMOVIDO: Duplicado com pypdf (fork moderno)
 # requests==2.32.5        # ❌ REMOVIDO: Duplicado com httpx (superior, async, HTTP/2)
+# rarfile>=4.2            # ❌ REMOVIDO: Não usado (extração .rar usa 7-Zip CLI, não biblioteca)
