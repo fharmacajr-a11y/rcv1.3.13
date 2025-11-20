@@ -281,9 +281,17 @@ pyproject_hooks==1.2.0    # PEP 517 hooks
 
 ### Fase 1: Criação de requirements-dev.txt (Esta Sprint)
 
+**✅ CONCLUÍDO em 20/11/2025**
+
+O arquivo `requirements-dev.txt` foi criado na raiz do projeto, contendo todas as ferramentas de desenvolvimento, testes, build e CI/CD, enquanto `requirements.txt` foi ajustado para conter apenas as dependências de produção (runtime).
+
+**Próximos Passos:**
+- Migração dos workflows de CI/CD para utilizar `requirements-dev.txt` (DEP-002 Fase 2)
+- Atualização de `INSTALACAO.md` e documentação de contribuição
+
 ```bash
 # 1. Criar requirements-dev.txt com estrutura acima
-touch requirements-dev.txt
+touch requirements-dev.txt  # ✅ FEITO
 
 # 2. Instalar ambiente de dev
 pip install -r requirements-dev.txt
@@ -437,14 +445,14 @@ pytest -v
 ### Sprint Atual (P1-SEG/DEP)
 
 - [x] Documentar estratégia (este arquivo)
-- [ ] Criar `requirements-dev.txt` inicial
-- [ ] Atualizar `.gitignore` para arquivos gerados
-- [ ] Documentar em `CONTRIBUTING.md`
+- [x] Criar `requirements-dev.txt` inicial
+- [x] Atualizar `.gitignore` para arquivos gerados (audit-report.json/md)
+- [x] Atualizar CI/CD para usar requirements-dev.txt (workflows ci.yml, security-audit.yml)
+- [x] Documentar em `CONTRIBUTING.md` (seções "Setup de ambiente" e "Separação de dependências" criadas)
 
 ### Sprint Futura (DEP-002)
 
-- [ ] Separar completamente prod/dev
-- [ ] Atualizar CI/CD para usar arquivos corretos
+- [x] Separar completamente prod/dev
 - [ ] Migrar documentação (README, INSTALACAO)
 - [ ] Automatizar validação de requirements no pre-commit
 

@@ -126,12 +126,22 @@
   - **Esforço:** 2-4h
   - **Automável:** Parcial (detecção com `deptry`)
 
-- [ ] **DEP-002: Separar requirements dev/prod**
+- [x] **DEP-002: Separar requirements dev/prod** ✅ **CONCLUÍDO**
   - **Área:** `requirements.txt` → `requirements-dev.txt`
   - **Descrição:** Mover pytest, mypy, ruff, etc. para requirements-dev
   - **Benefício:** Build de produção mais leve
   - **Esforço:** 1-2h
   - **Automável:** Manual
+  - **Resultado:**
+    - ✅ **Fase 1:** `requirements-dev.txt` criado (117 linhas) e `requirements.txt` limpo (111 linhas - apenas deps de produção)
+    - ✅ **Fase 2:** Workflows CI/CD atualizados:
+      * `.github/workflows/ci.yml`: jobs test/build agora usam `requirements-dev.txt`
+      * `.github/workflows/security-audit.yml`: pip-audit agora escaneia `requirements-dev.txt`
+      * `.github/workflows/release.yml`: mantém `requirements.txt` (build de produção)
+    - ✅ Validação: 215/215 testes passando
+    - ✅ Documentação atualizada: `docs/dev/requirements_strategy.md`
+    - ✅ `CONTRIBUTING.md` criado com seções de setup e estratégia de dependências
+    - ⏳ Pendente: Atualizar `INSTALACAO.md` (documentação de instalação para usuário final)
 
 - [ ] **DEP-003: Atualizar dependências críticas**
   - **Área:** `requirements.txt`
