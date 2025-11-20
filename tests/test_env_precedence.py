@@ -82,14 +82,23 @@ def test_env_local_overwrites_existing(tmp_path, monkeypatch):
     assert os.getenv("PREEXISTING") == "from_local"
 
 
-def test_env_loading_order_matches_app(tmp_path, monkeypatch):
-    """Test that the loading order matches what's documented in app_gui.py."""
+def test_env_loading_order_matches_app(tmp_path, monkeypatch, fake_supabase_url):
+    """
+    Test that the loading order matches what's documented in app_gui.py.
+    
+    Args:
+        tmp_path: Pytest fixture for temporary directory
+        monkeypatch: Pytest fixture for environment patching
+        fake_supabase_url: Fixture com URL fake do Supabase para testes
+    
+    ⚠️ SEGURANÇA: Usa fake_supabase_url do conftest.py ao invés de hardcoded URL
+    """
     # Simulate the exact loading pattern from src/app_gui.py
     bundled = tmp_path / "bundled.env"
-    bundled.write_text("RC_LOG_LEVEL=INFO\nSUPABASE_URL=bundled_url\n")
+    bundled.write_text(f"RC_LOG_LEVEL=INFO\nSUPABASE_URL={fake_supabase_url}\n")
 
     local = tmp_path / "local.env"
-    local.write_text("SUPABASE_URL=local_url\n")
+    local.write_text(f"SUPABASE_URL={fake_supabase_url}-local-override\n")
 
     monkeypatch.delenv("RC_LOG_LEVEL", raising=False)
     monkeypatch.delenv("SUPABASE_URL", raising=False)
@@ -104,4 +113,5 @@ def test_env_loading_order_matches_app(tmp_path, monkeypatch):
     load_dotenv(str(local), override=True)  # externo sobrescreve
 
     assert os.getenv("RC_LOG_LEVEL") == "INFO", "Bundled-only should work"
-    assert os.getenv("SUPABASE_URL") == "local_url", "Local should overwrite"
+    assert os.getenv("SUPABASE_URL") == f"{fake_supabase_url}-local-override", "Local should overwrite"
+

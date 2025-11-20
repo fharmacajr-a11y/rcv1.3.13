@@ -1,5 +1,8 @@
 """
 Testes para o fallback de health check quando RPC ping retorna 404.
+
+⚠️ SEGURANÇA: Este arquivo usa fixtures centralizadas do conftest.py
+para evitar hardcoding de URLs/chaves do Supabase nos testes.
 """
 
 from unittest.mock import MagicMock, patch
@@ -16,9 +19,12 @@ class MockResponse:
         return self._json_data
 
 
-def test_health_fallback_on_rpc_404():
+def test_health_fallback_on_rpc_404(fake_supabase_url):
     """
     Testa que quando RPC ping retorna 404, o sistema faz fallback para /auth/v1/health.
+    
+    Args:
+        fake_supabase_url: Fixture com URL fake do Supabase para testes
     """
     from infra.supabase.db_client import _health_check_once
 
@@ -31,7 +37,7 @@ def test_health_fallback_on_rpc_404():
     # Simular RPC ping retornando 404 e /auth/v1/health retornando 200
     with patch("infra.supabase.db_client.exec_postgrest", side_effect=Exception("404 Not Found")):
         with patch("httpx.get", return_value=mock_health_response) as mock_httpx_get:
-            with patch.dict("os.environ", {"SUPABASE_URL": "https://test.supabase.co"}):
+            with patch.dict("os.environ", {"SUPABASE_URL": fake_supabase_url}):
                 # Executar health check
                 result = _health_check_once(mock_client)
 
@@ -39,13 +45,16 @@ def test_health_fallback_on_rpc_404():
     assert result is True, "Health check deveria retornar True com fallback bem-sucedido"
 
     # Verificar que httpx.get foi chamado com URL correta
-    mock_httpx_get.assert_called_once_with("https://test.supabase.co/auth/v1/health", timeout=10.0)
+    mock_httpx_get.assert_called_once_with(f"{fake_supabase_url}/auth/v1/health", timeout=10.0)
 
 
-def test_health_fallback_continues_on_auth_failure():
+def test_health_fallback_continues_on_auth_failure(fake_supabase_url):
     """
     Testa que quando RPC ping retorna 404 e /auth/v1/health também falha,
     o health check prossegue para o próximo fallback (tabela).
+    
+    Args:
+        fake_supabase_url: Fixture com URL fake do Supabase para testes
     """
     from infra.supabase.db_client import _health_check_once
 
@@ -61,7 +70,7 @@ def test_health_fallback_continues_on_auth_failure():
         ]
 
         with patch("httpx.get", side_effect=Exception("Connection timeout")):
-            with patch.dict("os.environ", {"SUPABASE_URL": "https://test.supabase.co"}):
+            with patch.dict("os.environ", {"SUPABASE_URL": fake_supabase_url}):
                 # Simular estrutura de tabela
                 mock_table = MagicMock()
                 mock_select = MagicMock()
@@ -77,9 +86,12 @@ def test_health_fallback_continues_on_auth_failure():
     assert mock_client.table.called
 
 
-def test_health_rpc_non_404_error_skips_auth_fallback():
+def test_health_rpc_non_404_error_skips_auth_fallback(fake_supabase_url):
     """
     Testa que erros de RPC diferentes de 404 não acionam o fallback /auth/v1/health.
+    
+    Args:
+        fake_supabase_url: Fixture com URL fake do Supabase para testes
     """
     from infra.supabase.db_client import _health_check_once
 
@@ -93,7 +105,7 @@ def test_health_rpc_non_404_error_skips_auth_fallback():
         ]
 
         with patch("httpx.get") as mock_httpx_get:
-            with patch.dict("os.environ", {"SUPABASE_URL": "https://test.supabase.co"}):
+            with patch.dict("os.environ", {"SUPABASE_URL": fake_supabase_url}):
                 # Simular estrutura de tabela
                 mock_table = MagicMock()
                 mock_select = MagicMock()
@@ -109,9 +121,12 @@ def test_health_rpc_non_404_error_skips_auth_fallback():
     mock_httpx_get.assert_not_called()
 
 
-def test_health_auth_fallback_requires_valid_response():
+def test_health_auth_fallback_requires_valid_response(fake_supabase_url):
     """
     Testa que /auth/v1/health com resposta inválida não considera online via esse caminho.
+    
+    Args:
+        fake_supabase_url: Fixture com URL fake do Supabase para testes
     """
     from infra.supabase.db_client import _health_check_once
 
@@ -128,7 +143,7 @@ def test_health_auth_fallback_requires_valid_response():
         mock_exec.side_effect = [Exception("404 Not Found"), MagicMock()]
 
         with patch("httpx.get", return_value=mock_invalid_response):
-            with patch.dict("os.environ", {"SUPABASE_URL": "https://test.supabase.co"}):
+            with patch.dict("os.environ", {"SUPABASE_URL": fake_supabase_url}):
                 # Simular estrutura de tabela
                 mock_table = MagicMock()
                 mock_select = MagicMock()
@@ -144,9 +159,12 @@ def test_health_auth_fallback_requires_valid_response():
     assert mock_client.table.called
 
 
-def test_health_auth_fallback_on_401_unauthorized():
+def test_health_auth_fallback_on_401_unauthorized(fake_supabase_url):
     """
     Testa que HTTP 401 (Unauthorized) no /auth/v1/health prossegue para fallback de tabela.
+    
+    Args:
+        fake_supabase_url: Fixture com URL fake do Supabase para testes
     """
     from infra.supabase.db_client import _health_check_once
 
@@ -160,7 +178,7 @@ def test_health_auth_fallback_on_401_unauthorized():
         mock_exec.side_effect = [Exception("404 Not Found"), MagicMock()]
 
         with patch("httpx.get", return_value=mock_unauthorized_response):
-            with patch.dict("os.environ", {"SUPABASE_URL": "https://test.supabase.co"}):
+            with patch.dict("os.environ", {"SUPABASE_URL": fake_supabase_url}):
                 # Simular estrutura de tabela
                 mock_table = MagicMock()
                 mock_select = MagicMock()
@@ -176,9 +194,12 @@ def test_health_auth_fallback_on_401_unauthorized():
     assert mock_client.table.called
 
 
-def test_health_auth_fallback_on_403_forbidden():
+def test_health_auth_fallback_on_403_forbidden(fake_supabase_url):
     """
     Testa que HTTP 403 (Forbidden) no /auth/v1/health prossegue para fallback de tabela.
+    
+    Args:
+        fake_supabase_url: Fixture com URL fake do Supabase para testes
     """
     from infra.supabase.db_client import _health_check_once
 
@@ -192,7 +213,7 @@ def test_health_auth_fallback_on_403_forbidden():
         mock_exec.side_effect = [Exception("404 Not Found"), MagicMock()]
 
         with patch("httpx.get", return_value=mock_forbidden_response):
-            with patch.dict("os.environ", {"SUPABASE_URL": "https://test.supabase.co"}):
+            with patch.dict("os.environ", {"SUPABASE_URL": fake_supabase_url}):
                 # Simular estrutura de tabela
                 mock_table = MagicMock()
                 mock_select = MagicMock()
@@ -208,9 +229,12 @@ def test_health_auth_fallback_on_403_forbidden():
     assert mock_client.table.called
 
 
-def test_health_auth_fallback_on_timeout():
+def test_health_auth_fallback_on_timeout(fake_supabase_url):
     """
     Testa que timeout no /auth/v1/health prossegue para fallback de tabela.
+    
+    Args:
+        fake_supabase_url: Fixture com URL fake do Supabase para testes
     """
     from infra.supabase.db_client import _health_check_once
     import httpx
@@ -223,7 +247,7 @@ def test_health_auth_fallback_on_timeout():
 
         # Simular timeout do httpx.get
         with patch("httpx.get", side_effect=httpx.TimeoutException("Request timed out")):
-            with patch.dict("os.environ", {"SUPABASE_URL": "https://test.supabase.co"}):
+            with patch.dict("os.environ", {"SUPABASE_URL": fake_supabase_url}):
                 # Simular estrutura de tabela
                 mock_table = MagicMock()
                 mock_select = MagicMock()
