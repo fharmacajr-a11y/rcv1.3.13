@@ -6,7 +6,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 from typing import Any
 
-from src.core.services.upload_service import upload_folder_to_supabase
+from src.modules.uploads.service import upload_folder_to_supabase
 from src.utils.resource_path import resource_path
 from ui import center_on_parent
 

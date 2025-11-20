@@ -32,7 +32,7 @@
   - **Risco:** Exploits em bibliotecas desatualizadas
   - **Esforço:** 2-4h
   - **Automável:** Parcial (detecção sim, correção manual)
-  - **Resultado:** 
+  - **Resultado:**
     - ✅ 128 pacotes auditados
     - ⚠️ 1 CVE identificado: `pdfminer-six` GHSA-f83h-ghpp-7wcc (CVSS 7.8 HIGH)
     - ✅ Pacotes críticos limpos: `cryptography`, `pillow`, `httpx`, `certifi`, `bcrypt`, `pyjwt`
@@ -177,13 +177,33 @@
   - **Esforço:** 6-10h (pode ser feito incrementalmente)
   - **Automável:** Parcial (detecção automática, adição manual)
 
-- [ ] **QA-004: Configurar pre-commit hooks**
+- [x] **QA-004: Configurar pre-commit hooks**
   - **Área:** Criar `.pre-commit-config.yaml`
   - **Descrição:** Automatizar ruff, trailing whitespace, etc.
   - **Hooks sugeridos:** ruff, ruff-format, end-of-file-fixer
   - **Benefício:** Qualidade consistente antes de commit
   - **Esforço:** 1h
   - **Automável:** Sim
+  - **Resultado:**
+    - ✅ `.pre-commit-config.yaml` criado com hooks básicos:
+      - `trailing-whitespace` (remoção de espaços em branco no final das linhas)
+      - `end-of-file-fixer` (garantir nova linha no final dos arquivos)
+      - `check-added-large-files` (limitar arquivos grandes a 500KB)
+      - `check-yaml/toml/json` (validar sintaxe de configs)
+      - `check-merge-conflict` (detectar marcadores de merge)
+      - `mixed-line-ending` (normalizar line endings para LF)
+      - `ruff` (linter Python com auto-fix)
+      - `ruff-format` (formatador Python)
+      - `check-ast/builtin-literals/docstring-first/debug-statements` (validações Python)
+    - ✅ `pre-commit install` executado com sucesso (hooks instalados em `.git/hooks/pre-commit`)
+    - ✅ `pre-commit run --all-files` executado: correções automáticas aplicadas em ~200 arquivos
+      - Trailing whitespace: 17 arquivos corrigidos
+      - End-of-file-fixer: 13 arquivos corrigidos
+      - Mixed line endings: 182 arquivos normalizados para LF
+      - Ruff format: 43 arquivos reformatados
+    - ✅ Segunda execução passou sem erros (todos os hooks verdes)
+    - ✅ Commits futuros passam pelo pre-commit automaticamente (sem necessidade de `--no-verify`)
+    - ✅ `CONTRIBUTING.md` atualizado com instruções de instalação e uso do pre-commit
 
 ### Testes
 
@@ -256,7 +276,7 @@
 
 - [ ] **BUILD-001: Otimizar tamanho do executável**
   - **Área:** `rcgestor.spec`
-  - **Descrição:** 
+  - **Descrição:**
     - Usar `--exclude-module` para pacotes não usados
     - Verificar binários desnecessários
     - Considerar compressão adicional

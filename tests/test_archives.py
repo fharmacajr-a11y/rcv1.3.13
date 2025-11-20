@@ -111,26 +111,16 @@ class TestRarExtraction:
         """
         Testa extração de RAR SE 7-Zip estiver disponível.
 
-        Nota: Este teste requer um arquivo RAR de teste.
+        Nota: Este teste valida comportamento com arquivo inexistente.
         Como não podemos criar RAR programaticamente sem ferramentas externas,
-        este teste é apenas um placeholder.
+        validamos apenas o tratamento de erro.
         """
-        # Para testar RAR de verdade, você precisaria:
-        # 1. Ter um arquivo .rar de teste
-        # 2. Colocá-lo em tests/fixtures/test.rar
-        # 3. Descomente o código abaixo:
+        # Testar com arquivo inexistente
+        rar_path = tmp_path / "nonexistent.rar"
+        extract_dir = tmp_path / "extracted_rar"
 
-        # rar_path = Path(__file__).parent / "fixtures" / "test.rar"
-        # if not rar_path.exists():
-        #     pytest.skip("Arquivo RAR de teste não encontrado")
-        #
-        # extract_dir = tmp_path / "extracted_rar"
-        # result = extract_archive(rar_path, extract_dir)
-        #
-        # assert result == extract_dir
-        # assert len(list(extract_dir.rglob("*"))) > 0
-
-        pytest.skip("Teste de RAR requer arquivo de teste .rar pré-existente")
+        with pytest.raises(ArchiveError, match="Erro ao extrair RAR"):
+            extract_archive(rar_path, extract_dir)
 
     def test_extract_rar_without_7z(self, tmp_path: Path, monkeypatch) -> None:
         """Testa que RAR sem 7-Zip disponível levanta ArchiveError."""

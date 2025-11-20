@@ -25,6 +25,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Simplificado código de upload para manter apenas ZIP e RAR
   - Removido script `validate_7z_support.py`
 
+## [1.2.0] - 2025-11-17
+
+### Fixed
+- Corrigidos caracteres incorretos no browser de arquivos (mojibake como `â€¢`, `â–¼`, `âœ”`), normalizando títulos, cabeçalhos e ícones de status.
+- Ajustado o comportamento do browser para impedir múltiplas janelas abertas para o mesmo cliente, reutilizando a janela existente quando já estiver aberta.
+
+### Notes
+- Nenhuma alteração funcional adicional além dessas correções de UI.
+
 ## [1.0.99] - 2025-11-11
 
 ### Added
@@ -107,6 +116,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Supabase integration for backend storage
 - Tkinter GUI with ttkbootstrap themes
 
-[Unreleased]: https://github.com/fharmacajr-a11y/rcv1.3.13/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/fharmacajr-a11y/rcv1.3.13/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/fharmacajr-a11y/rcv1.3.13/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/fharmacajr-a11y/rcv1.3.13/compare/v1.0.99...v1.1.0
 [1.0.99]: https://github.com/fharmacajr-a11y/rcv1.3.13/releases/tag/v1.0.99

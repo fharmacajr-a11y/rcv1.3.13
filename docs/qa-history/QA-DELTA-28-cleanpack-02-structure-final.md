@@ -1,8 +1,8 @@
 # QA-DELTA-28: CleanPack-02 - Final Structure Cleanup
 
-**Data**: 2025-11-13  
-**Autor**: GitHub Copilot (Claude Sonnet 4.5)  
-**Tipo**: Quality Assurance - Project Structure & Hygiene  
+**Data**: 2025-11-13
+**Autor**: GitHub Copilot (Claude Sonnet 4.5)
+**Tipo**: Quality Assurance - Project Structure & Hygiene
 **Prioridade**: Manutenção
 
 ---
@@ -192,7 +192,7 @@ PS> python -m src.app_gui
  devtools/qa/*.txt
  devtools/qa/*.log
  !devtools/qa/README.md
- 
+
 +# Arquivos de árvore gerados localmente
 +tree_full.txt
 +tree_dirs_only.txt
@@ -311,8 +311,8 @@ pyright --stats
 
 ## 📌 Commit Info
 
-**Branch**: qa/fixpack-04  
-**Commit Hash**: (a ser preenchido)  
+**Branch**: qa/fixpack-04
+**Commit Hash**: (a ser preenchido)
 **Mensagem**:
 ```
 chore(qa): CleanPack-02 - Final structure cleanup

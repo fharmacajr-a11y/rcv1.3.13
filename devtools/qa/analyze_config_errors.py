@@ -1,4 +1,5 @@
 """Filter Pyright errors for config/settings/environment files and simple return types."""
+
 import json
 from pathlib import Path
 from typing import Any, Dict, List
@@ -17,10 +18,7 @@ def main():
 
     # Filter 1: Config/settings/environment/constants files
     config_keywords = ["settings", "config", "environment", "constants"]
-    config_errors = [
-        d for d in diagnostics
-        if any(kw in d.get("file", "").lower() for kw in config_keywords)
-    ]
+    config_errors = [d for d in diagnostics if any(kw in d.get("file", "").lower() for kw in config_keywords)]
 
     # Filter 2: Simple return type errors (bool, str, list, dict)
     return_keywords = [
@@ -33,7 +31,8 @@ def main():
         'return type "dict"',
     ]
     return_errors = [
-        d for d in diagnostics
+        d
+        for d in diagnostics
         if any(kw in d.get("message", "").lower() for kw in return_keywords)
         and "auth" not in d.get("file", "").lower()
         and "upload" not in d.get("file", "").lower()
@@ -49,10 +48,7 @@ def main():
     print(f"Simple return type errors (non-critical): {len(return_errors)}")
 
     # Combine and deduplicate
-    all_target_errors = {
-        (d["file"], d["range"]["start"]["line"]): d
-        for d in config_errors + return_errors
-    }
+    all_target_errors = {(d["file"], d["range"]["start"]["line"]): d for d in config_errors + return_errors}
 
     print(f"\nCombined unique target errors: {len(all_target_errors)}")
     print("\n=== TOP 10 TARGET ERRORS ===\n")

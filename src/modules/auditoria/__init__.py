@@ -1,7 +1,95 @@
-"""Módulo de Auditoria - Gestão de auditorias de clientes."""
+"""API publica do modulo de Auditoria.
+
+Disponibiliza os servicos de dominio (dados e storage), wrappers de arquivos
+e o frame principal usado pelo roteador do aplicativo."""
 
 from __future__ import annotations
 
-from .view import AuditoriaFrame
+from .service import (
+    ArchiveError,
+    AuditoriaArchivePlan,
+    AuditoriaDataService,
+    AuditoriaOfflineError,
+    AuditoriaServiceError,
+    AuditoriaStorageContext,
+    AuditoriaStorageService,
+    AuditoriaUploadContext,
+    AuditoriaUploadProgress,
+    AuditoriaUploadResult,
+    build_client_prefix,
+    cleanup_archive_plan,
+    delete_auditorias,
+    detect_duplicate_file_names,
+    ensure_auditoria_folder,
+    ensure_storage_ready,
+    execute_archive_upload,
+    extract_archive_to,
+    fetch_auditorias,
+    fetch_clients,
+    get_clients_bucket,
+    get_current_org_id,
+    get_storage_context,
+    get_supabase_client,
+    is_online,
+    is_supported_archive,
+    list_auditorias,
+    list_clients_minimal,
+    list_existing_file_names,
+    list_existing_names_for_context,
+    prepare_archive_plan,
+    prepare_upload_context,
+    remove_storage_objects,
+    reset_org_cache,
+    rollback_uploaded_paths,
+    start_auditoria,
+    update_auditoria_status,
+    upload_storage_bytes,
+)
+from .views.main_frame import AuditoriaFrame
 
-__all__ = ["AuditoriaFrame"]
+__all__ = [
+    "AuditoriaFrame",
+    # Servicos de dados
+    "fetch_clients",
+    "list_clients_minimal",
+    "fetch_auditorias",
+    "list_auditorias",
+    "start_auditoria",
+    "update_auditoria_status",
+    "delete_auditorias",
+    # Servicos auxiliares
+    "get_supabase_client",
+    "is_online",
+    "get_current_org_id",
+    "reset_org_cache",
+    # Storage
+    "get_clients_bucket",
+    "build_client_prefix",
+    "get_storage_context",
+    "ensure_auditoria_folder",
+    "list_existing_file_names",
+    "upload_storage_bytes",
+    "remove_storage_objects",
+    "ensure_storage_ready",
+    "prepare_upload_context",
+    "prepare_archive_plan",
+    "cleanup_archive_plan",
+    "list_existing_names_for_context",
+    "detect_duplicate_file_names",
+    "execute_archive_upload",
+    "rollback_uploaded_paths",
+    # Wrappers de arquivos
+    "extract_archive_to",
+    "is_supported_archive",
+    # Fachadas e tipos
+    "AuditoriaDataService",
+    "AuditoriaStorageService",
+    "AuditoriaStorageContext",
+    "AuditoriaUploadContext",
+    "AuditoriaArchivePlan",
+    "AuditoriaUploadProgress",
+    "AuditoriaUploadResult",
+    "ArchiveError",
+    "AuditoriaServiceError",
+    "AuditoriaOfflineError",
+]

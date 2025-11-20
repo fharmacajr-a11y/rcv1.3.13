@@ -911,7 +911,7 @@ from cryptography.fernet import Fernet
 
 def encrypt_text(plain: str) -> str:
     """Fernet symmetric encryption"""
-    
+
 def decrypt_text(token: str) -> str:
     """Fernet decryption"""
 ```
@@ -983,7 +983,7 @@ def decrypt_text(token: str) -> str:
 # src/modules/main_window/views/main_window.py
 def poll_health():
     # Health check síncrono - pode travar UI
-    
+
 # src/ui/files_browser.py
 def carregar_arquivos():
     # Listagem de arquivos - pode ser lento

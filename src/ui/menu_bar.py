@@ -38,27 +38,20 @@ class AppMenuBar(tk.Menu):
         master: tk.Misc,
         *,
         on_home: Optional[Callable[[], None]] = None,
-        on_open_subpastas: Optional[Callable[[], None]] = None,
-        on_open_lixeira: Optional[Callable[[], None]] = None,
-        on_upload: Optional[Callable[[], None]] = None,
+        on_refresh: Optional[Callable[[], None]] = None,
         on_quit: Optional[Callable[[], None]] = None,
         on_change_theme: Optional[Callable[[str], None]] = None,
     ) -> None:
         super().__init__(master, tearoff=False)
         self._on_home = on_home
-        self._on_open_subpastas = on_open_subpastas
-        self._on_open_lixeira = on_open_lixeira
-        self._on_upload = on_upload
+        self._on_refresh = on_refresh
         self._on_quit = on_quit
         self._on_change_theme = on_change_theme
 
         # Arquivo
         menu_arquivo = tk.Menu(self, tearoff=False)
-        menu_arquivo.add_command(label="Início", command=self._handle_home)
-        menu_arquivo.add_separator()
-        menu_arquivo.add_command(label="Subpastas", command=self._safe(self._on_open_subpastas))
-        menu_arquivo.add_command(label="Lixeira", command=self._safe(self._on_open_lixeira))
-        menu_arquivo.add_command(label="Enviar para Supabase", command=self._safe(self._on_upload))
+        menu_arquivo.add_command(label="Início", command=self._safe(self._on_home))
+        menu_arquivo.add_command(label="Atualizar", command=self._safe(self._on_refresh))
         menu_arquivo.add_separator()
         menu_arquivo.add_command(label="Sair", command=self._safe(self._on_quit))
         self.add_cascade(label="Arquivo", menu=menu_arquivo)
@@ -112,13 +105,6 @@ class AppMenuBar(tk.Menu):
                     pass
 
         return _wrap
-
-    def _handle_home(self) -> None:
-        if callable(self._on_home):
-            try:
-                self._on_home()
-            except Exception:
-                pass
 
     def _handle_change_theme(self, name: str) -> None:
         if callable(self._on_change_theme):

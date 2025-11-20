@@ -42,7 +42,7 @@ def read_pdf_text(path: str | Path) -> Optional[str]:
         txt = fn(p)
         if txt:
             return txt
-    
+
     return _ocr_pdf_with_pymupdf(p)       # 4️⃣ OCR fallback
 ```
 
@@ -277,31 +277,31 @@ jobs:
   pip-audit:
     name: Dependency Security Scan
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      
+
       - name: Install pip-audit
         run: |
           python -m pip install --upgrade pip
           pip install pip-audit
-      
+
       - name: Run security audit
         run: |
           pip-audit -r requirements.txt --format json --output audit-report.json || true
           pip-audit -r requirements.txt --format markdown --output audit-report.md || true
-      
+
       - name: Display results
         if: always()
         run: |
           echo "## Security Audit Results" >> $GITHUB_STEP_SUMMARY
           cat audit-report.md >> $GITHUB_STEP_SUMMARY || echo "No markdown report generated" >> $GITHUB_STEP_SUMMARY
-      
+
       - name: Upload audit report
         if: always()
         uses: actions/upload-artifact@v4
@@ -311,7 +311,7 @@ jobs:
             audit-report.json
             audit-report.md
           retention-days: 30
-      
+
       - name: Check for HIGH/CRITICAL vulnerabilities
         run: |
           # Parse JSON para verificar severidade alta/crítica
@@ -336,7 +336,7 @@ jobs:
     name: Security Audit
     runs-on: ubuntu-latest
     continue-on-error: true  # Não bloqueia o pipeline
-    
+
     steps:
       # ... passos do pip-audit
 ```
@@ -660,7 +660,7 @@ git commit -m "docs(P1): Atualizar seguranca_dependencias.md com decisão final"
 
 1. **Falta de PDFs de teste:** Validação manual necessária
    - **Mitigação:** Confiar em testes de integração existentes
-   
+
 2. **Incerteza sobre py7zr:** Não confirmado se está em uso
    - **Decisão:** Manter por segurança, investigar em sprint futura
 
@@ -716,4 +716,3 @@ git commit -m "docs(P1): Atualizar seguranca_dependencias.md com decisão final"
 **Responsável:** GitHub Copilot (Claude Sonnet 4.5)  
 **Data de Conclusão:** 20 de novembro de 2025  
 **Aprovação Pendente:** Code Review + Teste Manual de PDFs
-

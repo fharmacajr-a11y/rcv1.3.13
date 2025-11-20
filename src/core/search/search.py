@@ -37,6 +37,7 @@ def _row_to_cliente(row: dict) -> Cliente:
         ultima_alteracao=row.get("ultima_alteracao"),
         obs=row.get("obs"),
         ultima_por=row.get("ultima_por"),
+        created_at=row.get("created_at"),
     )
 
 

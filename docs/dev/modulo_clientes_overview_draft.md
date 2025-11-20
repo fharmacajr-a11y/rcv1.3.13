@@ -203,4 +203,3 @@ Caminhos relacionados (estado atual):
 **Próximos passos possíveis**
 - Apenas ajustes pontuais/bugs ou evolução de UX, seguindo o
   padrão de camadas estabelecido.
-

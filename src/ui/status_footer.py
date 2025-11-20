@@ -17,18 +17,28 @@ class StatusFooter(ttk.Frame):
         self.columnconfigure(0, weight=1)
         self.columnconfigure(1, weight=0)
 
+        # Separador horizontal no topo
+        self.separator = ttk.Separator(self, orient="horizontal")
+        self.separator.grid(
+            row=0,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+            pady=(0, 2),
+        )
+
         self._lbl_count = ttk.Label(self, text="")
-        self._lbl_count.grid(row=0, column=0, sticky="w", padx=(6, 0), pady=3)
+        self._lbl_count.grid(row=1, column=0, sticky="w", padx=(6, 0), pady=3)
 
         right = ttk.Frame(self)
-        right.grid(row=0, column=1, sticky="e", padx=6, pady=2)
+        right.grid(row=1, column=1, sticky="e", padx=6, pady=2)
 
         self._dot = tk.Canvas(right, width=14, height=14, highlightthickness=0, bd=0)
         self._dot.create_oval(2, 2, 12, 12, fill=CLOUD_COLORS["UNKNOWN"], outline="")
         self._lbl_cloud = ttk.Label(right, text="Nuvem: Desconhecido")
 
         sep = ttk.Label(right, text="  •  ")
-        self._lbl_user = ttk.Label(right, text="Usuário: —")
+        self._lbl_user = ttk.Label(right, text="Usuário: -")
 
         self._dot.grid(row=0, column=0, sticky="e")
         self._lbl_cloud.grid(row=0, column=1, sticky="e", padx=(6, 0))
@@ -43,14 +53,28 @@ class StatusFooter(ttk.Frame):
 
         self._cloud_state = "UNKNOWN"
         self._user_email = None
-        self._count_text = ""
+        self._count_text = "0 clientes | Hoje: 0 | Mês: 0"
 
     def set_count(self, total: int | str):
-        self._count_text = f"{total} cliente(s)" if isinstance(total, int) else str(total)
+        # Compatibilidade: delega para set_clients_summary com Hoje/Mês = 0
+        if isinstance(total, int):
+            self.set_clients_summary(total, 0, 0)
+        else:
+            self._count_text = str(total)
+            self._lbl_count.config(text=self._count_text)
+
+    def set_clients_summary(self, total: int, novos_hoje: int, novos_mes: int) -> None:
+        """
+        Atualiza o resumo global de clientes na status bar.
+
+        Formato: 'N clientes | Hoje: X | Mês: Y'.
+        """
+        texto = f"{total} clientes | Hoje: {novos_hoje} | Mês: {novos_mes}"
+        self._count_text = texto
         self._lbl_count.config(text=self._count_text)
 
     def set_user(self, email: str | None):
-        self._user_email = email or "—"
+        self._user_email = email or "-"
         self._lbl_user.config(text=f"Usuário: {self._user_email}")
 
     def set_cloud(self, state: str):

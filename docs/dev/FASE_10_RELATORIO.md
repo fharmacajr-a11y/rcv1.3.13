@@ -31,7 +31,7 @@ class BusyDialog(tk.Toplevel):
     def __init__(self, parent: tk.Misc, text: str = "Processando…"):
         """
         Cria um diálogo de progresso modal.
-        
+
         Args:
             parent: Widget pai (geralmente a janela principal)
             text: Texto exibido no diálogo (padrão: "Processando…")
@@ -179,7 +179,7 @@ Login cancelado ou falhou. Encerrando aplicação.
 - Exemplo de uso (hipotético):
   ```python
   from src.ui.components.progress_dialog import BusyDialog
-  
+
   busy = BusyDialog(parent_window, text="Carregando dados...")
   # ... operação longa ...
   busy.set_total(100)  # modo determinado

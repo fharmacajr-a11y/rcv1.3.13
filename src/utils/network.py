@@ -8,9 +8,48 @@ from __future__ import annotations
 import logging
 import os
 import socket
+import urllib.request
 from typing import Final
+from urllib.error import URLError, HTTPError
 
 logger = logging.getLogger(__name__)
+
+
+SOCKET_TEST_HOST = ("8.8.8.8", 53)
+
+
+def _socket_check(timeout: float) -> bool:
+    try:
+        with socket.create_connection(SOCKET_TEST_HOST, timeout=timeout):
+            return True
+    except OSError as exc:
+        # Se for WinError 10013, é típico de firewall/VPN bloqueando esse tipo de socket.
+        if getattr(exc, "winerror", None) == 10013:
+            logger.warning("Internet connectivity check blocked by local policy (WinError 10013). " "Will try HTTP fallback.")
+        else:
+            logger.warning("Internet connectivity check failed (socket): %s", exc)
+        return False
+
+
+def _http_check(timeout: float) -> bool:
+    # Lista simples de URLs genéricas para teste de conectividade HTTP.
+    # Usar apenas sites públicos amplamente alcançáveis; todos via HTTPS.
+    test_urls = [
+        "https://clients3.google.com/generate_204",
+        "https://www.google.com",
+        "https://www.cloudflare.com",
+    ]
+
+    for url in test_urls:
+        try:
+            req = urllib.request.Request(url, method="HEAD")
+            with urllib.request.urlopen(req, timeout=timeout):
+                # Se conseguimos obter qualquer resposta HTTP, consideramos que há internet.
+                return True
+        except (URLError, HTTPError, OSError) as exc:
+            logger.debug("HTTP connectivity check to %s failed: %s", url, exc)
+
+    return False
 
 
 def check_internet_connectivity(timeout: float = 2.0) -> bool:
@@ -29,14 +68,21 @@ def check_internet_connectivity(timeout: float = 2.0) -> bool:
         logger.debug("Network check bypassed (RC_NO_NET_CHECK=1)")
         return True
 
-    try:
-        # Attempt connection to Google DNS
-        sock = socket.create_connection(("8.8.8.8", 53), timeout=timeout)
-        sock.close()
+    # 1) Tentativa via socket (comportamento antigo)
+    if _socket_check(timeout=timeout):
+        logger.info("Internet connectivity confirmed (cloud-only mode)")
         return True
-    except OSError as e:
-        logger.warning("Internet connectivity check failed: %s", e)
-        return False
+
+    # 2) Fallback HTTP
+    # Aumentamos um pouco o timeout se for muito baixo, pra evitar falso negativo.
+    http_timeout = max(timeout, 5.0)
+    if _http_check(timeout=http_timeout):
+        logger.info("Internet connectivity confirmed via HTTP fallback (cloud-only mode)")
+        return True
+
+    # 3) Se ambos falharem, mantém o comportamento anterior (sem internet)
+    logger.error("Internet unavailable in cloud-only mode")
+    return False
 
 
 def require_internet_or_alert() -> bool:
@@ -56,12 +102,9 @@ def require_internet_or_alert() -> bool:
 
     # Check connectivity
     if check_internet_connectivity():
-        logger.info("Internet connectivity confirmed (cloud-only mode)")
         return True
 
     # No internet in cloud-only mode - show alert
-    logger.error("Internet unavailable in cloud-only mode")
-
     # Show GUI alert unless RC_NO_GUI_ERRORS=1
     if os.getenv("RC_NO_GUI_ERRORS") != "1":
         try:

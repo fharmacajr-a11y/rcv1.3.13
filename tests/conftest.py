@@ -15,11 +15,12 @@ import pytest
 # Propósito: Evitar hardcoding de URLs/keys reais nos testes
 # ============================================================================
 
+
 @pytest.fixture
 def fake_supabase_url() -> str:
     """
     URL fake do Supabase para testes.
-    
+
     ⚠️ ATENÇÃO: Este é um valor FICTÍCIO e não funcional.
     Usado apenas para testes que mockam chamadas HTTP.
     """
@@ -30,7 +31,7 @@ def fake_supabase_url() -> str:
 def fake_supabase_key() -> str:
     """
     Chave fake do Supabase para testes.
-    
+
     ⚠️ ATENÇÃO: Este é um valor FICTÍCIO e não funcional.
     Usado apenas para testes que mockam autenticação.
     """
@@ -41,7 +42,7 @@ def fake_supabase_key() -> str:
 def fake_env_vars(fake_supabase_url: str, fake_supabase_key: str) -> dict[str, str]:
     """
     Dicionário completo de variáveis de ambiente fake para testes.
-    
+
     ⚠️ ATENÇÃO: Todos os valores são FICTÍCIOS e não funcionais.
     Use com `patch.dict("os.environ", fake_env_vars)` nos testes.
     """

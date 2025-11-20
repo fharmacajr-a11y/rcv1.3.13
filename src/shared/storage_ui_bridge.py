@@ -7,7 +7,7 @@ from typing import Any, Optional
 
 # Tenta importar a janela de arquivos usada pelo módulo Clientes
 try:
-    from src.ui.files_browser import open_files_browser
+    from src.modules.uploads import open_files_browser
 except Exception:
     open_files_browser = None  # type: ignore[assignment]
 

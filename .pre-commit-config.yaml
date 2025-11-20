@@ -1,0 +1,102 @@
+# ============================================================================
+# PRE-COMMIT HOOKS - RC Gestor de Clientes
+# ============================================================================
+# Configuração de hooks para garantir qualidade de código antes de commits.
+#
+# Instalação:
+#   pre-commit install
+#
+# Executar manualmente:
+#   pre-commit run --all-files
+#
+# ============================================================================
+
+repos:
+  # ---------------------------------------------------------------------------
+  # HOOKS BÁSICOS (trailing whitespace, EOF, large files, etc.)
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        name: Remover espaços em branco no final das linhas
+        args: [--markdown-linebreak-ext=md]
+
+      - id: end-of-file-fixer
+        name: Garantir nova linha no final dos arquivos
+
+      - id: check-added-large-files
+        name: Verificar arquivos grandes (>500KB)
+        args: ['--maxkb=500']
+
+      - id: check-yaml
+        name: Validar sintaxe YAML
+        exclude: ^(\.github/workflows/.*\.yml|mkdocs\.yml)$
+
+      - id: check-toml
+        name: Validar sintaxe TOML
+
+      - id: check-json
+        name: Validar sintaxe JSON
+
+      - id: check-merge-conflict
+        name: Detectar marcadores de merge conflict
+
+      - id: check-case-conflict
+        name: Verificar conflitos de case em nomes de arquivos
+
+      - id: mixed-line-ending
+        name: Garantir line endings consistentes
+        args: ['--fix=lf']
+
+  # ---------------------------------------------------------------------------
+  # RUFF - Linter e Formatador (substitui flake8/isort/black)
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        name: Ruff Linter (Python)
+        args: [--fix, --exit-non-zero-on-fix]
+        types_or: [python, pyi]
+
+      - id: ruff-format
+        name: Ruff Formatter (Python)
+        types_or: [python, pyi]
+
+  # ---------------------------------------------------------------------------
+  # VERIFICAÇÕES PYTHON ESPECÍFICAS
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-ast
+        name: Validar sintaxe Python (AST)
+
+      - id: check-builtin-literals
+        name: Verificar uso de literais builtin
+
+      - id: check-docstring-first
+        name: Verificar posição de docstrings
+
+      - id: debug-statements
+        name: Detectar statements de debug (breakpoint, pdb)
+
+      - id: name-tests-test
+        name: Verificar nomes de arquivos de teste
+        args: ['--pytest-test-first']
+        files: ^tests/.*\.py$
+
+# ============================================================================
+# CONFIGURAÇÕES GLOBAIS
+# ============================================================================
+
+# Codificação padrão
+default_language_version:
+  python: python3.13
+
+# Não falhar em arquivos ausentes (útil em CI)
+fail_fast: false
+
+# Executar em paralelo para melhor performance
+default_stages: [commit, push]

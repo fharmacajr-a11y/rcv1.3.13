@@ -1,4 +1,4 @@
-# core/services/clientes_service.py — versão Supabase (libera Nome/Whats; mantém CNPJ/Razão)
+# core/services/clientes_service.py � vers�o Supabase (libera Nome/Whats; mant�m CNPJ/Raz�o)
 from __future__ import annotations
 
 import logging
@@ -6,6 +6,7 @@ import os
 import shutil
 import threading
 import time
+from typing import Optional, Tuple
 
 from infra.supabase_client import exec_postgrest, supabase
 from src.app_utils import safe_base_from_fields
@@ -25,7 +26,7 @@ from src.core.cnpj_norm import normalize_cnpj as normalize_cnpj_norm
 
 log = logging.getLogger(__name__)
 
-# Valor em memória para exibir se a rede falhar momentaneamente
+# Valor em mem�ria para exibir se a rede falhar momentaneamente
 _LAST_CLIENTS_COUNT = 0
 _clients_lock = threading.Lock()
 
@@ -33,7 +34,7 @@ _clients_lock = threading.Lock()
 def _count_clients_raw() -> int:
     """
     Executa a contagem real de clientes no Supabase.
-    Código original extraído para isolamento de retry.
+    C�digo original extra�do para isolamento de retry.
     """
     resp = exec_postgrest(supabase.table("clients").select("id", count="exact").is_("deleted_at", "null"))
     return resp.count or 0
@@ -44,15 +45,15 @@ def count_clients(*, max_retries: int = 2, base_delay: float = 0.2) -> int:
     Conta clientes ativos do Supabase com retry leve e tratamento resiliente.
 
     - Se der WSAEWOULDBLOCK (WinError 10035), faz alguns retries com backoff leve.
-    - Se falhar, retorna o último valor conhecido sem quebrar a UI.
-    - Mantém cache em memória (_LAST_CLIENTS_COUNT) para resiliência.
+    - Se falhar, retorna o �ltimo valor conhecido sem quebrar a UI.
+    - Mant�m cache em mem�ria (_LAST_CLIENTS_COUNT) para resili�ncia.
     """
     global _LAST_CLIENTS_COUNT
 
     attempt = 0
     while True:
         try:
-            # Chamada real (sem segurar o lock para não bloquear outras threads)
+            # Chamada real (sem englobar lock para n�o bloquear outras threads)
             total = _count_clients_raw()
 
             # Atualiza o cache com lock
@@ -70,12 +71,12 @@ def count_clients(*, max_retries: int = 2, base_delay: float = 0.2) -> int:
                     attempt += 1
                     continue
 
-                # Devolve o último valor conhecido com lock
+                # Devolve o �ltimo valor conhecido com lock
                 with _clients_lock:
-                    log.info("Clientes: usando last-known=%s após 10035", _LAST_CLIENTS_COUNT)
+                    log.info("Clientes: usando last-known=%s ap�s 10035", _LAST_CLIENTS_COUNT)
                     return _LAST_CLIENTS_COUNT
 
-            # Outros erros de rede → warning + last-known
+            # Outros erros de rede -> warning + last-known
             log.warning(
                 "Clientes: erro de rede ao contar; usando last-known=%s (%r)",
                 _LAST_CLIENTS_COUNT,
@@ -85,7 +86,7 @@ def count_clients(*, max_retries: int = 2, base_delay: float = 0.2) -> int:
                 return _LAST_CLIENTS_COUNT
 
         except Exception as e:
-            # Último guarda-chuva: não quebrar UI por causa do contador
+            # �ltimo guarda-chuva: n�o quebrar UI por causa do contador
             log.warning(
                 "Clientes: falha inesperada ao contar; usando last-known=%s (%r)",
                 _LAST_CLIENTS_COUNT,
@@ -95,12 +96,27 @@ def count_clients(*, max_retries: int = 2, base_delay: float = 0.2) -> int:
                 return _LAST_CLIENTS_COUNT
 
 
-def _normalize_payload(valores: dict) -> tuple[str, str, str, str, str, str]:
-    razao = (valores.get("Razão Social") or "").strip()
-    cnpj = (valores.get("CNPJ") or "").strip()
-    nome = (valores.get("Nome") or "").strip()
-    numero = (valores.get("WhatsApp") or "").strip()
-    obs = (valores.get("Observações") or "").strip()
+def _normalize_payload(valores: dict) -> Tuple[str, str, str, str, str, str]:
+    """
+    Normaliza campos vindos da UI/tabela para uso interno no serviço.
+    Retorna tupla (razao, cnpj, cnpj_norm, nome, numero, obs).
+    """
+
+    def _v(d: dict, *keys: str) -> str:
+        for k in keys:
+            v = d.get(k)
+            if isinstance(v, str):
+                v = v.strip()
+                if v:
+                    return v
+        return ""
+
+    razao = _v(valores, "Razão Social", "Razao Social", "razao_social")
+    cnpj = _v(valores, "CNPJ", "cnpj")
+    nome = _v(valores, "Nome", "nome")
+    numero = _v(valores, "WhatsApp", "Whatsapp", "whatsapp", "Telefone", "telefone", "numero")
+    obs = _v(valores, "Observações", "Observacoes", "observacoes", "Obs", "obs")
+
     cnpj_norm = normalize_cnpj_norm(cnpj)
     return razao, cnpj, cnpj_norm, nome, numero, obs
 
@@ -142,6 +158,7 @@ def checar_duplicatas_info(
     return {
         "cnpj_conflict": cnpj_conflict,
         "razao_conflicts": razao_conflicts,
+        "numero_conflicts": [],
         "cnpj_norm": cnpj_norm,
         "razao_norm": razao_norm,
     }
@@ -156,7 +173,7 @@ def _pasta_do_cliente(pk: int, cnpj: str, numero: str, razao: str) -> str:
     return pasta
 
 
-def _migrar_pasta_se_preciso(old_path: str | None, nova_pasta: str) -> None:
+def _migrar_pasta_se_preciso(old_path: Optional[str], nova_pasta: str) -> None:
     if not old_path or not os.path.isdir(old_path):
         return
     try:
@@ -180,7 +197,7 @@ def salvar_cliente(row, valores: dict) -> tuple[int, str]:
     """
     razao, cnpj, cnpj_norm, nome, numero, obs = _normalize_payload(valores)
     if not (razao or cnpj or nome or numero):
-        raise ValueError("Preencha pelo menos Razão Social, CNPJ, Nome ou WhatsApp.")
+        raise ValueError("Preencha pelo menos Raz�o Social, CNPJ, Nome ou WhatsApp.")
 
     current_id = int(row[0]) if row else None
     if cnpj_norm:
@@ -188,7 +205,7 @@ def salvar_cliente(row, valores: dict) -> tuple[int, str]:
         if conflict:
             raiser = conflict.razao_social or "-"
             stored_cnpj = conflict.cnpj or "-"
-            raise ValueError(f"CNPJ já cadastrado para o cliente ID {conflict.id} — {raiser}. CNPJ: {stored_cnpj}.")
+            raise ValueError(f'CNPJ j� cadastrado para o cliente ID {conflict.id} �?" {raiser}. CNPJ: {stored_cnpj}.')
 
     if row:
         pk = int(row[0])
@@ -217,7 +234,7 @@ def salvar_cliente(row, valores: dict) -> tuple[int, str]:
     # Auditoria
     try:
         user = get_current_user() or ""
-        log_client_action(user, int(real_pk), "edição" if row else "criação")  # pyright: ignore[reportArgumentType]
+        log_client_action(user, int(real_pk), "edi��o" if row else "cria��o")  # pyright: ignore[reportArgumentType]
     except Exception:
         pass
 

@@ -85,12 +85,12 @@ def test_env_local_overwrites_existing(tmp_path, monkeypatch):
 def test_env_loading_order_matches_app(tmp_path, monkeypatch, fake_supabase_url):
     """
     Test that the loading order matches what's documented in app_gui.py.
-    
+
     Args:
         tmp_path: Pytest fixture for temporary directory
         monkeypatch: Pytest fixture for environment patching
         fake_supabase_url: Fixture com URL fake do Supabase para testes
-    
+
     ⚠️ SEGURANÇA: Usa fake_supabase_url do conftest.py ao invés de hardcoded URL
     """
     # Simulate the exact loading pattern from src/app_gui.py
@@ -114,4 +114,3 @@ def test_env_loading_order_matches_app(tmp_path, monkeypatch, fake_supabase_url)
 
     assert os.getenv("RC_LOG_LEVEL") == "INFO", "Bundled-only should work"
     assert os.getenv("SUPABASE_URL") == f"{fake_supabase_url}-local-override", "Local should overwrite"
-

@@ -29,7 +29,7 @@ Sprint focado em **segurança crítica** (P0) sem tocar em GUI, lógica de negó
 ```
 ✅ Pacotes auditados: 128
 ⚠️ CVEs encontrados: 1 (pdfminer-six)
-✅ Pacotes críticos limpos: 
+✅ Pacotes críticos limpos:
    - cryptography 46.0.1
    - certifi 2025.8.3
    - pillow 10.4.0
@@ -168,7 +168,7 @@ $ pytest tests/test_env_precedence.py -v
 ### 1. Import Circular em `test_health_fallback.py`
 **Erro:**
 ```
-ImportError: cannot import name 'exec_postgrest' from partially initialized module 
+ImportError: cannot import name 'exec_postgrest' from partially initialized module
 'infra.supabase.db_client' (most likely due to a circular import)
 ```
 

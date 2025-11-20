@@ -70,7 +70,7 @@
 ```python
 def read_pdf_text(path: str | Path) -> Optional[str]:
     # Ordem: pypdf → pdfminer-six → PyMuPDF → OCR
-    for fn in (_read_pdf_text_pypdf, 
+    for fn in (_read_pdf_text_pypdf,
                _read_pdf_text_pdfminer,  # ⚠️ VULNERÁVEL
                _read_pdf_text_pymupdf):
         if txt := fn(p):
@@ -83,12 +83,12 @@ def read_pdf_text(path: str | Path) -> Optional[str]:
 def read_pdf_text(path: str | Path) -> Optional[str]:
     """
     Extrai texto de PDF usando estratégia de fallback otimizada.
-    
+
     Ordem (pós-Sprint P1):
     1. PyMuPDF (fitz) - Primário, robusto e rápido
     2. pypdf - Fallback para PDFs simples
     3. OCR - Para PDFs escaneados
-    
+
     Nota de Segurança:
     - pdfminer-six REMOVIDO (CVE GHSA-f83h-ghpp-7wcc)
     - Eliminação completa do vetor de ataque

@@ -77,7 +77,7 @@ def print_sample_by_rule(grouped_rules: dict[str, list[dict]], sample_per_rule: 
             msg = w.get("message", "")
             # Remove caracteres especiais que podem causar problemas no Windows
             msg_safe = msg.encode("ascii", errors="replace").decode("ascii")
-            print(f"  - {file_path}:{line} - \"{msg_safe}\"")
+            print(f'  - {file_path}:{line} - "{msg_safe}"')
     print()
 
 

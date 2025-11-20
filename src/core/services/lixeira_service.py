@@ -11,9 +11,7 @@ from typing import Iterable, List, Tuple
 from adapters.storage.api import delete_file as storage_delete_file
 from adapters.storage.api import list_files as storage_list_files
 from adapters.storage.api import upload_file as storage_upload_file
-from adapters.storage.api import (
-    using_storage_backend,
-)
+from adapters.storage.api import using_storage_backend
 from adapters.storage.supabase_storage import SupabaseStorageAdapter
 from infra.supabase_client import exec_postgrest
 from src.utils.subpastas_config import get_mandatory_subpastas, join_prefix
@@ -25,10 +23,8 @@ BUCKET_DOCS = "rc-docs"
 
 
 # ----------------- Helpers Supabase -----------------
-def _get_supabase_and_org():
-    """
-    Retorna (supabase, org_id) do usuário logado.
-    """
+def _get_supabase_and_org() -> Tuple[object, str]:
+    """Retorna (supabase, org_id) do usuário logado, ou lança RuntimeError."""
     from infra.supabase_client import supabase
 
     try:
@@ -48,11 +44,8 @@ def _get_supabase_and_org():
 
 
 # ---- Listagem recursiva no Storage (usando list + chamada recursiva) ----
-def _list_storage_children(bucket, prefix: str) -> List[dict]:
-    """
-    Lista UM nível de filhos em `prefix`. Retorna dicts com pelo menos {name, is_folder?}.
-    Usa a API do adapter de storage.
-    """
+def _list_storage_children(bucket: str, prefix: str) -> List[dict]:
+    """Lista UM nível de filhos em `prefix`. Retorna dicts com pelo menos {name, is_folder?}."""
     adapter = SupabaseStorageAdapter(bucket=bucket)
     with using_storage_backend(adapter):
         items = storage_list_files(prefix)
@@ -69,15 +62,12 @@ def _list_storage_children(bucket, prefix: str) -> List[dict]:
 
 
 def _gather_all_paths(bucket: str, root_prefix: str) -> List[str]:
-    """
-    Coleta todos os caminhos de arquivos sob root_prefix, recursivamente.
-    Retorna caminhos completos (ex.: "<org>/<client>/SIFAP/arquivo.pdf").
-    """
+    """Coleta todos os caminhos de arquivos sob root_prefix, recursivamente."""
     paths: List[str] = []
 
-    def walk(prefix: str):
+    def walk(prefix: str) -> None:
         for obj in _list_storage_children(bucket, prefix):
-            name = obj["name"]
+            name = obj.get("name")
             if not name:
                 continue
             if obj.get("is_folder"):
@@ -90,10 +80,7 @@ def _gather_all_paths(bucket: str, root_prefix: str) -> List[str]:
 
 
 def _remove_storage_prefix(org_id: str, client_id: int) -> int:
-    """
-    Remove todos os objetos do bucket sob <org_id>/<client_id>.
-    Retorna quantidade de objetos removidos.
-    """
+    """Remove todos os objetos do bucket sob <org_id>/<client_id>. Retorna quantidade removida."""
     root = f"{org_id}/{client_id}"
     paths = _gather_all_paths(BUCKET_DOCS, root)
 
@@ -113,7 +100,7 @@ def _ensure_mandatory_subfolders(prefix: str) -> None:
     """
     Garante que as subpastas obrigatórias existam sob `prefix`.
     Como o Supabase é orientado a objetos e 'pastas' são prefixos,
-    criamos um placeholder `.keep` quando não houver nenhum objeto no prefixo.
+    cria um placeholder `.keep` quando não houver nenhum objeto no prefixo.
     """
     adapter = SupabaseStorageAdapter(bucket=BUCKET_DOCS)
     with using_storage_backend(adapter):
@@ -143,13 +130,9 @@ def _ensure_mandatory_subfolders(prefix: str) -> None:
 
 # ----------------- Ações públicas -----------------
 def restore_clients(client_ids: Iterable[int], parent=None) -> Tuple[int, List[Tuple[int, str]]]:
-    """
-    Restaura clientes (deleted_at = null).
-    Retorna: (qtd_ok, [(client_id, err), ...])
-    """
+    """Restaura clientes (deleted_at = null). Retorna (qtd_ok, [(client_id, err), ...])."""
     ok = 0
     errs: List[Tuple[int, str]] = []
-    # Type narrowing: parent pode ser None ou Misc (Tkinter widget)
     parent_widget: tk.Misc | None = parent if isinstance(parent, tk.Misc) else None
     try:
         supabase, org_id = _get_supabase_and_org()
@@ -186,7 +169,6 @@ def hard_delete_clients(client_ids: Iterable[int], parent=None) -> Tuple[int, Li
     ok = 0
     errs: List[Tuple[int, str]] = []
 
-    # Type narrowing: parent pode ser None ou Misc (Tkinter widget)
     parent_widget: tk.Misc | None = parent if isinstance(parent, tk.Misc) else None
     try:
         supabase, org_id = _get_supabase_and_org()
@@ -202,7 +184,6 @@ def hard_delete_clients(client_ids: Iterable[int], parent=None) -> Tuple[int, Li
                 removed = _remove_storage_prefix(org_id, cid)
                 log.info("Storage: removidos %s objeto(s) de %s/%s", removed, org_id, cid)
             except Exception as e:
-                # Não aborta; reporta erro mas tenta seguir para DB
                 log.exception("Falha ao limpar Storage de %s/%s", org_id, cid)
                 errs.append((cid, f"Storage: {e}"))
 

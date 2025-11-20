@@ -6,11 +6,17 @@ from __future__ import annotations
 import importlib
 import logging
 import os
-from datetime import datetime, timezone
 from tkinter import messagebox
 from typing import Any, Sequence
 
 from src.config.paths import CLOUD_ONLY
+from src.modules.clientes.service import get_cliente_by_id, mover_cliente_para_lixeira
+
+try:
+    from src.modules.lixeira import abrir_lixeira as _module_abrir_lixeira, refresh_if_open as _module_refresh_if_open
+except Exception:
+    _module_abrir_lixeira = None
+    _module_refresh_if_open = None
 
 # ------------------------------------------------------------
 # Modo "somente nuvem" (não cria nada em disco local)
@@ -49,8 +55,6 @@ def _safe_messagebox(method: str, *args: Any, **kwargs: Any) -> Any:
 
 def _resolve_cliente_row(pk: int) -> Sequence[Any] | None:
     try:
-        from src.core.db_manager import get_cliente_by_id
-
         cliente = get_cliente_by_id(pk)
     except Exception:
         log.exception("Failed to resolve client %s from Supabase", pk)
@@ -75,14 +79,15 @@ def _resolve_cliente_row(pk: int) -> Sequence[Any] | None:
 # ---------------------------------------------------------------------------
 def novo_cliente(app: Any) -> None:
     log.info("Opening form for new client")
-    from src.ui.forms import form_cliente
+
+    from src.modules.forms.view import form_cliente
 
     form_cliente(app)
 
 
 def editar_cliente(app: Any, pk: int) -> None:
     log.info("Opening edit form for client id=%s", pk)
-    from src.ui.forms import form_cliente
+    from src.modules.forms.view import form_cliente
 
     row = _resolve_cliente_row(pk)
     if row:
@@ -120,11 +125,7 @@ def excluir_cliente(app: Any, selected_values: Sequence[Any]) -> None:
         return
 
     try:
-        from infra.supabase_client import exec_postgrest, supabase
-
-        deleted_at = datetime.now(timezone.utc).isoformat()
-        update_payload = {"deleted_at": deleted_at, "ultima_alteracao": deleted_at}
-        exec_postgrest(supabase.table("clients").update(update_payload).eq("id", client_id))
+        mover_cliente_para_lixeira(client_id)
     except Exception as exc:
         _safe_messagebox("showerror", "Erro ao excluir", f"Falha ao enviar para a Lixeira: {exc}")
         log.exception("Failed to soft-delete client %s", label_cli)
@@ -135,12 +136,11 @@ def excluir_cliente(app: Any, selected_values: Sequence[Any]) -> None:
     except Exception:
         log.exception("Failed to refresh client list after soft delete")
 
-    try:
-        from src.ui.lixeira.lixeira import refresh_if_open
-
-        refresh_if_open()
-    except Exception:
-        log.debug("Lixeira refresh skipped", exc_info=True)
+    if _module_refresh_if_open is not None:
+        try:
+            _module_refresh_if_open()
+        except Exception:
+            log.debug("Lixeira refresh skipped", exc_info=True)
 
     _safe_messagebox("showinfo", "Lixeira", f"Cliente {label_cli} enviado para a Lixeira.")
     log.info("Cliente %s enviado para a Lixeira com sucesso", label_cli)
@@ -274,34 +274,26 @@ def ver_subpastas(app: Any, pk: int) -> None:
 # ---------------------------------------------------------------------------
 def abrir_lixeira_ui(app: Any, *args: Any, **kwargs: Any) -> None:
     log.info("Opening Lixeira UI window")
-    abrir_fn = None
-
-    try:
-        module = importlib.import_module("ui.lixeira.lixeira")
-        for name in (
-            "abrir_lixeira",
-            "abrir_lixeira_ui",
-            "abrir",
-            "open_lixeira",
-            "open_window",
-            "open",
-            "show",
-        ):
-            candidate = getattr(module, name, None)
-            if callable(candidate):
-                abrir_fn = candidate
-                break
-    except Exception:
-        log.debug("Primary lixeira module import failed", exc_info=True)
+    abrir_fn = _module_abrir_lixeira
 
     if abrir_fn is None:
         try:
-            pkg = importlib.import_module("ui.lixeira")
-            candidate = getattr(pkg, "abrir_lixeira", None)
-            if callable(candidate):
-                abrir_fn = candidate
+            from src.ui.lixeira import abrir_lixeira as _abrir
+
+            abrir_fn = _abrir
         except Exception:
-            log.debug("Fallback lixeira package import failed", exc_info=True)
+            log.debug("Primary lixeira package import failed", exc_info=True)
+
+    if abrir_fn is None:
+        for module_name in ("src.modules.lixeira", "src.ui.lixeira", "ui.lixeira"):
+            try:
+                module = importlib.import_module(module_name)
+                candidate = getattr(module, "abrir_lixeira", None)
+                if callable(candidate):
+                    abrir_fn = candidate
+                    break
+            except Exception:
+                log.debug("Lixeira import fallback failed (%s)", module_name, exc_info=True)
 
     if abrir_fn is None:
         log.error("Nenhuma funcao de abertura encontrada em ui.lixeira")

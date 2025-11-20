@@ -9,17 +9,17 @@ from typing import Any, Dict, List
 
 # Carregar relatório
 try:
-    with open('devtools/qa/pyright.json', encoding='utf-8') as f:
+    with open("devtools/qa/pyright.json", encoding="utf-8") as f:
         data: Dict[str, Any] = json.load(f)
 except UnicodeDecodeError:
-    with open('devtools/qa/pyright.json', encoding='utf-16') as f:
+    with open("devtools/qa/pyright.json", encoding="utf-16") as f:
         data = json.load(f)
 
 # Palavras-chave para identificar erros relacionados a Unknown
 UNKNOWN_KEYWORDS = [
-    'Unknown',
-    'partially unknown',
-    'type is Unknown',
+    "Unknown",
+    "partially unknown",
+    "type is Unknown",
 ]
 
 # Filtrar diagnósticos
@@ -29,53 +29,55 @@ total_unknown_errors = 0
 
 # Arquivos prioritários (forms, pipeline, lixeira_service)
 PRIORITY_FILES = [
-    'forms.py',
-    'pipeline.py',
-    'lixeira_service.py',
+    "forms.py",
+    "pipeline.py",
+    "lixeira_service.py",
 ]
 
-for diag in data.get('generalDiagnostics', []):
-    file_path = diag['file']
-    severity = diag['severity']
+for diag in data.get("generalDiagnostics", []):
+    file_path = diag["file"]
+    severity = diag["severity"]
 
     # Contar totais
-    if severity == 'error':
+    if severity == "error":
         total_errors += 1
 
     # Filtrar apenas errors
-    if severity != 'error':
+    if severity != "error":
         continue
 
     # Verificar se está nos diretórios de interesse
-    path_lower = file_path.lower().replace('\\', '/')
-    if not any(x in path_lower for x in ['/src/ui/', '/src/core/services/']):
+    path_lower = file_path.lower().replace("\\", "/")
+    if not any(x in path_lower for x in ["/src/ui/", "/src/core/services/"]):
         continue
 
     # Ignorar tests e devtools
-    if '/tests/' in path_lower or '/devtools/' in path_lower:
+    if "/tests/" in path_lower or "/devtools/" in path_lower:
         continue
 
     # Verificar se mensagem contém palavras-chave de Unknown
-    message = diag['message']
+    message = diag["message"]
     if not any(keyword in message for keyword in UNKNOWN_KEYWORDS):
         continue
 
     total_unknown_errors += 1
 
     # Extrair path relativo
-    if 'v1.1.31 - Copia' in file_path:
-        rel_path = file_path.split('v1.1.31 - Copia\\')[-1]
+    if "v1.1.31 - Copia" in file_path:
+        rel_path = file_path.split("v1.1.31 - Copia\\")[-1]
     else:
         rel_path = Path(file_path).name
 
     if rel_path not in unknown_errors_by_file:
         unknown_errors_by_file[rel_path] = []
 
-    unknown_errors_by_file[rel_path].append({
-        'line': diag['range']['start']['line'] + 1,  # 0-indexed → 1-indexed
-        'message': message,
-        'rule': diag.get('rule', 'unknown')
-    })
+    unknown_errors_by_file[rel_path].append(
+        {
+            "line": diag["range"]["start"]["line"] + 1,  # 0-indexed → 1-indexed
+            "message": message,
+            "rule": diag.get("rule", "unknown"),
+        }
+    )
 
 # Imprimir resumo
 print("=" * 80)
@@ -94,7 +96,7 @@ for priority_file in PRIORITY_FILES:
             print(f"\n📁 {file_path} ({len(errors)} Unknown errors)")
             for err in errors[:5]:  # Limitar a 5 por arquivo
                 print(f"   L{err['line']}: {err['message'][:100]}")
-                if len(err['message']) > 100:
+                if len(err["message"]) > 100:
                     print(f"           {err['message'][100:200]}")
             if len(errors) > 5:
                 print(f"   ... e mais {len(errors) - 5} erros")

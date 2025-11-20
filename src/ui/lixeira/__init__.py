@@ -1,8 +1,3 @@
-# Export preguiçoso para evitar import circular
-def abrir_lixeira(*args, **kwargs):
-    from .lixeira import abrir_lixeira as _abrir
+from src.modules.lixeira.views.lixeira import abrir_lixeira, refresh_if_open
 
-    return _abrir(*args, **kwargs)
-
-
-__all__ = ["abrir_lixeira"]
+__all__ = ["abrir_lixeira", "refresh_if_open"]

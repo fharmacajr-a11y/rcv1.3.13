@@ -62,11 +62,7 @@ def main() -> None:
         errors_by_file[file_path].append(error)
 
     # Sort files by error count (descending)
-    sorted_files = sorted(
-        errors_by_file.items(),
-        key=lambda x: len(x[1]),
-        reverse=True
-    )
+    sorted_files = sorted(errors_by_file.items(), key=lambda x: len(x[1]), reverse=True)
 
     # Display top 10 files with most errors
     print("TOP 10 FILES WITH MOST ERRORS:")
@@ -125,13 +121,7 @@ def main() -> None:
     print("=" * 80)
     print()
 
-    safe_rules = [
-        "reportUndefinedVariable",
-        "reportGeneralTypeIssues",
-        "reportOptionalMemberAccess",
-        "reportReturnType",
-        "reportArgumentType"
-    ]
+    safe_rules = ["reportUndefinedVariable", "reportGeneralTypeIssues", "reportOptionalMemberAccess", "reportReturnType", "reportArgumentType"]
 
     for rule in safe_rules:
         count = errors_by_rule.get(rule, 0)

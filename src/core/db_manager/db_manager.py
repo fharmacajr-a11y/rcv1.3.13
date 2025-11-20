@@ -110,6 +110,7 @@ def _to_cliente(row: dict) -> Cliente:
         ultima_alteracao=row.get("ultima_alteracao"),
         obs=row.get("obs"),
         ultima_por=row.get("ultima_por"),
+        created_at=row.get("created_at"),
     )
 
 
@@ -208,6 +209,7 @@ def insert_cliente(
         "obs": obs,
         "ultima_alteracao": _now_iso(),
         "ultima_por": by,
+        "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
 
     def _do():

@@ -14,6 +14,8 @@ from __future__ import annotations
 
 from typing import TypedDict
 
+from typing_extensions import NotRequired
+
 
 # =============================================================================
 # Client Passwords Table
@@ -54,8 +56,12 @@ class ClientRow(TypedDict):
     id: str  # UUID primary key
     org_id: str  # UUID foreign key to organizations
     razao_social: str  # Legal company name (Razão Social)
-    nome_fantasia: str  # Trade name (Nome Fantasia)
+    nome_fantasia: NotRequired[str]  # Trade name (Nome Fantasia) - optional
     cnpj: str  # Brazilian tax ID (CNPJ)
+    nome: NotRequired[str]  # Contact name field
+    numero: NotRequired[str]  # Internal/phone number field
+    obs: NotRequired[str]  # Notes/observations about the client
+    cnpj_norm: NotRequired[str]  # Normalized CNPJ (digits only)
 
 
 # =============================================================================

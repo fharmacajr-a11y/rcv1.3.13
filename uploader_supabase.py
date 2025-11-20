@@ -5,8 +5,6 @@ from __future__ import annotations
 
 import logging
 import os
-import posixpath
-from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple, cast
 
@@ -15,8 +13,8 @@ from tkinter import filedialog, messagebox, ttk
 
 import ttkbootstrap as tb
 
-from adapters.storage.supabase_storage import SupabaseStorageAdapter
-from infra.supabase_client import supabase
+from src.modules.uploads import service as uploads_service
+from src.modules.uploads.components.helpers import _cnpj_only_digits
 from src.ui.utils import center_window
 
 log = logging.getLogger(__name__)
@@ -25,12 +23,9 @@ CLIENTS_BUCKET = (os.getenv("SUPABASE_CLIENTS_BUCKET") or "clientes").strip() or
 VOLUME_CONFIRM_THRESHOLD = int(os.getenv("RC_UPLOAD_CONFIRM_THRESHOLD") or "200")
 
 
-@dataclass(slots=True)
-class UploadItem:
-    """Container para um item a ser enviado ao Storage."""
-
-    path: Path
-    relative_path: str
+UploadItem = uploads_service.UploadItem
+collect_pdfs_from_folder = uploads_service.collect_pdfs_from_folder
+build_items_from_files = uploads_service.build_items_from_files
 
 
 class UploadProgressDialog(tb.Toplevel):
@@ -88,11 +83,6 @@ class UploadProgressDialog(tb.Toplevel):
             log.debug("Failed to destroy progress window: %s", e)
 
 
-def _normalize_cnpj(cnpj: str | None) -> str:
-    s = (cnpj or "").strip()
-    return "".join(ch for ch in s if ch.isdigit())
-
-
 def _select_pdfs_dialog(parent: Optional[tk.Misc] = None) -> List[str]:
     paths = filedialog.askopenfilenames(
         title="Selecione um ou mais PDFs",
@@ -118,52 +108,6 @@ def _show_upload_summary(ok_count: int, failed_paths: List[str], *, parent: Opti
         )
 
 
-def _normalize_relative_path(relative: str) -> str:
-    rel = relative.replace("\\", "/")
-    rel = posixpath.normpath(rel)
-    rel = rel.replace("..", "").lstrip("./")
-    return rel.strip("/")
-
-
-def _build_remote_path(cnpj_digits: str, item: UploadItem, subfolder: Optional[str]) -> str:
-    parts: List[str] = [cnpj_digits]
-    if subfolder:
-        parts.append(subfolder.strip("/"))
-        parts.append(_normalize_relative_path(item.relative_path))
-    else:
-        parts.append(_normalize_relative_path(item.relative_path))
-    return "/".join(segment.strip("/") for segment in parts if segment)
-
-
-def collect_pdfs_from_folder(dirpath: str) -> List[UploadItem]:
-    """Percorre recursivamente uma pasta e retorna apenas PDFs."""
-    base = Path(dirpath)
-    if not base.is_dir():
-        return []
-
-    items: List[UploadItem] = []
-    for file_path in base.rglob("*"):
-        if not file_path.is_file():
-            continue
-        if file_path.suffix.lower() != ".pdf":
-            continue
-        relative = file_path.relative_to(base).as_posix()
-        items.append(UploadItem(path=file_path, relative_path=relative))
-    items.sort(key=lambda item: item.relative_path.lower())
-    return items
-
-
-def build_items_from_files(paths: Sequence[str]) -> List[UploadItem]:
-    items: List[UploadItem] = []
-    for raw in paths:
-        path = Path(raw)
-        if path.suffix.lower() != ".pdf":
-            continue
-        items.append(UploadItem(path=path, relative_path=path.name))
-    items.sort(key=lambda item: item.relative_path.lower())
-    return items
-
-
 def ensure_client_saved_or_abort(app: tk.Misc, client_id: int) -> bool:
     """Verifica se ha formulario de edicao com alteracoes pendentes."""
     handler = getattr(app, "ensure_client_saved_for_upload", None)
@@ -173,7 +117,7 @@ def ensure_client_saved_or_abort(app: tk.Misc, client_id: int) -> bool:
 
 
 def ask_storage_subfolder(parent: tk.Misc) -> Optional[str]:
-    from src.ui.forms.actions import SubpastaDialog
+    from src.modules.forms.view import SubpastaDialog
 
     dialog = SubpastaDialog(parent, default="")
     parent.wait_window(dialog)
@@ -191,29 +135,32 @@ def _confirm_large_volume(parent: tk.Misc, total: int) -> bool:
 
 
 def _upload_batch(
-    adapter: SupabaseStorageAdapter,
+    app: tk.Misc,
     items: Sequence[UploadItem],
     cnpj_digits: str,
     subfolder: Optional[str],
     parent: tk.Misc,
+    *,
+    bucket: Optional[str] = None,
+    client_id: Optional[int] = None,
+    org_id: Optional[str] = None,
 ) -> Tuple[int, List[Tuple[UploadItem, Exception]]]:
     progress = UploadProgressDialog(parent, len(items))
-    ok = 0
-    failures: List[Tuple[UploadItem, Exception]] = []
 
-    for item in items:
+    def _progress(item: UploadItem) -> None:
         label = Path(item.relative_path).name
         progress.advance(f"Enviando {label}")
-        try:
-            remote_key = _build_remote_path(cnpj_digits, item, subfolder)
-            adapter.upload_file(
-                item.path,
-                remote_key,
-                content_type="application/pdf",
-            )
-            ok += 1
-        except Exception as exc:  # pragma: no cover - integracoes externas
-            failures.append((item, exc))
+
+    ok, failures = uploads_service.upload_items_for_client(
+        items,
+        cnpj_digits=cnpj_digits,
+        bucket=bucket or CLIENTS_BUCKET,
+        supabase_client=getattr(app, "supabase", None),
+        subfolder=subfolder,
+        progress_callback=_progress,
+        client_id=client_id,
+        org_id=org_id,
+    )
 
     progress.close()
     return ok, failures
@@ -227,8 +174,9 @@ def upload_files_to_supabase(
     *,
     parent: Optional[tk.Misc] = None,
     bucket: Optional[str] = None,
+    client_id: Optional[int] = None,
 ) -> Tuple[int, int]:
-    """Executa o upload para <bucket>/<cnpj>/<arquivo>."""
+    """Executa o upload para <bucket>/<org_id>/<client_id>/GERAL/<arquivo>."""
     if not items:
         return 0, 0
 
@@ -236,7 +184,7 @@ def upload_files_to_supabase(
     if not _confirm_large_volume(target, len(items)):
         return 0, 0
 
-    cnpj_digits = _normalize_cnpj(cliente.get("cnpj"))
+    cnpj_digits = _cnpj_only_digits(cliente.get("cnpj"))
     if not cnpj_digits:
         messagebox.showwarning(
             "Envio",
@@ -245,13 +193,28 @@ def upload_files_to_supabase(
         )
         return 0, len(items)
 
-    adapter = SupabaseStorageAdapter(
-        client=getattr(app, "supabase", None) or supabase,
-        bucket=(bucket or CLIENTS_BUCKET),
-        overwrite=False,
-    )
+    # Obtem org_id do usuario logado
+    org_id: Optional[str] = None
+    if client_id is not None:
+        try:
+            from src.modules.uploads.components.helpers import get_current_org_id
 
-    ok, failures = _upload_batch(adapter, items, cnpj_digits, subpasta, target)
+            sb = getattr(app, "supabase", None)
+            if sb:
+                org_id = get_current_org_id(sb)
+        except Exception:
+            pass
+
+    ok, failures = _upload_batch(
+        app,
+        items,
+        cnpj_digits,
+        subpasta,
+        target,
+        bucket=bucket,
+        client_id=client_id,
+        org_id=org_id,
+    )
 
     failed_paths = [Path(item.relative_path).name for item, _ in failures]
     _show_upload_summary(ok_count=ok, failed_paths=failed_paths, parent=target)
@@ -337,6 +300,7 @@ def send_to_supabase_interactive(
         subpasta=None,
         parent=target,
         bucket=default_bucket,
+        client_id=client_id,
     )
 
 
@@ -363,6 +327,11 @@ def send_folder_to_supabase(
         messagebox.showinfo("Envio", "Nenhuma pasta selecionada.", parent=target)
         return 0, 0
 
+    # Captura o nome da pasta selecionada para usar como subfolder no Storage
+    from pathlib import Path as _Path
+
+    folder_name = _Path(folder).name
+
     items = collect_pdfs_from_folder(folder)
     if not items:
         messagebox.showinfo(
@@ -377,9 +346,10 @@ def send_folder_to_supabase(
         app,
         cliente,
         items,
-        subpasta=None,
+        subpasta=folder_name,  # Passa o nome da pasta como subfolder
         parent=target,
         bucket=default_bucket,
+        client_id=client_id,
     )
 
 

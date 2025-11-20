@@ -168,11 +168,7 @@ def test_ema_smoothing():
         variation = abs(speeds[i] - speeds[i - 1]) / speeds[i - 1]
         assert variation < 0.5, f"Variação muito alta: {variation * 100:.1f}% entre amostras {i - 1} e {i}"
 
-    avg_variation = (
-        sum(abs(speeds[i] - speeds[i - 1]) / speeds[i - 1] for i in range(1, len(speeds)))
-        / (len(speeds) - 1)
-        * 100
-    )
+    avg_variation = sum(abs(speeds[i] - speeds[i - 1]) / speeds[i - 1] for i in range(1, len(speeds))) / (len(speeds) - 1) * 100
     print(f"  ✓ EMA suaviza corretamente: variação média {avg_variation:.1f}%")
 
 

@@ -22,7 +22,6 @@ class FooterButtons:
     subpastas: tb.Button
     enviar: ttk.Menubutton
     enviar_menu: tk.Menu
-    lixeira: tb.Button
 
 
 __all__ = ["FooterButtons", "toolbar_button", "create_footer_buttons"]
@@ -41,7 +40,6 @@ def create_footer_buttons(
     on_subpastas: Callable[[], Any],
     on_enviar: Callable[[], Any],
     on_enviar_pasta: Callable[[], Any],
-    on_lixeira: Callable[[], Any],
 ) -> FooterButtons:
     """Create the footer buttons frame used on the main window."""
     frame = tb.Frame(parent)
@@ -54,13 +52,14 @@ def create_footer_buttons(
     menu_enviar.add_command(label="Selecionar PDFs...", command=on_enviar)
     menu_enviar.add_command(label="Selecionar Pasta...", command=on_enviar_pasta)
     btn_enviar["menu"] = menu_enviar
-    btn_lixeira = tb.Button(frame, text="Lixeira", command=on_lixeira, bootstyle="warning")
 
-    btn_novo.pack(side="left", padx=5)
-    btn_editar.pack(side="left", padx=5)
-    btn_subpastas.pack(side="left", padx=5)
-    btn_enviar.pack(side="left", padx=5)
-    btn_lixeira.pack(side="right", padx=5)
+    btn_novo.grid(row=0, column=0, padx=5, pady=5, sticky="w")
+    btn_editar.grid(row=0, column=1, padx=5, pady=5, sticky="w")
+    btn_subpastas.grid(row=0, column=2, padx=5, pady=5, sticky="w")
+    btn_enviar.grid(row=0, column=3, padx=5, pady=5, sticky="w")
+
+    # Configurar pesos
+    frame.columnconfigure(3, weight=1)
 
     if ToolTip:
         ToolTip(btn_enviar, text="Enviar arquivos ou pastas para o Supabase")
@@ -72,5 +71,4 @@ def create_footer_buttons(
         subpastas=btn_subpastas,
         enviar=btn_enviar,
         enviar_menu=menu_enviar,
-        lixeira=btn_lixeira,
     )

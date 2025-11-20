@@ -239,4 +239,3 @@ Esses pontos serao os alvos para mover regras de upload/storage para `modules.au
 - (Opcional) Ampliar testes unitários para o `AuditoriaViewModel`.
 - (Opcional) Evoluir UX sobre a camada atual (filtros extras,
   ordenação avançada), sempre em novas etapas específicas.
-

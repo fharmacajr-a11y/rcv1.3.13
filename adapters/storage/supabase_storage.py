@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import mimetypes
 import os
+import unicodedata
 from pathlib import Path
 from typing import Iterable, Optional, Any
 
@@ -24,9 +25,26 @@ def _normalize_bucket(bucket: Optional[str]) -> str:
     return value
 
 
+def _strip_accents(value: str) -> str:
+    """Remove acentos de uma string usando normalizacao Unicode NFKD."""
+    normalized = unicodedata.normalize("NFKD", value)
+    return "".join(ch for ch in normalized if not unicodedata.combining(ch))
+
+
+def normalize_key_for_storage(key: str) -> str:
+    """Normaliza key do Storage removendo acentos APENAS do nome do arquivo (ultimo segmento)."""
+    key = key.strip("/").replace("\\", "/")
+    parts = key.split("/")
+    if parts:
+        # Remove acentos apenas do nome do arquivo (ultimo segmento)
+        filename = parts[-1]
+        parts[-1] = _strip_accents(filename)
+    return "/".join(parts)
+
+
 def _normalize_key(key: str) -> str:
-    # não mexemos demais aqui; o pipeline/adapters já sanitizam os segmentos
-    return key.strip("/")
+    # Aplica normalizacao completa: remove acentos do filename + strip barras
+    return normalize_key_for_storage(key)
 
 
 def _guess_content_type(remote_key: str, explicit: Optional[str]) -> str:
@@ -218,4 +236,5 @@ __all__ = [
     "download_folder_zip",
     "DownloadCancelledError",
     "get_default_adapter",
+    "normalize_key_for_storage",
 ]

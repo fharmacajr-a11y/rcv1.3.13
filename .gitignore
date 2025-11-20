@@ -70,3 +70,6 @@ tree_dirs_only.txt
 # SQL backups
 migrations/*.sql~
 
+# Relatórios locais do pip-audit (workflow security-audit)
+audit-report.json
+audit-report.md

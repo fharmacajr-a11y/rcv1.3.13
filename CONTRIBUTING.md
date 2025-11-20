@@ -75,7 +75,33 @@ pip install -r requirements-dev.txt
 > - ✅ Todas as dependências de produção (Tkinter, Supabase, httpx, pydantic, etc.)
 > - ✅ Todas as ferramentas de desenvolvimento (pytest, ruff, mypy, pip-audit, pyinstaller, pre-commit, etc.)
 
-### 4. Validar instalação rodando testes
+### 4. Instalar hooks do pre-commit
+
+**IMPORTANTE:** Configure os hooks de pre-commit para garantir qualidade de código antes de cada commit:
+
+```powershell
+pre-commit install
+pre-commit run --all-files  # primeira vez
+```
+
+Após essa configuração:
+
+- ✅ Antes de cada commit, o pre-commit executará automaticamente:
+  - Ruff (linter e formatador Python)
+  - Verificação de trailing whitespace
+  - Garantia de nova linha no final dos arquivos
+  - Validação de sintaxe YAML/TOML/JSON
+  - Detecção de merge conflicts
+  - Normalização de line endings
+
+- ⚠️ **Se algum hook falhar** (ex: ruff encontrar problema de lint/formato), você precisa:
+  1. Revisar as correções automáticas feitas pelo pre-commit
+  2. Adicionar os arquivos corrigidos (`git add <arquivos>`)
+  3. Tentar o commit novamente
+
+- 🚫 **Não use `--no-verify`** para pular pre-commit, exceto em casos muito específicos (ex: commits de docs/merge)
+
+### 5. Validar instalação rodando testes
 
 ```powershell
 pytest -v
@@ -202,7 +228,7 @@ Esta abordagem segue padrões comuns na comunidade Python ([Real Python - Managi
 ### Ao abrir o PR
 
 - **Título claro:** Use prefixos como `feat:`, `fix:`, `docs:`, `deps:`, `refactor:`, `test:`, `ci:` (seguindo convenção de commits)
-  
+
   Exemplos:
   - `feat: adicionar filtro de busca por data`
   - `fix: corrigir erro ao carregar PDF`
@@ -253,7 +279,7 @@ Quando o aplicativo precisa de uma nova biblioteca para funcionar em runtime:
    pip install requests==2.32.5
    pip freeze | findstr requests
    # Atualizar requirements.txt com a versão exata
-   
+
    # Rodar testes
    pytest -v
    ```
@@ -293,10 +319,10 @@ Quando você precisa de uma ferramenta apenas para testes, lint, build, etc.:
    ```powershell
    pip install pylint==3.0.3
    pip freeze | findstr pylint
-   
+
    # Testar ferramenta
    pylint src/
-   
+
    # Validar que testes ainda passam
    pytest -v
    ```
@@ -322,7 +348,7 @@ Quando você precisa de uma ferramenta apenas para testes, lint, build, etc.:
    pip install --upgrade httpx
    pip freeze | findstr httpx
    # Ex: httpx==0.28.0
-   
+
    # Rodar testes completos
    pytest -v
    ```
@@ -332,7 +358,7 @@ Quando você precisa de uma ferramenta apenas para testes, lint, build, etc.:
    ```powershell
    # Editar requirements.txt ou requirements-dev.txt
    # Trocar versão antiga pela nova
-   
+
    git add requirements*.txt
    git commit -m "deps: atualizar httpx de 0.27.2 para 0.28.0"
    ```

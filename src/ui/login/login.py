@@ -1,26 +1,19 @@
 # ui/login.py
 from __future__ import annotations
 
+import logging
 import os
+import tkinter as tk
 
 import ttkbootstrap as tb
 from ttkbootstrap.dialogs import Messagebox
 
 from src.core import session
 from src.core.auth import authenticate_user, ensure_users_db, validate_credentials
-
-try:
-    from ui import center_on_parent
-except Exception:  # pragma: no cover
-    try:
-        from src.ui.utils import center_on_parent
-    except Exception:  # pragma: no cover
-
-        def center_on_parent(win, parent=None, pad=0):
-            return win
-
-
+from src.ui.utils import center_on_parent  # noqa: F401
 from src.utils.resource_path import resource_path
+
+log = logging.getLogger(__name__)
 
 
 class LoginDialog(tb.Toplevel):
@@ -44,10 +37,13 @@ class LoginDialog(tb.Toplevel):
         try:
             ico = resource_path("rc.ico")
             if os.path.exists(ico):
-                self.iconbitmap(ico)  # Windows (.ico)
+                try:
+                    self.iconbitmap(ico)  # Windows (.ico)
+                except Exception:
+                    img = tk.PhotoImage(file=ico)
+                    self.iconphoto(True, img)
         except Exception:
             # fallback opcional para PNG:
-            # import tkinter as tk
             # self.iconphoto(True, tk.PhotoImage(file=resource_path("rc.png")))
             pass
 
@@ -178,9 +174,7 @@ class LoginDialog(tb.Toplevel):
                         self.master.auth.set_user_data(user_data)
             except Exception as e:
                 # Não falhar o login se houver erro aqui
-                import logging
-
-                logging.getLogger(__name__).warning("Não foi possível hidratar dados do usuário: %s", e)
+                log.warning("Não foi possível hidratar dados do usuário: %s", e)
 
             self.result = True
             try:

@@ -12,101 +12,25 @@ class Messagebox:
     """ttkbootstrap Messagebox dialog."""
 
     @staticmethod
-    def show_info(
-        message: str,
-        title: str = "",
-        parent: Misc | None = None,
-        **kwargs: Any
-    ) -> str: ...
-
+    def show_info(message: str, title: str = "", parent: Misc | None = None, **kwargs: Any) -> str: ...
     @staticmethod
-    def show_warning(
-        message: str,
-        title: str = "",
-        parent: Misc | None = None,
-        **kwargs: Any
-    ) -> str: ...
-
+    def show_warning(message: str, title: str = "", parent: Misc | None = None, **kwargs: Any) -> str: ...
     @staticmethod
-    def show_error(
-        message: str,
-        title: str = "",
-        parent: Misc | None = None,
-        **kwargs: Any
-    ) -> str: ...
-
+    def show_error(message: str, title: str = "", parent: Misc | None = None, **kwargs: Any) -> str: ...
     @staticmethod
-    def show_question(
-        message: str,
-        title: str = "",
-        parent: Misc | None = None,
-        **kwargs: Any
-    ) -> str: ...
-
+    def show_question(message: str, title: str = "", parent: Misc | None = None, **kwargs: Any) -> str: ...
     @staticmethod
-    def ok(
-        message: str,
-        title: str = "",
-        parent: Misc | None = None,
-        **kwargs: Any
-    ) -> str: ...
-
+    def ok(message: str, title: str = "", parent: Misc | None = None, **kwargs: Any) -> str: ...
     @staticmethod
-    def okcancel(
-        message: str,
-        title: str = "",
-        parent: Misc | None = None,
-        **kwargs: Any
-    ) -> str: ...
-
+    def okcancel(message: str, title: str = "", parent: Misc | None = None, **kwargs: Any) -> str: ...
     @staticmethod
-    def yesno(
-        message: str,
-        title: str = "",
-        parent: Misc | None = None,
-        **kwargs: Any
-    ) -> str: ...
-
+    def yesno(message: str, title: str = "", parent: Misc | None = None, **kwargs: Any) -> str: ...
     @staticmethod
-    def yesnocancel(
-        message: str,
-        title: str = "",
-        parent: Misc | None = None,
-        **kwargs: Any
-    ) -> str: ...
-
+    def yesnocancel(message: str, title: str = "", parent: Misc | None = None, **kwargs: Any) -> str: ...
     @staticmethod
-    def retrycancel(
-        message: str,
-        title: str = "",
-        parent: Misc | None = None,
-        **kwargs: Any
-    ) -> str: ...
+    def retrycancel(message: str, title: str = "", parent: Misc | None = None, **kwargs: Any) -> str: ...
 
-def show_info(
-    message: str,
-    title: str = "",
-    parent: Misc | None = None,
-    **kwargs: Any
-) -> str: ...
-
-def show_warning(
-    message: str,
-    title: str = "",
-    parent: Misc | None = None,
-    **kwargs: Any
-) -> str: ...
-
-def show_error(
-    message: str,
-    title: str = "",
-    parent: Misc | None = None,
-    **kwargs: Any
-) -> str: ...
-
-def show_question(
-    message: str,
-    title: str = "",
-    parent: Misc | None = None,
-    **kwargs: Any
-) -> str: ...
+def show_info(message: str, title: str = "", parent: Misc | None = None, **kwargs: Any) -> str: ...
+def show_warning(message: str, title: str = "", parent: Misc | None = None, **kwargs: Any) -> str: ...
+def show_error(message: str, title: str = "", parent: Misc | None = None, **kwargs: Any) -> str: ...
+def show_question(message: str, title: str = "", parent: Misc | None = None, **kwargs: Any) -> str: ...

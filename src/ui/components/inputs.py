@@ -20,6 +20,7 @@ class SearchControls:
     clear_button: tb.Button
     order_combobox: tb.Combobox
     status_combobox: tb.Combobox
+    lixeira_button: tb.Button
 
 
 __all__ = ["SearchControls", "labeled_entry", "create_search_controls"]
@@ -41,6 +42,7 @@ def create_search_controls(
     on_clear: Callable[[], Any] | None,
     on_order_change: Callable[[], Any] | None,
     on_status_change: Callable[[Any | None], Any] | None = None,
+    on_lixeira: Callable[[], Any] | None = None,
     search_var: tk.StringVar | None = None,
     order_var: tk.StringVar | None = None,
     status_var: tk.StringVar | None = None,
@@ -110,6 +112,15 @@ def create_search_controls(
     status_combobox.pack(side="left", padx=5)
     status_combobox.bind("<<ComboboxSelected>>", _status_changed, add="+")
 
+    # Botão Lixeira à direita
+    lixeira_button = tb.Button(
+        frame,
+        text="Lixeira",
+        command=on_lixeira,
+        bootstyle="warning",
+    )
+    lixeira_button.pack(side="right", padx=5)
+
     return SearchControls(
         frame=frame,
         search_var=search_var,
@@ -120,4 +131,5 @@ def create_search_controls(
         clear_button=clear_button,
         order_combobox=order_combobox,
         status_combobox=status_combobox,
+        lixeira_button=lixeira_button,
     )

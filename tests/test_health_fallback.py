@@ -22,7 +22,7 @@ class MockResponse:
 def test_health_fallback_on_rpc_404(fake_supabase_url):
     """
     Testa que quando RPC ping retorna 404, o sistema faz fallback para /auth/v1/health.
-    
+
     Args:
         fake_supabase_url: Fixture com URL fake do Supabase para testes
     """
@@ -52,7 +52,7 @@ def test_health_fallback_continues_on_auth_failure(fake_supabase_url):
     """
     Testa que quando RPC ping retorna 404 e /auth/v1/health também falha,
     o health check prossegue para o próximo fallback (tabela).
-    
+
     Args:
         fake_supabase_url: Fixture com URL fake do Supabase para testes
     """
@@ -89,7 +89,7 @@ def test_health_fallback_continues_on_auth_failure(fake_supabase_url):
 def test_health_rpc_non_404_error_skips_auth_fallback(fake_supabase_url):
     """
     Testa que erros de RPC diferentes de 404 não acionam o fallback /auth/v1/health.
-    
+
     Args:
         fake_supabase_url: Fixture com URL fake do Supabase para testes
     """
@@ -124,7 +124,7 @@ def test_health_rpc_non_404_error_skips_auth_fallback(fake_supabase_url):
 def test_health_auth_fallback_requires_valid_response(fake_supabase_url):
     """
     Testa que /auth/v1/health com resposta inválida não considera online via esse caminho.
-    
+
     Args:
         fake_supabase_url: Fixture com URL fake do Supabase para testes
     """
@@ -162,7 +162,7 @@ def test_health_auth_fallback_requires_valid_response(fake_supabase_url):
 def test_health_auth_fallback_on_401_unauthorized(fake_supabase_url):
     """
     Testa que HTTP 401 (Unauthorized) no /auth/v1/health prossegue para fallback de tabela.
-    
+
     Args:
         fake_supabase_url: Fixture com URL fake do Supabase para testes
     """
@@ -197,7 +197,7 @@ def test_health_auth_fallback_on_401_unauthorized(fake_supabase_url):
 def test_health_auth_fallback_on_403_forbidden(fake_supabase_url):
     """
     Testa que HTTP 403 (Forbidden) no /auth/v1/health prossegue para fallback de tabela.
-    
+
     Args:
         fake_supabase_url: Fixture com URL fake do Supabase para testes
     """
@@ -232,7 +232,7 @@ def test_health_auth_fallback_on_403_forbidden(fake_supabase_url):
 def test_health_auth_fallback_on_timeout(fake_supabase_url):
     """
     Testa que timeout no /auth/v1/health prossegue para fallback de tabela.
-    
+
     Args:
         fake_supabase_url: Fixture com URL fake do Supabase para testes
     """

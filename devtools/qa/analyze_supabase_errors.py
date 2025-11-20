@@ -78,10 +78,7 @@ def filter_supabase_errors(diagnostics: list[PyrightDiagnostic]) -> list[Pyright
         List of diagnostics from supabase_repo, supabase_client, supabase_auth
     """
     supabase_keywords: list[str] = ["supabase_repo", "supabase_client", "supabase_auth"]
-    return [
-        d for d in diagnostics
-        if any(kw in d.get("file", "").lower() for kw in supabase_keywords)
-    ]
+    return [d for d in diagnostics if any(kw in d.get("file", "").lower() for kw in supabase_keywords)]
 
 
 def filter_return_type_errors(diagnostics: list[PyrightDiagnostic]) -> list[PyrightDiagnostic]:
@@ -98,10 +95,7 @@ def filter_return_type_errors(diagnostics: list[PyrightDiagnostic]) -> list[Pyri
         "declared return type",
         "inferred return type",
     ]
-    return [
-        d for d in diagnostics
-        if any(pattern in d.get("message", "").lower() for pattern in return_patterns)
-    ]
+    return [d for d in diagnostics if any(pattern in d.get("message", "").lower() for pattern in return_patterns)]
 
 
 def get_line_number(diagnostic: PyrightDiagnostic) -> int:
@@ -218,8 +212,7 @@ def main() -> None:
     ]
 
     priority_errors: list[PyrightDiagnostic] = [
-        err for err in supabase_errors
-        if any(pattern in err.get("message", "").lower() for pattern in priority_patterns)
+        err for err in supabase_errors if any(pattern in err.get("message", "").lower() for pattern in priority_patterns)
     ]
 
     print(f"\n🎯 High-priority type errors: {len(priority_errors)}")

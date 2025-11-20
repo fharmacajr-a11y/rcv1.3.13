@@ -15,3 +15,4 @@ class Cliente:
     ultima_alteracao: Optional[str]
     obs: Optional[str]
     ultima_por: Optional[str]
+    created_at: Optional[str] = None

@@ -5,7 +5,7 @@ Gerenciamento de versão do RC-Gestor.
 
 import os
 
-__version__ = "v1.1.0"
+__version__ = "v1.2.0"
 
 
 def get_version() -> str:
@@ -15,7 +15,7 @@ def get_version() -> str:
     Pode ser sobrescrita via variável de ambiente RC_APP_VERSION.
 
     Returns:
-        str: Versão do aplicativo no formato "v1.1.0"
+        str: Versão do aplicativo no formato "v1.2.0"
     """
     try:
         return os.getenv("RC_APP_VERSION", __version__)

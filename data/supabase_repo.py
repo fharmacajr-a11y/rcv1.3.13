@@ -259,7 +259,7 @@ def add_password(
 
 
 def update_password(
-    id: int,
+    id: str,
     client_name: str | None = None,
     service: str | None = None,
     username: str | None = None,
@@ -305,7 +305,7 @@ def update_password(
         raise RuntimeError(f"Falha ao atualizar senha: {e}")
 
 
-def delete_password(id: int) -> None:
+def delete_password(id: str) -> None:
     """
     Remove um registro da tabela.
     """
@@ -344,8 +344,7 @@ def decrypt_for_view(token: str) -> str:
 
 def search_clients(org_id: str, query: str, limit: int = 20) -> list[ClientRow]:
     """
-    Busca clientes por razão social, nome fantasia ou CNPJ (ORG-aware).
-    Retorna lista de dicts com: id, org_id, razao_social, nome_fantasia, cnpj.
+    Busca clientes por múltiplos campos (razão social, cnpj, nome, telefone, etc).
     Se query < 2 caracteres, retorna resultados sem filtro de texto.
     """
     q = (query or "").strip()
@@ -354,16 +353,25 @@ def search_clients(org_id: str, query: str, limit: int = 20) -> list[ClientRow]:
 
     _ensure_postgrest_auth(supabase)  # Autenticação antes da operação
 
-    ilike = f"%{q}%"
-
     def _do() -> Any:
-        sel = supabase.table("clients").select("id, org_id, razao_social, nome_fantasia, cnpj").eq("org_id", org_id)
+        sel = supabase.table("clients").select("id, org_id, razao_social, cnpj, nome, numero, obs, cnpj_norm").eq("org_id", org_id).is_("deleted_at", None)
 
         if len(q) >= 2:
-            sel = sel.or_(f"razao_social.ilike.{ilike},nome_fantasia.ilike.{ilike},cnpj.ilike.{ilike}").order("razao_social").limit(limit)
-        else:
-            sel = sel.order("razao_social").limit(limit)
+            like = f"%{q}%"
+            sel = sel.or_(
+                ",".join(
+                    [
+                        f"razao_social.ilike.{like}",
+                        f"cnpj.ilike.{like}",
+                        f"cnpj_norm.ilike.{like}",
+                        f"nome.ilike.{like}",
+                        f"numero.ilike.{like}",
+                        f"obs.ilike.{like}",
+                    ]
+                )
+            )
 
+        sel = sel.order("razao_social").limit(limit)
         return exec_postgrest(sel)
 
     try:
@@ -387,7 +395,7 @@ def list_clients_for_picker(org_id: str, limit: int = 200) -> list[ClientRow]:
         limit: Número máximo de resultados (padrão: 200)
 
     Returns:
-        Lista de dicts com: id, org_id, razao_social, nome_fantasia, cnpj
+        Lista de dicts com: id, org_id, razao_social, cnpj
     """
     if not org_id:
         return []
@@ -395,9 +403,7 @@ def list_clients_for_picker(org_id: str, limit: int = 200) -> list[ClientRow]:
     _ensure_postgrest_auth(supabase)  # Autenticação antes da operação
 
     def _do() -> Any:
-        return exec_postgrest(
-            supabase.table("clients").select("id, org_id, razao_social, nome_fantasia, cnpj").eq("org_id", org_id).order("razao_social").limit(limit)
-        )
+        return exec_postgrest(supabase.table("clients").select("id, org_id, razao_social, cnpj, nome").eq("org_id", org_id).order("razao_social").limit(limit))
 
     try:
         res: Any = with_retries(_do)

@@ -1,8 +1,8 @@
 # QA-DELTA-27: StylePack-01 - Zero Ruff and Flake8
 
-**Data**: 2025-11-13  
-**Autor**: GitHub Copilot (Claude Sonnet 4.5)  
-**Tipo**: Quality Assurance - Code Style & Linting  
+**Data**: 2025-11-13
+**Autor**: GitHub Copilot (Claude Sonnet 4.5)
+**Tipo**: Quality Assurance - Code Style & Linting
 **Prioridade**: Alta
 
 ---
@@ -392,8 +392,8 @@ Total:   0 style issues ✅
 
 ## 📌 Commit Info
 
-**Branch**: qa/fixpack-04  
-**Commit Hash**: (a ser preenchido)  
+**Branch**: qa/fixpack-04
+**Commit Hash**: (a ser preenchido)
 **Mensagem**:
 ```
 feat(qa): StylePack-01 - Zero Ruff and Flake8 (keep Pyright 0/0)

@@ -50,12 +50,12 @@ from src.ui.forms.pipeline import (
 
 **Responsabilidades Atuais**:
 - ✅ **UI (Tkinter)**: Janela completa com Treeview, botões, navegação, progress dialogs
-- ✅ **Lógica de Negócio**: 
+- ✅ **Lógica de Negócio**:
   - Navegação de pastas (prefix management)
   - Status de pastas (PRONTA/NÃO PRONTA/NEUTRAL)
   - Formatação de tamanhos, sanitização de nomes
   - Coleta recursiva de arquivos em pastas
-- ✅ **Infraestrutura**: 
+- ✅ **Infraestrutura**:
   - Listagem de objetos no storage
   - Download de arquivos individuais e ZIP
   - Exclusão de arquivos/pastas
@@ -248,7 +248,7 @@ class UploadService:
     def __init__(self, adapter: StorageAdapter, supabase_client):
         self._adapter = adapter
         self._supabase = supabase_client
-    
+
     def execute_upload_pipeline(
         self,
         files: list[Path],
@@ -262,7 +262,7 @@ class UploadService:
         Retorna dict com resultado (success, errors, uploaded_files).
         """
         pass
-    
+
     def detect_cnpj_from_storage(self, client_id: str) -> str | None:
         """Lógica extraída de preencher_via_pasta (sem UI)."""
         pass
@@ -284,7 +284,7 @@ class StorageErrorClassifier:
     def classify(exc: Exception) -> str:
         """Retorna: 'auth', 'network', 'validation', 'unknown'."""
         pass
-    
+
     @staticmethod
     def user_friendly_message(exc: Exception) -> str:
         """Retorna mensagem amigável para UI."""
@@ -324,15 +324,15 @@ class ProgressDialog(tk.Toplevel):
 class FileBrowserService:
     def __init__(self, storage_service):
         self._storage = storage_service
-    
+
     def list_children(self, prefix: str) -> list[FileEntry]:
         """Lista filhos de um prefix (abstrai objetos raw)."""
         pass
-    
+
     def download_file(self, remote_path: str, local_path: str) -> None:
         """Download de arquivo individual."""
         pass
-    
+
     def download_folder_as_zip(
         self,
         prefix: str,
@@ -343,15 +343,15 @@ class FileBrowserService:
     ) -> str:
         """Download de pasta como ZIP com suporte a cancelamento."""
         pass
-    
+
     def delete_files(self, keys: list[str]) -> None:
         """Exclusão de múltiplos arquivos."""
         pass
-    
+
     def delete_folder(self, prefix: str) -> None:
         """Exclusão recursiva de pasta."""
         pass
-    
+
     def collect_files_recursive(self, prefix: str) -> list[str]:
         """Coleta todos arquivos em pasta (recursivo)."""
         pass
@@ -383,15 +383,15 @@ class NavigationHelper:
         self._base = base_prefix
         self._current = base_prefix
         self._history: list[str] = [base_prefix]
-    
+
     def go_forward(self, child_name: str) -> str:
         """Navega para pasta filha."""
         pass
-    
+
     def go_up(self) -> str:
         """Navega para pasta pai."""
         pass
-    
+
     def resolve_full_prefix(self, rel_prefix: str) -> str:
         """Resolve prefix completo a partir de relativo."""
         pass
@@ -407,32 +407,32 @@ class FolderStatusManager:
     NEUTRAL = "neutral"
     READY = "ready"
     NOTREADY = "notready"
-    
+
     GLYPHS = {NEUTRAL: "•", READY: "✓", NOTREADY: "✗"}
-    
+
     def __init__(self):
         self._status_map: dict[str, str] = {}
-    
+
     def get_status(self, folder_path: str) -> str:
         """Retorna status atual."""
         pass
-    
+
     def set_status(self, folder_path: str, status: str) -> None:
         """Define status."""
         pass
-    
+
     def cycle_status(self, folder_path: str) -> str:
         """Rotaciona status (NEUTRAL → READY → NOTREADY)."""
         pass
-    
+
     def get_glyph(self, folder_path: str) -> str:
         """Retorna glyph de status."""
         pass
-    
+
     def load_from_repo(self, browser_key: str) -> None:
         """Carrega status de persistência."""
         pass
-    
+
     def save_to_repo(self, browser_key: str) -> None:
         """Salva status em persistência."""
         pass
@@ -449,7 +449,7 @@ class FileBrowserWindow(tk.Toplevel):
     Janela de navegação de arquivos (UI pura).
     Recebe FileBrowserService e FolderStatusManager como dependências.
     """
-    
+
     def __init__(
         self,
         parent,
@@ -458,11 +458,11 @@ class FileBrowserWindow(tk.Toplevel):
         config: BrowserConfig,
     ):
         pass
-    
+
     def refresh_listing(self) -> None:
         """Recarrega árvore no prefix atual."""
         pass
-    
+
     def navigate_to(self, prefix: str) -> None:
         """Navega para prefix especificado."""
         pass
@@ -478,7 +478,7 @@ class ModuleBehavior(ABC):
     @abstractmethod
     def get_delete_file_button_text(self) -> str:
         pass
-    
+
     @abstractmethod
     def handle_folder_deletion(self, bucket: str, prefix: str) -> None:
         pass
@@ -486,10 +486,10 @@ class ModuleBehavior(ABC):
 class AuditoriaBehavior(ModuleBehavior):
     def __init__(self, delete_folder_handler):
         self._handler = delete_folder_handler
-    
+
     def get_delete_file_button_text(self) -> str:
         return "Excluir selecionado"
-    
+
     def handle_folder_deletion(self, bucket: str, prefix: str) -> None:
         if self._handler:
             self._handler(bucket, prefix)
@@ -497,7 +497,7 @@ class AuditoriaBehavior(ModuleBehavior):
 class DefaultBehavior(ModuleBehavior):
     def get_delete_file_button_text(self) -> str:
         return "Excluir arquivo(s)"
-    
+
     def handle_folder_deletion(self, bucket: str, prefix: str) -> None:
         # Lógica de coleta recursiva + deleção
         pass
@@ -648,9 +648,8 @@ class DefaultBehavior(ModuleBehavior):
 
 ---
 
-**Próximos Passos**: 
+**Próximos Passos**:
 1. Validar este relatório com stakeholders
 2. Criar ADR para estratégia de refatoração
 3. Configurar feature flags para migration paralela (se necessário)
 4. Executar Fase A (preparação) como warmup
-

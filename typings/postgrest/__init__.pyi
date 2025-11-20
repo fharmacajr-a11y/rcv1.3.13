@@ -207,7 +207,6 @@ class PostgrestClient:
         schema: str = "public",
         headers: Mapping[str, str] | None = None,
     ) -> None: ...
-
     def from_(self, table: str) -> SyncQueryRequestBuilder[Mapping[str, Any]]:
         """Create query builder for table."""
         ...

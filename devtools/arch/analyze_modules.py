@@ -74,10 +74,7 @@ def classify_module(file_path: Path, content: str) -> str:
         return "ui"
 
     # Infrastructure indicators
-    infra_indicators = [
-        "supabase", "httpx", "requests", "psycopg", "sqlalchemy",
-        "redis", "cache", "from infra", "import infra"
-    ]
+    infra_indicators = ["supabase", "httpx", "requests", "psycopg", "sqlalchemy", "redis", "cache", "from infra", "import infra"]
     if any(indicator in content_lower for indicator in infra_indicators):
         return "infra"
 
@@ -125,23 +122,11 @@ def analyze_modules(project_root: Path) -> dict[str, Any]:
     """
     module_map: dict[str, Any] = {
         "project_root": str(project_root),
-        "layers": {
-            "ui": [],
-            "core": [],
-            "infra": [],
-            "adapter": [],
-            "domain": [],
-            "typing": [],
-            "script": [],
-            "third_party": []
-        },
-        "stats": {}
+        "layers": {"ui": [], "core": [], "infra": [], "adapter": [], "domain": [], "typing": [], "script": [], "third_party": []},
+        "stats": {},
     }
 
-    scan_dirs = [
-        "src", "adapters", "infra", "data", "helpers",
-        "security", "scripts", "third_party", "typings"
-    ]
+    scan_dirs = ["src", "adapters", "infra", "data", "helpers", "security", "scripts", "third_party", "typings"]
 
     total_files = 0
     for scan_dir in scan_dirs:
@@ -171,7 +156,7 @@ def analyze_modules(project_root: Path) -> dict[str, Any]:
                     "path": str(relative_path).replace("\\", "/"),
                     "name": file.replace(".py", ""),
                     "layer": layer,
-                    "imports": key_imports[:5]  # Keep top 5 imports for reference
+                    "imports": key_imports[:5],  # Keep top 5 imports for reference
                 }
 
                 module_map["layers"][layer].append(module_info)

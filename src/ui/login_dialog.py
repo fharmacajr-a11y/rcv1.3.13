@@ -1,5 +1,6 @@
 # ---------------- gui/login_dialog.py ----------------
 import logging
+import os
 import re
 import tkinter as tk
 from tkinter import messagebox, ttk
@@ -11,6 +12,7 @@ from src.core.auth.auth import authenticate_user  # Import for authenticate_user
 from src.core.session.session import (  # <-- importa sessão
     refresh_current_user_from_supabase,
 )
+from src.utils.resource_path import resource_path
 
 log = logging.getLogger(__name__)
 
@@ -22,6 +24,21 @@ class LoginDialog(tk.Toplevel):
         super().__init__(master)
         self.title("Entrar")
         self.resizable(False, False)
+
+        # Ícone da janela de login (mesmo rc.ico do app)
+        try:
+            icon_path = resource_path("rc.ico")
+            if os.path.exists(icon_path):
+                try:
+                    self.iconbitmap(icon_path)
+                except Exception:
+                    try:
+                        img = tk.PhotoImage(file=icon_path)
+                        self.iconphoto(True, img)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
 
         # Variáveis
         self.email_var = tk.StringVar()
@@ -90,7 +107,7 @@ class LoginDialog(tk.Toplevel):
             if not token:
                 messagebox.showerror(
                     "Erro",
-                    "Login não gerou token. Verifique credenciais/Email confirmado.",
+                    "Login não gerou token. Verifique credenciais/E-mail confirmado.",
                     parent=self,
                 )
                 return

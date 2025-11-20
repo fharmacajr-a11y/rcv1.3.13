@@ -8,6 +8,14 @@ import pytest  # type: ignore[import-untyped]
 
 from src.utils.prefs import load_columns_visibility, save_columns_visibility
 
+# Verificar se filelock está disponível
+try:
+    import filelock  # noqa: F401
+
+    HAS_FILELOCK = True
+except ImportError:
+    HAS_FILELOCK = False
+
 
 @pytest.fixture
 def temp_prefs_dir(monkeypatch, tmp_path):
@@ -78,7 +86,7 @@ def test_corrupted_prefs_file_returns_empty(temp_prefs_dir):
     assert loaded == {}
 
 
-@pytest.mark.skipif(not os.getenv("TEST_FILELOCK"), reason="Requer filelock instalado. Execute: pip install filelock")
+@pytest.mark.skipif(not HAS_FILELOCK, reason="Requer filelock instalado. Execute: pip install filelock")
 def test_filelock_integration(temp_prefs_dir):
     """
     Testa integração com filelock (requer filelock instalado).

@@ -73,7 +73,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='RC-Gestor-Clientes-v1.1.0',
+    name='RC-Gestor-Clientes-v1.2.0',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

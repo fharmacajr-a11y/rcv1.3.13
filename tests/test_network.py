@@ -18,6 +18,7 @@ def test_check_internet_connectivity_bypassed_in_test(monkeypatch):
 def test_check_internet_connectivity_handles_failure(monkeypatch):
     """Test that check returns False when socket connection fails."""
     from src.utils.network import check_internet_connectivity
+    import urllib.request
 
     # Ensure check is not bypassed
     monkeypatch.delenv("RC_NO_NET_CHECK", raising=False)
@@ -27,6 +28,14 @@ def test_check_internet_connectivity_handles_failure(monkeypatch):
         raise OSError("Network unreachable")
 
     monkeypatch.setattr(socket, "create_connection", mock_create_connection)
+
+    # Mock urllib.request.urlopen to raise URLError
+    def mock_urlopen(*args, **kwargs):
+        from urllib.error import URLError
+
+        raise URLError("HTTP unreachable")
+
+    monkeypatch.setattr(urllib.request, "urlopen", mock_urlopen)
 
     result = check_internet_connectivity()
     assert result is False
@@ -55,6 +64,7 @@ def test_require_internet_returns_true_when_online(monkeypatch):
 def test_require_internet_returns_false_when_offline(monkeypatch):
     """Test that require_internet_or_alert returns False when offline."""
     from src.utils.network import require_internet_or_alert
+    import urllib.request
 
     monkeypatch.setenv("RC_NO_LOCAL_FS", "1")
     monkeypatch.setenv("RC_NO_GUI_ERRORS", "1")  # Suppress GUI
@@ -65,6 +75,14 @@ def test_require_internet_returns_false_when_offline(monkeypatch):
         raise OSError("Network unreachable")
 
     monkeypatch.setattr(socket, "create_connection", mock_create_connection)
+
+    # Mock urllib.request.urlopen to raise URLError
+    def mock_urlopen(*args, **kwargs):
+        from urllib.error import URLError
+
+        raise URLError("HTTP unreachable")
+
+    monkeypatch.setattr(urllib.request, "urlopen", mock_urlopen)
 
     result = require_internet_or_alert()
     assert result is False
