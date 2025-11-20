@@ -113,6 +113,22 @@ pytest -v
 ======================= 215 passed in ~30s =======================
 ```
 
+#### 📊 Coverage (Cobertura de Testes)
+
+A CI do projeto roda testes com medição de cobertura e **falha automaticamente se a cobertura total ficar abaixo de 25%**.
+
+Para rodar localmente com coverage (recomendado antes de abrir PR):
+
+```powershell
+python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -v
+```
+
+Este comando:
+- `--cov=src`: mede cobertura do código em `src/`
+- `--cov-report=term-missing`: mostra quais linhas NÃO estão cobertas
+- `--cov-fail-under=25`: falha se cobertura total < 25%
+- `-v`: modo verbose (mostra cada teste)
+
 ---
 
 ## 📦 Como funciona a separação de dependências
