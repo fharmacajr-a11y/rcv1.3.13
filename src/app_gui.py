@@ -43,12 +43,11 @@ if __name__ == "__main__":
 
     log = bootstrap.configure_logging()
 
-    import sys
-
-    if not bootstrap.run_initial_healthcheck(logger=log):
-        sys.exit(1)
-
+    # PERF-001: Criar app ANTES do health check para startup rápida
     app = App(start_hidden=True)
+
+    # PERF-001: Health check em background (não bloqueia startup)
+    bootstrap.schedule_healthcheck_after_gui(app, logger=log, delay_ms=500)
 
     # Show splash unless --no-splash flag is set
     if not app_args.no_splash:

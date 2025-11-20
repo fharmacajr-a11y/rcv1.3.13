@@ -106,12 +106,20 @@
 
 ### Performance
 
-- [ ] **PERF-001: Otimizar health check na inicialização**
-  - **Área:** `src/core/bootstrap.py`, `src/utils/network.py`
+- [x] **PERF-001: Otimizar health check na inicialização** ✅
+  - **Área:** `src/core/bootstrap.py`, `src/utils/network.py`, `src/app_gui.py`
   - **Descrição:** Health check pode atrasar startup em redes lentas
-  - **Solução:** Timeout agressivo ou fazer assíncrono
-  - **Benefício:** Startup mais rápido
-  - **Esforço:** 2-3h
+  - **Solução:** ✅ Dual strategy: (1) timeouts agressivos (2s→1s socket, 5s→2s HTTP) + (2) execução não-bloqueante em background após criação da GUI
+  - **Benefício:** Startup instantâneo mesmo em redes lentas (redução de até 7s→0s no blocking)
+  - **Esforço:** 2-3h (concluído)
+  - **Implementação:**
+    - `network.py`: Timeouts reduzidos (máx 3s vs 7s antes)
+    - `bootstrap.py`: Nova função `schedule_healthcheck_after_gui()` executa check em background
+    - `app_gui.py`: Janela criada ANTES do health check (não bloqueante)
+  - **Validação:**
+    - pytest: 215/215 passed
+    - coverage: 25.85% (≥25%)
+    - pre-commit: ✅ all hooks passed
   - **Automável:** Manual
 
 - [ ] **PERF-002: Threading em operações de upload/download**

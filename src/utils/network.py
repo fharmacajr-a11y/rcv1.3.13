@@ -52,13 +52,14 @@ def _http_check(timeout: float) -> bool:
     return False
 
 
-def check_internet_connectivity(timeout: float = 2.0) -> bool:
+def check_internet_connectivity(timeout: float = 1.0) -> bool:
     """Check if internet is available by attempting a socket connection.
 
     Uses DNS (8.8.8.8:53) as a lightweight check without sending HTTP traffic.
+    Optimized with aggressive timeout (1s) for fast startup.
 
     Args:
-        timeout: Connection timeout in seconds
+        timeout: Connection timeout in seconds (default: 1.0 for fast startup)
 
     Returns:
         True if internet is available, False otherwise
@@ -74,8 +75,8 @@ def check_internet_connectivity(timeout: float = 2.0) -> bool:
         return True
 
     # 2) Fallback HTTP
-    # Aumentamos um pouco o timeout se for muito baixo, pra evitar falso negativo.
-    http_timeout = max(timeout, 5.0)
+    # Timeout agressivo para não atrasar startup (PERF-001)
+    http_timeout = max(timeout, 2.0)
     if _http_check(timeout=http_timeout):
         logger.info("Internet connectivity confirmed via HTTP fallback (cloud-only mode)")
         return True
