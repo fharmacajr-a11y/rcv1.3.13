@@ -49,16 +49,6 @@ def _read_pdf_text_pypdf(p: Path) -> Optional[str]:
         return None
 
 
-def _read_pdf_text_pdfminer(p: Path) -> Optional[str]:
-    try:
-        from pdfminer.high_level import extract_text
-
-        res = (extract_text(str(p)) or "").strip()
-        return res or None
-    except Exception:
-        return None
-
-
 def _read_pdf_text_pymupdf(p: Path) -> Optional[str]:
     try:
         import fitz  # PyMuPDF
@@ -107,15 +97,29 @@ def _ocr_pdf_with_pymupdf(p: Path, max_pages: int = 5, dpi: int = 200) -> Option
 
 
 def read_pdf_text(path: str | Path) -> Optional[str]:
+    """
+    Extrai texto de PDF usando estratégia de fallback em cascata.
+    
+    Ordem de tentativa (otimizada pós-Sprint P1):
+    1. PyMuPDF (fitz) - Mais robusto, rápido e completo
+    2. pypdf - Fallback para PDFs simples
+    3. OCR com PyMuPDF + Tesseract - Para PDFs escaneados
+    
+    Nota de Segurança (Sprint P1-SEG/DEP):
+    - pdfminer-six REMOVIDO (CVE GHSA-f83h-ghpp-7wcc, CVSS 7.8 HIGH)
+    - Eliminação completa do vetor de ataque de desserialização pickle
+    """
     p = Path(path)
     if not p.exists() or not p.is_file():
         return None
 
-    for fn in (_read_pdf_text_pypdf, _read_pdf_text_pdfminer, _read_pdf_text_pymupdf):
+    # Ordem otimizada: PyMuPDF (primário) → pypdf (fallback) → OCR
+    for fn in (_read_pdf_text_pymupdf, _read_pdf_text_pypdf):
         txt = fn(p)
         if txt:
             return txt
 
+    # Último recurso: OCR para PDFs escaneados
     return _ocr_pdf_with_pymupdf(p)
 
 
