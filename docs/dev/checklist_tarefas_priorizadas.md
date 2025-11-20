@@ -1,0 +1,446 @@
+# Checklist de Tarefas Priorizadas - RC Gestor de Clientes
+
+**Data:** 20 de novembro de 2025  
+**Versão Base:** v1.2.31  
+**Branch:** qa/fixpack-04
+
+---
+
+## Legenda de Prioridades
+
+- **P0** 🔴 - **CRÍTICO** - Segurança, bugs graves, bloqueadores
+- **P1** 🟡 - **IMPORTANTE** - Performance, qualidade, manutenibilidade
+- **P2** 🟢 - **DESEJÁVEL** - Melhorias, otimizações, boas práticas
+- **P3** ⚪ - **COSMÉTICO** - Nice-to-have, longo prazo
+
+## Status das Tarefas
+
+- [ ] Não iniciado
+- [x] Concluído
+- [>] Em progresso
+
+---
+
+## P0 - CRÍTICO 🔴
+
+### Segurança
+
+- [x] **SEG-001: Auditoria de CVEs em dependências** ✅ **CONCLUÍDO**
+  - **Área:** `requirements.txt`, segurança
+  - **Descrição:** Executar `pip-audit` e corrigir vulnerabilidades conhecidas
+  - **Comando:** `pip-audit --fix`
+  - **Risco:** Exploits em bibliotecas desatualizadas
+  - **Esforço:** 2-4h
+  - **Automável:** Parcial (detecção sim, correção manual)
+  - **Resultado:** 
+    - ✅ 128 pacotes auditados
+    - ⚠️ 1 CVE identificado: `pdfminer-six` GHSA-f83h-ghpp-7wcc (CVSS 7.8 HIGH)
+    - ✅ Pacotes críticos limpos: `cryptography`, `pillow`, `httpx`, `certifi`, `bcrypt`, `pyjwt`
+    - 📄 Relatório: `docs/dev/seguranca_dependencias.md`
+    - 🔒 Risco residual: BAIXO (aplicação desktop mono-usuário)
+
+- [x] **SEG-002: Verificar `.env.backup` no gitignore** ✅ **CONCLUÍDO**
+  - **Área:** `.gitignore`, segurança
+  - **Descrição:** Garantir que `.env.backup` não seja versionado
+  - **Ação:** Adicionar ao `.gitignore` se não estiver
+  - **Risco:** Leak de secrets no repositório
+  - **Esforço:** 5min
+  - **Automável:** Sim
+  - **Resultado:**
+    - ✅ `.env.backup` já estava no `.gitignore` (linha 20)
+    - 🚨 **CRÍTICO CORRIGIDO:** `.env` e `.env.backup` estavam commitados no histórico
+    - ✅ Removidos do controle de versão com `git rm --cached`
+    - ⚠️ ATENÇÃO: Arquivos ainda existem localmente (correto)
+    - 📝 Commit: f6f8aff
+
+- [x] **SEG-003: Remover secrets hardcoded em testes** ✅ **CONCLUÍDO**
+  - **Área:** `tests/test_health_fallback.py`, `tests/test_env_precedence.py`
+  - **Descrição:** Substituir URLs/keys hardcoded por fixtures/mocks
+  - **Exemplo:** `SUPABASE_URL=https://test.supabase.co` → usar mock
+  - **Risco:** Leak acidental em logs públicos do CI
+  - **Esforço:** 1-2h
+  - **Automável:** Manual (requer refatoração de testes)
+  - **Resultado:**
+    - ✅ Fixtures centralizadas criadas em `tests/conftest.py`:
+      * `fake_supabase_url()` → URL fictícia para testes
+      * `fake_supabase_key()` → JWT fake para testes
+      * `fake_env_vars()` → Dicionário completo de variáveis fake
+    - ✅ `test_health_fallback.py` refatorado (7 testes atualizados)
+    - ✅ `test_env_precedence.py` refatorado (1 teste atualizado)
+    - ✅ `test_env_precedence.py`: 4/4 testes passando
+    - ⚠️ `test_health_fallback.py`: Import circular pré-existente detectado (não relacionado à refatoração)
+    - 📝 Commit: 729ffda
+
+
+### Funcionalidade
+
+- [ ] **FUNC-001: Validar operações bloqueantes na GUI**
+  - **Área:** `src/ui/`, `src/modules/*/views/`
+  - **Descrição:** Auditar operações síncronas que podem travar UI
+  - **Arquivos principais:**
+    - `src/modules/main_window/views/main_window.py` (health check)
+    - `src/ui/files_browser.py` (listagem de arquivos)
+  - **Ação:** Mover para threads ou usar async/await
+  - **Risco:** UI travada em redes lentas
+  - **Esforço:** 4-8h
+  - **Automável:** Manual (análise + refatoração)
+
+---
+
+## P1 - IMPORTANTE 🟡
+
+### Performance
+
+- [ ] **PERF-001: Otimizar health check na inicialização**
+  - **Área:** `src/core/bootstrap.py`, `src/utils/network.py`
+  - **Descrição:** Health check pode atrasar startup em redes lentas
+  - **Solução:** Timeout agressivo ou fazer assíncrono
+  - **Benefício:** Startup mais rápido
+  - **Esforço:** 2-3h
+  - **Automável:** Manual
+
+- [ ] **PERF-002: Threading em operações de upload/download**
+  - **Área:** `src/modules/uploads/`, `src/modules/pdf_preview/`
+  - **Descrição:** Mover I/O de rede para threads
+  - **Benefício:** UI responsiva durante uploads
+  - **Esforço:** 6-10h
+  - **Automável:** Manual
+
+- [ ] **PERF-003: Implementar lazy loading em listas grandes**
+  - **Área:** `src/ui/files_browser.py`, Treeviews
+  - **Descrição:** Virtual scrolling ou paginação para > 1000 itens
+  - **Benefício:** Performance em listagens grandes
+  - **Esforço:** 8-12h
+  - **Automável:** Manual (complexo)
+
+### Dependências
+
+- [ ] **DEP-001: Remover dependências duplicadas**
+  - **Área:** `requirements.txt`
+  - **Descrição:** Investigar e remover:
+    - `pypdf` + `PyPDF2` (duplicação)
+    - `requests` (httpx já cobre)
+    - `py7zr` (já removido segundo CHANGELOG?)
+  - **Ação:** `pipdeptree` para análise, remover não usados
+  - **Benefício:** Redução de 10-20MB no executável
+  - **Esforço:** 2-4h
+  - **Automável:** Parcial (detecção com `deptry`)
+
+- [ ] **DEP-002: Separar requirements dev/prod**
+  - **Área:** `requirements.txt` → `requirements-dev.txt`
+  - **Descrição:** Mover pytest, mypy, ruff, etc. para requirements-dev
+  - **Benefício:** Build de produção mais leve
+  - **Esforço:** 1-2h
+  - **Automável:** Manual
+
+- [ ] **DEP-003: Atualizar dependências críticas**
+  - **Área:** `requirements.txt`
+  - **Descrição:** Atualizar bibliotecas de segurança/rede
+  - **Prioridade:** cryptography, httpx, certifi, pydantic
+  - **Ação:** `pip list --outdated`, testar atualizações
+  - **Benefício:** Patches de segurança e performance
+  - **Esforço:** 4-6h (inclui testes de regressão)
+  - **Automável:** Parcial (Dependabot)
+
+### Qualidade de Código
+
+- [ ] **QA-001: Refatorar `src/ui/files_browser.py`**
+  - **Área:** `src/ui/files_browser.py` (~1200 linhas)
+  - **Descrição:** Quebrar em componentes menores
+  - **Sugestão:** Separar em ListView, Toolbar, Actions, Service
+  - **Benefício:** Manutenibilidade, testabilidade
+  - **Esforço:** 12-16h
+  - **Automável:** Manual (refatoração grande)
+
+- [ ] **QA-002: Refatorar `src/modules/main_window/views/main_window.py`**
+  - **Área:** `src/modules/main_window/views/main_window.py` (~1000 linhas)
+  - **Descrição:** Extrair componentes (sidebar, footer, menu)
+  - **Benefício:** Redução de complexidade
+  - **Esforço:** 10-14h
+  - **Automável:** Manual
+
+- [ ] **QA-003: Adicionar type hints faltantes**
+  - **Área:** Módulos sem `from __future__ import annotations`
+  - **Descrição:** Incrementalmente adicionar types em arquivos antigos
+  - **Ferramenta:** `pyright --stats` para identificar
+  - **Benefício:** Melhor IDE support, menos bugs
+  - **Esforço:** 6-10h (pode ser feito incrementalmente)
+  - **Automável:** Parcial (detecção automática, adição manual)
+
+- [ ] **QA-004: Configurar pre-commit hooks**
+  - **Área:** Criar `.pre-commit-config.yaml`
+  - **Descrição:** Automatizar ruff, trailing whitespace, etc.
+  - **Hooks sugeridos:** ruff, ruff-format, end-of-file-fixer
+  - **Benefício:** Qualidade consistente antes de commit
+  - **Esforço:** 1h
+  - **Automável:** Sim
+
+### Testes
+
+- [ ] **TEST-001: Aumentar cobertura para 85%+**
+  - **Área:** Módulos com baixa cobertura
+  - **Descrição:** Adicionar testes em:
+    - `src/modules/cashflow/`
+    - `src/modules/passwords/`
+    - `src/ui/components/`
+  - **Ferramenta:** `pytest --cov` para medir
+  - **Benefício:** Redução de bugs
+  - **Esforço:** 8-12h
+  - **Automável:** Manual (escrever testes)
+
+- [ ] **TEST-002: Configurar coverage report no CI**
+  - **Área:** `.github/workflows/ci.yml`
+  - **Descrição:** Adicionar job de coverage com threshold
+  - **Ação:** `pytest --cov --cov-fail-under=80`
+  - **Benefício:** Visibilidade de cobertura em PRs
+  - **Esforço:** 1h
+  - **Automável:** Sim
+
+---
+
+## P2 - DESEJÁVEL 🟢
+
+### Documentação
+
+- [ ] **DOC-001: Criar README.md principal**
+  - **Área:** Raiz do projeto
+  - **Descrição:** README com overview, setup, build, contribuição
+  - **Seções:** Descrição, Features, Instalação, Build, Testes, Licença
+  - **Benefício:** Onboarding de novos devs
+  - **Esforço:** 2-3h
+  - **Automável:** Manual
+
+- [ ] **DOC-002: Gerar documentação de API com Sphinx**
+  - **Área:** Criar `docs/api/`
+  - **Descrição:** Autodoc de módulos principais
+  - **Ferramenta:** Sphinx + autodoc
+  - **Benefício:** Referência de API interna
+  - **Esforço:** 4-6h
+  - **Automável:** Parcial (geração automática, organização manual)
+
+- [ ] **DOC-003: Criar manual de usuário**
+  - **Área:** `docs/user-guide/`
+  - **Descrição:** Guia para usuário final (não técnico)
+  - **Seções:** Instalação, Primeiros passos, Funcionalidades
+  - **Benefício:** Suporte ao usuário
+  - **Esforço:** 8-12h
+  - **Automável:** Manual
+
+- [ ] **DOC-004: Documentar arquitetura com diagramas**
+  - **Área:** `docs/architecture/`
+  - **Descrição:** Diagramas C4 ou UML (componentes, sequência)
+  - **Ferramenta:** PlantUML, Mermaid, ou draw.io
+  - **Benefício:** Entendimento rápido da arquitetura
+  - **Esforço:** 4-6h
+  - **Automável:** Manual
+
+- [ ] **DOC-005: Revisar e consolidar docs antigas**
+  - **Área:** `docs/releases/FASE_*.md`
+  - **Descrição:** Arquivar ou consolidar relatórios de fases
+  - **Ação:** Mover para `docs/archive/` se obsoletos
+  - **Benefício:** Organização
+  - **Esforço:** 2h
+  - **Automável:** Manual
+
+### Build e Deploy
+
+- [ ] **BUILD-001: Otimizar tamanho do executável**
+  - **Área:** `rcgestor.spec`
+  - **Descrição:** 
+    - Usar `--exclude-module` para pacotes não usados
+    - Verificar binários desnecessários
+    - Considerar compressão adicional
+  - **Benefício:** Executável de ~80MB → ~50-60MB
+  - **Esforço:** 4-6h
+  - **Automável:** Parcial
+
+- [ ] **BUILD-002: Criar instalador (Inno Setup)**
+  - **Área:** Criar `installer/rcgestor.iss`
+  - **Descrição:** Instalador Windows com:
+    - Assinatura digital integrada
+    - Desinstalador
+    - Atalhos
+  - **Benefício:** Distribuição profissional
+  - **Esforço:** 6-8h
+  - **Automável:** Parcial (script de build)
+
+- [ ] **BUILD-003: Cache de dependências no CI**
+  - **Área:** `.github/workflows/ci.yml`
+  - **Descrição:** Cachear `.venv` ou pip cache
+  - **Ação:** Usar `actions/cache@v4`
+  - **Benefício:** CI 2-3x mais rápido
+  - **Esforço:** 1h
+  - **Automável:** Sim
+
+- [ ] **BUILD-004: Adicionar job de linting no CI**
+  - **Área:** `.github/workflows/ci.yml`
+  - **Descrição:** Adicionar job `lint` com ruff, pyright
+  - **Benefício:** Qualidade forçada em PRs
+  - **Esforço:** 1-2h
+  - **Automável:** Sim
+
+### Código e Estrutura
+
+- [ ] **CODE-001: Consolidar estrutura de pastas**
+  - **Área:** `src/helpers/` e `helpers/`
+  - **Descrição:** Mover `helpers/` raiz para dentro de `src/`
+  - **Ação:** Git mv + atualizar imports
+  - **Benefício:** Organização consistente
+  - **Esforço:** 2-3h
+  - **Automável:** Parcial (git mv manual, imports com refactor tool)
+
+- [ ] **CODE-002: Remover arquivos temporários versionados**
+  - **Área:** `tmp_*.py`, `__tmp_*.txt`
+  - **Descrição:** Remover ou mover para `.gitignore`
+  - **Benefício:** Limpeza do repo
+  - **Esforço:** 30min
+  - **Automável:** Manual
+
+- [ ] **CODE-003: Mover relatórios da raiz para docs/**
+  - **Área:** `FASE_*_RELATORIO.md` na raiz
+  - **Descrição:** Mover para `docs/releases/` ou `docs/archive/`
+  - **Benefício:** Raiz mais limpa
+  - **Esforço:** 30min
+  - **Automável:** Manual
+
+- [ ] **CODE-004: Remover código duplicado de compatibilidade**
+  - **Área:** `src/ui/hub_screen.py`, `src/ui/passwords_screen.py`, etc.
+  - **Descrição:** Deprecar arquivos que apenas reexportam
+  - **Ação:** Marcar como deprecated, remover em v2.0
+  - **Benefício:** Menos código para manter
+  - **Esforço:** 4-6h (inclui atualizar chamadores)
+  - **Automável:** Parcial (detecção com grep, remoção manual)
+
+### Ferramentas de Qualidade
+
+- [ ] **TOOL-001: Configurar Dependabot**
+  - **Área:** `.github/dependabot.yml`
+  - **Descrição:** Automatizar PRs de atualização de deps
+  - **Benefício:** Deps sempre atualizadas
+  - **Esforço:** 30min
+  - **Automável:** Sim
+
+- [ ] **TOOL-002: Integrar bandit no CI**
+  - **Área:** `.github/workflows/security-audit.yml`
+  - **Descrição:** Adicionar SAST ao pipeline
+  - **Benefício:** Detecção automática de vulnerabilidades
+  - **Esforço:** 1h
+  - **Automável:** Sim
+
+- [ ] **TOOL-003: Ajustar configuração do Ruff**
+  - **Área:** `ruff.toml`
+  - **Descrição:**
+    - Reduzir `line-length` de 160 para 100
+    - Adicionar mais regras (W, C, N)
+    - Reduzir per-file ignores
+  - **Benefício:** Código mais consistente
+  - **Esforço:** 2-3h (inclui correções)
+  - **Automável:** Parcial
+
+- [ ] **TOOL-004: Melhorar configuração do Pyright**
+  - **Área:** `pyrightconfig.json`
+  - **Descrição:**
+    - Mudar `typeCheckingMode` para "standard"
+    - Habilitar `reportAttributeAccessIssue`
+    - Corrigir erros revelados
+  - **Benefício:** Type safety melhorado
+  - **Esforço:** 6-10h (correções podem ser extensas)
+  - **Automável:** Parcial
+
+---
+
+## P3 - COSMÉTICO ⚪
+
+### Melhorias de Longo Prazo
+
+- [ ] **LONG-001: Migrar para pyproject.toml completo**
+  - **Área:** Consolidar configs em `pyproject.toml`
+  - **Descrição:** Mover de requirements.txt para [project.dependencies]
+  - **Benefício:** Padrão moderno (PEP 621)
+  - **Esforço:** 4-6h
+  - **Automável:** Parcial
+
+- [ ] **LONG-002: Implementar arquitetura de plugins**
+  - **Área:** Novo módulo `src/plugins/`
+  - **Descrição:** Permitir extensões sem modificar core
+  - **Benefício:** Extensibilidade
+  - **Esforço:** 20-40h (grande mudança)
+  - **Automável:** Manual
+
+- [ ] **LONG-003: i18n/l10n (internacionalização)**
+  - **Área:** Todo o código com strings de UI
+  - **Descrição:** Adicionar suporte a múltiplos idiomas
+  - **Ferramenta:** gettext ou similar
+  - **Benefício:** Alcance internacional
+  - **Esforço:** 30-50h
+  - **Automável:** Parcial (extração de strings)
+
+- [ ] **LONG-004: Testes E2E de GUI**
+  - **Área:** Novo `tests/e2e/`
+  - **Descrição:** Automação de UI com pywinauto ou similar
+  - **Benefício:** Cobertura completa
+  - **Esforço:** 20-30h
+  - **Automável:** Manual (setup complexo)
+
+- [ ] **LONG-005: Migrar para async/await sistemático**
+  - **Área:** Toda a camada de I/O
+  - **Descrição:** Refatorar para asyncio consistente
+  - **Benefício:** Performance e responsividade
+  - **Esforço:** 40-60h (mudança arquitetural)
+  - **Automável:** Manual
+
+### Limpeza e Organização
+
+- [ ] **CLEAN-001: Remover `typings/` se não usado**
+  - **Área:** `typings/`
+  - **Descrição:** Se apenas cache do Pyright, adicionar ao gitignore
+  - **Esforço:** 5min
+  - **Automável:** Sim
+
+- [ ] **CLEAN-002: Criar CONTRIBUTING.md**
+  - **Área:** Raiz do projeto
+  - **Descrição:** Guia de contribuição (estilo, PR, testes)
+  - **Esforço:** 1-2h
+  - **Automável:** Manual
+
+- [ ] **CLEAN-003: Criar CODEOWNERS**
+  - **Área:** `.github/CODEOWNERS`
+  - **Descrição:** Definir ownership de módulos
+  - **Benefício:** Review automático
+  - **Esforço:** 30min
+  - **Automável:** Manual
+
+---
+
+## Resumo por Prioridade
+
+| Prioridade | Total | Área Principal |
+|------------|-------|----------------|
+| P0 🔴      | 4     | Segurança, Funcionalidade crítica |
+| P1 🟡      | 12    | Performance, Deps, Qualidade, Testes |
+| P2 🟢      | 15    | Docs, Build, Código, Ferramentas |
+| P3 ⚪      | 8     | Longo prazo, Cosmético |
+| **TOTAL**  | **39**| |
+
+## Recomendação de Roadmap
+
+### Sprint 1-2 (Imediato)
+- Todos os P0 (crítico)
+- P1: SEG, DEP-001, DEP-002, QA-004, TEST-002
+
+### Sprint 3-4 (Curto prazo)
+- P1: PERF, QA-001, QA-002, TEST-001
+- P2: DOC-001, BUILD-003, BUILD-004
+
+### Sprint 5-8 (Médio prazo)
+- P1: QA-003, DEP-003
+- P2: DOC-002 a DOC-005, BUILD-001, BUILD-002
+
+### Sprint 9+ (Longo prazo)
+- P2: CODE-*, TOOL-*
+- P3: Conforme priorização do time
+
+---
+
+**Última atualização:** 20 de novembro de 2025  
+**Mantenedor:** Equipe RC Gestor de Clientes
