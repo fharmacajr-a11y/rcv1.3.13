@@ -237,13 +237,14 @@
 
 ### Testes
 
-- [>] **TEST-001: Aumentar cobertura para 85%+** ⏳ **FASES 1-2 CONCLUÍDAS**
+- [>] **TEST-001: Aumentar cobertura para 85%+** ⏳ **FASES 1-3 CONCLUÍDAS**
   - **Área:** Módulos com baixa cobertura
   - **Descrição:** Adicionar testes em:
     - ✅ `src/modules/cashflow/` (FASE 1)
     - ✅ `src/modules/passwords/` (FASE 1)
-    - ✅ `src/ui/components/` (FASE 2 - concluída)
-    - ⏳ Módulos de baixa cobertura (FASE 3 - pendente)
+    - ✅ `src/ui/components/` (FASE 2)
+    - ✅ `src/modules/hub/`, `src/core/auth/` (FASE 3 - concluída)
+    - ⏳ Outros módulos de baixa cobertura (próximas fases)
   - **Ferramenta:** `pytest --cov` para medir
   - **Benefício:** Redução de bugs
   - **Esforço:** 8-12h
@@ -296,8 +297,42 @@
       * pytest: 257/259 passed (2 skipped - esperado)
       * coverage: 26.32% (threshold 25%)
       * pre-commit: all hooks passed
+  - **Fase 3 - Resultados (hub + auth):**
+    - ✅ **Arquivos criados:**
+      * `tests/test_hub_helpers.py`: 41 testes para funções auxiliares do Hub (413 linhas)
+      * `tests/test_auth_validation.py`: 28 testes para autenticação e validação (248 linhas)
+    - ✅ **Módulos testados (Hub):**
+      * `state.py`: HubState, ensure_hub_state, ensure_state (5 testes)
+      * `format.py`: _format_timestamp, _format_note_line (7 testes)
+      * `utils.py`: _hsl_to_hex, _hash_dict, _normalize_note (18 testes)
+      * `colors.py`: _author_color, _ensure_author_tag (11 testes)
+    - ✅ **Módulos testados (Auth):**
+      * `auth.py`: validate_credentials, check_rate_limit, pbkdf2_hash (28 testes)
+      * EMAIL_RE regex validation
+    - ✅ **Total:** 69 testes novos (327 testes no total, antes: 257)
+    - ✅ **Cobertura:**
+      * Antes: 26.32%
+      * Depois: **26.95%** (+0.63pp)
+      * `src/modules/hub/state.py`: 100% coverage (21/21 linhas)
+      * `src/modules/hub/format.py`: 86% coverage (18/21 linhas)
+      * `src/modules/hub/utils.py`: 93% coverage (28/30 linhas)
+      * `src/modules/hub/colors.py`: 82% coverage (31/38 linhas)
+      * `src/core/auth/auth.py`: 44% coverage (54/123 linhas - foco em funções puras)
+    - ✅ **Cenários testados (Hub):**
+      * Estado: criação, reutilização, valores padrão
+      * Formatação: timestamps ISO → local, linhas de nota
+      * Utilidades: conversão HSL→HEX, hash MD5 de dicts, normalização de notas (dict/tuple/list/string)
+      * Cores: hash estável por email, case-insensitive, tags tkinter com cache
+    - ✅ **Cenários testados (Auth):**
+      * Validação de credenciais: email regex, senha min 6 chars, edge cases
+      * Rate limiting: 5 tentativas/60s, reset após timeout, case-insensitive
+      * PBKDF2 hash: formato correto, iterações customizadas, salt determinístico, pepper
+    - ✅ **Validação:**
+      * pytest: 327/328 passed (1 skipped - esperado)
+      * coverage: 26.95% (threshold 25%)
+      * pre-commit: all hooks passed
   - **Meta final:** 85%+ cobertura
-  - **Próxima fase:** Módulos de baixa cobertura (auditoria, hub, etc.)
+  - **Próximas fases:** Outros módulos de baixa cobertura conforme necessário
       * coverage: 26.15% (≥25% threshold)
       * pre-commit: ✅ all hooks passed
   - **Próximas fases:**
