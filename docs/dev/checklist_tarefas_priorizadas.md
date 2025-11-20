@@ -190,14 +190,36 @@
     - ✅ `CONTRIBUTING.md` criado com seções de setup e estratégia de dependências
     - ⏳ Pendente: Atualizar `INSTALACAO.md` (documentação de instalação para usuário final)
 
-- [ ] **DEP-003: Atualizar dependências críticas**
+- [x] **DEP-003: Atualizar dependências críticas** ✅ **CONCLUÍDO**
   - **Área:** `requirements.txt`
   - **Descrição:** Atualizar bibliotecas de segurança/rede
   - **Prioridade:** cryptography, httpx, certifi, pydantic
   - **Ação:** `pip list --outdated`, testar atualizações
   - **Benefício:** Patches de segurança e performance
-  - **Esforço:** 4-6h (inclui testes de regressão)
+  - **Esforço:** 4-6h (inclui testes de regressão) → **Real: ~3h**
   - **Automável:** Parcial (Dependabot)
+  - **Resultado:**
+    - ✅ **Libs atualizadas (PATCH/MINOR):**
+      * `certifi`: 2025.8.3 → 2025.11.12 (patch - certificados CA atualizados)
+      * `cryptography`: 46.0.1 → 46.0.3 (patch - correções de segurança)
+      * `httpx`: 0.27.2 → 0.28.1 (minor - melhorias SSL, compact JSON)
+      * `pydantic`: 2.12.0 → 2.12.4 (patch - bug fixes)
+      * `pydantic_core`: 2.41.1 → 2.41.5 (patch - Rust core fixes)
+      * `pydantic-settings`: 2.6.0 → 2.12.0 (minor - alinhamento com pydantic)
+      * `charset-normalizer`: 3.4.3 → 3.4.4 (patch)
+      * `click`: 8.3.0 → 8.3.1 (patch)
+      * `idna`: 3.10 → 3.11 (minor)
+    - ✅ **Validação httpx 0.28:** Verificado changelog - sem breaking changes no uso do projeto
+      * Projeto usa `verify=True` (boolean, não afetado)
+      * Não usa `verify` como string ou `cert` argument (deprecated mas warnings apenas)
+      * Não usa `app` ou `proxies` (removidos, mas não usados)
+    - ✅ **Testes:** 327/328 passando (1 skipped)
+    - ✅ **Cobertura:** 26.91% (≥25%)
+    - ✅ **Pre-commit:** All hooks passed
+    - 📊 **Impacto:** 9 libs de segurança/rede atualizadas com patches críticos
+    - ⏳ **Pendente para DEP-003-Fase-2:**
+      * `pillow`: 10.4.0 → 12.0.0 (MAJOR - requer análise de breaking changes em image APIs)
+      * Libs de dev (pytest 8→9, ruff, etc.) - fora do escopo de segurança crítica
 
 ### Qualidade de Código
 
