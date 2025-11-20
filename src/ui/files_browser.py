@@ -273,13 +273,13 @@ def open_files_browser(
 
     def _refresh_listing():
         """Recarrega a listagem de arquivos usando o prefixo atual."""
-        # Limpa a Ã¡rvore
+        # Limpa a arvore
         for item in tree.get_children():  # type: ignore[name-defined]
             tree.delete(item)  # type: ignore[name-defined]
         # Atualiza o label de caminho
         _sync_path_label()
-        # Recarrega
-        populate_tree("", rel_prefix="")  # type: ignore[name-defined]
+        # Recarrega usando versao assincrona para evitar travamento
+        _populate_tree_async("", rel_prefix="")  # type: ignore[name-defined]
 
     # Barra superior (aÃ§Ãµes principais)
     topbar = ttk.Frame(header, padding=(UI_PADX, UI_PADY, UI_PADX, UI_PADY))
@@ -805,6 +805,10 @@ def open_files_browser(
         return tipo == "pasta"
 
     def populate_tree(parent_item, rel_prefix: str):
+        """
+        DEPRECATED: Use _populate_tree_async() para carregamento assíncrono.
+        Mantido para compatibilidade com código legado.
+        """
         target_parent = parent_item or ""
         _clear_children(target_parent)
 
@@ -832,6 +836,75 @@ def open_files_browser(
                 open=False,
                 tags=(EMPTY_TAG,),
             )
+
+    def _populate_tree_async(parent_item, rel_prefix: str):
+        """
+        Versão assíncrona de populate_tree() para evitar travamento da GUI.
+
+        Carrega a listagem de arquivos em thread de fundo e atualiza a UI
+        no thread principal via after().
+        """
+        target_parent = parent_item or ""
+        _clear_children(target_parent)
+
+        # Adicionar placeholder "Carregando..."
+        blank_values = [""] * len(tree["columns"])
+        placeholder = tree.insert(
+            target_parent,
+            "end",
+            text="Carregando arquivos...",
+            values=blank_values,
+            open=False,
+            tags=(PLACEHOLDER_TAG,),
+        )
+
+        # Desabilitar botões durante carregamento
+        if target_parent == "":
+            _set_actions_empty_state()
+
+        def work():
+            try:
+                data = _fetch_children(rel_prefix)
+            except Exception as exc:
+                data = exc
+
+            def finish():
+                if not tree.winfo_exists():
+                    return
+                if tree.exists(placeholder):
+                    tree.delete(placeholder)
+
+                if isinstance(data, Exception):
+                    _toast_error(f"Falha ao listar arquivos: {data}")
+                    if target_parent == "":
+                        _set_actions_empty_state()
+                    return
+
+                if target_parent == "":
+                    if not data:
+                        _set_actions_empty_state()
+                        return
+                    _set_actions_normal_state()
+
+                parent_full_prefix = _resolve_full_prefix(rel_prefix)
+                inserted = _insert_children(target_parent, data, parent_full_prefix)
+                if target_parent and inserted == 0:
+                    info_values = ["Info"] + [""] * (len(tree["columns"]) - 1)
+                    tree.insert(
+                        target_parent,
+                        "end",
+                        text="(vazio)",
+                        values=info_values,
+                        open=False,
+                        tags=(EMPTY_TAG,),
+                    )
+
+            try:
+                _safe_after(0, finish)
+            except Exception:
+                pass
+
+        _executor.submit(work)
 
     def _populate_children_async(parent_iid: str, rel_prefix: str) -> None:
         if not tree.exists(parent_iid):
@@ -1426,10 +1499,10 @@ def open_files_browser(
                     f"O arquivo '{nome}' foi excluído com sucesso.",
                     parent=docs_window,
                 )
-                # Recarrega a árvore
+                # Recarrega a arvore (versao assincrona)
                 current_prefix = docs_window._current_prefix  # type: ignore[attr-defined]
                 rel_prefix = current_prefix.replace(root_prefix, "").lstrip("/")
-                populate_tree("", rel_prefix=rel_prefix)
+                _populate_tree_async("", rel_prefix=rel_prefix)
                 _update_preview_state()
 
         _run_bg(_target, _done)
@@ -1483,9 +1556,9 @@ def open_files_browser(
     tree.bind("<KP_Enter>", on_enter_key)
     tree.bind("<<TreeviewSelect>>", lambda _e: _update_preview_state())
 
-    # InicializaÃ§Ã£o
+    # Inicializacao (usa versao assincrona para evitar travamento)
     _sync_path_label()
-    populate_tree("", rel_prefix="")
+    _populate_tree_async("", rel_prefix="")
     _update_preview_state()
 
     return docs_window

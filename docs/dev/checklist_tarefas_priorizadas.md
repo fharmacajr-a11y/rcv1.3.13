@@ -74,7 +74,7 @@
 
 ### Funcionalidade
 
-- [ ] **FUNC-001: Validar operações bloqueantes na GUI**
+- [x] **FUNC-001: Validar operações bloqueantes na GUI** ✅ **CONCLUÍDO**
   - **Área:** `src/ui/`, `src/modules/*/views/`
   - **Descrição:** Auditar operações síncronas que podem travar UI
   - **Arquivos principais:**
@@ -84,6 +84,21 @@
   - **Risco:** UI travada em redes lentas
   - **Esforço:** 4-8h
   - **Automável:** Manual (análise + refatoração)
+  - **Resultado:**
+    - ✅ **Health Check (`main_window.py`)**: JÁ estava otimizado
+      - `get_supabase_state()` apenas lê variáveis globais (thread daemon background)
+      - Polling a cada 5s não bloqueia (leitura rápida de estado)
+    - ✅ **File Browser (`files_browser.py`)**: Refatorado para execução assíncrona
+      - Criada `_populate_tree_async()` usando ThreadPoolExecutor
+      - Carregamento inicial agora usa thread de fundo
+      - Feedback "Carregando arquivos..." exibido durante listagem
+      - Botões desabilitados durante carregamento (evita múltiplas chamadas)
+      - Chamadas HTTP ao Supabase Storage não travam mais a GUI
+    - ✅ **Arquivos modificados:**
+      - `src/ui/files_browser.py`: 3 alterações (nova função async + 2 chamadas atualizadas)
+    - ✅ **Testes:** 215/215 passando (0 regressões)
+    - ✅ **Coverage:** 25.89% (threshold: 25%)
+    - ✅ **Pre-commit:** Todos os hooks passando
 
 ---
 
