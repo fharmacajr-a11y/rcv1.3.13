@@ -769,6 +769,25 @@
       * Suite filtrada: **457 passed, 2 skipped** (antes: 436 passed)
       * Coverage: **28.65%** (threshold 25%, +0.61pp vs Fase 5)
     - 📊 **Impacto:** Serviço crítico usado por notes_service agora com 97% de cobertura, protegendo normalização de emails de autores e mapeamento de display_names. Todos os caminhos principais (sucesso, vazio, erro) testados com mocks, sem chamadas reais ao Supabase
+  - **Microfase 6 - Resultados (profiles_service - modernização de type hints):**
+    - ✅ **Arquivo modificado:**
+      * `src/core/services/profiles_service.py`: Type hints modernizados (PEP 585/604)
+    - ✅ **Alterações aplicadas:**
+      * Removido: `from typing import Dict, List, Optional`
+      * Mantido: `from typing import Any` (necessário para `dict[str, Any]`)
+      * Type hints atualizados:
+        - `EMAIL_PREFIX_ALIASES` → `EMAIL_PREFIX_ALIASES: dict[str, str]`
+        - `List[Dict[str, Any]]` → `list[dict[str, Any]]` (4 ocorrências)
+        - `Dict[str, str]` → `dict[str, str]` (3 ocorrências)
+        - `Optional[str]` → `str | None` (1 ocorrência)
+      * Variáveis locais anotadas: `data`, `out`, `email_lc`, `rows`, `em`, `prefix`, `alias` (7 variáveis)
+    - ✅ **Validação final:**
+      * Pyright: **0 erros, 0 warnings** em profiles_service.py e test_profiles_service.py
+      * pytest focado: **21/21 passed** em tests/test_profiles_service.py
+      * Suite completa: **457 passed, 1 failed, 2 skipped** (falha pré-existente em test_ui_components.py, não relacionada)
+      * Coverage global: **28.65%** (mantida)
+      * Coverage profiles_service.py: **97%** (mantida)
+    - 📊 **Impacto:** Serviço crítico agora com type hints modernos (PEP 585/604), alinhado com clientes/service e uploads/repository (QA-003 Microfase 5). Testes da Fase 6 garantem que refatoração de tipos não introduziu regressões funcionais
   - **Meta final:** 85%+ cobertura
   - **Próximas fases:** Outros módulos de baixa cobertura conforme necessário
 

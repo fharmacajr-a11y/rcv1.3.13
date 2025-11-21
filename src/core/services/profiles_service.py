@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from infra.supabase_client import exec_postgrest, get_supabase
 
@@ -14,7 +14,7 @@ _TABLE = "profiles"
 _WARNED_MISSING_COL = False
 
 # Aliases de prefixo -> prefixo correto
-EMAIL_PREFIX_ALIASES = {
+EMAIL_PREFIX_ALIASES: dict[str, str] = {
     "pharmaca2013": "fharmaca2013",  # corrigir sem "f" → com "f"
 }
 
@@ -25,7 +25,7 @@ def _is_missing_column_error(err: Exception) -> bool:
     return "42703" in s or ("does not exist" in s and "column" in s)
 
 
-def list_profiles_by_org(org_id: str) -> List[Dict[str, Any]]:
+def list_profiles_by_org(org_id: str) -> list[dict[str, Any]]:
     """
     Lista perfis de uma organização com email e display_name.
 
@@ -59,7 +59,7 @@ def list_profiles_by_org(org_id: str) -> List[Dict[str, Any]]:
         return []
 
 
-def get_display_names_map(org_id: str) -> Dict[str, str]:
+def get_display_names_map(org_id: str) -> dict[str, str]:
     """
     Retorna mapa de email -> display_name para uma organização.
 
@@ -70,8 +70,8 @@ def get_display_names_map(org_id: str) -> Dict[str, str]:
         Dicionário {email_lowercase: display_name}
         Apenas emails com display_name preenchido
     """
-    data = list_profiles_by_org(org_id)
-    out: Dict[str, str] = {}
+    data: list[dict[str, Any]] = list_profiles_by_org(org_id)
+    out: dict[str, str] = {}
 
     for row in data:
         email = (row.get("email") or "").strip().lower()
@@ -82,7 +82,7 @@ def get_display_names_map(org_id: str) -> Dict[str, str]:
     return out
 
 
-def get_display_name_by_email(email: str) -> Optional[str]:
+def get_display_name_by_email(email: str) -> str | None:
     """
     Busca direta em 'profiles' filtrando por email (lowercase).
     Retorna display_name se existir; senão None. Tolerar erros.
@@ -95,7 +95,7 @@ def get_display_name_by_email(email: str) -> Optional[str]:
     """
     if not email:
         return None
-    email_lc = email.strip().lower()
+    email_lc: str = email.strip().lower()
     try:
         supa = get_supabase()
         resp = exec_postgrest(supa.table("profiles").select("display_name").eq("email", email_lc).limit(1))
@@ -108,7 +108,7 @@ def get_display_name_by_email(email: str) -> Optional[str]:
     return None
 
 
-def get_email_prefix_map(org_id: str) -> Dict[str, str]:
+def get_email_prefix_map(org_id: str) -> dict[str, str]:
     """
     Mapa {prefixo_sem_dominio: email_completo_lower} para todos os perfis da org.
     Inclui aliases de prefixos (ex: pharmaca2013 → fharmaca2013).
@@ -121,19 +121,19 @@ def get_email_prefix_map(org_id: str) -> Dict[str, str]:
         Ex.: {"fharmaca2013": "fharmaca2013@hotmail.com", "pharmaca2013": "fharmaca2013@hotmail.com"}
         Retorna {} se houver erro
     """
-    out: Dict[str, str] = {}
+    out: dict[str, str] = {}
     try:
         supa = get_supabase()
         resp = exec_postgrest(supa.table("profiles").select("email").eq("org_id", org_id))
-        rows = getattr(resp, "data", None) or []
+        rows: list[Any] = getattr(resp, "data", None) or []
         for r in rows:
-            em = (r.get("email") or "").strip().lower()
+            em: str = (r.get("email") or "").strip().lower()
             if not em:
                 continue
-            prefix = em.split("@", 1)[0]
+            prefix: str = em.split("@", 1)[0]
 
             # Aplicar alias no mapa
-            alias = EMAIL_PREFIX_ALIASES.get(prefix, prefix)
+            alias: str = EMAIL_PREFIX_ALIASES.get(prefix, prefix)
             out.setdefault(alias, em)  # garante entrada com o prefixo correto
             out.setdefault(prefix, em)  # mantém também o original se existir
     except Exception as e:
