@@ -836,6 +836,41 @@
       * Coverage global: **28.88%** (mantida)
       * Coverage lixeira_service.py: **84%** (mantida)
     - 📊 **Impacto:** Serviço de lixeira agora com type hints modernos (PEP 585/604), alinhado com clientes/service, uploads/repository (QA-003 Microfase 5) e profiles_service (Microfase 6). Total de 6 substituições aplicadas (List→list, Tuple→tuple). Testes da Fase 7 garantem que refatoração de tipos não introduziu regressões funcionais
+  - **Fase 8 - Resultados (clientes/forms - preparação e upload):**
+    - ✅ **Arquivos expandidos:**
+      * `tests/test_clientes_forms_upload.py`: 8→10 testes (+2 novos)
+      * `tests/test_clientes_forms_prepare.py`: 8→20 testes (+12 novos)
+    - ✅ **Módulos testados:**
+      * `src/modules/clientes/forms/_prepare.py`: Validação de inputs, preparação de payload, funções auxiliares
+      * `src/modules/clientes/forms/_upload.py`: Upload de arquivos, guard de `pasta_local`, progresso
+    - ✅ **Total:** 40 testes total (antes: 26 → agora: 40, +14 testes)
+    - ✅ **Cobertura:**
+      * Global antes: 28.88%
+      * Global depois: **29.09%** (+0.21pp)
+      * `_prepare.py`: 53% → **64%** (+11pp)
+      * `_upload.py`: 29% → **31%** (+2pp)
+      * Módulo forms total: 27% → **30%** (+3pp)
+    - ✅ **Cenários testados:**
+      * **_prepare.py:**
+        - Funções auxiliares: `_extract_supabase_error`, `traduzir_erro_supabase_para_msg_amigavel`, `_extract_status_value`, `_build_storage_prefix`, `_unpack_call`, `_ensure_ctx`
+        - Erros traduzidos: CNPJ duplicado (23505/uq_clients_cnpj), erros genéricos
+        - Construção de storage prefix com/sem partes None
+        - Desempacotamento de args/kwargs posicionais
+        - Criação e reutilização de contexto de upload
+      * **_upload.py:**
+        - **Guard crítico QA-005:** `pasta_local` None ou vazia → ValueError
+        - Upload com contexto válido, subpasta presente/ausente
+        - Cálculo de total_bytes, criação de progress dialog
+        - Thread worker iniciada corretamente
+        - Abort quando ctx.abort=True ou ctx=None
+    - ✅ **Validação:**
+      * Pyright: **0 erros, 0 warnings** em test_clientes_forms_upload.py e test_clientes_forms_prepare.py
+      * pytest focado: **40/40 passed** (10 upload + 20 prepare + 10 finalize)
+      * Suite filtrada: **486 passed, 1 failed, 2 skipped** (antes: 472 passed, +14 testes)
+      * Coverage global: **29.09%** (threshold 25%, +0.21pp vs Fase 7)
+      * Coverage _prepare.py: **64%** (antes: 53%, +11pp)
+      * Coverage _upload.py: **31%** (antes: 29%, +2pp)
+    - 📊 **Impacto:** Fluxo de formulários de clientes agora com cobertura expandida, protegendo guard crítico de `pasta_local` (QA-005), funções auxiliares de tradução de erros e construção de contexto. Total de 14 novos testes adicionados (2 em upload, 12 em prepare). Cobertura de _prepare.py aumentou 11pp, protegendo helpers de extração de erros Supabase, status e prefix de storage
   - **Meta final:** 85%+ cobertura
   - **Próximas fases:** Outros módulos de baixa cobertura conforme necessário
 

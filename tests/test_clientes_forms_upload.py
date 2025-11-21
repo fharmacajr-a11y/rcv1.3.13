@@ -281,3 +281,59 @@ class TestPerformUploads:
             # Verificar que base_local foi construído sem subpasta
             expected_base = os.path.join("/base", "GERAL")
             assert mock_ctx.base_local == expected_base
+
+    def test_perform_uploads_raises_when_pasta_local_none(self):
+        """Testa guard da QA-005: levanta ValueError quando pasta_local é None."""
+        import pytest
+
+        mock_self = MagicMock()
+        mock_ctx = UploadCtx(
+            app=mock_self,
+            row={"id": 1},
+            ents={},
+            arquivos_selecionados=[],
+            win=None,
+        )
+        mock_ctx.abort = False
+        mock_ctx.files = [("/tmp/file.pdf", "file.pdf")]
+        mock_ctx.client_id = 123
+        mock_ctx.org_id = "org_abc"
+        mock_ctx.bucket = "rc-docs"
+        mock_ctx.pasta_local = None  # ⚠️ Guard crítico da QA-005
+        mock_ctx.storage_adapter = MagicMock()
+        mock_self._upload_ctx = mock_ctx
+
+        with patch("src.modules.clientes.forms._upload.UploadProgressDialog"):
+            args = (mock_self, {"id": 1}, {}, [], None)
+            kwargs = {}
+
+            with pytest.raises(ValueError, match="pasta_local não configurada"):
+                perform_uploads(*args, **kwargs)
+
+    def test_perform_uploads_raises_when_pasta_local_empty(self):
+        """Testa guard da QA-005: levanta ValueError quando pasta_local é string vazia."""
+        import pytest
+
+        mock_self = MagicMock()
+        mock_ctx = UploadCtx(
+            app=mock_self,
+            row={"id": 1},
+            ents={},
+            arquivos_selecionados=[],
+            win=None,
+        )
+        mock_ctx.abort = False
+        mock_ctx.files = [("/tmp/file.pdf", "file.pdf")]
+        mock_ctx.client_id = 456
+        mock_ctx.org_id = "org_xyz"
+        mock_ctx.bucket = "rc-docs"
+        mock_ctx.pasta_local = ""  # ⚠️ Guard crítico da QA-005
+        mock_ctx.storage_adapter = MagicMock()
+        mock_self._upload_ctx = mock_ctx
+
+        with patch("src.modules.clientes.forms._upload.UploadProgressDialog"):
+            args = (mock_self, {"id": 1}, {}, [], None)
+            kwargs = {}
+
+            with pytest.raises(ValueError, match="pasta_local não configurada"):
+                perform_uploads(*args, **kwargs)

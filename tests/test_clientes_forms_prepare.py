@@ -227,3 +227,182 @@ class TestPreparePayload:
 
         # Se chegou aqui sem erro, o kwarg foi aceito
         assert result_args is not None
+
+
+class TestHelperFunctions:
+    """Testes para funções auxiliares de _prepare.py."""
+
+    def test_extract_supabase_error_from_dict(self):
+        """Testa extração de erro de dict Supabase."""
+        from src.modules.clientes.forms._prepare import _extract_supabase_error
+
+        err = {
+            "code": "23505",
+            "message": "duplicate key violation",
+            "constraint": "uq_clients_cnpj",
+        }
+
+        code, message, constraint = _extract_supabase_error(err)
+
+        assert code == "23505"
+        assert "duplicate key violation" in message
+        assert constraint == "uq_clients_cnpj"
+
+    def test_extract_supabase_error_fallback_to_str(self):
+        """Testa fallback para str(err) quando não há attrs."""
+        from src.modules.clientes.forms._prepare import _extract_supabase_error
+
+        err = Exception("generic error message")
+
+        _code, message, _constraint = _extract_supabase_error(err)
+
+        assert "generic error message" in message
+
+    def test_traduzir_erro_supabase_cnpj_duplicado(self):
+        """Testa tradução de erro de CNPJ duplicado."""
+        from src.modules.clientes.forms._prepare import traduzir_erro_supabase_para_msg_amigavel
+
+        err = {
+            "code": "23505",
+            "message": "duplicate key value violates unique constraint",
+            "constraint": "uq_clients_cnpj",
+        }
+
+        msg = traduzir_erro_supabase_para_msg_amigavel(err, cnpj="12.345.678/0001-99")
+
+        assert "Já existe um cliente cadastrado com este CNPJ" in msg
+        assert "12.345.678/0001-99" in msg
+        assert "Lixeira" in msg
+
+    def test_traduzir_erro_supabase_generico(self):
+        """Testa tradução de erro genérico."""
+        from src.modules.clientes.forms._prepare import traduzir_erro_supabase_para_msg_amigavel
+
+        err = {"code": "42P01", "message": "relation does not exist"}
+
+        msg = traduzir_erro_supabase_para_msg_amigavel(err)
+
+        assert "relation does not exist" in msg
+
+    def test_extract_status_value_from_widget(self):
+        """Testa extração de status de widget."""
+        from src.modules.clientes.forms._prepare import _extract_status_value
+
+        widget = MagicMock()
+        widget.get.return_value = "ATIVO"
+
+        ents = {"status": widget}
+
+        result = _extract_status_value(ents)
+
+        assert result == "ATIVO"
+
+    def test_extract_status_value_empty_when_no_widget(self):
+        """Testa retorno vazio quando não há widget de status."""
+        from src.modules.clientes.forms._prepare import _extract_status_value
+
+        result_empty_dict = _extract_status_value({})
+        result_none = _extract_status_value(None)
+
+        assert result_empty_dict == ""
+        assert result_none == ""
+
+    def test_build_storage_prefix_with_all_parts(self):
+        """Testa construção de prefix com todas as partes."""
+        from src.modules.clientes.forms._prepare import _build_storage_prefix
+
+        prefix = _build_storage_prefix("org123", "456", "GERAL", "SIFAP")
+
+        assert "org123" in prefix
+        assert "456" in prefix
+        # storage_slug_part converte para lowercase
+        assert "geral" in prefix.lower()
+        assert "sifap" in prefix.lower()
+
+    def test_build_storage_prefix_with_none_parts(self):
+        """Testa construção ignorando partes None."""
+        from src.modules.clientes.forms._prepare import _build_storage_prefix
+
+        prefix = _build_storage_prefix("org123", None, "GERAL")
+
+        assert "org123" in prefix
+        assert "geral" in prefix.lower()
+
+    def test_unpack_call_from_args(self):
+        """Testa desempacotamento de args posicionais."""
+        from src.modules.clientes.forms._prepare import _unpack_call
+
+        mock_self = MagicMock()
+        row = {"id": 1}
+        ents = {"Nome": MagicMock()}
+        arquivos = ["file1.pdf"]
+        win = MagicMock()
+
+        args = (mock_self, row, ents, arquivos, win)
+        kwargs = {}
+
+        result = _unpack_call(args, kwargs)
+
+        assert result == (mock_self, row, ents, arquivos, win)
+
+    def test_unpack_call_from_kwargs(self):
+        """Testa desempacotamento de kwargs."""
+        from src.modules.clientes.forms._prepare import _unpack_call
+
+        mock_self = MagicMock()
+        row = {"id": 2}
+        ents = {"CNPJ": MagicMock()}
+
+        args = (mock_self,)
+        kwargs = {"row": row, "ents": ents, "arquivos_selecionados": [], "win": None}
+
+        result = _unpack_call(args, kwargs)
+
+        assert result[0] == mock_self
+        assert result[1] == row
+        assert result[2] == ents
+        assert result[3] == []
+        assert result[4] is None
+
+    def test_ensure_ctx_creates_new_when_missing(self):
+        """Testa criação de novo contexto quando não existe."""
+        from src.modules.clientes.forms._prepare import _ensure_ctx
+
+        mock_self = MagicMock()
+        # Garantir que não tem _upload_ctx
+        if hasattr(mock_self, "_upload_ctx"):
+            delattr(mock_self, "_upload_ctx")
+
+        row = {"id": 1}
+        ents = {"Nome": MagicMock()}
+        arquivos = ["file.pdf"]
+        win = MagicMock()
+
+        ctx = _ensure_ctx(mock_self, row, ents, arquivos, win)
+
+        assert ctx.app == mock_self
+        assert ctx.row == row
+        assert ctx.ents == ents
+        assert ctx.arquivos_selecionados == ["file.pdf"]
+        assert ctx.win == win
+
+    def test_ensure_ctx_reuses_existing(self):
+        """Testa reutilização de contexto existente."""
+        from src.modules.clientes.forms._prepare import _ensure_ctx, UploadCtx
+
+        mock_self = MagicMock()
+        existing_ctx = UploadCtx(client_id=999, org_id="old_org")
+        mock_self._upload_ctx = existing_ctx
+
+        row = None
+        ents = {"CNPJ": MagicMock()}
+        arquivos = []
+        win = MagicMock()
+
+        ctx = _ensure_ctx(mock_self, row, ents, arquivos, win)
+
+        # Deve ser o mesmo objeto
+        assert ctx is existing_ctx
+        # Mas valores atualizados
+        assert ctx.row is None
+        assert ctx.ents == ents
