@@ -587,7 +587,7 @@
 
 ### Testes
 
-- [>] **TEST-001: Aumentar cobertura para 85%+** ⏳ **FASES 1-9 CONCLUÍDAS**
+- [>] **TEST-001: Aumentar cobertura para 85%+** ⏳ **FASES 1-10 CONCLUÍDAS**
   - **Área:** Módulos com baixa cobertura
   - **Descrição:** Adicionar testes em:
     - ✅ `src/modules/cashflow/` (FASE 1)
@@ -1028,6 +1028,68 @@
       * Coverage global: **29.39%** (threshold 25%, +0.30pp vs Fase 8)
       * Coverage auditoria/service.py: **84%** (161/192 linhas, antes: 59%, +25pp)
     - 📊 **Impacto:** Serviço crítico de auditoria SIFAP agora com 84% de cobertura (+25pp), protegendo CRUD de auditorias, operações de storage (org_id, folders, uploads, removals) e pipeline de upload de arquivos. Todos os caminhos principais (sucesso, vazio, erro, offline) testados com mocks. Total de 35 testes adicionados cobrindo 16 funções públicas do módulo
+  - **Fase 10 - Resultados (helpers/formatters - utilitários de formatação):**
+    - ✅ **Arquivo criado:**
+      * `tests/test_helpers_formatters_fase10.py`: 57 testes para helpers de formatação (297 linhas)
+    - ✅ **Módulo testado:**
+      * `src/helpers/formatters.py`: Formatação de CNPJ, datas/hora (ISO e BR)
+    - ✅ **Total:** 57 testes novos (578 testes no total global, antes: 521)
+    - ✅ **Cobertura:**
+      * Global antes: 29.41%
+      * Global depois: **29.80%** (+0.39pp)
+      * `src/helpers/formatters.py`: **94%** (67/71 linhas, antes: 13%, +81pp)
+    - ✅ **Funções testadas:**
+      * **format_cnpj():** 17 testes
+        - Happy path: CNPJ sem formatação → "12.345.678/0001-90"
+        - CNPJ já formatado → mantém formato (idempotente)
+        - Limpeza: remove espaços, caracteres especiais, mantém apenas dígitos
+        - Tamanho incorreto: retorna original (12, 16 dígitos, etc.)
+        - Edge cases: None → "", vazio → "", apenas espaços, apenas caracteres especiais
+        - Tipos numéricos: converte int/float para str antes de formatar
+        - Mixed content: extrai 14 dígitos do lixo e formata
+      * **fmt_datetime():** 18 testes
+        - Tipos suportados: datetime, date, str ISO, str padrão, str brasileiro, timestamp int/float
+        - Conversões: date → datetime 00:00:00, timestamp → datetime local
+        - Parsing: ISO com/sem Z, formatos brasileiros (DD/MM/YYYY), espaços extras
+        - Timezone: UTC string converte para local, timezone-aware converte para local
+        - Edge cases: None → "", vazio → "", string inválida → retorna original, epoch timestamp
+        - Formato saída: "YYYY-MM-DD HH:MM:SS" (APP_DATETIME_FMT)
+        - Idempotência: aplicar duas vezes dá mesmo resultado
+      * **fmt_datetime_br():** 15 testes
+        - Tipos suportados: datetime, date, str ISO, str padrão, str brasileiro, timestamp
+        - Conversões: date → datetime 00:00:00, timestamp → datetime local
+        - Parsing: mesmos formatos que fmt_datetime
+        - Timezone: UTC converte para local, timezone-aware converte para local
+        - Edge cases: None → "", vazio → "", string inválida → retorna original
+        - Formato saída: "DD/MM/AAAA - HH:MM:SS" (APP_DATETIME_FMT_BR)
+        - Idempotência: aplicar duas vezes dá mesmo resultado
+      * **_parse_any_dt() (testado indiretamente):** Parser interno usado por ambas funções de datetime
+    - ✅ **Cenários testados:**
+      * **CNPJ:**
+        - Validação de tamanho (exatamente 14 dígitos após limpar)
+        - Remoção de caracteres não-numéricos (\D regex)
+        - Formatação padrão brasileiro: XX.XXX.XXX/XXXX-XX
+        - Idempotência: format(format(x)) == format(x)
+        - Tolerância a tipos: aceita str, int, None (defensivo)
+      * **Datetime:**
+        - Múltiplos formatos de entrada (ISO, BR, padrão, timestamp, objetos Python)
+        - Conversão de timezone (UTC → local, aware → local)
+        - Parsing robusto: testa 4 padrões de string automaticamente
+        - Saídas consistentes: sempre "YYYY-MM-DD HH:MM:SS" ou "DD/MM/AAAA - HH:MM:SS"
+        - Fallback: se não consegue parsear, retorna string original (não levanta exceção)
+      * **Edge cases:**
+        - Valores None e strings vazias (retornam "")
+        - Strings inválidas (retornam original sem quebrar)
+        - Timestamps zero (epoch 1970-01-01, pode variar com TZ)
+        - Objetos time (não suportado, retorna str(time))
+        - Idempotência para ambas funções datetime
+    - ✅ **Validação:**
+      * Pyright: **0 erros, 0 warnings** em formatters.py e test_helpers_formatters_fase10.py
+      * pytest focado: **57/57 passed** em tests/test_helpers_formatters_fase10.py (2.07s)
+      * Suite filtrada: **578 passed, 2 skipped** (antes: 521 passed, +57 testes)
+      * Coverage global: **29.80%** (threshold 25%, +0.39pp vs Fase 9)
+      * Coverage formatters.py: **94%** (67/71 linhas, antes: 13%, +81pp)
+    - 📊 **Impacto:** Helpers de formatação agora protegidos com 94% de cobertura (+81pp), garantindo consistência em formatação de CNPJ e datas/hora usadas em toda a aplicação. Funções críticas (format_cnpj, fmt_datetime, fmt_datetime_br) totalmente testadas com edge cases, conversões de tipo, parsing robusto e idempotência. Total de 57 testes cobrindo 3 funções públicas e 1 parser interno
   - **Meta final:** 85%+ cobertura
   - **Próximas fases:** Outros módulos de baixa cobertura conforme necessário
 
