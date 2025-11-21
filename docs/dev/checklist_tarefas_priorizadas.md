@@ -502,6 +502,33 @@
       * coverage: 27.10%
       * pre-commit: all hooks passed
     - 📊 **Impacto:** Módulo crítico de busca agora com cobertura de 69% (antes 18%), garantindo estabilidade em funcionalidade core do app
+  - **Fase 4.2 - Resultados (textnorm - normalização de texto):**
+    - ✅ **Arquivo criado:**
+      * `tests/test_textnorm.py`: 25 testes para normalização de texto (150 linhas)
+    - ✅ **Módulo testado:**
+      * `src/core/textnorm.py`: Utilitários de normalização para busca
+    - ✅ **Total:** 25 testes novos (373 testes no total, antes: 349)
+    - ✅ **Cobertura:**
+      * Antes: 27.10%
+      * Depois: **27.11%** (+0.01pp)
+      * `src/core/textnorm.py`: **100% coverage** (23/23 linhas, antes: 96%)
+    - ✅ **Funções testadas:**
+      * `_strip_diacritics()`: 6 testes - remoção de acentos (básicos, múltiplos, None, vazio, preservação de case)
+      * `normalize_search()`: 11 testes - normalização completa (acentos, pontuação, espaços, CNPJ, casefold)
+      * `join_and_normalize()`: 8 testes - junção e normalização de múltiplas partes (None, tipos mistos, caso real cliente)
+    - ✅ **Cenários testados:**
+      * Remoção de acentos portugueses (São → Sao, José → Jose, Açúcar → Acucar)
+      * Normalização completa: lowercase + remoção de acentos + pontuação + espaços
+      * CNPJ normalizado: "12.345.678/0001-90" → "12345678000190"
+      * Edge cases: None, strings vazias, textos sem acentos
+      * Casefold para lowercase forte (alemão ß → ss)
+      * Junção de partes com None values e tipos mistos (int, str)
+      * Caso real: blob de busca de cliente (id + nome + CNPJ + obs)
+    - ✅ **Validação:**
+      * pytest: 373/375 passed (2 skipped)
+      * coverage: 27.11%
+      * pre-commit: all hooks passed
+    - 📊 **Impacto:** Módulo crítico de normalização agora com 100% de cobertura, garantindo robustez na funcionalidade de busca fuzzy
       * `src/modules/hub/format.py`: 86% coverage (18/21 linhas)
       * `src/modules/hub/utils.py`: 93% coverage (28/30 linhas)
       * `src/modules/hub/colors.py`: 82% coverage (31/38 linhas)
