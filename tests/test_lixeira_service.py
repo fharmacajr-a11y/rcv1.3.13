@@ -150,3 +150,182 @@ def test_hard_delete_clients_erros_sao_coletados(monkeypatch):
     assert len(errs) == 2
     err_ids = {cid for cid, _ in errs}
     assert 30 in err_ids and 31 in err_ids
+
+
+# ============================================================================
+# TESTES ADICIONAIS: Cobertura expandida (TEST-001 Fase 7)
+# ============================================================================
+
+
+def test_restore_clients_lista_vazia_retorna_zero(monkeypatch):
+    """Restaurar lista vazia não chama backend."""
+    updates: list = []
+    monkeypatch.setattr(lixeira_service, "_get_supabase_and_org", lambda: (object(), "ORGID"))
+    monkeypatch.setattr(lixeira_service, "exec_postgrest", lambda *a, **k: updates.append(a))
+
+    ok, errs = lixeira_service.restore_clients([])
+
+    assert ok == 0
+    assert errs == []
+    assert len(updates) == 0
+
+
+def test_restore_clients_multiplos_com_falha_parcial(monkeypatch):
+    """Alguns clientes restauram, outros falham."""
+    updates: list[int] = []
+
+    def fake_exec(expr):
+        updates.append(expr)
+        if len(updates) == 2:  # falha no 2º
+            raise RuntimeError("DB timeout")
+
+    fake_supabase = types.SimpleNamespace(table=lambda name: DummyTable(name))
+    monkeypatch.setattr(lixeira_service, "_get_supabase_and_org", lambda: (fake_supabase, "ORGID"))
+    monkeypatch.setattr(lixeira_service, "exec_postgrest", fake_exec)
+    monkeypatch.setattr(lixeira_service, "_ensure_mandatory_subfolders", lambda prefix: None)
+    monkeypatch.setattr(lixeira_service.messagebox, "showerror", lambda *a, **k: None)
+
+    ok, errs = lixeira_service.restore_clients([100, 200, 300])
+
+    assert ok == 2  # 1º e 3º sucesso
+    assert len(errs) == 1
+    assert errs[0][0] == 200
+
+
+def test_restore_clients_subfolder_guard_falha_nao_impede_restauracao(monkeypatch):
+    """Falha ao criar subpastas não impede restauração do cliente."""
+    updates: list = []
+
+    def fake_ensure(prefix: str):
+        raise RuntimeError("Storage indisponível")
+
+    fake_supabase = types.SimpleNamespace(table=lambda name: DummyTable(name))
+    monkeypatch.setattr(lixeira_service, "_get_supabase_and_org", lambda: (fake_supabase, "ORGID"))
+    monkeypatch.setattr(lixeira_service, "exec_postgrest", lambda *a, **k: updates.append(a))
+    monkeypatch.setattr(lixeira_service, "_ensure_mandatory_subfolders", fake_ensure)
+    monkeypatch.setattr(lixeira_service.messagebox, "showerror", lambda *a, **k: None)
+
+    ok, errs = lixeira_service.restore_clients([123])
+
+    # Cliente restaurado mesmo com falha no guard
+    assert ok == 1
+    assert errs == []
+    assert len(updates) == 1
+
+
+def test_hard_delete_clients_lista_vazia_retorna_zero(monkeypatch):
+    """Excluir lista vazia não chama backend."""
+    deletes: list = []
+    monkeypatch.setattr(lixeira_service, "_get_supabase_and_org", lambda: (object(), "ORGID"))
+    monkeypatch.setattr(lixeira_service, "exec_postgrest", lambda *a, **k: deletes.append(a))
+
+    ok, errs = lixeira_service.hard_delete_clients([])
+
+    assert ok == 0
+    assert errs == []
+    assert len(deletes) == 0
+
+
+def test_hard_delete_clients_storage_vazio_nao_falha(monkeypatch):
+    """Exclusão com storage vazio não gera erro."""
+    deletes: list = []
+
+    fake_supabase = types.SimpleNamespace(table=lambda name: DummyTable(name))
+    monkeypatch.setattr(lixeira_service, "_get_supabase_and_org", lambda: (fake_supabase, "ORGID"))
+    monkeypatch.setattr(lixeira_service, "_remove_storage_prefix", lambda org_id, cid: 0)  # 0 removidos
+    monkeypatch.setattr(lixeira_service, "exec_postgrest", lambda *a, **k: deletes.append(a))
+    monkeypatch.setattr(lixeira_service.messagebox, "showerror", lambda *a, **k: None)
+
+    ok, errs = lixeira_service.hard_delete_clients([456])
+
+    assert ok == 1
+    assert errs == []
+
+
+def test_hard_delete_clients_storage_falha_continua_db_delete(monkeypatch):
+    """Falha no Storage não impede delete do DB."""
+    deletes: list = []
+
+    def fake_remove(org_id: str, cid: int):
+        raise RuntimeError("Storage timeout")
+
+    fake_supabase = types.SimpleNamespace(table=lambda name: DummyTable(name))
+    monkeypatch.setattr(lixeira_service, "_get_supabase_and_org", lambda: (fake_supabase, "ORGID"))
+    monkeypatch.setattr(lixeira_service, "_remove_storage_prefix", fake_remove)
+    monkeypatch.setattr(lixeira_service, "exec_postgrest", lambda *a, **k: deletes.append(a))
+    monkeypatch.setattr(lixeira_service.messagebox, "showerror", lambda *a, **k: None)
+
+    ok, errs = lixeira_service.hard_delete_clients([789])
+
+    # DB delete continua mesmo com falha no Storage
+    assert ok == 1
+    assert len(errs) == 1  # Erro registrado (Storage)
+    assert "storage" in errs[0][1].lower()
+    assert len(deletes) == 1  # DB delete foi chamado
+
+
+def test_gather_all_paths_lista_arquivos_recursivamente(monkeypatch):
+    """_gather_all_paths percorre recursivamente pastas no Storage."""
+
+    def fake_list_children(bucket: str, prefix: str):
+        if prefix == "root":
+            return [
+                {"name": "file1.pdf", "is_folder": False},
+                {"name": "subdir", "is_folder": True},
+            ]
+        if prefix == "root/subdir":
+            return [{"name": "file2.pdf", "is_folder": False}]
+        return []
+
+    monkeypatch.setattr(lixeira_service, "_list_storage_children", fake_list_children)
+
+    paths = lixeira_service._gather_all_paths("bucket", "root")  # type: ignore[protected-access]
+
+    assert len(paths) == 2
+    assert "root/file1.pdf" in paths
+    assert "root/subdir/file2.pdf" in paths
+
+
+def test_list_storage_children_identifica_pastas_corretamente(monkeypatch):
+    """_list_storage_children identifica pastas (metadata=None) vs arquivos."""
+    fake_items = [
+        {"name": "doc.pdf", "metadata": {"size": 100}},
+        {"name": "pasta", "metadata": None},  # pasta
+    ]
+
+    monkeypatch.setattr(lixeira_service, "SupabaseStorageAdapter", lambda bucket: object())
+    monkeypatch.setattr(lixeira_service, "using_storage_backend", lambda adapter: nullcontext())
+    monkeypatch.setattr(lixeira_service, "storage_list_files", lambda prefix: fake_items)
+
+    result = lixeira_service._list_storage_children("bucket", "prefix")  # type: ignore[protected-access]
+
+    assert len(result) == 2
+    assert result[0]["name"] == "doc.pdf"
+    assert result[0]["is_folder"] is False
+    assert result[1]["name"] == "pasta"
+    assert result[1]["is_folder"] is True
+
+
+def test_remove_storage_prefix_remove_multiplos_arquivos(monkeypatch):
+    """_remove_storage_prefix remove todos os arquivos do prefixo."""
+    deleted_keys: list[str] = []
+
+    monkeypatch.setattr(
+        lixeira_service,
+        "_gather_all_paths",
+        lambda bucket, prefix: [f"{prefix}/file{i}.pdf" for i in range(5)],
+    )
+    monkeypatch.setattr(lixeira_service, "SupabaseStorageAdapter", lambda bucket: object())
+    monkeypatch.setattr(lixeira_service, "using_storage_backend", lambda adapter: nullcontext())
+    monkeypatch.setattr(
+        lixeira_service,
+        "storage_delete_file",
+        lambda key: deleted_keys.append(key) or True,
+    )
+
+    removed = lixeira_service._remove_storage_prefix("ORGID", 123)  # type: ignore[protected-access]
+
+    assert removed == 5
+    assert len(deleted_keys) == 5
+    for i in range(5):
+        assert f"ORGID/123/file{i}.pdf" in deleted_keys

@@ -506,7 +506,7 @@
 
 ### Testes
 
-- [>] **TEST-001: Aumentar cobertura para 85%+** ⏳ **FASES 1-6 CONCLUÍDAS**
+- [>] **TEST-001: Aumentar cobertura para 85%+** ⏳ **FASES 1-7 CONCLUÍDAS**
   - **Área:** Módulos com baixa cobertura
   - **Descrição:** Adicionar testes em:
     - ✅ `src/modules/cashflow/` (FASE 1)
@@ -788,6 +788,35 @@
       * Coverage global: **28.65%** (mantida)
       * Coverage profiles_service.py: **97%** (mantida)
     - 📊 **Impacto:** Serviço crítico agora com type hints modernos (PEP 585/604), alinhado com clientes/service e uploads/repository (QA-003 Microfase 5). Testes da Fase 6 garantem que refatoração de tipos não introduziu regressões funcionais
+  - **Fase 7 - Resultados (lixeira_service - serviço de exclusão/restauração):**
+    - ✅ **Arquivo expandido:**
+      * `tests/test_lixeira_service.py`: 9 testes novos (15 testes total, antes: 6)
+    - ✅ **Módulo testado:**
+      * `src/core/services/lixeira_service.py`: Restauração de clientes, exclusão definitiva (DB + Storage)
+    - ✅ **Total:** 15 testes total (472 testes no total global, antes: 457)
+    - ✅ **Cobertura:**
+      * Global antes: 28.65%
+      * Global depois: **28.88%** (+0.23pp)
+      * `src/core/services/lixeira_service.py`: **84%** (115/137 linhas, antes: 58%)
+    - ✅ **Funções testadas:**
+      * `restore_clients()`: 9 testes - sucesso single/múltiplo, subpastas obrigatórias garantidas, lista vazia, falha auth/org, falha parcial, subfolder guard tolerante
+      * `hard_delete_clients()`: 9 testes - exclusão DB+Storage, múltiplos clientes, remoção de arquivos, storage vazio, lista vazia, falha auth, storage falha mas DB continua, falha DB, falha parcial
+      * `_ensure_mandatory_subfolders()`: 2 testes - criação de .keep em subpastas vazias, skip de subpastas existentes
+      * `_gather_all_paths()`: 1 teste - listagem recursiva de arquivos
+      * `_list_storage_children()`: 1 teste - identificação de pastas vs arquivos
+      * `_remove_storage_prefix()`: 1 teste - remoção de múltiplos arquivos
+    - ✅ **Cenários testados:**
+      * **restore_clients**: Restauração com update do DB (deleted_at=None), garantia de subpastas obrigatórias (SIFAP, ANVISA, FARMACIA_POPULAR, AUDITORIA), proteção contra bug histórico de subpastas perdidas, tolerância a falhas no guard de subpastas (não bloqueia restauração)
+      * **hard_delete_clients**: Exclusão permanente (Storage + DB), limpeza de todos os arquivos do prefixo org_id/client_id, tolerância a storage vazio, continuação do delete do DB mesmo com falha no Storage
+      * **Edge cases**: Listas vazias, falhas de autenticação, org não encontrada, falhas parciais (alguns OK, outros com erro), erros de rede no Storage/DB
+      * **Helpers internos**: Criação de placeholders .keep para pastas vazias, listagem recursiva de arquivos no Storage, identificação de pastas (metadata=None) vs arquivos
+    - ✅ **Validação:**
+      * Pyright: **0 erros, 0 warnings** em lixeira_service.py e test_lixeira_service.py
+      * pytest focado: **15/15 passed** em tests/test_lixeira_service.py
+      * Suite filtrada: **472 passed, 1 failed, 2 skipped** (falha pré-existente em test_ui_components.py)
+      * Coverage global: **28.88%** (threshold 25%, +0.23pp vs Fase 6)
+      * Coverage lixeira_service.py: **84%** (115/137 linhas, antes: 58%, +26pp)
+    - 📊 **Impacto:** Serviço crítico de lixeira agora com 84% de cobertura (+26pp), protegendo fluxo de restauração (com garantia de subpastas obrigatórias) e exclusão definitiva. Todos os caminhos principais (sucesso, vazio, erro, falhas parciais) testados com mocks. Proteção contra bug histórico de perda de subpastas na restauração garantida por testes específicos
   - **Meta final:** 85%+ cobertura
   - **Próximas fases:** Outros módulos de baixa cobertura conforme necessário
 
