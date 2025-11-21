@@ -398,6 +398,27 @@
     - ✅ **Pyright:** 0 erros, 0 warnings em `auth.py` e `test_auth_validation.py`
     - ✅ **auth.py coverage:** 98% (121/123 linhas)
     - 📊 **Impacto:** Módulo crítico de autenticação agora com type hints completos, reforçando segurança de tipos em login, rate limiting, hashing PBKDF2 e gestão de usuários SQLite
+  - **Resultado - Microfase 5 (20/11/2025):**
+    - ✅ **Módulos:**
+      * `src/modules/clientes/service.py`
+      * `src/modules/uploads/repository.py`
+    - ✅ **Funções tipadas:**
+      * `_extract_cliente_id(row: RowData | None) -> int | None`
+      * `_conflict_id(entry: Any) -> int | None`
+      * `extrair_dados_cartao_cnpj_em_pasta(base_dir: str) -> dict[str, str | None]`
+      * `excluir_clientes_definitivamente(ids: Iterable[int], progress_cb: Callable[[int, int, int], None] | None = None) -> tuple[int, list[tuple[int, str]]]`
+      * `fetch_cliente_by_id(cliente_id: int) -> dict[str, Any] | None`
+      * `update_cliente_status_and_observacoes(cliente: Mapping[str, Any] | int, novo_status: str | None) -> None`
+      * `current_user_id() -> str | None`
+      * `normalize_bucket(value: str | None) -> str`
+      * `upload_items_with_adapter(...) -> Tuple[int, list[Tuple[_TUploadItem, Exception]]]`
+    - ✅ **Imports modernizados:** Removido `Optional` (typing legacy); usado `|` (PEP 604)
+    - ✅ **Testes:**
+      * `tests/test_clientes_service_qa005.py`: 15/15 passando
+      * `tests/test_uploads_repository.py`: 10/10 passando
+      * Suite filtrada (`-k "not test_labeled_entry_different_labels"`): 436 passed, 2 skipped
+    - ✅ **Pyright:** 0 erros, 0 warnings em `clientes/service.py`, `uploads/repository.py` e seus testes
+    - 📊 **Impacto:** Módulos de clientes e uploads, que já tinham correções sensíveis (QA-005) e novos testes (TEST-001 Fase 5), agora com type hints modernos e consistentes, facilitando futuras refatorações com segurança de tipos
 
 - [x] **QA-004: Configurar pre-commit hooks**
   - **Área:** Criar `.pre-commit-config.yaml`
@@ -485,7 +506,7 @@
 
 ### Testes
 
-- [>] **TEST-001: Aumentar cobertura para 85%+** ⏳ **FASES 1-4.4 CONCLUÍDAS**
+- [>] **TEST-001: Aumentar cobertura para 85%+** ⏳ **FASES 1-5 CONCLUÍDAS**
   - **Área:** Módulos com baixa cobertura
   - **Descrição:** Adicionar testes em:
     - ✅ `src/modules/cashflow/` (FASE 1)

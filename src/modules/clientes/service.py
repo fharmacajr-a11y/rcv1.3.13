@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, Callable, Iterable, Mapping, Optional, Tuple, cast
+from typing import Any, Callable, Iterable, Mapping, Tuple, cast
 
 from adapters.storage.api import (
     delete_file as storage_delete_file,
@@ -67,14 +67,14 @@ def _current_utc_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _extract_cliente_id(row: RowData | None) -> Optional[int]:
+def _extract_cliente_id(row: RowData | None) -> int | None:
     try:
         return int(row[0]) if row else None
     except Exception:
         return None
 
 
-def extrair_dados_cartao_cnpj_em_pasta(base_dir: str) -> dict[str, Optional[str]]:
+def extrair_dados_cartao_cnpj_em_pasta(base_dir: str) -> dict[str, str | None]:
     """
     Varre a pasta informada em busca de um Cartão CNPJ e retorna os dados estruturados.
 
@@ -101,8 +101,8 @@ def extrair_dados_cartao_cnpj_em_pasta(base_dir: str) -> dict[str, Optional[str]
 
     # 1) Primeiro tenta via list_and_classify_pdfs (type == "cnpj_card")
     docs = list_and_classify_pdfs(base_dir)
-    cnpj: Optional[str] = None
-    razao: Optional[str] = None
+    cnpj: str | None = None
+    razao: str | None = None
 
     for d in docs:
         if d.get("type") == "cnpj_card":
@@ -151,7 +151,7 @@ def checar_duplicatas_para_form(
         exclude_id=current_id,
     )
 
-    def _conflict_id(entry: Any) -> Optional[int]:
+    def _conflict_id(entry: Any) -> int | None:
         if entry is None:
             return None
         if isinstance(entry, Mapping):
@@ -243,7 +243,7 @@ def restaurar_clientes_da_lixeira(ids: Iterable[int]) -> None:
 
 def excluir_clientes_definitivamente(
     ids: Iterable[int],
-    progress_cb: Optional[Callable[[int, int, int], None]] = None,
+    progress_cb: Callable[[int, int, int], None] | None = None,
 ) -> tuple[int, list[tuple[int, str]]]:
     """
     Exclui definitivamente clientes do banco e limpa arquivos no Storage.
@@ -387,7 +387,7 @@ def get_cliente_by_id(cliente_id: int) -> Any:
     return core_get_cliente_by_id(cliente_id)
 
 
-def fetch_cliente_by_id(cliente_id: int) -> Optional[dict[str, Any]]:
+def fetch_cliente_by_id(cliente_id: int) -> dict[str, Any] | None:
     """
     Versao que sempre devolve dict, para uso em views (sem objetos ORM).
     """
@@ -406,7 +406,7 @@ def fetch_cliente_by_id(cliente_id: int) -> Optional[dict[str, Any]]:
     }
 
 
-def update_cliente_status_and_observacoes(cliente: Mapping[str, Any] | int, novo_status: Optional[str]) -> None:
+def update_cliente_status_and_observacoes(cliente: Mapping[str, Any] | int, novo_status: str | None) -> None:
     """
     Atualiza apenas o campo 'observacoes' com o prefixo de status, preservando o restante do texto.
     """

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Any, Callable, Optional, Sequence, Tuple, TypeVar, cast
+from typing import Any, Callable, Sequence, Tuple, TypeVar, cast
 
 from adapters.storage.api import list_files as _storage_list_files, upload_file as _storage_upload_file
 from adapters.storage.supabase_storage import SupabaseStorageAdapter
@@ -18,7 +18,7 @@ _TUploadItem = TypeVar("_TUploadItem")
 logger = logging.getLogger(__name__)
 
 
-def current_user_id() -> Optional[str]:
+def current_user_id() -> str | None:
     """Return the Supabase user id if available."""
 
     try:
@@ -123,7 +123,7 @@ def update_document_current_version(document_id: int, version_id: int) -> None:
     exec_postgrest(supabase.table("documents").update({"current_version": version_id}).eq("id", document_id))
 
 
-def normalize_bucket(value: Optional[str]) -> str:
+def normalize_bucket(value: str | None) -> str:
     """Compute the bucket name for client documents."""
 
     raw = (value or os.getenv("SUPABASE_BUCKET") or "rc-docs").strip()
@@ -144,10 +144,10 @@ def upload_items_with_adapter(
     adapter: SupabaseStorageAdapter,
     items: Sequence[_TUploadItem],
     cnpj_digits: str,
-    subfolder: Optional[str],
+    subfolder: str | None,
     *,
-    progress_callback: Optional[Callable[[Any], None]] = None,
-    remote_path_builder: Callable[[str, str, Optional[str]], str],
+    progress_callback: Callable[[Any], None] | None = None,
+    remote_path_builder: Callable[[str, str, str | None], str],
     client_id: int | None = None,
     org_id: str | None = None,
 ) -> Tuple[int, list[Tuple[_TUploadItem, Exception]]]:
