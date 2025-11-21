@@ -506,7 +506,7 @@
 
 ### Testes
 
-- [>] **TEST-001: Aumentar cobertura para 85%+** ⏳ **FASES 1-5 CONCLUÍDAS**
+- [>] **TEST-001: Aumentar cobertura para 85%+** ⏳ **FASES 1-6 CONCLUÍDAS**
   - **Área:** Módulos com baixa cobertura
   - **Descrição:** Adicionar testes em:
     - ✅ `src/modules/cashflow/` (FASE 1)
@@ -740,6 +740,35 @@
       * Coverage uploads/repository.py: **44%** (antes: 26%, +18pp)
       * Pre-commit: todos os hooks verdes
     - 📊 **Impacto:** Correções da QA-005 agora protegidas por testes específicos (+25 testes), garantindo que guards para None, casts de tipo e validações de id permaneçam robustos. Cobertura dos módulos corrigidos aumentou significativamente (+11pp e +18pp respectivamente)
+  - **Fase 6 - Resultados (profiles_service - serviço de perfis/usuários):**
+    - ✅ **Arquivo criado:**
+      * `tests/test_profiles_service.py`: 21 testes para serviço de perfis (378 linhas)
+    - ✅ **Módulo testado:**
+      * `src/core/services/profiles_service.py`: Consultas de perfis, mapeamento de emails/display_names
+    - ✅ **Total:** 21 testes novos (457 testes no total, antes: 436)
+    - ✅ **Cobertura:**
+      * Global antes: 28.04%
+      * Global depois: **28.65%** (+0.61pp)
+      * `src/core/services/profiles_service.py`: **97%** (66/68 linhas, antes: não rastreado)
+    - ✅ **Funções testadas:**
+      * `list_profiles_by_org()`: 4 testes - sucesso com display_name, org vazia, fallback quando coluna ausente (42703), erro de rede retorna vazio
+      * `get_display_names_map()`: 3 testes - criação de mapa email→display_name, org vazia, filtra emails vazios
+      * `get_display_name_by_email()`: 6 testes - busca direta, normalização case, não encontrado, display_name vazio, email vazio, erro retorna None
+      * `get_email_prefix_map()`: 6 testes - criação de mapa prefixo→email, aliases aplicados, org vazia, filtra emails vazios, erro retorna vazio, normalização case
+      * **EMAIL_PREFIX_ALIASES**: 2 testes - constante definida corretamente, alias usado no mapa de prefixos
+    - ✅ **Cenários testados:**
+      * **Sucesso "happy path"**: Listagem de perfis, mapeamento de emails, busca por email
+      * **Fallback gracioso**: Coluna display_name ausente (erro 42703), retorna lista com email apenas
+      * **Graceful degradation**: Erros de rede/DB retornam estruturas vazias (não quebram)
+      * **Normalização**: Emails sempre lowercase, prefixos extraídos corretamente
+      * **Aliases**: pharmaca2013 → fharmaca2013 (usado em notes_service)
+      * **Edge cases**: Listas vazias, emails vazios/whitespace, display_names vazios filtrados
+    - ✅ **Validação:**
+      * Pyright: **0 erros, 0 warnings** em profiles_service.py e test_profiles_service.py
+      * pytest focado: **21/21 passed** em tests/test_profiles_service.py
+      * Suite filtrada: **457 passed, 2 skipped** (antes: 436 passed)
+      * Coverage: **28.65%** (threshold 25%, +0.61pp vs Fase 5)
+    - 📊 **Impacto:** Serviço crítico usado por notes_service agora com 97% de cobertura, protegendo normalização de emails de autores e mapeamento de display_names. Todos os caminhos principais (sucesso, vazio, erro) testados com mocks, sem chamadas reais ao Supabase
   - **Meta final:** 85%+ cobertura
   - **Próximas fases:** Outros módulos de baixa cobertura conforme necessário
 
