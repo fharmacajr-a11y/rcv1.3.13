@@ -245,13 +245,41 @@
 
 ### Qualidade de Código
 
-- [ ] **QA-001: Refatorar `src/ui/files_browser.py`**
-  - **Área:** `src/ui/files_browser.py` (~1200 linhas)
+- [x] **QA-001: Refatorar `src/ui/files_browser.py`** ✅ **CONCLUÍDO**
+  - **Área:** `src/ui/files_browser.py` (~1700 linhas → pacote modular)
   - **Descrição:** Quebrar em componentes menores
   - **Sugestão:** Separar em ListView, Toolbar, Actions, Service
   - **Benefício:** Manutenibilidade, testabilidade
   - **Esforço:** 12-16h
   - **Automável:** Manual (refatoração grande)
+  - **Resultado:**
+    - ✅ **Estrutura de pacote criada:** `src/ui/files_browser/`
+      - `__init__.py`: API pública (re-exporta `open_files_browser`)
+      - `main.py`: Lógica principal (1741 linhas, com documentação estruturada)
+      - `constants.py`: Constantes centralizadas (UI_GAP, STATUS_GLYPHS, DEFAULT_PAGE_SIZE, tags)
+      - `utils.py`: Utilitários puros (sanitize_filename, format_file_size, resolve_posix_path, suggest_zip_filename)
+    - ✅ **Wrapper de retrocompatibilidade:** `src/ui/files_browser.py` (thin wrapper)
+      - Mantém imports antigos funcionando
+      - Re-exporta `format_cnpj_for_display` (corrigindo import errado anterior)
+    - ✅ **Documentação interna adicionada ao `main.py`:**
+      - Mapa de blocos lógicos (UI Construction, Listing & Pagination, File Actions, Tree Utilities, Status & Preferences)
+      - Notas de performance (FUNC-001, PERF-002, PERF-003)
+      - TODOs futuros (conversão em classe, extração de ActionHandler, PaginationManager)
+    - ✅ **Extração conservadora:**
+      - Funções puras movidas para `utils.py` (testáveis isoladamente)
+      - Constantes centralizadas em `constants.py`
+      - Closures aninhadas mantidas em `main.py` (evita quebra de estado compartilhado)
+    - ✅ **Compatibilidade 100% preservada:**
+      - API pública não mudou (`from src.ui.files_browser import open_files_browser`)
+      - Nenhum código cliente precisa ser alterado
+    - ✅ **Arquivos criados:**
+      - `src/ui/files_browser/__init__.py`
+      - `src/ui/files_browser/main.py`
+      - `src/ui/files_browser/constants.py`
+      - `src/ui/files_browser/utils.py`
+    - ✅ **Testes:** 328 passed (+2 vs anterior), coverage 26.85% (≥25%)
+    - ✅ **Pre-commit:** All hooks passed
+    - 📊 **Impacto:** Código mais navegável, constantes centralizadas, utilitários testáveis separadamente; preparação para refatorações futuras
 
 - [ ] **QA-002: Refatorar `src/modules/main_window/views/main_window.py`**
   - **Área:** `src/modules/main_window/views/main_window.py` (~1000 linhas)
