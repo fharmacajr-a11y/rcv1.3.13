@@ -7,7 +7,7 @@ import errno
 import logging
 import random
 import time
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable
 
 from infra.supabase_client import exec_postgrest, get_supabase
 
@@ -40,7 +40,7 @@ class NotesTransientError(Exception):
 # -------------------- Helpers de Retry e Detecção de Erros Transitórios --------------------
 
 
-def _is_transient_net_error(e: Exception) -> bool:
+def _is_transient_net_error(e: BaseException) -> bool:
     """
     Detecta se o erro é transitório de rede/IO que deve ser re-tentado.
 
@@ -50,7 +50,7 @@ def _is_transient_net_error(e: Exception) -> bool:
     Returns:
         True se for erro transitório (timeout, WinError 10035, connection reset, etc.)
     """
-    s = str(e).lower()
+    s: str = str(e).lower()
 
     # WSAEWOULDBLOCK (WinError 10035), timeouts, connection resets, etc.
     if "10035" in s or "wouldblock" in s:
@@ -85,7 +85,7 @@ def _with_retry(fn: Callable[[], Any], *, retries: int = 3, base_sleep: float = 
         NotesTransientError: Se todas as tentativas falharem com erro transitório
         Exception: Se houver erro não transitório (propaga imediatamente)
     """
-    last_exc = None
+    last_exc: BaseException | None = None
     for attempt in range(1, retries + 1):
         try:
             return fn()
@@ -113,7 +113,7 @@ def _with_retry(fn: Callable[[], Any], *, retries: int = 3, base_sleep: float = 
 # -------------------- Helpers de Tratamento de Erro --------------------
 
 
-def _check_table_missing_error(exception: Exception) -> None:
+def _check_table_missing_error(exception: BaseException) -> None:
     """
     Verifica se o erro é devido à tabela ausente (PGRST205).
 
@@ -123,7 +123,7 @@ def _check_table_missing_error(exception: Exception) -> None:
     Raises:
         NotesTableMissingError: Se tabela não existir
     """
-    error_str = str(exception).lower()
+    error_str: str = str(exception).lower()
 
     # Verificar código PGRST205 ou mensagens relacionadas
     if "pgrst205" in error_str or "relation" in error_str and "does not exist" in error_str:
@@ -140,7 +140,7 @@ def _check_table_missing_error(exception: Exception) -> None:
             raise NotesTableMissingError(f"Tabela '{TABLE}' ausente no Supabase. Execute a migration: migrations/rc_notes_migration.sql")
 
 
-def _check_auth_error(exception: Exception) -> None:
+def _check_auth_error(exception: BaseException) -> None:
     """
     Verifica se o erro é devido a falha de permissão RLS (42501).
 
@@ -150,7 +150,7 @@ def _check_auth_error(exception: Exception) -> None:
     Raises:
         NotesAuthError: Se houver erro de permissão RLS
     """
-    error_str = str(exception).lower()
+    error_str: str = str(exception).lower()
 
     # Verificar código 42501 (permission denied)
     if "42501" in error_str or "permission denied" in error_str:
@@ -172,7 +172,7 @@ def _check_auth_error(exception: Exception) -> None:
 # -------------------- Helpers de Normalização de E-mail Legado --------------------
 
 
-def _normalize_author_emails(rows: List[dict], org_id: str) -> List[dict]:
+def _normalize_author_emails(rows: list[dict[str, Any]], org_id: str) -> list[dict[str, Any]]:
     """
     Normaliza author_email de notas legadas (prefixo → email completo).
     Aplica aliases (ex: pharmaca2013 → fharmaca2013).
@@ -190,25 +190,25 @@ def _normalize_author_emails(rows: List[dict], org_id: str) -> List[dict]:
             get_email_prefix_map,
         )
 
-        emap = get_email_prefix_map(org_id) or {}
+        emap: dict[str, str] = get_email_prefix_map(org_id) or {}
     except Exception:
         emap = {}
 
-    out = []
+    out: list[dict[str, Any]] = []
     for r in rows:
-        email = (r.get("author_email") or "").strip()
+        email: str = (r.get("author_email") or "").strip()
         if email and "@" not in email:
-            email_lc = email.lower()
+            email_lc: str = email.lower()
             # Aplicar alias antes de consultar o mapa
-            prefix = EMAIL_PREFIX_ALIASES.get(email_lc, email_lc)
+            prefix: str = EMAIL_PREFIX_ALIASES.get(email_lc, email_lc)
             email = emap.get(prefix, email)
-        nr = dict(r)
+        nr: dict[str, Any] = dict(r)
         nr["author_email"] = (email or "").strip().lower()
         out.append(nr)
     return out
 
 
-def list_notes(org_id: str, limit: int = 500) -> List[Dict[str, Any]]:
+def list_notes(org_id: str, limit: int = 500) -> list[dict[str, Any]]:
     """
     Lista todas as anotações da organização, ordenadas cronologicamente (mais antigas primeiro).
 
@@ -224,10 +224,10 @@ def list_notes(org_id: str, limit: int = 500) -> List[Dict[str, Any]]:
         NotesTransientError: Se houver falha transitória de rede após retries
     """
 
-    def _call():
+    def _call() -> list[dict[str, Any]]:
         supa = get_supabase()
         resp = exec_postgrest(supa.table(TABLE).select("id, author_email, body, created_at").eq("org_id", org_id).order("created_at", desc=False).limit(limit))
-        rows = resp.data or []
+        rows: list[dict[str, Any]] = resp.data or []
         # Normalizar emails legados (prefixo → email completo, com aliases)
         return _normalize_author_emails(rows, org_id)
 
@@ -253,7 +253,7 @@ def list_notes(org_id: str, limit: int = 500) -> List[Dict[str, Any]]:
         return []
 
 
-def add_note(org_id: str, author_email: str, body: str) -> Dict[str, Any]:
+def add_note(org_id: str, author_email: str, body: str) -> dict[str, Any]:
     """
     Adiciona nova anotação (append-only).
 
@@ -288,8 +288,8 @@ def add_note(org_id: str, author_email: str, body: str) -> Dict[str, Any]:
             get_email_prefix_map,
         )
 
-        prefix = EMAIL_PREFIX_ALIASES.get(author_email, author_email)
-        emap = {}
+        prefix: str = EMAIL_PREFIX_ALIASES.get(author_email, author_email)
+        emap: dict[str, str] = {}
         try:
             emap = get_email_prefix_map(org_id) or {}
         except Exception:
@@ -297,12 +297,12 @@ def add_note(org_id: str, author_email: str, body: str) -> Dict[str, Any]:
         author_email = emap.get(prefix, author_email)
 
     # Log de diagnóstico
-    email_prefix = author_email.split("@")[0][:8] if "@" in author_email else author_email[:8]
+    email_prefix: str = author_email.split("@")[0][:8] if "@" in author_email else author_email[:8]
     log.info("notes.add", extra={"org_id": org_id, "author_email_prefix": email_prefix})
 
-    payload = {"org_id": org_id, "author_email": author_email, "body": body}
+    payload: dict[str, str] = {"org_id": org_id, "author_email": author_email, "body": body}
 
-    def _call():
+    def _call() -> dict[str, Any]:
         supa = get_supabase()
         resp = exec_postgrest(supa.table(TABLE).insert(payload))
         return (resp.data or [{}])[0]
@@ -342,7 +342,7 @@ def add_note(org_id: str, author_email: str, body: str) -> Dict[str, Any]:
         raise
 
 
-def list_notes_since(org_id: str, since_iso: str | None) -> list[dict]:
+def list_notes_since(org_id: str, since_iso: str | None) -> list[dict[str, Any]]:
     """
     Retorna notas da org mais novas que 'since_iso' (ISO-8601).
     Se since_iso for None, retorna [] (porque o Hub já carrega o histórico completo em outro fluxo).
@@ -357,7 +357,7 @@ def list_notes_since(org_id: str, since_iso: str | None) -> list[dict]:
     if not since_iso:
         return []
 
-    def _call():
+    def _call() -> list[dict[str, Any]]:
         supa = get_supabase()
         # created_at > since_iso, ordenado crescente
         resp = exec_postgrest(
@@ -368,7 +368,7 @@ def list_notes_since(org_id: str, since_iso: str | None) -> list[dict]:
             .order("created_at", desc=False)
             .limit(100)
         )
-        rows = resp.data or []
+        rows: list[dict[str, Any]] = resp.data or []
         # Normalizar emails legados (prefixo → email completo, com aliases)
         return _normalize_author_emails(rows, org_id)
 

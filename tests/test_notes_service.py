@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import errno
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
@@ -209,8 +210,9 @@ class TestAddNote:
 
     def test_add_note_none_body(self):
         """Should raise ValueError for None body."""
+        bad_body: Any = None
         with pytest.raises(ValueError, match="Anotação vazia"):
-            add_note("org-123", "user@example.com", None)
+            add_note("org-123", "user@example.com", bad_body)
 
     @patch("src.core.services.notes_service.exec_postgrest")
     @patch("src.core.services.notes_service.get_supabase")

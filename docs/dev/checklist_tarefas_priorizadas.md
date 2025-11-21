@@ -358,6 +358,25 @@
     - ✅ **Suite completa:** 375 passed, coverage 27.11% (≥25%)
     - ✅ **Pre-commit:** All hooks passed
     - 📊 **Impacto:** 100% de cobertura do módulo com tipos completos para verificação estática robusta
+  - **Resultado - Microfase 3 (20/11/2025):**
+    - ✅ **Módulo:** `src/core/services/notes_service.py`
+    - ✅ **Funções tipadas:**
+      * `_is_transient_net_error(e: BaseException) -> bool`
+      * `_with_retry(fn: Callable[[], Any], *, retries: int = 3, base_sleep: float = 0.25) -> Any`
+      * `_check_table_missing_error(exception: BaseException) -> None`
+      * `_check_auth_error(exception: BaseException) -> None`
+      * `_normalize_author_emails(rows: list[dict[str, Any]], org_id: str) -> list[dict[str, Any]]`
+      * `list_notes(org_id: str, limit: int = 500) -> list[dict[str, Any]]`
+      * `add_note(org_id: str, author_email: str, body: str) -> dict[str, Any]`
+      * `list_notes_since(org_id: str, since_iso: str | None) -> list[dict[str, Any]]`
+    - ✅ **Variáveis locais anotadas:**
+      * `s: str`, `last_exc: BaseException | None`, `error_str: str`, `emap: dict[str, str]`, `out: list[dict[str, Any]]`, `email: str`, `email_lc: str`, `prefix: str`, `nr: dict[str, Any]`, `rows: list[dict[str, Any]]`, `email_prefix: str`, `payload: dict[str, str]`
+    - ✅ **Imports modernizados:** Removido `Dict`, `List` (typing legacy); usado `dict`, `list` (PEP 585)
+    - ✅ **Testes:** 17/17 testes de `test_notes_service.py` passando
+    - ✅ **Suite completa:** 390 passed, 2 skipped, coverage 27.58% (≥25%)
+    - ✅ **Pyright:** 0 erros, 0 warnings em `notes_service.py` e `test_notes_service.py`
+    - ✅ **notes_service.py coverage:** 60% (95/158 linhas, antes: 15%)
+    - 📊 **Impacto:** Serviço de notas compartilhadas agora com type hints completos, garantindo robustez em operações críticas de append-only e retry logic
 
 - [x] **QA-004: Configurar pre-commit hooks**
   - **Área:** Criar `.pre-commit-config.yaml`
@@ -389,7 +408,7 @@
 
 ### Testes
 
-- [>] **TEST-001: Aumentar cobertura para 85%+** ⏳ **FASES 1-4.1 CONCLUÍDAS**
+- [>] **TEST-001: Aumentar cobertura para 85%+** ⏳ **FASES 1-4.3 CONCLUÍDAS**
   - **Área:** Módulos com baixa cobertura
   - **Descrição:** Adicionar testes em:
     - ✅ `src/modules/cashflow/` (FASE 1)
