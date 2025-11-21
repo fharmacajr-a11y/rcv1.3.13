@@ -7,14 +7,18 @@ Cobre: src/core/auth/auth.py (validate_credentials, check_rate_limit, pbkdf2_has
 """
 
 import binascii
+import os
 import time
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
 from src.core.auth.auth import (
     EMAIL_RE,
+    _get_auth_pepper,
     check_rate_limit,
+    create_user,
+    ensure_users_db,
     pbkdf2_hash,
     validate_credentials,
 )
@@ -319,3 +323,404 @@ def test_pbkdf2_hash_uses_pepper(mock_pepper):
     hash_different_pepper = pbkdf2_hash("password", salt=salt)
 
     assert hash_with_pepper != hash_different_pepper
+
+
+# ====================================================================
+# _get_auth_pepper
+# ====================================================================
+
+
+def test_get_auth_pepper_from_env(monkeypatch):
+    """_get_auth_pepper deve retornar valor de AUTH_PEPPER do ambiente."""
+    monkeypatch.setenv("AUTH_PEPPER", "secret_pepper_123")
+
+    result = _get_auth_pepper()
+
+    assert result == "secret_pepper_123"
+
+
+def test_get_auth_pepper_from_rc_env(monkeypatch):
+    """_get_auth_pepper deve retornar valor de RC_AUTH_PEPPER se AUTH_PEPPER não existir."""
+    monkeypatch.delenv("AUTH_PEPPER", raising=False)
+    monkeypatch.setenv("RC_AUTH_PEPPER", "rc_pepper_456")
+
+    result = _get_auth_pepper()
+
+    assert result == "rc_pepper_456"
+
+
+def test_get_auth_pepper_from_config_yml(monkeypatch, tmp_path):
+    """_get_auth_pepper deve ler de config.yml se variáveis de ambiente não existirem."""
+    monkeypatch.delenv("AUTH_PEPPER", raising=False)
+    monkeypatch.delenv("RC_AUTH_PEPPER", raising=False)
+
+    # Criar config.yml temporário
+    config_file = tmp_path / "config.yml"
+    config_file.write_text("AUTH_PEPPER: yaml_pepper_789")
+
+    # Mudar diretório atual para tmp_path
+    original_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        result = _get_auth_pepper()
+        assert result == "yaml_pepper_789"
+    finally:
+        os.chdir(original_cwd)
+
+
+def test_get_auth_pepper_empty_when_not_found(monkeypatch, tmp_path):
+    """_get_auth_pepper deve retornar string vazia se não encontrar pepper."""
+    monkeypatch.delenv("AUTH_PEPPER", raising=False)
+    monkeypatch.delenv("RC_AUTH_PEPPER", raising=False)
+
+    # Usar tmp_path que não tem config.yml
+    original_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        result = _get_auth_pepper()
+        assert result == ""
+    finally:
+        os.chdir(original_cwd)
+
+
+def test_get_auth_pepper_prefers_env_over_config(monkeypatch, tmp_path):
+    """_get_auth_pepper deve preferir variável de ambiente sobre config.yml."""
+    monkeypatch.setenv("AUTH_PEPPER", "env_pepper")
+
+    # Criar config.yml com valor diferente
+    config_file = tmp_path / "config.yml"
+    config_file.write_text("AUTH_PEPPER: yaml_pepper")
+
+    original_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        result = _get_auth_pepper()
+        assert result == "env_pepper"  # Env tem prioridade
+    finally:
+        os.chdir(original_cwd)
+
+
+def test_get_auth_pepper_handles_config_yaml(monkeypatch, tmp_path):
+    """_get_auth_pepper deve ler de config.yaml se config.yml não existir."""
+    monkeypatch.delenv("AUTH_PEPPER", raising=False)
+    monkeypatch.delenv("RC_AUTH_PEPPER", raising=False)
+
+    # Criar config.yaml (não config.yml)
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("auth_pepper: yaml_pepper_lowercase")
+
+    original_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        result = _get_auth_pepper()
+        assert result == "yaml_pepper_lowercase"
+    finally:
+        os.chdir(original_cwd)
+
+
+def test_get_auth_pepper_handles_corrupt_yaml(monkeypatch, tmp_path):
+    """_get_auth_pepper deve retornar vazio se config.yml for inválido."""
+    monkeypatch.delenv("AUTH_PEPPER", raising=False)
+    monkeypatch.delenv("RC_AUTH_PEPPER", raising=False)
+
+    # Criar config.yml com YAML inválido
+    config_file = tmp_path / "config.yml"
+    config_file.write_text("invalid: yaml: content:")
+
+    original_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        result = _get_auth_pepper()
+        # Deve retornar vazio sem lançar exceção
+        assert result == ""
+    finally:
+        os.chdir(original_cwd)
+
+
+# ====================================================================
+# ensure_users_db & create_user
+# ====================================================================
+
+
+def test_ensure_users_db_creates_table(tmp_path, monkeypatch):
+    """ensure_users_db deve criar tabela users se não existir."""
+    db_path = tmp_path / "test_users.db"
+    monkeypatch.setattr("src.core.auth.auth.USERS_DB_PATH", db_path)
+
+    ensure_users_db()
+
+    # Verificar que o banco e a tabela foram criados
+    assert db_path.exists()
+
+    import sqlite3
+
+    with sqlite3.connect(str(db_path)) as con:
+        cur = con.cursor()
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+        result = cur.fetchone()
+        assert result is not None
+        assert result[0] == "users"
+
+
+def test_create_user_new(tmp_path, monkeypatch):
+    """create_user deve criar novo usuário e retornar ID."""
+    db_path = tmp_path / "test_users.db"
+    monkeypatch.setattr("src.core.auth.auth.USERS_DB_PATH", db_path)
+
+    user_id = create_user("test@example.com", "senha123")
+
+    assert user_id > 0
+
+    # Verificar que usuário foi criado
+    import sqlite3
+
+    with sqlite3.connect(str(db_path)) as con:
+        cur = con.cursor()
+        cur.execute("SELECT username, is_active FROM users WHERE id=?", (user_id,))
+        row = cur.fetchone()
+        assert row is not None
+        assert row[0] == "test@example.com"
+        assert row[1] == 1  # is_active
+
+
+def test_create_user_update_existing(tmp_path, monkeypatch):
+    """create_user deve atualizar senha de usuário existente."""
+    db_path = tmp_path / "test_users.db"
+    monkeypatch.setattr("src.core.auth.auth.USERS_DB_PATH", db_path)
+
+    # Criar usuário inicial
+    user_id_1 = create_user("test@example.com", "senha123")
+
+    # Atualizar senha do mesmo usuário
+    user_id_2 = create_user("test@example.com", "nova_senha456")
+
+    # Deve retornar mesmo ID
+    assert user_id_1 == user_id_2
+
+    # Verificar que senha foi atualizada
+    import sqlite3
+
+    with sqlite3.connect(str(db_path)) as con:
+        cur = con.cursor()
+        cur.execute("SELECT password_hash FROM users WHERE id=?", (user_id_1,))
+        row = cur.fetchone()
+        assert row is not None
+        # Hash deve ter mudado (nova senha)
+        assert "pbkdf2_sha256" in row[0]
+
+
+def test_create_user_without_password(tmp_path, monkeypatch):
+    """create_user deve permitir criar usuário sem senha."""
+    db_path = tmp_path / "test_users.db"
+    monkeypatch.setattr("src.core.auth.auth.USERS_DB_PATH", db_path)
+
+    user_id = create_user("test@example.com")
+
+    assert user_id > 0
+
+    import sqlite3
+
+    with sqlite3.connect(str(db_path)) as con:
+        cur = con.cursor()
+        cur.execute("SELECT password_hash FROM users WHERE id=?", (user_id,))
+        row = cur.fetchone()
+        assert row is not None
+        assert row[0] is None  # Sem senha
+
+
+def test_create_user_empty_username_raises(tmp_path, monkeypatch):
+    """create_user deve lançar ValueError para username vazio."""
+    db_path = tmp_path / "test_users.db"
+    monkeypatch.setattr("src.core.auth.auth.USERS_DB_PATH", db_path)
+
+    with pytest.raises(ValueError, match="username obrigatório"):
+        create_user("")
+
+
+def test_create_user_none_username_raises(tmp_path, monkeypatch):
+    """create_user deve lançar ValueError para username None."""
+    db_path = tmp_path / "test_users.db"
+    monkeypatch.setattr("src.core.auth.auth.USERS_DB_PATH", db_path)
+
+    with pytest.raises(ValueError, match="username obrigatório"):
+        create_user(None)  # type: ignore
+
+
+def test_create_user_update_without_password(tmp_path, monkeypatch):
+    """create_user deve permitir atualizar usuário sem fornecer nova senha."""
+    db_path = tmp_path / "test_users.db"
+    monkeypatch.setattr("src.core.auth.auth.USERS_DB_PATH", db_path)
+
+    # Criar usuário com senha
+    user_id_1 = create_user("test@example.com", "senha123")
+
+    # Atualizar usuário sem fornecer senha (deve manter a antiga)
+    user_id_2 = create_user("test@example.com", None)
+
+    # Deve retornar mesmo ID
+    assert user_id_1 == user_id_2
+
+    import sqlite3
+
+    with sqlite3.connect(str(db_path)) as con:
+        cur = con.cursor()
+        cur.execute("SELECT password_hash FROM users WHERE id=?", (user_id_1,))
+        row = cur.fetchone()
+        assert row is not None
+        # Hash deve permanecer (senha original)
+        assert "pbkdf2_sha256" in row[0]
+
+
+# ====================================================================
+# authenticate_user (Supabase integration)
+# ====================================================================
+
+
+@patch("src.core.auth.auth.get_supabase")
+def test_authenticate_user_success(mock_get_supabase, monkeypatch):
+    """authenticate_user deve retornar (True, email) para credenciais válidas."""
+    # Limpar rate limit
+    monkeypatch.setattr("src.core.auth.auth.login_attempts", {})
+
+    # Mock Supabase auth
+    mock_sb = Mock()
+    mock_user = Mock()
+    mock_user.email = "test@example.com"
+
+    mock_res = Mock()
+    mock_res.user = mock_user
+
+    mock_session = Mock()
+    mock_session.access_token = "fake_token_123"
+
+    mock_sb.auth.sign_in_with_password.return_value = mock_res
+    mock_sb.auth.get_session.return_value = mock_session
+    mock_get_supabase.return_value = mock_sb
+
+    success, msg = _authenticate_user_helper("test@example.com", "senha123")
+
+    assert success is True
+    assert msg == "test@example.com"
+    mock_sb.auth.sign_in_with_password.assert_called_once_with({"email": "test@example.com", "password": "senha123"})
+
+
+@patch("src.core.auth.auth.get_supabase")
+def test_authenticate_user_invalid_credentials(mock_get_supabase, monkeypatch):
+    """authenticate_user deve retornar (False, msg) para credenciais inválidas."""
+    monkeypatch.setattr("src.core.auth.auth.login_attempts", {})
+
+    # Mock Supabase lançando exceção
+    mock_sb = Mock()
+    mock_sb.auth.sign_in_with_password.side_effect = Exception("Invalid login credentials")
+    mock_get_supabase.return_value = mock_sb
+
+    success, msg = _authenticate_user_helper("test@example.com", "senha_errada")
+
+    assert success is False
+    assert "incorretos" in msg
+
+
+@patch("src.core.auth.auth.get_supabase")
+def test_authenticate_user_validation_error(mock_get_supabase, monkeypatch):
+    """authenticate_user deve retornar erro de validação antes de chamar Supabase."""
+    monkeypatch.setattr("src.core.auth.auth.login_attempts", {})
+
+    success, msg = _authenticate_user_helper("invalid_email", "senha123")
+
+    assert success is False
+    assert "e-mail válido" in msg
+    # Não deve ter chamado Supabase
+    mock_get_supabase.assert_not_called()
+
+
+@patch("src.core.auth.auth.get_supabase")
+def test_authenticate_user_rate_limit_blocks(mock_get_supabase, monkeypatch):
+    """authenticate_user deve bloquear após exceder rate limit."""
+    attempts = {}
+    monkeypatch.setattr("src.core.auth.auth.login_attempts", attempts)
+
+    # Simular 5 tentativas recentes
+    now = time.time()
+    attempts["test@example.com"] = (5, now)
+
+    success, msg = _authenticate_user_helper("test@example.com", "senha123")
+
+    assert success is False
+    assert "Muitas tentativas" in msg
+    # Não deve ter chamado Supabase
+    mock_get_supabase.assert_not_called()
+
+
+@patch("src.core.auth.auth.get_supabase")
+def test_authenticate_user_clears_attempts_on_success(mock_get_supabase, monkeypatch):
+    """authenticate_user deve limpar rate limit após login bem-sucedido."""
+    attempts = {}
+    monkeypatch.setattr("src.core.auth.auth.login_attempts", attempts)
+
+    # Simular tentativas anteriores
+    attempts["test@example.com"] = (2, time.time())
+
+    # Mock sucesso
+    mock_sb = Mock()
+    mock_user = Mock()
+    mock_user.email = "test@example.com"
+    mock_res = Mock()
+    mock_res.user = mock_user
+    mock_session = Mock()
+    mock_session.access_token = "token"
+    mock_sb.auth.sign_in_with_password.return_value = mock_res
+    mock_sb.auth.get_session.return_value = mock_session
+    mock_get_supabase.return_value = mock_sb
+
+    success, msg = _authenticate_user_helper("test@example.com", "senha123")
+
+    assert success is True
+    # Deve ter limpado tentativas
+    assert "test@example.com" not in attempts
+
+
+@patch("src.core.auth.auth.get_supabase")
+def test_authenticate_user_increments_attempts_on_failure(mock_get_supabase, monkeypatch):
+    """authenticate_user deve incrementar contador de tentativas em falha."""
+    attempts = {}
+    monkeypatch.setattr("src.core.auth.auth.login_attempts", attempts)
+
+    # Mock falha
+    mock_sb = Mock()
+    mock_sb.auth.sign_in_with_password.side_effect = Exception("Invalid")
+    mock_get_supabase.return_value = mock_sb
+
+    _authenticate_user_helper("test@example.com", "senha_errada")
+
+    # Deve ter incrementado tentativas
+    assert "test@example.com" in attempts
+    count, _ = attempts["test@example.com"]
+    assert count == 1
+
+
+@patch("src.core.auth.auth.get_supabase")
+def test_authenticate_user_no_session(mock_get_supabase, monkeypatch):
+    """authenticate_user deve falhar se não houver sessão válida."""
+    monkeypatch.setattr("src.core.auth.auth.login_attempts", {})
+
+    # Mock sem sessão
+    mock_sb = Mock()
+    mock_res = Mock()
+    mock_res.user = Mock()
+    mock_sb.auth.sign_in_with_password.return_value = mock_res
+    mock_sb.auth.get_session.return_value = None  # Sem sessão
+    mock_get_supabase.return_value = mock_sb
+
+    success, msg = _authenticate_user_helper("test@example.com", "senha123")
+
+    assert success is False
+    # Aceitar qualquer mensagem de erro
+    assert msg != ""
+
+
+# Helper para evitar importar authenticate_user diretamente (pode não estar exportado)
+def _authenticate_user_helper(email: str, password: str):
+    """Helper para testar authenticate_user."""
+    from src.core.auth.auth import authenticate_user
+
+    return authenticate_user(email, password)

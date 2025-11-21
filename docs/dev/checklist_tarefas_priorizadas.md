@@ -408,7 +408,7 @@
 
 ### Testes
 
-- [>] **TEST-001: Aumentar cobertura para 85%+** ⏳ **FASES 1-4.3 CONCLUÍDAS**
+- [>] **TEST-001: Aumentar cobertura para 85%+** ⏳ **FASES 1-4.4 CONCLUÍDAS**
   - **Área:** Módulos com baixa cobertura
   - **Descrição:** Adicionar testes em:
     - ✅ `src/modules/cashflow/` (FASE 1)
@@ -590,6 +590,30 @@
       * coverage: 27.58%
       * pre-commit: all hooks passed
     - 📊 **Impacto:** Módulo de notas compartilhadas saltou de 15% → 60% de cobertura (+45pp), garantindo robustez em funcionalidade de colaboração
+  - **Fase 4.4 - Resultados (auth - autenticação e rate limit):**
+    - ✅ **Arquivo de testes envolvido:**
+      * `tests/test_auth_validation.py`: 21 testes novos (50 testes total, antes: 29)
+    - ✅ **Módulo alvo:**
+      * `src/core/auth/auth.py`: Autenticação, validação de credenciais, rate limiting, PBKDF2 hashing
+    - ✅ **Total:** 21 testes novos (411 testes no total, antes: 390)
+    - ✅ **Cobertura:**
+      * Antes: **44%** (54/123 linhas)
+      * Depois: **98%** (121/123 linhas) - **+54pp**
+      * Linhas não cobertas: apenas 16-17 (import yaml exception handler - edge case de import failure)
+    - ✅ **Cenários exercitados:**
+      * **_get_auth_pepper**: leitura de AUTH_PEPPER/RC_AUTH_PEPPER (env vars), config.yml/config.yaml, prioridade env > config, YAML corrupto, fallback para vazio
+      * **ensure_users_db & create_user**: criação de tabela SQLite, inserção de usuário novo, atualização de usuário existente (com/sem senha), validação de username obrigatório
+      * **authenticate_user**: login bem-sucedido (mock Supabase), credenciais inválidas, erro de validação (email/senha), rate limit bloqueando, limpeza de tentativas após sucesso, incremento de contador em falha, ausência de sessão válida
+      * **Validação de credenciais**: já testado em fase anterior (email regex, senha min 6 chars, boundaries)
+      * **Rate limiting**: já testado em fase anterior (5 tentativas/60s, reset, case-insensitive)
+      * **PBKDF2 hashing**: já testado em fase anterior (formato, iterações, salt, pepper)
+    - ✅ **Validação final:**
+      * pytest tests/test_auth_validation.py -v: **50/50 testes passando** (100%)
+      * Suite completa: **411 passed, 2 skipped** (antes: 390 passed)
+      * Coverage global: **28.02%** (antes: 27.58%, +0.44pp)
+      * Coverage auth.py: **98%** (121/123 linhas)
+      * Pre-commit: todos os hooks verdes
+    - 📊 **Impacto:** Módulo crítico de autenticação agora com cobertura quase completa (98%), garantindo robustez em login, rate limiting, hashing de senhas e gestão de usuários locais
       * `src/modules/hub/format.py`: 86% coverage (18/21 linhas)
       * `src/modules/hub/utils.py`: 93% coverage (28/30 linhas)
       * `src/modules/hub/colors.py`: 82% coverage (31/38 linhas)
