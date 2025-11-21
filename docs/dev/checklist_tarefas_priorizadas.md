@@ -377,6 +377,27 @@
     - ✅ **Pyright:** 0 erros, 0 warnings em `notes_service.py` e `test_notes_service.py`
     - ✅ **notes_service.py coverage:** 60% (95/158 linhas, antes: 15%)
     - 📊 **Impacto:** Serviço de notas compartilhadas agora com type hints completos, garantindo robustez em operações críticas de append-only e retry logic
+  - **Resultado - Microfase 4 (20/11/2025):**
+    - ✅ **Módulo:** `src/core/auth/auth.py`
+    - ✅ **Funções tipadas:**
+      * `_get_auth_pepper() -> str`
+      * `check_rate_limit(email: str) -> tuple[bool, float]`
+      * `pbkdf2_hash(password: str, *, iterations: int = 1_000_000, salt: bytes | None = None, dklen: int = 32) -> str`
+      * `ensure_users_db() -> None`
+      * `create_user(username: str, password: str | None = None) -> int`
+      * `validate_credentials(email: str, password: str) -> str | None`
+      * `authenticate_user(email: str, password: str) -> tuple[bool, str]`
+    - ✅ **Variáveis locais anotadas:**
+      * `key: str`, `now: float`, `count: int`, `last: float`, `elapsed: float`, `pepper: str`, `dk: bytes`
+      * `cur: sqlite3.Cursor`, `row: tuple[Any, ...] | None`, `uid: int`, `pwd_hash: str | None`
+      * `allowed: bool`, `remaining: float`, `err: str | None`, `msg: str`
+    - ✅ **Imports modernizados:** Removido `Optional`, `Tuple` (typing legacy); usado `tuple`, `|` (PEP 604)
+    - ✅ **Tipos concretos:** `sqlite3.Cursor`, `sqlite3.Connection` (via context manager), `bytes`
+    - ✅ **Testes:** 50/50 testes de `test_auth_validation.py` passando
+    - ✅ **Suite completa:** 411 passed, 2 skipped, coverage 28.05% (≥25%)
+    - ✅ **Pyright:** 0 erros, 0 warnings em `auth.py` e `test_auth_validation.py`
+    - ✅ **auth.py coverage:** 98% (121/123 linhas)
+    - 📊 **Impacto:** Módulo crítico de autenticação agora com type hints completos, reforçando segurança de tipos em login, rate limiting, hashing PBKDF2 e gestão de usuários SQLite
 
 - [x] **QA-004: Configurar pre-commit hooks**
   - **Área:** Criar `.pre-commit-config.yaml`

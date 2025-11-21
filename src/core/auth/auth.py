@@ -9,7 +9,7 @@ import sqlite3
 import time
 from datetime import datetime
 from hashlib import pbkdf2_hmac
-from typing import Optional, Tuple
+from typing import Any
 
 try:
     import yaml  # opcional
@@ -55,13 +55,15 @@ _login_lock = Lock()
 login_attempts: dict[str, tuple[int, float]] = {}  # key_email_lower: (count, last_time)
 
 
-def check_rate_limit(email: str) -> Tuple[bool, float]:
+def check_rate_limit(email: str) -> tuple[bool, float]:
     """Verifica se excedeu limite, retorna (allowed, remaining_seconds)."""
-    key = email.strip().lower()
-    now = time.time()
+    key: str = email.strip().lower()
+    now: float = time.time()
     if key in login_attempts:
+        count: int
+        last: float
         count, last = login_attempts[key]
-        elapsed = now - last
+        elapsed: float = now - last
         if elapsed > 60:  # Reset após 1 minuto
             del login_attempts[key]
             return True, 0.0
@@ -77,7 +79,7 @@ def pbkdf2_hash(
     password: str,
     *,
     iterations: int = 1_000_000,
-    salt: Optional[bytes] = None,
+    salt: bytes | None = None,
     dklen: int = 32,
 ) -> str:
     """
@@ -88,8 +90,8 @@ def pbkdf2_hash(
         raise ValueError("password vazio")
     if salt is None:
         salt = os.urandom(16)
-    pepper = _get_auth_pepper()
-    dk = pbkdf2_hmac("sha256", (password + pepper).encode("utf-8"), salt, iterations, dklen)
+    pepper: str = _get_auth_pepper()
+    dk: bytes = pbkdf2_hmac("sha256", (password + pepper).encode("utf-8"), salt, iterations, dklen)
     return f"pbkdf2_sha256${iterations}${binascii.hexlify(salt).decode()}${binascii.hexlify(dk).decode()}"
 
 
@@ -100,7 +102,7 @@ def ensure_users_db() -> None:
     USERS_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     with sqlite3.connect(str(USERS_DB_PATH)) as con:
-        cur = con.cursor()
+        cur: sqlite3.Cursor = con.cursor()
         cur.execute(
             """
             CREATE TABLE IF NOT EXISTS users (
@@ -116,21 +118,21 @@ def ensure_users_db() -> None:
         con.commit()
 
 
-def create_user(username: str, password: Optional[str] = None) -> int:
+def create_user(username: str, password: str | None = None) -> int:
     """Cria usuário local (SQLite). Se já existir, atualiza a senha se fornecida e retorna o ID."""
     if not (username or "").strip():
         raise ValueError("username obrigatório")
 
     ensure_users_db()
-    now = datetime.utcnow().isoformat()
-    pwd_hash = pbkdf2_hash(password) if password else None
+    now: str = datetime.utcnow().isoformat()
+    pwd_hash: str | None = pbkdf2_hash(password) if password else None
 
     with sqlite3.connect(str(USERS_DB_PATH)) as con:
-        cur = con.cursor()
+        cur: sqlite3.Cursor = con.cursor()
         cur.execute("SELECT id FROM users WHERE username=?", (username,))
-        row = cur.fetchone()
+        row: tuple[Any, ...] | None = cur.fetchone()
         if row:
-            uid = int(row[0])
+            uid: int = int(row[0])
             if pwd_hash:
                 cur.execute(
                     "UPDATE users SET password_hash=?, updated_at=? WHERE id=?",
@@ -153,7 +155,7 @@ def create_user(username: str, password: Optional[str] = None) -> int:
 
 
 # ------------------------- Validação de credenciais ------------------------- #
-def validate_credentials(email: str, password: str) -> Optional[str]:
+def validate_credentials(email: str, password: str) -> str | None:
     """
     Valida formato de e-mail e tamanho de senha.
     Retorna mensagem de erro ou None se válido.
@@ -166,23 +168,27 @@ def validate_credentials(email: str, password: str) -> Optional[str]:
 
 
 # ------------------------- Autenticação (Supabase) ------------------------- #
-def authenticate_user(email: str, password: str) -> Tuple[bool, str]:
+def authenticate_user(email: str, password: str) -> tuple[bool, str]:
     """
     Autentica via Supabase Auth (email/senha).
     Retorna (ok, msg). ok=True somente se houver user+session válidos.
     msg contém e-mail do usuário quando ok=True; caso contrário, mensagem de erro.
     """
-    key = email.strip().lower()
+    key: str = email.strip().lower()
 
     with _login_lock:
+        allowed: bool
+        remaining: float
         allowed, remaining = check_rate_limit(key)
         if not allowed:
             return False, f"Muitas tentativas recentes. Aguarde {int(remaining)}s."
 
-    err = validate_credentials(email, password)
+    err: str | None = validate_credentials(email, password)
     if err:
         with _login_lock:
-            now = time.time()
+            now: float = time.time()
+            count: int
+            _: float
             count, _ = login_attempts.get(key, (0, 0.0))
             login_attempts[key] = (count + 1, now)
         return False, err
@@ -202,9 +208,11 @@ def authenticate_user(email: str, password: str) -> Tuple[bool, str]:
 
         raise Exception("Credenciais inválidas.")  # Força falha
     except Exception as e:
-        msg = str(e)
+        msg: str = str(e)
         with _login_lock:
-            now = time.time()
+            now: float = time.time()
+            count: int
+            _: float
             count, _ = login_attempts.get(key, (0, 0.0))
             login_attempts[key] = (count + 1, now)
         # Mensagens mais amigáveis
