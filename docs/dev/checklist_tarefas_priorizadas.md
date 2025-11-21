@@ -361,14 +361,15 @@
 
 ### Testes
 
-- [>] **TEST-001: Aumentar cobertura para 85%+** ⏳ **FASES 1-3 CONCLUÍDAS**
+- [>] **TEST-001: Aumentar cobertura para 85%+** ⏳ **FASES 1-4.1 CONCLUÍDAS**
   - **Área:** Módulos com baixa cobertura
   - **Descrição:** Adicionar testes em:
     - ✅ `src/modules/cashflow/` (FASE 1)
     - ✅ `src/modules/passwords/` (FASE 1)
     - ✅ `src/ui/components/` (FASE 2)
-    - ✅ `src/modules/hub/`, `src/core/auth/` (FASE 3 - concluída)
-    - ⏳ Outros módulos de baixa cobertura (próximas fases)
+    - ✅ `src/modules/hub/`, `src/core/auth/` (FASE 3)
+    - ✅ `src/core/search/` (FASE 4.1 - microfase)
+    - ⏳ Outros módulos de baixa cobertura (próximas microfases)
   - **Ferramenta:** `pytest --cov` para medir
   - **Benefício:** Redução de bugs
   - **Esforço:** 8-12h
@@ -438,6 +439,55 @@
       * Antes: 26.32%
       * Depois: **26.95%** (+0.63pp)
       * `src/modules/hub/state.py`: 100% coverage (21/21 linhas)
+      * `src/modules/hub/format.py`: 86% coverage (18/21 linhas)
+      * `src/modules/hub/utils.py`: 93% coverage (28/30 linhas)
+      * `src/modules/hub/colors.py`: 82% coverage (31/38 linhas)
+      * `src/core/auth/auth.py`: 44% coverage (54/123 linhas)
+    - ✅ **Cenários testados (Hub):**
+      * State management (singleton, user_email, org_id, preferences)
+      * Timestamp formatting (ISO → "Hoje 14:30", "Ontem 18:45", "15/01/2024")
+      * Note formatting (wrapped text, max lines, ellipsis)
+      * Color generation (HSL → Hex, hash-based author colors, tag creation)
+      * Text normalization (Unicode, acentos, múltiplas linhas)
+    - ✅ **Cenários testados (Auth):**
+      * Email regex validation (valid/invalid formats)
+      * Password validation (min 8 chars, caracteres especiais)
+      * PBKDF2 hashing (salt, iterations, verificação)
+      * Rate limiting (max attempts, lockout, reset)
+      * Credential validation integrada (email + password)
+    - ✅ **Validação:**
+      * pytest: 327/328 passed (1 skipped)
+      * coverage: 26.95%
+      * pre-commit: all hooks passed
+  - **Fase 4.1 - Resultados (search - microfase):**
+    - ✅ **Arquivo criado:**
+      * `tests/test_search_service.py`: 22 testes para busca de clientes (351 linhas)
+    - ✅ **Módulo testado:**
+      * `src/core/search/search.py`: Busca de clientes com fallback local
+    - ✅ **Total:** 22 testes novos (349 testes no total, antes: 327)
+    - ✅ **Cobertura:**
+      * Antes: 26.86%
+      * Depois: **27.10%** (+0.24pp)
+      * `src/core/search/search.py`: 69% coverage (49/71 linhas, antes: 18%)
+    - ✅ **Funções testadas:**
+      * `_normalize_order()`: 7 testes - normalização de campos de ordenação
+      * `_row_to_cliente()`: 3 testes - conversão dict → Cliente (completo, parcial, vazio)
+      * `_cliente_search_blob()`: 2 testes - criação de blob para busca
+      * `_filter_rows_with_norm()`: 4 testes - filtragem de rows com normalização
+      * `_filter_clientes()`: 3 testes - filtragem de clientes (match, no match, termo vazio)
+      * `search_clientes()`: 3 testes - integração com mocks (offline fallback, validação org_id, listagem completa)
+    - ✅ **Cenários testados:**
+      * Normalização de ordenação (nome, razao_social, cnpj, ultima_alteracao, inválido)
+      * Conversão robusta de rows (campos completos, parciais, vazios)
+      * Busca normalizada (case-insensitive, remoção de acentos, por CNPJ)
+      * Fallback offline para DB local quando Supabase offline
+      * Validação de org_id obrigatório
+      * Edge cases (termos vazios, nenhum match, listas vazias)
+    - ✅ **Validação:**
+      * pytest: 349/350 passed (1 skipped)
+      * coverage: 27.10%
+      * pre-commit: all hooks passed
+    - 📊 **Impacto:** Módulo crítico de busca agora com cobertura de 69% (antes 18%), garantindo estabilidade em funcionalidade core do app
       * `src/modules/hub/format.py`: 86% coverage (18/21 linhas)
       * `src/modules/hub/utils.py`: 93% coverage (28/30 linhas)
       * `src/modules/hub/colors.py`: 82% coverage (31/38 linhas)
