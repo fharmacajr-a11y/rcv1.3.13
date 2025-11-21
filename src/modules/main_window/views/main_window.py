@@ -1,9 +1,91 @@
 # -*- coding: utf-8 -*-
-"""Main application window (App class)."""
+"""
+Main Application Window (App class).
+
+Este módulo implementa a janela principal do aplicativo Gestor de Clientes,
+baseada em ttkbootstrap (tema moderno do Tkinter).
+
+ARQUITETURA DA CLASSE App:
+══════════════════════════
+
+A classe App herda de tb.Window e orquestra os componentes principais:
+
+1. INICIALIZAÇÃO (__init__)
+   - Configuração de tema (ttkbootstrap com fallback para ttk padrão)
+   - Configuração HiDPI para Linux/Windows
+   - Criação de separadores visuais
+   - TopBar com botão Home
+   - Ícone da aplicação
+   - MenuBar (AppMenuBar)
+   - Container de conteúdo (NavigationController)
+   - StatusFooter com indicadores
+   - StatusMonitor para health checks
+   - AuthController para autenticação
+   - AppActions para delegação de ações
+   - Keybindings globais
+
+2. NAVEGAÇÃO
+   - show_hub_screen(): Tela inicial (hub/notas)
+   - show_main_screen(): Tela de clientes
+   - show_passwords_screen(): Tela de senhas
+   - show_cashflow_screen(): Tela de fluxo de caixa
+   - show_placeholder_screen(): Telas vazias (em desenvolvimento)
+
+3. AÇÕES DELEGADAS (via AppActions)
+   - novo_cliente()
+   - editar_cliente()
+   - ver_subpastas()
+   - abrir_lixeira()
+   - _excluir_cliente()
+   - enviar_para_supabase()
+
+4. GERENCIAMENTO DE SESSÃO (via SessionCache)
+   - _get_user_cached()
+   - _get_role_cached()
+   - _get_org_id_cached()
+
+5. STATUS & HEALTH CHECK
+   - _handle_status_update(): Atualiza texto de status
+   - _refresh_status_display(): Refresh completo do footer
+   - _update_status_dot(): Atualiza indicador online/offline
+   - _apply_online_state(): Aplica estado de conectividade
+   - on_net_status_change(): Callback para mudanças de rede
+
+6. TEMAS
+   - _set_theme(): Troca de tema com restart
+   - _handle_menu_theme_change(): Handler do menu
+
+COMPONENTES EXTERNOS USADOS:
+────────────────────────────
+- TopBar: Barra superior com botão Home (src.ui.topbar)
+- AppMenuBar: Menu principal (src.ui.menu_bar)
+- StatusFooter: Rodapé com status (src.ui.status_footer)
+- NavigationController: Gerenciador de navegação (src.core.navigation_controller)
+- StatusMonitor: Monitor de health checks (src.core.status_monitor)
+- AppActions: Delegação de ações (src.modules.main_window.app_actions)
+- SessionCache: Cache de sessão (src.modules.main_window.session_service)
+
+REFATORAÇÕES REALIZADAS:
+────────────────────────
+- QA-002 (2025-11-20): Extração de constantes e helpers para módulos separados
+  * constants.py: APP_TITLE, APP_VERSION, timings, cores
+  * helpers.py: resource_path, sha256_file, create_verbose_logger
+
+TESTING:
+────────
+- Integração: testado via tests/test_ui_components.py
+- Coverage: ~19% direto (muito código de UI)
+- Smoke tests: scripts/dev_smoke.py
+
+TODO (futuro):
+──────────────
+- Extrair lógica de inicialização de UI para métodos separados
+- Criar tests unitários para métodos de status
+- Considerar separar AppActions em múltiplos handlers (ClientActions, FileActions, etc.)
+"""
 
 # gui/main_window.py
 import functools as _functools
-import hashlib
 import logging
 import os
 import sys
@@ -35,35 +117,16 @@ from src.utils.theme_manager import theme_manager
 from src.utils.validators import only_digits  # noqa: F401
 from uploader_supabase import send_folder_to_supabase
 
-# -------- Phase 1 + 4: shared helpers with safe fallbacks --------
-try:
-    from src.utils.resource_path import resource_path as _resource_path
-except Exception:  # pragma: no cover
-
-    def _resource_path(relative_path: str) -> str:
-        base_path = getattr(sys, "_MEIPASS", os.path.abspath("."))
-        return os.path.join(base_path, relative_path)
-
-
-try:
-    from src.utils.hash_utils import sha256_file as _sha256
-except Exception:  # pragma: no cover
-
-    def _sha256(path: str) -> str:
-        digest = hashlib.sha256()
-        with open(path, "rb") as handle:
-            for chunk in iter(lambda: handle.read(8192), b""):
-                digest.update(chunk)
-        return digest.hexdigest()
-
-
-try:
-    pass
-except Exception:
-    pass
-
-resource_path = _resource_path
-sha256_file = _sha256
+# Imports internos do módulo main_window.views
+from .constants import (
+    APP_ICON_PATH,
+    APP_TITLE,
+    APP_VERSION,
+    HEALTH_POLL_INTERVAL,
+    INITIAL_STATUS_DELAY,
+    STATUS_REFRESH_INTERVAL,
+)
+from .helpers import resource_path
 
 NO_FS = os.getenv("RC_NO_LOCAL_FS") == "1"
 
@@ -133,8 +196,7 @@ class App(tb.Window):
                 pass
 
         try:
-            icon_relative = "rc.ico"
-            icon_path = resource_path(icon_relative)
+            icon_path = resource_path(APP_ICON_PATH)
             log.info("Tentando aplicar ícone da aplicação: %s", icon_path)
             if os.path.exists(icon_path):
                 try:
@@ -149,7 +211,7 @@ class App(tb.Window):
                     except Exception:
                         log.error("iconphoto também falhou ao aplicar ícone: %s", icon_path, exc_info=True)
             else:
-                log.warning("Ícone rc.ico não encontrado em: %s", icon_path)
+                log.warning("Ícone %s não encontrado em: %s", APP_ICON_PATH, icon_path)
         except Exception:
             log.exception("Falha ao aplicar ícone da aplicação")
 
@@ -176,7 +238,7 @@ class App(tb.Window):
 
         self.report_callback_exception = tk_report
 
-        self.title("Regularize Consultoria - v1.2.0")
+        self.title(f"{APP_TITLE} - {APP_VERSION}")
 
         # --- Aplicar política Fit-to-WorkArea ---
         apply_fit_policy(self)
@@ -273,7 +335,7 @@ class App(tb.Window):
             },
         )
 
-        self.after(300, self._schedule_user_status_refresh)
+        self.after(INITIAL_STATUS_DELAY, self._schedule_user_status_refresh)
         self.bind("<FocusIn>", lambda e: self._update_user_status(), add="+")
         self.show_hub_screen()
 
@@ -472,7 +534,7 @@ class App(tb.Window):
                     pass
                 # Reagendar polling
                 try:
-                    self.after(5000, poll_health)  # A cada 5 segundos
+                    self.after(HEALTH_POLL_INTERVAL, poll_health)
                 except Exception:
                     pass
 
@@ -606,7 +668,7 @@ class App(tb.Window):
             txt = ""
         if "Usuário:" not in txt:
             try:
-                self.after(300, self._schedule_user_status_refresh)
+                self.after(STATUS_REFRESH_INTERVAL, self._schedule_user_status_refresh)
             except Exception:
                 pass
 
