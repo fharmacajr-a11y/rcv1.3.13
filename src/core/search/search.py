@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Any, Mapping, Sequence
 
 from infra.supabase_client import exec_postgrest, is_supabase_online, supabase
 from src.core.db_manager.db_manager import CLIENT_COLUMNS
@@ -11,7 +11,7 @@ from src.core.session.session import get_current_user  # << pegar org_id da sess
 from src.core.textnorm import join_and_normalize, normalize_search
 
 
-def _normalize_order(order_by: Optional[str]) -> tuple[Optional[str], bool]:
+def _normalize_order(order_by: str | None) -> tuple[str | None, bool]:
     if not order_by:
         return None, False
     mapping = {
@@ -26,7 +26,7 @@ def _normalize_order(order_by: Optional[str]) -> tuple[Optional[str], bool]:
     return mapping.get(order_by.lower(), (None, False))
 
 
-def _row_to_cliente(row: dict) -> Cliente:
+def _row_to_cliente(row: Mapping[str, Any]) -> Cliente:
     return Cliente(
         id=row.get("id"),
         numero=row.get("numero"),
@@ -52,12 +52,12 @@ def _cliente_search_blob(cliente: Cliente) -> str:
     )
 
 
-def _filter_rows_with_norm(rows: List[dict], term: str) -> List[dict]:
+def _filter_rows_with_norm(rows: Sequence[Mapping[str, Any]], term: str) -> list[dict[str, Any]]:
     query_norm = normalize_search(term)
     if not query_norm:
         return rows
 
-    filtered: List[dict] = []
+    filtered: list[dict[str, Any]] = []
     for row in rows:
         norm = row.get("_search_norm")
         if not norm:
@@ -75,14 +75,14 @@ def _filter_rows_with_norm(rows: List[dict], term: str) -> List[dict]:
     return filtered
 
 
-def _filter_clientes(clientes: List[Cliente], term: str) -> List[Cliente]:
+def _filter_clientes(clientes: Sequence[Cliente], term: str) -> list[Cliente]:
     query_norm = normalize_search(term)
     if not query_norm:
         return clientes
     return [cli for cli in clientes if query_norm in _cliente_search_blob(cli)]
 
 
-def search_clientes(term: str | None, order_by: Optional[str] = None, org_id: Optional[str] = None) -> list[Cliente]:
+def search_clientes(term: str | None, order_by: str | None = None, org_id: str | None = None) -> list[Cliente]:
     """
     Busca clientes por *term* (nome/razao/CNPJ/numero) priorizando Supabase.
     Fallback para filtro local quando offline.
@@ -99,7 +99,7 @@ def search_clientes(term: str | None, order_by: Optional[str] = None, org_id: Op
             if org_id is None:
                 raise ValueError("org_id obrigatorio")
 
-            def _fetch_rows(search_term: str | None) -> List[dict]:
+            def _fetch_rows(search_term: str | None) -> list[dict[str, Any]]:
                 qb = supabase.table("clients").select(CLIENT_COLUMNS).is_("deleted_at", "null").eq("org_id", org_id)
                 if search_term:
                     pat = f"%{search_term}%"

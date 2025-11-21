@@ -323,13 +323,27 @@
     - ✅ **Pre-commit:** All hooks passed
     - 📊 **Impacto:** Configuração centralizada, helpers reutilizáveis, código mais navegável com documentação estruturada
 
-- [ ] **QA-003: Adicionar type hints faltantes**
+- [>] **QA-003: Adicionar type hints faltantes**
   - **Área:** Módulos sem `from __future__ import annotations`
   - **Descrição:** Incrementalmente adicionar types em arquivos antigos
   - **Ferramenta:** `pyright --stats` para identificar
   - **Benefício:** Melhor IDE support, menos bugs
   - **Esforço:** 6-10h (pode ser feito incrementalmente)
   - **Automável:** Parcial (detecção automática, adição manual)
+  - **Resultado - Microfase 1 (20/11/2025):**
+    - ✅ **Módulo:** `src/core/search/search.py`
+    - ✅ **Funções tipadas:**
+      * `_normalize_order(order_by: str | None) -> tuple[str | None, bool]`
+      * `_row_to_cliente(row: Mapping[str, Any]) -> Cliente`
+      * `_cliente_search_blob(cliente: Cliente) -> str`
+      * `_filter_rows_with_norm(rows: Sequence[Mapping[str, Any]], term: str) -> list[dict[str, Any]]`
+      * `_filter_clientes(clientes: Sequence[Cliente], term: str) -> list[Cliente]`
+      * `search_clientes(term: str | None, order_by: str | None = None, org_id: str | None = None) -> list[Cliente]`
+    - ✅ **Imports modernizados:** Removido `List`, `Optional`; adicionado `Any`, `Mapping`, `Sequence`
+    - ✅ **Testes:** 22/22 testes de `test_search_service.py` passando
+    - ✅ **Suite completa:** 349 passed, 1 skipped, coverage 27.10% (≥25%)
+    - ✅ **Pre-commit:** All hooks passed
+    - 📊 **Impacto:** Melhor IDE support e validação de tipos no módulo de busca crítico
 
 - [x] **QA-004: Configurar pre-commit hooks**
   - **Área:** Criar `.pre-commit-config.yaml`
