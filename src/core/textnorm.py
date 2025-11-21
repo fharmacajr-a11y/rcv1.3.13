@@ -17,9 +17,9 @@ __all__ = [
 def _strip_diacritics(s: str | None) -> str:
     if s is None:
         return ""
-    text = str(s)
-    decomposed = ud.normalize("NFD", text)
-    without_marks = "".join(ch for ch in decomposed if ud.category(ch) != "Mn")
+    text: str = str(s)
+    decomposed: str = ud.normalize("NFD", text)
+    without_marks: str = "".join(ch for ch in decomposed if ud.category(ch) != "Mn")
     return ud.normalize("NFC", without_marks)
 
 
@@ -30,11 +30,11 @@ def normalize_search(value: object) -> str:
     - apply casefold (stronger than lower)
     - drop punctuation / separators / control characters
     """
-    stripped = _strip_diacritics("" if value is None else str(value))
-    folded = stripped.casefold()
+    stripped: str = _strip_diacritics("" if value is None else str(value))
+    folded: str = stripped.casefold()
     out_chars: list[str] = []
     for ch in folded:
-        cat = ud.category(ch)
+        cat: str | None = ud.category(ch)
         if cat and cat[0] in {"P", "Z", "C", "S"}:
             continue
         out_chars.append(ch)
@@ -45,5 +45,5 @@ def join_and_normalize(*parts: object) -> str:
     """
     Join multiple parts separated by spaces and return normalized text.
     """
-    combined = " ".join("" if part is None else str(part) for part in parts)
+    combined: str = " ".join("" if part is None else str(part) for part in parts)
     return normalize_search(combined)

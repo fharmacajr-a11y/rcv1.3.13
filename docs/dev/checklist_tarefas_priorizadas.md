@@ -344,6 +344,20 @@
     - ✅ **Suite completa:** 349 passed, 1 skipped, coverage 27.10% (≥25%)
     - ✅ **Pre-commit:** All hooks passed
     - 📊 **Impacto:** Melhor IDE support e validação de tipos no módulo de busca crítico
+  - **Resultado - Microfase 2 (20/11/2025):**
+    - ✅ **Módulo:** `src/core/textnorm.py`
+    - ✅ **Funções tipadas:**
+      * `_strip_diacritics(s: str | None) -> str`
+      * `normalize_search(value: object) -> str`
+      * `join_and_normalize(*parts: object) -> str`
+    - ✅ **Variáveis locais anotadas:**
+      * `text: str`, `decomposed: str`, `without_marks: str` em `_strip_diacritics`
+      * `stripped: str`, `folded: str`, `out_chars: list[str]`, `cat: str | None` em `normalize_search`
+      * `combined: str` em `join_and_normalize`
+    - ✅ **Testes:** 25/25 testes de `test_textnorm.py` passando
+    - ✅ **Suite completa:** 375 passed, coverage 27.11% (≥25%)
+    - ✅ **Pre-commit:** All hooks passed
+    - 📊 **Impacto:** 100% de cobertura do módulo com tipos completos para verificação estática robusta
 
 - [x] **QA-004: Configurar pre-commit hooks**
   - **Área:** Criar `.pre-commit-config.yaml`
