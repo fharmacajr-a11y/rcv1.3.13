@@ -517,6 +517,17 @@
     - ✅ **Pyright:** 0 erros, 0 warnings em formatters.py e test_helpers_formatters_fase10.py
     - ✅ **Coverage:** 29.78% global (±0.02pp vs baseline 29.80%), formatters.py 94% (mantida)
     - 📊 **Impacto:** Helpers de formatação agora com type hints completos e modernos (PEP 585/604), refletindo uso real de múltiplos tipos (str, int, float, datetime, date, timestamp). Funções `format_cnpj`, `fmt_datetime`, `fmt_datetime_br` agora documentadas com docstrings descrevendo tipos aceitos e comportamento. Alinhado com padrão QA-003 Microfases 1-9
+    - 🔧 **HOTFIX-PYLANCE-001 (21/11/2025):**
+      * Ajustadas assinaturas para aceitar valores realmente usados nos testes:
+        - `fmt_datetime`: adicionado `time` ao union (datetime | date | time | str | int | float | None)
+        - `fmt_datetime_br`: adicionado `time` ao union (datetime | date | time | str | int | float | None)
+        - Docstrings atualizadas documentando aceitação de `time`
+      * `src/modules/auditoria/service.py`:
+        - `delete_auditorias`: `Iterable[str | int | None]` (era `Iterable[str | int]`)
+        - Docstring adicionada: "Exclui auditorias, ignorando IDs None/vazios."
+        - Reflete uso real nos testes: `[123, "abc", None, "", "  ", 456]`
+      * Validação: Pyright 0 erros, pytest 92/92 passed, suite 578 passed
+      * Commit: c208cfa - Nenhuma mudança de comportamento, apenas type hints
   - **Próximas microfases:** Outros módulos críticos conforme necessário
     - ✅ **Coverage:** 29.41% global (≥29.39%), auditoria/service.py 84% (161/192 linhas)
     - 📊 **Impacto:** Módulo de auditoria SIFAP já estava com type hints modernos (PEP 585/604), alinhado com padrão estabelecido nas Microfases 1-8. Testes da Fase 9 (TEST-001) garantem robustez do módulo com 84% de cobertura. Nenhuma alteração necessária, validação confirmou conformidade completa com PEP 585/604
