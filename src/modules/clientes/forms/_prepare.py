@@ -159,7 +159,7 @@ def _ask_subpasta(parent: Any) -> Optional[str]:
 
     dlg = SubpastaDialog(parent, default="")
     parent.wait_window(dlg)
-    return dlg
+    return getattr(dlg, "result", None)
 
 
 def _unpack_call(args: tuple, kwargs: dict) -> tuple:

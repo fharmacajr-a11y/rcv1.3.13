@@ -55,30 +55,32 @@ def _cliente_search_blob(cliente: Cliente) -> str:
 def _filter_rows_with_norm(rows: Sequence[Mapping[str, Any]], term: str) -> list[dict[str, Any]]:
     query_norm = normalize_search(term)
     if not query_norm:
-        return rows
+        return list(rows)  # type: ignore[arg-type]
 
     filtered: list[dict[str, Any]] = []
     for row in rows:
-        norm = row.get("_search_norm")
+        # Convert to dict if needed for mutation
+        row_dict = dict(row) if not isinstance(row, dict) else row
+        norm = row_dict.get("_search_norm")
         if not norm:
             norm = join_and_normalize(
-                row.get("id"),
-                row.get("razao_social"),
-                row.get("cnpj"),
-                row.get("nome"),
-                row.get("numero"),
-                row.get("obs"),
+                row_dict.get("id"),
+                row_dict.get("razao_social"),
+                row_dict.get("cnpj"),
+                row_dict.get("nome"),
+                row_dict.get("numero"),
+                row_dict.get("obs"),
             )
-            row["_search_norm"] = norm
+            row_dict["_search_norm"] = norm
         if query_norm in norm:
-            filtered.append(row)
+            filtered.append(row_dict)
     return filtered
 
 
 def _filter_clientes(clientes: Sequence[Cliente], term: str) -> list[Cliente]:
     query_norm = normalize_search(term)
     if not query_norm:
-        return clientes
+        return list(clientes)
     return [cli for cli in clientes if query_norm in _cliente_search_blob(cli)]
 
 

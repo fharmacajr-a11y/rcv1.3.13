@@ -114,6 +114,9 @@ def perform_uploads(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
     progress = UploadProgressDialog(parent_win, total_files or 1, total_bytes or 0)
     ctx.busy_dialog = progress
 
+    if not ctx.pasta_local:
+        raise ValueError("pasta_local não configurada no contexto de upload")
+
     base_local = (
         os.path.join(
             ctx.pasta_local,
@@ -129,7 +132,7 @@ def perform_uploads(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
         falhas = 0
         arquivos_falhados = []
 
-        if ctx.src_dir:
+        if ctx.src_dir and ctx.pasta_local:
             base_local_inner = (
                 os.path.join(ctx.pasta_local, DEFAULT_IMPORT_SUBFOLDER, ctx.subpasta)
                 if ctx.subpasta

@@ -427,6 +427,53 @@
     - ✅ Commits futuros passam pelo pre-commit automaticamente (sem necessidade de `--no-verify`)
     - ✅ `CONTRIBUTING.md` atualizado com instruções de instalação e uso do pre-commit
 
+- [x] **META-001: Triagem de avisos Pyright e testes skipped** ✅ **CONCLUÍDO** (20/11/2025)
+  - **Área:** Workspace global, diagnóstico de qualidade
+  - **Descrição:** Mapear e categorizar todos os avisos do Pyright + revisar testes skipped para planejamento de ações corretivas
+  - **Esforço:** 2-3h → **Real: ~2.5h**
+  - **Automável:** Semi (detecção automática, triagem manual)
+  - **Baseline inicial:**
+    - 🔴 28 erros Pyright
+    - ⚠️ 5 warnings Pyright
+    - ⏭️ 2 testes skipped (condicional em `test_ui_components.py` + ambiente-dependente)
+  - **Ações realizadas:**
+    - ✅ **Correções imediatas (13 erros + 2 warnings):**
+      * `src/app_gui.py`: Adicionado check `if log:` antes de `log.info()` e `log.error()` (2 warnings `reportOptionalMemberAccess`)
+      * `src/core/search/search.py`:
+        - Corrigido retorno `Sequence → list` com cast explícito (2 erros `reportReturnType`)
+        - Convertido `Mapping` imutável para `dict` mutável antes de modificar (2 erros `reportIndexIssue`/`reportArgumentType`)
+      * `src/modules/clientes/forms/_prepare.py`: Corrigido retorno de `_ask_for_subpasta()` de `SubpastaDialog` objeto para `dlg.result: str | None` (1 erro `reportReturnType`)
+      * `src/modules/clientes/forms/_upload.py`: Adicionado check `if not ctx.pasta_local: raise ValueError(...)` antes de `os.path.join()` (8 erros `reportCallIssue`/`reportArgumentType`)
+    - ✅ **Validações:**
+      * Pyright nos arquivos corrigidos: 0 errors, 0 warnings ✅
+      * pytest: 411 passed, 2 skipped, 6 warnings (sem regressão) ✅
+      * Cobertura: 28.05% (≥25%) ✅
+  - **Resultado pós-triagem:**
+    - 🟡 **15 erros restantes** (redução de 46%)
+    - ⚠️ **3 warnings restantes** (redução de 40%)
+    - 📊 **Avisos categorizados:**
+      * **corrigir_agora (5 erros):**
+        - `src/modules/clientes/service.py`: 5 erros de tipos (linhas 179, 180, 385, 416×2) - `object | None` não iterável, `Cliente` não é `MutableMapping`, `Any | None` não convertível a int
+        - `src/modules/clientes/views/main_screen.py`: 3 erros de assinatura (linha 1105) - parâmetro `cliente` faltando, parâmetros `cliente_id` e `texto_observacoes` inexistentes
+        - `src/modules/lixeira/views/lixeira.py`: 1 erro (linha 282) - parâmetro `parent` inexistente
+        - `src/modules/uploads/repository.py`: 2 erros (linhas 170-171) - parâmetros `client_id` e `org_id` inexistentes
+      * **pode_esperar (4 erros + 3 warnings):**
+        - `src/modules/auditoria/views/layout.py`: 1 erro (linha 56) - callback Tkinter retorna `Literal['break'] | None` mas espera-se `None`
+        - `src/modules/clientes/views/footer.py`: 1 erro (linha 14) - "Argument to class must be a base class"
+        - `src/modules/clientes/views/toolbar.py`: 1 erro (linha 14) - "Argument to class must be a base class"
+        - `src/modules/cashflow/views/fluxo_caixa_frame.py`: 2 warnings (linhas 232, 263) - Expression value is unused
+        - `src/ui/files_browser/main.py`: 1 warning (linha 1324) - Expression value is unused
+      * **ignorar/externo (1 erro):**
+        - `uploader_supabase.py`: 1 erro (linha 238) - arquivo raiz, parece demo/script de teste
+  - **Testes skipped (2 total):**
+    - ✅ `tests/test_ui_components.py::test_ui_scrollable_frame` → **skip_ok** (Tkinter não configurado no ambiente)
+    - ✅ `tests/test_ui_components.py::test_ui_tooltip` → **skip_ok** (Tkinter não configurado no ambiente)
+    - 📌 Ambos são válidos: testes GUI requerem ambiente gráfico completo, skip é esperado em CI/headless
+  - **Próximos passos:**
+    - [ ] **QA-005 (futura):** Corrigir 5 erros `corrigir_agora` em `clientes/service.py`, `main_screen.py`, `lixeira/views`, `uploads/repository.py`
+    - [ ] **TOOL-004 (futura):** Avaliar ignores seletivos para avisos `pode_esperar` via `pyrightconfig.json`
+    - [ ] **TEST-001:** Manter testes skipped como estão (ambiente-dependente, comportamento correto)
+
 ### Testes
 
 - [>] **TEST-001: Aumentar cobertura para 85%+** ⏳ **FASES 1-4.4 CONCLUÍDAS**

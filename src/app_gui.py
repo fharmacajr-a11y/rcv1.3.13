@@ -54,7 +54,8 @@ if __name__ == "__main__":
         splash = show_splash(app, min_ms=1200)
     else:
         splash = None
-        log.info("Splash screen skipped (--no-splash)")
+        if log:
+            log.info("Splash screen skipped (--no-splash)")
 
     def _continue_after_splash():
         login_ok = ensure_logged(app, splash=splash, logger=log)
@@ -62,7 +63,8 @@ if __name__ == "__main__":
             try:
                 app.show_hub_screen()
             except Exception as exc:
-                log.error("Erro ao carregar UI: %s", exc)
+                if log:
+                    log.error("Erro ao carregar UI: %s", exc)
                 app.destroy()
         else:
             app.destroy()
