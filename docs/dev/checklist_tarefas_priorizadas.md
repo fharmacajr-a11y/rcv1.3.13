@@ -498,6 +498,26 @@
     - ✅ **Testes:** 35/35 passed em `test_auditoria_service_fase9.py`
     - ✅ **Suite filtrada:** 521 passed, 1 failed (Tkinter pré-existente), 2 skipped
     - ✅ **Pyright:** 0 erros, 0 warnings em auditoria/service.py e test_auditoria_service_fase9.py
+    - ✅ **Coverage:** 29.41% global (+0.32pp vs Fase 8), auditoria/service.py 84% (vs 59% antes Fase 9)
+    - 📊 **Impacto:** Módulo auditoria/service já estava com type hints modernos (PEP 585/604), validação confirmou padrão consistente. Nenhuma mudança necessária, apenas documentação QA-003 Microfase 9
+  - **Resultado - Microfase 10 (21/11/2025):**
+    - ✅ **Módulo:** `src/helpers/formatters.py`
+    - ✅ **Alterações aplicadas:**
+      * Adicionado: `from __future__ import annotations` (linha 1)
+      * Type hints atualizados (4 funções):
+        - `format_cnpj(raw: str | int | float | None) -> str` (antes: `raw: str`)
+        - `fmt_datetime(value: datetime | date | str | int | float | None) -> str` (antes: sem type hint no parâmetro)
+        - `fmt_datetime_br(value: datetime | date | str | int | float | None) -> str` (antes: sem type hint no parâmetro)
+        - `_parse_any_dt(value: Any) -> datetime | None` (já estava moderno, mantido)
+      * Variáveis locais anotadas: `dt: datetime | None`, `s: str` (2 variáveis)
+      * Docstrings adicionadas: `format_cnpj`, `fmt_datetime`, `fmt_datetime_br` (3 funções)
+    - ✅ **Imports:** Já modernos (apenas `Any`, `Final`; sem `List`, `Dict`, `Optional`, `Union`)
+    - ✅ **Testes:** 57/57 passed em `test_helpers_formatters_fase10.py` (sem alterações nos testes)
+    - ✅ **Suite filtrada:** 578 passed, 1 skipped (1 teste a menos que Fase 10 devido a flaky test)
+    - ✅ **Pyright:** 0 erros, 0 warnings em formatters.py e test_helpers_formatters_fase10.py
+    - ✅ **Coverage:** 29.78% global (±0.02pp vs baseline 29.80%), formatters.py 94% (mantida)
+    - 📊 **Impacto:** Helpers de formatação agora com type hints completos e modernos (PEP 585/604), refletindo uso real de múltiplos tipos (str, int, float, datetime, date, timestamp). Funções `format_cnpj`, `fmt_datetime`, `fmt_datetime_br` agora documentadas com docstrings descrevendo tipos aceitos e comportamento. Alinhado com padrão QA-003 Microfases 1-9
+  - **Próximas microfases:** Outros módulos críticos conforme necessário
     - ✅ **Coverage:** 29.41% global (≥29.39%), auditoria/service.py 84% (161/192 linhas)
     - 📊 **Impacto:** Módulo de auditoria SIFAP já estava com type hints modernos (PEP 585/604), alinhado com padrão estabelecido nas Microfases 1-8. Testes da Fase 9 (TEST-001) garantem robustez do módulo com 84% de cobertura. Nenhuma alteração necessária, validação confirmou conformidade completa com PEP 585/604
 
