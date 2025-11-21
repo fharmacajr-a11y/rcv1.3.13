@@ -1102,7 +1102,7 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
 
             _, body = self._vm.extract_status_and_observacoes(old_obs)
 
-            update_cliente_status_and_observacoes(cliente_id=cliente_id, novo_status=chosen, texto_observacoes=body)
+            update_cliente_status_and_observacoes(cliente=cliente_id, novo_status=chosen)
 
             self.carregar()
 

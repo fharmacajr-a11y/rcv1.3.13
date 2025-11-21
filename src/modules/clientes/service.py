@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, Callable, Iterable, Mapping, MutableMapping, Optional, Tuple
+from typing import Any, Callable, Iterable, Mapping, Optional, Tuple, cast
 
 from adapters.storage.api import (
     delete_file as storage_delete_file,
@@ -176,8 +176,9 @@ def checar_duplicatas_para_form(
     if _conflict_id(cnpj_conflict) == current_id:
         cnpj_conflict = None
 
-    razao_conflicts = _filter_self(info.get("razao_conflicts"))
-    numero_conflicts = _filter_self(info.get("numero_conflicts"))
+    # Cast para list porque sabemos que vem do DB/Supabase como array
+    razao_conflicts = _filter_self(cast(list, info.get("razao_conflicts") or []))
+    numero_conflicts = _filter_self(cast(list, info.get("numero_conflicts") or []))
 
     conflict_ids = {
         "cnpj": [cid] if (cid := _conflict_id(cnpj_conflict)) is not None else [],
@@ -378,9 +379,10 @@ def listar_clientes_na_lixeira(
         return data or []
 
 
-def get_cliente_by_id(cliente_id: int) -> Optional[MutableMapping[str, Any]]:
+def get_cliente_by_id(cliente_id: int) -> Any:
     """
     Wrapper simples para o core, para evitar importacoes diretas na UI.
+    Retorna Cliente (objeto do core) ou None.
     """
     return core_get_cliente_by_id(cliente_id)
 
@@ -413,7 +415,10 @@ def update_cliente_status_and_observacoes(cliente: Mapping[str, Any] | int, novo
         cliente_id = cliente
         cli_dict = fetch_cliente_by_id(cliente_id) or {}
     else:
-        cliente_id = int(getattr(cliente, "id", None) or cliente.get("id"))
+        raw_id = getattr(cliente, "id", None) or cliente.get("id")
+        if raw_id is None:
+            raise ValueError("Cliente deve ter um campo 'id' válido")
+        cliente_id = int(raw_id)
         cli_dict = dict(cliente)
 
     raw_obs = cli_dict.get("observacoes") or getattr(cliente, "observacoes", None) or getattr(cliente, "Observacoes", None) or ""

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Any, Callable, Optional, Sequence, Tuple, TypeVar
+from typing import Any, Callable, Optional, Sequence, Tuple, TypeVar, cast
 
 from adapters.storage.api import list_files as _storage_list_files, upload_file as _storage_upload_file
 from adapters.storage.supabase_storage import SupabaseStorageAdapter
@@ -161,9 +161,10 @@ def upload_items_with_adapter(
         if progress_callback:
             progress_callback(item)
         try:
-            # Passa client_id e org_id para o builder se ele suportar
-            # (build_remote_path tem parametros opcionais keyword-only)
-            remote_key = remote_path_builder(
+            # build_remote_path aceita client_id/org_id como keyword-only, mas o tipo
+            # do parâmetro remote_path_builder não inclui isso. Usamos cast para chamar corretamente.
+            builder_fn = cast(Any, remote_path_builder)
+            remote_key = builder_fn(
                 cnpj_digits,
                 getattr(item, "relative_path"),
                 subfolder,

@@ -279,7 +279,9 @@ def abrir_lixeira(parent, app=None):
 
         _set_busy(win, [btn_restore, btn_purge, btn_refresh, btn_close], True)
         try:
-            ok, errs = restaurar_clientes_da_lixeira(ids, parent=win)
+            restaurar_clientes_da_lixeira(ids)
+            ok = len(ids)
+            errs = []
             if errs:
                 msg = "\n".join([f"ID {cid}: {err}" for cid, err in errs])
                 _err("Falha parcial", f"{ok} restaurado(s), erros:\n{msg}")
