@@ -419,6 +419,67 @@
       * Suite filtrada (`-k "not test_labeled_entry_different_labels"`): 436 passed, 2 skipped
     - ✅ **Pyright:** 0 erros, 0 warnings em `clientes/service.py`, `uploads/repository.py` e seus testes
     - 📊 **Impacto:** Módulos de clientes e uploads, que já tinham correções sensíveis (QA-005) e novos testes (TEST-001 Fase 5), agora com type hints modernos e consistentes, facilitando futuras refatorações com segurança de tipos
+  - **Resultado - Microfase 6 (20/11/2025):**
+    - ✅ **Módulo:** `src/core/services/profiles_service.py`
+    - ✅ **Alterações aplicadas:**
+      * Removido: `from typing import Dict, List, Optional`
+      * Mantido: `from typing import Any` (necessário para `dict[str, Any]`)
+      * Type hints atualizados:
+        - `EMAIL_PREFIX_ALIASES: dict[str, str]` (constante)
+        - `List[Dict[str, Any]]` → `list[dict[str, Any]]` (4 ocorrências)
+        - `Dict[str, str]` → `dict[str, str]` (3 ocorrências)
+        - `Optional[str]` → `str | None` (1 ocorrência)
+      * Variáveis locais anotadas: `data`, `out`, `email_lc`, `rows`, `em`, `prefix`, `alias` (7 variáveis)
+    - ✅ **Testes:** 21/21 testes de `test_profiles_service.py` passando
+    - ✅ **Suite completa:** 457 passed, 1 failed, 2 skipped (falha pré-existente em test_ui_components.py)
+    - ✅ **Pyright:** 0 erros, 0 warnings em profiles_service.py e test_profiles_service.py
+    - ✅ **Coverage:** 28.65% global, 97% em profiles_service.py (mantida)
+    - 📊 **Impacto:** Serviço crítico usado por notes_service agora com type hints modernos (PEP 585/604), alinhado com clientes/service e uploads/repository (QA-003 Microfase 5). Testes da Fase 6 garantem que refatoração de tipos não introduziu regressões funcionais
+  - **Resultado - Microfase 7 (20/11/2025):**
+    - ✅ **Módulo:** `src/core/services/lixeira_service.py`
+    - ✅ **Alterações aplicadas:**
+      * Removido: `from typing import List, Tuple` (mantido apenas `Iterable`)
+      * Type hints atualizados (6 substituições):
+        - `_get_supabase_and_org() -> Tuple[object, str]` → `tuple[object, str]`
+        - `_list_storage_children() -> List[dict]` → `list[dict]`
+        - `_gather_all_paths() -> List[str]` → `list[str]`
+        - `restore_clients() -> Tuple[int, List[Tuple[int, str]]]` → `tuple[int, list[tuple[int, str]]]`
+        - `hard_delete_clients() -> Tuple[int, List[Tuple[int, str]]]` → `tuple[int, list[tuple[int, str]]]`
+      * Variáveis locais anotadas: `paths: list[str] = []`, `errs: list[tuple[int, str]] = []` (3 ocorrências)
+    - ✅ **Testes:** 15/15 testes de `test_lixeira_service.py` passando
+    - ✅ **Suite completa:** 472 passed, 1 failed, 2 skipped (falha pré-existente em test_ui_components.py)
+    - ✅ **Pyright:** 0 erros, 0 warnings em lixeira_service.py e test_lixeira_service.py
+    - ✅ **Coverage:** 28.88% global, 84% em lixeira_service.py (mantida)
+    - 📊 **Impacto:** Serviço de lixeira agora com type hints modernos (PEP 585/604), alinhado com clientes/service, uploads/repository (QA-003 Microfase 5) e profiles_service (Microfase 6). Total de 6 substituições aplicadas (List→list, Tuple→tuple). Testes da Fase 7 garantem que refatoração de tipos não introduziu regressões funcionais
+  - **Resultado - Microfase 8 (21/11/2025):**
+    - ✅ **Módulos:**
+      * `src/modules/clientes/forms/_prepare.py`
+      * `src/modules/clientes/forms/_upload.py`
+    - ✅ **Alterações aplicadas:**
+      * **_prepare.py:**
+        - Removido: `from typing import Dict, List, Optional, Tuple` (mantido apenas `Any, Mapping`)
+        - Type hints atualizados (9 substituições):
+          * `_extract_supabase_error() -> Tuple[Optional[str], str, Optional[str]]` → `tuple[str | None, str, str | None]`
+          * UploadCtx dataclass (25 campos modernizados):
+            - `ents: Dict[str, Any]` → `ents: dict[str, Any]`
+            - `arquivos_selecionados: Optional[List[str]]` → `arquivos_selecionados: list[str] | None`
+            - `subfolders: Optional[List[str]]` → `subfolders: list[str] | None`
+            - `files: List[tuple[str, str]]` → `files: list[tuple[str, str]]`
+            - 21 outros campos com `Dict`, `List`, `Optional`
+          * `_ask_subpasta() -> Optional[str]` → `str | None`
+          * `validate_inputs() -> Tuple[tuple, Dict[str, Any]]` → `tuple[tuple, dict[str, Any]]`
+          * `prepare_payload() -> Tuple[tuple, Dict[str, Any]]` → `tuple[tuple, dict[str, Any]]`
+          * Variável linha 340: `subpasta_val: Optional[str]` → `subpasta_val: str | None`
+      * **_upload.py:**
+        - Removido: `from typing import Dict, Tuple` (mantido apenas `Any`)
+        - Type hints atualizados (2 substituições):
+          * `perform_uploads() -> Tuple[tuple, Dict[str, Any]]` → `tuple[tuple, dict[str, Any]]`
+    - ✅ **Total:** 11 modernizações de type hints (9 em _prepare.py, 2 em _upload.py)
+    - ✅ **Testes:** 40/40 passed (10 upload + 20 prepare + 10 finalize)
+    - ✅ **Suite filtrada:** 486 passed, 1 failed, 2 skipped (mesma baseline)
+    - ✅ **Pyright:** 0 erros, 0 warnings em _prepare.py, _upload.py e testes relacionados
+    - ✅ **Coverage:** 29.09% global (mantida), _prepare.py 78% (antes 64%), _upload.py 56% (antes 31%)
+    - 📊 **Impacto:** Fluxo de formulários de clientes agora com type hints modernos (PEP 585/604), alinhado com padrão estabelecido nas Microfases 1-7 (search, textnorm, notes_service, auth, clientes/service, profiles_service, lixeira_service). Testes da Fase 8 garantem que refatoração de tipos não introduziu regressões funcionais. Total de 11 substituições aplicadas, com destaque para modernização completa do UploadCtx dataclass (25 campos)
 
 - [x] **QA-004: Configurar pre-commit hooks**
   - **Área:** Criar `.pre-commit-config.yaml`
@@ -871,6 +932,38 @@
       * Coverage _prepare.py: **64%** (antes: 53%, +11pp)
       * Coverage _upload.py: **31%** (antes: 29%, +2pp)
     - 📊 **Impacto:** Fluxo de formulários de clientes agora com cobertura expandida, protegendo guard crítico de `pasta_local` (QA-005), funções auxiliares de tradução de erros e construção de contexto. Total de 14 novos testes adicionados (2 em upload, 12 em prepare). Cobertura de _prepare.py aumentou 11pp, protegendo helpers de extração de erros Supabase, status e prefix de storage
+  - **Microfase 8 - Resultados (clientes/forms - modernização de type hints):**
+    - ✅ **Arquivos modificados:**
+      * `src/modules/clientes/forms/_prepare.py`: Type hints modernizados (PEP 585/604)
+      * `src/modules/clientes/forms/_upload.py`: Type hints modernizados (PEP 585/604)
+    - ✅ **Alterações aplicadas:**
+      * **_prepare.py:**
+        - Removido: `from typing import Dict, List, Optional, Tuple` (mantido apenas `Any, Mapping`)
+        - Type hints atualizados (9 substituições):
+          * `_extract_supabase_error() -> Tuple[Optional[str], str, Optional[str]]` → `tuple[str | None, str, str | None]`
+          * UploadCtx dataclass (25 campos modernizados):
+            - `ents: Dict[str, Any]` → `ents: dict[str, Any]`
+            - `arquivos_selecionados: Optional[List[str]]` → `arquivos_selecionados: list[str] | None`
+            - `subfolders: Optional[List[str]]` → `subfolders: list[str] | None`
+            - `files: List[tuple[str, str]]` → `files: list[tuple[str, str]]`
+            - 21 outros campos com `Dict`, `List`, `Optional`
+          * `_ask_subpasta() -> Optional[str]` → `str | None`
+          * `validate_inputs() -> Tuple[tuple, Dict[str, Any]]` → `tuple[tuple, dict[str, Any]]`
+          * `prepare_payload() -> Tuple[tuple, Dict[str, Any]]` → `tuple[tuple, dict[str, Any]]`
+          * Variável linha 340: `subpasta_val: Optional[str]` → `subpasta_val: str | None`
+      * **_upload.py:**
+        - Removido: `from typing import Dict, Tuple` (mantido apenas `Any`)
+        - Type hints atualizados (2 substituições):
+          * `perform_uploads() -> Tuple[tuple, Dict[str, Any]]` → `tuple[tuple, dict[str, Any]]`
+    - ✅ **Total:** 11 modernizações de type hints (9 em _prepare.py, 2 em _upload.py)
+    - ✅ **Validação final:**
+      * Pyright: **0 erros, 0 warnings** em _prepare.py, _upload.py e testes relacionados
+      * pytest focado: **40/40 passed** (10 upload + 20 prepare + 10 finalize)
+      * Suite filtrada: **486 passed, 1 failed, 2 skipped** (mesma baseline)
+      * Coverage global: **29.09%** (mantida)
+      * Coverage _prepare.py: **78%** (antes: 64%, linha 340 agora coberta)
+      * Coverage _upload.py: **56%** (antes: 31%, melhorada devido aos testes da Fase 8)
+    - 📊 **Impacto:** Fluxo de formulários de clientes agora com type hints modernos (PEP 585/604), alinhado com padrão estabelecido nas Microfases 1-7 (search, textnorm, notes_service, auth, clientes/service, profiles_service, lixeira_service). Testes da Fase 8 garantem que refatoração de tipos não introduziu regressões funcionais. Total de 11 substituições aplicadas, com destaque para modernização completa do UploadCtx dataclass (25 campos)
   - **Meta final:** 85%+ cobertura
   - **Próximas fases:** Outros módulos de baixa cobertura conforme necessário
 

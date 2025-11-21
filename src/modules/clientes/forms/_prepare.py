@@ -6,7 +6,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from tkinter import filedialog, messagebox
-from typing import Any, Dict, List, Mapping, Optional, Tuple
+from typing import Any, Mapping
 
 from adapters.storage.supabase_storage import SupabaseStorageAdapter
 from infra.supabase_client import get_supabase_state
@@ -25,17 +25,17 @@ logger = get_logger(LOGGER_NAME)
 DEFAULT_IMPORT_SUBFOLDER = "GERAL"
 
 
-def _extract_supabase_error(err: Any) -> tuple[Optional[str], str, Optional[str]]:
+def _extract_supabase_error(err: Any) -> tuple[str | None, str, str | None]:
     """
     Tenta extrair (code, message, constraint/hint) de respostas do Supabase/PostgREST.
     Retorna message sempre preenchida (fallback em str(err)).
     """
 
-    code: Optional[str] = getattr(err, "code", None)
-    constraint: Optional[str] = getattr(err, "constraint", None) or getattr(err, "hint", None)
-    message: Optional[str] = getattr(err, "message", None)
-    details: Optional[str] = getattr(err, "details", None)
-    hint: Optional[str] = getattr(err, "hint", None)
+    code: str | None = getattr(err, "code", None)
+    constraint: str | None = getattr(err, "constraint", None) or getattr(err, "hint", None)
+    message: str | None = getattr(err, "message", None)
+    details: str | None = getattr(err, "details", None)
+    hint: str | None = getattr(err, "hint", None)
 
     payloads: list[Mapping[str, Any]] = []
     if isinstance(err, Mapping):
@@ -92,27 +92,27 @@ def traduzir_erro_supabase_para_msg_amigavel(err: Any, *, cnpj: str | None = Non
 class UploadCtx:
     app: Any = None
     row: Any = None
-    ents: Dict[str, Any] = field(default_factory=dict)
-    arquivos_selecionados: Optional[List[str]] = None
-    win: Optional[Any] = None
-    bucket: Optional[str] = None
-    client_id: Optional[int] = None
-    org_id: Optional[str] = None
-    user_id: Optional[str] = None
-    created_at: Optional[str] = None
-    pasta_local: Optional[str] = None
-    parent_win: Optional[Any] = None
-    subpasta: Optional[str] = None
-    storage_adapter: Optional[SupabaseStorageAdapter] = None
-    files: List[tuple[str, str]] = field(default_factory=list)
-    src_dir: Optional[str] = None
-    busy_dialog: Optional[Any] = None
+    ents: dict[str, Any] = field(default_factory=dict)
+    arquivos_selecionados: list[str] | None = None
+    win: Any | None = None
+    bucket: str | None = None
+    client_id: int | None = None
+    org_id: str | None = None
+    user_id: str | None = None
+    created_at: str | None = None
+    pasta_local: str | None = None
+    parent_win: Any | None = None
+    subpasta: str | None = None
+    storage_adapter: SupabaseStorageAdapter | None = None
+    files: list[tuple[str, str]] = field(default_factory=list)
+    src_dir: str | None = None
+    busy_dialog: Any | None = None
     falhas: int = 0
     abort: bool = False
-    valores: Dict[str, Any] = field(default_factory=dict)
-    base_local: Optional[str] = None
+    valores: dict[str, Any] = field(default_factory=dict)
+    base_local: str | None = None
     finalize_ready: bool = False
-    misc: Dict[str, Any] = field(default_factory=dict)
+    misc: dict[str, Any] = field(default_factory=dict)
     is_new: bool = False
 
 
@@ -143,7 +143,7 @@ def _build_storage_prefix(*parts: str | None) -> str:
     return "/".join(sanitized).strip("/")
 
 
-def _ask_subpasta(parent: Any) -> Optional[str]:
+def _ask_subpasta(parent: Any) -> str | None:
     """
     Abre o diálogo de subpasta de forma lazy para evitar ciclos de import.
     Retorna o nome da subpasta escolhida ou None se cancelado/indisponível.
@@ -210,7 +210,7 @@ def _ensure_ctx(self, row, ents, arquivos, win) -> UploadCtx:
     return ctx
 
 
-def validate_inputs(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
+def validate_inputs(*args, **kwargs) -> tuple[tuple, dict[str, Any]]:
     self, row, ents, arquivos, win = _unpack_call(args, kwargs)
     ctx = _ensure_ctx(self, row, ents, arquivos, win)
 
@@ -257,7 +257,7 @@ def validate_inputs(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
     return args, kwargs
 
 
-def prepare_payload(*args, skip_duplicate_prompt: bool = False, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
+def prepare_payload(*args, skip_duplicate_prompt: bool = False, **kwargs) -> tuple[tuple, dict[str, Any]]:
     self, row, ents, arquivos, win = _unpack_call(args, kwargs)
     ctx = getattr(self, "_upload_ctx", None)
     if not ctx or ctx.abort:
@@ -337,7 +337,7 @@ def prepare_payload(*args, skip_duplicate_prompt: bool = False, **kwargs) -> Tup
 
     dlg = _ask_subpasta(parent_win)
     cancelled = False
-    subpasta_val: Optional[str] = None
+    subpasta_val: str | None = None
     if dlg is None:
         cancelled = True
     elif hasattr(dlg, "cancelled"):

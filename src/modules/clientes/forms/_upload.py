@@ -11,7 +11,7 @@ import threading
 import tkinter as tk
 from pathlib import Path
 from tkinter import ttk
-from typing import Any, Dict, Tuple
+from typing import Any
 
 from adapters.storage.api import delete_file as storage_delete_file
 from adapters.storage.api import upload_file as storage_upload_file
@@ -95,7 +95,7 @@ class UploadProgressDialog:
             pass
 
 
-def perform_uploads(*args, **kwargs) -> Tuple[tuple, Dict[str, Any]]:
+def perform_uploads(*args, **kwargs) -> tuple[tuple, dict[str, Any]]:
     self, row, ents, arquivos, win = _unpack_call(args, kwargs)
     ctx: UploadCtx | None = getattr(self, "_upload_ctx", None)
     if not ctx or ctx.abort:
