@@ -691,31 +691,36 @@
       * Coverage auth.py: **98%** (121/123 linhas)
       * Pre-commit: todos os hooks verdes
     - 📊 **Impacto:** Módulo crítico de autenticação agora com cobertura quase completa (98%), garantindo robustez em login, rate limiting, hashing de senhas e gestão de usuários locais
-      * `src/modules/hub/format.py`: 86% coverage (18/21 linhas)
-      * `src/modules/hub/utils.py`: 93% coverage (28/30 linhas)
-      * `src/modules/hub/colors.py`: 82% coverage (31/38 linhas)
-      * `src/core/auth/auth.py`: 44% coverage (54/123 linhas - foco em funções puras)
-    - ✅ **Cenários testados (Hub):**
-      * Estado: criação, reutilização, valores padrão
-      * Formatação: timestamps ISO → local, linhas de nota
-      * Utilidades: conversão HSL→HEX, hash MD5 de dicts, normalização de notas (dict/tuple/list/string)
-      * Cores: hash estável por email, case-insensitive, tags tkinter com cache
-    - ✅ **Cenários testados (Auth):**
-      * Validação de credenciais: email regex, senha min 6 chars, edge cases
-      * Rate limiting: 5 tentativas/60s, reset após timeout, case-insensitive
-      * PBKDF2 hash: formato correto, iterações customizadas, salt determinístico, pepper
-    - ✅ **Validação:**
-      * pytest: 327/328 passed (1 skipped - esperado)
-      * coverage: 26.95% (threshold 25%)
-      * pre-commit: all hooks passed
+  - **Fase 5 - Resultados (clientes/uploads - testes para correções da QA-005):**
+    - ✅ **Arquivos criados:**
+      * `tests/test_clientes_service_qa005.py`: 15 testes para correções de tipo em clientes/service.py (272 linhas)
+      * `tests/test_uploads_repository.py`: 10 testes para correção de kwargs em uploads/repository.py (313 linhas)
+    - ✅ **Módulos testados:**
+      * `src/modules/clientes/service.py`: Guards para None, cast de tipos, validação de id
+      * `src/modules/uploads/repository.py`: Passagem de client_id/org_id como kwargs
+    - ✅ **Total:** 25 testes novos (436 testes no total, antes: 411)
+    - ✅ **Cobertura:**
+      * Global antes: 28.02%
+      * Global depois: **28.04%** (mantém ≥25%)
+      * `src/modules/clientes/service.py`: **61%** (136/223 linhas, antes: ~50%)
+      * `src/modules/uploads/repository.py`: **44%** (36/81 linhas, antes: 26%)
+    - ✅ **Cenários testados (clientes/service.py):**
+      * **_filter_self + cast(list, ...)**: razao_conflicts=None não quebra, lista vazia funciona, filtra self corretamente, objetos sem 'id' são tolerados
+      * **get_cliente_by_id (retorno Any)**: retorna objeto Cliente, retorna None quando não encontrado
+      * **fetch_cliente_by_id**: converte objeto para dict, retorna None quando não encontrado
+      * **update_cliente_status_and_observacoes (guard de id)**: aceita dict com id válido, aceita id como string ("123"), rejeita dict sem id (ValueError), rejeita id=None (ValueError), aceita int direto
+    - ✅ **Cenários testados (uploads/repository.py):**
+      * **upload_items_with_adapter (cast Any para kwargs)**: client_id passado corretamente, org_id passado corretamente, ambos client_id+org_id juntos, funciona sem client_id/org_id (None), múltiplos items com paths variados, subfolder vazio não adiciona '/' extra, progress_callback chamado para cada item, exceção no adapter retorna em failures
+      * **Validação de remote_path_builder signatures**: builder sem **kwargs falha (TypeError esperado), builder com **kwargs recebe client_id/org_id
+    - ✅ **Validação final:**
+      * pytest completo: **436 passed, 2 skipped** (antes: 411 passed)
+      * Coverage global: **28.04%** (antes: 28.02%)
+      * Coverage clientes/service.py: **61%** (antes: ~50%, +11pp)
+      * Coverage uploads/repository.py: **44%** (antes: 26%, +18pp)
+      * Pre-commit: todos os hooks verdes
+    - 📊 **Impacto:** Correções da QA-005 agora protegidas por testes específicos (+25 testes), garantindo que guards para None, casts de tipo e validações de id permaneçam robustos. Cobertura dos módulos corrigidos aumentou significativamente (+11pp e +18pp respectivamente)
   - **Meta final:** 85%+ cobertura
   - **Próximas fases:** Outros módulos de baixa cobertura conforme necessário
-      * coverage: 26.15% (≥25% threshold)
-      * pre-commit: ✅ all hooks passed
-  - **Próximas fases:**
-    - Fase 2: Componentes UI (`src/ui/components/`) - target: +5-10pp
-    - Fase 3: Módulos de baixa cobertura (auditoria, hub, etc)
-    - Meta final: 85%+
 
 - [x] **TEST-002: Configurar coverage report no CI**
   - **Área:** `.github/workflows/ci.yml`
