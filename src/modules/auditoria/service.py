@@ -127,7 +127,8 @@ def update_auditoria_status(auditoria_id: str, status: str) -> dict[str, Any]:
     return data[0]
 
 
-def delete_auditorias(auditoria_ids: Iterable[str | int]) -> None:
+def delete_auditorias(auditoria_ids: Iterable[str | int | None]) -> None:
+    """Exclui auditorias, ignorando IDs None/vazios."""
     ids: list[str] = []
     for raw_id in auditoria_ids:
         if raw_id in (None, ""):

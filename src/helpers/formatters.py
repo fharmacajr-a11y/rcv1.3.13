@@ -24,11 +24,11 @@ def format_cnpj(raw: str | int | float | None) -> str:
     return f"{digits[0:2]}.{digits[2:5]}.{digits[5:8]}/{digits[8:12]}-{digits[12:14]}"
 
 
-def fmt_datetime(value: datetime | date | str | int | float | None) -> str:
+def fmt_datetime(value: datetime | date | time | str | int | float | None) -> str:
     """Formata data/hora no padrão YYYY-MM-DD HH:MM:SS.
 
     Args:
-        value: Data/hora como datetime, date, string ISO/BR, timestamp numérico, ou None.
+        value: Data/hora como datetime, date, time, string ISO/BR, timestamp numérico, ou None.
 
     Returns:
         String formatada ou vazio se None/inválido.
@@ -89,11 +89,11 @@ def _parse_any_dt(value: Any) -> datetime | None:
     return None
 
 
-def fmt_datetime_br(value: datetime | date | str | int | float | None) -> str:
+def fmt_datetime_br(value: datetime | date | time | str | int | float | None) -> str:
     """Formata data/hora no padrão brasileiro DD/MM/YYYY - HH:MM:SS.
 
     Args:
-        value: Data/hora como datetime, date, string ISO/BR, timestamp numérico, ou None.
+        value: Data/hora como datetime, date, time, string ISO/BR, timestamp numérico, ou None.
 
     Returns:
         String formatada no padrão brasileiro ou vazio se None/inválido.
