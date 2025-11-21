@@ -543,6 +543,34 @@
       * coverage: 27.11%
       * pre-commit: all hooks passed
     - 📊 **Impacto:** Módulo crítico de normalização agora com 100% de cobertura, garantindo robustez na funcionalidade de busca fuzzy
+  - **Fase 4.3 - Resultados (notes_service - serviço de notas compartilhadas):**
+    - ✅ **Arquivo criado:**
+      * `tests/test_notes_service.py`: 17 testes para serviço de notas (262 linhas)
+    - ✅ **Módulo testado:**
+      * `src/core/services/notes_service.py`: Serviço de anotações append-only por org
+    - ✅ **Total:** 17 testes novos (390 testes no total, antes: 373)
+    - ✅ **Cobertura:**
+      * Antes: 27.11%
+      * Depois: **27.58%** (+0.47pp)
+      * `src/core/services/notes_service.py`: **60% coverage** (95/158 linhas, antes: 15%)
+    - ✅ **Funções testadas:**
+      * `_is_transient_net_error()`: 5 testes - detecção de erros transitórios (WinError 10035, timeout, connection reset, errno, não-transitório)
+      * `_normalize_author_emails()`: 4 testes - normalização de prefixos para emails completos (com map, email completo, vazio, exception)
+      * `list_notes()`: 3 testes - listagem de notas (sucesso, vazio, tabela ausente)
+      * `add_note()`: 5 testes - adicionar nota (sucesso, body vazio/None, truncamento 1000 chars, normalização email)
+    - ✅ **Cenários testados:**
+      * Detecção de erros de rede transitórios para retry (WinError 10035, timeouts, connection resets)
+      * Normalização de emails legados (prefixo → email completo via profiles_service)
+      * Listagem de notas com fallback para lista vazia em caso de erro
+      * Validação de body (rejeitar vazio/None, truncar em 1000 chars)
+      * Normalização de author_email para lowercase
+      * Tratamento de exceção NotesTableMissingError (PGRST205)
+      * Mocks de Supabase client e exec_postgrest
+    - ✅ **Validação:**
+      * pytest: 390/392 passed (2 skipped)
+      * coverage: 27.58%
+      * pre-commit: all hooks passed
+    - 📊 **Impacto:** Módulo de notas compartilhadas saltou de 15% → 60% de cobertura (+45pp), garantindo robustez em funcionalidade de colaboração
       * `src/modules/hub/format.py`: 86% coverage (18/21 linhas)
       * `src/modules/hub/utils.py`: 93% coverage (28/30 linhas)
       * `src/modules/hub/colors.py`: 82% coverage (31/38 linhas)
