@@ -817,6 +817,25 @@
       * Coverage global: **28.88%** (threshold 25%, +0.23pp vs Fase 6)
       * Coverage lixeira_service.py: **84%** (115/137 linhas, antes: 58%, +26pp)
     - 📊 **Impacto:** Serviço crítico de lixeira agora com 84% de cobertura (+26pp), protegendo fluxo de restauração (com garantia de subpastas obrigatórias) e exclusão definitiva. Todos os caminhos principais (sucesso, vazio, erro, falhas parciais) testados com mocks. Proteção contra bug histórico de perda de subpastas na restauração garantida por testes específicos
+  - **Microfase 7 - Resultados (lixeira_service - modernização de type hints):**
+    - ✅ **Arquivo modificado:**
+      * `src/core/services/lixeira_service.py`: Type hints modernizados (PEP 585/604)
+    - ✅ **Alterações aplicadas:**
+      * Removido: `from typing import List, Tuple` (mantido apenas `Iterable`)
+      * Type hints atualizados:
+        - `_get_supabase_and_org() -> Tuple[object, str]` → `tuple[object, str]`
+        - `_list_storage_children() -> List[dict]` → `list[dict]`
+        - `_gather_all_paths() -> List[str]` → `list[str]`
+        - `restore_clients() -> Tuple[int, List[Tuple[int, str]]]` → `tuple[int, list[tuple[int, str]]]`
+        - `hard_delete_clients() -> Tuple[int, List[Tuple[int, str]]]` → `tuple[int, list[tuple[int, str]]]`
+      * Variáveis locais anotadas: `paths: list[str] = []`, `errs: list[tuple[int, str]] = []` (3 ocorrências)
+    - ✅ **Validação final:**
+      * Pyright: **0 erros, 0 warnings** em lixeira_service.py e test_lixeira_service.py
+      * pytest focado: **15/15 passed** em tests/test_lixeira_service.py
+      * Suite completa: **472 passed, 1 failed, 2 skipped** (falha pré-existente em test_ui_components.py)
+      * Coverage global: **28.88%** (mantida)
+      * Coverage lixeira_service.py: **84%** (mantida)
+    - 📊 **Impacto:** Serviço de lixeira agora com type hints modernos (PEP 585/604), alinhado com clientes/service, uploads/repository (QA-003 Microfase 5) e profiles_service (Microfase 6). Total de 6 substituições aplicadas (List→list, Tuple→tuple). Testes da Fase 7 garantem que refatoração de tipos não introduziu regressões funcionais
   - **Meta final:** 85%+ cobertura
   - **Próximas fases:** Outros módulos de baixa cobertura conforme necessário
 

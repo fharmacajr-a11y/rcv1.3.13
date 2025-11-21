@@ -6,7 +6,7 @@ import os
 import tkinter as tk
 from tempfile import NamedTemporaryFile
 from tkinter import messagebox
-from typing import Iterable, List, Tuple
+from typing import Iterable
 
 from adapters.storage.api import delete_file as storage_delete_file
 from adapters.storage.api import list_files as storage_list_files
@@ -23,7 +23,7 @@ BUCKET_DOCS = "rc-docs"
 
 
 # ----------------- Helpers Supabase -----------------
-def _get_supabase_and_org() -> Tuple[object, str]:
+def _get_supabase_and_org() -> tuple[object, str]:
     """Retorna (supabase, org_id) do usuário logado, ou lança RuntimeError."""
     from infra.supabase_client import supabase
 
@@ -44,7 +44,7 @@ def _get_supabase_and_org() -> Tuple[object, str]:
 
 
 # ---- Listagem recursiva no Storage (usando list + chamada recursiva) ----
-def _list_storage_children(bucket: str, prefix: str) -> List[dict]:
+def _list_storage_children(bucket: str, prefix: str) -> list[dict]:
     """Lista UM nível de filhos em `prefix`. Retorna dicts com pelo menos {name, is_folder?}."""
     adapter = SupabaseStorageAdapter(bucket=bucket)
     with using_storage_backend(adapter):
@@ -61,9 +61,9 @@ def _list_storage_children(bucket: str, prefix: str) -> List[dict]:
     return out
 
 
-def _gather_all_paths(bucket: str, root_prefix: str) -> List[str]:
+def _gather_all_paths(bucket: str, root_prefix: str) -> list[str]:
     """Coleta todos os caminhos de arquivos sob root_prefix, recursivamente."""
-    paths: List[str] = []
+    paths: list[str] = []
 
     def walk(prefix: str) -> None:
         for obj in _list_storage_children(bucket, prefix):
@@ -129,10 +129,10 @@ def _ensure_mandatory_subfolders(prefix: str) -> None:
 
 
 # ----------------- Ações públicas -----------------
-def restore_clients(client_ids: Iterable[int], parent=None) -> Tuple[int, List[Tuple[int, str]]]:
+def restore_clients(client_ids: Iterable[int], parent=None) -> tuple[int, list[tuple[int, str]]]:
     """Restaura clientes (deleted_at = null). Retorna (qtd_ok, [(client_id, err), ...])."""
     ok = 0
-    errs: List[Tuple[int, str]] = []
+    errs: list[tuple[int, str]] = []
     parent_widget: tk.Misc | None = parent if isinstance(parent, tk.Misc) else None
     try:
         supabase, org_id = _get_supabase_and_org()
@@ -159,7 +159,7 @@ def restore_clients(client_ids: Iterable[int], parent=None) -> Tuple[int, List[T
     return ok, errs
 
 
-def hard_delete_clients(client_ids: Iterable[int], parent=None) -> Tuple[int, List[Tuple[int, str]]]:
+def hard_delete_clients(client_ids: Iterable[int], parent=None) -> tuple[int, list[tuple[int, str]]]:
     """
     Apaga DEFINITIVAMENTE clientes (DB + Storage).
     - Remove do Storage: bucket rc-docs/<org_id>/<client_id>/**
@@ -167,7 +167,7 @@ def hard_delete_clients(client_ids: Iterable[int], parent=None) -> Tuple[int, Li
     Retorna: (qtd_ok, [(client_id, err), ...])
     """
     ok = 0
-    errs: List[Tuple[int, str]] = []
+    errs: list[tuple[int, str]] = []
 
     parent_widget: tk.Misc | None = parent if isinstance(parent, tk.Misc) else None
     try:
