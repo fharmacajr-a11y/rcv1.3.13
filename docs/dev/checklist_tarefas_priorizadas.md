@@ -567,7 +567,7 @@
 
 ### Testes
 
-- [>] **TEST-001: Aumentar cobertura para 85%+** ⏳ **FASES 1-7 CONCLUÍDAS**
+- [>] **TEST-001: Aumentar cobertura para 85%+** ⏳ **FASES 1-9 CONCLUÍDAS**
   - **Área:** Módulos com baixa cobertura
   - **Descrição:** Adicionar testes em:
     - ✅ `src/modules/cashflow/` (FASE 1)
@@ -964,6 +964,50 @@
       * Coverage _prepare.py: **78%** (antes: 64%, linha 340 agora coberta)
       * Coverage _upload.py: **56%** (antes: 31%, melhorada devido aos testes da Fase 8)
     - 📊 **Impacto:** Fluxo de formulários de clientes agora com type hints modernos (PEP 585/604), alinhado com padrão estabelecido nas Microfases 1-7 (search, textnorm, notes_service, auth, clientes/service, profiles_service, lixeira_service). Testes da Fase 8 garantem que refatoração de tipos não introduziu regressões funcionais. Total de 11 substituições aplicadas, com destaque para modernização completa do UploadCtx dataclass (25 campos)
+  - **Fase 9 - Resultados (auditoria/service - serviço de auditoria SIFAP):**
+    - ✅ **Arquivo criado:**
+      * `tests/test_auditoria_service_fase9.py`: 35 testes para serviço de auditoria (449 linhas)
+    - ✅ **Módulo testado:**
+      * `src/modules/auditoria/service.py`: CRUD auditorias, storage operations, pipeline de upload
+    - ✅ **Total:** 35 testes novos (521 testes no total global, antes: 486)
+    - ✅ **Cobertura:**
+      * Global antes: 29.09%
+      * Global depois: **29.39%** (+0.30pp)
+      * `src/modules/auditoria/service.py`: **84%** (161/192 linhas, antes: 59%, +25pp)
+    - ✅ **Funções testadas:**
+      * **CRUD Auditoria:**
+        - `fetch_clients()`: 3 testes - sucesso, offline, exception wrapping
+        - `fetch_auditorias()`: 2 testes - sucesso, lista vazia
+        - `start_auditoria()`: 4 testes - sucesso, status customizado, response vazio, sem atributo data
+        - `update_auditoria_status()`: 2 testes - sucesso, auditoria não encontrada
+        - `delete_auditorias()`: 4 testes - sucesso, mixed types (int/str), lista vazia, apenas None/vazios
+      * **Storage Operations:**
+        - `is_online()`: 3 testes - disponível, indisponível, exceção
+        - `get_current_org_id()`: 3 testes - sucesso com cache, force_refresh, LookupError
+        - `ensure_auditoria_folder()`: 2 testes - sucesso, org_id customizado
+        - `list_existing_file_names()`: 2 testes - arquivos existentes, pasta vazia
+        - `upload_storage_bytes()`: 2 testes - sucesso, upsert=True
+        - `remove_storage_objects()`: 2 testes - múltiplos arquivos, lista vazia (no-op)
+      * **Pipeline Upload:**
+        - `ensure_storage_ready()`: 3 testes - sucesso, offline, bucket não configurado
+        - `prepare_upload_context()`: 2 testes - sucesso, org_id customizado
+        - `get_storage_context()`: 1 teste - usa get_current_org_id() automaticamente
+    - ✅ **Cenários testados:**
+      * **Happy path:** fetch retorna listas, CRUD funciona, storage operations bem-sucedidos
+      * **Edge cases:** Listas vazias (delete_auditorias, remove_storage_objects) fazem no-op, mixed types filtrados (None, "", int/str), cache de org_id funciona, force_refresh invalida cache
+      * **Error handling:**
+        - Supabase offline → `AuditoriaOfflineError`
+        - Response vazio ou sem atributo data → `AuditoriaServiceError`
+        - Exceptions genéricas → wrapped em `AuditoriaServiceError`
+        - LookupError em org_id → wrapped em `AuditoriaServiceError`
+      * **Mocks:** Todos os testes usam mocks de Supabase, repository, storage - nenhuma chamada real de rede
+    - ✅ **Validação:**
+      * Pyright: **0 erros, 0 warnings** em auditoria/service.py e test_auditoria_service_fase9.py
+      * pytest focado: **35/35 passed** em tests/test_auditoria_service_fase9.py (1.91s)
+      * Suite filtrada: **521 passed, 1 failed, 2 skipped** (antes: 486 passed, +35 testes)
+      * Coverage global: **29.39%** (threshold 25%, +0.30pp vs Fase 8)
+      * Coverage auditoria/service.py: **84%** (161/192 linhas, antes: 59%, +25pp)
+    - 📊 **Impacto:** Serviço crítico de auditoria SIFAP agora com 84% de cobertura (+25pp), protegendo CRUD de auditorias, operações de storage (org_id, folders, uploads, removals) e pipeline de upload de arquivos. Todos os caminhos principais (sucesso, vazio, erro, offline) testados com mocks. Total de 35 testes adicionados cobrindo 16 funções públicas do módulo
   - **Meta final:** 85%+ cobertura
   - **Próximas fases:** Outros módulos de baixa cobertura conforme necessário
 
