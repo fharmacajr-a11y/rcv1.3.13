@@ -32,12 +32,21 @@ from src.modules.hub.controller import poll_notes_if_needed as controller_poll_n
 from src.modules.hub.controller import refresh_notes_async as controller_refresh_notes_async
 from src.modules.hub.controller import retry_after_table_missing as controller_retry_after_table_missing
 from src.modules.hub.controller import schedule_poll as controller_schedule_poll
-from src.modules.hub.format import _format_note_line, _format_timestamp
 from src.modules.hub.layout import apply_hub_notes_right
 from src.modules.hub.panels import build_notes_panel
 from src.modules.hub.state import HubState
 from src.modules.hub.state import ensure_hub_state as ensure_state
 from src.modules.hub.utils import _normalize_note
+from src.modules.hub.views.hub_screen_helpers import (
+    calculate_module_button_style,
+    calculate_notes_content_hash,
+    calculate_notes_ui_state,
+    format_note_line,
+    format_timestamp,
+    is_auth_ready,
+    should_skip_refresh_by_cooldown,
+    should_skip_render_empty_notes,
+)
 
 logger = get_logger(__name__)
 log = logger
@@ -82,8 +91,8 @@ class HubScreen(tb.Frame):
 
             line = {"t": int(time.time() * 1000), "tag": tag, **kw}
             logger.info("[HUB] %s", json.dumps(line, ensure_ascii=False))
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("[HUB] Falha ao logar debug de notas: %s", exc)
 
     def __init__(
         self,
@@ -98,10 +107,13 @@ class HubScreen(tb.Frame):
         open_senhas: Optional[Callable[[], None]] = None,
         open_mod_sifap: Optional[Callable[[], None]] = None,
         open_cashflow: Optional[Callable[[], None]] = None,
+        open_sites: Optional[Callable[[], None]] = None,
         **kwargs,
     ) -> None:
         # Compatibilidade com kwargs antigos (mantém snjpc para retrocompatibilidade)
-        open_clientes = open_clientes or kwargs.pop("on_open_clientes", None) or open_sifap or kwargs.pop("on_open_sifap", None)
+        open_clientes = (
+            open_clientes or kwargs.pop("on_open_clientes", None) or open_sifap or kwargs.pop("on_open_sifap", None)
+        )
         open_anvisa = open_anvisa or kwargs.pop("on_open_anvisa", None)
         open_auditoria = open_auditoria or kwargs.pop("on_open_auditoria", None)
         open_farmacia_popular = open_farmacia_popular or kwargs.pop("on_open_farmacia_popular", None)
@@ -109,6 +121,7 @@ class HubScreen(tb.Frame):
         open_senhas = open_senhas or kwargs.pop("on_open_passwords", None) or kwargs.pop("on_open_senhas", None)
         open_mod_sifap = open_mod_sifap or kwargs.pop("on_open_mod_sifap", None)
         open_cashflow = open_cashflow or kwargs.pop("on_open_cashflow", None)
+        open_sites = open_sites or kwargs.pop("on_open_sites", None)
 
         super().__init__(master, padding=0, **kwargs)
         self.AUTH_RETRY_MS = AUTH_RETRY_MS
@@ -125,6 +138,7 @@ class HubScreen(tb.Frame):
         self.open_senhas = open_senhas
         self.open_mod_sifap = open_mod_sifap
         self.open_cashflow = open_cashflow
+        self.open_sites = open_sites
 
         # --- MENU VERTICAL (coluna 0) ---
         self.modules_panel = tb.Labelframe(self, text=MODULES_TITLE, padding=PAD_OUTER)
@@ -138,14 +152,11 @@ class HubScreen(tb.Frame):
             bootstyle: Optional[str] = None,
         ) -> tb.Button:
             """Cria um botão com estilo consistente no painel de módulos."""
-            if bootstyle:
-                style = bootstyle
-            elif yellow:
-                style = "warning"
-            elif highlight:
-                style = "success"
-            else:
-                style = "secondary"
+            style = calculate_module_button_style(
+                highlight=highlight,
+                yellow=yellow,
+                bootstyle=bootstyle,
+            )
 
             b = tb.Button(
                 modules_panel,
@@ -157,16 +168,15 @@ class HubScreen(tb.Frame):
             return b
 
         # Ordem e rótulos padronizados (primeira letra maiúscula)
-        mk_btn("Clientes", self.open_clientes, highlight=True)
+        mk_btn("Clientes", self.open_clientes, bootstyle="info")
+        mk_btn("Senhas", self.open_senhas, bootstyle="info")
         mk_btn("Auditoria", self.open_auditoria, bootstyle="success")
-        mk_btn("Senhas", self.open_senhas, yellow=True)
         # --- Fluxo de Caixa (novo módulo) ---
         if getattr(self, "open_cashflow", None):
             mk_btn("Fluxo de Caixa", self.open_cashflow, yellow=True)
         else:
             _btn_cf = mk_btn("Fluxo de Caixa", None, yellow=True)
             _btn_cf.configure(state="disabled")
-
         # Demais módulos em desenvolvimento (placeholder cinza)
         mk_btn("Anvisa", self.open_anvisa)
         mk_btn("Farmácia Popular", self.open_farmacia_popular)
@@ -245,8 +255,10 @@ class HubScreen(tb.Frame):
         """Verifica se autenticação está pronta (sem levantar exceção)."""
         try:
             app = self._get_app()
-            result = app and hasattr(app, "auth") and app.auth and app.auth.is_authenticated
-            return bool(result)
+            has_app = app is not None
+            has_auth = has_app and hasattr(app, "auth") and app.auth is not None
+            is_authenticated = has_auth and bool(app.auth.is_authenticated)
+            return is_auth_ready(has_app, has_auth, is_authenticated)
         except Exception:
             return False
 
@@ -316,19 +328,21 @@ class HubScreen(tb.Frame):
     def _update_notes_ui_state(self) -> None:
         """Atualiza estado do botão e placeholder baseado em org_id."""
         org_id = self._get_org_id_safe()
+        state = calculate_notes_ui_state(has_org_id=bool(org_id))
 
-        if org_id:
-            # Sessão válida - habilitar botão
-            self.btn_add_note.configure(state="normal")
-            self.new_note.delete("1.0", "end")
-            # Sem placeholder (widget Text não tem atributo 'placeholder')
-        else:
-            # Sessão sem organização - desabilitar botão
-            self.btn_add_note.configure(state="disabled")
-            # Mostrar mensagem no campo de texto
-            self.new_note.delete("1.0", "end")
-            self.new_note.insert("1.0", "Sessão sem organização. Faça login novamente.")
-            self.new_note.configure(state="disabled")
+        # Aplicar estado ao botão
+        btn_state = "normal" if state["button_enabled"] else "disabled"
+        self.btn_add_note.configure(state=btn_state)
+
+        # Aplicar estado ao campo de texto
+        text_state = "normal" if state["text_field_enabled"] else "disabled"
+        self.new_note.configure(state="normal")  # Temporário para editar
+        self.new_note.delete("1.0", "end")
+
+        if state["placeholder_message"]:
+            self.new_note.insert("1.0", state["placeholder_message"])
+
+        self.new_note.configure(state=text_state)
 
     # -------------------- Polling e Cache --------------------
 
@@ -358,8 +372,11 @@ class HubScreen(tb.Frame):
             return
 
         # Cooldown de 30 segundos (exceto se force=True)
-        now = time.time()
-        if not force and (now - self._names_last_refresh) < _NAMES_REFRESH_COOLDOWN_S:
+        if should_skip_refresh_by_cooldown(
+            last_refresh=self._names_last_refresh,
+            cooldown_seconds=_NAMES_REFRESH_COOLDOWN_S,
+            force=force,
+        ):
             self._names_cache_loading = False
             return
 
@@ -401,7 +418,7 @@ class HubScreen(tb.Frame):
                     import json
 
                     cache_json = json.dumps(self._author_names_cache, sort_keys=True, ensure_ascii=False)
-                    new_hash = hashlib.md5(cache_json.encode("utf-8")).hexdigest()
+                    new_hash = hashlib.sha256(cache_json.encode("utf-8")).hexdigest()
                     self._last_names_cache_hash = new_hash
                     self._names_cache_loaded = True
 
@@ -492,8 +509,8 @@ class HubScreen(tb.Frame):
         try:
             if self._live_channel:
                 self._live_channel.unsubscribe()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[HUB] Falha ao desinscrever live_channel: %s", exc)
         self._live_channel = None
         controller_cancel_poll(self)
 
@@ -521,7 +538,11 @@ class HubScreen(tb.Frame):
         notes = getattr(self, "_notes_last_data", None) or getattr(self, "_notes_last_snapshot", None) or []
         out = {
             "org_id": (self._get_org_id_safe() if hasattr(self, "_get_org_id_safe") else None),
-            "current_user": (getattr(self, "_current_user_email", None) or self._get_email_safe() if hasattr(self, "_get_email_safe") else ""),
+            "current_user": (
+                getattr(self, "_current_user_email", None) or self._get_email_safe()
+                if hasattr(self, "_get_email_safe")
+                else ""
+            ),
             "names_cache_size": len(getattr(self, "_author_names_cache", {}) or {}),
             "prefix_map_size": len(getattr(self, "_email_prefix_map", {}) or {}),
             "names_cache": dict(getattr(self, "_author_names_cache", {}) or {}),
@@ -566,24 +587,12 @@ class HubScreen(tb.Frame):
         notes = [_normalize_note(x) for x in (notes or [])]
 
         # NÃO apaga se vier vazio/None (evita 'branco' e piscas)
-        if not notes:
+        if should_skip_render_empty_notes(notes):
             self._dlog("render_skip_empty")
             return
 
         # Hash de conteúdo pra evitar re-render desnecessário
-        sig_items = []
-        for n in notes:
-            em = (n.get("author_email") or "").strip().lower()
-            ts = n.get("created_at") or ""
-            ln = len((n.get("body") or ""))
-            # se existir author_name já no dado, inclua na assinatura
-            nm = n.get("author_name") or ""
-            sig_items.append((em, ts, ln, nm))
-
-        import hashlib
-        import json
-
-        render_hash = hashlib.md5(json.dumps(sig_items, ensure_ascii=False).encode("utf-8")).hexdigest()
+        render_hash = calculate_notes_content_hash(notes)
 
         # Se não forçado, verificar se hash é igual (skip re-render)
         if not force:
@@ -615,7 +624,7 @@ class HubScreen(tb.Frame):
 
                 created_at = n.get("created_at")
                 created_at_str = str(created_at) if created_at is not None else ""
-                ts = _format_timestamp(created_at_str) if created_at_str else "??"
+                ts = format_timestamp(created_at_str) if created_at_str else "??"
                 body = (n.get("body") or "").rstrip("\n")
 
                 # Inserir: [data] <nome colorido>: corpo
@@ -624,7 +633,11 @@ class HubScreen(tb.Frame):
                     self.notes_history.insert("end", name, (tag,))
                     self.notes_history.insert("end", f": {body}\n")
                 else:
-                    line = _format_note_line(created_at_str, name or email, body) if created_at_str else f"?? {name or email}: {body}"
+                    line = (
+                        format_note_line(created_at_str, name or email, body)
+                        if created_at_str
+                        else f"?? {name or email}: {body}"
+                    )
                     self.notes_history.insert("end", f"{line}\n")
 
             self.notes_history.configure(state="disabled")
@@ -635,8 +648,8 @@ class HubScreen(tb.Frame):
             logger.exception("Hub: erro crítico ao renderizar lista de notas.")
             try:
                 self.notes_history.configure(state="disabled")
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("[HUB] Falha ao restaurar estado disabled: %s", exc)
 
     def refresh_notes_async(self, force: bool = False) -> None:
         controller_refresh_notes_async(self, force)
@@ -656,8 +669,8 @@ class HubScreen(tb.Frame):
                 if hasattr(widget, "auth") or hasattr(widget, "_org_id_cache"):
                     return widget
                 widget = getattr(widget, "master", None)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("[HUB] Falha ao obter referência da App: %s", exc)
         return None
 
     def _is_online(self, app) -> bool:
@@ -665,8 +678,8 @@ class HubScreen(tb.Frame):
         try:
             if hasattr(app, "_net_is_online"):
                 return bool(app._net_is_online)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("[HUB] Falha ao verificar _net_is_online: %s", exc)
         return True  # Assume online se não conseguir verificar
 
     def stop_polling(self) -> None:
@@ -677,15 +690,15 @@ class HubScreen(tb.Frame):
         if self._notes_after_handle:
             try:
                 self.after_cancel(self._notes_after_handle)
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("[HUB] Falha ao cancelar after de notas: %s", exc)
             self._notes_after_handle = None
 
         if self._clients_after_handle:
             try:
                 self.after_cancel(self._clients_after_handle)
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("[HUB] Falha ao cancelar after de clientes: %s", exc)
             self._clients_after_handle = None
 
         controller_cancel_poll(self)

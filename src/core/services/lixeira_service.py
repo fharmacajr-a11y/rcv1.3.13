@@ -13,6 +13,7 @@ from adapters.storage.api import list_files as storage_list_files
 from adapters.storage.api import upload_file as storage_upload_file
 from adapters.storage.api import using_storage_backend
 from adapters.storage.supabase_storage import SupabaseStorageAdapter
+from data.supabase_repo import delete_passwords_by_client
 from infra.supabase_client import exec_postgrest
 from src.utils.subpastas_config import get_mandatory_subpastas, join_prefix
 
@@ -62,7 +63,7 @@ def _list_storage_children(bucket: str, prefix: str) -> list[dict]:
 
 
 def _gather_all_paths(bucket: str, root_prefix: str) -> list[str]:
-    """Coleta todos os caminhos de arquivos sob root_prefix, recursivamente."""
+    """Collect every file path under root_prefix recursively."""
     paths: list[str] = []
 
     def walk(prefix: str) -> None:
@@ -80,7 +81,7 @@ def _gather_all_paths(bucket: str, root_prefix: str) -> list[str]:
 
 
 def _remove_storage_prefix(org_id: str, client_id: int) -> int:
-    """Remove todos os objetos do bucket sob <org_id>/<client_id>. Retorna quantidade removida."""
+    """Delete all objects for <org_id>/<client_id>, returning how many were removed."""
     root = f"{org_id}/{client_id}"
     paths = _gather_all_paths(BUCKET_DOCS, root)
 
@@ -124,13 +125,13 @@ def _ensure_mandatory_subfolders(prefix: str) -> None:
                 if tmp_name:
                     try:
                         os.unlink(tmp_name)
-                    except OSError:
-                        pass
+                    except OSError as exc:
+                        logger.debug("Falha ao limpar arquivo temporário %s", tmp_name, exc_info=exc)
 
 
 # ----------------- Ações públicas -----------------
-def restore_clients(client_ids: Iterable[int], parent=None) -> tuple[int, list[tuple[int, str]]]:
-    """Restaura clientes (deleted_at = null). Retorna (qtd_ok, [(client_id, err), ...])."""
+def restore_clients(client_ids: Iterable[int], parent: tk.Misc | None = None) -> tuple[int, list[tuple[int, str]]]:
+    """Restore clients from trash, returning (successes, [(client_id, error), ...])."""
     ok = 0
     errs: list[tuple[int, str]] = []
     parent_widget: tk.Misc | None = parent if isinstance(parent, tk.Misc) else None
@@ -159,13 +160,8 @@ def restore_clients(client_ids: Iterable[int], parent=None) -> tuple[int, list[t
     return ok, errs
 
 
-def hard_delete_clients(client_ids: Iterable[int], parent=None) -> tuple[int, list[tuple[int, str]]]:
-    """
-    Apaga DEFINITIVAMENTE clientes (DB + Storage).
-    - Remove do Storage: bucket rc-docs/<org_id>/<client_id>/**
-    - Deleta a linha na tabela clients
-    Retorna: (qtd_ok, [(client_id, err), ...])
-    """
+def hard_delete_clients(client_ids: Iterable[int], parent: tk.Misc | None = None) -> tuple[int, list[tuple[int, str]]]:
+    """Hard-delete clients across storage and DB, returning (successes, error list)."""
     ok = 0
     errs: list[tuple[int, str]] = []
 
@@ -187,7 +183,15 @@ def hard_delete_clients(client_ids: Iterable[int], parent=None) -> tuple[int, li
                 log.exception("Falha ao limpar Storage de %s/%s", org_id, cid)
                 errs.append((cid, f"Storage: {e}"))
 
-            # 2) Remove do DB (linha do cliente)
+            # 2) FIX-SENHAS-015: Apaga todas as senhas do cliente
+            try:
+                deleted_count = delete_passwords_by_client(org_id, str(cid))
+                log.info("Senhas: removidas %d senha(s) do cliente %s", deleted_count, cid)
+            except Exception as e:
+                log.exception("Falha ao apagar senhas do cliente %s", cid)
+                errs.append((cid, f"Senhas: {e}"))
+
+            # 3) Remove do DB (linha do cliente)
             exec_postgrest(supabase.table("clients").delete().eq("id", cid))
 
             ok += 1

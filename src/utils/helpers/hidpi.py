@@ -1,13 +1,9 @@
 # utils/helpers/hidpi.py
-"""
-Configuração de suporte HiDPI para monitores de alta resolução.
-
-Baseado na documentação oficial do ttkbootstrap:
-https://ttkbootstrap.readthedocs.io/en/latest/api/utility/enable_high_dpi_awareness/
-"""
+"""Configuracao de suporte HiDPI para monitores de alta resolucao via ttkbootstrap."""
 
 from __future__ import annotations
 
+import logging
 import platform
 from typing import TYPE_CHECKING
 
@@ -15,76 +11,53 @@ if TYPE_CHECKING:
     import tkinter as tk
 
 
-def configure_hidpi_support(root: tk.Tk | None = None, scaling: float | None = None) -> None:
-    """
-    Configura suporte HiDPI para monitores de alta resolução (4K, etc).
+log = logging.getLogger(__name__)
 
-    Args:
-        root: Instância do Tk (obrigatório no Linux, None no Windows antes de criar Tk)
-        scaling: Fator de escala manual (recomendado: 1.6-2.0 para 4K).
-                 Se None, usa detecção automática do ttkbootstrap.
 
-    Notas:
-        - Windows: Chamar ANTES de criar o Tk(), sem parâmetros
-        - Linux: Chamar DEPOIS de criar o Tk(), com root e scaling
-        - macOS: Suporte nativo, não requer configuração manual
+def configure_hidpi_support(root: "tk.Tk | None" = None, scaling: float | None = None) -> None:
+    """Configura suporte HiDPI de forma best-effort para Windows e Linux.
+
+    - Windows: chama enable_high_dpi_awareness antes de criar o Tk e ignora erros.
+    - Linux: aplica scaling calculado (ou informado) apos o Tk existir; se falhar, apenas registra debug.
+    - macOS: suporte nativo, mantem no-op.
     """
     try:
         from ttkbootstrap.utility import enable_high_dpi_awareness
     except ImportError:
-        # ttkbootstrap não disponível ou versão antiga
+        # ttkbootstrap nao disponivel ou versao antiga
         return
 
     system = platform.system()
 
     if system == "Windows":
-        # Windows: chamar sem parâmetros ANTES de criar Tk
+        # Windows: chamar sem parametros ANTES de criar Tk
         if root is None:
             try:
                 enable_high_dpi_awareness()
-            except Exception:
-                pass  # Silencioso se já foi configurado
-        # Se root foi passado no Windows, ignora (já tarde demais)
+            except Exception as exc:
+                log.debug("HiDPI ja configurado ou indisponivel (Windows)", exc_info=exc)
+        # Se root foi passado no Windows, ignora (ja tarde demais)
 
     elif system == "Linux":
         # Linux: chamar DEPOIS de criar Tk, com root e scaling
         if root is not None:
             try:
                 # Scaling recomendado: 1.6-2.0 para monitores 4K
-                # Referência: https://ttkbootstrap.readthedocs.io/en/latest/api/utility/enable_high_dpi_awareness/
                 scale_factor = scaling or _detect_linux_scaling(root)
                 enable_high_dpi_awareness(root, scale_factor)  # pyright: ignore[reportCallIssue]
-            except Exception:
-                pass  # Silencioso se falhar
+            except Exception as exc:
+                log.debug("HiDPI nao aplicado no Linux", exc_info=exc)
 
-    # macOS tem suporte nativo HiDPI, não requer configuração
+    # macOS tem suporte nativo HiDPI, nao requer configuracao
 
 
-def _detect_linux_scaling(root: tk.Tk) -> float:
-    """
-    Detecta o fator de escala apropriado para Linux baseado na resolução.
-
-    Args:
-        root: Instância do Tk para obter informações de tela
-
-    Returns:
-        Fator de escala (1.0 = 96 DPI, 1.5 = 144 DPI, 2.0 = 192 DPI)
-    """
+def _detect_linux_scaling(root: "tk.Tk") -> float:
+    """Calcula fator de escala no Linux baseado em DPI, limitando entre 1.0 e 3.0."""
     try:
-        # Obtém DPI da tela
         dpi = root.winfo_fpixels("1i")  # pixels por polegada
-
-        # Calcula fator de escala baseado em DPI padrão (96)
-        # 96 DPI = 1.0, 144 DPI = 1.5, 192 DPI = 2.0
         scale = dpi / 96.0
-
-        # Limita entre 1.0 e 3.0
         scale = max(1.0, min(3.0, scale))
-
-        # Arredonda para 0.1
-        scale = round(scale, 1)
-
-        return scale
+        return round(scale, 1)
     except Exception:
         # Fallback para 1.0 (sem escala)
         return 1.0

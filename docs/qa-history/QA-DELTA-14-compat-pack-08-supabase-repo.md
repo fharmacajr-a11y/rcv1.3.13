@@ -492,7 +492,7 @@ class _SupabaseProxy:
    - Supabase client: 1 → 1 (0, não modificado - fora do escopo)
    - Global: -23 erros (alguns indiretos)
 
-3. **Supabase Analysis**: `python devtools/qa/analyze_supabase_errors.py`
+3. **Supabase Analysis**: `python docs/devtools/qa/analyze_supabase_errors.py`
    ```
    Total Pyright errors: 2827
    Supabase-related errors: 9 (8 repo + 1 client)
@@ -514,12 +514,12 @@ class _SupabaseProxy:
 ## 🔄 Arquivos Modificados
 
 | Arquivo                                      | Linhas Δ | Tipo       | Descrição                                          |
-|----------------------------------------------|----------|------------|----------------------------------------------------|
+|----------------------------------------------|----------|------------|----------------------------------------------------|--
 | `data/supabase_repo.py`                      | +38      | Modificado | TypedDicts + type hints em CRUD functions          |
-| `devtools/qa/analyze_supabase_errors.py`     | +114     | Novo       | Script para análise de erros Supabase              |
-| `devtools/qa/pyright.json`                   | ~        | Atualizado | Report Pyright após correções (2850 → 2827)       |
-| `devtools/qa/ruff.json`                      | ~        | Atualizado | Report Ruff após validação                         |
-| `devtools/qa/flake8.txt`                     | ~        | Atualizado | Report Flake8 após validação                       |
+| `docs/devtools/qa/analyze_supabase_errors.py`| +114     | Novo       | Script para análise de erros Supabase              |
+| `docs/devtools/qa/pyright.json`              | ~        | Atualizado | Report Pyright após correções (2850 → 2827)       |
+| `docs/devtools/qa/ruff.json`                 | ~        | Atualizado | Report Ruff após validação                         |
+| `docs/devtools/qa/flake8.txt`                | ~        | Atualizado | Report Flake8 após validação                       |
 
 **Total**: 5 arquivos (1 modificado, 1 novo, 3 reports atualizados)
 

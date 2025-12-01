@@ -1,7 +1,10 @@
 # ui/utils.py
 from __future__ import annotations
 
+import logging
 from typing import Any
+
+_log = logging.getLogger(__name__)
 
 
 class OkCancelMixin:
@@ -17,12 +20,12 @@ class OkCancelMixin:
             self._finalize_ok(value)  # type: ignore[attr-defined]
         except AttributeError:
             pass
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao executar _finalize_ok: %s", exc)
         try:
             self.result = value  # type: ignore[attr-defined]
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao atribuir result em _ok: %s", exc)
         safe_destroy(self)
 
     def _cancel(self) -> None:
@@ -30,8 +33,8 @@ class OkCancelMixin:
         self._cancel_result = False
         try:
             self.result = False  # type: ignore[attr-defined]
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao atribuir result em _cancel: %s", exc)
         safe_destroy(self)
 
 
@@ -44,11 +47,12 @@ def center_window(win, w: int = 1200, h: int = 500) -> None:
         x = (sw // 2) - (w // 2)
         y = (sh // 2) - (h // 2)
         win.geometry(f"{w}x{h}+{x}+{y}")
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        _log.debug("Falha ao centralizar janela: %s", exc)
         try:
             win.geometry(f"{w}x{h}")
-        except Exception:
-            pass
+        except Exception as exc2:  # noqa: BLE001
+            _log.debug("Falha ao definir geometria: %s", exc2)
 
 
 def center_on_parent(win: Any, parent: Any = None, pad: int = 0) -> Any:
@@ -64,15 +68,16 @@ def center_on_parent(win: Any, parent: Any = None, pad: int = 0) -> Any:
         x = max(pad, px + (pw - ww) // 2)
         y = max(pad, py + (ph - wh) // 2)
         win.geometry(f"+{x}+{y}")
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        _log.debug("Falha ao centralizar sobre parent: %s", exc)
         try:
             sw, sh = win.winfo_screenwidth(), win.winfo_screenheight()
             ww, wh = win.winfo_width(), win.winfo_height()
             x = max(pad, (sw - ww) // 2)
             y = max(pad, (sh - wh) // 2)
             win.geometry(f"+{x}+{y}")
-        except Exception:
-            pass
+        except Exception as exc2:  # noqa: BLE001
+            _log.debug("Falha ao centralizar sobre screen: %s", exc2)
     return win
 
 
@@ -85,14 +90,14 @@ def safe_destroy(win: object | None) -> None:
         try:
             if not bool(exists_fn()):
                 return
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao verificar existência em safe_destroy: %s", exc)
     destroy_fn = getattr(win, "destroy", None)
     if callable(destroy_fn):
         try:
             destroy_fn()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao destruir janela em safe_destroy: %s", exc)
 
 
 __all__ = ["OkCancelMixin", "center_window", "center_on_parent", "safe_destroy"]

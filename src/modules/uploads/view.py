@@ -13,7 +13,16 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from src.ui.files_browser import open_files_browser as _legacy_open_files_browser
+
+def _get_legacy_open_files_browser():
+    """Lazy import para evitar import circular.
+
+    Importa open_files_browser apenas quando necessário,
+    quebrando o ciclo: files_browser → uploads → files_browser.
+    """
+    from src.ui.files_browser.main import open_files_browser
+
+    return open_files_browser
 
 
 def _normalize_legacy_args(*args: Any, **kwargs: Any) -> tuple[tuple[Any, ...], Dict[str, Any]]:
@@ -42,6 +51,7 @@ class UploadsFrame:
 
     def __new__(cls, *args: Any, **kwargs: Any):
         args, kwargs = _normalize_legacy_args(*args, **kwargs)
+        _legacy_open_files_browser = _get_legacy_open_files_browser()
         return _legacy_open_files_browser(*args, **kwargs)
 
 
@@ -53,4 +63,5 @@ def open_files_browser(*args: Any, **kwargs: Any):
     parâmetros ao delegar para o browser legado.
     """
     args, kwargs = _normalize_legacy_args(*args, **kwargs)
+    _legacy_open_files_browser = _get_legacy_open_files_browser()
     return _legacy_open_files_browser(*args, **kwargs)

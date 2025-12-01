@@ -1,17 +1,26 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import sys
 from pathlib import Path
+
 from PyInstaller.utils.hooks import collect_data_files  # retorna (src, dest) 2-tuplas
 
-BASE = Path(SPECPATH).resolve()  # usar pasta do .spec (estável)
-SRC  = BASE / "src"
+BASE = Path(SPECPATH).resolve()  # usar pasta do .spec (estavel)
+SRC = BASE / "src"
+sys.path.insert(0, str(SRC))
+
+from src.version import get_version  # noqa: E402
+
+APP_VERSION = get_version()
 
 # ---------- datas: APENAS (src, dest) 2-tuplas aqui ----------
 datas = []
 
-def add_file(src: Path, dest="."):
+
+def add_file(src: Path, dest: str = ".") -> None:
     if src.exists():
         datas.append((str(src), dest))
+
 
 # opcionais
 add_file(BASE / "rc.ico", ".")
@@ -22,10 +31,10 @@ add_file(BASE / "CHANGELOG_CONSOLIDADO.md", ".")
 # dados de pacotes (site-packages)
 datas += collect_data_files("ttkbootstrap")
 datas += collect_data_files("tzdata")
-datas += collect_data_files("certifi")   # bundle CA para HTTPS
+datas += collect_data_files("certifi")  # bundle CA para HTTPS
 
-# diretórios do projeto: anexar via Tree **DEPOIS** do Analysis
-ASSETS_DIR    = BASE / "assets"
+# diretorios do projeto: anexar via Tree **DEPOIS** do Analysis
+ASSETS_DIR = BASE / "assets"
 TEMPLATES_DIR = BASE / "templates"
 RUNTIME_DOCS_DIR = None
 for cand in (BASE / "runtime_docs", SRC / "runtime_docs", BASE / "assets" / "runtime_docs"):
@@ -35,15 +44,15 @@ for cand in (BASE / "runtime_docs", SRC / "runtime_docs", BASE / "assets" / "run
 
 # ---------- Analysis ----------
 a = Analysis(
-    ['src/app_gui.py'],
+    ["src/app_gui.py"],
     pathex=[str(BASE), str(SRC)],
     binaries=[
-        # Binários do 7-Zip para extração de arquivos RAR
-        ('infra/bin/7zip/7z.exe', '7z'),
-        ('infra/bin/7zip/7z.dll', '7z'),
+        # Binarios do 7-Zip para extracao de arquivos RAR
+        ("infra/bin/7zip/7z.exe", "7z"),
+        ("infra/bin/7zip/7z.dll", "7z"),
     ],
-    datas=datas,                    # aqui só 2-tuplas
-    hiddenimports=['tzdata', 'tzlocal'],
+    datas=datas,  # aqui so 2-tuplas
+    hiddenimports=["tzdata", "tzlocal"],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -52,8 +61,8 @@ a = Analysis(
     optimize=0,
 )
 
-# ---------- anexar diretórios inteiros via Tree (TOC 3-tuplas) ----------
-if 'Tree' in globals():
+# ---------- anexar diretorios inteiros via Tree (TOC 3-tuplas) ----------
+if "Tree" in globals():
     if ASSETS_DIR.is_dir():
         a.datas += Tree(str(ASSETS_DIR), prefix="assets")
     if TEMPLATES_DIR.is_dir():
@@ -73,12 +82,12 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='RC-Gestor-Clientes-v1.2.0',
+    name=f"RC-Gestor-Clientes-{APP_VERSION}",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=False,                   # GUI sem console
+    console=False,  # GUI sem console
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

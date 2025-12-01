@@ -3,16 +3,16 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, List, Tuple
+from typing import Any
 
 import yaml
 
 log = logging.getLogger(__name__)
 
 
-def _flatten(node: Any, prefix: str = "") -> List[str]:
+def _flatten(node: Any, prefix: str = "") -> list[str]:
     """Achata listas/dicts do YAML para caminhos 'PAI/ FILHO / ...'."""
-    items: List[str] = []
+    items: list[str] = []
 
     def join(a: str, b: str) -> str:
         if not a:
@@ -47,7 +47,7 @@ def _norm(p: str) -> str:
 
 def load_subpastas_config(
     explicit_path: str | Path | None = None,
-) -> Tuple[List[str], List[str]]:
+) -> tuple[list[str], list[str]]:
     """
     Lê subpastas.yml, achata e retorna (subpastas, extras_visiveis).
     Procura em:
@@ -56,7 +56,7 @@ def load_subpastas_config(
       - <raiz do projeto>/config/subpastas.yml
     """
     cfg = {}
-    candidates: List[Path] = []
+    candidates: list[Path] = []
 
     if explicit_path:
         candidates = [Path(explicit_path)]

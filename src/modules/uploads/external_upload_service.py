@@ -12,15 +12,18 @@ import logging
 from typing import Any, Dict
 
 from infra.supabase_client import get_supabase_state, is_really_online
-from uploader_supabase import (
+from src.modules.uploads.uploader_supabase import (
     build_items_from_files,
     upload_files_to_supabase,
 )
 
-log = logging.getLogger(__name__)
+ServiceContext = Dict[str, Any]
+ServiceResult = Dict[str, Any]
+
+log: logging.Logger = logging.getLogger(__name__)
 
 
-def salvar_e_enviar_para_supabase_service(ctx: Dict[str, Any]) -> Dict[str, Any]:
+def salvar_e_enviar_para_supabase_service(ctx: ServiceContext) -> ServiceResult:
     """
     Service headless para o fluxo de salvar e enviar documentos para o armazenamento externo.
 
@@ -53,7 +56,7 @@ def salvar_e_enviar_para_supabase_service(ctx: Dict[str, Any]) -> Dict[str, Any]
                 "ui_message_body": str
             }
     """
-    result: Dict[str, Any] = {
+    result: ServiceResult = {
         "ok": False,
         "result": None,
         "errors": [],
@@ -67,6 +70,8 @@ def salvar_e_enviar_para_supabase_service(ctx: Dict[str, Any]) -> Dict[str, Any]
     try:
         # 1. Validação de conexão online
         if not is_really_online():
+            state: str
+            description: str
             state, description = get_supabase_state()
 
             result["ok"] = False
@@ -75,16 +80,22 @@ def salvar_e_enviar_para_supabase_service(ctx: Dict[str, Any]) -> Dict[str, Any]
 
             if state == "unstable":
                 result["ui_message_title"] = "Conexão Instável"
-                result["ui_message_body"] = f"A conexão com o Supabase está instável.\n\n{description}\n\n" "Não é possível enviar dados no momento."
+                result["ui_message_body"] = (
+                    f"A conexão com o Supabase está instável.\n\n{description}\n\n"
+                    "Não é possível enviar dados no momento."
+                )
             else:
                 result["ui_message_title"] = "Sistema Offline"
-                result["ui_message_body"] = f"Não foi possível conectar ao Supabase.\n\n{description}\n\n" "Verifique sua conexão e tente novamente."
+                result["ui_message_body"] = (
+                    f"Não foi possível conectar ao Supabase.\n\n{description}\n\n"
+                    "Verifique sua conexão e tente novamente."
+                )
 
             log.warning("Service: Envio bloqueado - Estado = %s", state.upper())
             return result
 
         # 2. Validar arquivos selecionados
-        files = ctx.get("files", [])
+        files: Any = ctx.get("files", [])
         if not files:
             result["ok"] = False
             result["should_show_ui"] = True
@@ -95,7 +106,7 @@ def salvar_e_enviar_para_supabase_service(ctx: Dict[str, Any]) -> Dict[str, Any]
             return result
 
         # 3. Construir items de upload
-        items = build_items_from_files(files)
+        items: Any = build_items_from_files(files)
         if not items:
             result["ok"] = False
             result["should_show_ui"] = True
@@ -106,12 +117,12 @@ def salvar_e_enviar_para_supabase_service(ctx: Dict[str, Any]) -> Dict[str, Any]
             return result
 
         # 4. Extrair CNPJ do cliente
-        ents = ctx.get("ents", {})
-        row = ctx.get("row")
+        ents: Dict[str, Any] = ctx.get("ents", {})
+        row: Any = ctx.get("row")
 
-        cnpj_val = ""
+        cnpj_val: str = ""
         try:
-            widget = ents.get("CNPJ")
+            widget: Any = ents.get("CNPJ")
             if widget is not None:
                 cnpj_val = widget.get().strip()
         except Exception as e:
@@ -126,9 +137,9 @@ def salvar_e_enviar_para_supabase_service(ctx: Dict[str, Any]) -> Dict[str, Any]
                 cnpj_val = ""
 
         # 5. Executar upload
-        self_ref = ctx.get("self")
-        win = ctx.get("win")
-        parent = win or self_ref
+        self_ref: Any = ctx.get("self")
+        win: Any = ctx.get("win")
+        parent: Any = win or self_ref
 
         # Validar que temos uma referência válida para o app
         if self_ref is None:
@@ -138,10 +149,14 @@ def salvar_e_enviar_para_supabase_service(ctx: Dict[str, Any]) -> Dict[str, Any]
             log.error("Service: self_ref is None no contexto")
             return result
 
-        cliente = {"cnpj": cnpj_val}
+        cliente: Dict[str, str] = {"cnpj": cnpj_val}
 
-        log.info("Service: Executando upload_files_to_supabase com %d items, CNPJ=%s", len(items), cnpj_val or "(vazio)")
+        log.info(
+            "Service: Executando upload_files_to_supabase com %d items, CNPJ=%s", len(items), cnpj_val or "(vazio)"
+        )
 
+        ok_count: int
+        failed_count: int
         ok_count, failed_count = upload_files_to_supabase(
             self_ref,
             cliente,

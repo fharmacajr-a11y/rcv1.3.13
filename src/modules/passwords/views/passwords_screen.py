@@ -11,200 +11,20 @@ from typing import Any, Callable, Optional
 import ttkbootstrap as tb
 
 from data.domain_types import ClientRow, PasswordRow
-from src.modules.passwords.controller import PasswordsController
+from src.modules.passwords.controller import ClientPasswordsSummary, PasswordsController
+from src.modules.passwords.views.client_passwords_dialog import ClientPasswordsDialog
+from src.modules.passwords.views.password_dialog import PasswordDialog
 
 log = logging.getLogger(__name__)
+logger = log
 
 
-class PasswordDialog(tb.Toplevel):
-    """Diálogo modal para criação/edição de senha."""
-
-    def __init__(
-        self,
-        parent: tb.Widget,
-        org_id: str,
-        user_id: str,
-        clients: list[ClientRow],
-        on_save: Callable[[], None],
-        password_data: Optional[PasswordRow] = None,
-        controller: Optional[PasswordsController] = None,
-    ) -> None:
-        super().__init__(parent)
-        self.title("Nova Senha" if password_data is None else "Editar Senha")
-        self.geometry("500x400")
-        self.resizable(False, False)
-        self.transient(parent)
-        self.grab_set()
-
-        self.org_id = org_id
-        self.user_id = user_id
-        self.clients = clients
-        self.on_save = on_save
-        self.password_data = password_data
-        self.is_editing = password_data is not None
-        self.controller = controller or PasswordsController()
-
-        # Cliente selecionado
-        self.selected_client_id: Optional[str] = None
-        self.selected_client_display: str = ""
-
-        self._build_ui()
-        if self.is_editing:
-            self._load_data()
-
-        self._center_on_parent()
-
-    def _center_on_parent(self) -> None:
-        """Centraliza o diálogo na janela principal."""
-        self.update_idletasks()
-        if self.master is None:
-            return
-        parent_x = self.master.winfo_rootx()
-        parent_y = self.master.winfo_rooty()
-        parent_width = self.master.winfo_width()
-        parent_height = self.master.winfo_height()
-
-        width = self.winfo_width()
-        height = self.winfo_height()
-
-        x = parent_x + (parent_width - width) // 2
-        y = parent_y + (parent_height - height) // 2
-
-        self.geometry(f"{width}x{height}+{x}+{y}")
-
-    def _build_ui(self) -> None:
-        """Constrói a interface do diálogo."""
-        container = tb.Frame(self, padding=20)
-        container.pack(fill="both", expand=True)
-
-        # Cliente
-        tb.Label(container, text="Cliente:").grid(row=0, column=0, sticky="w", pady=5)
-        client_frame = tb.Frame(container)
-        client_frame.grid(row=0, column=1, sticky="ew", pady=5, padx=(10, 0))
-
-        self.client_display_var = tk.StringVar()
-        self.client_display_entry = tb.Entry(
-            client_frame,
-            textvariable=self.client_display_var,
-            state="readonly",
-            width=40,
-        )
-        self.client_display_entry.pack(side="left", fill="x", expand=True)
-
-        self.select_client_button = tb.Button(
-            client_frame,
-            text="Selecionar...",
-            bootstyle="secondary",
-            command=self._on_select_client_clicked,
-        )
-        self.select_client_button.pack(side="right", padx=(5, 0))
-
-        # Serviço
-        tb.Label(container, text="Serviço:").grid(row=1, column=0, sticky="w", pady=5)
-        self.service_var = tk.StringVar()
-        self.service_combo = tb.Combobox(
-            container,
-            textvariable=self.service_var,
-            values=["SIFAP", "CRF", "GOV.BR", "E-mail", "Banco", "Outro"],
-        )
-        self.service_combo.grid(row=1, column=1, sticky="ew", pady=5, padx=(10, 0))
-
-        # Usuário/Login
-        tb.Label(container, text="Usuário / Login:").grid(row=2, column=0, sticky="w", pady=5)
-        self.username_var = tk.StringVar()
-        self.username_entry = tb.Entry(container, textvariable=self.username_var)
-        self.username_entry.grid(row=2, column=1, sticky="ew", pady=5, padx=(10, 0))
-
-        # Senha
-        tb.Label(container, text="Senha:").grid(row=3, column=0, sticky="w", pady=5)
-        self.password_var = tk.StringVar()
-        self.password_entry = tb.Entry(container, textvariable=self.password_var, show="*")
-        self.password_entry.grid(row=3, column=1, sticky="ew", pady=5, padx=(10, 0))
-
-        # Anotações
-        tb.Label(container, text="Anotações:").grid(row=4, column=0, sticky="w", pady=5)
-        self.notes_var = tk.StringVar()
-        self.notes_entry = tb.Entry(container, textvariable=self.notes_var)
-        self.notes_entry.grid(row=4, column=1, sticky="ew", pady=5, padx=(10, 0))
-
-        # Botões
-        btn_frame = tb.Frame(container)
-        btn_frame.grid(row=5, column=0, columnspan=2, pady=20)
-
-        tb.Button(btn_frame, text="Salvar", bootstyle="success", command=self._save).pack(side="left", padx=5)
-        tb.Button(btn_frame, text="Cancelar", bootstyle="secondary", command=self.destroy).pack(side="left", padx=5)
-
-        container.columnconfigure(1, weight=1)
-
-    def _on_select_client_clicked(self) -> None:
-        """Abre o ClientPicker para selecionar cliente."""
-        from src.modules.clientes.forms import ClientPicker
-
-        picker = ClientPicker(self, org_id=self.org_id)
-        selected_client = picker.show_modal()
-
-        if selected_client:
-            self.selected_client_id = str(selected_client["id"])
-            self.selected_client_display = (
-                selected_client.get("nome") or selected_client.get("nome_fantasia") or selected_client.get("razao_social") or ""
-            ).strip()
-            self.client_display_var.set(self.selected_client_display)
-
-    def _load_data(self) -> None:
-        """Carrega dados para edição."""
-        if not self.password_data:
-            return
-        self.selected_client_display = self.password_data["client_name"]
-        self.client_display_var.set(self.selected_client_display)
-        self.service_var.set(self.password_data["service"])
-        self.username_var.set(self.password_data["username"])
-        # Senha não carrega por segurança
-        self.notes_var.set(self.password_data["notes"])
-
-    def _save(self) -> None:
-        """Salva a senha."""
-        client_name = self.selected_client_display.strip()
-        service = self.service_var.get().strip()
-        username = self.username_var.get().strip()
-        password = self.password_var.get()
-        notes = self.notes_var.get().strip()
-
-        if not client_name or not service or not username or not password:
-            messagebox.showerror("Erro", "Todos os campos são obrigatórios.")
-            return
-
-        try:
-            if self.is_editing and self.password_data:
-                self.controller.update_password(
-                    self.password_data["id"],
-                    client_name=client_name,
-                    service=service,
-                    username=username,
-                    password_plain=password,
-                    notes=notes,
-                )
-                messagebox.showinfo("Sucesso", "Senha atualizada com sucesso!")
-            else:
-                self.controller.create_password(
-                    self.org_id,
-                    client_name,
-                    service,
-                    username,
-                    password,
-                    notes,
-                    self.user_id,
-                )
-                messagebox.showinfo("Sucesso", "Senha criada com sucesso!")
-
-            self.on_save()
-            self.destroy()
-        except Exception as e:
-            log.exception("Erro ao salvar senha")
-            messagebox.showerror("Erro", f"Falha ao salvar: {e}")
+# Classes ClientPasswordsDialog e PasswordDialog foram movidas para arquivos separados
+# FIX-SENHAS-004: Refatoração para reduzir tamanho do arquivo
 
 
 class PasswordsScreen(tb.Frame):
-    """Tela de gerenciamento de senhas com filtros e tabela."""
+    """Tela de gerenciamento de senhas com layout master-detail (clientes → senhas)."""
 
     def __init__(
         self,
@@ -227,12 +47,24 @@ class PasswordsScreen(tb.Frame):
         self._sort_column: Optional[str] = None
         self._sort_order: str = "asc"
 
+        # FIX-SENHAS-001: Cliente selecionado no master-detail
+        self._selected_client_id: Optional[str] = None
+        self._client_summaries: list[ClientPasswordsSummary] = []
+
+        # FIX-SENHAS-004: Dict para busca rápida de summaries por client_id
+        self._client_summaries_by_id: dict[str, ClientPasswordsSummary] = {}
+
+        # Referência ao diálogo aberto (para orquestração do pick mode)
+        self._password_dialog: Optional[PasswordDialog] = None
+        # Último cliente selecionado durante pick mode
+        self._last_selected_client_data: Optional[dict[str, Any]] = None
+
         self._build_ui()
 
     def _refresh_data(self) -> None:
-        """Recarrega dados do servidor e reaplica filtros."""
+        """Recarrega dados do servidor e atualiza a UI master-detail."""
         self._load_all_passwords()
-        self.reload_passwords()
+        self._refresh_clients_list()
 
     def _load_all_passwords(self) -> None:
         """Carrega todas as senhas do servidor."""
@@ -245,64 +77,90 @@ class PasswordsScreen(tb.Frame):
             messagebox.showerror("Erro", f"Falha ao carregar senhas: {e}")
 
     def _build_ui(self) -> None:
-        """Constrói a interface principal."""
+        """Constrói a interface principal com lista única de clientes (FIX-SENHAS-002)."""
         # Filtros no topo
         filters_frame = tb.Frame(self)
         filters_frame.pack(fill="x", pady=(0, 10))
 
+        # FIX-SENHAS-014: Buscar e Serviço lado a lado, à esquerda, larguras fixas
+
         # Busca
-        tb.Label(filters_frame, text="Buscar:").grid(row=0, column=0, sticky="w", padx=(0, 5))
+        tb.Label(filters_frame, text="Buscar:").grid(row=0, column=0, sticky="w", padx=(0, 4), pady=4)
         self.search_var = tk.StringVar()
         self.search_entry = tb.Entry(filters_frame, textvariable=self.search_var, width=40)
-        self.search_entry.grid(row=0, column=1, sticky="w", padx=(0, 10))
-        self.search_entry.bind("<KeyRelease>", lambda e: self.reload_passwords())
+        self.search_entry.grid(row=0, column=1, sticky="w", padx=(0, 12), pady=4)
+        self.search_entry.bind("<KeyRelease>", lambda e: self._on_search_changed())
 
         # Serviço
-        tb.Label(filters_frame, text="Serviço:").grid(row=0, column=2, sticky="w", padx=(0, 5))
+        tb.Label(filters_frame, text="Serviço:").grid(row=0, column=2, sticky="w", padx=(0, 4), pady=4)
         self.service_filter_var = tk.StringVar(value="Todos")
         self.service_filter_combo = tb.Combobox(
             filters_frame,
             textvariable=self.service_filter_var,
             values=["Todos", "SIFAP", "CRF", "GOV.BR", "E-mail", "Banco", "Outro"],
+            state="readonly",  # FIX-SENHAS-015: Somente seleção, sem digitar
+            width=20,  # FIX-SENHAS-014: Largura pequena ao lado do Buscar
         )
-        self.service_filter_combo.grid(row=0, column=3, sticky="ew", padx=(0, 10))
-        self.service_filter_combo.bind("<<ComboboxSelected>>", lambda e: self.reload_passwords())
+        self.service_filter_combo.grid(row=0, column=3, sticky="w", padx=(0, 0), pady=4)
+        self.service_filter_combo.bind("<<ComboboxSelected>>", lambda e: self._on_search_changed())
 
-        filters_frame.columnconfigure(1, weight=0)
-        filters_frame.columnconfigure(3, weight=1)
+        # FIX-SENHAS-014: Nenhuma coluna expande (tudo grudado à esquerda)
+        for col in range(4):
+            filters_frame.columnconfigure(col, weight=0)
 
-        # Tabela
-        table_frame = tb.Frame(self)
-        table_frame.pack(fill="both", expand=True)
+        # ===== Lista única de Clientes com Senhas (FIX-SENHAS-002) =====
+        clients_frame = tb.LabelFrame(self, text="Clientes com Senhas", padding=5)
+        clients_frame.pack(fill="both", expand=True, pady=(0, 10))
 
-        columns = ("cliente", "servico", "usuario", "senha", "anotacoes")
-        self.tree = ttk.Treeview(
-            table_frame,
-            columns=columns,
+        clients_table_frame = tb.Frame(clients_frame)
+        clients_table_frame.pack(fill="both", expand=True)
+
+        # FIX-SENHAS-006: Colunas idênticas à tela de Clientes + Qtd. Senhas e Serviços
+        clients_columns = ("id", "razao_social", "cnpj", "nome", "whatsapp", "qtd_senhas", "servicos")
+        self.tree_clients = ttk.Treeview(
+            clients_table_frame,
+            columns=clients_columns,
             show="headings",
             selectmode="browse",
             height=15,
         )
 
-        self.tree.heading("cliente", text="Cliente", command=lambda: self._sort_by_column("cliente"))
-        self.tree.heading("servico", text="Serviço", command=lambda: self._sort_by_column("servico"))
-        self.tree.heading("usuario", text="Usuário / Login", command=lambda: self._sort_by_column("usuario"))
-        self.tree.heading("senha", text="Senha")
-        self.tree.heading("anotacoes", text="Anotações", command=lambda: self._sort_by_column("anotacoes"))
+        # Mostra apenas os headings, sem coluna raiz (#0)
+        self.tree_clients["show"] = "headings"
+        self.tree_clients.column("#0", width=0, stretch=False)
 
-        self.tree.column("cliente", width=220, minwidth=150)
-        self.tree.column("servico", width=160, minwidth=120)
-        self.tree.column("usuario", width=180, minwidth=140)
-        self.tree.column("senha", width=80, minwidth=60)
-        self.tree.column("anotacoes", width=260, minwidth=180)
+        # Cabeçalhos centralizados
+        self.tree_clients.heading("id", text="ID", anchor="center")
+        self.tree_clients.heading("razao_social", text="Razão Social", anchor="center")
+        self.tree_clients.heading("cnpj", text="CNPJ", anchor="center")
+        self.tree_clients.heading("nome", text="Nome", anchor="center")
+        self.tree_clients.heading("whatsapp", text="WhatsApp", anchor="center")
+        self.tree_clients.heading("qtd_senhas", text="Qtd. Senhas", anchor="center")
+        self.tree_clients.heading("servicos", text="Serviços", anchor="center")
 
-        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
-        self.tree.configure(yscrollcommand=scrollbar.set)
+        # Larguras base mais equilibradas (todas centralizadas)
+        self.tree_clients.column("id", width=60, anchor="center", stretch=False)
+        self.tree_clients.column("razao_social", width=230, anchor="center", stretch=False)
+        self.tree_clients.column("cnpj", width=150, anchor="center", stretch=False)
+        self.tree_clients.column("nome", width=200, anchor="center", stretch=False)
+        self.tree_clients.column("whatsapp", width=170, anchor="center", stretch=False)
+        self.tree_clients.column("qtd_senhas", width=90, anchor="center", stretch=False)
+        self.tree_clients.column("servicos", width=200, anchor="center", stretch=False)
 
-        self.tree.bind("<Double-1>", lambda e: self._edit_selected())
+        clients_scrollbar = ttk.Scrollbar(clients_table_frame, orient="vertical", command=self.tree_clients.yview)
+        self.tree_clients.configure(yscrollcommand=clients_scrollbar.set)
 
-        self.tree.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+        # Double-click abre o diálogo de senhas do cliente
+        self.tree_clients.bind("<Double-1>", lambda e: self._on_manage_client_passwords_clicked())
+
+        # Bloqueia redimensionamento de colunas
+        self.tree_clients.bind("<Button-1>", self._on_clients_tree_heading_click)
+
+        # Ajusta a largura da coluna "servicos" para ocupar o espaço restante
+        self.tree_clients.bind("<Configure>", self._on_clients_tree_configure)
+
+        self.tree_clients.pack(side="left", fill="both", expand=True)
+        clients_scrollbar.pack(side="right", fill="y")
 
         # Barra de ações
         actions_frame = tb.Frame(self)
@@ -312,175 +170,477 @@ class PasswordsScreen(tb.Frame):
             actions_frame,
             text="Nova Senha",
             bootstyle="success",
-            command=self._open_new_password_dialog,
+            command=self._on_new_password_clicked,
             width=14,
         ).pack(side="left", padx=5)
 
         tb.Button(
             actions_frame,
-            text="Editar",
+            text="Gerenciar Senhas",
             bootstyle="secondary",
-            command=self._edit_selected,
-            width=14,
+            command=self._on_manage_client_passwords_clicked,
+            width=16,
         ).pack(side="left", padx=5)
 
+        # FIX-SENHAS-006: Botão Excluir na tela principal
         tb.Button(
             actions_frame,
             text="Excluir",
             bootstyle="danger",
-            command=self._delete_selected,
+            command=self._on_delete_client_passwords_clicked,
             width=14,
         ).pack(side="left", padx=5)
 
-        tb.Button(
-            actions_frame,
-            text="Copiar Senha",
-            bootstyle="info",
-            command=self._copy_password,
-            width=14,
-        ).pack(side="left", padx=5)
+    def _on_search_changed(self) -> None:
+        """Handler chamado quando o filtro de busca ou serviço muda."""
+        self._refresh_clients_list()
 
-    def _open_new_password_dialog(self) -> None:
-        """Abre diálogo para nova senha."""
-        if not self.org_id or not self.user_id:
-            messagebox.showerror("Erro", "Usuário não autenticado.")
-            return
-        assert self.org_id is not None
-        assert self.user_id is not None
-        PasswordDialog(
-            self,
-            self.org_id,
-            self.user_id,
-            self.clients,
-            self._refresh_data,
-            controller=self.controller,
-        )
-
-    def _edit_selected(self) -> None:
-        """Edita a senha selecionada."""
-        selection = self.tree.selection()
+    def _get_selected_client_id(self) -> Optional[str]:
+        """Retorna o client_id do cliente selecionado na tree de clientes."""
+        selection = self.tree_clients.selection()
         if not selection:
-            messagebox.showwarning("Atenção", "Selecione uma senha para editar.")
-            return
+            return None
+        # O iid do item é o client_id (FIX-SENHAS-005: sempre string)
+        return selection[0]
 
-        item_id = selection[0]
-        password_id = self.tree.item(item_id, "tags")[0]
-        password_data = next((p for p in self.passwords if str(p["id"]) == password_id), None)
-        if not password_data:
-            return
+    def _get_selected_client_summary(self) -> Optional[ClientPasswordsSummary]:
+        """Retorna o ClientPasswordsSummary do cliente selecionado.
 
-        if not self.org_id or not self.user_id:
-            messagebox.showerror("Erro", "Usuário não autenticado.")
-            return
-        assert self.org_id is not None
-        assert self.user_id is not None
-        PasswordDialog(
-            self,
-            self.org_id,
-            self.user_id,
-            self.clients,
-            self._refresh_data,
-            password_data,
-            controller=self.controller,
-        )
+        FIX-SENHAS-004: Usa _client_summaries_by_id para busca O(1).
+        """
+        client_id = self._get_selected_client_id()
+        if not client_id:
+            return None
+        return self._client_summaries_by_id.get(client_id)
 
-    def _delete_selected(self) -> None:
-        """Exclui a senha selecionada."""
-        selection = self.tree.selection()
-        if not selection:
-            messagebox.showwarning("Atenção", "Selecione uma senha para excluir.")
-            return
+    def _populate_clients_tree(self, summaries: list[ClientPasswordsSummary]) -> None:
+        """Preenche a árvore de clientes com os resumos."""
+        # Limpa a árvore
+        for item in self.tree_clients.get_children():
+            self.tree_clients.delete(item)
 
-        if not messagebox.askyesno("Confirmação", "Tem certeza que deseja excluir esta senha?"):
-            return
+        for summary in summaries:
+            # FIX-SENHAS-006: Formata a lista de serviços
+            if len(summary.services) <= 3:
+                services_text = ", ".join(summary.services)
+            else:
+                services_text = f"{len(summary.services)} serviços"
 
-        item_id = selection[0]
-        password_id = self.tree.item(item_id, "tags")[0]
+            # Insere com as colunas: ID, Razão Social, CNPJ, Nome, WhatsApp, Qtd. Senhas, Serviços
+            self.tree_clients.insert(
+                "",
+                "end",
+                iid=str(summary.client_id),  # FIX-SENHAS-005: Converte para string (Treeview sempre retorna str)
+                values=(
+                    summary.client_external_id,  # ID
+                    summary.razao_social,  # Razão Social
+                    summary.cnpj,  # CNPJ
+                    summary.contato_nome,  # Nome
+                    summary.whatsapp,  # WhatsApp
+                    summary.passwords_count,  # Qtd. Senhas
+                    services_text,  # Serviços
+                ),
+            )
 
-        try:
-            self.controller.delete_password(password_id)
-            messagebox.showinfo("Sucesso", "Senha excluída com sucesso!")
-            self._refresh_data()
-        except Exception as e:
-            log.exception("Erro ao excluir senha")
-            messagebox.showerror("Erro", f"Falha ao excluir: {e}")
-
-    def _copy_password(self) -> None:
-        """Copia a senha selecionada para o clipboard."""
-        selection = self.tree.selection()
-        if not selection:
-            messagebox.showwarning("Atenção", "Selecione uma senha para copiar.")
-            return
-
-        item_id = selection[0]
-        password_id = self.tree.item(item_id, "tags")[0]
-        password_data = next((p for p in self.passwords if str(p["id"]) == password_id), None)
-        if not password_data:
-            return
-
-        try:
-            plain_password = self.controller.decrypt_password(password_data["password_enc"])
-            self.clipboard_clear()
-            self.clipboard_append(plain_password)
-            messagebox.showinfo("Sucesso", "Senha copiada para a área de transferência!")
-        except Exception as e:
-            log.exception("Erro ao copiar senha")
-            messagebox.showerror("Erro", f"Falha ao copiar: {e}")
-
-    def reload_passwords(self) -> None:
-        """Recarrega as senhas com filtros aplicados (em memoria)."""
+    def _refresh_clients_list(self) -> None:
+        """Atualiza a lista de clientes com base nos filtros."""
         if not self.org_id:
             return
 
+        # FIX-SENHAS-004: Criar _client_summaries e _client_summaries_by_id de TODAS as senhas
+        # para que os diálogos sempre encontrem o cliente, independente dos filtros
+        from collections import defaultdict
+
+        # 1. Cria summaries de TODAS as senhas (para _client_summaries e _client_summaries_by_id)
+        all_grouped: dict[str, list[PasswordRow]] = defaultdict(list)
+        for pwd in self._all_passwords:
+            client_id = pwd.get("client_id", "")
+            if client_id:
+                all_grouped[client_id].append(pwd)
+
+        all_summaries: list[ClientPasswordsSummary] = []
+        for client_id, passwords in all_grouped.items():
+            first = passwords[0]
+
+            # FIX-SENHAS-006: Extrai todos os campos necessários
+            razao_social = first.get("razao_social", first.get("client_name", ""))
+            cnpj = first.get("cnpj", "")
+            contato_nome = first.get("nome", "")
+            whatsapp = first.get("whatsapp", first.get("numero", ""))
+
+            try:
+                client_external_id = int(first.get("client_external_id", client_id))
+            except (ValueError, TypeError):
+                try:
+                    client_external_id = int(client_id)
+                except (ValueError, TypeError):
+                    client_external_id = 0
+
+            services = sorted(set(p.get("service", "") for p in passwords if p.get("service")))
+
+            all_summaries.append(
+                ClientPasswordsSummary(
+                    client_id=client_id,
+                    client_external_id=client_external_id,
+                    razao_social=razao_social,
+                    cnpj=cnpj,
+                    contato_nome=contato_nome,
+                    whatsapp=whatsapp,
+                    passwords_count=len(passwords),
+                    services=services,
+                )
+            )
+
+        # Ordena por nome
+        all_summaries.sort(key=lambda s: s.razao_social.lower())
+        self._client_summaries = all_summaries
+
+        # FIX-SENHAS-004: Popula dict para busca rápida por client_id
+        # FIX-SENHAS-005: Chaves em string porque Treeview.selection() retorna strings
+        self._client_summaries_by_id = {str(s.client_id): s for s in all_summaries}
+
+        # 2. Aplica filtros para a EXIBIÇÃO na árvore
         raw_search = self.search_var.get().strip()
         search_text = raw_search if raw_search else None
         service_filter = self.service_filter_var.get()
 
-        try:
-            self.passwords = self.controller.filter_passwords(search_text, service_filter)
-            self._populate_table()
-        except Exception as e:
-            log.exception("Erro ao filtrar senhas")
-            messagebox.showerror("Erro", f"Falha ao filtrar senhas: {e}")
+        # Filtra senhas
+        filtered_passwords = self.controller.filter_passwords(search_text, service_filter)
 
-    def _sort_by_column(self, column: str) -> None:
-        """Ordena a tabela pela coluna especificada."""
-        if self._sort_column == column:
-            self._sort_order = "desc" if self._sort_order == "asc" else "asc"
-        else:
-            self._sort_column = column
-            self._sort_order = "asc"
+        # Agrupa senhas filtradas (para exibir na árvore)
+        filtered_grouped: dict[str, list[PasswordRow]] = defaultdict(list)
+        for pwd in filtered_passwords:
+            client_id = pwd.get("client_id", "")
+            if client_id:
+                filtered_grouped[client_id].append(pwd)
 
-        reverse = self._sort_order == "desc"
-        if column == "cliente":
-            self.passwords.sort(key=lambda p: p["client_name"], reverse=reverse)
-        elif column == "servico":
-            self.passwords.sort(key=lambda p: p["service"], reverse=reverse)
-        elif column == "usuario":
-            self.passwords.sort(key=lambda p: p["username"], reverse=reverse)
-        elif column == "anotacoes":
-            self.passwords.sort(key=lambda p: p["notes"], reverse=reverse)
+        display_summaries: list[ClientPasswordsSummary] = []
+        for client_id, passwords in filtered_grouped.items():
+            first = passwords[0]
 
-        self._populate_table()
+            # FIX-SENHAS-006: Extrai todos os campos necessários
+            razao_social = first.get("razao_social", first.get("client_name", ""))
+            cnpj = first.get("cnpj", "")
+            contato_nome = first.get("nome", "")
+            whatsapp = first.get("whatsapp", first.get("numero", ""))
 
-    def _populate_table(self) -> None:
-        """Preenche a tabela com os dados."""
-        for item in self.tree.get_children():
-            self.tree.delete(item)
+            try:
+                client_external_id = int(first.get("client_external_id", client_id))
+            except (ValueError, TypeError):
+                try:
+                    client_external_id = int(client_id)
+                except (ValueError, TypeError):
+                    client_external_id = 0
 
-        for password in self.passwords:
-            self.tree.insert(
-                "",
-                "end",
-                values=(
-                    password["client_name"],
-                    password["service"],
-                    password["username"],
-                    "••••••",
-                    password["notes"],
-                ),
-                tags=(str(password["id"]),),
+            services = sorted(set(p.get("service", "") for p in passwords if p.get("service")))
+
+            display_summaries.append(
+                ClientPasswordsSummary(
+                    client_id=client_id,
+                    client_external_id=client_external_id,
+                    razao_social=razao_social,
+                    cnpj=cnpj,
+                    contato_nome=contato_nome,
+                    whatsapp=whatsapp,
+                    passwords_count=len(passwords),
+                    services=services,
+                )
             )
+
+        # Ordena por nome
+        display_summaries.sort(key=lambda s: s.razao_social.lower())
+
+        # Atualiza UI (exibe apenas summaries filtrados)
+        previous_selection = self._selected_client_id
+        self._populate_clients_tree(display_summaries)
+
+        # Tenta manter a seleção anterior
+        if previous_selection and self.tree_clients.exists(previous_selection):
+            self.tree_clients.selection_set(previous_selection)
+            self.tree_clients.see(previous_selection)
+            self._selected_client_id = previous_selection
+        else:
+            self._selected_client_id = None
+
+    def _open_edit_password_dialog(
+        self, password_data: PasswordRow, *, on_save_callback: Optional[Callable[[], None]] = None
+    ) -> None:
+        """Abre diálogo de edição para uma senha específica."""
+        if not self.org_id or not self.user_id:
+            messagebox.showerror("Erro", "Usuário não autenticado.")
+            return
+
+        callback = on_save_callback or self._refresh_data
+
+        # Extrai client_id e display do password_data
+        client_id = password_data.get("client_id")
+        client_display = password_data.get("client_name", "")
+
+        self._password_dialog = PasswordDialog(
+            self,
+            self.org_id,
+            self.user_id,
+            self.clients,
+            callback,
+            password_data,
+            controller=self.controller,
+            on_select_client=self._on_select_client_from_dialog,
+            client_id=client_id,
+            client_display=client_display,
+        )
+
+    def _on_new_password_clicked(self) -> None:
+        """Handler do botão Nova Senha (FIX-SENHAS-004).
+
+        SEMPRE abre o fluxo de pick-mode para seleção de cliente,
+        independente de haver ou não cliente selecionado na lista.
+        """
+        # FIX-SENHAS-004: Sempre usar pick-mode, não depende de seleção
+        self._open_new_password_flow_with_client_picker()
+
+    def _open_new_password_dialog_for_client(
+        self, client_id: str, *, on_save_callback: Optional[Callable[[], None]] = None
+    ) -> None:
+        """Abre diálogo de nova senha já travado no cliente especificado."""
+        if not self.org_id or not self.user_id:
+            messagebox.showerror("Erro", "Usuário não autenticado.")
+            return
+
+        # FIX-SENHAS-004: Busca no dict para O(1)
+        # FIX-SENHAS-005: Converte client_id para string (dict usa chaves string)
+        summary = self._client_summaries_by_id.get(str(client_id))
+        if not summary:
+            messagebox.showerror("Erro", "Cliente não encontrado na lista de resumos.")
+            return
+
+        callback = on_save_callback or self._refresh_data
+
+        # FIX-SENHAS-006: Usa razao_social ao invés de display_name
+        self._password_dialog = PasswordDialog(
+            self,
+            self.org_id,
+            self.user_id,
+            self.clients,
+            callback,
+            controller=self.controller,
+            on_select_client=self._on_select_client_from_dialog,
+            client_id=client_id,
+            client_display=f"{summary.razao_social} ({summary.cnpj})" if summary.cnpj else summary.razao_social,
+        )
+
+    def _open_new_password_flow_with_client_picker(self) -> None:
+        """Abre o pick mode de Clientes para escolher cliente antes de criar senha."""
+        app = self._get_main_app()
+        if not app:
+            messagebox.showerror("Erro", "Não foi possível acessar a tela de clientes.")
+            return
+
+        from src.modules.main_window.controller import navigate_to
+
+        navigate_to(app, "clients_picker", on_pick=self._handle_client_picked_for_new_password)
+
+    def _handle_client_picked_for_new_password(self, client_data: dict[str, Any]) -> None:
+        """Callback chamado pelo pick mode de Clientes ao escolher cliente para Nova Senha."""
+        # Abre o diálogo de Nova Senha já com o cliente preenchido
+        self._open_new_password_dialog(client_data=client_data)
+
+    def _open_new_password_dialog(self, *, client_data: Optional[dict[str, Any]] = None) -> None:
+        """Abre diálogo para nova senha, opcionalmente com cliente pré-selecionado."""
+        if not self.org_id or not self.user_id:
+            messagebox.showerror("Erro", "Usuário não autenticado.")
+            return
+        if self.org_id is None or self.user_id is None:
+            logger.error("PasswordsScreen._open_new_password_dialog chamado sem org_id ou user_id definidos.")
+            return
+
+        # Extrai client_id e display se houver dados
+        client_id = None
+        client_display = None
+        if client_data:
+            client_id = str(client_data.get("id", ""))
+            razao = client_data.get("razao_social", "")
+            cnpj = client_data.get("cnpj", "")
+            client_display = f"ID {client_id} – {razao} ({cnpj})" if cnpj else f"ID {client_id} – {razao}"
+
+        self._password_dialog = PasswordDialog(
+            self,
+            self.org_id,
+            self.user_id,
+            self.clients,
+            self._refresh_data,
+            controller=self.controller,
+            on_select_client=self._on_select_client_from_dialog,
+            client_id=client_id,
+            client_display=client_display,
+        )
+
+    def _on_manage_client_passwords_clicked(self) -> None:
+        """Handler do botão Gerenciar Senhas: abre diálogo com todas as senhas do cliente (FIX-SENHAS-004)."""
+        summary = self._get_selected_client_summary()
+
+        if not summary:
+            messagebox.showerror("Erro", "Selecione um cliente na lista.")
+            return
+
+        if not self.org_id or not self.user_id:
+            messagebox.showerror("Erro", "Usuário não autenticado.")
+            return
+
+        try:
+            ClientPasswordsDialog(
+                self,
+                self.controller,
+                summary,
+                self.org_id,
+                self.user_id,
+                self.clients,
+                on_close_refresh=self._refresh_data,
+            )
+        except Exception as e:
+            logger.exception("Erro ao abrir diálogo de gerenciamento de senhas")
+            messagebox.showerror("Erro", f"Falha ao abrir diálogo: {e}")
+
+    def _on_delete_client_passwords_clicked(self) -> None:
+        """Handler do botão Excluir: apaga todas as senhas do cliente selecionado (FIX-SENHAS-006)."""
+        summary = self._get_selected_client_summary()
+        if summary is None:
+            messagebox.showerror("Erro", "Selecione um cliente na lista para excluir as senhas.")
+            return
+
+        # Formata label do cliente para confirmação
+        client_label = f"ID {summary.client_external_id} – {summary.razao_social} ({summary.cnpj})"
+
+        if not messagebox.askyesno(
+            "Confirmar exclusão",
+            (
+                "Deseja realmente excluir TODAS as senhas desse cliente?\n\n"
+                f"{client_label}\n\n"
+                "Esta ação não pode ser desfeita."
+            ),
+            parent=self,
+        ):
+            return
+
+        if not self.org_id:
+            messagebox.showerror("Erro", "Organização não identificada.")
+            return
+
+        try:
+            count = self.controller.delete_all_passwords_for_client(
+                org_id=self.org_id,
+                client_id=summary.client_id,
+            )
+
+            # Recarrega lista de clientes com senhas
+            self._load_all_passwords()
+            self._refresh_clients_list()
+
+            messagebox.showinfo(
+                "Sucesso",
+                f"{count} senha(s) excluída(s) com sucesso.",
+                parent=self,
+            )
+        except Exception as e:
+            logger.exception("Erro ao excluir senhas do cliente")
+            messagebox.showerror("Erro", f"Falha ao excluir senhas: {e}", parent=self)
+
+    def _on_select_client_from_dialog(self) -> None:
+        """Chamado pelo dialog quando o usuário clica no botão 'Selecionar...'."""
+        app = self._get_main_app()
+        if not app:
+            return
+
+        from src.modules.main_window.controller import navigate_to
+
+        navigate_to(app, "clients_picker", on_pick=self._handle_client_picked)
+
+    def _handle_client_picked(self, client_data: dict[str, Any]) -> None:
+        """Callback vindo do pick mode de Clientes."""
+        self._last_selected_client_data = client_data
+
+        # Garante que existe um dialog (se usuário fechou, recria)
+        if self._password_dialog is None or not self._password_dialog.is_visible():
+            self._open_new_password_dialog(client_data=client_data)
+        else:
+            self._password_dialog.set_client_from_data(client_data)
+
+    def _on_clients_tree_heading_click(self, event: tk.Event) -> str | None:
+        """Impede redimensionar e clicar no cabeçalho da lista de clientes.
+
+        - separator: bloqueia resize de coluna
+        - heading: bloqueia qualquer ação (sort, pulo de scroll) - FIX-SENHAS-014
+        """
+        region = self.tree_clients.identify_region(event.x, event.y)
+        if region in {"separator", "heading"}:
+            return "break"
+        return None
+
+    def _on_clients_tree_configure(self, event: tk.Event) -> None:
+        """Redistribui a largura extra da tree entre Razão Social, Nome e Serviços.
+
+        Evita que apenas a coluna 'servicos' fique gigante em telas mais largas.
+        """
+        try:
+            total_width = int(event.width)
+
+            # Larguras base, devem bater com as usadas em self.tree_clients.column(...)
+            base_widths: dict[str, int] = {
+                "id": 60,
+                "razao_social": 230,
+                "cnpj": 150,
+                "nome": 200,
+                "whatsapp": 170,
+                "qtd_senhas": 90,
+                "servicos": 200,
+            }
+
+            base_total = sum(base_widths.values())
+
+            # Pequena folga para bordas/scrollbar
+            extra = total_width - base_total - 4
+            if extra < 0:
+                extra = 0
+
+            # Distribui o extra entre Razão Social, Nome e Serviços
+            share_cols = ("razao_social", "nome", "servicos")
+            share_count = len(share_cols)
+
+            per_col = extra // share_count if share_count else 0
+            remainder = extra - per_col * share_count
+
+            widths: dict[str, int] = {}
+            for col, base in base_widths.items():
+                width = base
+                if col in share_cols:
+                    width += per_col
+                    # joga o resto na última coluna de share (servicos)
+                    if col == "servicos":
+                        width += remainder
+                widths[col] = max(width, 60)  # largura mínima por segurança
+
+            # Aplica as larguras calculadas
+            for col, width in widths.items():
+                self.tree_clients.column(col, width=width)
+
+        except Exception:
+            # Não queremos quebrar a tela por causa de erro de layout
+            return
+
+    def _get_main_app(self) -> Optional[Any]:
+        """Obtém referência ao app principal."""
+        if self.main_window:
+            return self.main_window
+        # Fallback: navegar pela hierarquia
+        widget = self.master
+        while widget:
+            if hasattr(widget, "show_frame") and hasattr(widget, "_main_frame_ref"):
+                return widget
+            widget = getattr(widget, "master", None)
+        return None
+
+    def reload_passwords(self) -> None:
+        """Recarrega as senhas e atualiza a lista de clientes."""
+        self._refresh_clients_list()
 
     def on_show(self) -> None:
         """Callback chamado ao exibir a tela."""
@@ -503,9 +663,9 @@ class PasswordsScreen(tb.Frame):
             # Carregar clientes
             self.clients = self.controller.list_clients(self.org_id)
 
-            # Carregar senhas
+            # Carregar senhas e popular a lista de clientes
             self._load_all_passwords()
-            self.reload_passwords()
+            self._refresh_clients_list()
         except Exception as e:
             log.exception("Erro ao inicializar tela de senhas")
             messagebox.showerror("Erro", f"Falha ao inicializar: {e}")

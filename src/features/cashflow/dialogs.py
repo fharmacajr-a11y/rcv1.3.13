@@ -10,13 +10,17 @@ try:
 except Exception:  # fallback simples (campo texto)
     DateEntry = None  # type: ignore
 
-CATEGORIES_IN = ["Vendas", "Serviços", "Outros"]
+CATEGORIES_IN = ["Vendas", "Servi��os", "Outros"]
 CATEGORIES_OUT = ["Compra", "Impostos", "Folha", "Aluguel", "Outros"]
 
 
 class EntryDialog(Toplevel):
-    def __init__(self, master, initial: Optional[Dict[str, Any]] = None, title="Lançamento"):
+    def __init__(self, master, initial: Optional[Dict[str, Any]] = None, title="Lan��amento"):
         super().__init__(master)
+        self._init_state(initial, title)
+        self._build_form()
+
+    def _init_state(self, initial: Optional[Dict[str, Any]], title: str) -> None:
         self.title(title)
         self.resizable(False, False)
         self.grab_set()
@@ -28,6 +32,9 @@ class EntryDialog(Toplevel):
         self.var_amount = DoubleVar(value=float((initial or {}).get("amount") or 0.0))
         self.var_account = StringVar(value=(initial or {}).get("account", ""))
 
+        self.result = None
+
+    def _build_form(self) -> None:
         frm = ttk.Frame(self, padding=10)
         frm.grid(row=0, column=0, sticky="nsew")
 
@@ -49,7 +56,7 @@ class EntryDialog(Toplevel):
         self.cb_cat = ttk.Combobox(frm, textvariable=self.var_category, values=self._cats(), width=22)
         self.cb_cat.grid(row=2, column=1, sticky="ew", pady=2)
 
-        ttk.Label(frm, text="Descrição").grid(row=3, column=0, sticky="w")
+        ttk.Label(frm, text="Descri��ǜo").grid(row=3, column=0, sticky="w")
         ttk.Entry(frm, textvariable=self.var_desc).grid(row=3, column=1, sticky="ew", pady=2)
 
         ttk.Label(frm, text="Valor").grid(row=4, column=0, sticky="w")
@@ -65,8 +72,6 @@ class EntryDialog(Toplevel):
 
         frm.columnconfigure(1, weight=1)
         cb_type.bind("<<ComboboxSelected>>", lambda e: self._update_cats())
-
-        self.result = None
 
     def _cats(self):
         return CATEGORIES_IN if self.var_type.get() == "IN" else CATEGORIES_OUT
@@ -84,7 +89,7 @@ class EntryDialog(Toplevel):
             if amt <= 0:
                 raise ValueError("Valor deve ser > 0")
         except Exception:
-            messagebox.showerror("Valor inválido", "Informe um número maior que zero.")
+            messagebox.showerror("Valor invǭlido", "Informe um nǧmero maior que zero.")
             return
         self.result = {
             "type": self.var_type.get(),

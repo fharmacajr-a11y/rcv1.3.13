@@ -67,7 +67,7 @@ def _worker_upload(self, archive_path, client_id, org_id, cliente_nome, cnpj):
 
 ## 🧪 Testes
 
-### Script de Teste: `scripts/test_upload_thread.py`
+### Script de Teste: `docs/scripts/test_upload_thread.py`
 Demonstra:
 1. ✅ Modal de progresso aparece e é responsivo
 2. ✅ UI não trava durante processamento (5s)
@@ -109,7 +109,7 @@ pytest tests/test_file_select.py -v
 ### `infra/archive_utils.py`
 - Correções de whitespace (PEP 8)
 
-### `scripts/test_upload_thread.py` (novo)
+### `docs/scripts/test_upload_thread.py` (novo)
 - Script de demonstração de UI responsiva
 - 109 linhas
 

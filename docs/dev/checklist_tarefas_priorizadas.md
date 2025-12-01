@@ -1,7 +1,7 @@
 # Checklist de Tarefas Priorizadas - RC Gestor de Clientes
 
-**Data:** 20 de novembro de 2025  
-**Versão Base:** v1.2.31  
+**Data:** 23 de novembro de 2025  
+**Versão Base:** v1.2.55  
 **Branch:** qa/fixpack-04
 
 ---
@@ -71,6 +71,12 @@
     - ⚠️ `test_health_fallback.py`: Import circular pré-existente detectado (não relacionado à refatoração)
     - 📝 Commit: 729ffda
 
+- [x] **SEG-004: Aumentar cobertura do módulo de criptografia** ✅ **CONCLUÍDO**
+  - **Área:** `security/crypto.py`
+  - **Descrição:** Adicionar testes unitários para as funções de criptografia/derivação de chave usadas pelo app (criptografar/decifrar, chaves inválidas, erros).
+  - **Motivo:** Coverage estava em **19,5%** no pacote `security/` (código crítico de segurança); agora **95,1%** (superou meta de ≥ 80%), conforme documentado em `dev/cov_sec_crypto.md`.
+  - **Esforço:** 4–6h (TEST-001 + QA-003 focados em `security/crypto.py`)
+  - **Automável:** Manual (21 testes criados em `tests/test_security_crypto_fase33.py`, sem alterações em código de produção)
 
 ### Funcionalidade
 
@@ -528,9 +534,62 @@
         - Reflete uso real nos testes: `[123, "abc", None, "", "  ", 456]`
       * Validação: Pyright 0 erros, pytest 92/92 passed, suite 578 passed
       * Commit: c208cfa - Nenhuma mudança de comportamento, apenas type hints
+  - **Resultado - Microfase 11 (21/11/2025):**
+    - ✅ **Módulo:** `src/ui/files_browser/utils.py`
+    - ✅ **Alterações aplicadas:**
+      * Adicionado `from __future__ import annotations`.
+      * Type hints modernos (PEP 585/604) adicionados às funções:
+        - `sanitize_filename(name: str) -> str`
+        - `format_file_size(size: int | float | None) -> str`
+        - `resolve_posix_path(base: str, path: str) -> str`
+        - `suggest_zip_filename(path: str) -> str`
+      * Variáveis locais anotadas quando necessário para clareza de tipos.
+    - ✅ **Validação:**
+      * `python -m pyright src/ui/files_browser/utils.py tests/test_files_browser_utils_fase11.py`
+      * `python -m pytest tests/test_files_browser_utils_fase11.py -v`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+    - 📊 **Impacto:** Helpers puros do file browser agora com type hints completos e modernos, alinhados com o padrão adotado em formatters/profiles/lixeira, mantendo 100% de cobertura e sem alterações de comportamento.
   - **Próximas microfases:** Outros módulos críticos conforme necessário
     - ✅ **Coverage:** 29.41% global (≥29.39%), auditoria/service.py 84% (161/192 linhas)
     - 📊 **Impacto:** Módulo de auditoria SIFAP já estava com type hints modernos (PEP 585/604), alinhado com padrão estabelecido nas Microfases 1-8. Testes da Fase 9 (TEST-001) garantem robustez do módulo com 84% de cobertura. Nenhuma alteração necessária, validação confirmou conformidade completa com PEP 585/604
+
+- [x] **QA-LINT Fase 1: Pyright + Ruff Global (v1.2.47)** ✅ **CONCLUÍDO**
+  - **Área:** Limpeza completa de linting/type checking em `src/` e `tests/`
+  - **Descrição:** Primeira passada global de QA após conclusão de TEST-001 Fase 30
+  - **Ferramentas:**
+    - Pyright: análise estática de tipos (modo strict)
+    - Ruff: linting moderno (substitui flake8, isort, pylint)
+  - **Esforço:** 2h
+  - **Automável:** Parcial (Ruff auto-fix 91.7%, Pyright manual)
+  - **Resultado:**
+    - ✅ **Baseline pré-correção:**
+      * Pyright: 3 erros, 3 warnings
+      * Ruff: 12 erros (11 auto-fixable)
+      * Pytest: 878 passed, 2 skipped
+      * Coverage: 36.72% (baseline)
+    - ✅ **Correções aplicadas:**
+      * Ruff auto-fix: 11/12 erros resolvidos automaticamente
+      * F841 manual: Removido `result =` não usado em `test_cashflow_repository_fase28.py:475`
+      * Pyright erro #1: Ajustada assinatura `on_open_status_menu: Optional[Callable[[tk.Event], Literal["break"] | None]]` em `auditoria/views/components.py`
+      * Pyright erros #2-3: Adicionado `# type: ignore[misc]` em `ClientesFooter`/`ClientesToolbar` (alias condicional `tb.Frame`)
+      * Pyright warnings #1-2: Atribuído `_ =` em expressões descartadas (`fluxo_caixa_frame.py:232, 263`)
+      * Pyright warning #3: Substituída tupla órfã por `messagebox.showerror()` em `files_browser/main.py:1324`
+    - ✅ **Arquivos modificados:** 14 arquivos tocados
+      * Código: `auditoria/views/components.py`, `clientes/views/footer.py`, `clientes/views/toolbar.py`, `cashflow/views/fluxo_caixa_frame.py`, `ui/files_browser/main.py`, `utils/prefs.py`
+      * Testes: `test_cashflow_repository_fase28.py`, `test_auth_auth_fase12.py`, `test_core_api_clients_fase30.py`, `test_core_storage_key_fase24.py`, `test_helpers_auth_utils_fase27.py`, `test_utils_bytes_utils_fase19.py`, `test_utils_pdf_reader_fase20.py`, `test_utils_prefs_fase14.py`
+    - ✅ **Validação final:**
+      * `pyright src tests` → **0 erros, 0 warnings, 0 informations** ✨
+      * `ruff check .` → **All checks passed!** ✨
+      * `pytest` → **879 passed, 1 skipped, 1 deselected** ✅
+      * `pytest --cov` → **55.88% coverage** (acima do threshold 25%)
+    - ✅ **Estatísticas:**
+      * Issues corrigidos: 18 total (3 erros + 3 warnings Pyright, 12 erros Ruff)
+      * Taxa de sucesso auto-fix: 91.7% (11/12 Ruff)
+      * Tempo de execução: ~25 minutos (incluindo análise manual)
+      * Impacto zero em funcionalidade (todos os testes passando)
+    - 📄 **Documentação:** `docs/qa-history/resultado_qa_lint_fase01_global_lint_v1_2_47.txt`
+    - 📊 **Impacto:** Codebase 100% limpo para Pyright e Ruff, preparado para habilitar verificações em pre-commit e CI/CD. Base sólida para futuras fases QA.
 
 - [x] **QA-004: Configurar pre-commit hooks**
   - **Área:** Criar `.pre-commit-config.yaml`
@@ -618,7 +677,7 @@
 
 ### Testes
 
-- [>] **TEST-001: Aumentar cobertura para 85%+** ⏳ **FASES 1-10 CONCLUÍDAS**
+- [>] **TEST-001: Aumentar cobertura para 85%+** ⏳ **FASES 1-11 CONCLUÍDAS**
   - **Área:** Módulos com baixa cobertura
   - **Descrição:** Adicionar testes em:
     - ✅ `src/modules/cashflow/` (FASE 1)
@@ -1118,11 +1177,657 @@
       * Pyright: **0 erros, 0 warnings** em formatters.py e test_helpers_formatters_fase10.py
       * pytest focado: **57/57 passed** em tests/test_helpers_formatters_fase10.py (2.07s)
       * Suite filtrada: **578 passed, 2 skipped** (antes: 521 passed, +57 testes)
-      * Coverage global: **29.80%** (threshold 25%, +0.39pp vs Fase 9)
-      * Coverage formatters.py: **94%** (67/71 linhas, antes: 13%, +81pp)
+  - **Fase 11 - Resultados (ui/files_browser/utils - helpers puros do navegador):**
+    - ✅ **Arquivo criado:**
+      * `tests/test_files_browser_utils_fase11.py`: 26 testes para helpers do file browser (82 linhas)
+    - ✅ **Módulo testado:**
+      * `src/ui/files_browser/utils.py`: sanitize_filename, format_file_size, resolve_posix_path, suggest_zip_filename
+    - ✅ **Total:** 26 testes novos (604 testes no total global, antes: 578)
+    - ✅ **Cobertura:**
+      * Global antes: 29.80%
+      * Global depois: **29.99%** (+0.19pp)
+      * `src/ui/files_browser/utils.py`: **100%** (35/35 linhas, antes: 0%, +100pp)
+    - ✅ **Cenários testados:**
+      * sanitize_filename: caracteres inválidos substituídos, acentos preservados, remoção de espaços/pontos finais, string vazia
+      * format_file_size: None → "—", bytes negativos, limites de unidade (B/KB/MB/GB/TB), arredondamento com uma casa decimal
+      * resolve_posix_path: caminhos vazios, relativos com `..`/`.`, absolutos preservados, normalização simples mantendo formato POSIX
+      * suggest_zip_filename: extração da pasta final, fallback para "arquivos", sanitização de nomes problemáticos, manutenção de acentos
+    - ✅ **Validação:**
+      * Pyright: `python -m pyright src/ui/files_browser/utils.py tests/test_files_browser_utils_fase11.py`
+      * pytest focado: `python -m pytest tests/test_files_browser_utils_fase11.py -v`
+      * Suite filtrada: `python -m pytest -q`
+      * Coverage: `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+      * Coverage global: **29.99%** (threshold 25%, +0.19pp vs Fase 10)
+      * Coverage src/ui/files_browser/utils.py: **100%** (35/35 linhas, antes: 0%)
     - 📊 **Impacto:** Helpers de formatação agora protegidos com 94% de cobertura (+81pp), garantindo consistência em formatação de CNPJ e datas/hora usadas em toda a aplicação. Funções críticas (format_cnpj, fmt_datetime, fmt_datetime_br) totalmente testadas com edge cases, conversões de tipo, parsing robusto e idempotência. Total de 57 testes cobrindo 3 funções públicas e 1 parser interno
+  - **Fase 12 - Resultados (auth - autenticação/segurança):**
+    - ✅ **Arquivo criado:**
+      * `tests/test_auth_auth_fase12.py`: 4 testes adicionais focados em autenticação (rate limit, lockout, integração validate_credentials + hashing)
+    - ✅ **Módulo testado:**
+      * `src/core/auth/auth.py`: lógica de autenticação (validação de email/senha, rate limit, PBKDF2).
+    - ✅ **Total:** 4 testes novos (604 testes no total global, antes: 600; 603 executados com filtro -k)
+    - ✅ **Cobertura:**
+      * Global antes: 29.99%
+      * Global depois: **29.99%** (+0.00pp)
+      * `src/core/auth/auth.py`: **100%** (antes: 98%)
+    - ✅ **Cenários testados:**
+      * Rate limiting: tentativas antigas resetadas e limpeza após sucesso.
+      * Validação de credenciais: e-mail inválido incrementa contador sem chamar Supabase.
+      * Supabase: mensagens amigáveis para exceções genéricas e incremento de tentativas nessas falhas.
+      * Import opcional: fallback quando `yaml` não está disponível.
+    - ✅ **Validação:**
+      * `python -m pytest tests/test_auth_validation.py tests/test_auth_auth_fase12.py -v`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+    - 📊 **Impacto:** Módulo crítico de autenticação agora com 100% de cobertura, cobrindo fluxos de login válido, bloqueio/limpeza de tentativas, mensagens para erros de conexão e fallback seguro quando o import opcional de YAML falha, mantendo suite global verde.
+  - **Resultado - Microfase 12 (21/11/2025):**
+    - ✅ **Módulo:** `src/modules/uploads/repository.py`
+    - ✅ **Arquivos de teste revisados:**
+      * `tests/test_uploads_repository.py`
+      * `tests/test_uploads_repository_fase13.py`
+    - ✅ **Alterações aplicadas:** Nenhuma mudança de lógica; revalidação completa de type hints (PEP 585/604) e Pyright em módulo e testes, sem ajustes necessários.
+    - ✅ **Validação:**
+      * `python -m pyright src/modules/uploads/repository.py tests/test_uploads_repository.py tests/test_uploads_repository_fase13.py`
+      * `python -m pytest tests/test_uploads_repository.py tests/test_uploads_repository_fase13.py -v`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+    - 📊 **Impacto:** Repositório de uploads e seus testes revalidados com Pyright após atingir 100% de cobertura, garantindo que os novos cenários da Fase 13 não introduziram problemas de tipo e mantendo o padrão de hints modernos.
+  - **Fase 13 - Resultados (uploads/repository - repositório de uploads Supabase):**
+    - ✅ **Arquivo criado:**
+      * `tests/test_uploads_repository_fase13.py`: 21 testes adicionais focados em helpers de bucket/path e cenários de lista vazia/erro.
+    - ✅ **Módulo testado:**
+      * `src/modules/uploads/repository.py`: funções de normalização de bucket e orquestração de uploads com adapter.
+    - ✅ **Total:** 21 testes novos (625 testes no total global, antes: 604; 624 executados com filtro -k).
+    - ✅ **Cobertura:**
+      * Global antes: 29.99%
+      * Global depois: **30.29%** (+0.30pp)
+      * `src/modules/uploads/repository.py`: **100%** (antes: 44%, +56pp)
+    - ✅ **Cenários testados:**
+      * `current_user_id`/`resolve_org_id`: respostas objeto/dict, falhas, fallback de org e membership Supabase.
+      * `ensure_storage_object_absent` e `upload_local_file`: conflitos por dict/str, chamada direta ao adapter.
+      * `insert_document_record`/`insert_document_version_record`/`update_document_current_version`: sucesso e exceções quando data vazia.
+      * `normalize_bucket` e `build_storage_adapter`: normalização com/sem env, client custom vs default.
+      * `upload_items_with_adapter`: lista vazia, erros de adapter tratados como falha amigável, branch de duplicados (409/exists).
+    - ✅ **Validação:**
+      * `python -m pytest tests/test_uploads_repository.py tests/test_uploads_repository_fase13.py -v`
+      * `python -m pytest --cov=src/modules/uploads/repository.py --cov-report=term-missing tests/test_uploads_repository.py tests/test_uploads_repository_fase13.py -q`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+    - 📊 **Impacto:** Repositório de uploads agora com 100% de cobertura, incluindo normalização de bucket, integração com Supabase (org/user), prevenção de sobrescrita, inserção de documentos/versões e handling de duplicados/erros no adapter, reduzindo risco de regressão nas operações de upload.
+  - **Fase 14 - Resultados (utils/prefs - persistência de preferências):**
+    - ✅ **Arquivo criado:**
+      * `tests/test_utils_prefs_fase14.py`: 9 testes adicionais cobrindo prefs (columns, browser prefix/status).
+    - ✅ **Módulo testado:**
+      * `src/utils/prefs.py`: carga/salvamento de preferências e estado do navegador.
+    - ✅ **Total:** 9 testes novos (634 testes no total global, antes: 625; 633 executados com filtro -k).
+    - ✅ **Cobertura:**
+      * Global antes: 30.29%
+      * Global depois: **30.63%** (+0.34pp)
+      * `src/utils/prefs.py`: **83%** (antes: 44%, +39pp)
+    - ✅ **Cenários testados:**
+      * `_get_base_dir`: branch APPDATA e fallback para home com criação de diretório.
+      * `load/save_columns_visibility`: caminhos com e sem filelock, arquivo inexistente e JSON corrompido.
+      * `load/save_last_prefix`: ausência de arquivo, valores numéricos convertidos para string, JSON inválido.
+      * `load/save_browser_status_map`: ausência/JSON inválido, conversão para str, persistência de mapping.
+    - ✅ **Validação:**
+      * `python -m pytest tests/test_utils_prefs_fase14.py -v`
+      * `python -m pytest --cov=src/utils/prefs.py --cov-report=term-missing tests/test_utils_prefs_fase14.py -q`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+    - 📊 **Impacto:** Módulo de preferências agora com cobertura robusta em rotas de leitura/escrita e fallback de erros, usando apenas mocks/temp paths e mantendo comportamento inalterado.
+  - **Resultado - Microfase 14 (21/11/2025):**
+    - ? **M?dulo:** `src/utils/text_utils.py`
+    - ? **Arquivos de teste revisados:** `tests/test_utils_text_utils_fase15.py`
+    - ? **Altera??es aplicadas:** adicionado `from __future__ import annotations`, modernizados type hints (PEP 585/604) para helpers de texto/CNPJ e extra??o de campos, imports de typing atualizados e anota??es pontuais de vari?veis.
+    - ? **Valida??o:**
+      * `python -m pyright src/utils/text_utils.py tests/test_utils_text_utils_fase15.py`
+      * `python -m pytest tests/test_utils_text_utils_fase15.py -v`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+    - ?? **Impacto:** Helpers de texto/CNPJ com type hints modernos (PEP 585/604) e Pyright limpo, mantendo ~82% de cobertura e comportamento inalterado.
+  - **Resultado - Microfase 15 (21/11/2025):**
+    - ✅ **Módulo:** `src/utils/theme_manager.py`
+    - ✅ **Arquivos de teste revisados:** `tests/test_utils_theme_manager_fase16.py`
+    - ✅ **Alterações aplicadas:** `from __future__ import annotations`, hints modernizados (PEP 585/604) para gerenciador de tema, imports de typing atualizados e anotações locais pontuais.
+    - ✅ **Validação:**
+      * `python -m pyright src/utils/theme_manager.py tests/test_utils_theme_manager_fase16.py`
+      * `python -m pytest tests/test_utils_theme_manager_fase16.py -v`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+    - 📊 **Impacto:** Gerenciador de tema com type hints modernos e Pyright limpo, mantendo 100% de cobertura e comportamento inalterado.
+  - **Fase 15 - Resultados (utils/text_utils - helpers de texto/CNPJ):**
+    - ✅ **Arquivo criado:**
+      * `tests/test_utils_text_utils_fase15.py`: 15 testes adicionais cobrindo normalização, CNPJ e extração de dados.
+    - ✅ **Módulo testado:**
+      * `src/utils/text_utils.py`: helpers de texto, validação/formatação de CNPJ e extração de Razão Social via OCR.
+    - ✅ **Total:** 15 testes novos (649 testes no total global, antes: 634; 648 executados com filtro -k).
+    - ✅ **Cobertura:**
+      * Global antes: 30.62%
+      * Global depois: **31.14%** (+0.52pp)
+      * `src/utils/text_utils.py`: **82%** (antes: 23%, +59pp)
+    - ✅ **Cenários testados:**
+      * Normalização/limpeza: `fix_mojibake`, `normalize_ascii`, `clean_text`, `only_digits`, `format_cnpj`, `cnpj_is_valid`.
+      * Helpers internos: `_clean_company_name`, `_match_label`, `_is_label_only`, `_is_skip_value`, `_next_nonempty_value`.
+      * Extração: `_extract_razao_by_label`, `_extract_razao_near_cnpj`, `extract_company_fields`, `extract_cnpj_razao` com rótulos e buscas próximas ao CNPJ.
+    - ✅ **Validação:**
+      * `python -m pytest tests/test_utils_text_utils_fase15.py -v`
+      * `python -m pytest --cov=src/utils/text_utils.py --cov-report=term-missing tests/test_utils_text_utils_fase15.py -q`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+    - 📊 **Impacto:** Helpers de texto e CNPJ amplamente exercitados, cobrindo caminhos de extração de Razão Social por label e proximidade, normalização ASCII e validação/formatacão de CNPJ, reduzindo riscos em parsers de OCR.
+  - **Fase 16 - Resultados (utils/theme_manager - gerenciador de tema):**
+    - o. **Arquivo criado:** `tests/test_utils_theme_manager_fase16.py` (9 testes focados)
+    - o. **Modulo testado:** `src/utils/theme_manager.py`
+    - o. **Total:** 9 testes novos (aprox. 658 testes globais apos esta fase)
+    - o. **Cobertura:**
+      * Global antes: 31.14%
+      * Global depois: **31.40%** (+0.26pp)
+      * `src/utils/theme_manager.py`: **100%** (antes: ~34%)
+    - o. **Cenarios testados:**
+      * tema atual com cache e load_theme
+      * register/unregister de janelas, apply_theme silencioso em erro
+      * apply_all removendo janela inexistente, notificando listeners e tratando excecoes
+      * set_theme com save ok e save com excecao (cache atualizado)
+      * toggle delegando para themes.toggle_theme e reaplicando
+    - o. **Validacao:**
+      * `python -m pytest tests/test_utils_theme_manager_fase16.py -v`
+      * `python -m pytest --cov=src.utils.theme_manager --cov-report=term-missing tests/test_utils_theme_manager_fase16.py -q`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+
+  - **Fase 17 - Resultados (utils/errors - hook global de erros):**
+    - o. **Arquivo criado:** `tests/test_utils_errors_fase17.py` (5 testes focados)
+    - o. **Modulo testado:** `src/utils/errors.py`
+    - o. **Total:** 5 testes novos (aprox. 663 testes globais apos esta fase)
+    - o. **Cobertura:**
+      * Global antes: 31.40%
+      * Global depois: **31.49%** (+0.09pp)
+      * `src/utils/errors.py`: **100%** (antes: ~57%)
+    - o. **Cenarios testados:**
+      * install_global_exception_hook logando e chamando excepthook original com RC_NO_GUI_ERRORS=1
+      * exibicao de GUI quando permitido (_default_root presente, messagebox.showerror chamado)
+      * falha na exibicao de GUI registrando warning
+      * _default_root ausente acionando branch de except, mantendo chamada do hook original
+      * uninstall_global_exception_hook restaurando sys.__excepthook__
+    - o. **Validacao:**
+      * `python -m pytest tests/test_utils_errors_fase17.py -v`
+      * `python -m pytest --cov=src.utils.errors --cov-report=term-missing tests/test_utils_errors_fase17.py -q`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+
+  - **Resultado - Microfase 16 (21/11/2025):**
+    - ? **Modulo:** `src/utils/errors.py`
+    - ? **Arquivos de teste revisados:** `tests/test_utils_errors_fase17.py`
+    - ? **Alteracoes aplicadas:** from __future__ import annotations, type hints PEP 585/604 nas funcoes de hook global/GUI/log, imports typing ajustados e anotacoes locais pontuais.
+    - ? **Validacao:**
+      * `python -m pyright src/utils/errors.py tests/test_utils_errors_fase17.py`
+      * `python -m pytest tests/test_utils_errors_fase17.py -v`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+    - ?? **Impacto:** Hook global de erros com type hints modernos e Pyright limpo, mantendo 100% de cobertura e o mesmo comportamento de log/GUI/uninstall.
+
+  - **Resultado - Microfase 18 (21/11/2025):**
+    - ✅ **Modulo:** `src/utils/file_utils/bytes_utils.py`
+    - ✅ **Arquivos de teste revisados:** `tests/test_utils_bytes_utils_fase19.py`
+    - ✅ **Alteracoes aplicadas:** type hints modernizados (PEP 585/604) nas rotas de leitura/heuristica OCR de PDF, busca de cartao CNPJ e marcadores `.rc_client_id`, alias PathLike adicionado e imports typing atualizados.
+    - ✅ **Validacao:**
+      * `python -m pyright src/utils/file_utils/bytes_utils.py tests/test_utils_bytes_utils_fase19.py`
+      * `python -m pytest tests/test_utils_bytes_utils_fase19.py -v`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+    - 📊 **Impacto:** Utilitarios de bytes/PDF com type hints modernos e Pyright limpo, mantendo 89% de cobertura e comportamento inalterado.
+
+  - **Resultado - Microfase 19 (21/11/2025):
+    - ? **Modulo:** `src/core/db_manager/db_manager.py`
+    - ? **Arquivos de teste revisados:** `tests/test_core_db_manager_fase21.py`
+    - ? **Alteracoes aplicadas:** type hints modernizados (PEP 585/604) em helpers de retry/ordenacao/row->cliente e nas operacoes de list/insert/update/delete/restore de clientes, imports typing atualizados e anotacoes locais pontuais.
+    - ? **Validacao:**
+      * `python -m pyright src/core/db_manager/db_manager.py tests/test_core_db_manager_fase21.py`
+      * `python -m pytest tests/test_core_db_manager_fase21.py -v`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+    - ?? **Impacto:** Camada db_manager com type hints modernos e Pyright limpo, mantendo ~79% de cobertura em operacoes de list/get/find/insert/update/delete de clientes.
+
+  - **Resultado - Microfase 20 (21/11/2025):**
+    - ✅ **Modulo:** `src/core/session/session.py`
+    - ✅ **Arquivos de teste revisados:** `tests/test_core_session_fase22.py`
+    - ✅ **Alteracoes aplicadas:** `from __future__ import annotations`, type hints PEP 585/604 nas funcoes de sessao (get/set/clear, tokens, refresh via Supabase), imports typing atualizados e anotacoes locais pontuais.
+    - ✅ **Validacao:**
+      * `python -m pyright src/core/session/session.py tests/test_core_session_fase22.py`
+      * `python -m pytest tests/test_core_session_fase22.py -v`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+    - 📊 **Impacto:** Gestor de sessao com type hints modernos e Pyright limpo, mantendo 100% de cobertura e facilitando futuras alteracoes na logica de login/refresh.
+
+
+  - **Resultado - Microfase 21 (21/11/2025):**
+    - ?o. **Modulo:** `src/core/status_monitor.py`
+    - ?o. **Arquivos de teste revisados:** `tests/test_core_status_monitor_fase23.py`
+    - ?o. **Alteracoes aplicadas:** hints modernizados (PEP 585/604) para worker e monitor (thread/timer, bool | None), imports typing atualizados sem alterar logica.
+    - ?o. **Validacao:**
+      * `python -m pyright src/core/status_monitor.py tests/test_core_status_monitor_fase23.py`
+      * `python -m pytest tests/test_core_status_monitor_fase23.py -v`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+    - ?Y"S **Impacto:** Monitor de status com type hints PEP 604/585 alinhados, Pyright 0/0 e cobertura preservada (~81%) nos cenarios de callbacks, transicoes e start/stop.
+
+
+  - **Resultado - Microfase 22 (21/11/2025):**
+    - o. **Modulo:** `src/core/storage_key.py`
+    - o. **Arquivos de teste revisados:** `tests/test_core_storage_key_fase24.py`
+    - o. **Alteracoes aplicadas:** type hints modernizados (PEP 585/604), alias para regex como Final e lista tipada para partes, sem alterar logica.
+    - o. **Validacao:**
+      * `python -m pyright src/core/storage_key.py tests/test_core_storage_key_fase24.py`
+      * `python -m pytest tests/test_core_storage_key_fase24.py -v`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+    - o. **Cobertura/Impacto:** 100% em `storage_key.py` mantendo comportamento de sanitizacao e fallback; global ~34.55% (>=25%).
+
+  - **Fase 18 - Resultados (utils/file_utils/path_utils - helpers de paths):**
+    - o. **Arquivo criado:** `tests/test_utils_path_utils_fase18.py` (14 testes focados)
+    - o. **Modulo testado:** `src/utils/file_utils/path_utils.py`
+    - o. **Total:** 14 testes novos (aprox. 677 testes globais apos esta fase)
+    - o. **Cobertura:**
+      * Global antes: 31.52%
+      * Global depois: **32.04%** (+0.52pp)
+      * `src/utils/file_utils/path_utils.py`: **100%** (antes: ~17%)
+    - o. **Cenarios testados:**
+      * split/normalize de segmentos com barras invertidas, strings vazias e nome/children em specs
+      * ensure_dir respeitando CLOUD_ONLY, safe_copy criando pai e copiando conteudo
+      * open_folder bloqueado por cloud_only e chamando os.startfile quando permitido
+      * ensure_subtree com strings vazias, names vazios e arvores aninhadas
+      * ensure_subpastas com nomes e alias subpastas, configs len=2/len=3, fallback default e erros de os.makedirs tratados
+    - o. **Validacao:**
+      * `python -m pytest tests/test_utils_path_utils_fase18.py -v`
+      * `python -m pytest --cov=src.utils.file_utils.path_utils --cov-report=term-missing tests/test_utils_path_utils_fase18.py -q`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+
+
+  - **Fase 19 - Resultados (utils/file_utils/bytes_utils - leitura/markers de PDF):**
+    - o. **Arquivo criado:** `tests/test_utils_bytes_utils_fase19.py` (18 testes focados)
+    - o. **Modulo testado:** `src/utils/file_utils/bytes_utils.py`
+    - o. **Total:** 18 testes novos (total global: 695)
+    - o. **Cobertura:**
+      * Global antes: 32.04%
+      * Global depois: **32.90%** (+0.86pp)
+      * `src/utils/file_utils/bytes_utils.py`: **89%** (antes: ~0% - baseline sem dados coletados; ultimo relatorio conhecido ~15%)
+    - o. **Cenarios testados:**
+      * Fallbacks de leitura de PDF (PyMuPDF, pypdf e OCR) incluindo imports ausentes, paginas sem texto e limite de max_pages/dpi
+      * Heuristica de cartao CNPJ (_looks_like_cartao_cnpj e find_cartao_cnpj_pdf com max_mb)
+      * list_and_classify_pdfs com classify_document stubado
+      * Marcadores `.rc_client_id`: write_marker, read_marker_id (novo/legacy/vazio) e migrate_legacy_marker removendo arquivos antigos
+      * Helpers utilitarios: get_marker_updated_at e format_datetime para datetime/ISO/string invalida
+    - o. **Validacao:**
+      * `python -m pytest tests/test_utils_bytes_utils_fase19.py -v`
+      * `python -m pytest --cov=src.utils.file_utils.bytes_utils --cov-report=term-missing tests/test_utils_bytes_utils_fase19.py -q`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+
+  - **Fase 20 - Resultados (utils/pdf_reader - leitura de paginas com PyMuPDF):**
+    - o. **Arquivo criado:** `tests/test_utils_pdf_reader_fase20.py` (6 testes focados)
+    - o. **Modulo testado:** `src/utils/pdf_reader.py`
+    - o. **Total:** 6 testes novos (total global: 701)
+    - o. **Cobertura:**
+      * Global antes: 32.90%
+      * Global depois: **33.18%** (+0.28pp)
+      * `src/utils/pdf_reader.py`: **92%** (antes: ~0% - module-not-imported)
+    - o. **Cenarios testados:**
+      * _flatten_rawdict com join basico e erro logado
+      * read_pdf_text com falha de abertura retornando vazio
+      * limite de max_pages e fechamento garantido do documento
+      * fallback para rawdict e cast de retorno nao-string
+      * paginas com excecao em load_page sao ignoradas com warning
+    - o. **Validacao:**
+      * `python -m pytest tests/test_utils_pdf_reader_fase20.py -v`
+      * `python -m pytest --cov=src.utils.pdf_reader --cov-report=term-missing tests/test_utils_pdf_reader_fase20.py -q`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+
+  - **Fase 21 - Resultados (core/db_manager - supabase/backoff):**
+  - **Fase 22 - Resultados (core/session - gestor de sessao Supabase):**
+    - o. **Arquivo criado:** `tests/test_core_session_fase22.py` (5 testes focados)
+    - o. **Modulo testado:** `src/core/session/session.py`
+    - o. **Total:** 5 testes novos (total global: 724)
+    - o. **Cobertura:**
+      * Global antes: 34.00%
+      * Global depois: **34.15%** (+0.15pp)
+      * `src/core/session/session.py`: **100%** (antes: ~0% - module-not-imported)
+    - o. **Cenarios testados:**
+      * refresh_current_user_from_supabase sem user e com memberships (owner vs primeiro)
+      * set/clear de tokens e current_user idempotentes
+      * get_session combinando user/tokens (compat)
+    - o. **Validacao:**
+      * `python -m pytest tests/test_core_session_fase22.py -v`
+      * `python -m pytest --cov=src.core.session.session --cov-report=term-missing tests/test_core_session_fase22.py -q`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+
+  - **Fase 23 - Resultados (core/status_monitor - monitor de rede/UI):**
+    - o. **Arquivo criado:** `tests/test_core_status_monitor_fase23.py` (7 testes focados)
+    - o. **Modulo testado:** `src/core/status_monitor.py`
+    - o. **Total:** 7 testes novos (total global: 731)
+    - o. **Cobertura:**
+      * Global antes: 34.15%
+      * Global depois: **34.51%** (+0.36pp)
+      * `src/core/status_monitor.py`: **81%** (antes: ~0% - module-not-imported)
+    - o. **Cenarios testados:**
+      * estado inicial/unknown com env_text cloud/local
+      * transicoes online/offline via set_cloud_status e callback _on_net_change (scheduler e fallback)
+      * start/stop conectando worker de rede sem threads reais
+      * _NetStatusWorker._run com probe ok e probe falhando + listener com excecao
+    - o. **Validacao:**
+      * `python -m pytest tests/test_core_status_monitor_fase23.py -v`
+      * `python -m pytest --cov=src.core.status_monitor --cov-report=term-missing tests/test_core_status_monitor_fase23.py -q`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+
+
+  - **Fase 30 - Resultados (core/api/api_clients - API facade layer):**
+    - o. **Arquivo criado:** `tests/test_core_api_clients_fase30.py` (25 testes focados)
+    - o. **Modulo testado:** `src/core/api/api_clients.py`
+    - o. **Total:** 25 testes novos (total global: 881)
+    - o. **Cobertura:**
+      * Global antes: 36.40%
+      * Global depois: **36.72%** (+0.32pp)
+      * `src/core/api/api_clients.py`: **100%** (antes: 0%, 57 stmts)
+    - o. **Cenarios testados:**
+      * switch_theme: sucesso, import error, apply_theme error, root=None
+      * get_current_theme: sucesso, error fallback (flatly), import error
+      * upload_folder: sucesso, default subdir (GERAL), erro (retorna dict), sucesso parcial
+      * create_client: sucesso (retorna ID), erro (retorna None)
+      * update_client: sucesso (retorna True), erro (retorna False)
+      * delete_client: soft default, soft explicit, hard delete, erro
+      * search_clients: sucesso (lista), com org_id, vazio, query vazia, erro
+      * Edge cases: __all__ completo, mocks de funções inexistentes usando patch.object create=True
+    - o. **Validacao:**
+      * `python -m pytest tests/test_core_api_clients_fase30.py -v`
+      * `python -m pytest --cov=src.core.api.api_clients --cov-report=term-missing tests/test_core_api_clients_fase30.py -q`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+    - o. **Observacoes:**
+      * Módulo é uma facade/placeholder que delega para serviços (upload_service, clientes_service) que ainda não têm implementação completa.
+      * Testes mockam funções inexistentes usando patch.object(..., create=True) para testar a lógica de delegação e error handling.
+      * Cobertura 100% alcançada com 25 testes que validam todos os branches de sucesso/erro.
+
+  - **Fase 29 - Resultados (core/commands - command registry pattern):**
+    - o. **Arquivo criado:** `tests/test_core_commands_fase29.py` (39 testes focados)
+    - o. **Modulo testado:** `src/core/commands.py`
+    - o. **Total:** 39 testes novos (total global: 856)
+    - o. **Cobertura:**
+      * Global antes: 35.66%
+      * Global depois: **36.40%** (+0.74pp)
+      * `src/core/commands.py`: **97%** (antes: 0%, 73 stmts, 2 miss)
+    - o. **Cenarios testados:**
+      * register: comando básico, com defaults, overwrite (warning), help vazio
+      * unregister: comando existente (True), comando inexistente (False)
+      * run: básico, com kwargs, merge defaults+kwargs, comando não encontrado (KeyError), falha na execução (propagação), retorno None
+      * list_commands: registry vazio, múltiplos comandos, comandos bootstrapped (8 built-in)
+      * get_command_info: existente (name/func/help/defaults), inexistente (None), lambda
+      * Built-in commands: theme:switch, upload:folder, download:zip, trash:list/restore/purge, asset:path (limitado), client:search
+      * Edge cases: kwargs extras (TypeError), múltiplos registros (last wins), logs success/failure, KeyError mostra available
+    - o. **Validacao:**
+      * `python -m pytest tests/test_core_commands_fase29.py -v`
+      * `python -m pytest --cov=src.core.commands --cov-report=term-missing tests/test_core_commands_fase29.py -q`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+    - o. **Observacoes:**
+      * Linhas não cobertas (2/73): corpo de _asset_path (linhas 223-225) devido a conflito de parâmetro 'name' entre run(name, **kwargs) e _asset_path(name). Design limitation documentada.
+      * Cobertura saltou de 0% para 97% com 39 testes abrangentes do registry pattern.
+
+  - **Fase 28 - Resultados (features/cashflow/repository - repositório fluxo de caixa):**
+    - o. **Arquivo criado:** `tests/test_cashflow_repository_fase28.py` (37 testes focados)
+    - o. **Modulo testado:** `src/features/cashflow/repository.py`
+    - o. **Total:** 37 testes novos (total global: 817)
+    - o. **Cobertura:**
+      * Global antes: 35.56%
+      * Global depois: **35.66%** (+0.10pp)
+      * `src/features/cashflow/repository.py`: **75%** (antes: ~63%)
+    - o. **Cenarios testados:**
+      * list_entries: filtros por tipo (IN/OUT/inválido), período, texto (ilike com exceção), org_id, combinações
+      * list_entries: resultado vazio, sem atributo data, date objects, filtros None/vazios
+      * totals: apenas IN, apenas OUT, misto, lista vazia, amount None, tipo lowercase/None
+      * create_entry: sucesso, com/sem org_id, org_id já no data, sem data na resposta
+      * update_entry: sucesso, múltiplos campos, sem data na resposta
+      * delete_entry: sucesso (sem exceção)
+      * helpers: _get_client com None, _fmt_api_error com/sem code/hint, _iso com date/string
+    - o. **Validacao:**
+      * `python -m pytest tests/test_cashflow_repository_fase28.py -v`
+      * `python -m pytest --cov=src.features.cashflow.repository --cov-report=term-missing tests/test_cashflow_repository_fase28.py -v`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+    - o. **Observacoes:** Linhas não cobertas (29/118) são principalmente branches de fallback de import (linhas 11-75) difíceis de testar sem modificar ambiente.
+
+  - **Fase 27 - Resultados (helpers/auth_utils - autenticação):**
+    - o. **Arquivo criado:** `tests/test_helpers_auth_utils_fase27.py` (19 testes focados)
+    - o. **Modulo testado:** `src/helpers/auth_utils.py`
+    - o. **Total:** 19 testes novos (total global: 780)
+    - o. **Cobertura:**
+      * Global antes: 35.49%
+      * Global depois: **35.56%** (+0.07pp)
+      * `src/helpers/auth_utils.py`: **100%** (antes: ~69%)
+    - o. **Cenarios testados:**
+      * current_user_id: formato objeto/dict com user.id/uid, fallback data.user, user None/sem id, exceções
+      * resolve_org_id: org via memberships, fallback env var, sem user+env (erro), exceção em query
+      * env var com whitespace, empty string após strip, data attribute None
+      * integração leve: resolve_org_id chamando current_user_id, fluxo completo autenticado
+    - o. **Validacao:**
+      * `python -m pytest tests/test_helpers_auth_utils_fase27.py -v`
+      * `python -m pytest --cov=src.helpers.auth_utils --cov-report=term-missing tests/test_helpers_auth_utils_fase27.py -v`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+
+  - **Fase 26 - Resultados (app_status - status global da app):**
+    - o. **Arquivo criado:** `tests/test_app_status_fase26.py` (16 testes focados)
+    - o. **Modulo testado:** `src/app_status.py`
+    - o. **Total:** 16 testes novos (total global: 761)
+    - o. **Cobertura:**
+      * Global antes: 34.88%
+      * Global depois: **35.49%** (+0.61pp)
+      * `src/app_status.py`: **100%** (antes: ~0% - module-not-imported)
+    - o. **Cenarios testados:**
+      * _set_env_text preferencia/erro, _apply_status com status_dot/callback, winfo_exists false/exception
+      * leitura YAML (boa/erro), cache de config e recarga quando ausente
+      * update_net_status: probe sucesso/falha, after com excecao, worker loop rodando 1x com throttling e dispatch error
+      * threads mockadas para evitar loops reais; _apply_status e callbacks simulados
+    - o. **Validacao:**
+      * `python -m pytest tests/test_app_status_fase26.py -v`
+      * `python -m pytest --cov=src.app_status --cov-report=term-missing tests/test_app_status_fase26.py -q`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+
+
+  - **Resultado - Microfase 27 (21/11/2025):**
+    - o. **Módulo:** `src/core/commands.py`
+    - o. **Arquivos de teste revisados:** `tests/test_core_commands_fase29.py` (sem alterações necessárias, já com sintaxe moderna)
+    - o. **Alterações aplicadas:**
+      * Removido imports legados: `Dict`, `Optional` → mantido apenas `Any`, `Callable`
+      * Type hints modernizados (PEP 604/585):
+        - `_REGISTRY`: `dict[str, tuple[Callable, str, dict]]`
+        - `list_commands()`: retorno `dict[str, str]`
+        - `get_command_info()`: retorno `dict[str, Any] | None`
+        - `_upload_folder()`: retorno `dict` (minúsculo)
+        - `_download_zip()`: parâmetro `dest: str | None`, retorno `str | None`
+        - `_client_search()`: parâmetro `org_id: str | None`
+    - o. **Validação:**
+      * `python -m pyright src/core/commands.py tests/test_core_commands_fase29.py` → 0 erros, 0 warnings
+      * `python -m pytest tests/test_core_commands_fase29.py -v` → 39 passed
+      * `python -m pytest -q` → 817 passed, 2 skipped
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q` → 36.40% (≥25%)
+    - o. **Impacto:** Command registry com type hints PEP 604/585 completos e Pyright 0/0, mantendo 97% de cobertura do módulo (73 stmts, 2 miss no _asset_path devido a design limitation) e 39 testes passando. Alinhado com padrão estabelecido nas Microfases anteriores.
+
+  - **Resultado - Microfase 26 (21/11/2025):**
+    - o. **Módulo:** `src/features/cashflow/repository.py`
+    - o. **Arquivos de teste revisados:** `tests/test_cashflow_repository_fase28.py` (sem alterações necessárias, já com sintaxe moderna)
+    - o. **Alterações aplicadas:**
+      * Removido imports legados: `Dict`, `List`, `Optional` → mantido apenas `Any`
+      * Type hints modernizados (PEP 604/585):
+        - `list_entries`: parâmetros `dfrom`, `dto` com `| None`, type_filter/text/org_id com `str | None`, retorno `list[dict[str, Any]]`
+        - `totals`: parâmetros `dfrom`, `dto` com `| None`, org_id `str | None`, retorno `dict[str, float]`
+        - `create_entry`: parâmetro `data: dict[str, Any]`, org_id `str | None`, retorno `dict[str, Any]`
+        - `update_entry`: parâmetro `data: dict[str, Any]`, retorno `dict[str, Any]`
+        - `_fmt_api_error`: anotações locais `code: str | None`, `details: str`, `hint: str | None`, `msg: str`
+      * Anotações locais adicionadas em funções principais para clareza de tipos (data, rows, payload, t_in, t_out, amt)
+    - o. **Validação:**
+      * `python -m pyright src/features/cashflow/repository.py tests/test_cashflow_repository_fase28.py` → 0 erros, 0 warnings
+      * `python -m pytest tests/test_cashflow_repository_fase28.py -v` → 37 passed
+      * `python -m pytest -q` → 778 passed, 2 skipped
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q` → 35.66% (≥25%)
+    - o. **Impacto:** Repository de cashflow com type hints PEP 604/585 completos e Pyright 0/0, mantendo 75% de cobertura do módulo (118 stmts, 29 miss - principalmente fallbacks de import) e 37 testes passando. Alinhado com padrão estabelecido nas Microfases anteriores.
+
+  - **Resultado - Microfase 25 (21/11/2025):**
+    - o. **Modulo:** `src/helpers/auth_utils.py`
+    - o. **Arquivos de teste revisados:** `tests/test_helpers_auth_utils_fase27.py`
+    - o. **Alteracoes aplicadas:** type hints modernizados (PEP 604) - removido `Optional`, adotado `str | None` para current_user_id(); imports de typing removidos (mantido apenas `from __future__ import annotations`).
+    - o. **Validacao:**
+      * `python -m pyright src/helpers/auth_utils.py tests/test_helpers_auth_utils_fase27.py`
+      * `python -m pytest tests/test_helpers_auth_utils_fase27.py -v`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+    - o. **Impacto:** auth_utils com typings PEP 604 e Pyright 0/0, mantendo 100% de cobertura e 19 testes passando.
+
+  - **Resultado - Microfase 24 (21/11/2025):**
+    - o. **Modulo:** `src/app_status.py`
+    - o. **Arquivos de teste revisados:** `tests/test_app_status_fase26.py`
+    - o. **Alteracoes aplicadas:** type hints modernizados (PEP 585/604) com aliases ConfigValues/ConfigCache e colecoes tipadas, sem alterar logica.
+    - o. **Validacao:**
+      * `python -m pyright src/app_status.py tests/test_app_status_fase26.py`
+      * `python -m pytest tests/test_app_status_fase26.py -v`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+    - o. **Impacto:** app_status com typings atualizados e Pyright 0/0, mantendo 100% de cobertura e comportamento de status/worker intacto.
+
+  - **Fase 25 - Resultados (utils/subpastas_config - subpastas obrigatorias):**
+    - o. **Arquivo criado:** `tests/test_utils_subpastas_config_fase25.py` (9 testes focados)
+    - o. **Modulo testado:** `src/utils/subpastas_config.py`
+    - o. **Total:** 9 testes novos (total global: 745)
+    - o. **Cobertura:**
+      * Global antes: 34.55%
+      * Global depois: **34.88%** (+0.33pp)
+      * `src/utils/subpastas_config.py`: **100%** (antes: ~25%)
+    - o. **Cenarios testados:**
+      * flatten de listas/dicts com prefixos e normalizacao de barras/_norm
+      * carga de config explicita (YAML) com duplicates/EXTRAS
+      * caminhos inexistentes e erro de I/O retornando listas vazias
+      * obrigatorios (get_mandatory_subpastas) e join_prefix com variacoes de base/parts
+    - o. **Validacao:**
+      * `python -m pytest tests/test_utils_subpastas_config_fase25.py -v`
+      * `python -m pytest --cov=src.utils.subpastas_config --cov-report=term-missing tests/test_utils_subpastas_config_fase25.py -q`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+
+  - **Fase 24 - Resultados (core/storage_key - montagem de chaves):**
+    - o. **Arquivo criado:** `tests/test_core_storage_key_fase24.py` (5 testes focados)
+    - o. **Modulo testado:** `src/core/storage_key.py`
+    - o. **Total:** 5 testes novos (total global: 736)
+    - o. **Cobertura:**
+      * Global antes: 34.51%
+      * Global depois: **34.55%** (+0.04pp)
+      * `src/core/storage_key.py`: **100%** (antes: ~0% - module-not-imported)
+    - o. **Cenarios testados:**
+      * sanitizacao de segmentos/nomes com diacriticos, porcentagem e espacos
+      * padrao de filename fallback para valores vazios
+      * montagem de chave basica com normalizacao de barras e ignorando partes vazias
+      * fallback com hash quando regex de caracteres permitidos falha (# no nome)
+      * round-trip de entradas vazias (filename None => "arquivo")
+    - o. **Validacao:**
+      * `python -m pytest tests/test_core_storage_key_fase24.py -v`
+      * `python -m pytest --cov=src.core.storage_key --cov-report=term-missing tests/test_core_storage_key_fase24.py -q`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+
+    - o. **Arquivo criado:** `tests/test_core_db_manager_fase21.py` (18 testes focados)
+    - o. **Modulo testado:** `src/core/db_manager/db_manager.py`
+    - o. **Total:** 18 testes novos (total global: 719)
+    - o. **Cobertura:**
+      * Global antes: 33.18%
+      * Global depois: **33.98%** (+0.80pp)
+      * `src/core/db_manager/db_manager.py`: **79%** (antes: ~0% - module-not-imported)
+    - o. **Cenarios testados:**
+      * _resolve_order, _to_cliente, _current_user_email (trim/exception) e _with_retries com backoff e propagacao de erros
+      * list/get/find clientes com filtros e normalizacao de CNPJ
+      * insert_cliente com retry/fallback removendo ultima_por e consulta de fallback para id
+      * update_cliente/update_status_only retornando count e fallback sem ultima_por
+      * delete/soft_delete/restore/purge contando linhas e tratando excecao na primeira chamada
+    - o. **Validacao:**
+      * `python -m pytest tests/test_core_db_manager_fase21.py -v`
+      * `python -m pytest --cov=src.core.db_manager.db_manager --cov-report=term-missing tests/test_core_db_manager_fase21.py -q`
+      * `python -m pytest -q`
+      * `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -q`
+
   - **Meta final:** 85%+ cobertura
   - **Próximas fases:** Outros módulos de baixa cobertura conforme necessário
+
+### Coverage App Core (novo escopo)
+
+- [x] **COV-APP-CORE-BASELINE: Expandir coverage para o App Core e registrar baseline** ✅ **CONCLUÍDO**
+  - **Área:** `.coveragerc`, `pytest.ini`
+  - **Descrição:** Medir coverage oficial em `src/`, `adapters/`, `infra/`, `data/` e `security` com branch coverage ativo.
+  - **Resultado:** Baseline inicial **38,17%** do App Core (15.886 statements), com:
+    - `adapters/` → 48,5%
+    - `infra/` → 37,4%
+    - `data/` → 28,2%
+    - `security/` → 19,5%
+    - `src/` → 38,6%
+  - **Referência:** `dev/coverage_baseline_app_core.md`.
+
+- [x] **COV-SEC-001: Aumentar cobertura de `security/crypto.py`** ✅ **CONCLUÍDO**
+  - **Prioridade:** CRÍTICA (ver também **SEG-004** em P0)
+  - **Cobertura anterior:** **19,5%**
+  - **Cobertura atual:** **95,1%** (meta era ≥ 80%, superada em +15,1pp)
+  - **Objetivo alcançado:** 21 testes criados cobrindo round-trip encrypt/decrypt, entradas inválidas, chave errada/corrompida, compatibilidade com API do app, e logging de exceções.
+  - **Documentação:** `dev/cov_sec_crypto.md` (análise completa, cenários de teste, comandos executados, recomendações futuras)
+  - **Ação concluída:** Arquivo `tests/test_security_crypto_fase33.py` criado com 21 testes, type hints ajustados para `str | None` em `security/crypto.py` (eliminando warnings Pylance), sem alterações na lógica de produção.
+
+- [x] **COV-DATA-001: Aumentar cobertura de `data/supabase_repo.py`** ⚠️ **BLOQUEADO**
+  - **Prioridade:** ALTA
+  - **Cobertura atual:** **16,2%** (inalterada)
+  - **Objetivo:** atingir pelo menos **50%** de cobertura ❌ **NÃO ALCANÇADO**
+  - **Status:** ❌ **BLOQUEADO** por importação circular crítica
+  - **Problema identificado:**
+    - Ciclo de dependências: `data.supabase_repo` → `infra.supabase_client` → `src.app_core` → `adapters.storage.supabase_storage` → `infra.supabase_client`
+    - **Erro:** `ImportError: cannot import name 'supabase' from partially initialized module 'infra.supabase_client'`
+    - Qualquer tentativa de importar o módulo em testes falha antes da execução
+  - **Trabalho realizado:**
+    - ✅ Análise completa do módulo (7 funções públicas, 5 helpers)
+    - ✅ 40+ cenários de teste criados em `tests/test_data_supabase_repo_fase34.py` (não executáveis)
+    - ✅ Documentação completa do problema em `dev/cov_data_supabase_repo.md`
+    - ✅ Propostas de resolução: refatorar imports, lazy loading, dependency injection
+  - **Próximos passos:**
+    - 🔴 **CRÍTICO:** Criar issue para refatoração da importação circular (extrair `infra/supabase/shared.py`)
+    - ⚠️ Priorizar refatoração em sprint de dívida técnica
+    - ✅ Após correção, retomar COV-DATA-001
+  - **Referência:** `dev/cov_data_supabase_repo.md` (análise completa do bloqueio)
+
+- [x] **COV-INFRA-001: Aumentar cobertura de `infra/settings.py` e `infra/supabase/storage_client.py`**
+  - **Prioridade:** ALTA
+  - **Cobertura atual:** `infra/settings.py` **97.3%** ✅, `infra/supabase/storage_client.py` **87.1%** ✅
+  - **Objetivo:** levar ambos para **≥ 50%** → **CONCLUÍDO COM SUCESSO**
+  - **Ação concluída:**
+    - ✅ Criados `tests/test_infra_settings_fase35.py` (19 testes) e `tests/test_infra_storage_client_fase36.py` (28 testes)
+    - ✅ Cobertura `settings.py`: 0% → 97.3% (+97.3pp)
+    - ✅ Cobertura `storage_client.py`: 14% → 87.1% (+73.1pp)
+    - ✅ App Core coverage: 38.64% → 43.44% (+4.8pp)
+    - ✅ 47 testes passando, sem regressões
+  - **Referência:** `dev/cov_infra_settings_storage_client.md`
+  - **Nota:** Caminho correto do arquivo é `infra/supabase/storage_client.py` (corrigido nesta atualização)
+
+- [x] **COV-ADAPTERS-001: Aumentar cobertura de `adapters/storage/supabase_storage.py`** ✅ **CONCLUÍDO**
+  - **Prioridade:** MÉDIA
+  - **Cobertura anterior:** **36,8%**
+  - **Cobertura alcançada:** **78,9%** (superou meta de ≥70%)
+  - **Cenários testados:**
+    - ✅ Funções utilitárias: normalização de buckets, remoção de acentos, detecção de content-type
+    - ✅ Operações privadas: `_upload`, `_download`, `_delete`, `_list` com normalização automática
+    - ✅ Classe SupabaseStorageAdapter: todos os métodos públicos
+    - ✅ Casos extremos: edge cases, validação de erros, buckets default
+  - **Arquivo de testes:** `tests/test_adapters_supabase_storage_fase37.py` (40 testes)
+  - **Estratégia:** Mocking de sys.modules (session-scoped) para evitar circular imports
+  - **Resultado:**
+    - ✅ 40 testes criados, todos passando
+    - ✅ Cobertura: 111 stmts, 20 missed, 22 branches, 6 partial (78.9%)
+    - ✅ Sem regressões na suite completa
+    - 📄 Documentação: `dev/cov_adapters_supabase_storage.md`
 
 - [x] **TEST-002: Configurar coverage report no CI**
   - **Área:** `.github/workflows/ci.yml`
@@ -1134,16 +1839,73 @@
   - **Resultado:**
     - ✅ CI atualizada para rodar pytest com pytest-cov e --cov-fail-under=25
     - ✅ Job de testes em `.github/workflows/ci.yml` agora:
-      - Mede cobertura do código em `src/` com `--cov=src`
+      - Mede cobertura do **App Core** usando `--cov` (fontes definidas em `.coveragerc`: `src/`, `adapters/`, `infra/`, `data/`, `security/`)
       - Mostra linhas não cobertas com `--cov-report=term-missing`
       - Falha automaticamente se cobertura total < 25% (`--cov-fail-under=25`)
       - Usa `python -m pytest` para compatibilidade com venv
       - Mantém modo verbose (`-v`) para detalhamento de testes
     - ✅ `CONTRIBUTING.md` atualizado com instruções de coverage local
-    - ✅ Comando local recomendado: `python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=25 -v`
+    - ✅ Comando local recomendado: `python -m pytest --cov --cov-report=term-missing --cov-fail-under=25 -v`
     - ✅ `pytest-cov==7.0.0` já presente em `requirements-dev.txt` (sem alteração necessária)
-    - 📈 Cobertura atual: ~26% (threshold inicial em 25% para evitar falsos positivos)
+    - 📈 Cobertura atual: ~38% App Core (threshold inicial em 25% para evitar falsos positivos)
     - 🎯 Meta futura: Aumentar gradualmente para 80%+ conforme testes forem adicionados (ver TEST-001)
+
+- [x] **AUTH-BOOTSTRAP-TESTS-001: Estabilizar testes de sessão persistida em auth_bootstrap** ✅ **CONCLUÍDO**
+  - **Área:** `tests/test_auth_bootstrap_persisted_session.py`, `src/core/auth_bootstrap.py`
+  - **Descrição:** Ajustar o `DummyApp` de teste para usar o `tk_root_session` e expor `.tk`, evitando crash do Tkinter ao instanciar `LoginDialog` durante os testes de sessão persistida.
+  - **Problema anterior:** `AttributeError: 'DummyApp' object has no attribute 'tk'`
+  - **Solução:**
+    - Reutilizado fixture `tk_root_session` do `conftest.py`
+    - `DummyApp` modificado para receber `master` e expor `self.tk = master.tk`
+    - Nenhuma alteração em código de produção (apenas testes)
+  - **Resultado:**
+    - ✅ 5/5 testes de `test_auth_bootstrap_persisted_session.py` passando
+    - ✅ Sem erros de Tkinter/TclError
+    - ✅ Cobertura de `auth_bootstrap.py`: 59.3%
+  - **Referência:** `dev/fix_auth_bootstrap_persisted_session.md`
+  - **Esforço:** 1h
+  - **Automável:** Manual
+
+- [x] **FLAGS-TESTS-001: Validar estabilidade dos testes de flags / src.cli** ✅ **CONCLUÍDO**
+  - **Área:** `tests/test_flags.py`, `src/cli.py`
+  - **Descrição:** Validar e documentar a implementação correta dos testes de parsing de argumentos CLI (`--no-splash`, `--safe-mode`, `--debug`), garantindo que não há conflitos com argumentos do pytest-cov.
+  - **Implementação atual (já correta):**
+    - Import correto: `from src.cli import parse_args`
+    - Uso de `parse_args([...])` com listas explícitas de argumentos
+    - Não depende de `sys.argv` global (evita poluição do pytest)
+    - Teste de importação defensivo com try/except
+  - **Resultado:**
+    - ✅ 6/6 testes de `test_flags.py` passando
+    - ✅ Sem `ModuleNotFoundError` ou `SystemExit(2)` de argparse
+    - ✅ Cobertura de `src/cli.py`: 77.3%
+    - ✅ Validação com 71 testes incluindo os que estavam falhando: todos passaram
+  - **Observação:** Não foram necessárias correções; testes já estavam implementados corretamente desde o início
+  - **Referência:** `dev/fix_flags_tests.md`
+  - **Esforço:** 1h (validação e documentação)
+  - **Automável:** Manual
+
+- [x] **TEST-CORE-HEALTHCHECK-001: Check-up geral da suíte de testes (v1.2.64)** ✅ **CONCLUÍDO**
+  - **Área:** Testes automatizados e coverage do App Core
+  - **Descrição:** Rodar pytest/coverage na versão v1.2.64, mapear falhas e pontos fracos de cobertura, e documentar próximos "books" de testes/coverage (P2/P3).
+  - **Resultado:**
+    - ✅ Suíte completa executada: **23 falhas** identificadas
+    - ✅ Cobertura global do App Core: **43.65%** (superou meta mínima de 25%)
+    - ✅ Falhas classificadas por área:
+      - AUTH/DB (13): `test_auth_validation.py` – SQLite e rate limit
+      - FLAGS/CLI (6): `test_flags.py` – import incorreto de `src.cli`
+      - INTEGRAÇÃO (1): `test_clientes_integration.py` – RLS do Supabase
+      - UI/MENU (1): `test_menu_logout.py` – monkeypatch de logout
+      - PREFS (1): `test_prefs.py` – arquivo corrompido
+      - MÓDULOS (1): `test_modules_aliases.py` – mock de __path__
+      - AUTH/BOOTSTRAP (1): `test_auth_bootstrap_persisted_session.py`
+    - ✅ Propostos 10 "books" futuros (P1-P3):
+      - P1: AUTH-VALIDATION-TESTS-001, FLAGS-CLI-TESTS-001, CLIENTES-INTEGRATION-TESTS-001, AUTH-BOOTSTRAP-TESTS-002
+      - P2: MENU-LOGOUT-TESTS-001, PREFS-TESTS-001, MODULES-ALIASES-TESTS-001, COV-UTILS-VALIDATORS-001
+      - P3: COV-UI-THEMES-001
+    - ✅ COV-DATA-001 confirmado como BLOQUEADO (ciclo de import)
+  - **Referência:** `dev/test_suite_healthcheck_v1.2.64.md`
+  - **Esforço:** 2h (execução + análise + documentação)
+  - **Automável:** Parcial (execução sim, análise manual)
 
 ---
 
@@ -1338,6 +2100,104 @@
   - **Esforço:** 40-60h (mudança arquitetural)
   - **Automável:** Manual
 
+### Bug Fixes de Produção (FASE B)
+
+- [x] **BUG-PROD-AUTH-001: Remover dependência de importlib.reload em auth** ✅ **CONCLUÍDO**
+  - **Área:** `src/core/auth/auth.py`, `tests/test_auth_auth_fase12.py`
+  - **Descrição:** Eliminar uso de `importlib.reload()` em testes que quebrava fixtures de outros testes
+  - **Solução:** Refatorar import opcional de YAML para função `_safe_import_yaml()` testável sem reload
+  - **Arquivos modificados:**
+    - `src/core/auth/auth.py`: Novo helper `_safe_import_yaml()`
+    - `tests/test_auth_auth_fase12.py`: Teste reescrito com monkeypatch direto
+  - **Resultado:**
+    - ✅ 62 testes de auth passando juntos (test_auth_*.py)
+    - ✅ Eliminadas fixtures de reload que causavam poluição de estado
+  - **Comando de validação:** `python -m pytest tests/test_auth_auth_fase12.py tests/test_auth_bootstrap_persisted_session.py tests/test_auth_session_prefs.py tests/test_auth_validation.py -v`
+  - **Esforço:** 2h
+  - **Automável:** Manual
+
+- [x] **BUG-PROD-CLIENTES-001: Fluxo integração clientes + upload** ✅ **VALIDADO**
+  - **Área:** `tests/test_clientes_integration.py`
+  - **Descrição:** Validar que teste de integração completo passa isoladamente
+  - **Status:** Teste já estava correto - falhas eram causadas por poluição de importlib.reload
+  - **Resultado:**
+    - ✅ 2/2 testes passando em `test_clientes_integration.py`
+    - ✅ Pipeline completo (prepare → upload → finalize) funciona corretamente
+  - **Comando de validação:** `python -m pytest tests/test_clientes_integration.py -v`
+  - **Esforço:** 0h (validação apenas)
+  - **Automável:** N/A
+
+- [x] **BUG-PROD-FLAGS-001: CLI/parse_args e imports** ✅ **VALIDADO**
+  - **Área:** `tests/test_flags.py`, `src/cli.py`
+  - **Descrição:** Validar que testes de parsing de argumentos CLI passam
+  - **Status:** Testes já estavam corretos - falhas eram causadas por poluição de estado
+  - **Resultado:**
+    - ✅ 6/6 testes passando em `test_flags.py`
+    - ✅ Flags testadas: --no-splash, --safe-mode, --debug, combinações
+  - **Comando de validação:** `python -m pytest tests/test_flags.py -v`
+  - **Esforço:** 0h (validação apenas)
+  - **Automável:** N/A
+
+- [x] **BUG-PROD-MENU-LOGOUT-001: Logout no menu** ✅ **VALIDADO**
+  - **Área:** `tests/test_menu_logout.py`
+  - **Descrição:** Validar que teste de logout via menu passa
+  - **Status:** Teste já estava correto - falhas eram causadas por poluição de estado
+  - **Resultado:**
+    - ✅ 1/1 teste passando em `test_menu_logout.py`
+    - ✅ Confirmação de logout com Supabase funcionando
+  - **Comando de validação:** `python -m pytest tests/test_menu_logout.py -v`
+  - **Esforço:** 0h (validação apenas)
+  - **Automável:** N/A
+
+- [x] **BUG-PROD-MODULES-ALIASES-001: Aliases de módulos** ✅ **VALIDADO**
+  - **Área:** `tests/test_modules_aliases.py`
+  - **Descrição:** Validar que testes de aliases de serviços passam
+  - **Status:** Testes já estavam corretos - falhas eram causadas por poluição de estado
+  - **Resultado:**
+    - ✅ 7/7 testes passando em `test_modules_aliases.py`
+    - ✅ Aliases validados: clientes, lixeira, notas, uploads, forms, login, pdf_preview
+  - **Comando de validação:** `python -m pytest tests/test_modules_aliases.py -v`
+  - **Esforço:** 0h (validação apenas)
+  - **Automável:** N/A
+
+- [x] **BUG-PROD-PREFS-001: Arquivo corrompido de preferências** ✅ **VALIDADO**
+  - **Área:** `tests/test_prefs.py`
+  - **Descrição:** Validar que testes de preferências passam
+  - **Status:** Testes já estavam corretos - falhas eram causadas por poluição de estado
+  - **Resultado:**
+    - ✅ 5/5 testes passando em `test_prefs.py`
+    - ✅ Comportamento de arquivo corrompido alinhado com test_utils_prefs_fase14.py
+  - **Comando de validação:** `python -m pytest tests/test_prefs.py -v`
+  - **Esforço:** 0h (validação apenas)
+  - **Automável:** N/A
+
+- [x] **SUITE-ISOLATION-001: Infraestrutura de isolamento de testes** ✅ **IMPLEMENTADO (parcial)**
+  - **Área:** `tests/conftest.py`, `src/core/auth/auth.py`, `tests/test_prefs.py`
+  - **Descrição:** Criar infraestrutura para isolamento de estado global entre testes
+  - **Solução implementada:**
+    1. Helper `_reset_auth_for_tests()` em `src/core/auth/auth.py` para limpar rate limiting
+    2. Hook `pytest_runtest_setup()` em `conftest.py` que reseta auth antes de cada teste
+    3. Fixture autouse `isolated_prefs_dir()` que isola preferências por teste usando tmp_path
+    4. Ajuste em `test_prefs.py` para reutilizar fixture global ao invés de duplicar
+  - **Arquivos modificados:**
+    - `src/core/auth/auth.py`: Adicionado `_reset_auth_for_tests()` (3 linhas após linha 70)
+    - `tests/conftest.py`: Adicionado hook e fixture autouse (25 linhas adicionais)
+    - `tests/test_prefs.py`: Fixture `temp_prefs_dir` refatorada para reutilizar `isolated_prefs_dir`
+  - **Resultado:**
+    - ✅ Todos os 76 testes das FASES A+B passam juntos: `python -m pytest tests/test_auth_*.py tests/test_clientes_integration.py tests/test_flags.py tests/test_menu_logout.py tests/test_modules_aliases.py tests/test_prefs.py -v` → 75 passed, 1 skipped
+    - ⚠️ Suíte completa ainda tem falhas de ordem (problema conhecido de hermeticidade)
+  - **Limitação conhecida:**
+    - Quando **toda a suíte** roda (`pytest --cov`), alguns testes ainda falham por contaminação de testes que rodam ANTES deles
+    - Testes que usam `monkeypatch.setitem(sys.modules, ...)` podem deixar Mocks em sys.modules
+    - Solução completa requer refatoração de testes legados que usam monkeypatch incorretamente
+  - **Comando de validação:** `python -m pytest tests/test_auth_validation.py tests/test_auth_bootstrap_persisted_session.py tests/test_clientes_integration.py tests/test_flags.py tests/test_menu_logout.py tests/test_modules_aliases.py tests/test_prefs.py -v`
+  - **Esforço:** 8h
+  - **Automável:** Manual
+  - **Próximos passos sugeridos:**
+    - Adicionar fixture autouse para limpar MagicMocks de sys.modules de forma seletiva
+    - Refatorar testes legados que usam `sys.modules.pop()` manual
+    - Considerar pytest-xdist para execução paralela (mascara problema mas não resolve raiz)
+
 ### Limpeza e Organização
 
 - [ ] **CLEAN-001: Remover `typings/` se não usado**
@@ -1365,11 +2225,11 @@
 
 | Prioridade | Total | Área Principal |
 |------------|-------|----------------|
-| P0 🔴      | 4     | Segurança, Funcionalidade crítica |
-| P1 🟡      | 12    | Performance, Deps, Qualidade, Testes |
+| P0 🔴      | 5     | Segurança, Funcionalidade crítica |
+| P1 🟡      | 17    | Performance, Deps, Qualidade, Testes (inclui Coverage App Core) |
 | P2 🟢      | 15    | Docs, Build, Código, Ferramentas |
 | P3 ⚪      | 8     | Longo prazo, Cosmético |
-| **TOTAL**  | **39**| |
+| **TOTAL**  | **45**| |
 
 ## Recomendação de Roadmap
 
@@ -1391,5 +2251,5 @@
 
 ---
 
-**Última atualização:** 20 de novembro de 2025  
+**Última atualização:** 23 de novembro de 2025  
 **Mantenedor:** Equipe RC Gestor de Clientes

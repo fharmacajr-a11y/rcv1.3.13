@@ -279,8 +279,8 @@ def enviar_para_supabase_avancado(parent, supabase_client) -> None:
             pb.step(1)
             try:
                 prog.update_idletasks()
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Falha ao atualizar janela de progresso: %s", exc)
 
         if sources[0] == "files":
             for p in sources[1]:
@@ -295,8 +295,8 @@ def enviar_para_supabase_avancado(parent, supabase_client) -> None:
 
         try:
             prog.destroy()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao destruir janela de progresso do uploader: %s", exc)
 
         # Inserção opcional em tabela 'documents' (ignorar se schema não tiver user_id)
         # NOTA: Remova ou ajuste este bloco conforme seu schema
@@ -307,7 +307,7 @@ def enviar_para_supabase_avancado(parent, supabase_client) -> None:
             #     "bucket": bucket,
             #     "prefix": prefix
             # }).execute()
-            pass
+            log.debug("Bloco opcional de metadados nao implementado neste ambiente.")
         except Exception as e:
             # Não interrompe o fluxo por causa de schema (ex.: 'user_id' inexistente)
             log.warning("Erro ao inserir metadados em 'documents': %s", e)

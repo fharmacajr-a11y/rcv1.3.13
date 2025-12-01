@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 import tkinter as tk
 from tkinter import messagebox, ttk
 from typing import Any, Dict, Optional
@@ -157,8 +158,8 @@ class ClientPicker(tk.Toplevel):
             x = (sw - w) // 2
             y = (sh - h) // 2
             self.geometry(f"+{x}+{y}")
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao centralizar ClientPicker: %s", exc)
 
     def _clear_placeholder(self, event) -> None:
         """Limpa placeholder ao focar entry."""
@@ -176,7 +177,11 @@ class ClientPicker(tk.Toplevel):
         try:
             from data.supabase_repo import list_clients_for_picker
 
+            t0 = time.perf_counter()
+            # TODO-UI-BLOCK: heavy network in UI
             results: list[ClientRow] = list_clients_for_picker(self.org_id, limit=500)
+            t1 = time.perf_counter()
+            log.info("Senhas: consulta clientes inicial (%s linhas) em %.3fs", len(results), t1 - t0)
             self._fill_table(results)
             log.debug("ClientPicker: %s clientes carregados inicialmente", len(results))
         except Exception as e:
@@ -193,12 +198,19 @@ class ClientPicker(tk.Toplevel):
         try:
             from data.supabase_repo import list_clients_for_picker, search_clients
 
+            t0 = time.perf_counter()
             results: list[ClientRow]
             if len(query) < 2:
+                # TODO-UI-BLOCK: heavy network in UI
                 results = list_clients_for_picker(self.org_id, limit=500)
             else:
+                # TODO-UI-BLOCK: heavy network in UI
                 results = search_clients(self.org_id, query, limit=100)
 
+            t1 = time.perf_counter()
+            log.info(
+                "Senhas: consulta clientes (%s linhas, query='%s') em %.3fs", len(results), query or "<vazio>", t1 - t0
+            )
             self._fill_table(results)
 
         except Exception as e:
@@ -207,6 +219,7 @@ class ClientPicker(tk.Toplevel):
 
     def _fill_table(self, results: list[ClientRow]) -> None:
         """Preenche Treeview com resultados."""
+        t0 = time.perf_counter()
         children = self.tree.get_children()
         if children:
             self.tree.delete(*children)
@@ -215,6 +228,7 @@ class ClientPicker(tk.Toplevel):
         self._clients_data = rows
 
         if not rows:
+            log.info("Senhas: treeview clientes populada em %.3fs (0 linhas)", time.perf_counter() - t0)
             return
 
         def sort_key(row: Any) -> tuple[int, str]:
@@ -238,6 +252,7 @@ class ClientPicker(tk.Toplevel):
                 iid=str(rid) if rid else "",
                 values=(rid, razao, cnpj_fmt, nome),
             )
+        log.info("Senhas: treeview clientes populada em %.3fs (%s linhas)", time.perf_counter() - t0, len(sorted_rows))
 
     def _confirm(self) -> None:
         """Confirma selecao e fecha modal."""

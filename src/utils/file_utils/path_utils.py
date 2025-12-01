@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 from pathlib import Path
-from typing import Iterable, Mapping, Union
+from typing import Iterable, Mapping
 
 from src.config.paths import CLOUD_ONLY
 
-SubSpec = Union[str, Mapping[str, object]]
+log = logging.getLogger(__name__)
+
+SubSpec = str | Mapping[str, object]
 SubSpecList = Iterable[SubSpec]
 
 __all__ = [
@@ -38,7 +41,12 @@ def open_folder(p: str | Path) -> None:
 
     if check_cloud_only_block("Abrir pasta"):
         return
-    os.startfile(str(Path(p)))
+    if not p:
+        return
+    try:
+        os.startfile(str(Path(p)))  # nosec B606 - caminho local controlado pela aplicação
+    except OSError as exc:
+        log.warning("Falha ao abrir caminho %s: %s", p, exc)
 
 
 def _split_pathlike(s: str) -> list[str]:
@@ -74,20 +82,20 @@ def ensure_subtree(base: str | Path, spec: SubSpecList) -> None:
 
     for item in spec or []:
         if isinstance(item, str):
-            parts = _split_pathlike(item)
+            parts: list[str] = _split_pathlike(item)
             if not parts:
                 continue
-            p = base
+            p: Path = base
             for seg in parts:
                 p = p / seg
                 if not CLOUD_ONLY:
                     p.mkdir(parents=True, exist_ok=True)
             continue
 
-        name = _spec_name(item)
+        name: str = _spec_name(item)
         if not name:
             continue
-        p = base / name
+        p: Path = base / name
         if not CLOUD_ONLY:
             p.mkdir(parents=True, exist_ok=True)
         children = _spec_children(item)
@@ -132,6 +140,7 @@ def ensure_subpastas(base: str, nomes: Iterable[str] | None = None, *, subpastas
                     subs = all_paths
             final = [*subs, *extras]
         except Exception:
+            log.debug("Falha ao carregar subpastas_config; usando vazio", exc_info=True)
             final = []
 
     if not final:
@@ -140,7 +149,7 @@ def ensure_subpastas(base: str, nomes: Iterable[str] | None = None, *, subpastas
                 if not CLOUD_ONLY:
                     os.makedirs(os.path.join(base, n), exist_ok=True)
             except Exception:
-                pass
+                log.debug("Falha ao criar subpasta padrão %s em %s", n, base, exc_info=True)
         return True
 
     for rel in final:
@@ -151,6 +160,6 @@ def ensure_subpastas(base: str, nomes: Iterable[str] | None = None, *, subpastas
             if not CLOUD_ONLY:
                 os.makedirs(os.path.join(base, rel), exist_ok=True)
         except Exception:
-            pass
+            log.debug("Falha ao criar subpasta %s em %s", rel, base, exc_info=True)
 
     return True

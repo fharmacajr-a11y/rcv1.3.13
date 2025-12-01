@@ -1,7 +1,4 @@
-"""Network connectivity utilities for cloud-only mode.
-
-Provides internet connectivity checking with GUI alerts when running in cloud-only mode.
-"""
+"""Utilidades de conectividade para modo cloud-only, com checagem e alerta GUI."""
 
 from __future__ import annotations
 
@@ -10,7 +7,7 @@ import os
 import socket
 import urllib.request
 from typing import Final
-from urllib.error import URLError, HTTPError
+from urllib.error import HTTPError, URLError
 
 logger = logging.getLogger(__name__)
 
@@ -19,21 +16,25 @@ SOCKET_TEST_HOST = ("8.8.8.8", 53)
 
 
 def _socket_check(timeout: float) -> bool:
+    """Tenta abrir socket TCP para o host de teste; retorna True em sucesso, False em erro."""
     try:
         with socket.create_connection(SOCKET_TEST_HOST, timeout=timeout):
             return True
     except OSError as exc:
         # Se for WinError 10013, é típico de firewall/VPN bloqueando esse tipo de socket.
         if getattr(exc, "winerror", None) == 10013:
-            logger.warning("Internet connectivity check blocked by local policy (WinError 10013). " "Will try HTTP fallback.")
+            logger.warning(
+                "Internet connectivity check blocked by local policy (WinError 10013). " "Will try HTTP fallback."
+            )
         else:
             logger.warning("Internet connectivity check failed (socket): %s", exc)
         return False
 
 
 def _http_check(timeout: float) -> bool:
-    # Lista simples de URLs genéricas para teste de conectividade HTTP.
-    # Usar apenas sites públicos amplamente alcançáveis; todos via HTTPS.
+    """Realiza HEAD em URLs whitelisted para confirmar conectividade HTTP (fallback)."""
+    # Lista simples de URLs genericas para teste de conectividade HTTP.
+    # Usar apenas sites publicos amplamente alcancaveis; todos via HTTPS.
     test_urls = [
         "https://clients3.google.com/generate_204",
         "https://www.google.com",
@@ -43,7 +44,8 @@ def _http_check(timeout: float) -> bool:
     for url in test_urls:
         try:
             req = urllib.request.Request(url, method="HEAD")
-            with urllib.request.urlopen(req, timeout=timeout):
+            # URLs são constantes/whitelist, sem entrada do usuário (safe)
+            with urllib.request.urlopen(req, timeout=timeout):  # nosec B310
                 # Se conseguimos obter qualquer resposta HTTP, consideramos que há internet.
                 return True
         except (URLError, HTTPError, OSError) as exc:
@@ -53,17 +55,7 @@ def _http_check(timeout: float) -> bool:
 
 
 def check_internet_connectivity(timeout: float = 1.0) -> bool:
-    """Check if internet is available by attempting a socket connection.
-
-    Uses DNS (8.8.8.8:53) as a lightweight check without sending HTTP traffic.
-    Optimized with aggressive timeout (1s) for fast startup.
-
-    Args:
-        timeout: Connection timeout in seconds (default: 1.0 for fast startup)
-
-    Returns:
-        True if internet is available, False otherwise
-    """
+    """Verifica conectividade tentando socket e fallback HTTP, respeitando RC_NO_NET_CHECK."""
     # Skip check if RC_NO_NET_CHECK=1 (for testing)
     if os.getenv("RC_NO_NET_CHECK") == "1":
         logger.debug("Network check bypassed (RC_NO_NET_CHECK=1)")

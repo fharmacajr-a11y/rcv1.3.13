@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple, Any
+import logging
+from typing import Any, Dict, List, Optional, Tuple
 
 try:
     import fitz  # type: ignore
 except Exception:  # pragma: no cover - ambiente sem PyMuPDF
     fitz = None  # type: ignore
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -50,8 +53,8 @@ class PdfRasterService:
         try:
             if self._doc is not None:
                 self._doc.close()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao fechar documento PDF: %s", exc)
 
     # --- Atributos auxiliares -----------------------------------------------
     @property

@@ -22,6 +22,9 @@ backup_*/
 .env.*
 !.env.example
 
+# Chave da API OpenAI (não versionar)
+config/openai_key.txt
+
 # Build e distribuição (PyInstaller)
 build/
 dist/
@@ -73,3 +76,15 @@ migrations/*.sql~
 # Relatórios locais do pip-audit (workflow security-audit)
 audit-report.json
 audit-report.md
+
+# Ferramentas de analise / coverage
+.coverage
+coverage.xml
+htmlcov/
+reports/
+bandit_.txt
+bandit_.csv
+bandit_.json
+ruff_.json
+pyright_.json
+pyright_final.json

@@ -2,19 +2,37 @@
 from __future__ import annotations
 
 import contextlib
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Protocol
+
+
+class UserChangeCallback(Protocol):
+    """Representa callbacks disparados quando o usuário autenticado muda."""
+
+    def __call__(self, username: Optional[str]) -> None:  # pragma: no cover - protocolo trivial
+        ...
+
+
+UserData = Dict[str, Any]
 
 
 class AuthController:
-    def __init__(self, on_user_change: Optional[Callable[[Optional[str]], None]] = None) -> None:
-        self._user: Optional[str] = None
-        self._user_data: Optional[Dict[str, Any]] = None  # Dados completos do usuário
+    """Gerencia o usuário autenticado no cliente."""
+
+    _user: Optional[str]
+    _user_data: Optional[UserData]
+    _on_user_change: Optional[UserChangeCallback]
+
+    def __init__(self, on_user_change: Optional[UserChangeCallback] = None) -> None:
+        self._user = None
+        self._user_data = None  # Dados completos do usuário
         self._on_user_change = on_user_change
 
     def current_user(self) -> Optional[str]:
+        """Retorna o e-mail/identificador do usuário atual."""
         return self._user
 
     def set_current_user(self, username: Optional[str]) -> None:
+        """Atualiza o usuário atual e dispara integrações auxiliares."""
         self._user = username or None
         # integração best-effort com sessão, se existir
         with contextlib.suppress(Exception):
@@ -25,13 +43,8 @@ class AuthController:
             with contextlib.suppress(Exception):
                 self._on_user_change(self._user)
 
-    def set_user_data(self, user_data: Optional[Dict[str, Any]]) -> None:
-        """
-        Define dados completos do usuário após login bem-sucedido.
-
-        Args:
-            user_data: Dict com email, org_id, etc.
-        """
+    def set_user_data(self, user_data: Optional[UserData]) -> None:
+        """Define dados completos do usuário após login bem-sucedido."""
         self._user_data = user_data or None
         if user_data and user_data.get("email"):
             self._user = user_data.get("email")
@@ -84,11 +97,13 @@ class AuthController:
             return None
 
     def clear(self) -> None:
+        """Limpa dados e usuário atual."""
         self._user_data = None
         self.set_current_user(None)
 
     # helper para fluxos que exigem login
     def require(self, launcher: Callable[[], Optional[str]]) -> Optional[str]:
+        """Garante que um usuário exista; dispara launcher se necessário."""
         if self._user:
             return self._user
         user = None

@@ -5,12 +5,15 @@ Dialogo simples para definir subpastas de clientes.
 
 from __future__ import annotations
 
+import logging
 import tkinter as tk
 from tkinter import ttk
 from typing import Optional
 
 from src.ui.utils import center_on_parent
 from src.utils.resource_path import resource_path
+
+logger = logging.getLogger(__name__)
 
 try:
     from src.utils.validators import sanitize_key_component as _sanitize_key_component
@@ -36,8 +39,8 @@ class SubpastaDialog(tk.Toplevel):
         self.resizable(False, False)
         try:
             self.iconbitmap(resource_path("rc.ico"))
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao aplicar iconbitmap no SubpastaDialog: %s", exc)
 
         frm = ttk.Frame(self, padding=12)
         frm.pack(fill="both", expand=True)
@@ -67,8 +70,8 @@ class SubpastaDialog(tk.Toplevel):
         try:
             self.update_idletasks()
             center_on_parent(self, parent)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao centralizar SubpastaDialog: %s", exc)
 
         self.deiconify()
         self.grab_set()
@@ -96,18 +99,20 @@ class SubpastaDialog(tk.Toplevel):
     def protocol(self, name=None, func=None):
         try:
             return super().protocol(name, func)
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao registrar protocolo no SubpastaDialog: %s", exc)
             return None
 
 
 def _attach_close_handler(dlg: SubpastaDialog) -> None:
     try:
         dlg.protocol("WM_DELETE_WINDOW", dlg._on_close)
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Falha ao atribuir handler direto de fechamento: %s", exc)
         try:
             dlg.protocol("WM_DELETE_WINDOW", lambda: dlg._on_close())
-        except Exception:
-            pass
+        except Exception as inner_exc:  # noqa: BLE001
+            logger.debug("Falha ao atribuir handler alternativo de fechamento: %s", inner_exc)
 
 
 def _ask_subpasta_nome(parent: tk.Misc, default: str = "") -> Optional[str]:

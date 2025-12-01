@@ -7,7 +7,7 @@ import importlib
 import logging
 import os
 from tkinter import messagebox
-from typing import Any, Sequence
+from typing import Any, Sequence, Tuple
 
 from src.config.paths import CLOUD_ONLY
 from src.modules.clientes.service import get_cliente_by_id, mover_cliente_para_lixeira
@@ -44,6 +44,7 @@ MARKER_NAME = ".rc_client_id"
 
 
 def _safe_messagebox(method: str, *args: Any, **kwargs: Any) -> Any:
+    """Invoca messagebox.<method> em modo best-effort, ignorando falhas em ambientes sem GUI."""
     func = getattr(messagebox, method, None)
     if callable(func):
         try:
@@ -53,7 +54,8 @@ def _safe_messagebox(method: str, *args: Any, **kwargs: Any) -> Any:
     return None
 
 
-def _resolve_cliente_row(pk: int) -> Sequence[Any] | None:
+def _resolve_cliente_row(pk: int) -> Tuple[Any, ...] | None:
+    """Carrega do Supabase os dados necessários para popular o formulário de cliente."""
     try:
         cliente = get_cliente_by_id(pk)
     except Exception:
@@ -78,6 +80,7 @@ def _resolve_cliente_row(pk: int) -> Sequence[Any] | None:
 # CRUD
 # ---------------------------------------------------------------------------
 def novo_cliente(app: Any) -> None:
+    """Abre o formulário para cadastro de um novo cliente."""
     log.info("Opening form for new client")
 
     from src.modules.forms.view import form_cliente
@@ -86,6 +89,7 @@ def novo_cliente(app: Any) -> None:
 
 
 def editar_cliente(app: Any, pk: int) -> None:
+    """Abre o formulário de edição para o cliente informado."""
     log.info("Opening edit form for client id=%s", pk)
     from src.modules.forms.view import form_cliente
 
@@ -93,18 +97,19 @@ def editar_cliente(app: Any, pk: int) -> None:
     if row:
         form_cliente(app, row)
     else:
-        _safe_messagebox("showerror", "Cliente", "Registro nao encontrado no Supabase.")
+        _safe_messagebox("showerror", "Cliente", "Registro não encontrado no Supabase.")
 
 
 def excluir_cliente(app: Any, selected_values: Sequence[Any]) -> None:
+    """Move um cliente selecionado para a lixeira após confirmação do usuário."""
     if not selected_values:
-        _safe_messagebox("showwarning", "Atencao", "Selecione um cliente primeiro.")
+        _safe_messagebox("showwarning", "Atenção", "Selecione um cliente primeiro.")
         return
 
     try:
         client_id = int(selected_values[0])
     except (TypeError, ValueError):
-        _safe_messagebox("showerror", "Erro", "Selecao invalida (ID ausente).")
+        _safe_messagebox("showerror", "Erro", "Seleção inválida (ID ausente).")
         log.error("Invalid selected_values for exclusion: %s", selected_values)
         return
 
@@ -226,6 +231,7 @@ def abrir_pasta_cliente(pk: int) -> str | None:
 
 
 def abrir_pasta(app: Any, pk: int) -> None:
+    """Abre o explorador de arquivos apontando para a pasta local do cliente."""
     if NO_FS:
         _safe_messagebox(
             "showinfo",
@@ -242,12 +248,13 @@ def abrir_pasta(app: Any, pk: int) -> None:
 
         if check_cloud_only_block("Abrir pasta do cliente"):
             return
-        os.startfile(path)  # type: ignore[attr-defined]
+        os.startfile(path)  # type: ignore[attr-defined]  # nosec B606 - abre pasta local controlada pelo app
     except Exception:
         log.exception("Failed to open file explorer for %s", path)
 
 
 def ver_subpastas(app: Any, pk: int) -> None:
+    """Abre a UI de subpastas locais configuradas para o cliente."""
     if NO_FS:
         _safe_messagebox(
             "showinfo",
@@ -273,6 +280,7 @@ def ver_subpastas(app: Any, pk: int) -> None:
 # Lixeira (trash)
 # ---------------------------------------------------------------------------
 def abrir_lixeira_ui(app: Any, *args: Any, **kwargs: Any) -> None:
+    """Localiza e abre a janela da Lixeira, armazenando o handle no app."""
     log.info("Opening Lixeira UI window")
     abrir_fn = _module_abrir_lixeira
 

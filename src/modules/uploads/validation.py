@@ -6,7 +6,7 @@ import mimetypes
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable, Sequence, TypeVar
+from typing import Callable, Iterator, Sequence, TypeVar
 
 from src.core.storage_key import make_storage_key, storage_slug_filename, storage_slug_part
 
@@ -27,7 +27,7 @@ class PreparedUploadEntry:
 
 
 def ensure_existing_folder(folder: str | Path) -> Path:
-    """Resolve folder path and ensure it exists."""
+    """Resolve a folder path and ensure it exists."""
 
     base = Path(folder).resolve()
     if not base.exists():
@@ -35,7 +35,7 @@ def ensure_existing_folder(folder: str | Path) -> Path:
     return base
 
 
-def iter_local_files(base: Path) -> Iterable[Path]:
+def iter_local_files(base: Path) -> Iterator[Path]:
     """Yield every file contained in a directory recursively."""
 
     for item in base.rglob("*"):
@@ -43,8 +43,8 @@ def iter_local_files(base: Path) -> Iterable[Path]:
             yield item
 
 
-def guess_mime(path: Path) -> str:
-    """Guess MIME type for a local file."""
+def guess_mime(path: Path | str) -> str:
+    """Guess MIME type for a local file, falling back to octet-stream."""
 
     mime_type, _ = mimetypes.guess_type(str(path))
     return mime_type or "application/octet-stream"
@@ -60,6 +60,7 @@ def normalize_relative_path(relative: str) -> str:
 
 
 def _split_relative_path(relative_path: str, fallback_name: str) -> tuple[list[str], str]:
+    """Split a relative path into directory segments and filename, with fallback."""
     segments_raw = [segment for segment in relative_path.split("/") if segment]
     if segments_raw:
         filename_raw = segments_raw[-1]
@@ -71,6 +72,7 @@ def _split_relative_path(relative_path: str, fallback_name: str) -> tuple[list[s
 
 
 def _sanitize_directory_segments(dir_segments: Sequence[str]) -> list[str]:
+    """Keep only sanitized, non-empty directory segments."""
     sanitized: list[str] = []
     for segment in dir_segments:
         cleaned = storage_slug_part(segment)

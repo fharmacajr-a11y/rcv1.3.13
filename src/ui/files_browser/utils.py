@@ -6,6 +6,8 @@ Funções auxiliares puras (sem estado) que podem ser usadas
 independentemente da janela principal.
 """
 
+from __future__ import annotations
+
 import re
 from pathlib import PurePosixPath
 
@@ -24,17 +26,17 @@ def sanitize_filename(name: str) -> str:
         >>> sanitize_filename('arquivo:invalido?.txt')
         'arquivo_invalido_.txt'
     """
-    invalid_chars = r'[<>:"/\\|?*]'
-    s = re.sub(invalid_chars, "_", name).strip()
-    return s.rstrip(" .")
+    invalid_chars: str = r'[<>:"/\\|?*]'
+    sanitized: str = re.sub(invalid_chars, "_", name).strip()
+    return sanitized.rstrip(" .")
 
 
-def format_file_size(bytes_val: int | None) -> str:
+def format_file_size(size: int | float | None) -> str:
     """
     Formata tamanho de arquivo em formato legível.
 
     Args:
-        bytes_val: Tamanho em bytes (None para pastas)
+        size: Tamanho em bytes (None para pastas)
 
     Returns:
         String formatada (ex: "1.5 MB", "—" para pastas)
@@ -45,31 +47,31 @@ def format_file_size(bytes_val: int | None) -> str:
         >>> format_file_size(None)
         '—'
     """
-    if bytes_val is None:
+    if size is None:
         return "—"
-    if bytes_val == 0:
+    if size == 0:
         return "0 B"
 
-    units = ["B", "KB", "MB", "GB", "TB"]
-    size = float(bytes_val)
-    unit_index = 0
+    units: list[str] = ["B", "KB", "MB", "GB", "TB"]
+    size_value: float = float(size)
+    unit_index: int = 0
 
-    while size >= 1024 and unit_index < len(units) - 1:
-        size /= 1024
+    while size_value >= 1024 and unit_index < len(units) - 1:
+        size_value /= 1024
         unit_index += 1
 
     if unit_index == 0:
-        return f"{int(size)} {units[unit_index]}"
-    return f"{size:.1f} {units[unit_index]}"
+        return f"{int(size_value)} {units[unit_index]}"
+    return f"{size_value:.1f} {units[unit_index]}"
 
 
-def resolve_posix_path(base: str, relative: str) -> str:
+def resolve_posix_path(base: str, path: str) -> str:
     """
     Resolve caminho relativo contra uma base POSIX.
 
     Args:
         base: Caminho base (ex: "org/client")
-        relative: Caminho relativo (ex: "../other" ou "subfolder")
+        path: Caminho relativo (ex: "../other" ou "subfolder")
 
     Returns:
         Caminho resolvido (normalizado, sem ..)
@@ -80,12 +82,12 @@ def resolve_posix_path(base: str, relative: str) -> str:
         >>> resolve_posix_path("org/client", "")
         'org/client'
     """
-    if not relative or relative == ".":
+    if not path or path == ".":
         return base.strip("/")
 
     # Usar PurePosixPath para resolver .. e .
-    base_path = PurePosixPath(base)
-    rel_path = PurePosixPath(relative)
+    base_path: PurePosixPath = PurePosixPath(base)
+    rel_path: PurePosixPath = PurePosixPath(path)
 
     # Se relativo for absoluto, retorna ele mesmo
     if rel_path.is_absolute():
@@ -96,12 +98,12 @@ def resolve_posix_path(base: str, relative: str) -> str:
     return resolved.strip("/")
 
 
-def suggest_zip_filename(prefix_path: str) -> str:
+def suggest_zip_filename(path: str) -> str:
     """
     Sugere nome para arquivo ZIP baseado no caminho.
 
     Args:
-        prefix_path: Caminho da pasta a ser zipada
+        path: Caminho da pasta a ser zipada
 
     Returns:
         Nome sugerido para o ZIP (sem extensão)
@@ -112,10 +114,10 @@ def suggest_zip_filename(prefix_path: str) -> str:
         >>> suggest_zip_filename("org/client/")
         'arquivos'
     """
-    parts = [p for p in prefix_path.strip("/").split("/") if p]
+    parts: list[str] = [p for p in path.strip("/").split("/") if p]
     if not parts:
         return "arquivos"
 
     # Pegar última parte não-vazia
-    folder_name = parts[-1]
+    folder_name: str = parts[-1]
     return sanitize_filename(folder_name) or "arquivos"

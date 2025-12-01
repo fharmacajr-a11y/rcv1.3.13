@@ -10,12 +10,18 @@ log = logging.getLogger(__name__)
 def bind_postgrest_auth_if_any(client: Client) -> None:
     """
     Aplica o access_token atual no PostgREST do mesmo client.
-    Se não houver token, retorna silenciosamente (leituras podem degradar).
-    Se falhar ao aplicar, loga WARNING mas não estoura exceção.
+
+    Args:
+        client: Cliente Supabase para aplicar autenticação no PostgREST
+
+    Note:
+        - Se não houver token, retorna silenciosamente (leituras podem degradar)
+        - Se falhar ao aplicar, loga WARNING mas não estoura exceção (graceful degradation)
+        - O token é obtido via _get_access_token do módulo data.auth_bootstrap
     """
     from data.auth_bootstrap import _get_access_token
 
-    token = _get_access_token(client)
+    token: str | None = _get_access_token(client)
     if not token:
         log.debug("bind_postgrest_auth_if_any: sem token para aplicar")
         return

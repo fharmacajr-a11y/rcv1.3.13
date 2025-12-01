@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 import time
 import tkinter as tk
 from tkinter import ttk
-from typing import Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from .main_frame import _ProgressState
@@ -39,7 +42,9 @@ class UploadProgressDialog:
         self._status_label = ttk.Label(self._window, text="0% — 0/0 itens", font=("-size", 9))
         self._status_label.pack(padx=20, pady=(0, 4))
 
-        self._eta_label = ttk.Label(self._window, text="00:00:00 restantes @ 0.0 MB/s", font=("-size", 9), foreground="#666")
+        self._eta_label = ttk.Label(
+            self._window, text="00:00:00 restantes @ 0.0 MB/s", font=("-size", 9), foreground="#666"
+        )
         self._eta_label.pack(padx=20, pady=(0, 16))
 
         self._cancel_button = ttk.Button(self._window, text="Cancelar", command=self._on_cancel)
@@ -80,8 +85,8 @@ class UploadProgressDialog:
         if self._window is not None:
             try:
                 self._window.destroy()
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Falha ao destruir UploadProgressDialog: %s", exc)
             finally:
                 self._window = None
 
@@ -159,7 +164,9 @@ class DuplicatesDialog(tk.Toplevel):
         tree_frame.pack(fill="both", expand=True)
 
         height = min(len(sample_names[:20]), 10)
-        self.tree_sample = ttk.Treeview(tree_frame, columns=("arquivo",), show="tree headings", height=height, selectmode="none")
+        self.tree_sample = ttk.Treeview(
+            tree_frame, columns=("arquivo",), show="tree headings", height=height, selectmode="none"
+        )
         self.tree_sample.heading("#0", text="")
         self.tree_sample.heading("arquivo", text="Arquivo", anchor="w")
         self.tree_sample.column("#0", width=0, stretch=False)

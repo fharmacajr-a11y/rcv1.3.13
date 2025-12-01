@@ -17,10 +17,14 @@ get_passwords = passwords_repository.get_passwords
 create_password = passwords_repository.create_password
 update_password_by_id = passwords_repository.update_password_by_id
 delete_password_by_id = passwords_repository.delete_password_by_id
+find_duplicate_password_by_service = passwords_repository.find_duplicate_password_by_service
+delete_all_passwords_for_client = passwords_repository.delete_all_passwords_for_client
 
 __all__ = [
     "get_passwords",
     "create_password",
     "update_password_by_id",
     "delete_password_by_id",
+    "find_duplicate_password_by_service",
+    "delete_all_passwords_for_client",
 ]

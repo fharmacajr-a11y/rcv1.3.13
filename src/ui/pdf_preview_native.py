@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import logging
 import tkinter as tk
 
 from src.modules.pdf_preview.views.main_window import PdfViewerWin
+
+_log = logging.getLogger(__name__)
 
 
 def _center_modal(window: tk.Toplevel, parent: tk.Misc | None) -> None:
@@ -14,9 +17,9 @@ def _center_modal(window: tk.Toplevel, parent: tk.Misc | None) -> None:
             if not parent or not parent.winfo_exists():
                 window.tk.call("tk::PlaceWindow", str(window), "center")
                 return
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
             # se não estiver disponível, seguimos com o cálculo manual abaixo
-            pass
+            _log.debug("Falha ao usar tk::PlaceWindow: %s", exc)
         width = window.winfo_width() or window.winfo_reqwidth()
         height = window.winfo_height() or window.winfo_reqheight()
 
@@ -38,8 +41,8 @@ def _center_modal(window: tk.Toplevel, parent: tk.Misc | None) -> None:
             x = max(0, (screen_w - width) // 2)
             y = max(0, (screen_h - height) // 2)
         window.geometry(f"{width}x{height}+{x}+{y}")
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        _log.debug("Falha ao centralizar modal: %s", exc)
 
 
 def open_pdf_viewer(
@@ -71,12 +74,12 @@ def open_pdf_viewer(
     if parent:
         try:
             win.transient(parent)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao tornar pdf_viewer transient: %s", exc)
     _center_modal(win, parent)
     try:
         win.grab_set()
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        _log.debug("Falha ao definir grab_set em pdf_viewer: %s", exc)
     win.focus_canvas()
     return win

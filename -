@@ -1,0 +1,62 @@
+# -*- coding: utf-8 -*-
+"""Testes do comportamento de minimização do LoginDialog."""
+
+from __future__ import annotations
+
+import tkinter as tk
+
+import pytest
+
+from src.ui import login_dialog as login_dialog_module
+
+
+@pytest.fixture
+def tk_root() -> tk.Tk:
+    """Cria root Tk mínimo para testes de janela de login."""
+    try:
+        root = tk.Tk()
+    except tk.TclError as exc:  # pragma: no cover - ambiente sem Tk
+        pytest.skip(f"Tk indisponível para testes de janela de login: {exc}")
+    root.withdraw()
+    yield root
+    try:
+        root.update_idletasks()
+    except tk.TclError:
+        pass
+    for child in root.winfo_children():
+        try:
+            child.destroy()
+        except tk.TclError:
+            pass
+    try:
+        root.destroy()
+    except tk.TclError:
+        pass
+
+
+def test_login_dialog_can_iconify_and_deiconify(tk_root: tk.Tk) -> None:
+    """LoginDialog deve aceitar iconify/deiconify sem quebrar."""
+    try:
+        dlg = login_dialog_module.LoginDialog(tk_root)
+    except tk.TclError as exc:
+        pytest.skip(f"Tk indisponivel para LoginDialog (window_state): {exc}")
+    try:
+        dlg.update_idletasks()
+
+        dlg.iconify()
+        dlg.update_idletasks()
+
+        state_after_iconify = dlg.state().lower()
+        assert state_after_iconify in {"iconic", "withdrawn"}
+
+        dlg.deiconify()
+        dlg.update_idletasks()
+
+        state_after_restore = dlg.state().lower()
+        assert state_after_restore == "normal"
+    finally:
+        try:
+            dlg.grab_release()
+        except tk.TclError:
+            pass
+        dlg.destroy()

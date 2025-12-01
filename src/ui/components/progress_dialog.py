@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 import tkinter as tk
 from tkinter import ttk
 
 from src.ui.utils import center_on_parent
 from src.utils.resource_path import resource_path
+
+logger = logging.getLogger(__name__)
 
 
 class BusyDialog(tk.Toplevel):
@@ -21,8 +24,8 @@ class BusyDialog(tk.Toplevel):
         self.protocol("WM_DELETE_WINDOW", lambda: None)  # não fecha
         try:
             self.iconbitmap(resource_path("rc.ico"))
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao aplicar iconbitmap no BusyDialog: %s", exc)
 
         body = ttk.Frame(self, padding=12)
         body.pack(fill="both", expand=True)
@@ -37,8 +40,8 @@ class BusyDialog(tk.Toplevel):
         try:
             self.update_idletasks()
             center_on_parent(self, parent)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao centralizar BusyDialog: %s", exc)
 
         self.deiconify()
         self._pb.start(12)
@@ -46,8 +49,8 @@ class BusyDialog(tk.Toplevel):
         try:
             self.attributes("-topmost", True)
             self.after(50, lambda: self.attributes("-topmost", False))
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao ajustar topmost do BusyDialog: %s", exc)
         self.update()
 
         # estado para modo determinado
@@ -58,8 +61,8 @@ class BusyDialog(tk.Toplevel):
         try:
             self._lbl.configure(text=txt)
             self.update_idletasks()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao atualizar mensagem do BusyDialog: %s", exc)
 
     def set_total(self, total: int) -> None:
         """Troca para modo determinado com 'total' passos."""
@@ -69,8 +72,8 @@ class BusyDialog(tk.Toplevel):
             self._pb.stop()
             self._pb.configure(mode="determinate", maximum=self._det_total, value=0)
             self.update_idletasks()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao configurar progresso determinado: %s", exc)
 
     def step(self, inc: int = 1) -> None:
         try:
@@ -78,15 +81,15 @@ class BusyDialog(tk.Toplevel):
                 self._det_value = min(self._det_total, self._det_value + inc)
                 self._pb.configure(value=self._det_value)
             self.update_idletasks()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao avançar BusyDialog: %s", exc)
 
     def close(self) -> None:
         try:
             self._pb.stop()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao parar progress bar do BusyDialog: %s", exc)
         try:
             self.destroy()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao destruir BusyDialog: %s", exc)

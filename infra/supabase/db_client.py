@@ -4,7 +4,7 @@ import logging
 import os
 import threading
 import time
-from typing import Any, TypeVar
+from typing import Any, Final, TypeVar
 
 from supabase import Client, ClientOptions, create_client  # type: ignore[import-untyped]
 
@@ -15,55 +15,59 @@ from infra.supabase.http_client import HTTPX_CLIENT, HTTPX_TIMEOUT_LIGHT
 # Type variable for PostgREST responses
 T = TypeVar("T")
 
+# Type aliases
+HealthState = tuple[str, str]  # (estado, descrição)
+UiStatusTuple = tuple[str, str, str]  # (texto, estilo, tooltip)
+
 log = logging.getLogger(__name__)
 
+# Singleton state
 _SUPABASE_SINGLETON: Client | None = None
 _SINGLETON_REUSE_LOGGED: bool = False
-_SINGLETON_LOCK = threading.Lock()
+_SINGLETON_LOCK: Final[threading.Lock] = threading.Lock()
 
+# Health check state
 _IS_ONLINE: bool = False
 _LAST_SUCCESS_TIMESTAMP: float = 0.0
 _HEALTH_CHECKER_STARTED: bool = False
-_STATE_LOCK = threading.Lock()
+_STATE_LOCK: Final[threading.Lock] = threading.Lock()
 
 
 def _health_check_once(client: Client) -> bool:
-    """
-    Executa uma única verificação de saúde do Supabase.
-
-    Retorna True (online) ou False (offline).
+    """Executa uma única verificação de saúde do Supabase.
 
     Estratégia:
     1) Tenta RPC public.ping() -> 'ok'
-    2) Se RPC falhar por rede, tenta fallback em tabela leve (profiles) com limit(1).
+    2) Se RPC falhar (404), tenta fallback em /auth/v1/health
+    3) Como último recurso, tenta query em tabela de fallback
 
     Args:
         client: Cliente Supabase configurado
 
     Returns:
-        bool: True se conectado, False se offline
+        True se conectado e responsivo, False se offline ou inacessível
     """
     # Tentativa 1: RPC ping
     if supa_types.HEALTHCHECK_USE_RPC:
         try:
             res = exec_postgrest(client.rpc(supa_types.HEALTHCHECK_RPC_NAME))
-            data = getattr(res, "data", None)
+            data: Any = getattr(res, "data", None)
             if data == "ok" or (isinstance(data, str) and data == "ok"):
                 return True
         except Exception as e:
             # Fallback: se RPC não existir (404), tentar /auth/v1/health
-            error_str = str(e)
+            error_str: str = str(e)
             if "404" in error_str or "Not Found" in error_str:
                 log.debug("RPC 'ping' indisponível (404). Usando /auth/v1/health como fallback.")
                 try:
                     # Tentar endpoint de health do GoTrue (Auth)
                     import httpx
 
-                    supabase_url = os.getenv("SUPABASE_URL", "").rstrip("/")
-                    health_url = f"{supabase_url}/auth/v1/health"
-                    resp = httpx.get(health_url, timeout=10.0)
+                    supabase_url: str = os.getenv("SUPABASE_URL", "").rstrip("/")
+                    health_url: str = f"{supabase_url}/auth/v1/health"
+                    resp: httpx.Response = httpx.get(health_url, timeout=10.0)
                     if resp.status_code == 200:
-                        health_data = resp.json()
+                        health_data: dict[str, Any] = resp.json()
                         # GoTrue retorna {"version": "...", "name": "GoTrue", ...}
                         if health_data.get("version") or health_data.get("name") == "GoTrue":
                             log.debug("Health check OK via /auth/v1/health")
@@ -86,20 +90,22 @@ def _health_check_once(client: Client) -> bool:
 
 
 def _start_health_checker() -> None:
-    """
-    Inicia thread daemon que verifica periodicamente a conectividade com Supabase.
+    """Inicia thread daemon que verifica periodicamente a conectividade com Supabase.
 
     Sistema de 3 Estados:
     - ONLINE: Última verificação bem-sucedida E dentro do threshold (< 60s)
     - INSTÁVEL: Última verificação bem-sucedida MAS fora do threshold (> 60s)
     - OFFLINE: Verificações falhando consistentemente
 
-    O health check usa RPC public.ping() para verificação leve e estável,
-    com fallback para query em tabela 'profiles' caso RPC falhe.
+    Estratégia de Verificação:
+    1. RPC public.ping() - verificação leve preferencial
+    2. /auth/v1/health - fallback se RPC retornar 404
+    3. Query em tabela de fallback - último recurso
 
-    Atualiza as variáveis globais:
-    - _IS_ONLINE: True se última tentativa teve sucesso
-    - _LAST_SUCCESS_TIMESTAMP: Timestamp Unix da última verificação bem-sucedida
+    Note:
+        Thread é daemon (não bloqueia shutdown do app)
+        Atualiza variáveis globais _IS_ONLINE e _LAST_SUCCESS_TIMESTAMP
+        Configurável via variáveis de ambiente (HEALTHCHECK_INTERVAL_SECONDS, etc.)
     """
     global _HEALTH_CHECKER_STARTED
 
@@ -122,12 +128,12 @@ def _start_health_checker() -> None:
             supa_types.HEALTHCHECK_RPC_NAME,
         )
 
-        last_bad = None
+        last_bad: float | None = None
 
         while True:
             try:
-                client = get_supabase()
-                ok = _health_check_once(client)
+                client: Client = get_supabase()
+                ok: bool = _health_check_once(client)
 
                 if ok:
                     # Sucesso: atualiza estado e timestamp
@@ -167,13 +173,18 @@ def _start_health_checker() -> None:
 
 
 def is_supabase_online() -> bool:
-    """
-    Retorna True se o Supabase está acessível, False caso contrário.
+    """Retorna True se o Supabase está acessível, False caso contrário.
 
-    DEPRECATED: Use get_supabase_state() para obter estado detalhado (Online/Instável/Offline).
-    Esta função mantida para compatibilidade retroativa.
+    Returns:
+        True se conectado e dentro do threshold de estabilidade, False caso contrário
 
-    Esta função consulta o estado mantido pela thread de health check em background.
+    Warning:
+        DEPRECATED: Use get_supabase_state() para obter estado detalhado (Online/Instável/Offline).
+        Mantida apenas para compatibilidade retroativa.
+
+    Note:
+        Consulta estado mantido pela thread de health check em background.
+        Considera UNSTABLE (threshold excedido) como offline.
     """
     with _STATE_LOCK:
         current_state = _IS_ONLINE
@@ -190,9 +201,14 @@ def is_supabase_online() -> bool:
 
 
 def is_really_online() -> bool:
-    """
-    Verifica se estamos realmente ONLINE considerando limiar de instabilidade.
-    Retorna True se último sucesso foi há menos de HEALTHCHECK_UNSTABLE_THRESHOLD segundos.
+    """Verifica se estamos realmente ONLINE considerando limiar de instabilidade.
+
+    Returns:
+        True se último sucesso foi há menos de HEALTHCHECK_UNSTABLE_THRESHOLD segundos
+
+    Note:
+        Diferente de is_supabase_online(), esta função usa exatamente o threshold
+        configurado sem arredondamentos ou ajustes.
     """
     with _STATE_LOCK:
         current_state = _IS_ONLINE
@@ -205,12 +221,19 @@ def is_really_online() -> bool:
     return time_since_success < supa_types.HEALTHCHECK_UNSTABLE_THRESHOLD
 
 
-def get_supabase_state() -> tuple[str, str]:
-    """
-    Retorna estado detalhado da conectividade com o Supabase.
+def get_supabase_state() -> HealthState:
+    """Retorna estado detalhado da conectividade com o Supabase.
 
     Returns:
-        tuple[str, str]: (estado, descrição amigável)
+        Tupla (estado, descrição) onde estado pode ser:
+        - "online": Conectado e estável
+        - "unstable": Última resposta excedeu threshold
+        - "offline": Sem resposta recente
+
+    Example:
+        >>> state, desc = get_supabase_state()
+        >>> if state == "online":
+        ...     print("Tudo OK")
     """
     with _STATE_LOCK:
         current_state = _IS_ONLINE
@@ -235,16 +258,21 @@ def get_supabase_state() -> tuple[str, str]:
     )
 
 
-def get_cloud_status_for_ui() -> tuple[str, str, str]:
-    """
-    Retorna (texto, estilo, tooltip) para exibir no UI.
+def get_cloud_status_for_ui() -> UiStatusTuple:
+    """Retorna (texto, estilo, tooltip) para exibir no UI.
 
-    Exemplo de uso:
-        text, style, tooltip = get_cloud_status_for_ui()
-        label.config(text=f"Nuvem: {text}", bootstyle=style)
-        # Pode adicionar tooltip se desejar
-        ```
+    Returns:
+        Tupla (texto, estilo, tooltip) onde:
+        - texto: "Online", "Instável" ou "Offline"
+        - estilo: "success", "warning" ou "danger" (Bootstrap styles)
+        - tooltip: Descrição detalhada do estado
+
+    Example:
+        >>> text, style, tooltip = get_cloud_status_for_ui()
+        >>> label.config(text=f"Nuvem: {text}", bootstyle=style)
     """
+    state: str
+    description: str
     state, description = get_supabase_state()
 
     if state == "online":
@@ -256,10 +284,20 @@ def get_cloud_status_for_ui() -> tuple[str, str, str]:
 
 
 def get_supabase() -> Client:
-    """
-    Retorna instância SINGLETON do cliente Supabase.
-    Loga 'criado' na primeira vez, 'reutilizado' no primeiro reuso.
-    Nunca recria o cliente. Thread-safe.
+    """Retorna instância SINGLETON do cliente Supabase.
+
+    Returns:
+        Cliente Supabase configurado e pronto para uso
+
+    Raises:
+        RuntimeError: Se SUPABASE_URL ou SUPABASE_ANON_KEY não estiverem configurados
+
+    Note:
+        - Thread-safe (usa double-checked locking pattern)
+        - Loga 'criado' na primeira vez, 'reutilizado' no primeiro reuso
+        - Nunca recria o cliente (singleton permanente)
+        - Inicia health checker em background na primeira criação
+        - Usa HTTPX_CLIENT customizado com retry e timeout configurados
     """
     global _SUPABASE_SINGLETON, _SINGLETON_REUSE_LOGGED
 
@@ -279,13 +317,15 @@ def get_supabase() -> Client:
         if _SUPABASE_SINGLETON is not None:
             return _SUPABASE_SINGLETON
 
-        url = os.getenv("SUPABASE_URL") or supa_types.SUPABASE_URL
-        key = os.getenv("SUPABASE_ANON_KEY") or supa_types.SUPABASE_ANON_KEY
+        url_from_env = os.getenv("SUPABASE_URL")
+        url: str = url_from_env or supa_types.SUPABASE_URL or ""
+        key_from_env = os.getenv("SUPABASE_ANON_KEY")
+        key: str = key_from_env or supa_types.SUPABASE_ANON_KEY or ""
 
         if not url or not key:
             raise RuntimeError("Faltam SUPABASE_URL/SUPABASE_ANON_KEY no .env")
 
-        options = ClientOptions(
+        options: ClientOptions = ClientOptions(
             httpx_client=HTTPX_CLIENT,
             postgrest_client_timeout=HTTPX_TIMEOUT_LIGHT,
         )
@@ -314,5 +354,14 @@ def exec_postgrest(request_builder: Any) -> Any:
 
     Returns:
         APIResponse object with .data, .error, .count attributes
+
+    Raises:
+        Exception: Se todas as 3 tentativas falharem (propagado do retry_call)
+
+    Note:
+        - Usa retry_call com 3 tentativas
+        - Backoff exponencial de 0.7s entre tentativas
+        - Jitter de 0.3s para evitar thundering herd
+        - Type hint Any devido à API dinâmica do PostgREST
     """
     return retry_call(request_builder.execute, tries=3, backoff=0.7, jitter=0.3)

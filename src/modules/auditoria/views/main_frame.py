@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 import re
 import tkinter as tk
 import unicodedata
 from tkinter import messagebox, ttk
-from typing import Callable, Literal, Optional
+from typing import Any, Callable, Dict, Literal, Optional
 
 from helpers.formatters import fmt_datetime_br
 from src.modules.auditoria.service import AuditoriaServiceError
@@ -26,6 +27,8 @@ from .status_helpers import (
 )
 from .storage_actions import AuditoriaStorageActions
 from .upload_flow import AuditoriaUploadFlow
+
+logger = logging.getLogger(__name__)
 
 try:
     from src.ui.files_browser import format_cnpj_for_display  # type: ignore[import-untyped]
@@ -59,18 +62,18 @@ class AuditoriaFrame(ttk.Frame):
             **kwargs: Argumentos adicionais para ttk.Frame
         """
         super().__init__(master, **kwargs)
-        self._go_back = go_back
+        self._go_back: Callable[[], None] | None = go_back
 
-        self._search_var = tk.StringVar()
-        self._cliente_display_to_id: dict[str, int] = {}
-        self._cliente_var = tk.StringVar()
+        self._search_var: tk.StringVar = tk.StringVar()
+        self._cliente_display_to_id: Dict[str, int] = {}
+        self._cliente_var: tk.StringVar = tk.StringVar()
         self._selected_cliente_id: int | None = None
 
         # Índice de auditorias: {iid: {db_id, auditoria_id, cliente_nome, cnpj, ...}}
-        self._aud_index: dict[str, dict] = {}
+        self._aud_index: Dict[str, Dict[str, Any]] = {}
 
         # Rastreio de janelas "Ver subpastas" abertas por auditoria_id (chave string)
-        self._open_browsers: dict[str, tk.Toplevel] = {}
+        self._open_browsers: Dict[str, tk.Toplevel] = {}
 
         # Org ID do usuário logado (cache)
         self._org_id: str = ""
@@ -78,12 +81,12 @@ class AuditoriaFrame(ttk.Frame):
         self._status_menu_items: tuple[str, ...] = STATUS_MENU_ITEMS
         self._status_click_iid: str | None = None
         self._status_menu_open: bool = False
-        self._menu_refresh_added = False
-        self._vm = AuditoriaViewModel()
-        self._controller = AuditoriaApplication(AuditoriaApplicationConfig(viewmodel=self._vm))
+        self._menu_refresh_added: bool = False
+        self._vm: AuditoriaViewModel = AuditoriaViewModel()
+        self._controller: AuditoriaApplication = AuditoriaApplication(AuditoriaApplicationConfig(viewmodel=self._vm))
 
-        self._storage_actions = AuditoriaStorageActions(self, self._controller)
-        self._upload_flow = AuditoriaUploadFlow(self, self._controller)
+        self._storage_actions: AuditoriaStorageActions = AuditoriaStorageActions(self, self._controller)
+        self._upload_flow: AuditoriaUploadFlow = AuditoriaUploadFlow(self, self._controller)
 
         UI_GAP = 6  # espacinho horizontal curto entre botões
         UI_PADX = 8
@@ -180,8 +183,8 @@ class AuditoriaFrame(ttk.Frame):
             elif raw_id not in (None, ""):
                 try:
                     mapping[display] = int(str(raw_id))
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug("Falha ao mapear cliente_id como int: %s", exc)
 
         self._cliente_display_to_id = mapping
 
@@ -295,8 +298,8 @@ class AuditoriaFrame(ttk.Frame):
 
         try:
             self._search_var.trace_add("write", lambda *args: self._apply_filter())
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao registrar trace de busca em Auditoria: %s", exc)
 
         self._load_clientes()
         self._load_auditorias()
@@ -374,8 +377,8 @@ class AuditoriaFrame(ttk.Frame):
         try:
             self.btn_subpastas.configure(state="normal" if has_selection else "disabled")
             self.btn_excluir.configure(state="normal" if has_selection else "disabled")
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao atualizar botoes de acao na Auditoria: %s", exc)
 
     def _ensure_status_menu(self) -> tk.Menu:
         if self._status_menu and self._status_menu.winfo_exists():
@@ -383,7 +386,9 @@ class AuditoriaFrame(ttk.Frame):
 
         menu = tk.Menu(self, tearoff=0)
         for status in self._status_menu_items:
-            menu.add_command(label=self._status_label(status), command=lambda value=status: self._apply_status_from_menu(value))
+            menu.add_command(
+                label=self._status_label(status), command=lambda value=status: self._apply_status_from_menu(value)
+            )
         self._status_menu = menu
         return menu
 
@@ -400,8 +405,8 @@ class AuditoriaFrame(ttk.Frame):
         try:
             self.tree.selection_set(row)
             self.tree.focus(row)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao posicionar selecao do menu de status: %s", exc)
 
         self._status_click_iid = row
         self._status_menu_open = True

@@ -8,7 +8,12 @@ from concurrent.futures import ThreadPoolExecutor
 from tkinter import filedialog, messagebox, ttk
 from typing import Any
 
-from src.modules.uploads.components.helpers import client_prefix_for_id, format_cnpj_for_display, get_clients_bucket, strip_cnpj_from_razao
+from src.modules.uploads.components.helpers import (
+    client_prefix_for_id,
+    format_cnpj_for_display,
+    get_clients_bucket,
+    strip_cnpj_from_razao,
+)
 from src.modules.uploads.service import delete_storage_object, download_storage_object, list_browser_items
 from src.utils.prefs import load_browser_status_map, load_last_prefix
 from src.utils.resource_path import resource_path
@@ -87,8 +92,8 @@ class UploadsBrowserWindow(tk.Toplevel):
         self.title(title)
         try:
             self.iconbitmap(resource_path("rc.ico"))
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao aplicar iconbitmap no UploadsBrowser: %s", exc)
 
         remembered = load_last_prefix(self._browser_key) if module else None
         self._init_path_stack(remembered=remembered, start_prefix=start_prefix)
@@ -100,8 +105,8 @@ class UploadsBrowserWindow(tk.Toplevel):
             try:
                 self.grab_set()
                 self.focus_set()
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                _log.debug("Falha ao configurar janela modal do UploadsBrowser: %s", exc)
         self._populate_initial_state()
 
     def _init_path_stack(self, *, remembered: str | None, start_prefix: str) -> None:
@@ -162,7 +167,9 @@ class UploadsBrowserWindow(tk.Toplevel):
         self.file_list.grid(row=0, column=0, sticky="nsew")
         self.file_list.tree.bind("<Double-1>", self._on_tree_double_click)
 
-        actions = ActionBar(self, padding=(UI_PADX, UI_PADY), on_download=self._download_selected, on_delete=self._delete_selected)
+        actions = ActionBar(
+            self, padding=(UI_PADX, UI_PADY), on_download=self._download_selected, on_delete=self._delete_selected
+        )
         actions.grid(row=2, column=0, sticky="ew")
 
     # ------------------------------------------------------------------
@@ -176,7 +183,9 @@ class UploadsBrowserWindow(tk.Toplevel):
         self.prefix_var.set(prefix)
         _log.info("Browser prefix atual: %s (bucket=%s, cliente=%s)", prefix, self._bucket, self._client_id)
         items = list_browser_items(prefix, bucket=self._bucket)
-        self._last_listing_map = {entry.get("name"): bool(entry.get("is_folder")) for entry in items if isinstance(entry, dict)}
+        self._last_listing_map = {
+            entry.get("name"): bool(entry.get("is_folder")) for entry in items if isinstance(entry, dict)
+        }
         self.file_list.populate_rows(items, self._status_cache)
 
     # ------------------------------------------------------------------
@@ -237,6 +246,6 @@ def open_files_browser(*args: Any, **kwargs: Any) -> UploadsBrowserWindow:
     if modal and parent is not None:
         try:
             parent.wait_window(window)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao aguardar janela modal do UploadsBrowser: %s", exc)
     return window

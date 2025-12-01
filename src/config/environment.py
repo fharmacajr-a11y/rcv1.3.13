@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import logging
 import os
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 # Carrega .env usando resource_path, sem falhar se não houver python-dotenv
 
@@ -9,14 +12,15 @@ from typing import Optional
 def load_env() -> None:
     try:
         from dotenv import load_dotenv
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("dotenv n�o dispon�vel: %s", exc)
         return
     try:
         from src.utils.resource_path import resource_path
 
         load_dotenv(resource_path(".env"), override=False)
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Falha ao carregar .env padr�o: %s", exc)
 
 
 def env_str(name: str, default: Optional[str] = None) -> Optional[str]:

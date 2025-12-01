@@ -3,11 +3,13 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional, Protocol
+
+log = logging.getLogger(__name__)
 
 
 def configure_environment() -> None:
-    """Apply environment defaults and load .env files."""
+    """Aplicar defaults de ambiente e carregar eventuais arquivos .env."""
     os.environ.setdefault("RC_NO_LOCAL_FS", "1")
 
     try:
@@ -17,18 +19,18 @@ def configure_environment() -> None:
         # PyInstaller bundle first, external file overrides second
         load_dotenv(resource_path(".env"), override=False)
         load_dotenv(os.path.join(os.getcwd(), ".env"), override=True)
-    except Exception:
-        pass
+    except Exception as exc:
+        log.debug("Falha ao carregar .env (opcional)", exc_info=exc)
 
 
 def configure_logging(*, preload: bool = False) -> Optional[logging.Logger]:
-    """Bootstrap logging infrastructure and optionally return the startup logger."""
+    """Inicializa o sistema de logging e, se não estiver em preload, devolve o logger de startup."""
     try:
         from src.core.logs.configure import configure_logging as _configure_logging
 
         _configure_logging()
-    except Exception:
-        pass
+    except Exception as exc:
+        log.debug("configure_logging: fallback para logging básico", exc_info=exc)
 
     if preload:
         return None
@@ -63,20 +65,19 @@ def configure_logging(*, preload: bool = False) -> Optional[logging.Logger]:
 
 
 def configure_hidpi() -> None:
-    """Configure HiDPI awareness before any Tk root exists."""
+    """Configura suporte HiDPI antes de qualquer root Tk existir."""
     try:
         from src.utils.helpers import configure_hidpi_support
 
         configure_hidpi_support()
-    except Exception:
-        pass
+    except Exception as exc:
+        log.debug("configure_hidpi: ignorando erro ao aplicar HiDPI", exc_info=exc)
 
 
 def run_initial_healthcheck(logger: Optional[logging.Logger] = None) -> bool:
-    """Run the existing connectivity check and return its status.
+    """Executa o health-check de conectividade legado e retorna True/False.
 
-    DEPRECATED: Use schedule_healthcheck_after_gui() for non-blocking startup.
-    Kept for compatibility with legacy code paths.
+    Deprecated: use schedule_healthcheck_after_gui para uma experiência não bloqueante.
     """
     try:
         from src.utils.network import require_internet_or_alert
@@ -91,18 +92,20 @@ def run_initial_healthcheck(logger: Optional[logging.Logger] = None) -> bool:
         return True
 
 
+class AfterCapableApp(Protocol):
+    """Interface mínima esperada para agendar callbacks após o bootstrap."""
+
+    def after(self, ms: int, func: Any = None, *args: Any) -> Any:
+        """Agenda callback após delay (compatível com tkinter.Tk.after)."""
+        ...
+
+
 def schedule_healthcheck_after_gui(
-    app,
+    app: AfterCapableApp,
     logger: Optional[logging.Logger] = None,
     delay_ms: int = 500,
 ) -> None:
-    """Schedule health check to run after GUI is created (non-blocking startup).
-
-    Args:
-        app: Tkinter app instance with .after() method
-        logger: Optional logger for diagnostics
-        delay_ms: Delay in milliseconds before running check (default: 500ms)
-    """
+    """Agenda o health-check em background após a GUI existir."""
 
     def _run_check():
         try:
@@ -130,8 +133,9 @@ def schedule_healthcheck_after_gui(
                 if hasattr(app, "footer"):
                     status = "online" if has_internet else "offline"
                     app.footer.set_cloud(status)
-            except Exception:
-                pass
+            except Exception as exc:
+                if logger:
+                    logger.debug("Falha ao atualizar footer com status da nuvem", exc_info=exc)
 
         except Exception as exc:
             if logger:

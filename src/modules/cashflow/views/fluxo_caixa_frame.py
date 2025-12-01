@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import tkinter as tk
 from datetime import date, timedelta
 from tkinter import messagebox, ttk
@@ -8,6 +9,8 @@ from typing import Any, Optional
 import ttkbootstrap as tb
 
 from src.features.cashflow import repository as repo
+
+logger = logging.getLogger(__name__)
 
 
 # ------------ utilidades de centralização (sem "flash") ------------
@@ -137,14 +140,14 @@ class CashflowFrame(tb.Frame):
                     if org:
                         self._org_id = org
                         return
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao resolver org_id a partir do app em CashflowFrame: %s", exc)
         try:
             master = self.master
             if hasattr(master, "_get_org_id_safe"):
                 self._org_id = master._get_org_id_safe()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao resolver org_id via master em CashflowFrame: %s", exc)
 
     def _guard_widgets(self) -> bool:
         """Evita TclError se árvore/labels foram destruídas."""
@@ -229,7 +232,7 @@ class CashflowFrame(tb.Frame):
         from src.features.cashflow.dialogs import EntryDialog
 
         dlg = EntryDialog(self, title="Novo Lançamento")
-        _place_center(dlg) or center_on_screen(dlg)
+        _ = _place_center(dlg) or center_on_screen(dlg)  # Position dialog
         self.wait_window(dlg)
 
         if dlg.result:
@@ -260,7 +263,7 @@ class CashflowFrame(tb.Frame):
         from src.features.cashflow.dialogs import EntryDialog
 
         dlg = EntryDialog(self, initial=current, title="Editar Lançamento")
-        _place_center(dlg) or center_on_screen(dlg)
+        _ = _place_center(dlg) or center_on_screen(dlg)  # Position dialog
         self.wait_window(dlg)
 
         if dlg.result:

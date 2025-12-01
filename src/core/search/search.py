@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Mapping, Sequence
 
 from infra.supabase_client import exec_postgrest, is_supabase_online, supabase
@@ -10,8 +11,11 @@ from src.core.models import Cliente
 from src.core.session.session import get_current_user  # << pegar org_id da sessao
 from src.core.textnorm import join_and_normalize, normalize_search
 
+log = logging.getLogger(__name__)
+
 
 def _normalize_order(order_by: str | None) -> tuple[str | None, bool]:
+    """Normaliza apelidos de ordenação para colunas canônicas e flag de descending."""
     if not order_by:
         return None, False
     mapping = {
@@ -27,6 +31,7 @@ def _normalize_order(order_by: str | None) -> tuple[str | None, bool]:
 
 
 def _row_to_cliente(row: Mapping[str, Any]) -> Cliente:
+    """Converte uma row retornada do backend em instância Cliente."""
     return Cliente(
         id=row.get("id"),
         numero=row.get("numero"),
@@ -42,6 +47,7 @@ def _row_to_cliente(row: Mapping[str, Any]) -> Cliente:
 
 
 def _cliente_search_blob(cliente: Cliente) -> str:
+    """Concatena campos relevantes de Cliente em blob normalizado para busca textual."""
     return join_and_normalize(
         getattr(cliente, "id", None),
         getattr(cliente, "nome", None),
@@ -53,6 +59,11 @@ def _cliente_search_blob(cliente: Cliente) -> str:
 
 
 def _filter_rows_with_norm(rows: Sequence[Mapping[str, Any]], term: str) -> list[dict[str, Any]]:
+    """
+    Filtra rows já carregadas usando termo normalizado, cacheando _search_norm por row.
+
+    Termo vazio retorna todas as rows.
+    """
     query_norm = normalize_search(term)
     if not query_norm:
         return list(rows)  # type: ignore[arg-type]
@@ -78,6 +89,7 @@ def _filter_rows_with_norm(rows: Sequence[Mapping[str, Any]], term: str) -> list
 
 
 def _filter_clientes(clientes: Sequence[Cliente], term: str) -> list[Cliente]:
+    """Aplica filtro textual em clientes já carregados (uso local/offline)."""
     query_norm = normalize_search(term)
     if not query_norm:
         return list(clientes)
@@ -87,7 +99,12 @@ def _filter_clientes(clientes: Sequence[Cliente], term: str) -> list[Cliente]:
 def search_clientes(term: str | None, order_by: str | None = None, org_id: str | None = None) -> list[Cliente]:
     """
     Busca clientes por *term* (nome/razao/CNPJ/numero) priorizando Supabase.
-    Fallback para filtro local quando offline.
+    Fallback para filtro local quando offline ou em falha.
+
+    - Quando online: exige org_id, consulta Supabase, aplica filtro local adicional
+      se houver termo e reconsulta se nenhum resultado inicial.
+    - Quando offline ou em falha: consulta repositório local; levanta ValueError
+      se org_id for ausente.
     """
     if org_id is None:
         current_user = get_current_user()
@@ -105,7 +122,9 @@ def search_clientes(term: str | None, order_by: str | None = None, org_id: str |
                 qb = supabase.table("clients").select(CLIENT_COLUMNS).is_("deleted_at", "null").eq("org_id", org_id)
                 if search_term:
                     pat = f"%{search_term}%"
-                    qb = qb.or_("nome.ilike.{pat},razao_social.ilike.{pat},cnpj.ilike.{pat},numero.ilike.{pat}".format(pat=pat))
+                    qb = qb.or_(
+                        "nome.ilike.{pat},razao_social.ilike.{pat},cnpj.ilike.{pat},numero.ilike.{pat}".format(pat=pat)
+                    )
                 if col:
                     qb = qb.order(col, desc=desc)
                 resp_inner = exec_postgrest(qb)
@@ -120,8 +139,8 @@ def search_clientes(term: str | None, order_by: str | None = None, org_id: str |
             if term:
                 return _filter_clientes(clientes, term)
             return clientes
-    except Exception:
-        pass
+    except Exception as exc:
+        log.warning("search_clientes: falha no Supabase, usando fallback local", exc_info=exc)
 
     if org_id is None:
         raise ValueError("org_id obrigatorio")

@@ -27,8 +27,8 @@ class LoginDialog(tb.Toplevel):
         if parent:
             try:
                 self.transient(parent)
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Falha ao tornar login transient: %s", exc)
 
         # Sempre por cima da janela principal
         self.attributes("-topmost", True)
@@ -42,10 +42,10 @@ class LoginDialog(tb.Toplevel):
                 except Exception:
                     img = tk.PhotoImage(file=ico)
                     self.iconphoto(True, img)
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
             # fallback opcional para PNG:
             # self.iconphoto(True, tk.PhotoImage(file=resource_path("rc.png")))
-            pass
+            log.debug("Falha ao definir ícone em login: %s", exc)
 
         self.title("Login - Gestor de Clientes")
 
@@ -112,8 +112,8 @@ class LoginDialog(tb.Toplevel):
         # Modalidade (bloqueia a janela principal)
         try:
             self.grab_set()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao definir grab_set em login: %s", exc)
 
         self.focus_force()
         self.ent_user.focus_set()
@@ -123,8 +123,8 @@ class LoginDialog(tb.Toplevel):
         # Fechar no X chama cancel
         try:
             self.protocol("WM_DELETE_WINDOW", self._cancel)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao definir protocolo WM_DELETE_WINDOW em login: %s", exc)
 
     # -------- Lógica --------
     def _do_login(self):
@@ -179,8 +179,8 @@ class LoginDialog(tb.Toplevel):
             self.result = True
             try:
                 self.grab_release()
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Falha ao liberar grab em _do_login: %s", exc)
             self.destroy()
             return
 
@@ -196,6 +196,6 @@ class LoginDialog(tb.Toplevel):
         self.result = False
         try:
             self.grab_release()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao liberar grab em _cancel: %s", exc)
         self.destroy()

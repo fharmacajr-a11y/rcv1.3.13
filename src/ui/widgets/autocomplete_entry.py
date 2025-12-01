@@ -4,9 +4,12 @@
 
 from __future__ import annotations
 
+import logging
 import tkinter as tk
 from tkinter import ttk
 from typing import Any, Callable, Dict, List, Literal, Optional
+
+_log = logging.getLogger(__name__)
 
 
 class AutocompleteEntry(ttk.Entry):
@@ -154,7 +157,8 @@ class AutocompleteEntry(ttk.Entry):
             yscrollcommand=scrollbar.set,
             exportselection=False,
         )
-        assert self._listbox is not None  # Type narrowing for Pyright
+        if self._listbox is None:  # Type narrowing for Pyright
+            raise RuntimeError("AutocompleteEntry internal error: _listbox is None")
         scrollbar.config(command=self._listbox.yview)
 
         self._listbox.pack(side="left", fill="both", expand=True)
@@ -221,8 +225,8 @@ class AutocompleteEntry(ttk.Entry):
         if self.on_pick:
             try:
                 self.on_pick(item)
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                _log.debug("Erro ao executar on_pick(%r): %s", item, exc)
 
         # Fechar dropdown
         self._close_dropdown()

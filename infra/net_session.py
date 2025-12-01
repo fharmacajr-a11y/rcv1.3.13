@@ -10,6 +10,8 @@ Baseado em:
 
 from __future__ import annotations
 
+from typing import Any
+
 from requests import Session
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
@@ -17,7 +19,7 @@ from urllib3.util import Retry
 # Timeout padrão: (connect, read) em segundos
 # connect: tempo para estabelecer conexão
 # read: tempo para receber resposta após conectar
-DEFAULT_TIMEOUT = (5, 20)
+DEFAULT_TIMEOUT: tuple[int, int] = (5, 20)
 
 
 class TimeoutHTTPAdapter(HTTPAdapter):
@@ -28,11 +30,16 @@ class TimeoutHTTPAdapter(HTTPAdapter):
     Referência: https://requests.readthedocs.io/en/latest/user/advanced/#timeouts
     """
 
-    def __init__(self, *args, timeout=DEFAULT_TIMEOUT, **kwargs):
-        self._timeout = timeout
+    def __init__(
+        self,
+        *args: Any,
+        timeout: tuple[int, int] = DEFAULT_TIMEOUT,
+        **kwargs: Any,
+    ):
+        self._timeout: tuple[int, int] = timeout
         super().__init__(*args, **kwargs)
 
-    def send(self, request, **kwargs):
+    def send(self, request: Any, **kwargs: Any):
         """Garante timeout mesmo se o caller esquecer."""
         kwargs.setdefault("timeout", self._timeout)
         return super().send(request, **kwargs)

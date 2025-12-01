@@ -22,7 +22,7 @@ def _author_color(email: str) -> str:
     key = (email or "").strip().lower()
     if not key:
         return "#3a3a3a"
-    d = hashlib.md5(key.encode("utf-8")).hexdigest()
+    d = hashlib.sha256(key.encode("utf-8")).hexdigest()
     hue = int(d[:2], 16) * (360 / 255.0)  # 0..360
     return _hsl_to_hex(hue, 0.90, 0.28)
 
@@ -76,7 +76,7 @@ def _ensure_author_tag(text_widget, email: str, tag_cache: Optional[Dict[str, st
     try:
         if tag_cache is not None:
             tag_cache[email] = tag_name
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Hub: falha ao atualizar cache de tags de autor: %s", exc)
 
     return tag_name

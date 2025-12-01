@@ -6,10 +6,13 @@ Extraidos de src.ui.main_screen para reutilizacao e testes.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import tkinter as tk
 from typing import Callable
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_STATUS_GROUPS: list[tuple[str, list[str]]] = [
     (
@@ -69,8 +72,8 @@ def _load_status_groups() -> list[tuple[str, list[str]]]:
                         groups.append((str(key), items))
                 if groups:
                     return groups
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao carregar RC_STATUS_GROUPS: %s", exc)
     return list(DEFAULT_STATUS_GROUPS)
 
 

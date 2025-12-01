@@ -56,6 +56,10 @@ class AuditoriaArchivePlan:
             self._temp_dir.cleanup()
             self._temp_dir = None
 
+    def __del__(self) -> None:
+        """Ensure TemporaryDirectory is cleaned up even if cleanup() is not called explicitly."""
+        self.cleanup()
+
 
 @dataclass(frozen=True)
 class AuditoriaUploadItem:
@@ -152,7 +156,9 @@ def prepare_archive_plan(
                     continue
                 entries.append(AuditoriaArchiveEntry(relative_path=rel, file_size=file.stat().st_size))
 
-    return AuditoriaArchivePlan(archive_path=path, extension=ext, entries=entries, extracted_dir=extracted_dir, _temp_dir=temp_dir)
+    return AuditoriaArchivePlan(
+        archive_path=path, extension=ext, entries=entries, extracted_dir=extracted_dir, _temp_dir=temp_dir
+    )
 
 
 def cleanup_archive_plan(plan: AuditoriaArchivePlan | None) -> None:

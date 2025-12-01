@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable, List, Optional, Set
+from typing import Callable
 
 from src.utils import themes
 
@@ -13,9 +13,9 @@ class ThemeManager:
     """Gerencia o tema ativo, aplica em janelas e notifica ouvintes."""
 
     def __init__(self) -> None:
-        self._windows: Set[object] = set()
-        self._listeners: List[Callable[[str], None]] = []
-        self._theme: Optional[str] = None
+        self._windows: set[object] = set()
+        self._listeners: list[Callable[[str], None]] = []
+        self._theme: str | None = None
 
     # ---------------- estado ----------------
     @property
@@ -25,14 +25,14 @@ class ThemeManager:
         return self._theme
 
     # ---------------- registro ----------------
-    def register_window(self, win) -> None:
+    def register_window(self, win: object) -> None:
         self._windows.add(win)
         try:
             themes.apply_theme(win, theme=self.theme)
         except Exception:
             log.debug("ThemeManager: apply_theme silencioso")
 
-    def unregister_window(self, win) -> None:
+    def unregister_window(self, win: object) -> None:
         self._windows.discard(win)
 
     def add_listener(self, fn: Callable[[str], None]) -> None:
@@ -43,12 +43,12 @@ class ThemeManager:
         try:
             self._listeners.remove(fn)
         except ValueError:
-            pass
+            log.debug("ThemeManager: listener não registrado para remoção")
 
     # ---------------- ações ----------------
     def apply_all(self) -> None:
         """Reaplica tema em todas as janelas registradas e notifica ouvintes."""
-        t = self.theme
+        t: str = self.theme
         for w in list(self._windows):
             try:
                 if hasattr(w, "winfo_exists") and not w.winfo_exists():

@@ -16,12 +16,12 @@ def _hsl_to_hex(h: float, s: float, lightness: float) -> str:
 
 
 def _hash_dict(d: dict) -> str:
-    """Calcula hash MD5 de um dicionário para comparação."""
+    """Calcula hash estável de um dicionário para comparação."""
     try:
         payload = json.dumps(d or {}, sort_keys=True, ensure_ascii=False)
     except Exception:
         payload = str(sorted((d or {}).items()))
-    return hashlib.md5(payload.encode("utf-8", errors="ignore")).hexdigest()
+    return hashlib.sha256(payload.encode("utf-8", errors="ignore")).hexdigest()
 
 
 def _normalize_note(n: Any) -> Dict[str, str]:

@@ -9,9 +9,11 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from typing import Any, Final
+from types import TracebackType
+from typing import Callable, Final
 
 logger = logging.getLogger(__name__)
+_Hook = Callable[[type[BaseException], BaseException, TracebackType | None], None]
 
 
 def install_global_exception_hook() -> None:
@@ -22,12 +24,12 @@ def install_global_exception_hook() -> None:
     - Shows GUI error dialog unless RC_NO_GUI_ERRORS=1 or running in test mode
     - Preserves original excepthook chain
     """
-    original_hook = sys.excepthook
+    original_hook: _Hook = sys.excepthook
 
     def exception_hook(
         exc_type: type[BaseException],
         exc_value: BaseException,
-        exc_traceback: Any,
+        exc_traceback: TracebackType | None,
     ) -> None:
         """Handle uncaught exceptions."""
         # Log the exception

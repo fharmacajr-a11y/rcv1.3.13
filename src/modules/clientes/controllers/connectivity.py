@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 from typing import Optional, TYPE_CHECKING
 
 from infra.supabase_client import get_cloud_status_for_ui, get_supabase_state
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from ..views.main_screen import MainScreenFrame
@@ -30,9 +33,10 @@ class ClientesConnectivityController:
         self._running = True
         try:
             self._job_id = self.frame.after(2000, self._tick)
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
             self._running = False
-            self._job_id = None
+            logger.warning("Falha ao consultar estado da nuvem: %s", exc)
+            logger.debug("Falha ao agendar monitor de conectividade: %s", exc)
 
     def stop(self) -> None:
         """Cancela o monitor agendado, se houver."""
@@ -42,8 +46,8 @@ class ClientesConnectivityController:
         if self._job_id is not None:
             try:
                 self.frame.after_cancel(self._job_id)
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Falha ao cancelar monitor de conectividade: %s", exc)
             self._job_id = None
 
     def _schedule_next(self) -> None:
@@ -51,8 +55,9 @@ class ClientesConnectivityController:
             return
         try:
             self._job_id = self.frame.after(self._interval_ms, self._tick)
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
             self._job_id = None
+            logger.debug("Falha ao reagendar verificação de conectividade: %s", exc)
 
     def _tick(self) -> None:
         """Executa uma checagem de conectividade e agenda a próxima."""
@@ -62,8 +67,8 @@ class ClientesConnectivityController:
             state, description = get_supabase_state()
             text, style, tooltip = get_cloud_status_for_ui()
             self.frame._apply_connectivity_state(state, description, text, style, tooltip)
-        except Exception:
-            # Em caso de falha, mantém próximo tick agendado
-            pass
+        except Exception as exc:  # noqa: BLE001
+            # Em caso de falha, mantem proximo tick agendado
+            logger.warning("Falha ao consultar estado da nuvem: %s", exc)
         finally:
             self._schedule_next()

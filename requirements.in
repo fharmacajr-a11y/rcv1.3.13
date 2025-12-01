@@ -25,5 +25,8 @@ pyyaml
 # Requests HTTP library
 requests
 
+# OpenAI client
+openai>=1.40.0
+
 # Timezone local (para Bloco de Notas)
 tzlocal>=5.2,<6

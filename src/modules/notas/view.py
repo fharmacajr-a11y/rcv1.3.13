@@ -1,7 +1,7 @@
 """View principal do módulo Notas/Hub.
 
 Este módulo encapsula a UI legada do Hub (notas, mural) exposta em
-`src.ui.hub_screen`, permitindo que o restante da aplicação use
+`src.modules.hub.views.hub_screen`, permitindo que o restante da aplicação use
 uma interface estável para acessar a tela de notas.
 """
 
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.ui.hub_screen import HubScreen
+from src.modules.hub.views.hub_screen import HubScreen
 
 __all__ = ["HubFrame"]
 

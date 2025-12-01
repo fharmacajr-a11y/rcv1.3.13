@@ -26,12 +26,12 @@ Note: This is an ADDITIVE module. GUI code can continue calling services
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable
 
 log = logging.getLogger(__name__)
 
 # Command registry: {name: (func, help, defaults)}
-_REGISTRY: Dict[str, tuple[Callable, str, dict]] = {}
+_REGISTRY: dict[str, tuple[Callable, str, dict]] = {}
 
 
 def register(name: str, func: Callable, help: str = "", **defaults: Any) -> None:
@@ -121,7 +121,7 @@ def run(name: str, **kwargs: Any) -> Any:
         raise
 
 
-def list_commands() -> Dict[str, str]:
+def list_commands() -> dict[str, str]:
     """
     List all registered commands.
 
@@ -131,7 +131,7 @@ def list_commands() -> Dict[str, str]:
     return {name: help_text for name, (_, help_text, _) in _REGISTRY.items()}
 
 
-def get_command_info(name: str) -> Optional[Dict[str, Any]]:
+def get_command_info(name: str) -> dict[str, Any] | None:
     """
     Get detailed info about a command.
 
@@ -176,7 +176,7 @@ def _bootstrap_commands() -> None:
     )
 
     # Upload commands
-    def _upload_folder(local_dir: str, org_id: str, client_id: str, subdir: str = "GERAL") -> Dict:
+    def _upload_folder(local_dir: str, org_id: str, client_id: str, subdir: str = "GERAL") -> dict:
         from src.core.api import upload_folder
 
         return upload_folder(local_dir, org_id, client_id, subdir)
@@ -189,7 +189,7 @@ def _bootstrap_commands() -> None:
     )
 
     # Download commands
-    def _download_zip(bucket: str, prefix: str, dest: Optional[str] = None) -> Optional[str]:
+    def _download_zip(bucket: str, prefix: str, dest: str | None = None) -> str | None:
         from src.core.api import download_folder_zip
 
         return download_folder_zip(bucket, prefix, dest)
@@ -231,7 +231,7 @@ def _bootstrap_commands() -> None:
     )
 
     # Search commands
-    def _client_search(query: str, org_id: Optional[str] = None) -> list:
+    def _client_search(query: str, org_id: str | None = None) -> list:
         from src.core.api import search_clients
 
         return search_clients(query, org_id)

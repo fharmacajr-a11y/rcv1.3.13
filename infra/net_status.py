@@ -1,9 +1,14 @@
 # infra/net_status.py
 from __future__ import annotations
+
+import logging
 import os
 import socket
 from enum import Enum
+
 import httpx
+
+log = logging.getLogger(__name__)
 
 
 class Status(Enum):
@@ -16,7 +21,8 @@ def _can_resolve(host: str) -> bool:
     try:
         socket.gethostbyname(host)
         return True
-    except Exception:
+    except Exception as exc:
+        log.debug("Falha ao resolver host %s", host, exc_info=exc)
         return False
 
 
@@ -43,8 +49,8 @@ def _pick_base(url_hint: str | None) -> str:
                     if not val.startswith("http"):
                         val = "https://" + val
                     return val.rstrip("/")
-    except Exception:
-        pass
+    except Exception as exc:
+        log.debug("Falha ao obter URL base do Supabase", exc_info=exc)
 
     # fallback leve para conectividade geral
     return "https://www.google.com/generate_204"
@@ -62,8 +68,8 @@ def probe(url: str = "", timeout: float = 2.0) -> Status:
         host = base.split("//", 1)[1].split("/", 1)[0]
         if not _can_resolve(host):
             return Status.OFFLINE
-    except Exception:
-        pass
+    except Exception as exc:
+        log.debug("Falha ao resolver host de %s", base, exc_info=exc)
 
     headers_no_key = {"User-Agent": "rc-net-probe"}
     anon = (os.getenv("SUPABASE_ANON_KEY") or "").strip()
@@ -90,9 +96,10 @@ def probe(url: str = "", timeout: float = 2.0) -> Status:
                     r = c.get(u, headers=h)
                     if _ok(r.status_code):
                         return Status.ONLINE
-                except Exception:
+                except Exception as exc:
+                    log.debug("Falha ao consultar %s", u, exc_info=exc)
                     continue
-    except Exception:
-        pass
+    except Exception as exc:
+        log.warning("Falha ao sondar conectividade", exc_info=exc)
 
     return Status.OFFLINE

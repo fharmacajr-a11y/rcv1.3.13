@@ -1,5 +1,5 @@
 ﻿# ============================================================================
-# DEPENDÊNCIAS DE PRODUÇÃO - RC Gestor v1.2.31
+# DEPENDÊNCIAS DE PRODUÇÃO - RC Gestor v1.3.28
 # ============================================================================
 # Apenas dependências essenciais para execução do aplicativo.
 # Para desenvolvimento, use: pip install -r requirements-dev.txt
@@ -45,6 +45,12 @@ hpack==4.1.0              # Header compression (HTTP/2)
 hyperframe==6.1.0         # HTTP/2 framing
 certifi==2025.11.12       # Certificados CA
 urllib3==2.5.0            # HTTP client (transitive)
+
+# ============================================================================
+# IA / LLM
+# ============================================================================
+openai>=1.40.0             # Cliente oficial da OpenAI para ChatGPT
+
 
 # ============================================================================
 # SEGURANÇA & CRIPTOGRAFIA

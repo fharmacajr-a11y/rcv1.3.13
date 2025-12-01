@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timezone
-from typing import Dict, Tuple
 
 # Windows reserves specific directory names; keep them uppercase for lookups.
 RESERVED_WIN_NAMES: set[str] = {
@@ -22,17 +21,17 @@ _META_SEPARATOR = re.compile(r"\s*[-_/|]\s*")
 
 
 def fmt_data(iso_str: str | None) -> str:
-    """Format an ISO datetime string into 'DD/MM/YYYY - HH:MM:SS'."""
+    """Format an ISO datetime string into 'DD/MM/YYYY - %H:%M:%S'."""
     if not iso_str:
         return ""
 
-    cleaned = iso_str.strip()
+    cleaned: str = iso_str.strip()
     if not cleaned:
         return ""
 
-    normalized = cleaned.replace("Z", "+00:00")
+    normalized: str = cleaned.replace("Z", "+00:00")
     try:
-        dt_obj = datetime.fromisoformat(normalized)
+        dt_obj: datetime = datetime.fromisoformat(normalized)
         if dt_obj.tzinfo is None:
             dt_obj = dt_obj.replace(tzinfo=timezone.utc)
         return dt_obj.astimezone().strftime("%d/%m/%Y - %H:%M:%S")
@@ -49,7 +48,7 @@ def slugify_name(value: str | None) -> str:
     """Create a filesystem-friendly slug limited to 60 ASCII characters."""
     if not value:
         return ""
-    slug = re.sub(r"[^A-Za-z0-9_]+", "_", value.strip())
+    slug: str = re.sub(r"[^A-Za-z0-9_]+", "_", value.strip())
     slug = re.sub(r"_+", "_", slug).strip("_")
     return slug[:60]
 
@@ -63,11 +62,11 @@ def safe_base_from_fields(cnpj: str, numero: str, razao: str, pk: int) -> str:
       3. Slugified company name
       4. Fallback to the database identifier
     """
-    cnpj_digits = only_digits(cnpj)
+    cnpj_digits: str = only_digits(cnpj)
     if len(cnpj_digits) == 14:
-        base = cnpj_digits
+        base: str = cnpj_digits
     else:
-        numero_digits = only_digits(numero)
+        numero_digits: str = only_digits(numero)
         if len(numero_digits) >= 10:
             base = numero_digits
         else:
@@ -78,28 +77,30 @@ def safe_base_from_fields(cnpj: str, numero: str, razao: str, pk: int) -> str:
     return base
 
 
-def split_meta(meta: str) -> Tuple[str, str]:
+def split_meta(meta: str) -> tuple[str, str]:
     """Split a folder suffix into (razao_social, contato) using common separators."""
     if not meta:
         return "", ""
 
-    parts = [segment.strip() for segment in _META_SEPARATOR.split(meta) if segment.strip()]
-    razao = parts[0] if len(parts) >= 1 else ""
-    contato = parts[1] if len(parts) >= 2 else ""
+    parts: list[str] = [segment.strip() for segment in _META_SEPARATOR.split(meta) if segment.strip()]
+    razao: str = parts[0] if len(parts) >= 1 else ""
+    contato: str = parts[1] if len(parts) >= 2 else ""
     return razao, contato
 
 
-def parse_pasta(nome: str) -> Dict[str, str]:
+def parse_pasta(nome: str) -> dict[str, str]:
     """
     Infer client metadata from a folder name.
     Returns a dict with the keys: cnpj, numero, razao and pessoa.
     """
-    base = (nome or "").strip()
-    digits = only_digits(base)
+    base: str = (nome or "").strip()
+    digits: str = only_digits(base)
 
     if len(digits) == 14:
         match = re.search(r"^\D*(\d{14})\D*(.*)$", base)
-        suffix = (match.group(2) if match else "").strip()
+        suffix: str = (match.group(2) if match else "").strip()
+        razao: str
+        pessoa: str
         razao, pessoa = split_meta(suffix)
         return {"cnpj": digits, "numero": "", "razao": razao, "pessoa": pessoa}
 

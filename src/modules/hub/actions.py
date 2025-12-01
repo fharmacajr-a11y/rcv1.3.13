@@ -142,8 +142,8 @@ def on_add_note_clicked(screen) -> None:
             try:
                 screen.after(0, _mark_table_missing)
 
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Falha ao marcar tabela de notas como ausente: %s", exc)
 
         except notes_service.NotesAuthError as exc:
             auth_error = True
@@ -163,8 +163,8 @@ def on_add_note_clicked(screen) -> None:
             try:
                 screen.btn_add_note.configure(state="normal")
 
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Falha ao reabilitar botao de nova nota: %s", exc)
 
             if transient_error and not table_missing and not auth_error:
                 try:
@@ -174,8 +174,8 @@ def on_add_note_clicked(screen) -> None:
                         parent=screen,
                     )
 
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    log.debug("Falha ao exibir aviso de conexao instavel: %s", exc)
 
             elif table_missing:
                 try:
@@ -187,8 +187,8 @@ def on_add_note_clicked(screen) -> None:
                         "Tentaremos novamente em 60 segundos.",
                         parent=screen,
                     )
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    log.debug("Falha ao exibir erro de tabela de notas ausente: %s", exc)
 
             elif auth_error:
                 try:
@@ -198,15 +198,15 @@ def on_add_note_clicked(screen) -> None:
                         parent=screen,
                     )
 
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    log.debug("Falha ao exibir erro de permissao de notas: %s", exc)
 
             elif ok:
                 try:
                     screen.new_note.delete("1.0", "end")
 
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    log.debug("Falha ao limpar campo de nova nota: %s", exc)
 
                 refresh_notes_async(screen, force=True)
 
@@ -215,8 +215,8 @@ def on_add_note_clicked(screen) -> None:
                 try:
                     custom_dialogs.show_info(screen, "Sucesso", "Anotação adicionada com sucesso!")
 
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    log.debug("Falha ao exibir mensagem de sucesso de nota: %s", exc)
 
             else:
                 try:
@@ -226,13 +226,13 @@ def on_add_note_clicked(screen) -> None:
                         parent=screen,
                     )
 
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    log.debug("Falha ao exibir erro geral ao adicionar nota: %s", exc)
 
         try:
             screen.after(0, _ui)
 
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao agendar atualizacao de UI de notas: %s", exc)
 
     threading.Thread(target=_work, daemon=True).start()

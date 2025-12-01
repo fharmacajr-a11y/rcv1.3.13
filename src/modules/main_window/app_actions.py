@@ -6,6 +6,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
 import logging
 
+from src.ui.dialogs.pdf_converter_dialogs import ask_delete_images, show_conversion_result
+
 if TYPE_CHECKING:
     from src.modules.main_window.views.main_window import App
 
@@ -53,8 +55,8 @@ class AppActions:
             # Nenhum cliente selecionado: ignora comando sem exibir popup.
             try:
                 self._logger.info("Excluir cliente ignorado: nenhuma linha selecionada na lista principal.")
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                self._logger.debug("Log failed for no-selection state: %s", exc)
             return
 
         try:
@@ -162,7 +164,7 @@ class AppActions:
         """
         from tkinter import messagebox
         import os
-        from uploader_supabase import send_to_supabase_interactive
+        from src.modules.uploads.uploader_supabase import send_to_supabase_interactive
 
         # Log de início do fluxo
         self._logger.info("CALL enviar_para_supabase (interativo)")
@@ -199,7 +201,9 @@ class AppActions:
 
             # Log de conclusão com resultados
             if ok_count == 0 and failed_count == 0:
-                self._logger.info("enviar_para_supabase: diálogo fechado sem uploads (cancelado ou nenhum arquivo selecionado)")
+                self._logger.info(
+                    "enviar_para_supabase: diálogo fechado sem uploads (cancelado ou nenhum arquivo selecionado)"
+                )
             else:
                 self._logger.info(
                     "enviar_para_supabase: diálogo fechado (sucesso=%d, falhas=%d)",
@@ -211,3 +215,175 @@ class AppActions:
             # Log de erro com stack trace completo
             self._logger.error("Erro ao enviar para Supabase (interativo): %s", e, exc_info=True)
             messagebox.showerror("Erro", f"Erro ao enviar para Supabase:\n{str(e)}", parent=self._app)
+
+    def run_pdf_batch_converter(self) -> None:
+        """Abre dialogo para converter imagens em PDFs por subpasta."""
+        from pathlib import Path
+        from tkinter import filedialog, messagebox
+        import threading
+
+        from src.modules.pdf_tools.pdf_batch_from_images import convert_subfolders_images_to_pdf
+        from src.ui.progress.pdf_batch_progress import PDFBatchProgressDialog
+
+        parent_window = self._app
+
+        folder_str = filedialog.askdirectory(
+            title="Selecione a pasta que contem as subpastas com imagens (ex: 'win 1')",
+            parent=parent_window,
+        )
+        if not folder_str:
+            return
+
+        root_path = Path(folder_str)
+        if not root_path.is_dir():
+            messagebox.showerror(
+                "Erro",
+                "Caminho invalido. Selecione uma pasta que contenha subpastas com imagens JPG, JPEG ou PNG.",
+                parent=parent_window,
+            )
+            return
+
+        delete_choice = ask_delete_images(parent_window)
+        if delete_choice in (None, "cancel"):
+            return
+        delete_images = delete_choice == "yes"
+
+        extensions = {".jpg", ".jpeg", ".png", ".jfif"}
+        try:
+            subdirs = [p for p in root_path.iterdir() if p.is_dir()]
+            subdirs_with_images: list[Path] = []
+            total_bytes = 0
+            for subdir in subdirs:
+                all_image_paths = [
+                    path for path in subdir.iterdir() if path.is_file() and path.suffix.lower() in extensions
+                ]
+                if all_image_paths:
+                    subdirs_with_images.append(subdir)
+                total_bytes += sum(path.stat().st_size for path in all_image_paths)
+        except Exception as exc:
+            self._logger.exception("Erro ao calcular totais para o conversor PDF")
+            messagebox.showerror("Erro", f"Erro ao analisar subpastas:\n{exc}", parent=parent_window)
+            return
+
+        if total_bytes == 0:
+            msg = "Nenhum PDF foi gerado.\n" "Verifique se as subpastas cont\u00eam arquivos JPG, JPEG, PNG ou JFIF."
+            show_conversion_result(parent_window, msg)
+            return
+
+        try:
+            progress_dialog = PDFBatchProgressDialog(
+                parent_window,
+                total_bytes=total_bytes,
+                total_subdirs=len(subdirs_with_images),
+            )
+        except Exception:
+            progress_dialog = None
+
+        def progress_cb(processed_bytes, total, current_index, total_subdirs, current_subdir, current_image):
+            if progress_dialog is None or getattr(progress_dialog, "is_closed", False):
+                return
+
+            def _apply_update() -> None:
+                if progress_dialog is None or getattr(progress_dialog, "is_closed", False):
+                    return
+                progress_dialog.update_progress(
+                    processed_bytes,
+                    total,
+                    current_index,
+                    total_subdirs,
+                    current_subdir,
+                    current_image,
+                )
+
+            try:
+                self._app.after(0, _apply_update)
+            except Exception as exc:  # noqa: BLE001
+                self._logger.debug("progress_cb update failed: %s", exc)
+
+        def worker() -> None:
+            try:
+                generated = convert_subfolders_images_to_pdf(
+                    root_folder=root_path,
+                    delete_images=delete_images,
+                    progress_cb=progress_cb,
+                )
+            except Exception as exc:
+                self._logger.exception("Erro ao converter imagens em PDF")
+                err_msg = f"Falha ao converter imagens em PDF:\n{exc}"
+
+                def on_error() -> None:
+                    try:
+                        if progress_dialog is not None:
+                            progress_dialog.close()
+                    except Exception as exc:  # noqa: BLE001
+                        self._logger.debug("progress_dialog.close() failed in on_error: %s", exc)
+                    messagebox.showerror(
+                        "Erro",
+                        err_msg,
+                        parent=parent_window,
+                    )
+
+                try:
+                    self._app.after(0, on_error)
+                except Exception:
+                    on_error()
+                return
+
+            if not generated:
+
+                def on_empty() -> None:
+                    try:
+                        if progress_dialog is not None:
+                            progress_dialog.close()
+                    except Exception as exc:  # noqa: BLE001
+                        self._logger.debug("progress_dialog.close() failed in on_empty: %s", exc)
+                    msg = (
+                        "Nenhum PDF foi gerado.\n"
+                        "Verifique se as subpastas cont\u00eam arquivos JPG, JPEG, PNG ou JFIF."
+                    )
+                    show_conversion_result(parent_window, msg)
+
+                try:
+                    self._app.after(0, on_empty)
+                except Exception:
+                    on_empty()
+                return
+
+            total_subfolders = len(subdirs_with_images)
+            try:
+                self._logger.info(
+                    "Conversor PDF: %d subpastas, %d PDFs gerados",
+                    total_subfolders,
+                    len(generated),
+                )
+            except Exception as exc:  # noqa: BLE001
+                self._logger.debug("Log de sucesso do conversor PDF falhou: %s", exc)
+
+            if delete_images:
+                images_msg = "As imagens originais foram EXCLUÍDAS após a geração dos PDFs."
+            else:
+                images_msg = "As imagens originais foram MANTIDAS nas subpastas."
+
+            message = (
+                "Conversão concluída!\n\n"
+                f"Pasta selecionada: {root_path}\n"
+                f"Subpastas processadas: {total_subfolders}\n"
+                f"PDFs gerados: {len(generated)}\n\n"
+                "Os PDFs foram salvos com o nome de cada subpasta dentro das respectivas pastas.\n\n"
+                f"{images_msg}"
+            )
+
+            def on_done() -> None:
+                try:
+                    if progress_dialog is not None:
+                        progress_dialog.close()
+                except Exception as exc:  # noqa: BLE001
+                    self._logger.debug("progress_dialog.close() failed in on_done: %s", exc)
+                show_conversion_result(parent_window, message)
+
+            try:
+                self._app.after(0, on_done)
+            except Exception:
+                on_done()
+
+        threading.Thread(target=worker, daemon=True).start()

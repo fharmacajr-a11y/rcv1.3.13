@@ -14,4 +14,7 @@ def now_iso_z() -> str:
     Returns:
         String ISO 8601 UTC sem microsegundos, terminando em 'Z'.
     """
-    return datetime.datetime.now(datetime.UTC).replace(microsecond=0).isoformat() + "Z"
+    dt = datetime.datetime.now(datetime.UTC).replace(microsecond=0)
+    iso = dt.isoformat(timespec="seconds")
+    # Normaliza para o formato aceito pelo Postgres/Supabase (sem "+00:00Z")
+    return iso.replace("+00:00", "Z")

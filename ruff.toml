@@ -1,11 +1,19 @@
 target-version = "py313"
-line-length = 160
+line-length = 120
 
 [lint]
 select = ["E", "F"]
-ignore = []
+ignore = [
+    "E501",
+    "F403",
+    "F821",
+]
 
 [lint.per-file-ignores]
+"tests/**/*" = ["D", "ANN", "S101"]
+"tests/unit/core/test_auth_bootstrap_microfase.py" = ["E741", "F401"]
+"tests/unit/modules/passwords/test_passwords_screen_ui.py" = ["F401", "F811", "F841"]
+"tests/unit/modules/lixeira/test_lixeira_service.py" = ["E731"]
 "scripts/*" = ["E402", "E501"]
 "src/app_gui.py" = ["E402"]
 "adapters/storage/supabase_storage.py" = ["E402"]

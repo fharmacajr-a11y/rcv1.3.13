@@ -9,18 +9,18 @@ RAR: Usa 7-Zip CLI (empacotado com o aplicativo)
 from __future__ import annotations
 
 import sys
-import subprocess
+import subprocess  # nosec B404 - invoca��es 7-Zip controladas, sempre shell=False
 import zipfile
 import shutil
 from pathlib import Path
-from typing import Union
+from typing import Final
 
 # Constantes de extensões suportadas
-SUPPORTED_ARCHIVES = {".zip", ".rar", ".7z"}
-SUPPORTED_7Z_VOLUMES = True  # Suporta .7z.001, .7z.002, etc.
+SUPPORTED_ARCHIVES: Final[set[str]] = {".zip", ".rar", ".7z"}
+SUPPORTED_7Z_VOLUMES: Final[bool] = True  # Suporta .7z.001, .7z.002, etc.
 
 # Padrões glob para uso em file dialogs (Tkinter filetypes)
-ARCHIVE_GLOBS = ("*.zip", "*.rar", "*.7z", "*.7z.*")
+ARCHIVE_GLOBS: Final[tuple[str, ...]] = ("*.zip", "*.rar", "*.7z", "*.7z.*")
 
 
 class ArchiveError(Exception):
@@ -96,7 +96,12 @@ def find_7z() -> Path | None:
     return Path(exe_path) if exe_path else None
 
 
-def extract_archive(src: Union[str, Path], out_dir: Union[str, Path], *, password: str | None = None) -> Path:
+def extract_archive(
+    src: str | Path,
+    out_dir: str | Path,
+    *,
+    password: str | None = None,
+) -> Path:
     """
     Extrai arquivo compactado (ZIP, RAR ou 7Z) para o diretório de destino.
 
@@ -120,11 +125,11 @@ def extract_archive(src: Union[str, Path], out_dir: Union[str, Path], *, passwor
     out.mkdir(parents=True, exist_ok=True)
 
     # Detectar extensão e volumes
-    name_lower = src.name.lower()
-    ext = src.suffix.lower()
+    name_lower: str = src.name.lower()
+    ext: str = src.suffix.lower()
 
     # Verificar se é volume .7z (ex: arquivo.7z.001)
-    is_7z_volume = ".7z." in name_lower and name_lower.split(".7z.")[-1].isdigit()
+    is_7z_volume: bool = ".7z." in name_lower and name_lower.split(".7z.")[-1].isdigit()
 
     if ext == ".zip":
         try:
@@ -140,16 +145,20 @@ def extract_archive(src: Union[str, Path], out_dir: Union[str, Path], *, passwor
         if password:
             raise ArchiveError("Senha não é suportada para arquivos .rar via 7-Zip CLI.")
 
-        seven_zip = find_7z()
+        seven_zip: Path | None = find_7z()
         if not seven_zip:
-            raise ArchiveError("7-Zip não encontrado para extrair .rar.\nCertifique-se de que o 7z.exe está incluído no build ou instalado no sistema.")
+            raise ArchiveError(
+                "7-Zip não encontrado para extrair .rar.\nCertifique-se de que o 7z.exe está incluído no build ou instalado no sistema."
+            )
 
         try:
-            cmd = [str(seven_zip), "x", "-y", f"-o{out}", str(src)]
-            proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+            cmd: list[str] = [str(seven_zip), "x", "-y", f"-o{out}", str(src)]
+            proc: subprocess.CompletedProcess[str] = subprocess.run(  # nosec B603 - comando em lista, shell=False
+                cmd, capture_output=True, text=True, encoding="utf-8", errors="replace"
+            )
 
             if proc.returncode != 0:
-                error_msg = f"Falha ao extrair .rar (7-Zip retornou código {proc.returncode})."
+                error_msg: str = f"Falha ao extrair .rar (7-Zip retornou código {proc.returncode})."
                 if proc.stderr:
                     error_msg += f"\nErro: {proc.stderr}"
                 if proc.stdout:
@@ -185,9 +194,11 @@ def extract_archive(src: Union[str, Path], out_dir: Union[str, Path], *, passwor
             raise ArchiveError(f"Permissão negada ao extrair .7z: {e}") from e
         except Exception as e:
             # Capturar erros de senha ou CRC
-            error_msg = str(e).lower()
+            error_msg: str = str(e).lower()
             if "password" in error_msg or "encrypted" in error_msg:
-                raise ArchiveError("Este arquivo .7z requer senha para extração.\nAtualmente a interface não suporta arquivos protegidos por senha.") from e
+                raise ArchiveError(
+                    "Este arquivo .7z requer senha para extração.\nAtualmente a interface não suporta arquivos protegidos por senha."
+                ) from e
             elif "crc" in error_msg or "checksum" in error_msg:
                 raise ArchiveError("Erro de CRC: arquivo .7z corrompido ou senha incorreta.") from e
             else:

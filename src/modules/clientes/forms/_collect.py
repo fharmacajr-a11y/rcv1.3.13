@@ -3,7 +3,10 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Dict
+
+logger = logging.getLogger(__name__)
 
 try:
     from tkinter import Text
@@ -16,8 +19,8 @@ def _get_widget_value(w: Any) -> str:
     try:
         if Text is not None and isinstance(w, Text):
             return (w.get("1.0", "end") or "").strip()
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Falha ao obter texto multiline em coletar_valores: %s", exc)
     try:
         return (w.get() or "").strip()
     except Exception:
@@ -33,11 +36,11 @@ def _val(ents: Dict[str, Any], *keys: str) -> str:
 
 
 def coletar_valores(ents: Dict[str, Any]) -> Dict[str, str]:
-    razao = _val(ents, "Razão Social", "Razao Social", "Razao", "razao", "razao_social")
+    razao = _val(ents, "Razão Social", "Razao Social", "Razao", "razao", "razao_social", "Raz�o Social")
     cnpj = _val(ents, "CNPJ", "cnpj")
     nome = _val(ents, "Nome", "nome")
     numero = _val(ents, "WhatsApp", "whatsapp", "Telefone", "numero")
-    obs = _val(ents, "Observações", "Observacoes", "Observa??es", "Obs", "obs")
+    obs = _val(ents, "Observações", "Observacoes", "Observa??es", "Obs", "obs", "Observa��es")
 
     out = {
         "Razão Social": razao,

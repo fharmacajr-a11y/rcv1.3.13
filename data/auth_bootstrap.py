@@ -1,21 +1,25 @@
 # -------------------------------- data/auth_bootstrap.py --------------------------------
-import os
+from __future__ import annotations
+
 import logging
-from typing import Optional
+import os
+from typing import Any, Optional
 
 log = logging.getLogger(__name__)
 
 
-def _get_access_token(client) -> Optional[str]:
+def _get_access_token(client: Any) -> Optional[str]:
+    """Recupera o access_token da sessão atual do cliente Supabase (ou None)."""
     try:
-        sess = client.auth.get_session()
-        token = getattr(sess, "access_token", None)
+        session = client.auth.get_session()
+        token = getattr(session, "access_token", None)
         return token or None
     except Exception:
         return None
 
 
-def _postgrest_bind(client, token: Optional[str]) -> None:
+def _postgrest_bind(client: Any, token: Optional[str]) -> None:
+    """Aplica o token da sessão atual no cliente PostgREST, ignorando falhas."""
     if not token:
         return
     try:
@@ -24,9 +28,10 @@ def _postgrest_bind(client, token: Optional[str]) -> None:
         log.warning("postgrest.auth falhou: %s", e)
 
 
-def ensure_signed_in(client) -> None:
+def ensure_signed_in(client: Any) -> None:
     """
     Garante que exista sessão válida no Supabase.
+
     Fluxo:
       1) Se já há sessão -> apenas injeta no PostgREST e retorna.
       2) Se não há sessão -> tenta login headless com SUPABASE_EMAIL/SUPABASE_PASSWORD (.env) para DEV.

@@ -7,14 +7,10 @@ import os
 import re
 import sqlite3
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from hashlib import pbkdf2_hmac
 from typing import Any
 
-try:
-    import yaml  # opcional
-except Exception:
-    yaml = None
 import logging
 from threading import Lock
 
@@ -22,6 +18,27 @@ from infra.supabase_client import get_supabase  # cliente lazy singleton
 from src.config.paths import USERS_DB_PATH
 
 log = logging.getLogger(__name__)
+
+
+def _safe_import_yaml() -> Any | None:
+    """
+    Tenta importar 'yaml'. Se falhar (ImportError ou outro erro de import),
+    retorna None em vez de explodir.
+
+    Esta função existe para permitir testes simularem falha de import
+    sem precisar usar importlib.reload() no módulo inteiro.
+    """
+    try:
+        import yaml
+
+        return yaml
+    except Exception as exc:  # noqa: BLE001
+        log.debug("Falha ao importar yaml: %s", exc)
+        return None
+
+
+# Import opcional de yaml para leitura de config
+yaml = _safe_import_yaml()
 
 
 def _get_auth_pepper() -> str:
@@ -43,9 +60,9 @@ def _get_auth_pepper() -> str:
                         pep = str(data.get("AUTH_PEPPER") or data.get("auth_pepper") or "") or ""
                         if pep:
                             return pep
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
         # não revelar detalhes para não vazar path/pepper
-        pass
+        log.debug("Falha ao obter AUTH_PEPPER via arquivo: %s", exc)
     return ""
 
 
@@ -53,6 +70,39 @@ EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 _login_lock = Lock()
 login_attempts: dict[str, tuple[int, float]] = {}  # key_email_lower: (count, last_time)
+
+
+def _reset_auth_for_tests() -> None:
+    """
+    Helper interno para testes.
+    Limpa o estado global de rate limiting e qualquer cache de autenticação.
+    NÃO deve ser usado em código de produção.
+    """
+    global login_attempts
+    with _login_lock:
+        login_attempts.clear()
+
+
+def _set_login_attempts_for_tests(email: str, count: int, timestamp: float) -> None:
+    """
+    Helper interno para testes.
+    Define manualmente o estado de tentativas de login para um email.
+    NÃO deve ser usado em código de produção.
+    """
+    key = email.strip().lower()
+    with _login_lock:
+        login_attempts[key] = (count, timestamp)
+
+
+def _get_login_attempts_for_tests(email: str) -> tuple[int, float] | None:
+    """
+    Helper interno para testes.
+    Retorna o estado de tentativas de login para um email ou None.
+    NÃO deve ser usado em código de produção.
+    """
+    key = email.strip().lower()
+    with _login_lock:
+        return login_attempts.get(key)
 
 
 def check_rate_limit(email: str) -> tuple[bool, float]:
@@ -124,7 +174,7 @@ def create_user(username: str, password: str | None = None) -> int:
         raise ValueError("username obrigatório")
 
     ensure_users_db()
-    now: str = datetime.utcnow().isoformat()
+    now: str = datetime.now(timezone.utc).isoformat()
     pwd_hash: str | None = pbkdf2_hash(password) if password else None
 
     with sqlite3.connect(str(USERS_DB_PATH)) as con:

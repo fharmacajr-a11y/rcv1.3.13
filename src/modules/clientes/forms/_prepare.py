@@ -67,7 +67,9 @@ def traduzir_erro_supabase_para_msg_amigavel(err: Any, *, cnpj: str | None = Non
     code, raw_message, constraint = _extract_supabase_error(err)
     merged_text = " ".join([p for p in [raw_message, constraint or ""] if p]).lower()
 
-    if (code == "23505" or "duplicate key value violates unique constraint" in merged_text) and "uq_clients_cnpj" in merged_text:
+    if (
+        code == "23505" or "duplicate key value violates unique constraint" in merged_text
+    ) and "uq_clients_cnpj" in merged_text:
         lines = [
             "Já existe um cliente cadastrado com este CNPJ.",
             "Ele pode estar na lista principal ou na Lixeira.",
@@ -199,14 +201,14 @@ def _ensure_ctx(self, row, ents, arquivos, win) -> UploadCtx:
         if forced_id is not None:
             ctx.client_id = forced_id
         delattr(self, "_force_client_id_for_upload")
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Falha ao aplicar client_id forçado no upload: %s", exc)
     try:
         if getattr(self, "_upload_force_is_new", False):
             ctx.is_new = True
         delattr(self, "_upload_force_is_new")
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Falha ao aplicar flag is_new forçada no upload: %s", exc)
     return ctx
 
 
@@ -298,8 +300,8 @@ def prepare_payload(*args, skip_duplicate_prompt: bool = False, **kwargs) -> tup
         cnpj_val = None
         try:
             cnpj_val = valores.get("CNPJ") or valores.get("cnpj")
-        except Exception:
-            pass
+        except Exception as inner_exc:  # noqa: BLE001
+            logger.debug("Falha ao extrair CNPJ para mensagem de erro: %s", inner_exc)
         msg_amigavel = traduzir_erro_supabase_para_msg_amigavel(exc, cnpj=cnpj_val)
         try:
             if win and hasattr(win, "winfo_exists") and win.winfo_exists():
@@ -359,7 +361,9 @@ def prepare_payload(*args, skip_duplicate_prompt: bool = False, **kwargs) -> tup
                 excluir_cliente_simples(int(ctx.client_id))
                 logger.info("Rollback de cliente recém-criado id=%s após cancelamento da subpasta", ctx.client_id)
             except Exception:
-                logger.exception("Falha ao reverter criação de cliente após cancelamento da subpasta (id=%s)", ctx.client_id)
+                logger.exception(
+                    "Falha ao reverter criação de cliente após cancelamento da subpasta (id=%s)", ctx.client_id
+                )
         ctx.abort = True
         return args, kwargs
 
@@ -372,7 +376,9 @@ def prepare_payload(*args, skip_duplicate_prompt: bool = False, **kwargs) -> tup
 
     src = filedialog.askdirectory(
         parent=parent_win,
-        title=(f"Escolha a PASTA para importar (irá para '{DEFAULT_IMPORT_SUBFOLDER}{'/' + ctx.subpasta if ctx.subpasta else ''}')"),
+        title=(
+            f"Escolha a PASTA para importar (irá para '{DEFAULT_IMPORT_SUBFOLDER}{'/' + ctx.subpasta if ctx.subpasta else ''}')"
+        ),
     )
     ctx.src_dir = src or ""
 
@@ -396,8 +402,8 @@ def prepare_payload(*args, skip_duplicate_prompt: bool = False, **kwargs) -> tup
         messagebox.showinfo("Nada a enviar", "Cliente salvo, mas nenhum arquivo foi selecionado.")
         try:
             self.carregar()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao recarregar tela apos salvar cliente sem arquivos: %s", exc)
         ctx.abort = True
         return args, kwargs
 

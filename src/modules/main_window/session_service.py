@@ -11,16 +11,34 @@ log = logging.getLogger(__name__)
 class SessionCache:
     """Cache de dados de sessão do usuário (user, role, org_id)."""
 
+    # Atributos de classe para rastrear todas as instâncias (para limpeza em testes)
+    _all_instances: list[SessionCache] = []
+
     def __init__(self) -> None:
         self._user_cache: Optional[dict[str, Any]] = None
         self._role_cache: Optional[str] = None
         self._org_id_cache: Optional[str] = None
+        # Registra instância para possível limpeza global
+        SessionCache._all_instances.append(self)
 
     def clear(self) -> None:
         """Limpa todo o cache de sessão."""
         self._user_cache = None
         self._role_cache = None
         self._org_id_cache = None
+
+    @classmethod
+    def clear_all_instances_for_tests(cls) -> None:
+        """
+        Limpa cache de TODAS as instâncias de SessionCache criadas.
+
+        Este método é para uso em testes, garantindo que nenhum estado
+        de cache (role, org_id, user) seja compartilhado entre testes.
+        """
+        for instance in cls._all_instances:
+            instance.clear()
+        # Limpa também a lista de instâncias para evitar memory leak
+        cls._all_instances.clear()
 
     def get_user(self) -> Optional[dict[str, Any]]:
         """

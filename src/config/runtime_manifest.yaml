@@ -22,7 +22,7 @@ exclude:
   - ajuda/**
   - docs/**
   - tests/**
-  - scripts/**            # exceto o make_runtime.py
+  - docs/scripts/**       # exceto o make_runtime.py
   - .github/**
   - build/**
   - dist/**
@@ -45,4 +45,4 @@ exclude:
 
 # Exceções de scripts permitidos no runtime (se precisar rodar algo junto)
 whitelist_scripts:
-  - scripts/make_runtime.py
+  - docs/scripts/make_runtime.py

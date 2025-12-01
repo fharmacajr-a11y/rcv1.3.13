@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import logging
 import re
-from datetime import datetime, date, time
+from datetime import date, datetime, time
 from typing import Any, Final
+
+logger = logging.getLogger(__name__)
 
 APP_DATETIME_FMT: Final[str] = "%Y-%m-%d %H:%M:%S"
 
@@ -46,20 +49,21 @@ def fmt_datetime(value: datetime | date | time | str | int | float | None) -> st
         s: str = value.strip()
         try:
             dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao interpretar data/hora ISO: %s", exc)
             for pat in ("%Y-%m-%d %H:%M:%S", "%d/%m/%Y %H:%M:%S", "%Y-%m-%d"):
                 try:
                     dt = datetime.strptime(s, pat)
                     break
-                except Exception:
-                    pass
+                except Exception as inner_exc:  # noqa: BLE001
+                    logger.debug("Falha ao interpretar data/hora (%s): %s", pat, inner_exc)
     if dt is None:
         return str(value)
     try:
         if dt.tzinfo is not None:
             dt = dt.astimezone()
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Falha ao ajustar timezone em fmt_datetime: %s", exc)
     return dt.strftime(APP_DATETIME_FMT)
 
 
@@ -80,12 +84,13 @@ def _parse_any_dt(value: Any) -> datetime | None:
         s = value.strip()
         try:
             return datetime.fromisoformat(s.replace("Z", "+00:00"))
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao interpretar data/hora ISO em _parse_any_dt: %s", exc)
             for pat in ("%Y-%m-%d %H:%M:%S", "%d/%m/%Y %H:%M:%S", "%Y-%m-%d", "%d/%m/%Y"):
                 try:
                     return datetime.strptime(s, pat)
-                except Exception:
-                    pass
+                except Exception as inner_exc:  # noqa: BLE001
+                    logger.debug("Falha ao interpretar data/hora (%s) em _parse_any_dt: %s", pat, inner_exc)
     return None
 
 
@@ -104,6 +109,6 @@ def fmt_datetime_br(value: datetime | date | time | str | int | float | None) ->
     try:
         if dt.tzinfo is not None:
             dt = dt.astimezone()
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Falha ao ajustar timezone em fmt_datetime_br: %s", exc)
     return dt.strftime(APP_DATETIME_FMT_BR)

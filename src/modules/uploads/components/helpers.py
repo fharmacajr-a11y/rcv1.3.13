@@ -5,7 +5,10 @@ Extraidos de src.ui.files_browser para permitir reutilizacao e testes.
 
 from __future__ import annotations
 
+import logging
 import re
+
+logger = logging.getLogger(__name__)
 
 
 def _cnpj_only_digits(text: str) -> str:
@@ -65,6 +68,6 @@ def get_current_org_id(sb) -> str:  # type: ignore[no-untyped-def]
         res = sb.table("memberships").select("org_id").eq("user_id", uid).limit(1).execute()
         if getattr(res, "data", None) and res.data and res.data[0].get("org_id"):
             return res.data[0]["org_id"]
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Falha ao obter org_id atual via Supabase: %s", exc)
     return ""

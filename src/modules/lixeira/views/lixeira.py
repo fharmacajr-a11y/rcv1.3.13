@@ -10,7 +10,7 @@ import threading
 import tkinter as tk
 from tkinter import messagebox as tkmsg
 from tkinter import ttk
-from typing import Iterable
+from typing import Any, Callable, Iterable, List, Optional, Tuple
 
 import ttkbootstrap as tb
 
@@ -26,6 +26,15 @@ from src.ui.utils import center_window
 
 logger = logging.getLogger(__name__)
 log = logger
+
+
+def _log_ui_issue(context: str, exc: Exception, *, level: str = "debug") -> None:
+    """Unified logging for best-effort UI operations in the trash screen."""
+    if level == "warning":
+        log.warning("[Lixeira] %s: %s", context, exc)
+    else:
+        log.debug("[Lixeira] %s: %s", context, exc)
+
 
 # ---------- Singleton da janela ----------
 _OPEN_WINDOW: tb.Toplevel | None = None
@@ -52,24 +61,24 @@ def refresh_if_open() -> None:
 def _set_busy(win: tb.Toplevel, buttons: Iterable[tb.Widget], busy: bool) -> None:
     try:
         win.configure(cursor=("watch" if busy else ""))
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        _log_ui_issue("Falha ao aplicar cursor busy", exc)
     for btn in buttons or []:
         try:
             btn.configure(state=("disabled" if busy else "normal"))
         except Exception:
             try:
                 btn["state"] = "disabled" if busy else "normal"
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                _log_ui_issue("Falha ao atualizar estado de botao na Lixeira", exc)
     try:
         win.update_idletasks()
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        _log_ui_issue("Falha ao atualizar idletasks na Lixeira", exc)
 
 
 # ---------------- janela principal da Lixeira (com Treeview) ----------------
-def abrir_lixeira(parent, app=None):
+def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[tb.Toplevel]:
     """Abre a Lixeira em modo singleton: se já estiver aberta, só foca e recarrega."""
     global _OPEN_WINDOW
 
@@ -96,8 +105,8 @@ def abrir_lixeira(parent, app=None):
     win.title("Lixeira de Clientes")
     try:
         win.minsize(900, 520)
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        _log_ui_issue("Falha ao aplicar tamanho minimo na Lixeira", exc)
 
     container = tb.Frame(win, padding=10)
     container.pack(fill="both", expand=True)
@@ -150,42 +159,42 @@ def abrir_lixeira(parent, app=None):
     status.pack(fill="x", pady=(6, 0))
 
     # -------- helpers locais (com parent=win) --------
-    def _info(title, msg):
+    def _info(title: str, msg: str) -> None:
         try:
             tkmsg.showinfo(title, msg, parent=win)
         except Exception:
             tkmsg.showinfo(title, msg)
 
-    def _warn(title, msg):
+    def _warn(title: str, msg: str) -> None:
         try:
             tkmsg.showwarning(title, msg, parent=win)
         except Exception:
             tkmsg.showwarning(title, msg)
 
-    def _err(title, msg):
+    def _err(title: str, msg: str) -> None:
         try:
             tkmsg.showerror(title, msg, parent=win)
         except Exception:
             tkmsg.showerror(title, msg)
 
-    def _ask_yesno(title, msg) -> bool:
+    def _ask_yesno(title: str, msg: str) -> bool:
         try:
             return tkmsg.askyesno(title, msg, parent=win)
         except Exception:
             return tkmsg.askyesno(title, msg)
 
-    def get_selected_ids():
-        ids = []
+    def get_selected_ids() -> List[int]:
+        ids: List[int] = []
         for iid in tree.selection():
             try:
                 ids.append(int(tree.set(iid, "id")))
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                _log_ui_issue("Falha ao coletar ID selecionado na Lixeira", exc)
         return ids
 
     # -------- carregar lista --------
-    def carregar():
-        def _get_val(obj, *names):
+    def carregar() -> None:
+        def _get_val(obj: Any, *names: str):
             for name in names:
                 if hasattr(obj, name):
                     try:
@@ -269,7 +278,7 @@ def abrir_lixeira(parent, app=None):
         log.info("Lixeira carregada com %d clientes", len(rows))
 
     # -------- ações --------
-    def on_restore():
+    def on_restore() -> None:
         ids = get_selected_ids()
         if not ids:
             _warn("Lixeira", "Selecione pelo menos um registro para restaurar.")
@@ -295,7 +304,7 @@ def abrir_lixeira(parent, app=None):
             _set_busy(win, [btn_restore, btn_purge, btn_refresh, btn_close], False)
             carregar()
 
-    def on_purge():
+    def on_purge() -> None:
         ids = get_selected_ids()
         if not ids:
             _warn(
@@ -309,15 +318,15 @@ def abrir_lixeira(parent, app=None):
         ):
             return
 
-        def _show_wait_dialog(count: int):
+        def _show_wait_dialog(count: int) -> Tuple[tk.Toplevel, ttk.Label, ttk.Progressbar]:
             dlg = tk.Toplevel(win)
             try:
                 dlg.title("Aguarde")
                 dlg.transient(win)
                 dlg.grab_set()
                 dlg.resizable(False, False)
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                _log_ui_issue("Falha ao configurar dialogo de aguardando", exc)
 
             label = ttk.Label(dlg, text=f"Apagando 0/{count} registro(s)... Aguarde.")
             label.pack(padx=20, pady=(15, 5))
@@ -329,35 +338,35 @@ def abrir_lixeira(parent, app=None):
                 x = win.winfo_rootx() + (win.winfo_width() // 2 - dlg.winfo_width() // 2)
                 y = win.winfo_rooty() + (win.winfo_height() // 2 - dlg.winfo_height() // 2)
                 dlg.geometry(f"+{x}+{y}")
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                _log_ui_issue("Falha ao posicionar dialogo de aguardando", exc)
 
             try:
                 dlg.protocol("WM_DELETE_WINDOW", lambda: None)
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                _log_ui_issue("Falha ao bloquear fechamento do dialogo de aguardando", exc)
 
             return dlg, label, bar
 
-        def _make_purge_progress_cb(bar: ttk.Progressbar, label: ttk.Label):
+        def _make_purge_progress_cb(bar: ttk.Progressbar, label: ttk.Label) -> Callable[[int, int, int], None]:
             def progress_cb(idx: int, total: int, client_id: int) -> None:
                 def _update():
                     try:
                         bar["maximum"] = max(total, 1)
                         bar["value"] = idx
                         label.configure(text=f"Apagando {idx}/{total} registro(s)... Aguarde.")
-                    except Exception:
-                        pass
+                    except Exception as exc:  # noqa: BLE001
+                        _log_ui_issue("Falha ao atualizar barra de progresso da Lixeira", exc)
 
                 win.after(0, _update)
 
             return progress_cb
 
-        def _on_purge_finished(wait_dlg: tk.Toplevel, ok_count: int, errs_list, total: int):
+        def _on_purge_finished(wait_dlg: tk.Toplevel, ok_count: int, errs_list: Any, total: int) -> None:
             try:
                 wait_dlg.destroy()
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                _log_ui_issue("Falha ao fechar dialogo de aguardando na Lixeira", exc)
 
             _set_busy(win, [btn_restore, btn_purge, btn_refresh, btn_close], False)
 
@@ -383,7 +392,7 @@ def abrir_lixeira(parent, app=None):
         wait, progress_label, progress_bar = _show_wait_dialog(len(ids))
         progress_cb = _make_purge_progress_cb(progress_bar, progress_label)
 
-        def worker():
+        def worker() -> None:
             try:
                 ok, errs = excluir_clientes_definitivamente(ids, progress_cb=progress_cb)  # DB + Storage
             except Exception as e:  # pragma: no cover - proteção extra
@@ -406,8 +415,8 @@ def abrir_lixeira(parent, app=None):
         global _OPEN_WINDOW
         try:
             _OPEN_WINDOW = None
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _log_ui_issue("Falha ao limpar singleton da Lixeira", exc)
         win.destroy()
 
     win.protocol("WM_DELETE_WINDOW", _on_close)
@@ -416,7 +425,7 @@ def abrir_lixeira(parent, app=None):
     carregar()
     try:
         center_window(win)
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        _log_ui_issue("Falha ao centralizar janela da Lixeira", exc)
 
     return win

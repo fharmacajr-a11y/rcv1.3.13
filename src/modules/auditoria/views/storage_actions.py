@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from tkinter import messagebox
 from typing import TYPE_CHECKING
 
 from src.modules.auditoria.service import AuditoriaServiceError
 from ..application import AuditoriaApplication
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:  # pragma: no cover
     from .main_frame import AuditoriaFrame
@@ -55,8 +58,8 @@ class AuditoriaStorageActions:
                 win.attributes("-topmost", True)
                 win.after(150, lambda: win.attributes("-topmost", False))
                 win.focus_force()
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Falha ao focar janela existente de subpastas: %s", exc)
             return
 
         try:
@@ -136,7 +139,9 @@ class AuditoriaStorageActions:
         nomes = [self.frame._aud_index[i]["cliente_nome"] for i in sels if i in self.frame._aud_index]
         lista_nomes = "\n".join(nomes[:5]) + ("..." if len(nomes) > 5 else "")
 
-        if not messagebox.askyesno("Confirmar exclusão", f"Excluir {len(ids)} auditoria(s)?\n\n{lista_nomes}", parent=self.frame):
+        if not messagebox.askyesno(
+            "Confirmar exclusão", f"Excluir {len(ids)} auditoria(s)?\n\n{lista_nomes}", parent=self.frame
+        ):
             return
 
         try:

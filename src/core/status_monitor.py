@@ -3,8 +3,9 @@
 
 from __future__ import annotations
 
+import logging
 import threading
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 try:
     from infra.net_status import Status, probe
@@ -13,10 +14,13 @@ except Exception:  # pragma: no cover
 
 from src.config.environment import cloud_only_default
 
+log = logging.getLogger(__name__)
+
 
 class _NetStatusWorker:
     """
     Worker que consulta status de rede periodicamente e notifica callback.
+
     Callback recebe bool: is_online.
     """
 
@@ -25,10 +29,10 @@ class _NetStatusWorker:
         callback: Callable[[bool], None],
         interval_ms: int = 30_000,
     ) -> None:
-        self._callback = callback
-        self._interval_sec = max(1.0, float(interval_ms) / 1000.0)
-        self._stop_event = threading.Event()
-        self._thread: Optional[threading.Thread] = None
+        self._callback: Callable[[bool], None] = callback
+        self._interval_sec: float = max(1.0, float(interval_ms) / 1000.0)
+        self._stop_event: threading.Event = threading.Event()
+        self._thread: threading.Thread | None = None
 
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
@@ -44,16 +48,18 @@ class _NetStatusWorker:
         self._thread = None
 
     def _run(self) -> None:
+        """Loop de sondagem que aplica callback enquanto não recebe sinal de parada."""
         while not self._stop_event.is_set():
             try:
                 status = probe()
                 is_online = status == Status.ONLINE
-            except Exception:
+            except Exception as exc:
+                log.debug("StatusMonitor: falha ao sondar rede", exc_info=exc)
                 is_online = False
             try:
                 self._callback(is_online)
-            except Exception:
-                pass
+            except Exception as exc:
+                log.debug("StatusMonitor: callback de rede falhou", exc_info=exc)
             if self._stop_event.wait(self._interval_sec):
                 break
 
@@ -76,12 +82,12 @@ class StatusMonitor:
         app_after: Callable[[int, Callable[[], None]], Any],
         interval_ms: int = 30_000,
     ) -> None:
-        self._set_text = set_text
-        self._after = app_after
-        self._is_cloud = cloud_only_default()
-        self._online: Optional[bool] = None
-        self._interval_ms = interval_ms
-        self._net: Optional[_NetStatusWorker] = None
+        self._set_text: Callable[..., None] = set_text
+        self._after: Callable[[int, Callable[[], None]], Any] = app_after
+        self._is_cloud: bool = cloud_only_default()
+        self._online: bool | None = None
+        self._interval_ms: int = interval_ms
+        self._net: _NetStatusWorker | None = None
 
     # ---------- API pública ----------
     def start(self) -> None:
@@ -90,8 +96,8 @@ class StatusMonitor:
             self._net = _NetStatusWorker(callback=self._on_net_change, interval_ms=self._interval_ms)
         try:
             self._net.start()
-        except Exception:
-            pass
+        except Exception as exc:
+            log.debug("StatusMonitor: falha ao iniciar worker de rede", exc_info=exc)
         self._post_update()
 
     def stop(self) -> None:
@@ -99,8 +105,8 @@ class StatusMonitor:
         try:
             if self._net:
                 self._net.stop()
-        except Exception:
-            pass
+        except Exception as exc:
+            log.debug("StatusMonitor: falha ao parar worker de rede", exc_info=exc)
         finally:
             self._net = None
 
@@ -125,6 +131,7 @@ class StatusMonitor:
             self._post_update()
 
     def _post_update(self) -> None:
+        """Agenda (ou executa) a atualização do texto na UI thread."""
         text = self.merge_status_text(self.env_text(self._is_cloud), self._online)
 
         def _apply() -> None:
@@ -140,11 +147,11 @@ class StatusMonitor:
 
     # ---------- Helpers ----------
     @staticmethod
-    def env_text(is_cloud: Optional[bool]) -> str:
+    def env_text(is_cloud: bool | None) -> str:
         return "Nuvem" if is_cloud else "Local"
 
     @staticmethod
-    def merge_status_text(env_label: str, is_online: Optional[bool]) -> str:
+    def merge_status_text(env_label: str, is_online: bool | None) -> str:
         """Gera texto de status sem incluir e-mail (apenas ambiente + online/offline)."""
         if is_online is None:
             status_label = "verificando rede…"

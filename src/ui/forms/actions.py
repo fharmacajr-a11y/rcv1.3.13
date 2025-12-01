@@ -19,7 +19,7 @@ from src.modules.uploads.storage_browser_service import (
 )
 from src.utils.validators import only_digits
 
-from uploader_supabase import _select_pdfs_dialog
+from src.modules.uploads.uploader_supabase import _select_pdfs_dialog
 
 # ui/forms/actions.py
 

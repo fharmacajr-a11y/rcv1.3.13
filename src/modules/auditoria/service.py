@@ -54,6 +54,7 @@ class AuditoriaOfflineError(AuditoriaServiceError):
 
 
 def _get_supabase_client() -> Any | None:
+    """Retorna o cliente Supabase do infra ou None se indisponível."""
     try:
         return get_supabase()
     except Exception:
@@ -61,6 +62,7 @@ def _get_supabase_client() -> Any | None:
 
 
 def _require_supabase() -> Any:
+    """Garante que há cliente Supabase disponível ou levanta AuditoriaOfflineError."""
     sb = _get_supabase_client()
     if not sb:
         raise AuditoriaOfflineError("Supabase client is not available.")
@@ -68,10 +70,12 @@ def _require_supabase() -> Any:
 
 
 def get_supabase_client() -> Any | None:
+    """Exponibiliza o cliente Supabase (ou None) para chamadas externas."""
     return _get_supabase_client()
 
 
 def is_online() -> bool:
+    """Indica se há cliente Supabase disponível (online)."""
     return get_supabase_client() is not None
 
 
@@ -79,6 +83,7 @@ def is_online() -> bool:
 
 
 def fetch_clients() -> list[dict[str, Any]]:
+    """Lista clientes via repositório, encapsulando erros em AuditoriaServiceError."""
     sb = _require_supabase()
     try:
         return repository.fetch_clients(sb)
@@ -87,10 +92,12 @@ def fetch_clients() -> list[dict[str, Any]]:
 
 
 def list_clients_minimal() -> list[dict[str, Any]]:
+    """Alias minimalista para fetch_clients()."""
     return fetch_clients()
 
 
 def fetch_auditorias() -> list[dict[str, Any]]:
+    """Lista auditorias via repositório, convertendo erros em AuditoriaServiceError."""
     sb = _require_supabase()
     try:
         return repository.fetch_auditorias(sb)
@@ -99,10 +106,12 @@ def fetch_auditorias() -> list[dict[str, Any]]:
 
 
 def list_auditorias() -> list[dict[str, Any]]:
+    """Alias minimalista para fetch_auditorias()."""
     return fetch_auditorias()
 
 
 def start_auditoria(cliente_id: int, *, status: str = "em_andamento") -> dict[str, Any]:
+    """Cria registro de auditoria para cliente informado, retornando a linha criada."""
     sb = _require_supabase()
     payload = {"cliente_id": cliente_id, "status": status}
     try:
@@ -116,6 +125,7 @@ def start_auditoria(cliente_id: int, *, status: str = "em_andamento") -> dict[st
 
 
 def update_auditoria_status(auditoria_id: str, status: str) -> dict[str, Any]:
+    """Atualiza status de auditoria e retorna a linha resultante."""
     sb = _require_supabase()
     try:
         res = repository.update_auditoria(sb, auditoria_id, status)
@@ -149,6 +159,7 @@ def delete_auditorias(auditoria_ids: Iterable[str | int | None]) -> None:
 
 
 def get_current_org_id(*, force_refresh: bool = False) -> str:
+    """Resolve org_id do usuário atual com cache em memória; levanta AuditoriaServiceError em falha."""
     global _ORG_ID_CACHE
     if _ORG_ID_CACHE and not force_refresh:
         return _ORG_ID_CACHE
@@ -165,24 +176,29 @@ def get_current_org_id(*, force_refresh: bool = False) -> str:
 
 
 def reset_org_cache() -> None:
+    """Limpa cache de org_id."""
     global _ORG_ID_CACHE
     _ORG_ID_CACHE = ""
 
 
 def get_clients_bucket() -> str:
+    """Retorna bucket de clientes usado pelo módulo de auditoria."""
     return storage.get_clients_bucket()
 
 
 def build_client_prefix(client_id: int, org_id: str) -> str:
+    """Constroi prefixo do cliente no storage para auditoria."""
     return storage.build_client_prefix(client_id, org_id)
 
 
 def get_storage_context(client_id: int, *, org_id: str | None = None) -> AuditoriaStorageContext:
+    """Monta contexto de storage para cliente/org informados."""
     resolved_org = org_id or get_current_org_id()
     return storage.make_storage_context(client_id, resolved_org)
 
 
 def ensure_auditoria_folder(client_id: int, *, org_id: str | None = None) -> None:
+    """Garante existência da pasta de auditoria no storage."""
     ctx = get_storage_context(client_id, org_id=org_id)
     sb = _require_supabase()
     try:
@@ -192,6 +208,7 @@ def ensure_auditoria_folder(client_id: int, *, org_id: str | None = None) -> Non
 
 
 def list_existing_file_names(bucket: str, prefix: str, *, page_size: int = 1000) -> set[str]:
+    """Lista nomes de arquivos existentes para prefixo/bucket informado."""
     sb = _require_supabase()
     try:
         return storage.list_existing_file_names(sb, bucket, prefix, page_size=page_size)
@@ -208,6 +225,7 @@ def upload_storage_bytes(
     upsert: bool = False,
     cache_control: str = "3600",
 ) -> None:
+    """Wrapper de upload de bytes para o Storage de auditoria."""
     sb = _require_supabase()
     try:
         storage.upload_storage_bytes(
@@ -224,6 +242,7 @@ def upload_storage_bytes(
 
 
 def remove_storage_objects(bucket: str, paths: Sequence[str]) -> None:
+    """Remove objetos do storage; no-op se paths vazio."""
     if not paths:
         return
     sb = _require_supabase()
@@ -237,6 +256,7 @@ def remove_storage_objects(bucket: str, paths: Sequence[str]) -> None:
 
 
 def ensure_storage_ready() -> None:
+    """Valida dependências básicas (cliente online e bucket definido) para operações de storage."""
     if not is_online():
         raise AuditoriaOfflineError("Supabase client is not available.")
     bucket = get_clients_bucket()
@@ -245,11 +265,15 @@ def ensure_storage_ready() -> None:
 
 
 def prepare_upload_context(client_id: int, *, org_id: str | None = None) -> AuditoriaUploadContext:
+    """Cria contexto de upload (bucket/prefixo/org_id) para auditoria do cliente."""
     ctx = get_storage_context(client_id, org_id=org_id)
-    return AuditoriaUploadContext(bucket=ctx.bucket, base_prefix=ctx.auditoria_prefix, org_id=ctx.org_id, client_id=client_id)
+    return AuditoriaUploadContext(
+        bucket=ctx.bucket, base_prefix=ctx.auditoria_prefix, org_id=ctx.org_id, client_id=client_id
+    )
 
 
 def prepare_archive_plan(archive_path: str | Path) -> AuditoriaArchivePlan:
+    """Prepara plano de extração de arquivo compactado, convertendo ValueError em AuditoriaServiceError."""
     try:
         return archives.prepare_archive_plan(archive_path, extract_func=extract_archive_to)
     except ValueError as exc:
@@ -257,14 +281,17 @@ def prepare_archive_plan(archive_path: str | Path) -> AuditoriaArchivePlan:
 
 
 def cleanup_archive_plan(plan: AuditoriaArchivePlan | None) -> None:
+    """Limpa recursos temporários do plano de extração (noop se None)."""
     archives.cleanup_archive_plan(plan)
 
 
 def list_existing_names_for_context(context: AuditoriaUploadContext) -> set[str]:
+    """Lista nomes já existentes no storage para o contexto informado."""
     return list_existing_file_names(context.bucket, context.base_prefix)
 
 
 def detect_duplicate_file_names(plan: AuditoriaArchivePlan, existing_names: set[str]) -> set[str]:
+    """Detecta nomes duplicados entre plano e nomes já existentes."""
     return archives.detect_duplicate_file_names(plan, existing_names)
 
 
@@ -278,6 +305,7 @@ def execute_archive_upload(
     cancel_check: Callable[[], bool] | None = None,
     progress_callback: Callable[[AuditoriaUploadProgress], None] | None = None,
 ) -> AuditoriaUploadResult:
+    """Executa upload de arquivos de um plano de auditoria, mapeando ValueError para AuditoriaServiceError."""
     try:
         return archives.execute_archive_upload(
             plan,
@@ -294,14 +322,17 @@ def execute_archive_upload(
 
 
 def rollback_uploaded_paths(context: AuditoriaUploadContext, uploaded_paths: Iterable[str]) -> None:
+    """Remove do storage os paths enviados anteriormente (rollback)."""
     remove_storage_objects(context.bucket, list(uploaded_paths))
 
 
 def extract_archive_to(source: str | Path, target_folder: str | Path) -> Path:
+    """Extrai arquivo compactado para pasta alvo (wrapper em archives)."""
     return archives.extract_archive_to(source, target_folder)
 
 
 def is_supported_archive(path: str | Path) -> bool:
+    """Indica se a extensão é suportada para import (delegado ao archives)."""
     return archives.is_supported_archive(path)
 
 

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 import tkinter as tk
 from tkinter import ttk
 from typing import TYPE_CHECKING, Optional
 
 from .components import AuditoriaListPanel, AuditoriaToolbar
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:  # pragma: no cover
     from .main_frame import AuditoriaFrame
@@ -76,8 +79,8 @@ def build_auditoria_ui(frame: "AuditoriaFrame") -> None:
 
     try:
         frame.bind_all("<F5>", lambda event: frame._load_auditorias())
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Falha ao registrar atalho F5 na Auditoria: %s", exc)
     add_refresh_menu_entry(frame)
 
 
@@ -88,7 +91,8 @@ def add_refresh_menu_entry(frame: "AuditoriaFrame") -> None:
 
     try:
         root = frame.winfo_toplevel()
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Falha ao obter toplevel para Auditoria: %s", exc)
         return
     if not root or not root.winfo_exists():
         return
@@ -96,14 +100,16 @@ def add_refresh_menu_entry(frame: "AuditoriaFrame") -> None:
     menu_name: Optional[str]
     try:
         menu_name = root["menu"]
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Janela sem menu configurado: %s", exc)
         menu_name = None
     if not menu_name:
         return
 
     try:
         top_widget = root.nametowidget(menu_name)
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Falha ao localizar widget de menu principal: %s", exc)
         return
     if not isinstance(top_widget, tk.Menu):
         return
@@ -112,7 +118,8 @@ def add_refresh_menu_entry(frame: "AuditoriaFrame") -> None:
     exibir_menu: Optional[tk.Menu] = None
     try:
         top_end = top_menu.index("end")
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Menu principal sem entradas: %s", exc)
         top_end = None
     if top_end is not None:
         for idx in range(top_end + 1):
@@ -123,7 +130,8 @@ def add_refresh_menu_entry(frame: "AuditoriaFrame") -> None:
                     if isinstance(candidate, tk.Menu):
                         exibir_menu = candidate
                         break
-            except Exception:
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Falha ao inspecionar item de menu Exibir: %s", exc)
                 continue
 
     if exibir_menu is None:
@@ -136,7 +144,8 @@ def add_refresh_menu_entry(frame: "AuditoriaFrame") -> None:
 
     try:
         end_index = menu_exibir.index("end")
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Menu 'Exibir' sem entradas: %s", exc)
         end_index = None
     if end_index is not None:
         for idx in range(end_index + 1):
@@ -144,11 +153,12 @@ def add_refresh_menu_entry(frame: "AuditoriaFrame") -> None:
                 if menu_exibir.entrycget(idx, "label") == "Recarregar lista":
                     frame._menu_refresh_added = True
                     return
-            except Exception:
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Falha ao inspecionar entradas do menu 'Exibir': %s", exc)
                 continue
 
     try:
         menu_exibir.add_command(label="Recarregar lista", accelerator="F5", command=frame._do_refresh)
         frame._menu_refresh_added = True
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Falha ao adicionar comando 'Recarregar lista': %s", exc)

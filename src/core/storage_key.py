@@ -8,8 +8,9 @@ from __future__ import annotations
 import hashlib
 import re
 import unicodedata as ud
+from typing import Final
 
-_ALLOWED_RE = re.compile(r"^(\w|/|!|-|\.|\*|'|\(|\)| |&|\$|@|=|;|:|\+|,|\?)*$")
+_ALLOWED_RE: Final[re.Pattern[str]] = re.compile(r"^(\w|/|!|-|\.|\*|'|\(|\)| |&|\$|@|=|;|:|\+|,|\?)*$")
 
 __all__ = [
     "storage_slug_part",
@@ -54,7 +55,7 @@ def storage_slug_filename(filename: str | None) -> str:
 
 
 def make_storage_key(*parts: str | None, filename: str | None) -> str:
-    safe_parts = []
+    safe_parts: list[str] = []
     for part in parts:
         cleaned = storage_slug_part(part)
         if cleaned:
@@ -66,7 +67,7 @@ def make_storage_key(*parts: str | None, filename: str | None) -> str:
 
     if not _ALLOWED_RE.match(key):
         base, dot, ext = fname.rpartition(".")
-        digest = hashlib.sha1(fname.encode("utf-8")).hexdigest()[:8]
+        digest = hashlib.sha256(fname.encode("utf-8")).hexdigest()[:8]
         fname_fallback = (base or "arquivo") + "-" + digest + (("." + ext) if dot else "")
         key = "/".join(safe_parts + [fname_fallback]).replace("\\", "/")
         key = re.sub(r"/{2,}", "/", key).strip("/")

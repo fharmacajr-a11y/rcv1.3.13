@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Sessão do usuário logado + tokens do Supabase, com org_id carregado da tabela memberships."""
+"""Sessao do usuario logado + tokens do Supabase, com org_id carregado da tabela memberships."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Any
 
 from infra.supabase_client import exec_postgrest, supabase
 
@@ -12,37 +12,41 @@ from infra.supabase_client import exec_postgrest, supabase
 # -------------------- Modelos -------------------- #
 @dataclass
 class CurrentUser:
-    uid: str
-    email: str
-    org_id: Optional[str] = None
+    uid: str | None
+    email: str | None
+    org_id: str | None = None
 
 
 @dataclass
 class Tokens:
-    access_token: Optional[str] = None
-    refresh_token: Optional[str] = None
+    access_token: str | None = None
+    refresh_token: str | None = None
 
 
-# Compatibilidade com código legado que importava `Session`
+MembershipRow = dict[str, Any]
+TokensTuple = tuple[str | None, str | None]
+
+
+# Compatibilidade com codigo legado que importava `Session`
 @dataclass
 class Session:
     uid: str = ""
     email: str = ""
-    org_id: Optional[str] = None
-    access_token: Optional[str] = None
-    refresh_token: Optional[str] = None
+    org_id: str | None = None
+    access_token: str | None = None
+    refresh_token: str | None = None
 
 
 # -------------------- Estado -------------------- #
-_CURRENT_USER: Optional[CurrentUser] = None
-_TOKENS = Tokens()
+_CURRENT_USER: CurrentUser | None = None
+_TOKENS: Tokens = Tokens()
 
 
-# -------------------- API pública -------------------- #
+# -------------------- API publica -------------------- #
 def refresh_current_user_from_supabase() -> None:
     """
-    Lê o usuário atual do Supabase Auth e resolve o org_id na tabela public.memberships.
-    Prioriza a linha com role='owner'; se não houver, usa a primeira.
+    Le o usuario atual do Supabase Auth e resolve o org_id na tabela public.memberships.
+    Prioriza a linha com role='owner'; se nao houver, usa a primeira.
     """
     global _CURRENT_USER
 
@@ -55,43 +59,43 @@ def refresh_current_user_from_supabase() -> None:
     uid = getattr(user, "id", None)
     email = getattr(user, "email", None)
 
-    # Busca memberships do usuário
+    # Busca memberships do usuario
     resp = exec_postgrest(supabase.table("memberships").select("org_id, role").eq("user_id", uid))
-    rows: List[dict] = resp.data or []
+    rows: list[MembershipRow] = resp.data or []
 
-    org_id: Optional[str] = None
+    org_id: str | None = None
     if rows:
-        owners = [r for r in rows if (r.get("role") or "").lower() == "owner"]
+        owners: list[MembershipRow] = [r for r in rows if (r.get("role") or "").lower() == "owner"]
         chosen = owners[0] if owners else rows[0]
         org_id = chosen.get("org_id")
 
     _CURRENT_USER = CurrentUser(uid=uid, email=email, org_id=org_id)  # pyright: ignore[reportArgumentType]
 
 
-def get_current_user() -> Optional[CurrentUser]:
-    """Retorna o usuário atual (uid, email, org_id) ou None."""
+def get_current_user() -> CurrentUser | None:
+    """Retorna o usuario atual (uid, email, org_id) ou None."""
     return _CURRENT_USER
 
 
 def clear_current_user() -> None:
-    """Limpa a sessão do usuário atual."""
+    """Limpa a sessao do usuario atual."""
     global _CURRENT_USER
     _CURRENT_USER = None
 
 
 # -------------------- Tokens -------------------- #
-def set_tokens(access: Optional[str], refresh: Optional[str]) -> None:
+def set_tokens(access: str | None, refresh: str | None) -> None:
     _TOKENS.access_token = access
     _TOKENS.refresh_token = refresh
 
 
-def get_tokens() -> tuple[Optional[str], Optional[str]]:
+def get_tokens() -> TokensTuple:
     return _TOKENS.access_token, _TOKENS.refresh_token
 
 
 # -------------------- Compat/legado -------------------- #
 def set_current_user(username: str) -> None:
-    """Compat: define apenas o e-mail; org_id ficará None até rodar refresh_current_user_from_supabase()."""
+    """Compat: define apenas o e-mail; org_id ficara None ate rodar refresh_current_user_from_supabase()."""
     global _CURRENT_USER
     _CURRENT_USER = CurrentUser(uid="", email=username or "", org_id=None)
 

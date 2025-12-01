@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import functools
+import logging
 import threading
 import time
 
@@ -16,6 +17,8 @@ AUTHOR_NAMES = {
 
 # Constante para TTL do cache (em segundos)
 CACHE_TTL_SECONDS = 60
+
+log = logging.getLogger("app_gui")
 
 
 # Cache TTL de 60s para nomes provisórios (fallback), usando tick por minuto
@@ -94,8 +97,8 @@ def _author_display_name(screen, email: str) -> str:
 
                 try:
                     screen.after(0, _ui)
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    log.debug("Falha ao agendar atualizacao de autor: %s", exc)
 
         threading.Thread(target=_work, daemon=True).start()
 

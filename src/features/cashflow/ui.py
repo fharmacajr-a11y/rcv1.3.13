@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import tkinter as tk
-from tkinter import Toplevel, StringVar, ttk, messagebox
 from datetime import date, timedelta
+from tkinter import StringVar, Toplevel, messagebox, ttk
 from typing import Optional
 
 from . import repository as repo
+
+logger = logging.getLogger(__name__)
 
 
 # ------------ utilidades de centralização (sem "flash") ------------
@@ -52,13 +55,19 @@ class CashflowWindow(Toplevel):
     def __init__(self, master):
         super().__init__(master)
 
-        # Evita flicker: cria oculta, monta widgets, centraliza e só então mostra
+        self._init_base_window(master)
+        self._build_filters_row()
+        self._build_tree()
+        self._build_totals_label()
+        self._finalize_window(master)
+
+    def _init_base_window(self, master) -> None:
+        # Evita flicker: cria oculta, monta widgets, centraliza e so entao mostra
         self.withdraw()
 
         self.title("Fluxo de Caixa")
         self.minsize(820, 480)
 
-        # --- estado/variáveis ---
         try:
             self._org_id = master._get_org_id_safe() if hasattr(master, "_get_org_id_safe") else None
         except Exception:
@@ -70,7 +79,7 @@ class CashflowWindow(Toplevel):
         self.var_type = StringVar(value="Todos")
         self.var_text = StringVar(value="")
 
-        # --- topo (filtros) ---
+    def _build_filters_row(self) -> None:
         top = ttk.Frame(self, padding=8)
         top.pack(fill="x")
 
@@ -78,7 +87,7 @@ class CashflowWindow(Toplevel):
         e1 = ttk.Entry(top, textvariable=self.var_from, width=12)
         e1.pack(side="left", padx=4)
 
-        ttk.Label(top, text="Até").pack(side="left")
+        ttk.Label(top, text="At?").pack(side="left")
         e2 = ttk.Entry(top, textvariable=self.var_to, width=12)
         e2.pack(side="left", padx=4)
 
@@ -86,7 +95,7 @@ class CashflowWindow(Toplevel):
         self.cbo_tipo = ttk.Combobox(
             top,
             textvariable=self.var_type,
-            values=["Todos", "Entrada", "Saída"],
+            values=["Todos", "Entrada", "Sa??da"],
             width=10,
             state="readonly",
         )
@@ -100,7 +109,7 @@ class CashflowWindow(Toplevel):
         ttk.Button(top, text="Editar", command=self.edit).pack(side="right", padx=4)
         ttk.Button(top, text="Excluir", command=self.delete).pack(side="right", padx=4)
 
-        # --- grade ---
+    def _build_tree(self) -> None:
         self.tree = ttk.Treeview(
             self,
             columns=("date", "type", "category", "description", "amount", "account"),
@@ -113,7 +122,7 @@ class CashflowWindow(Toplevel):
             "date": "DATA",
             "type": "TIPO",
             "category": "CATEGORIA",
-            "description": "DESCRIÇÃO",
+            "description": "DESCRI???O",
             "amount": "VALOR",
             "account": "CONTA",
         }
@@ -129,25 +138,82 @@ class CashflowWindow(Toplevel):
             self.tree.heading(col, text=headers[col])
             self.tree.column(col, width=widths[col], anchor=tk.CENTER)
             self.tree.heading(col, anchor=tk.CENTER)
-        # (Se quiser a descrição à esquerda, troque anchor=tk.W nas 2 linhas acima para "description")
+        # (Se quiser a descri???o ?? esquerda, troque anchor=tk.W nas 2 linhas acima para "description")
 
-        # --- totais ---
+    def _build_totals_label(self) -> None:
         self.lbl_totals = ttk.Label(self, text="Receitas: 0.00 | Despesas: 0.00 | Saldo: 0.00", padding=8)
         self.lbl_totals.pack(fill="x")
 
-        # --- mostrar centralizada ---
+    def _finalize_window(self, master) -> None:
         if not _place_center(self):
             center_on_screen(self)
         self.deiconify()
         self.lift()
         self.focus_force()
 
-        # --- protocolo de fechamento ---
         if hasattr(master, "_cashflow_window") and master._cashflow_window is self:
             self.protocol("WM_DELETE_WINDOW", self._on_close)
 
-        # --- primeira carga ---
         self.refresh()
+
+    def _parse_date_range(self):
+        try:
+            dfrom = date.fromisoformat(self.var_from.get())
+            dto = date.fromisoformat(self.var_to.get())
+            return dfrom, dto
+        except Exception:
+            messagebox.showerror("Datas inv?lidas", "Use o formato YYYY-MM-DD", parent=self)
+            return None
+
+    def _get_type_filter(self) -> Optional[str]:
+        tfilter = None
+        tsel = self.var_type.get()
+        if tsel == "Entrada":
+            tfilter = "IN"
+        elif tsel == "Sa??da":
+            tfilter = "OUT"
+        return tfilter
+
+    def _fetch_rows(self, dfrom: date, dto: date, tfilter: Optional[str]) -> list[dict]:
+        try:
+            return repo.list_entries(dfrom, dto, tfilter, self.var_text.get().strip(), org_id=self._org_id)
+        except Exception as e:
+            messagebox.showwarning(
+                "Fluxo de Caixa",
+                f"{e}\n\nDica: verifique RLS e se 'org_id' está presente.",
+                parent=self,
+            )
+            return []
+
+    def _reload_tree(self, rows: list[dict]) -> None:
+        if not self._guard_widgets():
+            return
+        for iid in self.tree.get_children():
+            self.tree.delete(iid)
+
+        for r in rows:
+            tipo_raw = r.get("type")
+            if tipo_raw is None:
+                tipo_raw = ""  # fallback para tipo ausente
+            tipo_label = self.TYPE_CODE_TO_LABEL.get(tipo_raw, tipo_raw)
+            values = (
+                r.get("date"),
+                tipo_label,
+                r.get("category"),
+                r.get("description", ""),
+                f"{self._to_float(r.get('amount')):.2f}",
+                r.get("account", ""),
+            )
+            self.tree.insert("", "end", iid=r.get("id") or "", values=values)
+
+    def _update_totals(self, dfrom: date, dto: date) -> None:
+        tot = repo.totals(dfrom, dto, org_id=self._org_id)
+        inc = self._to_float(tot.get("in"))
+        out = self._to_float(tot.get("out"))
+        net = self._to_float(tot.get("balance")) if tot.get("balance") is not None else inc - out
+
+        if self._guard_widgets():
+            self.lbl_totals.configure(text=f"Receitas: {inc:.2f} | Despesas: {out:.2f} | Saldo: {net:.2f}")
 
     # -------- util --------
     def _on_close(self) -> None:
@@ -187,63 +253,16 @@ class CashflowWindow(Toplevel):
     def refresh(self) -> None:
         if not self._guard_widgets():
             return
-        # datas
-        try:
-            dfrom = date.fromisoformat(self.var_from.get())
-            dto = date.fromisoformat(self.var_to.get())
-        except Exception:
-            messagebox.showerror("Datas inválidas", "Use o formato YYYY-MM-DD", parent=self)
+        date_range = self._parse_date_range()
+        if date_range is None:
             return
+        dfrom, dto = date_range
 
-        # filtro de tipo
-        tfilter = None
-        tsel = self.var_type.get()
-        if tsel == "Entrada":
-            tfilter = "IN"
-        elif tsel == "Saída":
-            tfilter = "OUT"
+        tfilter = self._get_type_filter()
+        rows = self._fetch_rows(dfrom, dto, tfilter)
 
-        # busca
-        try:
-            rows = repo.list_entries(dfrom, dto, tfilter, self.var_text.get().strip(), org_id=self._org_id)
-        except Exception as e:
-            messagebox.showwarning(
-                "Fluxo de Caixa",
-                f"{e}\n\nDica: verifique RLS e se 'org_id' está presente.",
-                parent=self,
-            )
-            rows = []
-
-        if not self._guard_widgets():
-            return
-
-        # rerender tabela
-        for iid in self.tree.get_children():
-            self.tree.delete(iid)
-
-        for r in rows:
-            tipo_raw = r.get("type")
-            if tipo_raw is None:
-                tipo_raw = ""  # fallback para tipo ausente
-            tipo_label = self.TYPE_CODE_TO_LABEL.get(tipo_raw, tipo_raw)
-            values = (
-                r.get("date"),
-                tipo_label,
-                r.get("category"),
-                r.get("description", ""),
-                f"{self._to_float(r.get('amount')):.2f}",
-                r.get("account", ""),
-            )
-            self.tree.insert("", "end", iid=r.get("id") or "", values=values)
-
-        # totais
-        tot = repo.totals(dfrom, dto, org_id=self._org_id)
-        inc = self._to_float(tot.get("in"))
-        out = self._to_float(tot.get("out"))
-        net = self._to_float(tot.get("balance")) if tot.get("balance") is not None else inc - out
-
-        if self._guard_widgets():
-            self.lbl_totals.configure(text=f"Receitas: {inc:.2f} | Despesas: {out:.2f} | Saldo: {net:.2f}")
+        self._reload_tree(rows)
+        self._update_totals(dfrom, dto)
 
     def _selected_id(self) -> Optional[str]:
         sel = self.tree.selection()
@@ -318,8 +337,8 @@ def open_cashflow_window(master) -> None:
             win.lift()
             win.focus_force()
             return
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao focar janela do fluxo de caixa existente: %s", exc)
 
     win = CashflowWindow(master)
     setattr(master, "_cashflow_window", win)

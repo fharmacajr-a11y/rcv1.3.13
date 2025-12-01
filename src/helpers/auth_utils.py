@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import os
-from typing import Optional
 
 from infra.supabase_client import exec_postgrest, supabase
 
+logger = logging.getLogger(__name__)
 
-def current_user_id() -> Optional[str]:
+
+def current_user_id() -> str | None:
     """Retorna o ID do usuário atualmente autenticado.
 
     Tenta obter o ID do usuário da sessão atual do Supabase Auth.
@@ -33,8 +35,8 @@ def current_user_id() -> Optional[str]:
         if isinstance(resp, dict):
             u = resp.get("user") or (resp.get("data") or {}).get("user") or {}
             return u.get("id") or u.get("uid")
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Falha ao obter usuario atual no Supabase: %s", exc)
     return None
 
 
@@ -70,8 +72,8 @@ def resolve_org_id() -> str:
             data = getattr(res, "data", None) or []
             if data:
                 return data[0]["org_id"]
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Falha ao resolver org_id via memberships: %s", exc)
 
     # Fallback para variável de ambiente
     if fallback:

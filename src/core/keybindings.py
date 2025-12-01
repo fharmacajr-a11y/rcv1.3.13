@@ -1,27 +1,28 @@
 # application/keybindings.py
 from __future__ import annotations
 
+import logging
 from typing import Any, Callable, Dict, Optional
 
+log = logging.getLogger(__name__)
 
-def _wrap(fn: Optional[Callable[..., Any]]):
-    def _h(_event=None):  # Renomeado para _event (prefixo _ indica não usado)
+
+def _wrap(fn: Optional[Callable[..., Any]]) -> Callable[[Any], str]:
+    """Encapsula um handler de atalho, protegendo contra exceções e devolvendo 'break'."""
+
+    def _h(_event: Any = None) -> str:  # Renomeado para _event para indicar parâmetro não usado
         if callable(fn):
             try:
                 fn()
-            except Exception:
-                pass
+            except Exception as exc:
+                log.warning("Atalho falhou", exc_info=exc)
         return "break"
 
     return _h
 
 
-def bind_global_shortcuts(root, handlers: Dict[str, Callable[[], None]]) -> None:
-    """
-    handlers: mapeia nomes → callbacks já existentes no App.
-      suportados por padrão:
-        quit, refresh, new, edit, delete, upload, lixeira, subpastas, hub, find
-    """
+def bind_global_shortcuts(root: Any, handlers: Dict[str, Callable[[], None]]) -> None:
+    """Registra os atalhos globais (quit, refresh, new, etc.) no root informado."""
     b = root.bind_all
     b("<Control-q>", _wrap(handlers.get("quit")))
     b("<F5>", _wrap(handlers.get("refresh")))

@@ -1,0 +1,63 @@
+﻿api.py:45 - reportReturnType - Type "object" is not assignable to return type "str"
+┬á┬á"object" is not assignable to "str"
+api.py:53 - reportReturnType - Type "object" is not assignable to return type "bool"
+┬á┬á"object" is not assignable to "bool"
+api.py:57 - reportReturnType - Type "object" is not assignable to return type "Iterable[object]"
+┬á┬á"object" is incompatible with protocol "Iterable[object]"
+┬á┬á┬á┬á"__iter__" is not present
+supabase_storage.py:81 - reportArgumentType - Argument of type "Unknown | Any | dict[Unknown, Unknown]" cannot be assigned to parameter "buffer" of type "ReadableBuffer" in function "write"
+┬á┬áType "Unknown | Any | dict[Unknown, Unknown]" is not assignable to type "ReadableBuffer"
+┬á┬á┬á┬á"dict[Unknown, Unknown]" is incompatible with protocol "Buffer"
+┬á┬á┬á┬á┬á┬á"__buffer__" is not present
+supabase_storage.py:83 - reportReturnType - Type "Unknown | Any | dict[Unknown, Unknown]" is not assignable to return type "str | bytes"
+┬á┬áType "Unknown | Any | dict[Unknown, Unknown]" is not assignable to type "str | bytes"
+┬á┬á┬á┬áType "dict[Unknown, Unknown]" is not assignable to type "str | bytes"
+┬á┬á┬á┬á┬á┬á"dict[Unknown, Unknown]" is not assignable to "str"
+┬á┬á┬á┬á┬á┬á"dict[Unknown, Unknown]" is not assignable to "bytes"
+api_clients.py:139 - reportCallIssue - Arguments missing for parameters "nome", "razao_social", "cnpj", "obs"
+api_files.py:62 - reportCallIssue - Expected 1 positional argument
+api_notes.py:34 - reportCallIssue - Expected 1 positional argument
+api_notes.py:88 - reportArgumentType - Argument of type "str" cannot be assigned to parameter "client_ids" of type "Iterable[int]" in function "restore_clients"
+┬á┬á"str" is not assignable to "Iterable[int]"
+┬á┬á┬á┬áType parameter "_T_co@Iterable" is covariant, but "str" is not a subtype of "int"
+┬á┬á┬á┬á┬á┬á"str" is not assignable to "int"
+auth.py:152 - reportArgumentType - Argument of type "int | None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__"
+┬á┬áType "int | None" is not assignable to type "ConvertibleToInt"
+┬á┬á┬á┬áType "None" is not assignable to type "ConvertibleToInt"
+┬á┬á┬á┬á┬á┬á"None" is not assignable to "str"
+┬á┬á┬á┬á┬á┬á"None" is incompatible with protocol "Buffer"
+┬á┬á┬á┬á┬á┬á┬á┬á"__buffer__" is not present
+┬á┬á┬á┬á┬á┬á"None" is incompatible with protocol "SupportsInt"
+┬á┬á┬á┬á┬á┬á┬á┬á"__int__" is not present
+┬á┬á┬á┬á┬á┬á"None" is incompatible with protocol "SupportsIndex"
+  ...
+auth.py:152 - reportArgumentType - Argument of type "int | None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__"
+┬á┬áType "int | None" is not assignable to type "ConvertibleToInt"
+┬á┬á┬á┬áType "None" is not assignable to type "ConvertibleToInt"
+┬á┬á┬á┬á┬á┬á"None" is not assignable to "str"
+┬á┬á┬á┬á┬á┬á"None" is incompatible with protocol "Buffer"
+┬á┬á┬á┬á┬á┬á┬á┬á"__buffer__" is not present
+┬á┬á┬á┬á┬á┬á"None" is incompatible with protocol "SupportsInt"
+┬á┬á┬á┬á┬á┬á┬á┬á"__int__" is not present
+┬á┬á┬á┬á┬á┬á"None" is incompatible with protocol "SupportsIndex"
+db_manager.py:69 - reportGeneralTypeIssues - Invalid exception class or object
+┬á┬á"None" does not derive from BaseException
+clientes_service.py:220 - reportArgumentType - Argument of type "CurrentUser | Literal['']" cannot be assigned to parameter "user" of type "str" in function "log_client_action"
+┬á┬áType "CurrentUser | Literal['']" is not assignable to type "str"
+┬á┬á┬á┬á"CurrentUser" is not assignable to "str"
+upload_service.py:126 - reportArgumentType - Argument of type "int" cannot be assigned to parameter "parts" of type "str | None" in function "make_storage_key"
+┬á┬áType "int" is not assignable to type "str | None"
+┬á┬á┬á┬á"int" is not assignable to "str"
+┬á┬á┬á┬á"int" is not assignable to "None"
+session.py:68 - reportArgumentType - Argument of type "Any | None" cannot be assigned to parameter "uid" of type "str" in function "__init__"
+┬á┬áType "Any | None" is not assignable to type "str"
+┬á┬á┬á┬á"None" is not assignable to "str"
+session.py:68 - reportArgumentType - Argument of type "Any | None" cannot be assigned to parameter "email" of type "str" in function "__init__"
+┬á┬áType "Any | None" is not assignable to type "str"
+┬á┬á┬á┬á"None" is not assignable to "str"
+repository.py:32 - reportGeneralTypeIssues - Expected class but received "(obj: object, /) -> TypeIs[(...) -> object]"
+ui.py:225 - reportCallIssue - No overloads for "get" match the provided arguments
+ui.py:225 - reportArgumentType - Argument of type "Any | None" cannot be assigned to parameter "key" of type "str" in function "get"
+┬á┬áType "Any | None" is not assignable to type "str"
+┬á┬á┬á┬á"None" is not assignable to "str"
+view.py:668 - reportIndexIssue - "__getitem__" method not defined on type "Misc"

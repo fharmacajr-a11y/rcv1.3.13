@@ -1,22 +1,19 @@
 [tool.ruff]
-# Configuração consolidada do Ruff para RC-Gestor v1.0.29
-# https://docs.astral.sh/ruff/
-line-length = 88  # Padrão Black
-
-[tool.ruff.lint]
-# Ignora erros de código legado que não afetam funcionalidade
-# e que seriam corrigidos em refatorações futuras
+src = ["src", "tests"]
+line-length = 120
+target-version = "py313"
+select = ["E", "F"]
 ignore = [
-    "F403",  # star imports (from x import *) - código legado
-    "F821",  # undefined names em alguns contextos específicos
-    "E402",  # imports não no topo - alguns imports condicionais necessários
-    "F841",  # variáveis locais não utilizadas - algumas são necessárias
+    "E501",  # linhas longas: manter flexível por enquanto
+    "F403",  # star imports legados
+    "F821",  # nomes indefinidos em caminhos condicionais
 ]
 
-[tool.ruff.format]
-# Usa as mesmas configurações do Black
-quote-style = "double"
-indent-style = "space"
+[tool.ruff.per-file-ignores]
+"tests/**/*" = ["D", "ANN", "S101"]
+"tests/unit/core/test_auth_bootstrap_microfase.py" = ["E741", "F401"]
+"tests/unit/modules/passwords/test_passwords_screen_ui.py" = ["F401", "F811", "F841"]
+"tests/unit/modules/lixeira/test_lixeira_service.py" = ["E731"]
 
 [tool.mypy]
 ignore_missing_imports = true

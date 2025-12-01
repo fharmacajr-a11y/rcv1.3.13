@@ -1,9 +1,12 @@
 # gui/menu_bar.py
 from __future__ import annotations
 
+import logging
 import tkinter as tk
 from tkinter import messagebox
 from typing import Callable, Iterable, Optional
+
+_log = logging.getLogger(__name__)
 
 
 def _available_themes() -> Iterable[str]:
@@ -16,8 +19,8 @@ def _available_themes() -> Iterable[str]:
         names = getattr(tm, "THEMES", None)
         if isinstance(names, (list, tuple, set)):
             return list(names)  # pyright: ignore[reportArgumentType]
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        _log.debug("Falha ao obter temas disponíveis: %s", exc)
     return [
         "flatly",
         "cosmo",
@@ -48,13 +51,13 @@ class AppMenuBar(tk.Menu):
         self._on_quit = on_quit
         self._on_change_theme = on_change_theme
 
-        # Arquivo
+        # Opções
         menu_arquivo = tk.Menu(self, tearoff=False)
         menu_arquivo.add_command(label="Início", command=self._safe(self._on_home))
         menu_arquivo.add_command(label="Atualizar", command=self._safe(self._on_refresh))
         menu_arquivo.add_separator()
-        menu_arquivo.add_command(label="Sair", command=self._safe(self._on_quit))
-        self.add_cascade(label="Arquivo", menu=menu_arquivo)
+        menu_arquivo.add_command(label="Encerrar sessão…", command=self._safe(self._on_quit))
+        self.add_cascade(label="Opções", menu=menu_arquivo)
         self._menu_arquivo = menu_arquivo
 
         # Exibir > Tema
@@ -82,14 +85,14 @@ class AppMenuBar(tk.Menu):
     def attach(self) -> None:
         try:
             self.master.configure(menu=self)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao anexar menu: %s", exc)
 
     def refresh_theme(self, current: Optional[str]) -> None:
         try:
             self._theme_var.set(current or "")
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao atualizar tema: %s", exc)
 
     def set_is_hub(self, is_hub: bool) -> None:
         self._is_hub = bool(is_hub)
@@ -101,8 +104,8 @@ class AppMenuBar(tk.Menu):
             if callable(fn):
                 try:
                     fn()
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    _log.debug("Falha ao executar callback de menu: %s", exc)
 
         return _wrap
 
@@ -110,19 +113,19 @@ class AppMenuBar(tk.Menu):
         if callable(self._on_change_theme):
             try:
                 self._on_change_theme(name)
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                _log.debug("Falha ao mudar tema para %s: %s", name, exc)
         self.refresh_theme(name)
 
     def _about(self) -> None:
         try:
             messagebox.showinfo("Sobre", "RC - Gestor de Clientes", parent=self.master)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao exibir diálogo Sobre: %s", exc)
 
     def _sync_home_state(self) -> None:
         try:
             state = "disabled" if self._is_hub else "normal"
             self._menu_arquivo.entryconfig(0, state=state)  # "Início" é o item 0
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao sincronizar estado do menu Início: %s", exc)

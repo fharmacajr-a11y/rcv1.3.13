@@ -25,10 +25,11 @@ def _get_encryption_key() -> bytes:
         raise RuntimeError(f"Erro ao processar RC_CLIENT_SECRET_KEY: {e}")
 
 
-def encrypt_text(plain: str) -> str:
+def encrypt_text(plain: str | None) -> str:
     """
     Criptografa um texto usando Fernet.
     Retorna o token criptografado em base64 (str).
+    Se plain for None ou vazio, retorna string vazia.
     """
     if not plain:
         return ""
@@ -42,10 +43,11 @@ def encrypt_text(plain: str) -> str:
         raise RuntimeError(f"Falha na criptografia: {e}")
 
 
-def decrypt_text(token: str) -> str:
+def decrypt_text(token: str | None) -> str:
     """
     Descriptografa um token Fernet.
     Retorna o texto original (str).
+    Se token for None ou vazio, retorna string vazia.
     """
     if not token:
         return ""

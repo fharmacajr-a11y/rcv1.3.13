@@ -4,18 +4,19 @@
 
 from __future__ import annotations
 
-import time
-import random
 import logging
-from datetime import datetime, timezone
-from typing import Any, Callable, TypedDict
+import random
+import time
 from collections.abc import Sequence
+from datetime import datetime, timezone
+from typing import Any, Callable, TypedDict, TypeVar
 
 import httpx
-
-from infra.supabase_client import exec_postgrest, get_supabase
-from security.crypto import encrypt_text, decrypt_text
 from data.domain_types import ClientRow, PasswordRow
+from infra.supabase_client import exec_postgrest, get_supabase
+from security.crypto import decrypt_text, encrypt_text
+
+T = TypeVar("T")
 
 log = logging.getLogger(__name__)
 
@@ -55,8 +56,8 @@ def _get_access_token(client: Any) -> str | None:
       client.auth.get_session() -> objeto com .access_token (ou None)
     """
     try:
-        sess = client.auth.get_session()
-        token = getattr(sess, "access_token", None)
+        session = client.auth.get_session()
+        token = getattr(session, "access_token", None)
         return token if token else None
     except Exception:
         return None
@@ -89,7 +90,13 @@ def _rls_precheck_membership(client: Any, org_id: str, user_id: str) -> None:
     _ensure_postgrest_auth(client, required=True)
 
     def _query() -> Any:
-        return exec_postgrest(client.table("memberships").select("user_id", count="exact").eq("org_id", org_id).eq("user_id", user_id).limit(1))
+        return exec_postgrest(
+            client.table("memberships")
+            .select("user_id", count="exact")
+            .eq("org_id", org_id)
+            .eq("user_id", user_id)
+            .limit(1)
+        )
 
     res: Any = with_retries(_query)  # Type: APIResponse from postgrest
 
@@ -133,7 +140,7 @@ RETRY_ERRORS = (
 )
 
 
-def with_retries(fn: Callable[[], Any], tries: int = 3, base_delay: float = 0.4) -> Any:
+def with_retries(fn: Callable[[], T], tries: int = 3, base_delay: float = 0.4) -> T:
     """
     Executa fn() com tentativas e backoff exponencial + jitter.
     Re-tenta em erros de rede/transientes (inclui WinError 10035) e 5xx.
@@ -157,7 +164,8 @@ def with_retries(fn: Callable[[], Any], tries: int = 3, base_delay: float = 0.4)
                 raise
 
         if attempt < tries:
-            delay = base_delay * (2 ** (attempt - 1)) + random.uniform(0, 0.15)
+            # jitter de backoff; n?o usado como RNG criptogr?fico
+            delay = base_delay * (2 ** (attempt - 1)) + random.uniform(0, 0.15)  # nosec B311
             time.sleep(delay)
 
     if last_exc is None:
@@ -177,9 +185,10 @@ def _now_iso() -> str:
 
 def list_passwords(org_id: str) -> list[PasswordRow]:
     """
-    Lista todas as senhas da organização.
+    Lista todas as senhas da organização com dados do cliente via JOIN.
     Retorna lista de dicts com campos: id, org_id, client_name, service,
-    username, password_enc, notes, created_by, created_at, updated_at.
+    username, password_enc, notes, created_by, created_at, updated_at,
+    client_id, razao_social, cnpj, nome (contato), whatsapp (mapeado de numero), client_external_id.
 
     A senha vem criptografada (password_enc); use decrypt_for_view() para exibir.
     """
@@ -190,13 +199,49 @@ def list_passwords(org_id: str) -> list[PasswordRow]:
         _ensure_postgrest_auth(supabase)  # Autenticação antes da operação
 
         def _do() -> Any:
-            return exec_postgrest(supabase.table("client_passwords").select("*").eq("org_id", org_id).order("updated_at", desc=True))
+            # JOIN com clients para obter dados completos do cliente
+            # Campos do client_passwords: *,
+            # Campos de clients: id (renomeado), razao_social, cnpj, nome, numero (WhatsApp)
+            select_query = "*," "clients!client_id(" "id," "razao_social," "cnpj," "nome," "numero" ")"
+            return exec_postgrest(
+                supabase.table("client_passwords")
+                .select(select_query)
+                .eq("org_id", org_id)
+                .order("updated_at", desc=True)
+            )
 
         res: Any = with_retries(_do)
         raw_data = getattr(res, "data", None)
-        data: list[PasswordRow] = list(raw_data) if raw_data is not None else []
-        log.info("list_passwords: %d registro(s) encontrado(s) para org_id=%s", len(data), org_id)
-        return data
+
+        # Achata os dados do JOIN para facilitar o uso
+        flattened_data: list[PasswordRow] = []
+        if raw_data is not None:
+            for row in raw_data:
+                # Copia os campos do password
+                password_dict = dict(row)
+
+                # Extrai dados do cliente (se existir)
+                client_data = password_dict.pop("clients", None)
+                if client_data and isinstance(client_data, dict):
+                    # Adiciona campos do cliente ao dict principal
+                    password_dict["client_external_id"] = client_data.get("id", "")
+                    password_dict["razao_social"] = client_data.get("razao_social", "")
+                    password_dict["cnpj"] = client_data.get("cnpj", "")
+                    password_dict["nome"] = client_data.get("nome", "")
+                    # Campo "numero" contém o WhatsApp
+                    password_dict["whatsapp"] = client_data.get("numero", "")
+                else:
+                    # Se não houver cliente, preenche com vazios
+                    password_dict["client_external_id"] = ""
+                    password_dict["razao_social"] = password_dict.get("client_name", "")
+                    password_dict["cnpj"] = ""
+                    password_dict["nome"] = ""
+                    password_dict["whatsapp"] = ""
+
+                flattened_data.append(password_dict)  # type: ignore
+
+        log.info("list_passwords: %d registro(s) encontrado(s) para org_id=%s", len(flattened_data), org_id)
+        return flattened_data
     except Exception as e:
         log.exception("Erro ao listar senhas para org_id=%s", org_id)
         raise RuntimeError(f"Falha ao listar senhas: {e}")
@@ -210,6 +255,7 @@ def add_password(
     password_plain: str,
     notes: str,
     created_by: str,
+    client_id: str | None = None,
 ) -> PasswordRow:
     """
     Adiciona uma nova senha na tabela.
@@ -241,7 +287,18 @@ def add_password(
             "updated_at": _now_iso(),
         }
 
-        log.info("pwd.add -> org_id=%s created_by=%s client=%s service=%s username=%s", org_id, created_by, client_name, service, username)
+        # Adicionar client_id se fornecido
+        if client_id is not None:
+            payload["client_id"] = client_id
+
+        log.info(
+            "pwd.add -> org_id=%s created_by=%s client=%s service=%s username=%s",
+            org_id,
+            created_by,
+            client_name,
+            service,
+            username,
+        )
 
         def _insert() -> Any:
             return exec_postgrest(supabase.table("client_passwords").insert(payload))
@@ -265,6 +322,7 @@ def update_password(
     username: str | None = None,
     password_plain: str | None = None,
     notes: str | None = None,
+    client_id: str | None = None,
 ) -> PasswordRow:
     """
     Atualiza um registro existente.
@@ -289,6 +347,8 @@ def update_password(
             payload["notes"] = notes
         if password_plain is not None:
             payload["password_enc"] = encrypt_text(password_plain) if password_plain else ""
+        if client_id is not None:
+            payload["client_id"] = client_id
 
         def _do() -> Any:
             return exec_postgrest(supabase.table("client_passwords").update(payload).eq("id", id))
@@ -325,6 +385,41 @@ def delete_password(id: str) -> None:
         raise RuntimeError(f"Falha ao excluir senha: {e}")
 
 
+def delete_passwords_by_client(org_id: str, client_id: str) -> int:
+    """
+    Remove todas as senhas de um cliente específico.
+
+    Args:
+        org_id: ID da organização proprietária
+        client_id: ID do cliente cujas senhas serão excluídas
+
+    Returns:
+        Número de senhas excluídas
+    """
+    if not org_id:
+        raise ValueError("org_id é obrigatório")
+    if not client_id:
+        raise ValueError("client_id é obrigatório")
+
+    try:
+        _ensure_postgrest_auth(supabase)  # Autenticação antes da operação
+
+        def _do() -> Any:
+            return exec_postgrest(
+                supabase.table("client_passwords").delete().eq("org_id", org_id).eq("client_id", client_id)
+            )
+
+        res: Any = with_retries(_do)
+        # O Supabase retorna os registros deletados em res.data
+        raw_data = getattr(res, "data", None)
+        count = len(raw_data) if raw_data else 0
+        log.info("delete_passwords_by_client: %d senha(s) removida(s) para client_id=%s", count, client_id)
+        return count
+    except Exception as e:
+        log.exception("Erro ao excluir senhas do client_id=%s", client_id)
+        raise RuntimeError(f"Falha ao excluir senhas do cliente: {e}")
+
+
 def decrypt_for_view(token: str) -> str:
     """
     Helper para descriptografar uma senha criptografada (token base64).
@@ -354,7 +449,12 @@ def search_clients(org_id: str, query: str, limit: int = 20) -> list[ClientRow]:
     _ensure_postgrest_auth(supabase)  # Autenticação antes da operação
 
     def _do() -> Any:
-        sel = supabase.table("clients").select("id, org_id, razao_social, cnpj, nome, numero, obs, cnpj_norm").eq("org_id", org_id).is_("deleted_at", None)
+        sel = (
+            supabase.table("clients")
+            .select("id, org_id, razao_social, cnpj, nome, numero, obs, cnpj_norm")
+            .eq("org_id", org_id)
+            .is_("deleted_at", None)
+        )
 
         if len(q) >= 2:
             like = f"%{q}%"
@@ -403,7 +503,13 @@ def list_clients_for_picker(org_id: str, limit: int = 200) -> list[ClientRow]:
     _ensure_postgrest_auth(supabase)  # Autenticação antes da operação
 
     def _do() -> Any:
-        return exec_postgrest(supabase.table("clients").select("id, org_id, razao_social, cnpj, nome").eq("org_id", org_id).order("razao_social").limit(limit))
+        return exec_postgrest(
+            supabase.table("clients")
+            .select("id, org_id, razao_social, cnpj, nome")
+            .eq("org_id", org_id)
+            .order("razao_social")
+            .limit(limit)
+        )
 
     try:
         res: Any = with_retries(_do)

@@ -1,6 +1,6 @@
 # Guia de Contribuição - RC Gestor de Clientes
 
-**Versão:** v1.2.31+  
+**Versão:** v1.2.97+  
 **Data:** 20 de novembro de 2025  
 **Branch principal:** `qa/fixpack-04`
 
@@ -128,6 +128,34 @@ Este comando:
 - `--cov-report=term-missing`: mostra quais linhas NÃO estão cobertas
 - `--cov-fail-under=25`: falha se cobertura total < 25%
 - `-v`: modo verbose (mostra cada teste)
+
+### Bandit (an?lise de seguran?a)
+
+Use o Bandit para varrer o reposit?rio antes de releases de QA. Como esta c?pia pode ter sido clonada de uma vers?o anterior, o `bandit.exe` pode continuar apontando para outro Python e disparar erros como:
+
+> Fatal error in launcher: Unable to create process using '"C:\...v1.2.64\.venv\Scripts\python.exe" ...'
+
+Para garantir que a ferramenta esteja alinhada com a venv atual (ex: `v1.2.79`), siga estes passos:
+
+1. Ative a venv correta do projeto:
+
+   ```powershell
+   .venv\Scripts\Activate.ps1  # Windows PowerShell
+   ```
+
+2. Reinstale o Bandit apontando explicitamente para o Python da venv (isto corrige o launcher):
+
+   ```powershell
+   python -m pip install --force-reinstall bandit
+   ```
+
+3. Rode o scan apenas nos diret?rios de produ??o (tests/ fica de fora para evitar falsos positivos B101 em asserts de pytest):
+
+   ```powershell
+   bandit -r src adapters data infra security -x tests
+   ```
+
+O Bandit se concentra no c?digo do aplicativo (src, adapters, data, infra, security). Diret?rios de teste n?o entram na varredura porque `assert` em testes (alertas B101) s?o esperados e n?o representam risco em produ??o. Se preferir rodar `bandit -r .`, o arquivo `.bandit` na raiz aplica os mesmos filtros automaticamente (tests, docs, caches). Se o erro do launcher aparecer novamente, repita o passo 2 certificando-se de que a venv ativa corresponda ao diret?rio atual.
 
 ---
 

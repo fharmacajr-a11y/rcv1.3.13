@@ -30,6 +30,35 @@ from src.modules.clientes.components.helpers import (
     _build_status_menu,
     STATUS_CHOICES,
 )
+from src.modules.clientes.views.main_screen_helpers import (
+    DEFAULT_ORDER_LABEL,
+    ORDER_CHOICES,
+    ORDER_LABEL_CNPJ,
+    ORDER_LABEL_ID_ASC,
+    ORDER_LABEL_ID_DESC,
+    ORDER_LABEL_NOME,
+    ORDER_LABEL_RAZAO,
+    ORDER_LABEL_UPDATED_OLD,
+    ORDER_LABEL_UPDATED_RECENT,
+    build_filter_choices_with_all_option,
+    calculate_button_states,
+    calculate_new_clients_stats,
+    can_batch_delete,
+    can_batch_export,
+    can_batch_restore,
+    get_selection_count,
+    has_selection,
+    normalize_order_choices,
+    normalize_order_label,
+    resolve_filter_choice_from_options,
+)
+
+# MS-2: Import do controller headless
+from src.modules.clientes.views.main_screen_controller import (
+    MainScreenComputed,
+    MainScreenState,
+    compute_main_screen_state,
+)
 
 from src.modules.clientes.service import (
     fetch_cliente_by_id,
@@ -52,45 +81,19 @@ from src.utils.prefs import load_columns_visibility, save_columns_visibility
 
 log = logging.getLogger("app_gui")
 
-ORDER_LABEL_RAZAO = "Razão Social (A→Z)"
+# Constantes para o modo seleção (pick mode)
+PICK_MODE_BANNER_TEXT = "🔍 Modo seleção: dê duplo clique em um cliente ou pressione Enter"
+PICK_MODE_CANCEL_TEXT = "✖ Cancelar"
+PICK_MODE_SELECT_TEXT = "✓ Selecionar"
 
-ORDER_LABEL_CNPJ = "CNPJ (A→Z)"
-
-ORDER_LABEL_NOME = "Nome (A→Z)"
-
-ORDER_LABEL_ID_ASC = "ID (1→9)"
-
-ORDER_LABEL_ID_DESC = "ID (9→1)"
-
-ORDER_LABEL_UPDATED_RECENT = "Última Alteração (mais recente)"
-
-ORDER_LABEL_UPDATED_OLD = "Última Alteração (mais antiga)"
-
-ORDER_LABEL_ALIASES = {
-    "Razao Social (A->Z)": ORDER_LABEL_RAZAO,
-    "CNPJ (A->Z)": ORDER_LABEL_CNPJ,
-    "Nome (A->Z)": ORDER_LABEL_NOME,
-    "Ultima Alteracao (mais recente)": ORDER_LABEL_UPDATED_RECENT,
-    "Ultima Alteracao (mais antiga)": ORDER_LABEL_UPDATED_OLD,
-    "ID (1→9)": ORDER_LABEL_ID_ASC,
-    "ID (1->9)": ORDER_LABEL_ID_ASC,
-    "ID (9→1)": ORDER_LABEL_ID_DESC,
-    "ID (9->1)": ORDER_LABEL_ID_DESC,
-}
-
-DEFAULT_ORDER_LABEL = ORDER_LABEL_RAZAO
-
-ORDER_CHOICES: Dict[str, Tuple[Optional[str], bool]] = {
-    ORDER_LABEL_RAZAO: ("razao_social", False),
-    ORDER_LABEL_CNPJ: ("cnpj", False),
-    ORDER_LABEL_NOME: ("nome", False),
-    ORDER_LABEL_ID_ASC: ("id", False),
-    ORDER_LABEL_ID_DESC: ("id", True),
-    ORDER_LABEL_UPDATED_RECENT: ("ultima_alteracao", False),
-    ORDER_LABEL_UPDATED_OLD: ("ultima_alteracao", True),
-}
-
-__all__ = ["MainScreenFrame", "DEFAULT_ORDER_LABEL", "ORDER_CHOICES"]
+__all__ = [
+    "MainScreenFrame",
+    "DEFAULT_ORDER_LABEL",
+    "ORDER_CHOICES",
+    "PICK_MODE_BANNER_TEXT",
+    "PICK_MODE_CANCEL_TEXT",
+    "PICK_MODE_SELECT_TEXT",
+]
 
 
 class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
@@ -101,19 +104,6 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
     Recebe callbacks do App para operaÃ§Ãµes de negÃ³cio.
 
     """
-
-    @staticmethod
-    def _normalize_order_label(label: Optional[str]) -> str:
-        normalized = (label or "").strip()
-        return ORDER_LABEL_ALIASES.get(normalized, normalized)
-
-    @classmethod
-    def _normalize_order_choices(cls, order_choices: Dict[str, Tuple[Optional[str], bool]]) -> Dict[str, Tuple[Optional[str], bool]]:
-        normalized: Dict[str, Tuple[Optional[str], bool]] = {}
-        for key, value in order_choices.items():
-            normalized_label = cls._normalize_order_label(key)
-            normalized[normalized_label] = value
-        return normalized
 
     def __init__(
         self,
@@ -133,49 +123,55 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
     ) -> None:
         super().__init__(master, **kwargs)
 
-        self.app = app
+        self.app: Optional[Any] = app
 
-        self.on_new = on_new
+        self.on_new: Optional[Callable[[], None]] = on_new
 
-        self.on_edit = on_edit
+        self.on_edit: Optional[Callable[[], None]] = on_edit
 
-        self.on_delete = on_delete
+        self.on_delete: Optional[Callable[[], None]] = on_delete
 
-        self.on_upload = on_upload
+        self.on_upload: Optional[Callable[[], None]] = on_upload
 
-        self.on_upload_folder = on_upload_folder
+        self.on_upload_folder: Optional[Callable[[], None]] = on_upload_folder
 
-        self.on_open_subpastas = on_open_subpastas
+        self.on_open_subpastas: Optional[Callable[[], None]] = on_open_subpastas
 
-        self.on_open_lixeira = on_open_lixeira
+        self.on_open_lixeira: Optional[Callable[[], None]] = on_open_lixeira
 
-        self._order_choices = self._normalize_order_choices(order_choices or ORDER_CHOICES)
+        self._order_choices: Dict[str, Tuple[Optional[str], bool]] = normalize_order_choices(
+            order_choices or ORDER_CHOICES
+        )
 
-        self._default_order_label = self._normalize_order_label(default_order_label) or DEFAULT_ORDER_LABEL
+        self._default_order_label: str = normalize_order_label(default_order_label) or DEFAULT_ORDER_LABEL
         if self._default_order_label not in self._order_choices:
             self._default_order_label = DEFAULT_ORDER_LABEL
 
         self._buscar_after: Optional[str] = None
 
-        self._vm = ClientesViewModel(
+        self._vm: ClientesViewModel = ClientesViewModel(
             order_choices=self._order_choices,
             default_order_label=self._default_order_label,
             author_resolver=self._resolve_author_initial,
         )
 
-        self._pick_controller = PickModeController(self)
+        self._pick_controller: PickModeController = PickModeController(self)
 
-        self._connectivity = ClientesConnectivityController(self)
+        self._connectivity: ClientesConnectivityController = ClientesConnectivityController(self)
 
         # Modo de seleção (para integração com Senhas)
 
         self._pick_mode: bool = False
 
-        self._on_pick = None  # callable(dict_cliente)
+        self._on_pick: Optional[Callable[[dict], None]] = None  # callable(dict_cliente)
 
-        self._return_to = None  # callable() que volta pra tela anterior
+        self._return_to: Optional[Callable[[], None]] = None  # callable() que volta pra tela anterior
 
-        self._saved_toolbar_state = {}  # Armazena estado dos botões CRUD
+        self._saved_toolbar_state: Dict[tk.Misc, dict[str, Any] | None] = {}  # Armazena estado dos botões CRUD
+
+        self._trash_button_state_before_pick: str | None = (
+            None  # FIX-CLIENTES-007: Estado da Lixeira antes do pick mode
+        )
 
         self._current_rows: List[ClienteRow] = []
 
@@ -186,26 +182,27 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
             status_choices=STATUS_CHOICES,
             on_search_changed=lambda text: self._buscar(text),
             on_clear_search=self._limpar_busca,
-            on_order_changed=lambda _value: self.carregar(),
+            on_order_changed=self._on_order_changed,
             on_status_changed=lambda _value: self.apply_filters(),
             on_open_trash=lambda: self._invoke_safe(self.on_open_lixeira),
         )
 
         self.toolbar.pack(fill="x", padx=10, pady=10)
 
-        self.var_busca = self.toolbar.var_busca
+        self.var_busca: tk.StringVar = self.toolbar.var_busca
 
-        self.var_ordem = self.toolbar.var_ordem
+        self.var_ordem: tk.StringVar = self.toolbar.var_ordem
 
-        normalized_order = self._normalize_order_label(self.var_ordem.get())
+        normalized_order = normalize_order_label(self.var_ordem.get())
         if normalized_order != self.var_ordem.get():
             self.var_ordem.set(normalized_order)
+        self._current_order_by = normalized_order
 
-        self.var_status = self.toolbar.var_status
+        self.var_status: tk.StringVar = self.toolbar.var_status
 
-        self.status_filter = self.toolbar.status_combobox
+        self.status_filter: ttk.Combobox = self.toolbar.status_combobox
 
-        self.entry_busca = self.toolbar.entry_busca
+        self.entry_busca: ttk.Entry = self.toolbar.entry_busca
 
         self.status_menu: Optional[tk.Menu] = None
 
@@ -213,7 +210,7 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
 
         self._status_menu_row: Optional[str] = None
 
-        self.btn_lixeira = self.toolbar.lixeira_button
+        self.btn_lixeira: ttk.Button = self.toolbar.lixeira_button
 
         # --- DivisÃ³ria entre filtros e a faixa de controles de colunas
 
@@ -231,7 +228,7 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
 
         # IDs/ordem exatos das colunas
 
-        self._col_order = (
+        self._col_order: Tuple[str, ...] = (
             "ID",
             "Razao Social",
             "CNPJ",
@@ -247,11 +244,13 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
         def _user_key():
             return getattr(self, "current_user_email", None) or getattr(self, "status_user_email", None) or "default"
 
-        self._user_key = _user_key()
+        self._user_key: str = _user_key()
 
         _saved = load_columns_visibility(self._user_key)
 
-        self._col_content_visible = {c: tk.BooleanVar(value=_saved.get(c, True)) for c in self._col_order}
+        self._col_content_visible: Dict[str, tk.BooleanVar] = {
+            c: tk.BooleanVar(value=_saved.get(c, True)) for c in self._col_order
+        }
 
         # FunÃ§Ãµes auxiliares (nested functions)
 
@@ -277,17 +276,17 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
 
         self.client_list_container.pack(expand=True, fill="both", padx=10, pady=5)
 
-        self.client_list = create_clients_treeview(
+        self.client_list: ttk.Treeview = create_clients_treeview(
             self.client_list_container,
             on_double_click=lambda _event: self._invoke_safe(self.on_edit),
             on_select=self._update_main_buttons_state,
-            on_delete=lambda _event: self._invoke_safe(self.on_delete),
+            on_delete=self._on_tree_delete_key,
             on_click=self._on_click,
         )
 
         # Scrollbar vertical
 
-        self.clients_scrollbar = tb.Scrollbar(
+        self.clients_scrollbar: ttk.Scrollbar = tb.Scrollbar(
             self.client_list_container,
             orient="vertical",
             command=self.client_list.yview,
@@ -305,7 +304,7 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
 
         self.client_list_container.columnconfigure(0, weight=1)
 
-        self.tree = self.client_list
+        self.tree: ttk.Treeview = self.client_list
 
         # Removido bind <Button-3> para menu de status
 
@@ -344,7 +343,7 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
 
         # Larguras originais (para nÃ£o mexer quando ocultar)
 
-        self._col_widths = {}
+        self._col_widths: Dict[str, int] = {}
 
         for c in self._col_order:
             try:
@@ -375,7 +374,7 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
 
         # Cria os controles alinhados (um grupo por coluna)
 
-        self._col_ctrls = {}  # col -> {"frame":..., "label":..., "check":...}
+        self._col_ctrls: Dict[str, Dict[str, tk.Widget]] = {}  # col -> {"frame":..., "label":..., "check":...}
 
         for col in self._col_order:
             grp = tk.Frame(self.columns_align_bar, bd=0, highlightthickness=0)
@@ -491,8 +490,8 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
 
                     parts["frame"].place_configure(x=gx, y=2, width=gw, height=HEADER_CTRL_H - 4)
 
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Falha ao posicionar controles de colunas: %s", exc)
 
             # mantÃ©m alinhado mesmo com resize/scroll
 
@@ -514,15 +513,15 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
 
                         func.set(*args)
 
-                    except Exception:
-                        pass
+                    except Exception as inner_exc:  # noqa: BLE001
+                        log.debug("Falha ao atualizar scrollbar horizontal: %s", inner_exc)
 
                 _sync_col_controls()
 
             self.client_list.configure(xscrollcommand=_xscroll_proxy)
 
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao configurar proxy de scrollbar horizontal: %s", exc)
 
         # primeira sincronizaÃ§Ã£o
 
@@ -535,23 +534,36 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
             on_subpastas=lambda: self._invoke_safe(self.on_open_subpastas),
             on_enviar_supabase=lambda: self._invoke_safe(self.on_upload),
             on_enviar_pasta=lambda: self._invoke_safe(self.on_upload_folder),
+            on_excluir=self.on_delete_selected_clients,
+            on_batch_delete=self._on_batch_delete_clicked,
+            on_batch_restore=self._on_batch_restore_clicked,
+            on_batch_export=self._on_batch_export_clicked,
         )
 
         self.footer.pack(fill="x", padx=10, pady=10)
 
-        self.btn_novo = self.footer.btn_novo
+        self.btn_novo: ttk.Button = self.footer.btn_novo
 
-        self.btn_editar = self.footer.btn_editar
+        self.btn_editar: ttk.Button = self.footer.btn_editar
 
-        self.btn_subpastas = self.footer.btn_subpastas
+        self.btn_subpastas: ttk.Button = self.footer.btn_subpastas
 
-        self.btn_enviar = self.footer.btn_enviar
+        self.btn_enviar: ttk.Menubutton = self.footer.btn_enviar
 
-        self.menu_enviar = self.footer.enviar_menu
+        self.btn_excluir: Optional[ttk.Button] = self.footer.btn_excluir
 
-        self._uploading_busy = False
+        self.menu_enviar: tk.Menu = self.footer.enviar_menu
+
+        # Botões batch (Fase 06)
+        self.btn_batch_delete: ttk.Button = self.footer.btn_batch_delete
+        self.btn_batch_restore: ttk.Button = self.footer.btn_batch_restore
+        self.btn_batch_export: ttk.Button = self.footer.btn_batch_export
+
+        self._uploading_busy: bool = False
 
         self._send_button_prev_text: Optional[str] = None
+
+        self._last_cloud_state: Optional[str] = None
 
         self.btn_enviar.state(["disabled"])
 
@@ -562,8 +574,8 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
                 for idx in range(last_index + 1):
                     self.menu_enviar.entryconfigure(idx, state="disabled")
 
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao desabilitar menu de envio inicial: %s", exc)
 
         def _refresh_send_state() -> None:
             has_sel = bool(self.tree.selection())
@@ -588,31 +600,31 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
 
         self.tree.bind("<<TreeviewSelect>>", lambda _event: _refresh_send_state(), add="+")
 
-        # UI do modo de seleÃ§Ã£o (oculto inicialmente)
+        # UI do modo de seleção (oculto inicialmente)
 
-        self._pick_banner_frame = tb.Frame(self, bootstyle="info")
+        self._pick_banner_frame: ttk.Frame = tb.Frame(self, bootstyle="info")
 
-        self._pick_label = tb.Label(
+        self._pick_label: ttk.Label = tb.Label(
             self._pick_banner_frame,
-            text="ðŸ” Modo seleÃ§Ã£o: dÃª duplo clique em um cliente ou pressione Enter",
+            text=PICK_MODE_BANNER_TEXT,
             font=("", 10, "bold"),  # pyright: ignore[reportArgumentType]
             bootstyle="info-inverse",
         )
 
         self._pick_label.pack(side="left", padx=10, pady=5)
 
-        btn_cancel_pick = tb.Button(
+        self._pick_cancel_button = tb.Button(
             self._pick_banner_frame,
-            text="âœ• Cancelar",
+            text=PICK_MODE_CANCEL_TEXT,
             bootstyle="danger-outline",
             command=self._pick_controller.cancel_pick,
         )
 
-        btn_cancel_pick.pack(side="right", padx=10, pady=5)
+        self._pick_cancel_button.pack(side="right", padx=10, pady=5)
 
-        self.btn_select = tb.Button(
+        self.btn_select: ttk.Button = tb.Button(
             self._pick_banner_frame,
-            text="âœ“ Selecionar",
+            text=PICK_MODE_SELECT_TEXT,
             command=self._pick_controller.confirm_pick,
             state="disabled",
             bootstyle="success",
@@ -620,9 +632,9 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
 
         self.btn_select.pack(side="right", padx=10, pady=5)
 
-        # StatusBar removido - agora Ã© global no main_window
+        # StatusBar removido - agora é global no main_window
 
-        # Usar referÃªncias da App
+        # Usar referências da App
 
         if self.app is not None:
             self.clients_count_var = getattr(self.app, "clients_count_var", None)
@@ -639,9 +651,27 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
 
         self._update_main_buttons_state()
 
-        # Inicia verificaÃ§Ã£o periÃ³dica de conectividade
+        # Inicia verificação periódica de conectividade
 
         self._connectivity.start()
+
+    def destroy(self) -> None:
+        """
+        Cleanup ao destruir o frame.
+
+        FIX-CLIENTES-007: Garante que o botão Conversor PDF seja reabilitado
+        caso o usuário saia do modo seleção navegando para outro módulo
+        (em vez de clicar em Cancelar).
+        """
+        # Se estava em modo pick, garante que o Conversor PDF seja reabilitado
+        if getattr(self, "_pick_mode", False) and self.app and hasattr(self.app, "topbar"):
+            try:
+                self.app.topbar.set_pick_mode_active(False)
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Erro ao reabilitar Conversor PDF no destroy: %s", exc)
+
+        # Chama o destroy original do ttk.Frame
+        super().destroy()
 
     def set_uploading(self, busy: bool) -> None:
         """Disable upload actions while an upload job is running."""
@@ -656,20 +686,85 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
         try:
             if hasattr(self, "footer"):
                 self.footer.set_uploading(busy)
-
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao atualizar footer em estado de upload: %s", exc)
 
         self._update_main_buttons_state()
+
+    def _enter_pick_mode_ui(self) -> None:
+        """Configura a tela para o modo seleção de clientes (FIX-CLIENTES-005 + FIX-CLIENTES-007)."""
+        log.debug("FIX-007: entrando em pick mode na tela de clientes")
+
+        # FIX-CLIENTES-007: Desabilitar botões do footer usando método específico
+        if hasattr(self, "footer") and hasattr(self.footer, "enter_pick_mode"):
+            try:
+                self.footer.enter_pick_mode()
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Falha ao entrar em pick mode no footer: %s", exc)
+
+        # FIX-CLIENTES-007: Lixeira fica VISÍVEL mas DESABILITADA (cinza)
+        trash_button = getattr(self, "btn_lixeira", None)
+        if trash_button is not None:
+            try:
+                # Guarda o estado atual (normalmente "normal")
+                current_state = str(trash_button["state"])
+                self._trash_button_state_before_pick = current_state
+                # Desabilita visualmente (fica cinza)
+                trash_button.configure(state="disabled")
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Falha ao desabilitar botão lixeira: %s", exc)
+
+        # Desabilitar menus superiores (Conversor PDF)
+        if self.app is not None and hasattr(self.app, "topbar"):
+            try:
+                self.app.topbar.set_pick_mode_active(True)
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Falha ao desabilitar menus no pick mode: %s", exc)
+
+    def _leave_pick_mode_ui(self) -> None:
+        """Restaura a tela para o modo normal (não seleção) (FIX-CLIENTES-005 + FIX-CLIENTES-007)."""
+        # Restaurar estados dos botões via atualização central
+        try:
+            self._update_main_buttons_state()
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao restaurar estados dos botões: %s", exc)
+
+        # FIX-CLIENTES-007: Restaurar estado da Lixeira DEPOIS do _update_main_buttons_state
+        # para garantir que nosso estado salvo prevaleça sobre a lógica de conectividade
+        trash_button = getattr(self, "btn_lixeira", None)
+        if trash_button is not None:
+            try:
+                previous_state = self._trash_button_state_before_pick or "normal"
+                trash_button.configure(state=previous_state)
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Falha ao restaurar botão lixeira: %s", exc)
+
+        # FIX-CLIENTES-007: Restaurar botões do rodapé usando método específico
+        if hasattr(self, "footer") and hasattr(self.footer, "leave_pick_mode"):
+            try:
+                self.footer.leave_pick_mode()
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Falha ao sair de pick mode no footer: %s", exc)
+
+        # Reabilitar menus superiores (Conversor PDF)
+        if self.app is not None and hasattr(self.app, "topbar"):
+            try:
+                self.app.topbar.set_pick_mode_active(False)
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Falha ao reabilitar menus após pick mode: %s", exc)
 
     def _start_connectivity_monitor(self) -> None:
         self._connectivity.start()
 
     def carregar(self) -> None:
-        """Preenche a tabela de clientes."""
+        """Preenche a tabela de clientes.
+
+        MS-2: Agora delega filtros/ordenação ao controller headless.
+        """
+        # TODO MS-2: Integrado com main_screen_controller.compute_main_screen_state
 
         order_label_raw = self.var_ordem.get()
-        order_label = self._normalize_order_label(order_label_raw)
+        order_label = normalize_order_label(order_label_raw)
         if order_label != order_label_raw:
             self.var_ordem.set(order_label)
 
@@ -677,8 +772,9 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
 
         log.info("Atualizando lista (busca='%s', ordem='%s')", search_term, order_label)
 
+        # Nota MS-2: Ainda precisamos chamar refresh_from_service para carregar dados do backend
+        # O ViewModel faz a busca no serviço, mas não aplicaremos seus filtros internos
         self._vm.set_order_label(order_label, rebuild=False)
-
         self._vm.set_search_text(search_term, rebuild=False)
 
         try:
@@ -691,12 +787,14 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
 
             return
 
+        # Atualizar opções de filtro de status (dinâmico baseado nos dados)
         self._populate_status_filter_options()
 
-        self._refresh_list_from_vm()
+        # MS-2: Usar controller para aplicar filtros/ordenação
+        self._refresh_with_controller()
 
     def _sort_by(self, column: str) -> None:
-        current = self._normalize_order_label(self.var_ordem.get())
+        current = normalize_order_label(self.var_ordem.get())
 
         if column == "updated_at":
             new_value = ORDER_LABEL_UPDATED_OLD if current == ORDER_LABEL_UPDATED_RECENT else ORDER_LABEL_UPDATED_RECENT
@@ -738,9 +836,8 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
         try:
             if self._buscar_after:
                 self.after_cancel(self._buscar_after)
-
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao cancelar debounce de busca: %s", exc)
 
         self._buscar_after = self.after(200, self.carregar)
 
@@ -752,50 +849,37 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
         self.carregar()
 
     def apply_filters(self, *_: Any) -> None:
-        search_term = self.var_busca.get().strip()
+        """Aplica filtros de status e texto de busca.
 
-        status_value = (self.var_status.get() or "").strip()
-
-        status_filter = None if not status_value or status_value.lower() == "todos" else status_value
-
-        self._vm.set_search_text(search_term, rebuild=False)
-
-        self._vm.set_status_filter(status_filter, rebuild=True)
-
-        self._refresh_list_from_vm()
+        MS-2: Agora usa o controller headless para computar a lista filtrada.
+        """
+        # TODO MS-2: Integrado com main_screen_controller.compute_main_screen_state
+        self._refresh_with_controller()
 
     def _populate_status_filter_options(self) -> None:
         statuses = self._vm.get_status_choices()
 
-        choices = ["Todos"] + statuses if statuses else ["Todos"]
+        choices = build_filter_choices_with_all_option(statuses)
 
         try:
             self.status_filter.configure(values=choices)
 
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao atualizar filtro de status: %s", exc)
 
         current = (self.var_status.get() or "").strip()
 
-        normalized_current = current.lower()
+        resolved = resolve_filter_choice_from_options(current, choices)
 
-        available_map = {choice.lower(): choice for choice in choices}
-
-        if normalized_current in available_map:
-            resolved = available_map[normalized_current]
-
-            if resolved != current:
-                self.var_status.set(resolved)
-
-        else:
-            self.var_status.set("Todos")
+        if resolved != current:
+            self.var_status.set(resolved)
 
     def _refresh_list_from_vm(self) -> None:
         self._current_rows = self._vm.get_rows()
 
         self._render_clientes(self._current_rows)
 
-    def _row_values_masked(self, row: ClienteRow) -> tuple:
+    def _row_values_masked(self, row: ClienteRow) -> tuple[Any, ...]:
         mapping = {
             "ID": row.id,
             "Razao Social": row.razao_social,
@@ -839,15 +923,17 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
         try:
             self.client_list.delete(*self.client_list.get_children())
 
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao limpar treeview de clientes: %s", exc)
 
         for row in rows:
             tags = ("has_obs",) if row.observacoes.strip() else ()
 
             self.client_list.insert("", "end", values=self._row_values_masked(row), tags=tags)
 
-        raw_clientes = [row.raw.get("cliente") for row in rows if isinstance(row.raw, dict) and row.raw.get("cliente") is not None]
+        raw_clientes = [
+            row.raw.get("cliente") for row in rows if isinstance(row.raw, dict) and row.raw.get("cliente") is not None
+        ]
 
         count = len(rows) if isinstance(rows, (list, tuple)) else len(self.client_list.get_children())
 
@@ -858,8 +944,8 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
         try:
             self.after(50, lambda: None)
 
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao agendar refresh ass�ncrono: %s", exc)
 
     def _apply_connectivity_state(self, state: str, description: str, text: str, _style: str, _tooltip: str) -> None:
         """
@@ -876,8 +962,8 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
 
                 setattr(self.app, "_net_description", description)
 
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao atualizar atributos globais de conectividade: %s", exc)
 
         # Atualiza estado dos botões e textos
 
@@ -889,13 +975,13 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
                     self.btn_enviar.configure(text="Enviar Para SupaBase")
 
                 elif state == "unstable":
-                    self.btn_enviar.configure(text="Envio suspenso – Conexão instável")
+                    self.btn_enviar.configure(text="Envio suspenso - Conexao instavel")
 
                 else:
-                    self.btn_enviar.configure(text="Envio suspenso – Offline")
+                    self.btn_enviar.configure(text="Envio suspenso - Offline")
 
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao atualizar UI de conectividade: %s", exc)
 
         # Atualiza indicador visual na UI (status bar global)
 
@@ -915,8 +1001,8 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
                 else:
                     status_var.set(f"Nuvem: {text}")
 
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Falha ao atualizar texto de status global: %s", exc)
 
         if not hasattr(self, "_last_cloud_state") or self._last_cloud_state != state:
             log.info(
@@ -1089,6 +1175,145 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
         except Exception:
             return raw
 
+    # ========================================================================
+    # MS-2: Helpers para integração com main_screen_controller
+    # ========================================================================
+
+    def _get_clients_for_controller(self) -> Sequence[ClienteRow]:
+        """Obtém lista de clientes para passar ao controller.
+
+        Retorna a lista completa de clientes (antes de filtros/ordenação),
+        pois o controller é responsável por aplicar filtros e ordenação.
+
+        Nota MS-2: O ViewModel atual já filtra internamente, então pegamos
+        _clientes_raw e convertemos manualmente para ClienteRow.
+        """
+        # Precisamos reconstruir as rows a partir dos dados brutos
+        # sem aplicar filtros, para que o controller faça isso
+        raw_clientes = self._vm._clientes_raw  # pyright: ignore[reportPrivateUsage]
+
+        # Converter cada cliente raw para ClienteRow usando o método do VM
+        rows: list[ClienteRow] = []
+        for cliente in raw_clientes:
+            row = self._vm._build_row_from_cliente(cliente)  # pyright: ignore[reportPrivateUsage]
+            rows.append(row)
+
+        return rows
+
+    def _build_main_screen_state(self) -> MainScreenState:
+        """Constrói o estado atual da tela para o controller.
+
+        Coleta todos os dados de estado da UI e monta o MainScreenState.
+        """
+        # Clientes (lista completa, antes de filtros)
+        clients = self._get_clients_for_controller()
+
+        # Ordenação atual
+        order_label = normalize_order_label(self.var_ordem.get())
+
+        # Filtro de status atual
+        filter_label = (self.var_status.get() or "").strip()
+
+        # Texto de busca atual
+        search_text = self.var_busca.get().strip()
+
+        # IDs selecionados
+        selected_ids = list(self._get_selected_ids())
+
+        # Status online/offline
+        try:
+            state, _ = get_supabase_state()  # pyright: ignore[reportAssignmentType]
+            is_online = state == "online"
+        except Exception:
+            is_online = False
+
+        # Modo lixeira (MainScreenFrame é sempre lista principal)
+        is_trash_screen = False
+
+        return MainScreenState(
+            clients=clients,
+            order_label=order_label,
+            filter_label=filter_label,
+            search_text=search_text,
+            selected_ids=selected_ids,
+            is_online=is_online,
+            is_trash_screen=is_trash_screen,
+        )
+
+    def _update_ui_from_computed(self, computed: MainScreenComputed) -> None:
+        """Atualiza a UI usando os dados computados pelo controller.
+
+        Esta é a função central que aplica os resultados do controller
+        na interface Tkinter.
+        """
+        # 1. Atualizar lista visível na Treeview
+        self._current_rows = list(computed.visible_clients)
+        self._render_clientes(self._current_rows)
+
+        # 2. Atualizar botões de batch operations
+        self._update_batch_buttons_from_computed(computed)
+
+        # 3. Atualizar botões principais (já existe, mantém compatibilidade)
+        self._update_main_buttons_state()
+
+    def _update_batch_buttons_from_computed(self, computed: MainScreenComputed) -> None:
+        """Atualiza botões de batch operations usando dados do controller.
+
+        Substitui a lógica antiga que calculava estados localmente.
+        """
+        try:
+            if getattr(self, "btn_batch_delete", None) is not None:
+                self.btn_batch_delete.configure(state="normal" if computed.can_batch_delete else "disabled")
+
+            if getattr(self, "btn_batch_restore", None) is not None:
+                self.btn_batch_restore.configure(state="normal" if computed.can_batch_restore else "disabled")
+
+            if getattr(self, "btn_batch_export", None) is not None:
+                self.btn_batch_export.configure(state="normal" if computed.can_batch_export else "disabled")
+        except Exception as e:
+            log.debug("Erro ao atualizar botões de batch: %s", e)
+
+    def _refresh_with_controller(self) -> None:
+        """Função central que usa o controller para recomputar o estado.
+
+        TODO MS-2: Este é o ponto de integração principal com o controller.
+        Substitui a lógica antiga de filtros/ordenação dispersa.
+        """
+        # 1. Construir estado atual da tela
+        state = self._build_main_screen_state()
+
+        # 2. Computar estado usando controller headless
+        computed = compute_main_screen_state(state)
+
+        # 3. Atualizar UI com resultado
+        self._update_ui_from_computed(computed)
+
+    def _update_batch_buttons_on_selection_change(self) -> None:
+        """Atualiza apenas botões de batch quando seleção muda (sem recarregar lista).
+
+        MS-2: Usa controller para calcular estados, mas sem reprocessar toda a lista.
+        """
+        # Construir estado atual (com lista já carregada em _current_rows)
+        state = MainScreenState(
+            clients=self._current_rows,  # Usa lista já em memória
+            order_label=normalize_order_label(self.var_ordem.get()),
+            filter_label=(self.var_status.get() or "").strip(),
+            search_text=self.var_busca.get().strip(),
+            selected_ids=list(self._get_selected_ids()),
+            is_online=get_supabase_state()[0] == "online",  # pyright: ignore[reportGeneralTypeIssues]
+            is_trash_screen=False,
+        )
+
+        # Computar apenas para obter flags de batch
+        computed = compute_main_screen_state(state)
+
+        # Atualizar apenas botões de batch
+        self._update_batch_buttons_from_computed(computed)
+
+    # ========================================================================
+    # Fim dos helpers MS-2
+    # ========================================================================
+
     def _apply_status_for(self, cliente_id: int, chosen: str) -> None:
         """Atualiza o [STATUS] no campo Observações e recarrega a grade."""
 
@@ -1108,6 +1333,255 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
 
         except Exception as e:
             messagebox.showerror("Erro", f"Falha ao atualizar status: {e}", parent=self)
+
+    # === FASE 07: Callbacks de Batch Operations (Implementação Real) ===
+
+    def _on_batch_delete_clicked(self) -> None:
+        """Callback do botão 'Excluir em Lote'.
+
+        FASE 07: Implementação real da exclusão em massa.
+        Exclui definitivamente os clientes selecionados após confirmação.
+        """
+        # Obter IDs selecionados
+        selected_ids = self._get_selected_ids()
+        if not selected_ids:
+            return
+
+        # Validar pré-condições com helper
+        supabase_state = get_supabase_state()
+        is_online = supabase_state[0] == "online"
+
+        if not can_batch_delete(selected_ids, is_trash_screen=False, is_online=is_online):
+            messagebox.showwarning(
+                "Operação não permitida",
+                "A exclusão em lote não está disponível no momento.\n"
+                "Verifique sua conexão ou se há clientes selecionados.",
+                parent=self,
+            )
+            return
+
+        # Diálogo de confirmação
+        count = get_selection_count(selected_ids)
+        message = (
+            f"Você deseja excluir definitivamente {count} cliente(s) selecionado(s)?\n\n"
+            f"⚠️ Esta operação NÃO pode ser desfeita!\n"
+            f"Os dados e arquivos associados serão removidos permanentemente."
+        )
+        confirmed = messagebox.askyesno(
+            "Excluir em Lote",
+            message,
+            parent=self,
+        )
+        if not confirmed:
+            return
+
+        # Executar exclusão
+        def _delete_batch() -> None:
+            try:
+                ok, errors = self._vm.delete_clientes_batch(selected_ids)
+
+                # Recarregar lista
+                self.carregar()
+
+                # Feedback ao usuário
+                if errors:
+                    error_msg = "\n".join([f"ID {cid}: {msg}" for cid, msg in errors[:5]])
+                    if len(errors) > 5:
+                        error_msg += f"\n... e mais {len(errors) - 5} erro(s)"
+
+                    messagebox.showwarning(
+                        "Exclusão Parcial",
+                        f"Excluídos: {ok}/{count}\n\nErros:\n{error_msg}",
+                        parent=self,
+                    )
+                else:
+                    messagebox.showinfo(
+                        "Sucesso",
+                        f"{ok} cliente(s) excluído(s) com sucesso!",
+                        parent=self,
+                    )
+            except Exception as e:
+                log.exception("Erro ao excluir clientes em lote")
+                messagebox.showerror(
+                    "Erro",
+                    f"Falha ao excluir clientes em lote: {e}",
+                    parent=self,
+                )
+
+        # Usar padrão de invocação segura
+        self._invoke_safe(_delete_batch)
+
+    def _on_batch_restore_clicked(self) -> None:
+        """Callback do botão 'Restaurar em Lote'.
+
+        FASE 07: Implementação real da restauração em massa.
+        Restaura os clientes selecionados da lixeira.
+        """
+        # Obter IDs selecionados
+        selected_ids = self._get_selected_ids()
+        if not selected_ids:
+            return
+
+        # Validar pré-condições com helper
+        supabase_state = get_supabase_state()
+        is_online = supabase_state[0] == "online"
+
+        # Restore em lote só faz sentido na lixeira (is_trash_screen=True)
+        # MainScreenFrame é lista principal, então is_trash_screen=False
+        if not can_batch_restore(selected_ids, is_trash_screen=False, is_online=is_online):
+            messagebox.showwarning(
+                "Operação não permitida",
+                "A restauração em lote não está disponível nesta tela.\n"
+                "Use a tela de Lixeira para restaurar clientes.",
+                parent=self,
+            )
+            return
+
+        # Diálogo de confirmação
+        count = get_selection_count(selected_ids)
+        message = f"Você deseja restaurar {count} cliente(s) selecionado(s) da lixeira?"
+        confirmed = messagebox.askyesno(
+            "Restaurar em Lote",
+            message,
+            parent=self,
+        )
+        if not confirmed:
+            return
+
+        # Executar restauração
+        def _restore_batch() -> None:
+            try:
+                self._vm.restore_clientes_batch(selected_ids)
+
+                # Recarregar lista
+                self.carregar()
+
+                # Feedback ao usuário
+                messagebox.showinfo(
+                    "Sucesso",
+                    f"{count} cliente(s) restaurado(s) com sucesso!",
+                    parent=self,
+                )
+            except Exception as e:
+                log.exception("Erro ao restaurar clientes em lote")
+                messagebox.showerror(
+                    "Erro",
+                    f"Falha ao restaurar clientes em lote: {e}",
+                    parent=self,
+                )
+
+        # Usar padrão de invocação segura
+        self._invoke_safe(_restore_batch)
+
+    def _on_batch_export_clicked(self) -> None:
+        """Callback do botão 'Exportar em Lote'.
+
+        FASE 07: Implementação real da exportação em massa.
+        Exporta dados dos clientes selecionados.
+        """
+        # Obter IDs selecionados
+        selected_ids = self._get_selected_ids()
+        if not has_selection(selected_ids):
+            return
+
+        # Validar pré-condições com helper (export não depende de is_online)
+        if not can_batch_export(selected_ids):
+            messagebox.showwarning(
+                "Operação não permitida",
+                "A exportação em lote não está disponível no momento.\n" "Verifique se há clientes selecionados.",
+                parent=self,
+            )
+            return
+
+        # Executar exportação (sem confirmação - operação não destrutiva)
+        def _export_batch() -> None:
+            try:
+                self._vm.export_clientes_batch(selected_ids)
+
+                # Feedback ao usuário
+                count = get_selection_count(selected_ids)
+                messagebox.showinfo(
+                    "Exportação",
+                    f"Exportação de {count} cliente(s) iniciada.\n\n"
+                    f"Nota: Funcionalidade em desenvolvimento.\n"
+                    f"Os dados foram logados para processamento futuro.",
+                    parent=self,
+                )
+            except Exception as e:
+                log.exception("Erro ao exportar clientes em lote")
+                messagebox.showerror(
+                    "Erro",
+                    f"Falha ao exportar clientes em lote: {e}",
+                    parent=self,
+                )
+
+        # Usar padrão de invocação segura
+        self._invoke_safe(_export_batch)
+
+    def _get_selected_ids(self) -> set[str]:
+        """Retorna o conjunto de IDs de clientes atualmente selecionados na árvore.
+
+        Returns:
+            Set de IDs (strings) dos itens selecionados. Set vazio se nenhuma seleção.
+        """
+        try:
+            # Usa self.client_list que é o mesmo que self.tree
+            selection_tuple = self.client_list.selection()
+            return set(selection_tuple) if selection_tuple else set()
+        except Exception:
+            return set()
+
+    def _update_batch_buttons_state(self) -> None:
+        """Atualiza o estado (normal/disabled) dos botões de operações em massa.
+
+        Usa helpers puros de batch operations (Fase 04) para determinar estados.
+        """
+        # Obtém seleção atual via método centralizado
+        selected_ids = self._get_selected_ids()
+
+        # Obtém estado online da mesma forma que _update_main_buttons_state
+        try:
+            state, _ = get_supabase_state()  # pyright: ignore[reportAssignmentType]
+            is_online = state == "online"
+        except Exception:
+            is_online = False
+
+        # MainScreenFrame é sempre lista principal (não lixeira)
+        # Tela de lixeira é separada (trash screen)
+        is_trash_screen = False
+
+        # Calcula estados usando helpers da Fase 04
+        can_delete = can_batch_delete(
+            selected_ids,
+            is_trash_screen=is_trash_screen,
+            is_online=is_online,
+            max_items=None,  # Sem limite por enquanto
+        )
+
+        can_restore = can_batch_restore(
+            selected_ids,
+            is_trash_screen=is_trash_screen,
+            is_online=is_online,
+        )
+
+        can_export = can_batch_export(
+            selected_ids,
+            max_items=None,  # Sem limite por enquanto
+        )
+
+        # Atualiza botões de batch (se existirem)
+        # Nota: Os botões de batch podem não estar presentes na UI principal
+        try:
+            if getattr(self, "btn_batch_delete", None) is not None:
+                self.btn_batch_delete.configure(state="normal" if can_delete else "disabled")
+
+            if getattr(self, "btn_batch_restore", None) is not None:
+                self.btn_batch_restore.configure(state="normal" if can_restore else "disabled")
+
+            if getattr(self, "btn_batch_export", None) is not None:
+                self.btn_batch_export.configure(state="normal" if can_export else "disabled")
+        except Exception as e:
+            log.debug("Erro ao atualizar botões de batch: %s", e)
 
     def _update_main_buttons_state(self, *_: Any) -> None:
         """
@@ -1140,16 +1614,22 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
 
         online = state == "online"  # Somente "online" permite envio
 
-        allow_send = has_sel and online and not self._uploading_busy
+        # Usa helper para calcular estados
+        states = calculate_button_states(
+            has_selection=has_sel,
+            is_online=online,
+            is_uploading=self._uploading_busy,
+            is_pick_mode=self._pick_mode,
+        )
 
         try:
             # BotÃµes que dependem de conexÃ£o E seleÃ§Ã£o
 
-            self.btn_editar.configure(state=("normal" if (has_sel and online) else "disabled"))
+            self.btn_editar.configure(state=("normal" if states["editar"] else "disabled"))
 
-            self.btn_subpastas.configure(state=("normal" if (has_sel and online) else "disabled"))
+            self.btn_subpastas.configure(state=("normal" if states["subpastas"] else "disabled"))
 
-            if allow_send:
+            if states["enviar"]:
                 self.btn_enviar.state(["!disabled"])
 
             else:
@@ -1160,35 +1640,61 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
                     last_index = self.menu_enviar.index("end")
 
                     if last_index is not None:
-                        entry_state = "normal" if allow_send else "disabled"
+                        entry_state = "normal" if states["enviar"] else "disabled"
 
                         for idx in range(last_index + 1):
                             self.menu_enviar.entryconfigure(idx, state=entry_state)
 
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    log.debug("Falha ao atualizar menu de envio: %s", exc)
 
             # BotÃµes que dependem apenas de conexÃ£o
 
-            self.btn_novo.configure(state=("normal" if online else "disabled"))
+            self.btn_novo.configure(state=("normal" if states["novo"] else "disabled"))
 
-            self.btn_lixeira.configure(state=("normal" if online else "disabled"))
+            # FIX-CLIENTES-007: Não mexer no estado da Lixeira quando estamos saindo do pick mode
+            # O _leave_pick_mode_ui() restaurará o estado salvo
+            if not getattr(self, "_pick_mode", False):
+                self.btn_lixeira.configure(state=("normal" if states["lixeira"] else "disabled"))
 
             # BotÃ£o de seleÃ§Ã£o (modo pick) - nÃ£o depende de conexÃ£o
 
             if self._pick_mode and hasattr(self, "btn_select"):
-                self.btn_select.configure(state=("normal" if has_sel else "disabled"))
+                self.btn_select.configure(state=("normal" if states["select"] else "disabled"))
+            if getattr(self, "btn_excluir", None) is not None:
+                self.btn_excluir.configure(state=("normal" if states["editar"] else "disabled"))
 
         except Exception as e:
             log.debug("Erro ao atualizar estado dos botÃµes: %s", e)
 
+        # MS-2: Botões de batch agora atualizados via controller
+        self._update_batch_buttons_on_selection_change()
+
+    def _on_order_changed(self, _value: Any | None = None) -> None:
+        """Dispara recarga apenas quando a ordenação efetivamente muda."""
+        new_value = normalize_order_label(self.var_ordem.get())
+        if new_value == getattr(self, "_current_order_by", None):
+            return
+        self._current_order_by = new_value
+        self.var_ordem.set(new_value)
+        self.carregar()
+
+    def on_delete_selected_clients(self) -> None:
+        """Aciona a exclus?o (envio para lixeira) dos clientes selecionados."""
+        if self.on_delete:
+            self._invoke_safe(self.on_delete)
+
+    def _on_tree_delete_key(self, _event: Any = None) -> None:
+        """Handler da tecla Delete na lista principal."""
+        self.on_delete_selected_clients()
+
     def _resolve_order_preferences(self) -> Tuple[Optional[str], bool]:
-        label = self._normalize_order_label(self.var_ordem.get())
+        label = normalize_order_label(self.var_ordem.get())
         return self._order_choices.get(label, (None, False))
 
     def _set_count_text(self, count: int, clientes: Sequence[Any] | None = None) -> None:
         try:
-            from datetime import datetime, date
+            from datetime import date
 
             total_clients = count
 
@@ -1198,34 +1704,16 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
 
             if clientes:
                 today = date.today()
-
-                first_of_month = today.replace(day=1)
-
-                def parse_created_at(c):
-                    created_str = getattr(c, "created_at", None) or c.get("created_at") if hasattr(c, "get") else None
-
-                    if not created_str:
-                        return None
-
-                    try:
-                        return datetime.fromisoformat(created_str)
-
-                    except Exception:
-                        return None
-
-                created_dates = [parse_created_at(c) for c in clientes]
-
-                new_today = sum(1 for d in created_dates if d and d.date() == today)
-
-                new_month = sum(1 for d in created_dates if d and d.date() >= first_of_month)
+                # Usa helper para calcular estatísticas
+                new_today, new_month = calculate_new_clients_stats(clientes, today)
 
             # Atualiza o StatusFooter global
 
             if self.app and self.app.status_footer:
                 self.app.status_footer.set_clients_summary(total_clients, new_today, new_month)
 
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao atualizar resumo de clientes: %s", exc)
 
     # =========================================================================
 
@@ -1237,15 +1725,15 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
 
     # =========================================================================
 
-    def start_pick(self, on_pick, return_to=None):
+    def start_pick(self, on_pick: Callable[[dict], None], return_to: Optional[Callable[[], None]] = None) -> None:
         """API pública usada pelo router para modo pick (Senhas)."""
 
         self._pick_controller.start_pick(on_pick=on_pick, return_to=return_to)
 
-    def _on_pick_cancel(self, *_):
+    def _on_pick_cancel(self, *_: object) -> None:
         self._pick_controller.cancel_pick()
 
-    def _on_pick_confirm(self, *_):
+    def _on_pick_confirm(self, *_: object) -> None:
         self._pick_controller.confirm_pick()
 
     @staticmethod
@@ -1254,7 +1742,7 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
             callback()
 
     def _invoke_safe(self, callback: Optional[Callable[[], None]]) -> None:
-        """Invoca callback apenas se NÃƒO estiver em modo seleÃ§Ã£o."""
+        """Invoca callback apenas se NÃO estiver em modo seleção."""
 
         if getattr(self, "_pick_mode", False):
             return

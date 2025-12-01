@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Any
+from typing import Any, Optional
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -42,8 +45,8 @@ def get_default_download_dir() -> Path:
         )
         if hr == 0 and p_path.value:
             return Path(p_path.value)
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Falha ao obter pasta Downloads pelo shell: %s", exc)
     return Path(os.path.expanduser("~")) / "Downloads"
 
 
@@ -107,7 +110,7 @@ def save_image(pil_image: Any, ctx: DownloadContext) -> Path:
         if mode not in ("RGB", "RGBA"):
             try:
                 save_img = pil_image.convert("RGBA")
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Falha ao converter imagem para RGBA; mantendo modo atual: %s", exc)
         save_img.save(target, format="PNG")
         return target

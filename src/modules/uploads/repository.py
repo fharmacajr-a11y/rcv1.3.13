@@ -45,8 +45,8 @@ def resolve_org_id() -> str:
         data = getattr(response, "data", None) or []
         if data:
             return data[0]["org_id"]
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Falha ao resolver org_id para uploads: %s", exc)
     return fallback
 
 

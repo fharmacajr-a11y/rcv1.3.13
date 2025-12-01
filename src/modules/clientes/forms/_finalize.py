@@ -33,8 +33,8 @@ def finalize_state(*args, ctx_override: Optional[UploadCtx] = None, **kwargs) ->
     try:
         if ctx.busy_dialog:
             ctx.busy_dialog.close()
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Falha ao fechar busy dialog apos finalize_state: %s", exc)
 
     prefix_info = ""
     if ctx.misc.get("storage_prefix"):
@@ -60,19 +60,19 @@ def finalize_state(*args, ctx_override: Optional[UploadCtx] = None, **kwargs) ->
             messagebox.showinfo("Sucesso", msg, parent=ctx.parent_win)
         else:
             messagebox.showinfo("Sucesso", msg)
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Falha ao mostrar mensagem de sucesso no finalize_state: %s", exc)
 
     try:
         if ctx.win and hasattr(ctx.win, "destroy"):
             ctx.win.destroy()
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Falha ao destruir janela de upload finalizada: %s", exc)
 
     try:
         self.carregar()
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Falha ao recarregar lista apos finalize_state: %s", exc)
 
     _cleanup_ctx(self)
     return args, kwargs

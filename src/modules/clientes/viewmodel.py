@@ -2,14 +2,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import json
+import logging
 import os
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Collection, Dict, Iterable, List, Optional, Tuple
 
 from src.core.search import search_clientes
 from src.core.textnorm import join_and_normalize, normalize_search
 from src.utils.phone_utils import normalize_br_whatsapp
 
 from .components import helpers as status_helpers
+
+logger = logging.getLogger(__name__)
 
 
 class ClientesViewModelError(Exception):
@@ -133,6 +136,39 @@ class ClientesViewModel:
         return list(self._status_choices)
 
     # ------------------------------------------------------------------ #
+    # Operações em batch (Fase 07)
+    # ------------------------------------------------------------------ #
+
+    def delete_clientes_batch(self, ids: Collection[str]) -> tuple[int, list[tuple[int, str]]]:
+        """Exclui definitivamente uma coleção de clientes.
+
+        Delega para o serviço de clientes, que cuida da lógica de
+        exclusão física + limpeza de storage.
+
+        Retorna (qtd_ok, erros_por_id).
+        """
+        from .service import excluir_clientes_definitivamente
+
+        ids_int = [int(id_str) for id_str in ids]
+        return excluir_clientes_definitivamente(ids_int)
+
+    def restore_clientes_batch(self, ids: Collection[str]) -> None:
+        """Restaura uma coleção de clientes da lixeira."""
+        from .service import restaurar_clientes_da_lixeira
+
+        ids_int = [int(id_str) for id_str in ids]
+        restaurar_clientes_da_lixeira(ids_int)
+
+    def export_clientes_batch(self, ids: Collection[str]) -> None:
+        """Exporta dados dos clientes selecionados.
+
+        Fase 07: Implementação placeholder - apenas loga os IDs.
+        Fase futura pode implementar export real (CSV/Excel).
+        """
+        logger.info("Export batch solicitado para %d cliente(s): %s", len(ids), ids)
+        # TODO: Implementar exportação real (CSV/Excel) em fase futura
+
+    # ------------------------------------------------------------------ #
     # Implementação interna
     # ------------------------------------------------------------------ #
 
@@ -223,8 +259,8 @@ class ClientesViewModel:
             from src.utils.text_utils import format_cnpj
 
             cnpj_fmt = format_cnpj(cnpj_raw) or cnpj_raw
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao formatar CNPJ no ClientesViewModel: %s", exc)
 
         updated_raw = self._value_from_cliente(cliente, "ultima_alteracao", "updated_at")
         updated_fmt = ""

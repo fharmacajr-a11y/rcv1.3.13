@@ -71,7 +71,7 @@ def is_valid_cnpj(cnpj: Optional[str]) -> bool:
 
     def dv_calc(base: str) -> str:
         pesos = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
-        soma = sum(int(d) * pesos[i + 1] for i, d in enumerate(base))
+        soma = sum(int(d) * pesos[i] for i, d in enumerate(base))
         r = soma % 11
         dv = 0 if r < 2 else 11 - r
         return str(dv)
@@ -146,7 +146,9 @@ def check_duplicates(
             #     params.append(numero_d)
 
             if razao_n:
-                union_sql.append("SELECT 'RAZAO_SOCIAL' AS K, ID FROM clientes WHERE DELETED_AT IS NULL AND RAZAO_SOCIAL = ? COLLATE NOCASE")
+                union_sql.append(
+                    "SELECT 'RAZAO_SOCIAL' AS K, ID FROM clientes WHERE DELETED_AT IS NULL AND RAZAO_SOCIAL = ? COLLATE NOCASE"
+                )
                 params.append(razao_n)
 
             if not union_sql:
@@ -154,7 +156,8 @@ def check_duplicates(
 
             q = " UNION ALL ".join(union_sql)
             if exclude_id is not None:
-                q = f"SELECT K, ID FROM ({q}) WHERE ID <> ?"
+                # Partes da query são constantes e valores são parametrizados
+                q = f"SELECT K, ID FROM ({q}) WHERE ID <> ?"  # nosec B608
                 params.append(int(exclude_id))
 
             cur = conn.execute(q, tuple(params))
@@ -180,7 +183,10 @@ def check_duplicates(
                 # (removido) bloqueio por número/WhatsApp
                 # if numero_d and only_digits(row.get("NUMERO") or row.get("numero")) == numero_d:
                 #     dup["NUMERO"].append(rid)
-                if razao_n and normalize_text(row.get("RAZAO_SOCIAL") or row.get("razao_social")).lower() == razao_n.lower():
+                if (
+                    razao_n
+                    and normalize_text(row.get("RAZAO_SOCIAL") or row.get("razao_social")).lower() == razao_n.lower()
+                ):
                     dup["RAZAO_SOCIAL"].append(rid)
         except Exception as e:
             log.exception("Erro ao processar duplicatas em memória: %s", e)

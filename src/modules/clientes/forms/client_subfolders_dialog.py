@@ -5,6 +5,7 @@ Dialogo para visualizar e gerenciar subpastas locais de clientes.
 
 from __future__ import annotations
 
+import logging
 import os
 import tkinter as tk
 from typing import Iterable, List
@@ -13,6 +14,8 @@ import ttkbootstrap as tb
 
 from src.config.paths import CLOUD_ONLY
 from src.utils.file_utils import ensure_subpastas, open_folder
+
+logger = logging.getLogger(__name__)
 
 try:  # pragma: no cover
     from ui import center_on_parent
@@ -156,8 +159,8 @@ def open_subpastas_dialog(
             if not CLOUD_ONLY:
                 try:
                     os.makedirs(full_path, exist_ok=True)
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug("Falha ao criar subpasta local %s: %s", full_path, exc)
             open_folder(full_path)
             _refresh_rows()
 

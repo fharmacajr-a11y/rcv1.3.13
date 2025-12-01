@@ -53,8 +53,8 @@ def list_profiles_by_org(org_id: str) -> list[dict[str, Any]]:
             try:
                 resp = exec_postgrest(supa.table(_TABLE).select("email").eq("org_id", org_id))
                 return resp.data or []
-            except Exception:
-                pass
+            except Exception as fallback_exc:
+                log.debug("profiles_service: fallback sem display_name falhou", exc_info=fallback_exc)
         log.warning("Erro ao listar profiles: %s", e)
         return []
 

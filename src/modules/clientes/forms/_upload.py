@@ -21,12 +21,31 @@ from src.config.paths import CLOUD_ONLY
 from src.core.logger import get_logger
 from src.core.storage_key import make_storage_key
 from src.helpers.storage_errors import classify_storage_error
+from src.helpers.datetime_utils import now_iso_z
 
 from ._prepare import DEFAULT_IMPORT_SUBFOLDER, UploadCtx, _unpack_call
 from ._finalize import finalize_state
 
 LOGGER_NAME = "src.modules.clientes.forms.pipeline"
 logger = get_logger(LOGGER_NAME)
+
+
+def _build_document_version_payload(
+    *,
+    document_id: int,
+    storage_path: str,
+    size_bytes: int,
+    sha256_hash: str,
+    ctx: UploadCtx,
+) -> dict[str, Any]:
+    return {
+        "document_id": document_id,
+        "path": storage_path,
+        "size_bytes": size_bytes,
+        "sha256": sha256_hash,
+        "uploaded_by": ctx.user_id or "unknown",
+        "created_at": ctx.created_at or now_iso_z(),
+    }
 
 
 class UploadProgressDialog:
@@ -43,8 +62,8 @@ class UploadProgressDialog:
             dlg.transient(parent)
             dlg.grab_set()
             dlg.resizable(False, False)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao configurar dialogo de upload: %s", exc)
 
         self.label = ttk.Label(
             dlg,
@@ -63,13 +82,13 @@ class UploadProgressDialog:
             y = parent.winfo_rooty() + (parent.winfo_height() // 2 - dlg.winfo_height() // 2)
             dlg.minsize(fixed_width, dlg.winfo_height())
             dlg.geometry(f"{fixed_width}x{dlg.winfo_height()}+{x}+{y}")
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao posicionar dialogo de upload: %s", exc)
 
         try:
             dlg.protocol("WM_DELETE_WINDOW", lambda: None)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao registrar protocolo de fechamento do dialogo de upload: %s", exc)
 
         self.win = dlg
 
@@ -82,17 +101,22 @@ class UploadProgressDialog:
         total_kb = self.total_bytes // 1024
 
         try:
-            self.label.configure(text=(f"Enviando arquivo {arquivos_txt}: {os.path.basename(filename)}\n" f"{enviados_kb} KB de {total_kb} KB enviados..."))
+            self.label.configure(
+                text=(
+                    f"Enviando arquivo {arquivos_txt}: {os.path.basename(filename)}\n"
+                    f"{enviados_kb} KB de {total_kb} KB enviados..."
+                )
+            )
             self.bar["value"] = min(self.current_file_index, self.total_files)
             self.win.update_idletasks()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao atualizar dialogo de progresso: %s", exc)
 
     def close(self) -> None:
         try:
             self.win.destroy()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao fechar dialogo de upload: %s", exc)
 
 
 def perform_uploads(*args, **kwargs) -> tuple[tuple, dict[str, Any]]:
@@ -108,7 +132,8 @@ def perform_uploads(*args, **kwargs) -> tuple[tuple, dict[str, Any]]:
     for lp, _rel in ctx.files:
         try:
             total_bytes += os.path.getsize(lp)
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao obter tamanho de arquivo para upload: %s", exc)
             continue
 
     progress = UploadProgressDialog(parent_win, total_files or 1, total_bytes or 0)
@@ -142,13 +167,17 @@ def perform_uploads(*args, **kwargs) -> tuple[tuple, dict[str, Any]]:
                 if not CLOUD_ONLY:
                     os.makedirs(base_local_inner, exist_ok=True)
                 for lp, rel in ctx.files:
-                    dest = os.path.join(base_local_inner, rel) if ctx.src_dir and rel else os.path.join(base_local_inner, os.path.basename(lp))
+                    dest = (
+                        os.path.join(base_local_inner, rel)
+                        if ctx.src_dir and rel
+                        else os.path.join(base_local_inner, os.path.basename(lp))
+                    )
                     if not CLOUD_ONLY:
                         os.makedirs(os.path.dirname(dest), exist_ok=True)
                     try:
                         shutil.copy2(lp, dest)
-                    except Exception:
-                        pass
+                    except Exception as exc:  # noqa: BLE001
+                        logger.debug("Falha ao copiar arquivo local para staging: %s", exc)
             except Exception as exc:
                 logger.error("Falha ao copiar local: %s", exc)
 
@@ -201,20 +230,18 @@ def perform_uploads(*args, **kwargs) -> tuple[tuple, dict[str, Any]]:
                     )
                     document_id = doc.data[0]["id"]
 
-                    ver = exec_postgrest(
-                        supabase.table("document_versions").insert(
-                            {
-                                "document_id": document_id,
-                                "path": storage_path,
-                                "size_bytes": size_bytes,
-                                "sha256": sha256_hash,
-                                "uploaded_by": ctx.user_id or "unknown",
-                                "created_at": ctx.created_at,
-                            }
-                        )
+                    version_payload = _build_document_version_payload(
+                        document_id=document_id,
+                        storage_path=storage_path,
+                        size_bytes=size_bytes,
+                        sha256_hash=sha256_hash,
+                        ctx=ctx,
                     )
+                    ver = exec_postgrest(supabase.table("document_versions").insert(version_payload))
                     version_id = ver.data[0]["id"]
-                    exec_postgrest(supabase.table("documents").update({"current_version": version_id}).eq("id", document_id))
+                    exec_postgrest(
+                        supabase.table("documents").update({"current_version": version_id}).eq("id", document_id)
+                    )
 
                     logger.info("Upload OK: %s", storage_path)
                     _after_step(filename_original, size_bytes)

@@ -25,7 +25,7 @@ CompatPack-09 adicionou type hints completos ao script de análise `analyze_supa
 
 ## 🎯 Objetivo
 
-Eliminar **todos** os avisos Pyright em `devtools/qa/analyze_supabase_errors.py`:
+Eliminar **todos** os avisos Pyright em `docs/devtools/qa/analyze_supabase_errors.py`:
 - **TypedDict para Pyright JSON**: PyrightDiagnostic, PyrightRange, PyrightRangePos
 - **Type annotations explícitas**: todas variáveis (`by_file`, `errors`, `line`, `msg`)
 - **Funções helper tipadas**: load_pyright_report, filter_supabase_errors, etc.
@@ -394,9 +394,9 @@ PyrightReport
 
 ### Testes Executados
 
-1. **Script execution**: `python devtools/qa/analyze_supabase_errors.py` → ✅ Saída idêntica
+1. **Script execution**: `python docs/devtools/qa/analyze_supabase_errors.py` → ✅ Saída idêntica
 
-2. **Pyright analysis**: `pyright devtools/qa/analyze_supabase_errors.py` → **18 warnings → 0 warnings** ✅
+2. **Pyright analysis**: `pyright docs/devtools/qa/analyze_supabase_errors.py` → **18 warnings → 0 warnings** ✅
 
 3. **Output comparison**:
    ```
@@ -419,8 +419,8 @@ PyrightReport
 ## 🔄 Arquivos Modificados
 
 | Arquivo                                      | Linhas Δ | Tipo       | Descrição                                          |
-|----------------------------------------------|----------|------------|----------------------------------------------------|
-| `devtools/qa/analyze_supabase_errors.py`     | +86      | Modificado | TypedDicts + helper functions + type annotations   |
+|----------------------------------------------|----------|------------|----------------------------------------------------|--
+| `docs/devtools/qa/analyze_supabase_errors.py`| +86      | Modificado | TypedDicts + helper functions + type annotations   |
 
 **Total**: 1 arquivo modificado (+86 linhas, de 114 para 200 linhas com helpers/docs)
 
@@ -480,9 +480,9 @@ Este CompatPack afetou **apenas devtools**, não há código de produção modif
 Possíveis alvos para CompatPack-10:
 
 1. **Limpar outros scripts devtools**:
-   - `devtools/qa/analyze_pyright_errors.py`
-   - `devtools/qa/analyze_config_errors.py`
-   - `devtools/qa/analyze_path_errors.py`
+   - `docs/devtools/qa/analyze_pyright_errors.py`
+   - `docs/devtools/qa/analyze_config_errors.py`
+   - `docs/devtools/qa/analyze_path_errors.py`
    - Aplicar mesma estratégia TypedDict
 
 2. **Criar stubs para postgrest** (`typings/postgrest/`):

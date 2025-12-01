@@ -1,0 +1,282 @@
+Name                                                     Stmts   Miss Branch BrPart  Cover   Missing
+-----------------------------------------------------------------------------------------------------------------
+adapters\__init__.py                                         2      0      0      0 100.0%
+adapters\storage\__init__.py                                 2      0      0      0 100.0%
+adapters\storage\api.py                                     45     14      6      1  62.7%   22, 31, 45, 49, 53, 69-81, 85
+adapters\storage\port.py                                     3      0      0      0 100.0%
+adapters\storage\supabase_storage.py                       111     20     22      6  78.9%   38->42, 60-62, 84->86, 93, 95-100, 110, 177-178, 192, 196, 200, 204, 216-217, 227
+data\__init__.py                                             0      0      0      0 100.0%
+data\auth_bootstrap.py                                      34     23      8      0  26.2%   14-15, 19-24, 35-54
+data\domain_types.py                                        29      0      0      0 100.0%
+data\supabase_repo.py                                      197    158     44      0  16.2%   48-49, 57-62, 72-81, 89-106, 118, 141-165, 170, 186-202, 219-258, 274-305, 312-325, 333-337, 350-385, 400-416
+infra\__init__.py                                            0      0      0      0 100.0%
+infra\archive_utils.py                                      91     16     30     10  73.6%   125-128, 134->144, 138, 142, 145->148, 146, 149->152, 150, 158, 164, 170-172, 182, 185->186, 185->190, 193-196, 201, 218
+infra\healthcheck.py                                        44     23      2      0  45.7%   6, 9-14, 25-26, 45-46, 51-88
+infra\http\__init__.py                                       0      0      0      0 100.0%
+infra\http\retry.py                                         27     15      6      2  36.4%   7, 13, 43-45, 86-96
+infra\net_session.py                                        21     15      0      0  28.6%   16-25, 39-48, 90, 93-99
+infra\net_status.py                                         71     19     26     15  60.8%   7, 13-14, 21-22, 27->33, 29, 34->39, 35, 42->53, 43->42, 45->42, 45->46, 48-49, 56, 60, 67, 71-72, 76, 77->87, 80, 94->91, 94->95, 97, 99-101
+infra\repositories\passwords_repository.py                  20     14      4      0  25.0%   44-46, 56-151
+infra\settings.py                                           64     17     12      5  68.4%   27-28, 32->34, 39-40, 49-50, 55-56, 61->63, 65-66, 73, 76-77, 82->88, 85, 95-100
+infra\supabase\__init__.py                                   0      0      0      0 100.0%
+infra\supabase\auth_client.py                               15      6      2      2  52.9%   22, 25->26, 29-33
+infra\supabase\db_client.py                                148     76     46     21  39.7%   19, 31-36, 51->82, 54, 55->82, 59, 60->79, 61, 67, 69->82, 72->82, 73-74, 76, 83, 86, 89-113, 117, 120->124, 131-133, 138, 141-145, 152->155, 153, 155->169, 156, 161, 163->166, 164, 171-175, 190-196, 200-214, 217->220, 218, 221-224, 239-243, 249, 261-278, 280->283, 281, 305-308, 310-317, 320-365
+infra\supabase\http_client.py                               11      8      0      0  27.3%   3, 6-13, 20-29
+infra\supabase\storage_client.py                           152     52     34     16  60.2%   43-44, 54-55, 94->96, 96->99, 103->106, 128, 132, 133->140, 138, 148-151, 154, 160, 162->176, 167, 174, 176->179, 177, 182->161, 184-190, 192-193, 195->202, 200, 208-210, 227-230, 254, 287-322
+infra\supabase\storage_helpers.py                           16      0      8      0 100.0%
+infra\supabase\types.py                                     14      3      0      0  78.6%   13, 20-21
+infra\supabase_auth.py                                      37     17      4      3  51.2%   9-11, 18-21, 39, 40->41, 40->42, 44->47, 54-76
+infra\supabase_client.py                                     6      6      0      0   0.0%   17-32
+security\__init__.py                                         0      0      0      0 100.0%
+security\crypto.py                                          35      2      6      0  95.1%   24-25
+src\__init__.py                                              2      0      0      0 100.0%
+src\app_core.py                                            199    171     46      0  11.4%   17-19, 32-34, 47-53, 57-66, 81-85, 89-96, 100-146, 153-182, 186-219, 223-225, 229-247, 251-269, 276-309
+src\app_gui.py                                              42     34     10      1  17.3%   20-73
+src\app_status.py                                          117      0     24      3  97.9%   61->64, 152->161, 154->161
+src\app_utils.py                                            62      0     20      0 100.0%
+src\cli.py                                                  20      3      2      0  77.3%   73-75
+src\config\__init__.py                                       0      0      0      0 100.0%
+src\config\constants.py                                     10      0      0      0 100.0%
+src\config\environment.py                                   28      9      2      0  70.0%   12-13, 18-19, 40-44
+src\config\paths.py                                         21      6      2      1  69.6%   47-54
+src\core\__init__.py                                         5      2      0      0  60.0%   12-14
+src\core\api\__init__.py                                     6      0      0      0 100.0%
+src\core\api\api_clients.py                                 57      0      0      0 100.0%
+src\core\api\api_files.py                                   21     14      0      0  33.3%   30-37, 59-66
+src\core\api\api_notes.py                                   41     31      0      0  24.4%   31-37, 58-64, 85-92, 113-120, 141-147
+src\core\api\router.py                                       7      2      0      0  71.4%   12-13
+src\core\auth\__init__.py                                    2      0      0      0 100.0%
+src\core\auth\auth.py                                      137      2     40      2  97.7%   32-33, 53->64, 59->54
+src\core\auth_bootstrap.py                                 153     59     36     14  59.3%   26-28, 32->exit, 35-36, 42-46, 52-53, 62, 70, 78-80, 93-94, 99-100, 106-110, 115-120, 126-127, 131-132, 141-149, 155, 161-162, 168, 172->exit, 174-175, 181-182, 187-189, 193-194, 207-208
+src\core\auth_controller.py                                 67     52     20      0  17.2%   10-12, 15, 18-26, 35-44, 49, 53-58, 62-75, 79-84, 87-88, 92-99
+src\core\bootstrap.py                                       79     57     18      1  23.7%   20-21, 30-31, 36-62, 67-72, 81-91, 107-141
+src\core\classify_document.py                               16     16      4      0   0.0%   3-44
+src\core\cnpj_norm.py                                       14      0      4      1  94.4%   23->22
+src\core\commands.py                                        73      2      8      0  97.5%   223-225
+src\core\db_manager\__init__.py                              2      0      0      0 100.0%
+src\core\db_manager\db_manager.py                          201     42     42     15  75.7%   62, 66->54, 70, 86-89, 96, 143-150, 154-161, 184, 189, 228-229, 236, 241, 245-247, 277-279, 283, 287-289, 305, 310-312, 319, 339, 346, 352-355, 357, 365, 368
+src\core\keybindings.py                                     23     19      2      0  16.0%   8-16, 25-35
+src\core\logger.py                                           7      0      0      0 100.0%
+src\core\logs\__init__.py                                    2      0      0      0 100.0%
+src\core\logs\audit.py                                      11      4      0      0  63.6%   18, 28, 33, 38
+src\core\logs\configure.py                                  15      1      2      1  88.2%   15
+src\core\logs\filters.py                                    29     19     16      0  22.2%   36-48, 52-56, 60-76
+src\core\models.py                                          15      0      0      0 100.0%
+src\core\navigation_controller.py                           43     36     10      0  13.2%   20-22, 27-54, 57-68, 71
+src\core\search\__init__.py                                  2      0      0      0 100.0%
+src\core\search\search.py                                   72     22     32      2  65.4%   65->75, 101-124
+src\core\services\clientes_service.py                      129     25     40      2  78.1%   39-40, 151-152, 155, 168-173, 177-189, 238-239
+src\core\services\lixeira_service.py                       137     22     32      5  81.7%   28-43, 55, 72, 88, 94->93, 124->107, 127-128, 175-177
+src\core\services\notes_service.py                         158     63     42      6  59.5%   63, 95-105, 110, 134, 138-140, 153-167, 238-239, 242, 286-297, 312-342, 357-379
+src\core\services\profiles_service.py                       68      2     16      1  96.4%   50->53, 56-57
+src\core\services\upload_service.py                          3      0      0      0 100.0%
+src\core\session\__init__.py                                 2      0      0      0 100.0%
+src\core\session\session.py                                 55      0      4      1  98.3%   67->72
+src\core\session\session_guard.py                           21     15      4      0  24.0%   17-33
+src\core\settings.py                                         7      7      0      0   0.0%   1-13
+src\core\status_monitor.py                                  91     17     14      4  76.2%   34-38, 41-44, 47->exit, 57->47, 89->91, 93-94, 100->105, 102-103, 109-110, 133-134
+src\core\storage_key.py                                     44      0     12      0 100.0%
+src\core\textnorm.py                                        23      0      6      0 100.0%
+src\features\cashflow\__init__.py                            0      0      0      0 100.0%
+src\features\cashflow\repository.py                        118     29     22      1  78.6%   11-14, 29, 37, 44, 51, 59-75, 91, 148-149, 181-182, 192-193, 201-202
+src\helpers\__init__.py                                      0      0      0      0 100.0%
+src\helpers\auth_utils.py                                   31      0     12      0 100.0%
+src\helpers\datetime_utils.py                                4      0      0      0 100.0%
+src\helpers\formatters.py                                   72      4     36      0  96.3%   61-62, 107-108
+src\helpers\storage_errors.py                               12      3      6      3  66.7%   38, 42, 46
+src\helpers\storage_utils.py                                 8      1      4      1  83.3%   40
+src\modules\auditoria\__init__.py                            4      0      0      0 100.0%
+src\modules\auditoria\application\__init__.py                2      0      0      0 100.0%
+src\modules\auditoria\application\controller.py             95     53     14      0  38.5%   32-34, 39, 42, 45, 49, 52, 55, 59, 62, 65, 69, 72, 75, 78, 81, 84-93, 96-104, 107-117, 121, 124, 127, 130, 133, 136, 149, 160, 164
+src\modules\auditoria\archives.py                          198     22     60     16  85.3%   95, 99, 105, 120, 137, 140, 142-143, 149-151, 153->152, 156, 163->exit, 191, 200-201, 203, 211->195, 239, 241, 243, 310, 313-314
+src\modules\auditoria\repository.py                         31     12      6      1  54.1%   40, 47-51, 57-62
+src\modules\auditoria\service.py                           192     31     22      0  85.5%   18-21, 90, 97-98, 102, 110-111, 122-123, 144-145, 163-164, 173, 177, 190-191, 198-199, 222-223, 232-233, 260, 264, 292-293, 301, 305
+src\modules\auditoria\storage.py                            58     31     12      0  38.6%   23, 35, 39-40, 44, 48-50, 59-66, 70-83, 96, 104-107
+src\modules\auditoria\viewmodel.py                         188    135     50      1  22.7%   25, 31-36, 60-68, 72-92, 95-98, 102-103, 106, 109, 112, 116-118, 121, 125-139, 142-183, 186-195, 199-204, 208-210, 214-216, 220-228, 232-238, 242, 252-257
+src\modules\auditoria\views\__init__.py                      3      0      0      0 100.0%
+src\modules\auditoria\views\client_helpers.py               20     15     10      0  16.7%   10-18, 23-25, 30-32
+src\modules\auditoria\views\components.py                   81     73     16      0   8.2%   26-70, 90-163
+src\modules\auditoria\views\dialogs.py                     151    133     32      0   9.8%   20-46, 50-76, 80-86, 89-93, 96-109, 112-117, 120-126, 133-220, 223-225, 228-230
+src\modules\auditoria\views\layout.py                      106     99     26      0   5.3%   17-81, 86-154
+src\modules\auditoria\views\main_frame.py                  334    282     82      0  12.5%   35-36, 61-113, 117-122, 127-131, 135, 139-148, 152, 156, 160-199, 203-218, 222-224, 228-253, 257-268, 272, 277-282, 286, 291-302, 306-318, 322-331, 335-369, 372-378, 381-388, 392-414, 417-421, 424-454, 459-476, 480-489, 492, 495, 498, 501
+src\modules\auditoria\views\status_helpers.py               20      9      6      0  42.3%   20-27, 32
+src\modules\auditoria\views\storage_actions.py              97     85     28      0   9.6%   16-17, 22-23, 31-99, 103-115, 119-157
+src\modules\auditoria\views\upload_flow.py                 195    160     42      0  14.8%   23-24, 41-44, 50-61, 64-66, 69-71, 74, 84-107, 123-179, 188-189, 194-242, 250-331
+src\modules\clientes\__init__.py                             4      0      0      0 100.0%
+src\modules\clientes\components\helpers.py                  54     24     24      5  50.0%   41-51, 60->74, 64, 66, 68->62, 70->74, 72-73, 79-90
+src\modules\clientes\components\status.py                    9      0      2      0 100.0%
+src\modules\clientes\controllers\connectivity.py            46     32     10      0  25.0%   28-35, 39-47, 50-55, 59-69
+src\modules\clientes\forms\__init__.py                       7      0      0      0 100.0%
+src\modules\clientes\forms\_collect.py                      30     22      8      0  21.1%   16-24, 29-32, 36-53
+src\modules\clientes\forms\_dupes.py                        52     38     18      0  20.0%   10-12, 16, 24-28, 32, 36-38, 42-51, 55-66, 70-72, 76-78, 82-83
+src\modules\clientes\forms\_finalize.py                     55     10     20      4  81.3%   18->exit, 31, 34->39, 36-37, 49, 63-64, 69-70, 74-75
+src\modules\clientes\forms\_prepare.py                     273     59     74     16  76.1%   46, 75->77, 128-132, 151-162, 194-195, 277->282, 278->277, 283, 286->290, 287->286, 291, 301-302, 306, 309-310, 324-328, 342, 344-345, 350-354, 357-364, 369->371, 384-391, 396-402
+src\modules\clientes\forms\_upload.py                      160     70     26      6  55.9%   34-74, 77-89, 92-95, 136-153, 160->163, 171-172, 202-220, 227, 233, 239
+src\modules\clientes\forms\client_form.py                  244    228     60      0   5.3%   34-324
+src\modules\clientes\forms\client_picker.py                172    148     32      0  11.8%   21-23, 28-33, 38-45, 61-83, 88-148, 152-161, 165-166, 170-172, 176-184, 188-206, 210-235, 244-267, 271-272, 276-278
+src\modules\clientes\forms\client_subfolder_prompt.py       74     57      0      0  23.0%   32-78, 81-84, 87-89, 92-94, 97-100, 104-110, 114-116
+src\modules\clientes\forms\client_subfolders_dialog.py     126    118     20      0   5.5%   34-200
+src\modules\clientes\forms\pipeline.py                      13      0      0      0 100.0%
+src\modules\clientes\service.py                            223     87     64     11  57.5%   62-63, 67, 73-74, 97-127, 158, 163-164, 208-217, 239, 260-262, 264, 268, 270-271, 282-283, 285-294, 299, 303-304, 320-324, 326-328, 333-334, 337-340, 351, 365-379, 398
+src\modules\clientes\view.py                                 6      0      0      0 100.0%
+src\modules\clientes\viewmodel.py                          203     41     62     16  74.7%   65-75, 100->102, 102->exit, 142->144, 170, 178, 190-206, 215, 226-227, 231->239, 236-237, 241->262, 246-247, 248->250, 251, 253-258, 262->265, 298, 299->295, 301->295, 303
+src\modules\clientes\views\__init__.py                       3      0      0      0 100.0%
+src\modules\clientes\views\footer.py                        40     30      8      0  20.8%   8-9, 27-49, 53-72
+src\modules\clientes\views\main_screen.py                  573    504    130      0   9.8%   22-23, 107-108, 112-116, 134-644, 649-663, 666, 671-696, 699-717, 720-735, 738-745, 748-752, 755-765, 768-791, 794-796, 799-820, 823-836, 839-862, 871-929, 932-941, 944-964, 967-988, 991, 994-1026, 1031-1075, 1080-1090, 1095-1110, 1131-1183, 1186-1187, 1190-1228, 1243, 1246, 1249, 1253-1254, 1259-1263
+src\modules\clientes\views\pick_mode.py                    120     97     32      0  15.1%   29-36, 40-55, 59-61, 64, 71-84, 88-139, 143-165, 170-173
+src\modules\clientes\views\toolbar.py                       22     13      0      0  40.9%   8-9, 30-55
+src\modules\forms\__init__.py                                3      0      0      0 100.0%
+src\modules\forms\service.py                                 5      0      0      0 100.0%
+src\modules\forms\view.py                                    4      0      0      0 100.0%
+src\modules\hub\__init__.py                                  2      0      0      0 100.0%
+src\modules\hub\actions.py                                 119    108     18      0   8.0%   36-67, 73-238
+src\modules\hub\authors.py                                 112    102     46      0   6.3%   26, 33-103, 110-178
+src\modules\hub\colors.py                                   38      7     12      3  80.0%   48-53, 66->76, 77->82, 79-80
+src\modules\hub\constants.py                                12      0      0      0 100.0%
+src\modules\hub\controller.py                              210    189     50      0   8.1%   36-44, 50-62, 68-77, 83-117, 123-127, 133-227, 233-389, 395-401
+src\modules\hub\format.py                                   21      3      4      1  84.0%   10-11, 22
+src\modules\hub\layout.py                                   15     10      0      0  33.3%   24-54
+src\modules\hub\panels.py                                   32     25      0      0  21.9%   16-64
+src\modules\hub\state.py                                    21      0      2      0 100.0%
+src\modules\hub\utils.py                                    30      2     12      1  92.9%   22-23, 51->53
+src\modules\hub\views\__init__.py                            2      0      0      0 100.0%
+src\modules\hub\views\hub_screen.py                        471    392     94      0  14.0%   16-20, 51-56, 77-86, 104-239, 245-250, 254-273, 277-284, 288-295, 299-313, 317-330, 336-340, 350-436, 442-485, 489-497, 500, 503, 506, 509, 512, 520-544, 558-638, 641, 644, 647, 651-660, 664-669, 673-690, 695-697, 701-704, 708-709, 713, 717, 721, 725, 729, 733-734, 738, 742-773
+src\modules\lixeira\__init__.py                              4      0      0      0 100.0%
+src\modules\lixeira\service.py                               5      0      0      0 100.0%
+src\modules\lixeira\view.py                                 11      3      0      0  72.7%   19, 24, 29
+src\modules\lixeira\views\__init__.py                        2      0      0      0 100.0%
+src\modules\lixeira\views\lixeira.py                       291    272     56      0   5.5%   35-38, 43-48, 53-68, 77-422
+src\modules\login\__init__.py                                3      0      0      0 100.0%
+src\modules\login\service.py                                 4      0      0      0 100.0%
+src\modules\login\view.py                                    6      0      0      0 100.0%
+src\modules\main_window\__init__.py                          3      0      0      0 100.0%
+src\modules\main_window\app_actions.py                     216    203     40      0   5.1%   22-23, 27-29, 33-45, 49-103, 107-112, 116-144, 165-215, 219-383
+src\modules\main_window\controller.py                      133    113     24      0  12.7%   15-23, 27-30, 34-40, 45-83, 87-110, 114-136, 140-142, 146-148, 156-188, 192-201, 206-208, 215-229, 233
+src\modules\main_window\session_service.py                  62      0     14      1  98.7%   42->48
+src\modules\main_window\views\__init__.py                    2      0      0      0 100.0%
+src\modules\main_window\views\constants.py                  10      0      0      0 100.0%
+src\modules\main_window\views\helpers.py                    37     29      4      0  19.5%   29-35, 54-65, 80-95
+src\modules\main_window\views\main_window.py               526    432     92      0  15.2%   142-342, 345-350, 353, 356-384, 387-394, 397-403, 406-408, 411-419, 423-431, 442-468, 471, 474, 477, 480, 483, 486, 490-513, 517-521, 525-538, 542-546, 553-584, 588-592, 596-599, 602-608, 611-625, 628-642, 645-663, 666-668, 673-677, 681-687, 690, 693-702, 706, 710, 714, 718, 722, 733-754, 759, 763-770, 778, 783-799, 803, 807, 811-813, 816-836, 839-845, 862-868, 878-879
+src\modules\notas\__init__.py                                4      0      0      0 100.0%
+src\modules\notas\service.py                                 9      0      0      0 100.0%
+src\modules\notas\view.py                                    7      1      0      0  85.7%   21
+src\modules\pdf_preview\__init__.py                          4      0      0      0 100.0%
+src\modules\pdf_preview\controller.py                       81     40     14      0  43.2%   36-39, 42, 46-48, 51, 54, 57, 60, 64-68, 71, 74, 77, 80, 83, 87-96, 107, 111, 114-116, 119, 122, 125
+src\modules\pdf_preview\download_service.py                 74     59     18      0  16.3%   21-47, 54-63, 70-79, 86-113
+src\modules\pdf_preview\raster_service.py                   84     63     26      0  19.1%   31-34, 38-47, 50-54, 59-64, 67-75, 78-92, 96-119
+src\modules\pdf_preview\service.py                           3      0      0      0 100.0%
+src\modules\pdf_preview\utils.py                            37      2      8      0  95.6%   11-12
+src\modules\pdf_preview\view.py                              9      2      0      0  77.8%   24, 29
+src\modules\pdf_preview\views\__init__.py                    6      0      0      0 100.0%
+src\modules\pdf_preview\views\main_window.py               609    536    168      0   9.4%   12-13, 37-42, 53-173, 177-216, 219-244, 248-254, 257-270, 273-283, 287-303, 306-320, 324-338, 341-350, 353-386, 390-397, 400-417, 420-428, 431-434, 437-438, 442-455, 458-462, 465, 468, 471, 474-476, 480-514, 517-536, 539-550, 554-564, 567-587, 590-594, 597-601, 604-608, 611-612, 615-620, 623-624, 627-630, 633-636, 639-642, 645-648, 651-655, 658-661, 664-668, 671-675, 678-680, 683-688, 691-698, 701-704, 707-710, 713-716, 724-758, 762-789, 793-810, 815-827, 839-854
+src\modules\pdf_preview\views\page_view.py                  31     21      4      0  28.6%   30-45, 48-49, 56-68
+src\modules\pdf_preview\views\text_panel.py                 50     34      0      0  32.0%   26-39, 42-45, 48, 51-52, 55-56, 59-60, 63-66, 69-72, 75-80
+src\modules\pdf_preview\views\toolbar.py                    22     16      0      0  27.3%   32-57
+src\modules\pdf_tools\__init__.py                            3      0      0      0 100.0%
+src\modules\pdf_tools\pdf_batch_from_images.py              78      0     36      0 100.0%
+src\modules\uploads\__init__.py                              5      0      0      0 100.0%
+src\modules\uploads\components\helpers.py                   35     26     12      0  19.1%   13-15, 23-26, 34-40, 45, 58-70
+src\modules\uploads\external_upload_service.py              78     19     14      2  77.2%   117-119, 122-126, 135-139, 160-165
+src\modules\uploads\form_service.py                         38      0      4      0 100.0%
+src\modules\uploads\repository.py                           81      0     24      2  98.1%   46->50, 64->58
+src\modules\uploads\service.py                              73      4      4      0  94.8%   165-167, 171-173
+src\modules\uploads\storage_browser_service.py              77      4     12      3  92.1%   70-71, 85->84, 156-157
+src\modules\uploads\uploader_supabase.py                   204    172     42      0  13.0%   36-64, 67-73, 76-83, 87-92, 97-104, 113-116, 120-124, 128-130, 155-217, 231-273, 277-305, 316-347, 364-396
+src\modules\uploads\validation.py                          102     60     32      2  32.8%   32-35, 41-43, 49-50, 63-70, 74-79, 91-124, 130-144, 150-158, 189, 191->193
+src\modules\uploads\view.py                                 16      9      0      0  43.8%   27-37, 44-45, 55-56
+src\shared\__init__.py                                       0      0      0      0 100.0%
+src\shared\storage_ui_bridge.py                             61     61     14      0   0.0%   3-110
+src\ui\__init__.py                                           2      0      0      0 100.0%
+src\ui\components.py                                         9      9      2      0   0.0%   1-14
+src\ui\components\__init__.py                                5      0      0      0 100.0%
+src\ui\components\buttons.py                                37     18      2      0  48.7%   32, 45-67
+src\ui\components\inputs.py                                 59     35      8      0  35.8%   53-124
+src\ui\components\lists.py                                  48     14     14      4  67.7%   59-61, 70-71, 74, 76, 78, 80, 83-87
+src\ui\components\misc.py                                  126     93     28      0  21.4%   56-93, 105-123, 135-157, 162-190, 194-202
+src\ui\components\modals.py                                  1      1      0      0   0.0%   4
+src\ui\components\progress_dialog.py                        71     71      2      0   0.0%   3-92
+src\ui\custom_dialogs.py                                   112    100      2      0  10.5%   13-27, 31-44, 49-91, 96-159
+src\ui\dialogs\__init__.py                                   3      0      0      0 100.0%
+src\ui\dialogs\file_select.py                               23     10      0      0  56.5%   47-57, 72-82
+src\ui\dialogs\pdf_converter_dialogs.py                    114     97      8      0  13.9%   12-36, 41-51, 54-73, 85-127, 131-133, 138-163, 166, 170-171
+src\ui\dialogs\storage_uploader.py                         213    192     60      0   7.7%   23-66, 69-70, 73-79, 82-92, 95-97, 101-108, 111-125, 128-138, 142-144, 147-173, 184-327
+src\ui\dialogs\upload_progress.py                           58     58      2      0   0.0%   2-77
+src\ui\files_browser.py                                      3      3      0      0   0.0%   11-18
+src\ui\files_browser\__init__.py                             2      0      0      0 100.0%
+src\ui\files_browser\constants.py                           10      0      0      0 100.0%
+src\ui\files_browser\utils.py                               36      0     14      0 100.0%
+src\ui\forms\__init__.py                                     2      0      0      0 100.0%
+src\ui\forms\actions.py                                     71     49     26      1  23.7%   60-83, 100-131, 148-167, 183-194, 211-231, 236-238
+src\ui\forms\forms.py                                        6      2      0      0  66.7%   13-15
+src\ui\forms\pipeline.py                                     3      3      0      0   0.0%   5-14
+src\ui\hub\__init__.py                                       1      1      0      0   0.0%   1
+src\ui\hub\actions.py                                        1      1      0      0   0.0%   1
+src\ui\hub\authors.py                                        1      1      0      0   0.0%   1
+src\ui\hub\colors.py                                         1      1      0      0   0.0%   1
+src\ui\hub\constants.py                                      1      1      0      0   0.0%   1
+src\ui\hub\controller.py                                     1      1      0      0   0.0%   1
+src\ui\hub\format.py                                         1      1      0      0   0.0%   1
+src\ui\hub\layout.py                                         1      1      0      0   0.0%   1
+src\ui\hub\panels.py                                         1      1      0      0   0.0%   1
+src\ui\hub\state.py                                          1      1      0      0   0.0%   1
+src\ui\hub\utils.py                                          1      1      0      0   0.0%   1
+src\ui\hub_screen.py                                         2      0      0      0 100.0%
+src\ui\lixeira\__init__.py                                   2      2      0      0   0.0%   1-3
+src\ui\lixeira\lixeira.py                                    2      2      0      0   0.0%   1-3
+src\ui\login\__init__.py                                     2      0      0      0 100.0%
+src\ui\login\login.py                                      127    112     18      0  10.3%   21-127, 131-193, 196-201
+src\ui\login_dialog.py                                     132    112     16      0  13.5%   25-100, 103, 106, 110-193, 196-198, 201-202
+src\ui\main_screen.py                                        3      3      0      0   0.0%   7-15
+src\ui\main_window\__init__.py                               5      0      0      0 100.0%
+src\ui\main_window\app.py                                    2      0      0      0 100.0%
+src\ui\main_window\frame_factory.py                          2      0      0      0 100.0%
+src\ui\main_window\router.py                                 2      0      0      0 100.0%
+src\ui\main_window\tk_report.py                              2      0      0      0 100.0%
+src\ui\menu_bar.py                                          81     67     10      0  15.4%   10-21, 45-80, 83-86, 89-92, 95-96, 100-107, 110-115, 118-121, 124-128
+src\ui\passwords_screen.py                                   2      2      0      0   0.0%   1-3
+src\ui\pdf_preview_native.py                                52     47     10      0   8.1%   10-42, 60-82
+src\ui\placeholders.py                                      57     57      2      0   0.0%   3-94
+src\ui\progress\__init__.py                                  3      3      0      0   0.0%   3-7
+src\ui\progress\pdf_batch_progress.py                       86     86     10      0   0.0%   1-119
+src\ui\search_nav.py                                        47     38     12      0  15.3%   8-13, 16-20, 23-38, 41-47, 50-51, 54-55
+src\ui\splash.py                                            78     16     14      5  75.0%   20-21, 26, 50->74, 57->64, 61, 69-71, 99->105, 101-102, 108-109, 123-128
+src\ui\status_footer.py                                     55     55      8      0   0.0%   1-90
+src\ui\subpastas_dialog.py                                  92     92     18      0   0.0%   7-171
+src\ui\theme.py                                             21     21      2      0   0.0%   2-44
+src\ui\theme_toggle.py                                      12     12      0      0   0.0%   2-61
+src\ui\topbar.py                                            36     27      6      0  21.4%   20-38, 41-45, 48-52, 55-61
+src\ui\utils.py                                             77     67     10      0  11.5%   11-12, 16-26, 30-35, 40-51, 56-76, 81-95
+src\ui\wheel_windows.py                                      6      5      2      0  12.5%   3-7
+src\ui\widgets\__init__.py                                   6      6      0      0   0.0%   2-9
+src\ui\widgets\autocomplete_entry.py                       128    128     40      0   0.0%   5-243
+src\ui\widgets\busy.py                                      49     49      0      0   0.0%   2-92
+src\ui\widgets\client_picker.py                              3      3      0      0   0.0%   5-9
+src\ui\window_policy.py                                     53     42      8      0  18.0%   14-23, 28-34, 43-63, 68-84
+src\utils\__init__.py                                        0      0      0      0 100.0%
+src\utils\errors.py                                         32      0      4      0 100.0%
+src\utils\file_utils\__init__.py                             3      0      0      0 100.0%
+src\utils\file_utils\bytes_utils.py                        178     20     62     10  87.5%   30-31, 50-51, 68-69, 83->95, 93->83, 97-98, 142, 157-158, 160, 165-166, 178, 188->190, 204-205, 209->208, 212->208, 225->228, 232-233, 241
+src\utils\file_utils\file_utils.py                           4      4      0      0   0.0%   2-6
+src\utils\file_utils\path_utils.py                          98      0     50      9  93.9%   72->75, 83->81, 91->93, 94->75, 111->114, 127->133, 130->133, 140->138, 151->146
+src\utils\file_utils\zip_utils.py                            1      1      0      0   0.0%   3
+src\utils\hash_utils.py                                     12      5      2      0  50.0%   14-18
+src\utils\helpers\__init__.py                                3      3      0      0   0.0%   4-7
+src\utils\helpers\cloud_guardrails.py                        9      9      2      0   0.0%   6-33
+src\utils\helpers\hidpi.py                                  32     32      8      0   0.0%   9-93
+src\utils\helpers\rc_hotfix_no_local_fs.py                  22     22      2      0   0.0%   6-36
+src\utils\net_retry.py                                      17     17      4      0   0.0%   2-49
+src\utils\network.py                                        61     17     16      4  72.7%   24, 28, 49, 75-76, 82-83, 112-132
+src\utils\paths.py                                          18      1      0      0  94.4%   83
+src\utils\pdf_reader.py                                     48      4     14      1  91.9%   17->15, 24-25, 55-56
+src\utils\phone_utils.py                                    31      1     18      1  95.9%   62
+src\utils\prefs.py                                         225     41     44     12  80.3%   15-17, 76-79, 107-108, 118-119, 134-135, 149->154, 152-153, 166-169, 181, 187, 198-199, 208->213, 211-212, 233-236, 243->exit, 245-246, 281-285, 300->304, 312-316
+src\utils\resource_path.py                                  11      0      0      0 100.0%
+src\utils\subpastas_config.py                               65      0     26      1  98.9%   33->41
+src\utils\text_utils.py                                    131     23     56     17  77.5%   48-52, 96, 104, 122, 125, 127, 144, 145->135, 147, 160, 162, 164, 166, 169, 185->192, 193-198, 203
+src\utils\theme_manager.py                                  59      0     10      1  98.6%   39->exit
+src\utils\themes.py                                        108     88     28      1  15.4%   11-12, 20-28, 43-53, 66-96, 108-121, 129-150, 159-176, 184-189
+src\utils\typing_helpers.py                                 28     28     10      0   0.0%   11-135
+src\utils\validators.py                                    103      2     42      5  95.2%   137->148, 148->152, 153, 166, 167->162
+src\version.py                                               7      2      0      0  71.4%   22-23
+-----------------------------------------------------------------------------------------------------------------
+TOTAL                                                    15914   9172   3498    309  40.4%

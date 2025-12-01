@@ -1,8 +1,12 @@
 # core/session/session_guard.py
 from __future__ import annotations
 
+import logging
+
 from infra.supabase_client import get_supabase
 from src.core import session
+
+log = logging.getLogger(__name__)
 
 
 class SessionGuard:
@@ -20,14 +24,14 @@ class SessionGuard:
             res = sb.auth.get_session()
             if getattr(res, "session", None) and getattr(res.session, "access_token", None):
                 return True
-        except Exception:
-            pass
+        except Exception as exc:
+            log.debug("SessionGuard: get_session falhou", exc_info=exc)
         # Tentativa explícita de refresh
         try:
             res = sb.auth.refresh_session()
             if getattr(res, "session", None) and getattr(res.session, "access_token", None):
                 session.set_tokens(res.session.access_token, res.session.refresh_token)
                 return True
-        except Exception:
-            pass
+        except Exception as exc:
+            log.debug("SessionGuard: refresh_session falhou", exc_info=exc)
         return False

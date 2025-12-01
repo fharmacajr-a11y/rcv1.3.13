@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 import tkinter as tk
 from tkinter import ttk
 from tkinter.scrolledtext import ScrolledText
 from typing import Callable
 
 from src.ui.search_nav import SearchNavigator
+
+logger = logging.getLogger(__name__)
 
 
 class PdfTextPanel(ttk.Frame):
@@ -62,14 +65,14 @@ class PdfTextPanel(ttk.Frame):
     def _copy(self) -> None:
         try:
             self.text.event_generate("<<Copy>>")
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao copiar texto do painel OCR: %s", exc)
 
     def _select_all(self) -> None:
         try:
             self.text.event_generate("<<SelectAll>>")
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao selecionar texto do painel OCR: %s", exc)
 
     def _show_menu(self, event: tk.Event) -> str:
         self.text.focus_set()

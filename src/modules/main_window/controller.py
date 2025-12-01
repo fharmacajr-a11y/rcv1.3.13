@@ -4,6 +4,8 @@ import logging
 from tkinter import messagebox
 from typing import Any, Optional
 
+import time
+
 from src.modules.notas import HubFrame
 
 log = logging.getLogger("app_gui")
@@ -16,28 +18,30 @@ def _forget_widget(widget: Optional[Any]) -> None:
         return
     try:
         widget.pack_forget()
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        log.debug("pack_forget failed, trying place_forget: %s", exc)
         try:
             widget.place_forget()
-        except Exception:
-            pass
+        except Exception as exc2:  # noqa: BLE001
+            log.debug("place_forget also failed: %s", exc2)
 
 
 def _lift_widget(widget: Any) -> None:
     try:
         widget.lift()
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        log.debug("widget.lift() failed: %s", exc)
 
 
 def _place_or_pack(widget: Any) -> None:
     try:
         widget.place(relx=0, rely=0, relwidth=1, relheight=1)
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        log.debug("widget.place() failed, trying pack: %s", exc)
         try:
             widget.pack(fill="both", expand=True)
-        except Exception:
-            pass
+        except Exception as exc2:  # noqa: BLE001
+            log.debug("widget.pack() also failed: %s", exc2)
 
 
 def create_frame(app: Any, frame_cls: Any, options: Optional[dict[str, Any]]) -> Any:
@@ -69,7 +73,8 @@ def create_frame(app: Any, frame_cls: Any, options: Optional[dict[str, Any]]) ->
             frame = frame_cls(app._content_container)
         else:
             frame = frame_cls(app._content_container, **options)
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Falha ao instanciar frame %s: %s", frame_cls, exc)
         return None
 
     if current is not None and current is not frame:
@@ -77,8 +82,8 @@ def create_frame(app: Any, frame_cls: Any, options: Optional[dict[str, Any]]) ->
 
     try:
         frame.pack(fill="both", expand=True)
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        log.debug("frame.pack() failed in create_frame: %s", exc)
 
     return frame
 
@@ -94,12 +99,13 @@ def _show_hub(app: Any) -> Any:
         open_senhas=lambda: navigate_to(app, "passwords"),
         open_mod_sifap=lambda: navigate_to(app, "placeholder", title="Sifap"),
         open_cashflow=lambda: navigate_to(app, "cashflow"),
+        open_sites=lambda: navigate_to(app, "sites"),
     )
 
     try:
         app.refresh_clients_count_async()
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        log.debug("refresh_clients_count_async failed in hub: %s", exc)
 
     if isinstance(frame, HubFrame):
         try:
@@ -142,6 +148,12 @@ def _show_cashflow(app: Any) -> Any:
     return app.show_frame(CashflowFrame, app=app)
 
 
+def _show_sites(app: Any) -> Any:
+    from src.modules.sites import SitesScreen
+
+    return app.show_frame(SitesScreen)
+
+
 def _show_placeholder(app: Any, title: str) -> Any:
     from src.ui.placeholders import ComingSoonScreen
 
@@ -155,9 +167,13 @@ def _show_placeholder(app: Any, title: str) -> Any:
 def _show_passwords(app: Any) -> Any:
     from src.modules.passwords import PasswordsFrame
 
+    t0 = time.perf_counter()
     if getattr(app, "_passwords_screen_instance", None) is None:
         app._passwords_screen_instance = PasswordsFrame(app._content_container, main_window=app)
         _place_or_pack(app._passwords_screen_instance)
+        created = True
+    else:
+        created = False
 
     frame = app._passwords_screen_instance
     current = app.nav.current()
@@ -167,13 +183,13 @@ def _show_passwords(app: Any) -> Any:
 
     try:
         frame.lift()
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        log.debug("passwords frame.lift() failed: %s", exc)
 
     try:
         app.nav._current = frame
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        log.debug("set app.nav._current failed: %s", exc)
 
     try:
         frame.on_show()
@@ -181,9 +197,20 @@ def _show_passwords(app: Any) -> Any:
         log.exception("Erro ao chamar on_show da tela de senhas")
 
     try:
+        frame.update_idletasks()
+    except Exception as exc:  # noqa: BLE001
+        log.debug("Falha ao dar update_idletasks em tela de senhas: %s", exc)
+
+    try:
+        t1 = time.perf_counter()
+        log.info("Senhas: janela aberta em %.3fs (created=%s)", t1 - t0, created)
+    except Exception as exc:  # noqa: BLE001
+        log.debug("Falha ao registrar tempo de abertura das Senhas: %s", exc)
+
+    try:
         app._update_topbar_state(frame)
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        log.debug("_update_topbar_state failed: %s", exc)
 
     return frame
 
@@ -220,6 +247,7 @@ def navigate_to(app: Any, target: str, **kwargs) -> Any:
         "clients_picker": _open_clients_picker,
         "auditoria": _show_auditoria,
         "cashflow": _show_cashflow,
+        "sites": _show_sites,
     }
 
     handler = handlers.get(target)

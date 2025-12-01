@@ -165,8 +165,8 @@ def draw_whatsapp_overlays(tree: tk.Widget, column: str, size: int = 15) -> None
     for widget in getattr(tree, "_wa_overlays", []):
         try:
             widget.destroy()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao remover overlay do WhatsApp: %s", exc)
     tree._wa_overlays = []
 
     icon = get_whatsapp_icon(size)

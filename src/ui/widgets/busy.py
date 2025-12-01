@@ -1,8 +1,11 @@
 # ui/widgets/busy.py
 from __future__ import annotations
 
+import logging
 import tkinter as tk
 from tkinter import ttk
+
+_log = logging.getLogger(__name__)
 
 
 class BusyOverlay:
@@ -45,8 +48,8 @@ class BusyOverlay:
 
         try:
             self.top.attributes("-alpha", 0.25)  # leve escurecido
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao configurar alpha em BusyOverlay: %s", exc)
 
         # Container central
         frame = ttk.Frame(self.top, padding=20)
@@ -65,20 +68,20 @@ class BusyOverlay:
         self.top.grab_set()
         try:
             self.pb.start(10)  # indeterminate
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao iniciar progressbar em BusyOverlay: %s", exc)
         self.top.update_idletasks()
 
     def hide(self):
         """Oculta o overlay e para a animação."""
         try:
             self.pb.stop()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao parar progressbar em BusyOverlay: %s", exc)
         try:
             self.top.grab_release()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao liberar grab em BusyOverlay: %s", exc)
         self.top.destroy()
 
     def update_text(self, text: str):

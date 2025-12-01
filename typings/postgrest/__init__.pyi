@@ -30,10 +30,7 @@ class APIError(Exception):
 
     def __init__(
         self,
-        message: str,
-        details: str | None = None,
-        hint: str | None = None,
-        code: str | None = None,
+        error: Mapping[str, Any],
     ) -> None: ...
 
 class APIResponse(Generic[T_co]):

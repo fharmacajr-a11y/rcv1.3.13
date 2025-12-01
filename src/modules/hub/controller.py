@@ -56,8 +56,8 @@ def schedule_poll(screen, ms: int = 6000) -> None:
         if hub_state.poll_job:
             screen.after_cancel(hub_state.poll_job)
 
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        log.debug("after_cancel failed in schedule_poll: %s", exc)
 
     hub_state.poll_job = screen.after(ms, lambda: poll_notes_if_needed(screen))
 
@@ -71,8 +71,8 @@ def cancel_poll(screen) -> None:
         try:
             screen.after_cancel(hub_state.poll_job)
 
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("after_cancel failed in cancel_poll: %s", exc)
 
         hub_state.poll_job = None
 
@@ -107,11 +107,11 @@ def poll_notes_if_needed(screen) -> None:
                     ]
                 )
 
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Failed to update _live_last_ts: %s", exc)
 
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        log.debug("poll_notes_if_needed error: %s", exc)
 
     finally:
         schedule_poll(screen)
@@ -123,8 +123,8 @@ def on_realtime_note(screen, payload: Dict[str, Any]) -> None:
     try:
         screen.after(0, lambda: append_note_incremental(screen, payload))
 
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        log.debug("on_realtime_note failed: %s", exc)
 
 
 def append_note_incremental(screen, row: Dict[str, Any]) -> None:
@@ -162,8 +162,8 @@ def append_note_incremental(screen, row: Dict[str, Any]) -> None:
     try:
         screen._notes_last_snapshot = [(n.get("id"), n.get("created_at")) for n in notes]
 
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        log.debug("Failed to update _notes_last_snapshot: %s", exc)
 
     ts_value = note.get("created_at") or ""
 
@@ -185,8 +185,8 @@ def append_note_incremental(screen, row: Dict[str, Any]) -> None:
         try:
             tag = _ensure_author_tag(screen.notes_history, email, hub_state.author_tags)
 
-        except Exception:
-            logger.exception("Hub: falha ao aplicar estilo/tag do autor; renderizando sem cor.")
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Hub: falha ao aplicar estilo/tag do autor; renderizando sem cor: %s", exc)
 
             tag = None
 
@@ -215,14 +215,14 @@ def append_note_incremental(screen, row: Dict[str, Any]) -> None:
 
         screen.notes_history.see("end")
 
-    except Exception:
-        logger.exception("Hub: falha cr├¡tica ao inserir nota, restaurando estado do widget.")
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Hub: falha crítica ao inserir nota, restaurando estado do widget: %s", exc)
 
         try:
             screen.notes_history.configure(state="disabled")
 
-        except Exception:
-            pass
+        except Exception as exc2:  # noqa: BLE001
+            log.debug("configure(state=disabled) failed: %s", exc2)
 
     screen._last_render_hash = None
 
@@ -279,14 +279,14 @@ def refresh_notes_async(screen, force: bool = False) -> None:
                     try:
                         screen._notes_after_handle = screen.after(2000, lambda: refresh_notes_async(screen))
 
-                    except Exception:
-                        pass
+                    except Exception as exc:  # noqa: BLE001
+                        log.debug("after() failed for transient retry: %s", exc)
 
             try:
                 screen.after(0, _schedule_transient_retry)
 
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                log.debug("after(0) failed for transient retry: %s", exc)
 
             return
 
@@ -303,22 +303,22 @@ def refresh_notes_async(screen, force: bool = False) -> None:
 
                     try:
                         messagebox.showwarning(
-                            "Anota├º├Áes Indispon├¡veis",
-                            "Bloco de anota├º├Áes indispon├¡vel:\n\n"
-                            "A tabela 'rc_notes' n├úo existe no Supabase.\n"
-                            "Execute a migra├º├úo em: migrations/rc_notes_migration.sql\n\n"
+                            "Anotações Indisponíveis",
+                            "Bloco de anotações indisponível:\n\n"
+                            "A tabela 'rc_notes' não existe no Supabase.\n"
+                            "Execute a migração em: migrations/rc_notes_migration.sql\n\n"
                             "Tentaremos novamente em 60 segundos.",
                             parent=screen,
                         )
 
-                    except Exception:
-                        pass
+                    except Exception as exc:  # noqa: BLE001
+                        log.debug("messagebox.showwarning failed for table missing: %s", exc)
 
             try:
                 screen.after(0, _notify_table_missing)
 
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                log.debug("after(0) failed for _notify_table_missing: %s", exc)
 
             return
 
@@ -330,19 +330,19 @@ def refresh_notes_async(screen, force: bool = False) -> None:
             def _notify_auth_error():
                 try:
                     messagebox.showwarning(
-                        "Sem Permiss├úo",
-                        "Sem permiss├úo para anotar nesta organiza├º├úo.\nVerifique seu cadastro em 'profiles'.",
+                        "Sem Permissão",
+                        "Sem permissão para anotar nesta organização.\nVerifique seu cadastro em 'profiles'.",
                         parent=screen,
                     )
 
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    log.debug("messagebox.showwarning failed for auth error: %s", exc)
 
             try:
                 screen.after(0, _notify_auth_error)
 
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                log.debug("after(0) failed for _notify_auth_error: %s", exc)
 
             return
 
@@ -364,8 +364,8 @@ def refresh_notes_async(screen, force: bool = False) -> None:
                 try:
                     screen.after(0, lambda: screen.render_notes(notes))
 
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    log.debug("after(0) failed for render_notes: %s", exc)
 
             if not getattr(screen, "_names_cache_loaded", False):
                 screen._names_cache_loaded = True
@@ -373,8 +373,8 @@ def refresh_notes_async(screen, force: bool = False) -> None:
                 try:
                     screen.after(0, screen._refresh_author_names_cache_async)
 
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    log.debug("after(0) failed for _refresh_author_names_cache_async: %s", exc)
 
         if getattr(screen, "_polling_active", False):
             try:
@@ -383,8 +383,8 @@ def refresh_notes_async(screen, force: bool = False) -> None:
                     lambda: refresh_notes_async(screen),
                 )
 
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                log.debug("after() failed for next poll schedule: %s", exc)
 
     threading.Thread(target=_work, daemon=True).start()
 

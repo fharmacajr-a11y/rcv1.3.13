@@ -1,0 +1,17 @@
+# .bandit (YAML)
+exclude_dirs:
+  - tests
+  - .venv
+  - docs
+  - .git
+  - .ruff_cache
+  - .pytest_cache
+  - htmlcov
+  - devtools/qa/reports
+  - reports
+targets:
+  - src
+  - adapters
+  - data
+  - infra
+  - security

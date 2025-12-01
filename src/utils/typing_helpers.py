@@ -1,11 +1,7 @@
-"""Type narrowing helpers using TypeGuard for runtime type checking.
+"""Helpers de TypeGuard para checagem de tipo em runtime.
 
-This module provides TypeGuard-based helpers for narrowing Unknown/Any types
-to specific types with runtime validation. Follows PEP 647 recommendations.
-
-References:
-- PEP 647: https://peps.python.org/pep-0647/
-- typing.TypeGuard: https://docs.python.org/3/library/typing.html#typing.TypeGuard
+As funcoes abaixo ajudam a estreitar tipos Unknown/Any para tipos concretos
+aproveitando o suporte de Pyright/Pylance ao TypeGuard (PEP 647).
 """
 
 from __future__ import annotations
@@ -14,59 +10,17 @@ from typing import Any, Iterable, TypeGuard, cast
 
 
 def is_str(value: Any) -> TypeGuard[str]:
-    """Check if value is a str (for type narrowing).
-
-    Args:
-        value: Any value to check
-
-    Returns:
-        True if value is str, allowing Pyright to narrow the type
-
-    Examples:
-        >>> val: Any = "hello"
-        >>> if is_str(val):
-        ...     # val is now str in this block
-        ...     print(val.upper())
-        HELLO
-    """
+    """Retorna True se o valor for exatamente str (TypeGuard para estreitar o tipo)."""
     return isinstance(value, str)
 
 
 def is_non_empty_str(value: Any) -> TypeGuard[str]:
-    """Check if value is a non-empty str (for type narrowing).
-
-    Args:
-        value: Any value to check
-
-    Returns:
-        True if value is a non-empty str (after stripping whitespace)
-
-    Examples:
-        >>> val: Any = "  hello  "
-        >>> if is_non_empty_str(val):
-        ...     # val is now str in this block
-        ...     print(val.strip())
-        hello
-    """
+    """Retorna True apenas para strings com conteudo nao vazio (desconsidera espacos)."""
     return isinstance(value, str) and bool(value.strip())
 
 
 def is_str_dict(value: Any) -> TypeGuard[dict[str, str]]:
-    """Check if value is a dict[str, str] (for type narrowing).
-
-    Args:
-        value: Any value to check
-
-    Returns:
-        True if value is a dict with all str keys and str values
-
-    Examples:
-        >>> val: Any = {"key": "value"}
-        >>> if is_str_dict(val):
-        ...     # val is now dict[str, str] in this block
-        ...     print(val["key"].upper())
-        VALUE
-    """
+    """Confere se o valor eh um dict[str, str] (todas as chaves e valores sao str)."""
     if not isinstance(value, dict):
         return False
 
@@ -80,25 +34,7 @@ def is_str_dict(value: Any) -> TypeGuard[dict[str, str]]:
 
 
 def is_str_iterable(value: Any) -> TypeGuard[Iterable[str]]:
-    """Check if value is an iterable of str (for type narrowing).
-
-    Args:
-        value: Any value to check
-
-    Returns:
-        True if value is an iterable with all str elements
-
-    Examples:
-        >>> val: Any = ["hello", "world"]
-        >>> if is_str_iterable(val):
-        ...     # val is now Iterable[str] in this block
-        ...     print([s.upper() for s in val])
-        ['HELLO', 'WORLD']
-
-    Note:
-        This function consumes the iterable, so it's best used with
-        lists/tuples rather than generators.
-    """
+    """Valida se o valor e um iteravel de strings; pode consumir o iteravel ao checar."""
     try:
         # Try to iterate (avoid consuming generators by converting to list)
         items = list(value) if not isinstance(value, (list, tuple)) else value  # type: ignore[arg-type]
@@ -114,21 +50,7 @@ def is_str_iterable(value: Any) -> TypeGuard[Iterable[str]]:
 
 
 def is_optional_str(value: Any) -> TypeGuard[str | None]:
-    """Check if value is str or None (for type narrowing).
-
-    Args:
-        value: Any value to check
-
-    Returns:
-        True if value is str or None
-
-    Examples:
-        >>> val: Any = None
-        >>> if is_optional_str(val):
-        ...     # val is now str | None in this block
-        ...     print(val if val else "default")
-        default
-    """
+    """Retorna True para str ou None (TypeGuard de opcional)."""
     return value is None or isinstance(value, str)
 
 

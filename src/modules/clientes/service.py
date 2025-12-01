@@ -60,7 +60,9 @@ class ClienteCNPJDuplicadoError(ClienteServiceError):
 
     def __init__(self, cliente: Any) -> None:
         self.cliente = cliente
-        super().__init__(f"CNPJ duplicado para ID {getattr(cliente, 'id', '?')} " f"- {getattr(cliente, 'razao_social', '') or '-'}")
+        super().__init__(
+            f"CNPJ duplicado para ID {getattr(cliente, 'id', '?')} " f"- {getattr(cliente, 'razao_social', '') or '-'}"
+        )
 
 
 def _current_utc_iso() -> str:
@@ -72,6 +74,47 @@ def _extract_cliente_id(row: RowData | None) -> int | None:
         return int(row[0]) if row else None
     except Exception:
         return None
+
+
+def _ensure_str(value: Any) -> str:
+    return value if isinstance(value, str) else ""
+
+
+def _resolve_current_id(row: RowData | None, exclude_id: int | None) -> int | None:
+    return exclude_id if exclude_id is not None else _extract_cliente_id(row)
+
+
+def _conflict_id(entry: Any) -> int | None:
+    if entry is None:
+        return None
+    if isinstance(entry, Mapping):
+        raw = entry.get("id")
+    else:
+        raw = getattr(entry, "id", None)
+    try:
+        return int(raw) if raw is not None else None
+    except Exception:
+        return None
+
+
+def _filter_self(entries: Iterable[Any], current_id: int | None) -> list[Any]:
+    filtered: list[Any] = []
+    for entry in entries or []:
+        cid = _conflict_id(entry)
+        if cid is not None and current_id is not None and cid == current_id:
+            continue
+        filtered.append(entry)
+    return filtered
+
+
+def _build_conflict_ids(
+    cnpj_conflict: Any, razao_conflicts: Iterable[Any], numero_conflicts: Iterable[Any]
+) -> dict[str, list[int]]:
+    return {
+        "cnpj": [cid] if (cid := _conflict_id(cnpj_conflict)) is not None else [],
+        "razao": [cid for cid in (_conflict_id(entry) for entry in razao_conflicts) if cid is not None],
+        "numero": [cid for cid in (_conflict_id(entry) for entry in numero_conflicts) if cid is not None],
+    }
 
 
 def extrair_dados_cartao_cnpj_em_pasta(base_dir: str) -> dict[str, str | None]:
@@ -122,7 +165,12 @@ def extrair_dados_cartao_cnpj_em_pasta(base_dir: str) -> dict[str, str | None]:
                 cnpj = fields.get("cnpj")
                 razao = fields.get("razao_social")
 
-    log.debug("extrair_dados_cartao_cnpj_em_pasta: base_dir=%s -> cnpj=%s razao=%s", base_dir, cnpj or "(não encontrado)", razao or "(não encontrado)")
+    log.debug(
+        "extrair_dados_cartao_cnpj_em_pasta: base_dir=%s -> cnpj=%s razao=%s",
+        base_dir,
+        cnpj or "(não encontrado)",
+        razao or "(não encontrado)",
+    )
 
     return {"cnpj": cnpj, "razao_social": razao}
 
@@ -137,10 +185,7 @@ def checar_duplicatas_para_form(
     Executa a mesma logica de checar_duplicatas_info mas escondendo detalhes do core.
     """
 
-    current_id = exclude_id if exclude_id is not None else _extract_cliente_id(row)
-
-    def _ensure_str(value: Any) -> str:
-        return value if isinstance(value, str) else ""
+    current_id = _resolve_current_id(row, exclude_id)
 
     razao_val = valores.get("Raz?o Social") or valores.get("Razao Social") or ""
     info = checar_duplicatas_info(
@@ -151,40 +196,15 @@ def checar_duplicatas_para_form(
         exclude_id=current_id,
     )
 
-    def _conflict_id(entry: Any) -> int | None:
-        if entry is None:
-            return None
-        if isinstance(entry, Mapping):
-            raw = entry.get("id")
-        else:
-            raw = getattr(entry, "id", None)
-        try:
-            return int(raw) if raw is not None else None
-        except Exception:
-            return None
-
-    def _filter_self(entries: Iterable[Any]) -> list[Any]:
-        filtered: list[Any] = []
-        for entry in entries or []:
-            cid = _conflict_id(entry)
-            if cid is not None and current_id is not None and cid == current_id:
-                continue
-            filtered.append(entry)
-        return filtered
-
     cnpj_conflict = info.get("cnpj_conflict")
     if _conflict_id(cnpj_conflict) == current_id:
         cnpj_conflict = None
 
     # Cast para list porque sabemos que vem do DB/Supabase como array
-    razao_conflicts = _filter_self(cast(list, info.get("razao_conflicts") or []))
-    numero_conflicts = _filter_self(cast(list, info.get("numero_conflicts") or []))
+    razao_conflicts = _filter_self(cast(list, info.get("razao_conflicts") or []), current_id)
+    numero_conflicts = _filter_self(cast(list, info.get("numero_conflicts") or []), current_id)
 
-    conflict_ids = {
-        "cnpj": [cid] if (cid := _conflict_id(cnpj_conflict)) is not None else [],
-        "razao": [cid for cid in (_conflict_id(entry) for entry in razao_conflicts) if cid is not None],
-        "numero": [cid for cid in (_conflict_id(entry) for entry in numero_conflicts) if cid is not None],
-    }
+    conflict_ids = _build_conflict_ids(cnpj_conflict, razao_conflicts, numero_conflicts)
 
     return {
         "cnpj_conflict": cnpj_conflict,
@@ -241,6 +261,68 @@ def restaurar_clientes_da_lixeira(ids: Iterable[int]) -> None:
     exec_postgrest(supabase.table("clients").update(payload).in_("id", ids_list))
 
 
+def _resolve_current_org_id() -> str:
+    try:
+        resp = supabase.auth.get_user()
+        user = getattr(resp, "user", None) or resp
+        uid = getattr(user, "id", None)
+        if not uid and isinstance(resp, dict):
+            data = resp.get("data") or {}
+            u_dict = resp.get("user") or data.get("user") or {}
+            uid = u_dict.get("id") or u_dict.get("uid")
+        if not uid:
+            raise RuntimeError("Usuǭrio nǜo autenticado no Supabase.")
+        res = exec_postgrest(supabase.table("memberships").select("org_id").eq("user_id", uid).limit(1))
+        org_id = res.data[0]["org_id"] if getattr(res, "data", None) else None
+        if not org_id:
+            raise RuntimeError("Organiza��ǜo nǜo encontrada para o usuǭrio atual.")
+        return str(org_id)
+    except Exception as e:
+        raise RuntimeError(f"Falha ao resolver organiza��ǜo atual: {e}")
+
+
+def _gather_paths(bucket: str, root_prefix: str) -> list[str]:
+    paths: list[str] = []
+    adapter = SupabaseStorageAdapter(bucket=bucket)
+    with using_storage_backend(adapter):
+        stack = [root_prefix]
+        while stack:
+            prefix = stack.pop()
+            try:
+                items = storage_list_files(prefix) or []
+            except Exception:
+                items = []
+            for it in items:
+                if not isinstance(it, dict):
+                    continue
+                name = it.get("name")
+                if not name:
+                    continue
+                meta = it.get("metadata")
+                if meta is None:
+                    stack.append(f"{prefix}/{name}")
+                else:
+                    paths.append(f"{prefix}/{name}")
+    return paths
+
+
+def _remove_cliente_storage(bucket: str, org_id: str, cid_int: int, errs: list[tuple[int, str]]) -> None:
+    prefix = f"{org_id}/{cid_int}"
+    try:
+        paths = _gather_paths(bucket, prefix)
+        removed = 0
+        for key in paths:
+            try:
+                if storage_delete_file(key):
+                    removed += 1
+            except Exception as e:
+                errs.append((cid_int, f"Storage: {e}"))
+        if removed:
+            log.info("Storage: removidos %s objeto(s) de %s", removed, prefix)
+    except Exception as e:
+        errs.append((cid_int, f"Storage: {e}"))
+
+
 def excluir_clientes_definitivamente(
     ids: Iterable[int],
     progress_cb: Callable[[int, int, int], None] | None = None,
@@ -251,55 +333,12 @@ def excluir_clientes_definitivamente(
     Retorna (qtd_ok, erros_por_id).
     """
 
-    def _current_org_id() -> str:
-        try:
-            resp = supabase.auth.get_user()
-            user = getattr(resp, "user", None) or resp
-            uid = getattr(user, "id", None)
-            if not uid and isinstance(resp, dict):
-                data = resp.get("data") or {}
-                u_dict = resp.get("user") or data.get("user") or {}
-                uid = u_dict.get("id") or u_dict.get("uid")
-            if not uid:
-                raise RuntimeError("Usuário não autenticado no Supabase.")
-            res = exec_postgrest(supabase.table("memberships").select("org_id").eq("user_id", uid).limit(1))
-            org_id = res.data[0]["org_id"] if getattr(res, "data", None) else None
-            if not org_id:
-                raise RuntimeError("Organização não encontrada para o usuário atual.")
-            return str(org_id)
-        except Exception as e:
-            raise RuntimeError(f"Falha ao resolver organização atual: {e}")
-
-    def _gather_paths(bucket: str, root_prefix: str) -> list[str]:
-        paths: list[str] = []
-        adapter = SupabaseStorageAdapter(bucket=bucket)
-        with using_storage_backend(adapter):
-            stack = [root_prefix]
-            while stack:
-                prefix = stack.pop()
-                try:
-                    items = storage_list_files(prefix) or []
-                except Exception:
-                    items = []
-                for it in items:
-                    if not isinstance(it, dict):
-                        continue
-                    name = it.get("name")
-                    if not name:
-                        continue
-                    meta = it.get("metadata")
-                    if meta is None:
-                        stack.append(f"{prefix}/{name}")
-                    else:
-                        paths.append(f"{prefix}/{name}")
-        return paths
-
     ids_list = [int(i) for i in ids]
     if not ids_list:
         return 0, []
 
     try:
-        org_id = _current_org_id()
+        org_id = _resolve_current_org_id()
     except Exception as exc:
         return 0, [(0, str(exc))]
 
@@ -312,20 +351,7 @@ def excluir_clientes_definitivamente(
         total = len(ids_list)
         for idx, cid in enumerate(ids_list, start=1):
             cid_int = int(cid)
-            prefix = f"{org_id}/{cid_int}"
-            try:
-                paths = _gather_paths(bucket, prefix)
-                removed = 0
-                for key in paths:
-                    try:
-                        if storage_delete_file(key):
-                            removed += 1
-                    except Exception as e:
-                        errs.append((cid_int, f"Storage: {e}"))
-                if removed:
-                    log.info("Storage: removidos %s objeto(s) de %s", removed, prefix)
-            except Exception as e:
-                errs.append((cid_int, f"Storage: {e}"))
+            _remove_cliente_storage(bucket, org_id, cid_int, errs)
 
             try:
                 exec_postgrest(supabase.table("clients").delete().eq("id", cid_int))
@@ -402,7 +428,7 @@ def fetch_cliente_by_id(cliente_id: int) -> dict[str, Any] | None:
         "razao_social": getattr(out, "razao_social", None),
         "cnpj": getattr(out, "cnpj", None),
         "numero": getattr(out, "numero", None),
-        "observacoes": getattr(out, "observacoes", None),
+        "observacoes": getattr(out, "observacoes", None) or getattr(out, "obs", None),
     }
 
 
@@ -421,7 +447,12 @@ def update_cliente_status_and_observacoes(cliente: Mapping[str, Any] | int, novo
         cliente_id = int(raw_id)
         cli_dict = dict(cliente)
 
-    raw_obs = cli_dict.get("observacoes") or getattr(cliente, "observacoes", None) or getattr(cliente, "Observacoes", None) or ""
+    raw_obs = (
+        cli_dict.get("observacoes")
+        or getattr(cliente, "observacoes", None)
+        or getattr(cliente, "Observacoes", None)
+        or ""
+    )
     body = STATUS_PREFIX_RE.sub("", raw_obs, count=1).strip()
     new_obs = f"[{novo_status}] {body}".strip() if novo_status else body
 

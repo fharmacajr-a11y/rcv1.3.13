@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import io
-import mimetypes
+import logging
 import os
 import tkinter as tk
 from tkinter import ttk
-from typing import Any, Callable, Literal, Optional, List, cast
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, cast
 
 try:
     from PIL import Image, ImageTk  # opcional
@@ -24,6 +24,14 @@ from src.modules.pdf_preview.utils import LRUCache, pixmap_to_photoimage
 from src.modules.pdf_preview.views.page_view import PdfPageView
 from src.modules.pdf_preview.views.text_panel import PdfTextPanel
 from src.modules.pdf_preview.views.toolbar import PdfToolbar
+from src.modules.pdf_preview.views.view_helpers import (
+    calculate_button_states,
+    find_first_visible_page,
+    format_page_label,
+    is_pdf_or_image,
+)
+
+logger = logging.getLogger(__name__)
 
 
 GAP = 16  # espaço entre páginas
@@ -32,47 +40,37 @@ TkBindReturn = Literal["break"] | None
 TkCallback = Callable[..., TkBindReturn]
 
 
-def _is_pdf_or_image(source: str | None) -> tuple[bool, bool]:
-    """Retorna flags indicando se o arquivo é PDF ou imagem."""
-    mime, _ = mimetypes.guess_type(source or "")
-    is_pdf = bool(mime == "application/pdf")
-    if not is_pdf and source:
-        is_pdf = source.lower().endswith(".pdf")
-    is_image = bool(mime and mime.startswith("image/"))
-    return is_pdf, is_image
-
-
 class PdfViewerWin(tk.Toplevel):
     def __init__(
         self,
-        master,
+        master: tk.Misc,
         pdf_path: str | None = None,
         display_name: str | None = None,
         data_bytes: bytes | None = None,
-    ):
+    ) -> None:
         super().__init__(master)
-        self._display_name = display_name or (os.path.basename(pdf_path) if pdf_path else "Documento")
+        self._display_name: str = display_name or (os.path.basename(pdf_path) if pdf_path else "Documento")
         self.title(f"Visualizar: {self._display_name}")
         self.geometry("1200x800")
-        self.zoom = 1.0
-        self._img_refs = {}  # id_canvas -> PhotoImage
-        self._items = []  # ids de imagens por página
-        self._page_tops = []  # y de cada página
-        self._page_sizes = []  # (w,h) em 1.0
-        self.cache = LRUCache(12)
-        self._pan_active = False
-        self._closing = False
-        self._fit_mode = False
-        self._shortcut_sequences = []
-        self._page_label_suffix = ""
-        self._has_text = False
-        self._ocr_loaded = False
+        self.zoom: float = 1.0
+        self._img_refs: Dict[int, tk.PhotoImage] = {}  # id_canvas -> PhotoImage
+        self._items: List[int] = []  # ids de imagens por página
+        self._page_tops: List[int] = []  # y de cada página
+        self._page_sizes: List[Tuple[int, int]] = []  # (w,h) em 1.0
+        self.cache: LRUCache = LRUCache(12)
+        self._pan_active: bool = False
+        self._closing: bool = False
+        self._fit_mode: bool = False
+        self._shortcut_sequences: List[str] = []
+        self._page_label_suffix: str = ""
+        self._has_text: bool = False
+        self._ocr_loaded: bool = False
 
         # Controle para modo de imagem
         self._is_pdf: bool = False
         self.page_count: int = 1  # evita AttributeError antes do carregamento
         self._img_pil: Optional[Image.Image] = None  # type: ignore[name-defined]
-        self._img_ref: Optional[ImageTk.PhotoImage] = None  # type: ignore[name-defined]  # manter referência viva
+        self._img_ref: Optional[tk.PhotoImage] = None  # type: ignore[name-defined]  # manter referência viva
         self._img_zoom: float = 1.0
         self.btn_download_pdf: Optional[ttk.Button] = None
         self.btn_download_img: Optional[ttk.Button] = None
@@ -80,10 +78,11 @@ class PdfViewerWin(tk.Toplevel):
         self._pdf_bytes: bytes | None = None
         self._pdf_path: str | None = None
         self._controller: Optional[PdfPreviewController] = None
+        self._text_buffer: List[str] = []
         # ---------------------------------------------------
 
         # Top bar
-        self.toolbar = PdfToolbar(
+        self.toolbar: PdfToolbar = PdfToolbar(
             self,
             on_zoom_in=lambda: self._zoom_by(+1),
             on_zoom_out=lambda: self._zoom_by(-1),
@@ -94,11 +93,11 @@ class PdfViewerWin(tk.Toplevel):
             on_download_image=self._download_img,
         )
         self.toolbar.pack(side="top", fill="x")
-        self.lbl_page = self.toolbar.lbl_page
-        self.lbl_zoom = self.toolbar.lbl_zoom
+        self.lbl_page: ttk.Label = self.toolbar.lbl_page
+        self.lbl_zoom: ttk.Label = self.toolbar.lbl_zoom
         self.lbl_zoom.bind("<Button-1>", lambda e: self._toggle_fit_100())
-        self.var_show_text = self.toolbar.var_text
-        self.chk_text = self.toolbar.chk_text
+        self.var_show_text: tk.BooleanVar = self.toolbar.var_text
+        self.chk_text: ttk.Checkbutton = self.toolbar.chk_text
         self.btn_download_pdf = self.toolbar.btn_download_pdf
         self.btn_download_img = self.toolbar.btn_download_img
         self._update_download_buttons(is_pdf=False, is_image=False)
@@ -106,10 +105,10 @@ class PdfViewerWin(tk.Toplevel):
         ttk.Separator(self, orient="horizontal").pack(fill="x", padx=8, pady=(0, 8))
 
         # Paned layout (canvas | text)
-        pane = ttk.Panedwindow(self, orient="horizontal")
+        pane: ttk.Panedwindow = ttk.Panedwindow(self, orient="horizontal")
         pane.pack(side="top", fill="both", expand=True)
 
-        self.page_view = PdfPageView(
+        self.page_view: PdfPageView = PdfPageView(
             pane,
             on_page_up=self._on_page_up,
             on_page_down=self._on_page_down,
@@ -118,21 +117,21 @@ class PdfViewerWin(tk.Toplevel):
         )
         pane.add(self.page_view, weight=4)
 
-        self.text_panel = PdfTextPanel(
+        self.text_panel: PdfTextPanel = PdfTextPanel(
             pane,
             on_search_next=self._on_search_next,
             on_search_prev=self._on_search_prev,
         )
-        self._pane = pane
-        self._pane_right = self.text_panel
+        self._pane: ttk.Panedwindow = pane
+        self._pane_right: PdfTextPanel = self.text_panel
         self._pane.add(self._pane_right, weight=2)
         self._pane.forget(self._pane_right)
-        self._pane_right_added = False
+        self._pane_right_added: bool = False
 
         # Aliases para compatibilidade interna
-        self.canvas = self.page_view.canvas
-        self.ocr_text = self.text_panel.text
-        self.text = self.ocr_text
+        self.canvas: tk.Canvas = self.page_view.canvas
+        self.ocr_text: tk.Text = self.text_panel.text
+        self.text: tk.Text = self.ocr_text
         self.search_nav = self.text_panel.search_nav
 
         # Bindings (Windows)
@@ -173,7 +172,7 @@ class PdfViewerWin(tk.Toplevel):
             self._controller = None
 
     # ======== PDF load / render ========
-    def _load_pdf(self, path):
+    def _load_pdf(self, path: str) -> None:
         self._pdf_path = path
         self._pdf_bytes = None
         self._is_pdf = True
@@ -206,8 +205,8 @@ class PdfViewerWin(tk.Toplevel):
             self.text_panel.set_text("Nenhum texto/OCR foi encontrado para este documento.")
             try:
                 self._pane.forget(self._pane_right)
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Falha ao esconder painel de texto no PDF viewer: %s", exc)
             self._pane_right_added = False
             self.var_show_text.set(False)
             self.chk_text.state(["disabled"])
@@ -215,7 +214,7 @@ class PdfViewerWin(tk.Toplevel):
             self.chk_text.state(["!disabled"])
         self._update_page_label(0)
 
-    def _reflow_pages(self):
+    def _reflow_pages(self) -> None:
         if self._closing or not self.canvas.winfo_exists():
             return
 
@@ -243,7 +242,7 @@ class PdfViewerWin(tk.Toplevel):
         self._render_visible_pages()
         self._update_scrollregion()
 
-    def _on_canvas_configure(self, event):
+    def _on_canvas_configure(self, event: Any) -> None:
         # manter scrollregion atualizada
         if self._is_pdf:
             self._render_visible_pages()
@@ -253,7 +252,7 @@ class PdfViewerWin(tk.Toplevel):
             if self._img_pil is not None:
                 self._render_image(self._img_pil)
 
-    def _render_visible_pages(self):
+    def _render_visible_pages(self) -> None:
         if self._closing or not self.canvas.winfo_exists():
             return
 
@@ -269,7 +268,7 @@ class PdfViewerWin(tk.Toplevel):
         self._update_page_label(self._first_visible_page())
         self._update_scrollregion()
 
-    def _ensure_page_rendered(self, i):
+    def _ensure_page_rendered(self, i: int) -> None:
         key = (i, round(self.zoom, 2))
         img = self.cache.get(key)
         if img is None:
@@ -282,7 +281,7 @@ class PdfViewerWin(tk.Toplevel):
         self.canvas.itemconfig(it, image=img)
         self._img_refs[it] = img  # manter referência viva
 
-    def _render_page_image(self, index, zoom):
+    def _render_page_image(self, index: int, zoom: float) -> tk.PhotoImage:
         """Renderiza uma página do PDF como PhotoImage."""
         w1, h1 = self._page_sizes[index]
 
@@ -302,7 +301,7 @@ class PdfViewerWin(tk.Toplevel):
         photo = pixmap_to_photoimage(pix)
         return photo if photo is not None else tk.PhotoImage(width=200, height=200)
 
-    def _update_page_label(self, index):
+    def _update_page_label(self, index: int) -> None:
         total = max(1, getattr(self, "page_count", 1))
         clamped = max(0, min(index, total - 1))
         if self._controller is not None:
@@ -310,14 +309,20 @@ class PdfViewerWin(tk.Toplevel):
             label = f"{self._controller.get_page_label(prefix='Página')}"
             zoom_pct = int(round(self._controller.state.zoom * 100))
         else:
-            label = f"Página {clamped + 1}/{total}"
             zoom_pct = int(round(self.zoom * 100))
-        suffix = f"  {self._page_label_suffix}" if self._page_label_suffix else ""
+            # Usa helper para formatação
+            page_label, zoom_label = format_page_label(
+                current_page=clamped,
+                total_pages=total,
+                zoom_percent=zoom_pct,
+                suffix=self._page_label_suffix,
+            )
+            label = page_label
         try:
-            self.lbl_page.config(text=f"{label}{suffix}")
+            self.lbl_page.config(text=label)
             self.lbl_zoom.config(text=f"{zoom_pct}%")
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao atualizar rotulos de pagina/zoom: %s", exc)
 
     # ======== Wheel / Zoom ========
     def _on_wheel_scroll(self, event: Any) -> TkBindReturn:
@@ -349,7 +354,7 @@ class PdfViewerWin(tk.Toplevel):
                 self._zoom_image_by(steps)
         return "break"
 
-    def _zoom_by(self, wheel_steps_count, event=None):
+    def _zoom_by(self, wheel_steps_count: int | float, event: Any | None = None) -> None:
         Z_MIN, Z_MAX, Z_STEP = 0.2, 6.0, 0.1
         old = self.zoom
         new = max(Z_MIN, min(Z_MAX, round(old + wheel_steps_count * Z_STEP, 2)))
@@ -385,7 +390,7 @@ class PdfViewerWin(tk.Toplevel):
         self._render_visible_pages()
         self._update_scrollregion()
 
-    def _zoom_image_by(self, wheel_steps_count):
+    def _zoom_image_by(self, wheel_steps_count: int | float) -> None:
         """Ajusta zoom da imagem com Ctrl+MouseWheel."""
         Z_MIN, Z_MAX, Z_STEP = 0.1, 5.0, 0.1
         old = self._img_zoom
@@ -396,7 +401,7 @@ class PdfViewerWin(tk.Toplevel):
         if self._img_pil is not None:
             self._render_image(self._img_pil)
 
-    def _set_zoom_fit_width(self):
+    def _set_zoom_fit_width(self) -> None:
         if not self._is_pdf and self._img_pil is not None:
             # Modo imagem: ajusta zoom baseado na largura
             cwidth = max(1, self.canvas.winfo_width() - 2 * GAP)
@@ -416,7 +421,7 @@ class PdfViewerWin(tk.Toplevel):
             target = self._controller.state.zoom
         self._set_zoom_exact(target, fit_mode=True)
 
-    def _set_zoom_exact(self, value, *, fit_mode: bool = False):
+    def _set_zoom_exact(self, value: float, *, fit_mode: bool = False) -> None:
         self._fit_mode = fit_mode
         if self._controller is not None:
             self._controller.set_zoom(max(0.2, min(6.0, float(value))), fit_mode=("width" if fit_mode else "custom"))
@@ -427,7 +432,7 @@ class PdfViewerWin(tk.Toplevel):
         self._render_visible_pages()
         self._update_scrollregion()
 
-    def _toggle_fit_100(self):
+    def _toggle_fit_100(self) -> None:
         if self._fit_mode:
             self._set_zoom_exact(1.0, fit_mode=False)
         else:
@@ -438,7 +443,7 @@ class PdfViewerWin(tk.Toplevel):
         self._toggle_text()
 
     # ======== Texto / Busca ========
-    def _toggle_text(self):
+    def _toggle_text(self) -> None:
         if not self._has_text and self.var_show_text.get():
             self.var_show_text.set(False)
             return
@@ -454,7 +459,7 @@ class PdfViewerWin(tk.Toplevel):
             self._pane.forget(self._pane_right)
             self._pane_right_added = False
 
-    def _populate_ocr_text(self):
+    def _populate_ocr_text(self) -> None:
         sep = "\n" + ("\u2014" * 40) + "\n"
         # _text_buffer j? foi normalizado para List[str] em _load_pdf
         text_buffer_str: List[str] = cast(List[str], self._text_buffer)
@@ -467,10 +472,10 @@ class PdfViewerWin(tk.Toplevel):
     def _on_search_prev(self, _query: str) -> None:
         return None
 
-    def focus_canvas(self):
+    def focus_canvas(self) -> None:
         self.canvas.focus_set()
 
-    def _update_scrollregion(self):
+    def _update_scrollregion(self) -> None:
         bbox = self.canvas.bbox("all")
         if bbox:
             self.canvas.configure(scrollregion=bbox)
@@ -491,8 +496,8 @@ class PdfViewerWin(tk.Toplevel):
                 ext = ".jpg"
             elif fmt in ("PNG", "WEBP", "BMP", "TIFF"):
                 ext = f".{fmt.lower()}"
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao detectar formato da imagem para download: %s", exc)
 
         ctx = DownloadContext(
             base_name=base,
@@ -510,8 +515,8 @@ class PdfViewerWin(tk.Toplevel):
                 from tkinter import messagebox
 
                 messagebox.showerror("Baixar imagem", "Erro ao salvar a imagem.", parent=self)
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Falha ao exibir erro ao salvar imagem: %s", exc)
 
     def _download_pdf(self) -> None:
         from tkinter import messagebox
@@ -532,8 +537,8 @@ class PdfViewerWin(tk.Toplevel):
         except Exception as e:
             try:
                 messagebox.showerror("Baixar PDF", f"Erro ao salvar: {e}", parent=self)
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Falha ao exibir erro ao salvar PDF: %s", exc)
 
     def _on_close(self) -> None:
         if self._closing:
@@ -545,11 +550,11 @@ class PdfViewerWin(tk.Toplevel):
         finally:
             try:
                 self.grab_release()
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Falha ao liberar grab no fechamento do PDF viewer: %s", exc)
             self.destroy()
 
-    def _on_destroy(self, event=None) -> None:
+    def _on_destroy(self, event: Any | None = None) -> None:
         # Only run once for the window itself
         if event is not None and event.widget is not self:
             return
@@ -560,10 +565,10 @@ class PdfViewerWin(tk.Toplevel):
                 self.unbind(sequence)
             if hasattr(self, "canvas") and self.canvas.winfo_exists():
                 self.canvas.unbind("<Configure>")
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao remover bindings do PDF viewer: %s", exc)
 
-    def _bind_shortcuts(self):
+    def _bind_shortcuts(self) -> None:
         bindings = [
             ("<KeyPress-plus>", lambda e: self._handle_zoom_key(+1, e)),
             ("<KeyPress-equal>", lambda e: self._handle_zoom_key(+1, e)),
@@ -586,7 +591,7 @@ class PdfViewerWin(tk.Toplevel):
             self.bind(sequence, handler)
             self._shortcut_sequences.append(sequence)
 
-    def _handle_zoom_key(self, step, event: Any) -> TkBindReturn:
+    def _handle_zoom_key(self, step: int, event: Any) -> TkBindReturn:
         if event.state & 0x0004:  # ignore when Ctrl is held (handled elsewhere)
             return None
         self.focus_canvas()
@@ -679,7 +684,7 @@ class PdfViewerWin(tk.Toplevel):
             return None
         return "break"
 
-    def _ensure_text_panel(self):
+    def _ensure_text_panel(self) -> bool:
         if not self._has_text:
             return False
         if not self.var_show_text.get():
@@ -687,27 +692,28 @@ class PdfViewerWin(tk.Toplevel):
             self._toggle_text()
         return True
 
-    def _first_visible_page(self):
+    def _first_visible_page(self) -> int:
         if not self._page_tops:
             return 0
         y0 = self.canvas.canvasy(0)
-        for idx, top in enumerate(self._page_tops):
-            height = int(self._page_sizes[idx][1] * self.zoom)
-            if y0 < top + height:
-                return idx
-        return len(self._page_tops) - 1
+        page_heights = [int(self._page_sizes[idx][1] * self.zoom) for idx in range(len(self._page_tops))]
+        return find_first_visible_page(
+            canvas_y=y0,
+            page_tops=self._page_tops,
+            page_heights=page_heights,
+        )
 
     def _ocr_copy(self):
         try:
             self.text_panel.text.event_generate("<<Copy>>")
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao copiar texto OCR: %s", exc)
 
     def _ocr_select_all(self):
         try:
             self.text_panel.text.event_generate("<<SelectAll>>")
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao selecionar texto OCR: %s", exc)
 
     def _show_ocr_menu(self, event):
         try:
@@ -722,7 +728,7 @@ class PdfViewerWin(tk.Toplevel):
         Retorna True se abriu com sucesso.
         """
         name = filename or ""
-        guess_pdf, guess_image = _is_pdf_or_image(name)
+        guess_pdf, guess_image = is_pdf_or_image(name)
         lower_name = name.lower()
         self._is_pdf = bool(guess_pdf or lower_name.endswith(".pdf"))
 
@@ -780,8 +786,8 @@ class PdfViewerWin(tk.Toplevel):
             def _cleanup(_event=None):
                 try:
                     os.unlink(tmp_path)
-                except OSError:
-                    pass
+                except OSError as exc:  # noqa: BLE001
+                    logger.debug("Falha ao remover arquivo temporario do PDF viewer: %s", exc)
 
             self.bind("<Destroy>", _cleanup, add="+")
             return True
@@ -817,14 +823,14 @@ class PdfViewerWin(tk.Toplevel):
         for btn in getattr(self, "pdf_nav_buttons", []):
             try:
                 btn.configure(state=state)
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Falha ao alterar estado de botao de navegacao do PDF: %s", exc)
 
         if hasattr(self, "chk_text"):
             try:
                 self.chk_text.configure(state=state)
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Falha ao alterar estado do toggle de texto: %s", exc)
 
         # Atualizar texto do botão de download se existir
         # (assumindo que não temos referência direta ao botão)
@@ -837,7 +843,7 @@ class PdfViewerWin(tk.Toplevel):
         is_image: Optional[bool] = None,
     ) -> None:
         if source is not None:
-            guess_pdf, guess_image = _is_pdf_or_image(source)
+            guess_pdf, guess_image = is_pdf_or_image(source)
             if is_pdf is None:
                 is_pdf = guess_pdf
             if is_image is None:
@@ -848,10 +854,13 @@ class PdfViewerWin(tk.Toplevel):
         if is_image is None:
             is_image = False
 
+        # Usa helper para calcular estados
+        pdf_enabled, img_enabled = calculate_button_states(is_pdf=is_pdf, is_image=is_image)
+
         if self.btn_download_pdf is not None:
-            self.btn_download_pdf.state(["!disabled"] if is_pdf else ["disabled"])
+            self.btn_download_pdf.state(["!disabled"] if pdf_enabled else ["disabled"])
         if self.btn_download_img is not None:
-            self.btn_download_img.state(["!disabled"] if is_image else ["disabled"])
+            self.btn_download_img.state(["!disabled"] if img_enabled else ["disabled"])
 
 
 # Helper para abrir a janela (ex.: integrar ao seu app principal)

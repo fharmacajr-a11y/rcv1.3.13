@@ -6,7 +6,7 @@ import logging
 import threading
 import time
 from pathlib import Path
-from typing import Any, Tuple
+from typing import Any
 
 import yaml
 
@@ -23,7 +23,10 @@ CONFIG_PATH = Path("config.yml")
 _STATUS_DOT = "\u25cf"  # Unicode bullet rendered by ttkbootstrap
 
 # Cache structure: (path, mtime, (url, timeout, interval_ms))
-_cfg_cache: Tuple[Path, float, Tuple[str, float, int]] | None = None
+ConfigValues = tuple[str, float, int]
+ConfigCache = tuple[Path, float, ConfigValues] | None
+
+_cfg_cache: ConfigCache = None
 
 
 def _set_env_text(app: Any, text: str) -> None:
@@ -73,7 +76,7 @@ def _apply_status(app: Any, status: Status) -> None:
         log.debug("on_net_status_change hook failed", exc_info=True)
 
 
-def _read_cfg_from_disk() -> Tuple[str, float, int]:
+def _read_cfg_from_disk() -> ConfigValues:
     """Read config.yml (if available) returning (url, timeout, interval_ms)."""
     try:
         with CONFIG_PATH.open("r", encoding="utf-8") as file:
@@ -87,7 +90,7 @@ def _read_cfg_from_disk() -> Tuple[str, float, int]:
         return "", DEFAULT_TIMEOUT, DEFAULT_INTERVAL_MS
 
 
-def _get_cfg() -> Tuple[str, float, int]:
+def _get_cfg() -> ConfigValues:
     """Return cached probe configuration using file mtime as invalidation token."""
     global _cfg_cache
     try:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import re
+import tkinter
 from tkinter import messagebox
 from typing import Callable, Optional, TYPE_CHECKING
 
@@ -9,6 +10,8 @@ import logging
 
 if TYPE_CHECKING:
     from .main_screen import MainScreenFrame
+
+from src.modules.clientes.views.main_screen_helpers import validate_single_selection
 
 PickCallback = Callable[[dict], None]
 
@@ -40,9 +43,25 @@ class PickModeController:
         if not self._active:
             return
 
+        # Obter IDs selecionados usando helper validate_single_selection
+        try:
+            sel = self.frame.client_list.selection()
+            selected_ids = set(sel) if sel else set()
+        except Exception:
+            selected_ids = set()
+
+        # Validar que exatamente 1 cliente está selecionado
+        is_valid, client_id, error_key = validate_single_selection(selected_ids)
+
+        if not is_valid:
+            messagebox.showwarning("Atenção", "Selecione um cliente primeiro.", parent=self.frame)
+            return
+
+        # Obter dados completos do cliente selecionado
         info = self._get_selected_client_dict()
         if not info:
-            messagebox.showwarning("Atenção", "Selecione um cliente primeiro.", parent=self.frame)
+            # Fallback: se não conseguiu obter dados, exibe aviso
+            messagebox.showwarning("Atenção", "Erro ao obter dados do cliente.", parent=self.frame)
             return
 
         cnpj_raw = info.get("cnpj", "")
@@ -69,14 +88,16 @@ class PickModeController:
 
     def _exit(self, *, call_return: bool) -> None:
         self._active = False
-        self.frame._pick_mode = False
+        # FIX-CLIENTES-007: Manter _pick_mode=True durante _ensure_pick_ui(False)
+        # para que _update_main_buttons_state() não sobrescreva o estado restaurado da Lixeira
         self._ensure_pick_ui(False)
+        self.frame._pick_mode = False  # Resetar apenas APÓS restaurar a UI
 
         if call_return and callable(self._return_to):
             try:
                 self._return_to()
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Falha ao executar retorno do modo pick: %s", exc)
 
         self._callback = None
         self._return_to = None
@@ -90,21 +111,55 @@ class PickModeController:
             frame._saved_toolbar_state = {}
 
         if enable:
-            if hasattr(frame, "_pick_banner_frame"):
-                frame._pick_banner_frame.pack(fill="x", padx=10, pady=(0, 10), before=frame.client_list)
+            # Entrar no modo pick UI
+            if hasattr(frame, "_enter_pick_mode_ui"):
+                try:
+                    frame._enter_pick_mode_ui()
+                except Exception as exc:  # noqa: BLE001
+                    log.debug("Falha ao entrar no modo pick UI: %s", exc)
 
-            crud_buttons = [
-                getattr(frame, "btn_novo", None),
-                getattr(frame, "btn_editar", None),
-                getattr(frame, "btn_subpastas", None),
-                getattr(frame, "btn_enviar", None),
-                getattr(frame, "btn_lixeira", None),
-            ]
+            if hasattr(frame, "_pick_banner_frame"):
+                self._position_pick_banner()
+
+            # Coletar botões CRUD do footer (exceto Lixeira que é controlada pela MainScreenFrame)
+            footer = getattr(frame, "footer", None)
+            crud_buttons = []
+
+            # Botões do footer (dentro de frame.footer)
+            if footer:
+                crud_buttons.extend(
+                    [
+                        getattr(footer, "btn_novo", None),
+                        getattr(footer, "btn_editar", None),
+                        getattr(footer, "btn_subpastas", None),
+                        getattr(footer, "btn_enviar", None),
+                    ]
+                )
+
+            # Lixeira NÃO é incluída - ela fica visível mas desabilitada
+            # O estado visual da Lixeira é controlado por _enter_pick_mode_ui / _leave_pick_mode_ui
+
             for btn in crud_buttons:
-                if btn and btn.winfo_ismapped():
-                    info = btn.pack_info() if btn.winfo_manager() == "pack" else None
-                    frame._saved_toolbar_state[btn] = info
-                    btn.pack_forget()
+                if btn:
+                    is_mapped = btn.winfo_ismapped()
+                    manager = btn.winfo_manager() if is_mapped else "none"
+
+                    if is_mapped:
+                        # Salvar info do gerenciador apropriado
+                        if manager == "pack":
+                            info = ("pack", btn.pack_info())
+                        elif manager == "grid":
+                            info = ("grid", btn.grid_info())
+                        else:
+                            info = ("unknown", None)
+
+                        frame._saved_toolbar_state[btn] = info
+
+                        # Ocultar usando o método apropriado
+                        if manager == "pack":
+                            btn.pack_forget()
+                        elif manager == "grid":
+                            btn.grid_forget()
 
             try:
                 frame.client_list.unbind("<Double-1>")
@@ -114,15 +169,26 @@ class PickModeController:
             except Exception as exc:
                 log.debug("Falha ao configurar binds do modo pick: %s", exc)
         else:
+            # Sair do modo pick UI
             if hasattr(frame, "_pick_banner_frame"):
                 frame._pick_banner_frame.pack_forget()
 
-            for btn, pack_info in list(frame._saved_toolbar_state.items()):
-                if pack_info:
+            for btn, info in list(frame._saved_toolbar_state.items()):
+                if info:
+                    manager_type, manager_info = info
                     try:
-                        btn.pack(**pack_info)
-                    except Exception:
-                        pass
+                        if manager_type == "pack" and manager_info:
+                            # Remover 'in' - tkinter não aceita como parâmetro
+                            pack_opts = {k: v for k, v in manager_info.items() if k != "in"}
+                            btn.pack(**pack_opts)
+                            log.debug(f"    OK - btn.pack({pack_opts})")
+                        elif manager_type == "grid" and manager_info:
+                            # Remover 'in' - tkinter não aceita como parâmetro
+                            grid_opts = {k: v for k, v in manager_info.items() if k != "in"}
+                            btn.grid(**grid_opts)
+                            log.debug(f"    OK - btn.grid({grid_opts})")
+                    except Exception as exc:  # noqa: BLE001
+                        log.warning(f"Falha ao restaurar {btn.winfo_name()}: {exc}")
             frame._saved_toolbar_state.clear()
 
             try:
@@ -133,10 +199,17 @@ class PickModeController:
             except Exception as exc:
                 log.debug("Falha ao restaurar binds do modo pick: %s", exc)
 
+            # Restaurar UI normal
+            if hasattr(frame, "_leave_pick_mode_ui"):
+                try:
+                    frame._leave_pick_mode_ui()
+                except Exception as exc:  # noqa: BLE001
+                    log.debug("Falha ao sair do modo pick UI: %s", exc)
+
         try:
             frame._update_main_buttons_state()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao atualizar botoes no modo pick: %s", exc)
 
     def _get_selected_client_dict(self) -> dict | None:
         """Retorna dict com dados do cliente selecionado."""
@@ -164,10 +237,54 @@ class PickModeController:
             log.warning("Erro ao obter dados do cliente: %s", exc)
             return None
 
+    def _position_pick_banner(self) -> None:
+        """Posiciona o banner de pick mode usando o gerenciador apropriado."""
+        frame = self.frame
+        banner = frame._pick_banner_frame
+
+        try:
+            # Detecta qual gerenciador está sendo usado pelo client_list
+            manager = frame.client_list.winfo_manager()
+
+            if manager == "grid":
+                # client_list está em grid, usar grid para o banner
+                # O client_list_container é packeado, então precisamos trabalhar com o container
+                # Vamos inserir o banner antes do container usando pack
+                if hasattr(frame, "client_list_container"):
+                    container = frame.client_list_container
+                    container_manager = container.winfo_manager()
+
+                    if container_manager == "pack":
+                        # Posiciona o banner antes do container da lista
+                        banner.pack(fill="x", padx=10, pady=(0, 10), before=container)
+                    else:
+                        # Fallback: pack no topo sem before
+                        banner.pack(fill="x", padx=10, pady=(0, 10))
+                else:
+                    # Sem container, usar pack simples
+                    banner.pack(fill="x", padx=10, pady=(0, 10))
+
+            elif manager == "pack":
+                # client_list está em pack, usar pack com before
+                banner.pack(fill="x", padx=10, pady=(0, 10), before=frame.client_list)
+            else:
+                # Gerenciador desconhecido ou vazio, usar pack simples
+                banner.pack(fill="x", padx=10, pady=(0, 10))
+
+        except (tkinter.TclError, AttributeError) as exc:
+            log.exception("Erro ao posicionar banner do modo pick: %s", exc)
+            # Fallback seguro: tentar pack simples
+            try:
+                banner.pack(fill="x", padx=10, pady=(0, 10))
+            except tkinter.TclError:
+                log.error("Falha crítica ao posicionar banner do modo pick")
+
     @staticmethod
-    def _format_cnpj_for_pick(cnpj: str) -> str:
+    def _format_cnpj_for_pick(cnpj: str | None) -> str:
         """Formata CNPJ para exibição (##.###.###/####-##)."""
-        digits = re.sub(r"\\D", "", cnpj or "")
+        if not cnpj:
+            return ""
+        digits = re.sub(r"\\D", "", cnpj)
         if len(digits) != 14:
-            return cnpj or ""
+            return cnpj
         return f"{digits[0:2]}.{digits[2:5]}.{digits[5:8]}/{digits[8:12]}-{digits[12:14]}"

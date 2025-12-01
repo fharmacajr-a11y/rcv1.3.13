@@ -10,29 +10,23 @@ T = TypeVar("T")
 
 
 def run_cloud_op(op: Callable[[], T], retries: int = 2, base_delay: float = 0.5) -> T:
-    """
-    Executa operação que chama Supabase com retries + refresh de sessão.
-    - Se 401/expiração: tenta SessionGuard.ensure_alive() e repete.
-    - Backoff simples: base_delay * (2**tentativa)
-    Levanta última exceção se falhar.
+    """Executa operação Supabase com tentativas extras e refresh de sessão.
+
+    - Para erros de sessão (ex.: 401/expiração), chama SessionGuard.ensure_alive()
+      antes de tentar novamente.
+    - Backoff simples: base_delay * (2 ** tentativa).
+    - Propaga a última exceção se todas as tentativas falharem.
 
     Args:
-        op: Função/lambda que executa a operação de rede
-        retries: Número de tentativas (padrão: 2)
-        base_delay: Delay base em segundos para backoff (padrão: 0.5)
+        op: Função/lambda que executa a operação de rede.
+        retries: Número de tentativas extras (padrão: 2).
+        base_delay: Delay base em segundos para o backoff (padrão: 0.5).
 
     Returns:
-        Resultado da operação
+        Retorno da operação bem-sucedida.
 
     Raises:
-        Última exceção se todas as tentativas falharem
-
-    Exemplo:
-        from src.utils.net_retry import run_cloud_op
-        from infra.supabase_client import get_supabase
-
-        sb = get_supabase()
-        result = run_cloud_op(lambda: sb.storage.from_("bucket").list())
+        Última exceção capturada caso todas as tentativas falhem.
     """
     last_exc: Exception | None = None
     for i in range(retries + 1):
@@ -45,5 +39,9 @@ def run_cloud_op(op: Callable[[], T], retries: int = 2, base_delay: float = 0.5)
         except Exception as e:
             last_exc = e
             # segue para próxima tentativa
-    assert last_exc is not None
+    if last_exc is None:
+        raise RuntimeError("run_cloud_op failed without captured exception")
     raise last_exc
+
+
+__all__ = ["run_cloud_op"]

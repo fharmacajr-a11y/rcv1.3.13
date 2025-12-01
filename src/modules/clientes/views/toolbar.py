@@ -11,7 +11,7 @@ except Exception:
 from src.ui.components import create_search_controls
 
 
-class ClientesToolbar(tb.Frame):
+class ClientesToolbar(tb.Frame):  # type: ignore[misc]
     """Barra superior da tela de Clientes (busca, ordenação e status)."""
 
     def __init__(

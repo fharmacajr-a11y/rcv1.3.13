@@ -1,10 +1,13 @@
 # ui/theme.py
 from __future__ import annotations
 
+import logging
 import tkinter as tk
 from tkinter import font as tkfont
 
 from ttkbootstrap import Style
+
+_log = logging.getLogger(__name__)
 
 DEFAULT_THEME = "flatly"  # pode trocar para "darkly" se preferir escuro
 DEFAULT_SCALING = 1.25  # escala para monitores 125%; ajuste se necessário
@@ -25,8 +28,8 @@ def init_theme(root: tk.Tk, theme: str = DEFAULT_THEME, scaling: float = DEFAULT
     # Ajuste de escala do Tk (pontos -> pixels); ajuda em 125/150% sem distorcer fontes
     try:
         root.tk.call("tk", "scaling", scaling)
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        _log.debug("Falha ao definir tk scaling: %s", exc)
 
     style = Style(theme=theme)  # tema ttkbootstrap
 
@@ -38,7 +41,7 @@ def init_theme(root: tk.Tk, theme: str = DEFAULT_THEME, scaling: float = DEFAULT
         for name in ("TkDefaultFont", "TkTextFont", "TkMenuFont", "TkHeadingFont"):
             f = tkfont.nametofont(name)
             f.configure(family="Segoe UI", size=size)
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        _log.debug("Falha ao configurar fontes: %s", exc)
 
     return style

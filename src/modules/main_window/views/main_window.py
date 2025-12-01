@@ -92,12 +92,24 @@ import sys
 import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 import ttkbootstrap as tb
 
+from infra import supabase_auth
 from infra.net_status import Status
 from src import app_status
+from src.modules.main_window.views.state_helpers import (
+    ConnectivityState,
+    build_app_title,
+    build_user_status_suffix,
+    combine_status_display,
+    compute_connectivity_state,
+    compute_status_dot_style,
+    compute_theme_config,
+    format_version_string,
+    should_show_offline_alert,
+)
 from src.modules.login.service import AuthController
 from src.modules.notas import HubFrame
 from src.core.keybindings import bind_global_shortcuts
@@ -105,6 +117,7 @@ from src.core.navigation_controller import NavigationController
 from src.core.status_monitor import StatusMonitor
 from src.modules.clientes import ClientesFrame
 from src.modules.clientes import service as clientes_service
+from src.modules.chatgpt.views.chatgpt_window import ChatGPTWindow
 from src.modules.main_window.app_actions import AppActions
 from src.modules.main_window.controller import create_frame, navigate_to, tk_report
 from src.modules.main_window.session_service import SessionCache
@@ -113,9 +126,10 @@ from src.ui.topbar import TopBar
 from src.ui.window_policy import apply_fit_policy
 from src.ui import custom_dialogs
 from src.utils import themes
+from src.utils.themes import apply_combobox_style
 from src.utils.theme_manager import theme_manager
 from src.utils.validators import only_digits  # noqa: F401
-from uploader_supabase import send_folder_to_supabase
+from src.modules.uploads.uploader_supabase import send_folder_to_supabase
 
 # Imports internos do módulo main_window.views
 from .constants import (
@@ -172,8 +186,8 @@ class App(tb.Window):
             from src.utils.helpers import configure_hidpi_support
 
             configure_hidpi_support(self)  # Linux: aplica scaling
-        except Exception:
-            pass  # Silencioso se falhar
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao configurar HiDPI: %s", exc)
 
         # Criar separadores horizontais (idempotentes)
         # Separador 1: logo abaixo do menu (antes da toolbar)
@@ -181,7 +195,13 @@ class App(tb.Window):
             self.sep_menu_toolbar = ttk.Separator(self, orient="horizontal")
             self.sep_menu_toolbar.pack(side="top", fill="x", pady=0)
 
-        self._topbar = TopBar(self, on_home=self.show_hub_screen)
+        self._topbar: TopBar = TopBar(
+            self,
+            on_home=self.show_hub_screen,
+            on_pdf_converter=self.run_pdf_batch_converter,
+            on_chatgpt=self.open_chatgpt_window,
+            on_sites=self.show_sites_screen,
+        )
         self._topbar.pack(side="top", fill="x")
 
         # Separador 2: logo abaixo da toolbar (antes do conteúdo principal)
@@ -192,8 +212,8 @@ class App(tb.Window):
         if start_hidden:
             try:
                 self.withdraw()
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Falha ao ocultar janela: %s", exc)
 
         try:
             icon_path = resource_path(APP_ICON_PATH)
@@ -218,27 +238,34 @@ class App(tb.Window):
         self.protocol("WM_DELETE_WINDOW", self._confirm_exit)
 
         # Menubar com AppMenuBar
-        self._menu = AppMenuBar(
+        self._menu: AppMenuBar = AppMenuBar(
             self,
             on_home=self.show_hub_screen,
             on_refresh=self.refresh_current_view,
-            on_quit=self._confirm_exit,
+            on_quit=self._on_menu_logout,
             on_change_theme=self._handle_menu_theme_change,
         )
         self._menu.attach()
         try:
             self._menu.refresh_theme(_theme_name)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao atualizar tema do menu: %s", exc)
 
         try:
-            tb.Style().theme_use(_theme_name)
-        except Exception:
-            pass
+            # Criar UMA ÚNICA instância de Style para o app
+            app_style = tb.Style()
+            app_style.theme_use(_theme_name)
+            # Passar a MESMA instância para apply_combobox_style
+            apply_combobox_style(app_style)
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao aplicar tema via Style: %s", exc)
 
         self.report_callback_exception = tk_report
 
-        self.title(f"{APP_TITLE} - {APP_VERSION}")
+        # Usar helper para construir título
+        version_str = format_version_string(APP_VERSION)
+        window_title = build_app_title(APP_TITLE, version_str)
+        self.title(window_title)
 
         # --- Aplicar política Fit-to-WorkArea ---
         apply_fit_policy(self)
@@ -247,28 +274,33 @@ class App(tb.Window):
         self._restarting = False
 
         # Cache de sessão (user, role, org_id) delegado para SessionCache
-        self._session = SessionCache()
+        self._session: SessionCache = SessionCache()
 
-        self._net_is_online = True
-        self._offline_alerted = False
+        # Estado de conectividade usando helper
+        self._connectivity_state: ConnectivityState = ConnectivityState(
+            is_online=True,
+            offline_alerted=False,
+        )
 
         # Cache da instância única do Hub (evita tela branca ao navegar)
-        self._hub_screen_instance = None
+        self._hub_screen_instance: Optional[HubFrame] = None
 
         # Cache da instância única da tela de Senhas (evita tela branca ao navegar)
-        self._passwords_screen_instance = None
+        self._passwords_screen_instance: Optional[Any] = None
+        self._chatgpt_window: Optional[ChatGPTWindow] = None
 
         # Cliente Supabase (lazy-loaded quando necessário)
         try:
             from infra.supabase_client import supabase
 
-            self.supabase = supabase
+            self.supabase: Any = supabase
         except Exception:
             self.supabase = None
+        self._client: Any = getattr(self, "supabase", None)
 
-        self.clients_count_var = tk.StringVar(master=self, value="0 clientes")
-        self.status_var_dot = tk.StringVar(master=self, value="")
-        self.status_var_text = tk.StringVar(
+        self.clients_count_var: tk.StringVar = tk.StringVar(master=self, value="0 clientes")
+        self.status_var_dot: tk.StringVar = tk.StringVar(master=self, value="")
+        self.status_var_text: tk.StringVar = tk.StringVar(
             master=self,
             value=(getattr(app_status, "status_text", None) or "LOCAL"),
         )
@@ -282,21 +314,23 @@ class App(tb.Window):
 
         try:
             theme_manager.register_window(self)
-            self._theme_listener = lambda t: themes.apply_button_styles(self, theme=t)
+            self._theme_listener: Optional[Callable[[str], None]] = lambda t: themes.apply_button_styles(self, theme=t)
             theme_manager.add_listener(self._theme_listener)
         except Exception:
             self._theme_listener = None
 
         log.info("App iniciado com tema: %s", self.tema_atual)
 
-        self._content_container = tb.Frame(self)
+        self._content_container: tb.Frame = tb.Frame(self)
         self._content_container.pack(fill="both", expand=True)
-        self.nav = NavigationController(self._content_container, frame_factory=self._frame_factory)
+        self.nav: NavigationController = NavigationController(
+            self._content_container, frame_factory=self._frame_factory
+        )
 
         # --- StatusBar Global (sempre visível no rodapé) ---
         from src.ui.status_footer import StatusFooter
 
-        self.footer = StatusFooter(self, show_trash=False)
+        self.footer: StatusFooter = StatusFooter(self, show_trash=False)
         self.footer.pack(side="bottom", fill="x")
         self.footer.set_count(0)
         self.footer.set_user(None)
@@ -305,15 +339,15 @@ class App(tb.Window):
         self._status_monitor = StatusMonitor(self._handle_status_update, app_after=self.after)
         try:
             self._status_monitor.set_cloud_only(NO_FS)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao configurar cloud_only no StatusMonitor: %s", exc)
         self._status_monitor.start()
 
         # Conectar health check ao rodapé
         self._wire_session_and_health()
 
         # Auth
-        self.auth = AuthController(on_user_change=lambda user: self._refresh_status_display())
+        self.auth = AuthController(on_user_change=lambda username: self._refresh_status_display())
 
         # Actions helper (Fase 3: delegação de ações de clientes, lixeira, etc.)
         self._actions = AppActions(self, logger=log)
@@ -331,7 +365,8 @@ class App(tb.Window):
                 "lixeira": self.abrir_lixeira,
                 "subpastas": self.ver_subpastas,
                 "hub": self.show_hub_screen,
-                "find": lambda: getattr(self, "_main_frame_ref", None) and getattr(self._main_frame_ref, "_buscar", lambda: None)(),
+                "find": lambda: getattr(self, "_main_frame_ref", None)
+                and getattr(self._main_frame_ref, "_buscar", lambda: None)(),
             },
         )
 
@@ -339,18 +374,26 @@ class App(tb.Window):
         self.bind("<FocusIn>", lambda e: self._update_user_status(), add="+")
         self.show_hub_screen()
 
-    def show_frame(self, frame_cls, **kwargs):
+    def show_frame(self, frame_cls: Any, **kwargs: Any) -> Any:
         frame = self.nav.show_frame(frame_cls, **kwargs)
         try:
             self._update_topbar_state(frame)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao atualizar estado da topbar: %s", exc)
         return frame
 
-    def _frame_factory(self, frame_cls, options):
+    def _frame_factory(self, frame_cls: Any, options: dict[str, Any]) -> Any:
         return create_frame(self, frame_cls, options)
 
-    def _update_topbar_state(self, frame_or_cls) -> None:
+    def set_pick_mode_active(self, active: bool) -> None:
+        """Ativa/desativa elementos de menu durante modo seleção de clientes (FIX-CLIENTES-005)."""
+        if hasattr(self, "_topbar") and self._topbar is not None:
+            try:
+                self._topbar.set_pick_mode_active(active)
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Falha ao atualizar topbar pick mode: %s", exc)
+
+    def _update_topbar_state(self, frame_or_cls: Any) -> None:
         hub_cls = HubFrame
         is_hub = False
         try:
@@ -368,18 +411,18 @@ class App(tb.Window):
             cur = self.nav.current()
             if cur is not None:
                 is_hub = is_hub or isinstance(cur, hub_cls)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao verificar se é hub: %s", exc)
 
         try:
             self._topbar.set_is_hub(is_hub)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao atualizar estado is_hub na topbar: %s", exc)
 
         try:
             self._menu.set_is_hub(is_hub)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao atualizar estado is_hub no menu: %s", exc)
 
     def _main_screen_frame(self) -> Optional[ClientesFrame]:
         frame = getattr(self, "_main_frame_ref", None)
@@ -450,8 +493,8 @@ class App(tb.Window):
             try:
                 self.after(0, lambda: self.clients_count_var.set(text))
                 self.after(0, lambda: self.footer.set_count(total))
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Falha ao atualizar contagem de clientes: %s", exc)
 
             # Auto-refresh: agenda próxima atualização em 30s
             if auto_schedule:
@@ -460,28 +503,94 @@ class App(tb.Window):
                         30000,
                         lambda: self.refresh_clients_count_async(auto_schedule=True),
                     )
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    log.debug("Falha ao agendar auto-refresh de contagem: %s", exc)
 
         threading.Thread(target=_work, daemon=True).start()
 
-    def show_hub_screen(self) -> None:
+    def show_hub_screen(self) -> Any:
         return navigate_to(self, "hub")
 
-    def show_main_screen(self) -> None:
+    def show_main_screen(self) -> Any:
         return navigate_to(self, "main")
 
-    def show_placeholder_screen(self, title: str) -> None:
+    def show_placeholder_screen(self, title: str) -> Any:
         return navigate_to(self, "placeholder", title=title)
 
-    def show_passwords_screen(self) -> None:
+    def show_passwords_screen(self) -> Any:
         return navigate_to(self, "passwords")
 
-    def show_cashflow_screen(self) -> None:
+    def show_cashflow_screen(self) -> Any:
         return navigate_to(self, "cashflow")
 
-    def open_clients_picker(self, on_pick):
+    def show_sites_screen(self) -> Any:
+        return navigate_to(self, "sites")
+
+    def open_clients_picker(self, on_pick: Callable[[dict[str, Any]], None]) -> Any:
         return navigate_to(self, "clients_picker", on_pick=on_pick)
+
+    def _on_menu_logout(self) -> None:
+        """Handler do menu Sair: confirmação + logout + fechar app."""
+        title = "Encerrar sessão"
+        message = (
+            "Tem certeza que deseja encerrar a sessão atual?\n\n"
+            "Você precisará informar a senha novamente ao abrir o aplicativo."
+        )
+        try:
+            confirm = custom_dialogs.ask_ok_cancel(self, title, message)
+        except Exception:
+            try:
+                confirm = messagebox.askyesno(title, message, parent=self)
+            except Exception:
+                confirm = True
+        if not confirm:
+            return
+
+        try:
+            supabase_auth.logout(self._client)
+        except Exception:
+            log.warning("Falha ao realizar logout", exc_info=True)
+
+        try:
+            self.destroy()
+        except Exception as exc:  # noqa: BLE001
+            log.exception("Erro ao destruir janela: %s", exc)
+
+    # ---------- Monkey patch para Combobox.*
+    @staticmethod
+    def _patch_style_element_create(style: tb.Style) -> None:
+        """
+        Patching de segurança: ignora exclusivamente erros
+        'Duplicate element Combobox.*' gerados pelo ttkbootstrap
+        ao recriar elementos ao trocar de tema.
+        """
+        # try to get internal ttk.Style
+        internal_style = getattr(style, "style", None)
+        target = internal_style if internal_style is not None else style
+
+        # evitar patch duplicado
+        if getattr(target, "_rc_safe_element_create_patched", False):
+            return
+
+        original_element_create = target.element_create
+
+        def safe_element_create(elementname: str, etype: str, *specs, **opts):
+            try:
+                return original_element_create(elementname, etype, *specs, **opts)
+            except tk.TclError as exc:
+                msg = str(exc)
+                # Ignorar APENAS elementos duplicados do Combobox.* (downarrow, padding, etc.)
+                if "Duplicate element" in msg and elementname.startswith("Combobox."):
+                    log.debug(
+                        "Ignorando erro duplicado de %s em element_create: %s",
+                        elementname,
+                        msg,
+                    )
+                    return
+                raise
+
+        target.element_create = safe_element_create
+        target._rc_safe_element_create_patched = True
 
     # ---------- Confirmação de saída ----------
     def _confirm_exit(self, *_):
@@ -493,19 +602,43 @@ class App(tb.Window):
 
     # ---------- Tema ----------
     def _set_theme(self, new_theme: str) -> None:
-        if not new_theme or new_theme == self.tema_atual:
-            return
+        # Usar helper para calcular configuração de tema
+        config = compute_theme_config(
+            new_theme,  # requested_theme
+            self.tema_atual,  # current_theme
+            allow_persistence=not NO_FS,
+        )
+
+        if config is None:
+            return  # Sem mudança necessária
+
+        # Obter instância única de Style (reutilizar para evitar recriar)
+        # Usar __dict__ ao invés de hasattr para evitar recursão infinita com Tk.__getattr__
+        if "_style" not in self.__dict__:
+            self._style = tb.Style()
+        app_style = self._style
+
+        # Aplicar monkey patch no element_create UMA vez
+        self._patch_style_element_create(app_style)
+
         try:
-            tb.Style().theme_use(new_theme)
-            self.tema_atual = new_theme
-            if not NO_FS:
-                themes.save_theme(new_theme)
+            app_style.theme_use(config.name)
+            # Re-aplicar ajustes de combobox
+            apply_combobox_style(app_style)
+            self.tema_atual = config.name
+            if config.should_persist:
+                themes.save_theme(config.name)
             try:
                 if self._theme_listener:
-                    self._theme_listener(new_theme)
-            except Exception:
-                pass
+                    self._theme_listener(config.name)
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Falha ao notificar theme_listener: %s", exc)
         except Exception as exc:
+            msg = str(exc)
+            if "Duplicate element" in msg and "Combobox" in msg:
+                log.debug("Ignorando erro duplicado de Combobox em theme_use: %s", msg)
+                return
+            log.exception("Falha ao trocar tema: %s", exc)
             messagebox.showerror("Erro", f"Falha ao trocar tema: {exc}", parent=self)
 
     def _handle_menu_theme_change(self, name: str) -> None:
@@ -513,8 +646,8 @@ class App(tb.Window):
         self._set_theme(name)
         try:
             self._menu.refresh_theme(name)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao atualizar tema do menu após mudança: %s", exc)
 
     # ---------- Integração com Health Check e Sessão ----------
     def _wire_session_and_health(self):
@@ -530,13 +663,13 @@ class App(tb.Window):
 
                     state, _ = get_supabase_state()
                     self.footer.set_cloud(state)
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    log.debug("Falha ao obter estado da nuvem no polling: %s", exc)
                 # Reagendar polling
                 try:
                     self.after(HEALTH_POLL_INTERVAL, poll_health)
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    log.debug("Falha ao reagendar polling de health: %s", exc)
 
             # Iniciar polling
             self.after(1000, poll_health)
@@ -548,8 +681,8 @@ class App(tb.Window):
 
                 current, _ = get_supabase_state()
                 self.footer.set_cloud(current)
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Falha ao definir estado inicial da nuvem: %s", exc)
 
         except Exception as e:
             log.warning("Erro ao conectar health check: %s", e)
@@ -572,10 +705,7 @@ class App(tb.Window):
     def _refresh_status_display(self) -> None:
         base = self._status_base_text or ""
         suffix = self._user_status_suffix()
-        if not base and suffix.startswith(" | "):
-            display = suffix[3:]
-        else:
-            display = f"{base}{suffix}"
+        display = combine_status_display(base, suffix)
         self.status_var_text.set(display)
 
     def _user_status_suffix(self) -> str:
@@ -591,47 +721,68 @@ class App(tb.Window):
                 from src.core import session
 
                 email = (session.get_current_user() or "") or email
-            except Exception:
-                pass
-        return f" | Usuário: {email} ({role})" if email else ""
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Falha ao obter email de sessão fallback: %s", exc)
+        return build_user_status_suffix(email, role)
 
     def _update_status_dot(self, is_online: Optional[bool]) -> None:
+        # Calcular estilo usando helper
+        dot_style = compute_status_dot_style(is_online)
+
+        # Aplicar símbolo
         try:
             if self.status_var_dot:
-                self.status_var_dot.set("•")
-        except Exception:
-            pass
+                self.status_var_dot.set(dot_style.symbol)
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao definir texto do status_var_dot: %s", exc)
+
+        # Aplicar estilo/cor
         try:
             if self.status_dot:
-                style = "warning"
-                if is_online is True:
-                    style = "success"
-                elif is_online is False:
-                    style = "danger"
-                self.status_dot.configure(bootstyle=style)
-        except Exception:
-            pass
+                self.status_dot.configure(bootstyle=dot_style.bootstyle)
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao configurar bootstyle do status_dot: %s", exc)
 
     def _apply_online_state(self, is_online: Optional[bool]) -> None:
         if is_online is None:
             return
-        was_online = getattr(self, "_net_is_online", True)
-        self._net_is_online = bool(is_online)
+
+        # Inicializar estado se não existir (compatibilidade com testes)
+        # Usar __dict__ ao invés de hasattr para evitar recursão infinita com Tk.__getattr__
+        if "_connectivity_state" not in self.__dict__:
+            self._connectivity_state = ConnectivityState(is_online=True, offline_alerted=False)
+
+        # Guardar estado anterior para detecção de transição
+        was_online = self._connectivity_state.is_online
+
+        # Calcular novo estado usando helper
+        new_state = compute_connectivity_state(
+            current_online=self._connectivity_state.is_online,
+            new_online=bool(is_online),
+            already_alerted=self._connectivity_state.offline_alerted,
+        )
+        self._connectivity_state = new_state
+
+        # Atualizar UI de clientes
         frame = self._main_screen_frame()
         if frame:
             frame._update_main_buttons_state()
-        if not self._net_is_online and was_online and not self._offline_alerted:
-            self._offline_alerted = True
+
+        # Verificar se deve mostrar alerta usando helper
+        if should_show_offline_alert(was_online, new_state.is_online, new_state.offline_alerted):
             try:
                 messagebox.showwarning(
                     "Sem conexão",
                     "Este aplicativo exige internet para funcionar. Verifique sua conexão e tente novamente.",
                     parent=self,
                 )
-            except Exception:
-                pass
-        if self._net_is_online:
-            self._offline_alerted = False
+                # Atualizar flag de alerta mostrado
+                self._connectivity_state = ConnectivityState(
+                    is_online=new_state.is_online,
+                    offline_alerted=True,
+                )
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Falha ao exibir alerta de offline: %s", exc)
 
     def on_net_status_change(self, st: Status) -> None:
         is_online = st == Status.ONLINE
@@ -644,8 +795,8 @@ class App(tb.Window):
         try:
             if self._status_monitor:
                 self._status_monitor.set_cloud_status(online)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao definir status da nuvem: %s", exc)
 
     def set_user_status(self, email: Optional[str], role: Optional[str] = None) -> None:
         """Define informações do usuário logado na StatusBar global."""
@@ -653,8 +804,8 @@ class App(tb.Window):
             self._user_cache = {"email": email, "id": email} if email else None
             self._role_cache = role
             self._refresh_status_display()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao atualizar cache de usuário: %s", exc)
         self._refresh_status_display()
 
     def _update_user_status(self) -> None:
@@ -669,8 +820,8 @@ class App(tb.Window):
         if "Usuário:" not in txt:
             try:
                 self.after(STATUS_REFRESH_INTERVAL, self._schedule_user_status_refresh)
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Falha ao agendar refresh de status de usuário: %s", exc)
 
     def novo_cliente(self) -> None:
         """Delegador para AppActions.novo_cliente."""
@@ -719,8 +870,8 @@ class App(tb.Window):
 
             # Formato idêntico ao open_files_browser: {org_id}/{client_id}
             return f"{org_id}/{client_id}".strip("/")
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao construir caminho de storage: %s", exc)
 
         return ""
 
@@ -743,6 +894,55 @@ class App(tb.Window):
                 f"Erro ao enviar pasta para Supabase:\n{exc}",
                 parent=self,
             )
+
+    def run_pdf_batch_converter(self) -> None:
+        """Delegador para AppActions.run_pdf_batch_converter."""
+        self._actions.run_pdf_batch_converter()
+
+    def open_chatgpt_window(self) -> None:
+        """Abre ou traz para frente a janela do ChatGPT."""
+        window = getattr(self, "_chatgpt_window", None)
+        try:
+            if window is not None and window.winfo_exists():
+                window.show()
+                return
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao focar janela do ChatGPT: %s", exc)
+            self._chatgpt_window = None
+
+        # Criar nova janela com callback para limpar referência ao fechar
+        window = ChatGPTWindow(self, on_close_callback=self._on_chatgpt_close)
+        self._chatgpt_window = window
+
+        try:
+            # Registrar WM_DELETE_WINDOW para capturar fechamento pela barra de título
+            window.protocol("WM_DELETE_WINDOW", self._close_chatgpt_window)
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao registrar handler de fechamento do ChatGPT: %s", exc)
+
+        try:
+            window.bind("<Destroy>", lambda event: self._on_chatgpt_destroy(window), add="+")
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao vincular destroy do ChatGPT: %s", exc)
+
+    def _on_chatgpt_close(self) -> None:
+        """Callback chamado quando a janela do ChatGPT é fechada."""
+        self._chatgpt_window = None
+
+    def _close_chatgpt_window(self) -> None:
+        """Fecha a janela do ChatGPT."""
+        window = getattr(self, "_chatgpt_window", None)
+        try:
+            if window is not None and window.winfo_exists():
+                window.destroy()
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao destruir janela do ChatGPT: %s", exc)
+        finally:
+            self._chatgpt_window = None
+
+    def _on_chatgpt_destroy(self, window: ChatGPTWindow) -> None:
+        if self._chatgpt_window is window:
+            self._chatgpt_window = None
 
     # -------- Sessao / usuario --------
     def _get_user_cached(self) -> Optional[dict[str, Any]]:
@@ -777,7 +977,7 @@ class App(tb.Window):
     def _restart_app(self) -> None:
         self._restarting = True
         self.destroy()
-        os.execv(sys.executable, [sys.executable, "-m", "main"])
+        os.execv(sys.executable, [sys.executable, "-m", "main"])  # nosec B606 - reinício local do app com argumentos controlados
 
     def destroy(self) -> None:
         if getattr(self, "_status_monitor", None):
@@ -785,8 +985,8 @@ class App(tb.Window):
                 status_monitor = getattr(self, "_status_monitor", None)
                 if status_monitor is not None:
                     status_monitor.stop()
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Falha ao parar StatusMonitor: %s", exc)
             finally:
                 self._status_monitor = None
         if getattr(self, "_theme_listener", None):
@@ -794,8 +994,8 @@ class App(tb.Window):
                 listener = getattr(self, "_theme_listener", None)
                 if listener is not None:
                     theme_manager.remove_listener(listener)
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Falha ao remover theme_listener: %s", exc)
         super().destroy()
         if getattr(self, "_restarting", False):
             log.info("App reiniciado (troca de tema).")
@@ -842,5 +1042,5 @@ try:
     App.editar_cliente = _log_call(App.editar_cliente)
     App.ver_subpastas = _log_call(App.ver_subpastas)
     App.enviar_para_supabase = _log_call(App.enviar_para_supabase)
-except Exception:
-    pass
+except Exception as exc:  # noqa: BLE001
+    log.debug("Falha ao aplicar decoradores de log: %s", exc)

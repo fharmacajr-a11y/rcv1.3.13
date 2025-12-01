@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import logging
 import os
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 from src.config.paths import CLOUD_ONLY
 from src.core import classify_document
@@ -21,6 +22,10 @@ __all__ = [
     "format_datetime",
 ]
 
+PathLike = str | Path
+
+log = logging.getLogger(__name__)
+
 try:
     from pypdf import PdfReader
 
@@ -29,7 +34,7 @@ except ImportError:
     pdfmod = False
 
 
-def _read_pdf_text_pypdf(p: Path) -> Optional[str]:
+def _read_pdf_text_pypdf(p: Path) -> str | None:
     """Extrai texto de PDF usando pypdf."""
     if not pdfmod:
         return None
@@ -49,7 +54,7 @@ def _read_pdf_text_pypdf(p: Path) -> Optional[str]:
         return None
 
 
-def _read_pdf_text_pymupdf(p: Path) -> Optional[str]:
+def _read_pdf_text_pymupdf(p: Path) -> str | None:
     try:
         import fitz  # PyMuPDF
     except Exception:
@@ -67,7 +72,7 @@ def _read_pdf_text_pymupdf(p: Path) -> Optional[str]:
         return None
 
 
-def _ocr_pdf_with_pymupdf(p: Path, max_pages: int = 5, dpi: int = 200) -> Optional[str]:
+def _ocr_pdf_with_pymupdf(p: Path, max_pages: int = 5, dpi: int = 200) -> str | None:
     try:
         import fitz  # PyMuPDF
         import pytesseract
@@ -96,7 +101,7 @@ def _ocr_pdf_with_pymupdf(p: Path, max_pages: int = 5, dpi: int = 200) -> Option
         return None
 
 
-def read_pdf_text(path: str | Path) -> Optional[str]:
+def read_pdf_text(path: PathLike) -> str | None:
     """
     Extrai texto de PDF usando estratégia de fallback em cascata.
 
@@ -144,7 +149,7 @@ def _looks_like_cartao_cnpj(text: str) -> bool:
     return has_cnpj and has_kw
 
 
-def find_cartao_cnpj_pdf(base: str | Path, max_mb: int = 10) -> Optional[Path]:
+def find_cartao_cnpj_pdf(base: PathLike, max_mb: int = 10) -> Path | None:
     base = Path(base)
     if not base.exists():
         return None
@@ -168,8 +173,8 @@ def find_cartao_cnpj_pdf(base: str | Path, max_mb: int = 10) -> Optional[Path]:
     return None
 
 
-def list_and_classify_pdfs(base: str | Path) -> list[dict]:
-    docs: list[dict] = []
+def list_and_classify_pdfs(base: PathLike) -> list[dict[str, Any]]:
+    docs: list[dict[str, Any]] = []
     base = Path(base)
     for p in base.rglob("*.pdf"):
         if not p.is_file():
@@ -182,7 +187,7 @@ def list_and_classify_pdfs(base: str | Path) -> list[dict]:
 MARKER_NAME = ".rc_client_id"
 
 
-def write_marker(pasta: str, cliente_id: int) -> str:
+def write_marker(pasta: PathLike, cliente_id: int) -> str:
     if not CLOUD_ONLY:
         os.makedirs(pasta, exist_ok=True)
     marker = os.path.join(pasta, MARKER_NAME)
@@ -192,7 +197,7 @@ def write_marker(pasta: str, cliente_id: int) -> str:
     return marker
 
 
-def read_marker_id(pasta: str) -> str | None:
+def read_marker_id(pasta: PathLike) -> str | None:
     marker_new = os.path.join(pasta, MARKER_NAME)
     if os.path.exists(marker_new):
         try:
@@ -200,7 +205,7 @@ def read_marker_id(pasta: str) -> str | None:
                 val = f.read().strip()
             return val or None
         except Exception:
-            pass
+            log.debug("Falha ao ler marker %s", marker_new, exc_info=True)
 
     try:
         for fname in os.listdir(pasta):
@@ -215,7 +220,7 @@ def read_marker_id(pasta: str) -> str | None:
     return None
 
 
-def migrate_legacy_marker(pasta: str) -> str | None:
+def migrate_legacy_marker(pasta: PathLike) -> str | None:
     client_id = read_marker_id(pasta)
     if not client_id:
         return None
@@ -228,19 +233,19 @@ def migrate_legacy_marker(pasta: str) -> str | None:
             try:
                 os.remove(os.path.join(pasta, fname))
             except OSError:
-                pass
+                log.debug("Falha ao remover marker antigo em %s", pasta, exc_info=True)
     os.utime(marker_new, None)
     return marker_new
 
 
-def get_marker_updated_at(pasta: str) -> datetime | None:
+def get_marker_updated_at(pasta: PathLike) -> datetime | None:
     marker = os.path.join(pasta, MARKER_NAME)
     if not os.path.exists(marker):
         return None
     return datetime.fromtimestamp(os.path.getmtime(marker))
 
 
-def format_datetime(dt_obj) -> str:
+def format_datetime(dt_obj: datetime | str | None) -> str:
     if not dt_obj:
         return ""
     if isinstance(dt_obj, str):

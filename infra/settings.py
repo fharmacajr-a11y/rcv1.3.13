@@ -7,7 +7,7 @@ import json
 import logging
 from pathlib import Path
 from threading import RLock
-from typing import Any, Dict
+from typing import Any, Mapping
 
 try:
     from src.config.paths import APP_DATA, CLOUD_ONLY  # type: ignore
@@ -20,13 +20,15 @@ except Exception:  # pragma: no cover - fallback when src package is unavailable
 
 log = logging.getLogger(__name__)
 
-_SETTINGS_FILE = Path(APP_DATA) / "settings.json"
-_LOCK = RLock()
-_CACHE: Dict[str, Any] | None = None
-_MEMORY_STORE: Dict[str, Any] = {}
+SettingsStore = dict[str, Any]
+
+_SETTINGS_FILE: Path = Path(APP_DATA) / "settings.json"
+_LOCK: RLock = RLock()
+_CACHE: SettingsStore | None = None
+_MEMORY_STORE: SettingsStore = {}
 
 
-def _load_from_disk() -> Dict[str, Any]:
+def _load_from_disk() -> SettingsStore:
     if not _SETTINGS_FILE.exists():
         return {}
     try:
@@ -38,7 +40,7 @@ def _load_from_disk() -> Dict[str, Any]:
         return {}
 
 
-def _read_store() -> Dict[str, Any]:
+def _read_store() -> SettingsStore:
     global _CACHE
     with _LOCK:
         if CLOUD_ONLY:
@@ -54,13 +56,13 @@ def get_value(key: str, default: Any = None) -> Any:
     return store.get(key, default)
 
 
-def update_values(mapping: Dict[str, Any]) -> None:
+def update_values(mapping: Mapping[str, Any]) -> None:
     """Merge a mapping of settings and persist them."""
     if not isinstance(mapping, dict):
         return
     with _LOCK:
         store = _read_store()
-        store.update(mapping)
+        store.update(dict(mapping))
         _write_store(store)
 
 
@@ -75,7 +77,7 @@ def set_value(key: str, value: Any) -> None:
         _write_store(store)
 
 
-def _write_store(store: Dict[str, Any]) -> None:
+def _write_store(store: SettingsStore) -> None:
     global _CACHE
     if CLOUD_ONLY:
         _MEMORY_STORE.clear()

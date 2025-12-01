@@ -1,0 +1,192 @@
+from __future__ import annotations
+
+import logging
+import tkinter as tk
+from tkinter import ttk
+from typing import Optional
+from src.modules.main_window.views.constants import APP_ICON_PATH
+from src.modules.main_window.views.helpers import resource_path
+
+logger = logging.getLogger(__name__)
+
+
+def apply_app_icon(window: tk.Toplevel, parent: tk.Misc | None) -> None:
+    """Apply the RC app icon to the given toplevel, mirroring the main window."""
+    try:
+        icon_path = resource_path(APP_ICON_PATH)
+    except Exception:
+        icon_path = ""
+
+    if icon_path:
+        try:
+            window.iconbitmap(icon_path)
+            return
+        except Exception:  # noqa: BLE001
+            try:
+                img = tk.PhotoImage(file=icon_path)
+                window.iconphoto(True, img)
+                window._rc_icon_img = img  # type: ignore[attr-defined]
+                return
+            except Exception as inner_exc:  # noqa: BLE001
+                logger.debug("Falha ao aplicar iconphoto no dialogo PDF: %s", inner_exc)
+
+    try:
+        if parent is not None:
+            current_icon = parent.iconbitmap()
+            if current_icon:
+                window.iconbitmap(current_icon)
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Falha ao reaproveitar icone do parent no dialogo PDF: %s", exc)
+
+
+class _BaseDialog(tk.Toplevel):
+    def __init__(self, parent: tk.Misc, title: str) -> None:
+        super().__init__(parent)
+        self._parent = parent
+        self.title(title)
+        self.transient(parent)
+        self.grab_set()
+        self.resizable(False, False)
+
+        try:
+            apply_app_icon(self, parent)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao configurar icone no dialogo base: %s", exc)
+
+    def center_on_parent(self) -> None:
+        self.update_idletasks()
+        parent = self._parent
+        if parent is not None:
+            px = parent.winfo_rootx()
+            py = parent.winfo_rooty()
+            pw = parent.winfo_width()
+            ph = parent.winfo_height()
+            w = self.winfo_width()
+            h = self.winfo_height()
+            x = px + (pw - w) // 2
+            y = py + (ph - h) // 2
+        else:
+            sw = self.winfo_screenwidth()
+            sh = self.winfo_screenheight()
+            w = self.winfo_width()
+            h = self.winfo_height()
+            x = (sw - w) // 2
+            y = (sh - h) // 2
+
+        self.geometry(f"+{x}+{y}")
+
+
+DELETE_IMAGES_MESSAGE = (
+    "Deseja excluir as imagens originais (JPG/JPEG/PNG) de cada subpasta ap\u00f3s gerar os PDFs?\n\n"
+    "Se voc\u00ea clicar em 'Sim', os arquivos de imagem ser\u00e3o apagados, deixando apenas o PDF em cada subpasta."
+)
+
+
+class PDFDeleteImagesConfirmDialog(_BaseDialog):
+    """Dialogo de confirmacao em linha com os demais dialogs do Conversor PDF."""
+
+    def __init__(self, parent: tk.Misc) -> None:
+        super().__init__(parent, "Conversor PDF")
+        self._result: Optional[str] = None
+
+        content = ttk.Frame(self, padding=16)
+        content.pack(fill="both", expand=True)
+
+        icon_frame = ttk.Frame(content)
+        icon_frame.grid(row=0, column=0, padx=(4, 16), pady=(0, 8), sticky="n")
+
+        question_label = ttk.Label(icon_frame, text="?", font=("Segoe UI", 26, "bold"))
+        question_label.pack()
+
+        message_label = ttk.Label(
+            content,
+            text=DELETE_IMAGES_MESSAGE,
+            wraplength=440,
+            anchor="w",
+            justify="left",
+        )
+        message_label.grid(row=0, column=1, padx=(0, 8), pady=(0, 8), sticky="w")
+        content.columnconfigure(1, weight=1)
+
+        buttons = ttk.Frame(content)
+        buttons.grid(row=1, column=0, columnspan=2, pady=(12, 0), sticky="e")
+
+        btn_cancel = ttk.Button(buttons, text="Cancelar", command=self.on_cancel)
+        btn_cancel.pack(side="left", padx=(0, 8))
+
+        btn_no = ttk.Button(buttons, text="N\u00e3o", command=self.on_no)
+        btn_no.pack(side="left", padx=(0, 8))
+
+        btn_yes = ttk.Button(buttons, text="Sim", command=self.on_yes)
+        btn_yes.pack(side="left")
+
+        btn_cancel.focus_set()
+
+        self.bind("<Return>", lambda _: self.on_yes())
+        self.bind("<Escape>", lambda _: self.on_cancel())
+        self.protocol("WM_DELETE_WINDOW", self.on_cancel)
+
+        self.center_on_parent()
+        try:
+            self.focus_force()
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao focar dialogo de confirmacao PDF: %s", exc)
+
+    def on_yes(self) -> None:
+        self._result = "yes"
+        self.destroy()
+
+    def on_no(self) -> None:
+        self._result = "no"
+        self.destroy()
+
+    def on_cancel(self) -> None:
+        self._result = "cancel"
+        self.destroy()
+
+    def show(self) -> Optional[str]:
+        self.wait_window(self)
+        return self._result
+
+
+def ask_delete_images(parent: tk.Misc) -> Optional[str]:
+    dialog = PDFDeleteImagesConfirmDialog(parent)
+    return dialog.show()
+
+
+class PDFConversionResultDialog(_BaseDialog):
+    def __init__(self, parent: tk.Misc, message: str) -> None:
+        super().__init__(parent, "Conversor PDF")
+
+        content = ttk.Frame(self, padding=16)
+        content.pack(fill="both", expand=True)
+
+        message_label = ttk.Label(
+            content,
+            text=message,
+            wraplength=520,
+            anchor="w",
+            justify="left",
+        )
+        message_label.pack(fill="both", expand=True, pady=(0, 12))
+
+        button = ttk.Button(content, text="OK", command=self.on_ok)
+        button.pack(side="right")
+
+        self.bind("<Return>", lambda _: self.on_ok())
+        self.bind("<Escape>", lambda _: self.on_ok())
+        self.protocol("WM_DELETE_WINDOW", self.on_ok)
+
+        self.center_on_parent()
+        try:
+            self.focus_force()
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao focar dialogo de resultado PDF: %s", exc)
+
+    def on_ok(self) -> None:
+        self.destroy()
+
+
+def show_conversion_result(parent: tk.Misc, message: str) -> None:
+    dialog = PDFConversionResultDialog(parent, message)
+    parent.wait_window(dialog)

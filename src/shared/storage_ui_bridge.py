@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import logging
 import os
-from typing import Any, Optional
+from typing import Any, Mapping, Optional
 
 # Tenta importar a janela de arquivos usada pelo módulo Clientes
 try:
@@ -11,9 +12,15 @@ try:
 except Exception:
     open_files_browser = None  # type: ignore[assignment]
 
+logger = logging.getLogger(__name__)
+
 
 def get_clients_bucket() -> str:
-    """Retorna o nome do bucket de clientes."""
+    """
+    Retorna o nome do bucket de clientes resolvido a partir de RC_STORAGE_BUCKET_CLIENTS (padrão rc-docs).
+
+    Mantém compatibilidade com o files_browser, que assume "rc-docs" quando não há configuração.
+    """
     # O files_browser usa "rc-docs" hardcoded
     bucket = os.getenv("RC_STORAGE_BUCKET_CLIENTS", "rc-docs")
     return bucket.strip() if bucket else "rc-docs"
@@ -21,10 +28,9 @@ def get_clients_bucket() -> str:
 
 def client_prefix_for_id(client_id: int | str, org_id: str = "") -> str:
     """
-    Monta o prefixo do cliente no Storage.
+    Monta o prefixo de pasta do cliente no storage.
 
-    O padrão do files_browser é: {org_id}/{client_id}
-    Mas suporta override via RC_STORAGE_CLIENTS_FOLDER_FMT.
+    Usa formato padrão {org_id}/{client_id} ou RC_STORAGE_CLIENTS_FOLDER_FMT quando presente.
     """
     fmt = os.getenv("RC_STORAGE_CLIENTS_FOLDER_FMT", "").strip()
     if fmt:
@@ -38,8 +44,12 @@ def client_prefix_for_id(client_id: int | str, org_id: str = "") -> str:
             return str(client_id)
 
 
-def _get_org_id_from_supabase(sb) -> Optional[str]:  # type: ignore[no-untyped-def]
-    """Obtém org_id do usuário logado via Supabase."""
+def _get_org_id_from_supabase(sb: Any) -> Optional[str]:
+    """
+    Obtém o org_id do usuário logado via cliente Supabase fornecido.
+
+    Retorna None quando não há usuário ou em caso de exceção.
+    """
     try:
         user = sb.auth.get_user()
         if not user or not user.user:
@@ -50,25 +60,34 @@ def _get_org_id_from_supabase(sb) -> Optional[str]:  # type: ignore[no-untyped-d
         res = sb.table("users").select("org_id").eq("id", uid).limit(1).execute()
         if getattr(res, "data", None) and res.data[0].get("org_id"):
             return res.data[0]["org_id"]
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Falha ao obter org_id via Supabase para janela de arquivos: %s", exc)
     return None
 
 
-def _client_title(row: dict[str, Any]) -> tuple[str, str]:
-    """Extrai razao_social e cnpj do cliente."""
-    nome = row.get("razao_social") or row.get("legal_name") or row.get("name") or row.get("display_name") or f"Cliente #{row.get('id')}"
+def _client_title(row: Mapping[str, Any]) -> tuple[str, str]:
+    """
+    Extrai razão social (ou equivalente) e cnpj do cliente a partir do registro retornado do storage/db.
+
+    Usa campos comuns (razao_social/legal_name/name/display_name) com fallback para "Cliente #{id}".
+    """
+    nome = (
+        row.get("razao_social")
+        or row.get("legal_name")
+        or row.get("name")
+        or row.get("display_name")
+        or f"Cliente #{row.get('id')}"
+    )
     cnpj = row.get("cnpj") or row.get("tax_id") or ""
     return nome, cnpj
 
 
-def open_client_files_window(parent, sb, client_id: int) -> None:  # type: ignore[no-untyped-def]
+def open_client_files_window(parent: Any, sb: Any, client_id: int) -> None:
     """
-    Abre a mesma janela de arquivos usada em Clientes para o client_id informado.
+    Abre a janela de arquivos usada em Clientes para o client_id informado.
 
-    Usa open_files_browser de src.ui.files_browser (janela completa com visualizar PDF,
-    baixar arquivo, baixar pasta .zip, etc). Se a janela não puder ser aberta, exibe
-    um aviso informando a falha.
+    Lida com modo offline, ausência de registro do cliente, exceções de busca
+    e falhas ao abrir o browser externo, exibindo mensagens apropriadas.
     """
     if not sb:
         from tkinter import messagebox

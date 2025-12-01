@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""
-Gerenciamento de versão do RC-Gestor.
-"""
+"""Gerenciamento de versão do RC-Gestor."""
 
 import os
 
-__version__ = "v1.2.0"
+# Fonte única de verdade da versão do aplicativo.
+__version__ = "v1.3.28"
+APP_VERSION = __version__
 
 
 def get_version() -> str:
@@ -15,7 +15,7 @@ def get_version() -> str:
     Pode ser sobrescrita via variável de ambiente RC_APP_VERSION.
 
     Returns:
-        str: Versão do aplicativo no formato "v1.2.0"
+        str: Versão do aplicativo no formato "v1.3.28"
     """
     try:
         return os.getenv("RC_APP_VERSION", __version__)

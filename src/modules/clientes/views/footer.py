@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import tkinter as tk
 from typing import Callable, Optional
 
@@ -10,8 +11,10 @@ except Exception:
 
 from src.ui.components import create_footer_buttons
 
+logger = logging.getLogger(__name__)
 
-class ClientesFooter(tb.Frame):
+
+class ClientesFooter(tb.Frame):  # type: ignore[misc]
     """Barra inferior com botões de ações da tela de Clientes."""
 
     def __init__(
@@ -23,6 +26,10 @@ class ClientesFooter(tb.Frame):
         on_subpastas: Callable[[], None],
         on_enviar_supabase: Callable[[], None],
         on_enviar_pasta: Callable[[], None],
+        on_excluir: Optional[Callable[[], None]] = None,
+        on_batch_delete: Callable[[], None],
+        on_batch_restore: Callable[[], None],
+        on_batch_export: Callable[[], None],
     ) -> None:
         super().__init__(master)
 
@@ -33,6 +40,11 @@ class ClientesFooter(tb.Frame):
             on_subpastas=on_subpastas,
             on_enviar=on_enviar_supabase,
             on_enviar_pasta=on_enviar_pasta,
+            on_excluir=on_excluir,
+            # Batch desabilitado na UI principal de clientes
+            on_batch_delete=None,
+            on_batch_restore=None,
+            on_batch_export=None,
         )
         buttons.frame.pack(fill="x", padx=0, pady=0)
 
@@ -40,10 +52,15 @@ class ClientesFooter(tb.Frame):
         self.btn_editar = buttons.editar
         self.btn_subpastas = buttons.subpastas
         self.btn_enviar = buttons.enviar
+        self.btn_excluir = buttons.excluir
         self.enviar_menu = buttons.enviar_menu
+        self.btn_batch_delete = buttons.batch_delete
+        self.btn_batch_restore = buttons.batch_restore
+        self.btn_batch_export = buttons.batch_export
 
         self._uploading_busy = False
         self._send_button_prev_text: Optional[str] = None
+        self._pick_prev_states: dict[tk.Widget, str] = {}  # Estado dos botões antes do pick mode
 
         # Alias para compatibilidade
         self.frame = buttons.frame
@@ -61,15 +78,61 @@ class ClientesFooter(tb.Frame):
                 if self.btn_enviar:
                     self._send_button_prev_text = self.btn_enviar.cget("text")
                     self.btn_enviar.configure(text="Enviando…")
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Falha ao ajustar texto de envio durante upload: %s", exc)
         else:
             try:
                 if self.btn_enviar and self._send_button_prev_text is not None:
                     self.btn_enviar.configure(text=self._send_button_prev_text)
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Falha ao restaurar texto do botao de envio: %s", exc)
             self._send_button_prev_text = None
+
+    def _iter_pick_buttons(self) -> list[tk.Widget]:
+        """Lista exatamente os botões do rodapé que devem ser controlados em pick mode."""
+        buttons = []
+        # Adiciona apenas os botões que existem e não são None
+        for btn in [self.btn_novo, self.btn_editar, self.btn_subpastas, self.btn_enviar]:
+            if btn is not None:
+                buttons.append(btn)
+        return buttons
+
+    def enter_pick_mode(self) -> None:
+        """Desabilita botões do rodapé em modo seleção de clientes (FIX-CLIENTES-007)."""
+        logger.debug("FIX-007: ClientesFooter.enter_pick_mode()")
+
+        # Salva estado original e desabilita
+        for btn in self._iter_pick_buttons():
+            try:
+                if btn not in self._pick_prev_states:
+                    current_state = str(btn["state"])
+                    self._pick_prev_states[btn] = current_state
+                btn.configure(state="disabled")
+            except (tk.TclError, KeyError, AttributeError) as exc:
+                logger.debug(
+                    "Ignorando falha ao desabilitar botão %r em pick mode: %s",
+                    btn,
+                    exc,
+                )
+
+    def leave_pick_mode(self) -> None:
+        """Restaura estados dos botões do rodapé após sair do modo seleção (FIX-CLIENTES-007)."""
+        logger.debug("FIX-007: ClientesFooter.leave_pick_mode()")
+
+        # Restaura estados originais
+        for btn in self._iter_pick_buttons():
+            try:
+                prev = self._pick_prev_states.get(btn)
+                if prev is not None:
+                    btn.configure(state=prev)
+            except (tk.TclError, KeyError, AttributeError) as exc:
+                logger.debug(
+                    "Ignorando falha ao restaurar botão %r após pick mode: %s",
+                    btn,
+                    exc,
+                )
+
+        self._pick_prev_states.clear()
 
 
 __all__ = ["ClientesFooter"]

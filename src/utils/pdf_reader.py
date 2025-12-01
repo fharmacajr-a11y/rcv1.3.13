@@ -52,6 +52,6 @@ def read_pdf_text(path: str, max_pages: int = 3) -> str:
     finally:
         try:
             doc.close()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Falha ao fechar documento PDF %s", path, exc_info=exc)
     return "\n".join(texts)

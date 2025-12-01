@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 import tkinter as tk
 from tkinter import ttk
-from typing import Callable, Optional
+from typing import Callable, Literal, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class AuditoriaToolbar(ttk.Frame):
@@ -41,8 +44,8 @@ class AuditoriaToolbar(ttk.Frame):
             if self._search_after_id:
                 try:
                     self.after_cancel(self._search_after_id)
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug("Falha ao cancelar debounce da busca em AuditoriaToolbar: %s", exc)
 
             def _dispatch() -> None:
                 if on_search_change:
@@ -81,7 +84,7 @@ class AuditoriaListPanel(ttk.Labelframe):
         ui_padx: int = 8,
         ui_pady: int = 6,
         on_tree_select: Optional[Callable[[tk.Event], None]] = None,
-        on_open_status_menu: Optional[Callable[[tk.Event], None]] = None,
+        on_open_status_menu: Optional[Callable[[tk.Event], Literal["break"] | None]] = None,
         on_start_auditoria: Optional[Callable[[], None]] = None,
         on_view_subpastas: Optional[Callable[[], None]] = None,
         on_upload_files: Optional[Callable[[], None]] = None,

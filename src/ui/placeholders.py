@@ -2,12 +2,15 @@
 # gui/placeholders.py
 from __future__ import annotations
 
+import logging
 import tkinter.font as tkfont
 from typing import Protocol, Type
 
 import ttkbootstrap as tb
 
 __all__ = ["PlaceholderType"]
+
+_log = logging.getLogger(__name__)
 
 
 class _BackCb(Protocol):
@@ -44,8 +47,8 @@ class _BasePlaceholder(tb.Frame):
 
         try:
             self.master.pack_propagate(False)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao desabilitar pack_propagate: %s", exc)
 
 
 class AnvisaPlaceholder(_BasePlaceholder):
@@ -90,5 +93,5 @@ except NameError:
 
 try:
     __all__.append("ComingSoonScreen")  # type: ignore[attr-defined]
-except Exception:
-    pass
+except Exception as exc:  # noqa: BLE001
+    _log.debug("Falha ao adicionar ComingSoonScreen a __all__: %s", exc)

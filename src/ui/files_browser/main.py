@@ -50,7 +50,7 @@ TESTING:
 ────────
 - Cobertura: ~2% direto (parte de UI não testada unit)
 - Integração: testado via test_ui_components.py
-- Smoke tests manuais em scripts/
+- Smoke tests manuais em docs/scripts/
 
 REFACTORING NOTES:
 ─────────────────
@@ -156,14 +156,14 @@ def open_files_browser(
                 existing.lift()
                 existing.focus_force()
             except Exception:
-                pass
+                _log.debug("Falha ao restaurar janela existente")
             if start_prefix:
                 navigate_fn = getattr(existing, "_navigate_to_prefix", None)
                 if callable(navigate_fn):
                     try:
                         navigate_fn(start_prefix.strip("/"))
                     except Exception:
-                        pass
+                        _log.debug("Falha ao navegar para prefixo %s", start_prefix)
             return existing
         _OPEN_WINDOWS.pop(window_key, None)
 
@@ -205,7 +205,7 @@ def open_files_browser(
             if docs_window.winfo_exists():
                 docs_window.after(ms, fn)
         except Exception:
-            pass
+            _log.debug("Falha ao agendar after em docs_window")
 
     if is_auditoria_context:
         title = f"Arquivos: {razao_clean} – {cnpj_fmt} – ID {client_id}"
@@ -215,7 +215,7 @@ def open_files_browser(
     try:
         docs_window.iconbitmap(resource_path("rc.ico"))
     except Exception:
-        pass
+        _log.debug("Falha ao configurar ícone da janela")
 
     # Guardar raiz e prefixo atual para navegaÃ§Ã£o
     docs_window._org_id = org_id  # type: ignore[attr-defined]
@@ -440,7 +440,7 @@ def open_files_browser(
         if "_fullpath" in tree["columns"]:
             tree.column("_fullpath", width=0, stretch=False, minwidth=0)
     except Exception:
-        pass
+        _log.debug("Falha ao configurar coluna _fullpath")
 
     # Scrollbars (vertical e horizontal)
     scroll_y = ttk.Scrollbar(tree_container, orient="vertical", command=tree.yview)
@@ -477,7 +477,7 @@ def open_files_browser(
         try:
             tree.set(iid, "_fullpath", full_path)
         except Exception:
-            pass
+            _log.debug("Falha ao definir _fullpath para item %s", iid)
         return iid
 
     def _get_item_fullpath(iid: str) -> str:
@@ -511,13 +511,13 @@ def open_files_browser(
             try:
                 tree.set(iid, "status", glyph)
             except Exception:
-                pass
+                _log.debug("Falha ao definir status para item %s", iid)
         try:
             repo = getattr(docs_window, "repo", None)
             if repo and hasattr(repo, "set_folder_status"):
                 repo.set_folder_status(full_path, status)
         except Exception:
-            pass
+            _log.debug("Falha ao persistir status da pasta %s", full_path)
 
     def _cycle_folder_status(iid: str) -> None:
         if not enable_status_column:
@@ -585,7 +585,7 @@ def open_files_browser(
         try:
             tree.selection_set(row)
         except Exception:
-            pass
+            _log.debug("Falha ao selecionar linha %s", row)
         docs_window._ctx_iid = row  # type: ignore[attr-defined]
         menu = _ensure_status_menu()
         try:
@@ -594,7 +594,7 @@ def open_files_browser(
             try:
                 menu.grab_release()
             except Exception:
-                pass
+                _log.debug("Falha ao liberar grab do menu")
 
     # FunÃ§Ã£o de ordenaÃ§Ã£o da Treeview
     def _sort_tree(col: str, reverse: bool = False):
@@ -674,28 +674,35 @@ def open_files_browser(
                 status_map = getattr(docs_window, "_folder_status", {})
                 if isinstance(status_map, dict):
                     save_browser_status_map(key, status_map)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao persistir estado em _persist_state_on_close: %s", exc)
 
     def _on_close() -> None:
         if getattr(docs_window, "_is_closing", False):
             return
         docs_window._is_closing = True  # type: ignore[attr-defined]
-        for name in ("btn_visualizar", "btn_baixar", "btn_zip", "btn_excluirsel", "btn_delete_files", "btn_delete_folder"):
+        for name in (
+            "btn_visualizar",
+            "btn_baixar",
+            "btn_zip",
+            "btn_excluirsel",
+            "btn_delete_files",
+            "btn_delete_folder",
+        ):
             btn = getattr(docs_window, name, None)
             if btn is not None:
                 try:
                     btn.configure(state="disabled")
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    _log.debug("Falha ao desabilitar botão %s em _on_close: %s", name, exc)
         window_key = getattr(docs_window, "_window_key", None)
         if window_key is not None:
             _OPEN_WINDOWS.pop(window_key, None)
         _persist_state_on_close()
         try:
             _original_destroy()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao executar _original_destroy: %s", exc)
 
     # Botão "Carregar mais" (lado esquerdo)
     btn_load_more = ttk.Button(
@@ -738,16 +745,16 @@ def open_files_browser(
             if btn_delete_folder is not None:
                 btn_delete_folder.configure(state="disabled")
             path_var.set(f"Supabase: {BUCKET}/{docs_window._current_prefix} (sem arquivos)")  # type: ignore[attr-defined]
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao definir estado vazio de ações: %s", exc)
 
     def _set_actions_normal_state() -> None:
         try:
             btn_baixar.configure(state="normal")
             try:
                 btn_zip.configure(state="normal")
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                _log.debug("Falha ao habilitar btn_zip: %s", exc)
             btn_visualizar.configure(state="disabled")
             if btn_excluirsel is not None:
                 btn_excluirsel.configure(state="disabled")
@@ -757,8 +764,8 @@ def open_files_browser(
                 btn_delete_folder.configure(state="disabled")
             _sync_path_label()
             docs_window._current_root = docs_window._current_prefix  # type: ignore[attr-defined]
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao definir estado normal de ações: %s", exc)
 
     # Aliases para funções do módulo utils (manter compatibilidade interna)
     _format_size = format_file_size
@@ -773,8 +780,8 @@ def open_files_browser(
     def _toast_error(message: str) -> None:
         try:
             messagebox.showerror("Erro", message, parent=docs_window)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao exibir mensagem de erro: %s", exc)
 
     def _destino_zip(remote_key: str) -> str | None:
         initial_dir = getattr(docs_window, "_last_download_dir", None) or str(Path.home() / "Downloads")
@@ -975,8 +982,8 @@ def open_files_browser(
 
             try:
                 _safe_after(0, finish)
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                _log.debug("Falha ao agendar finish em _populate_tree_async: %s", exc)
 
         _executor.submit(work)
 
@@ -1045,22 +1052,22 @@ def open_files_browser(
         if parent_iid != "":
             try:
                 btn_load_more.grid_remove()
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                _log.debug("Falha ao remover btn_load_more do grid: %s", exc)
             return
 
         # Habilitar/desabilitar conforme há mais itens
         if offset >= len(all_children):
             try:
                 btn_load_more.configure(state="disabled")
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                _log.debug("Falha ao desabilitar btn_load_more: %s", exc)
         else:
             try:
                 btn_load_more.configure(state="normal")
                 btn_load_more.grid()
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                _log.debug("Falha ao habilitar/mostrar btn_load_more: %s", exc)
 
     def _populate_children_async(parent_iid: str, rel_prefix: str) -> None:
         if not tree.exists(parent_iid):
@@ -1113,7 +1120,8 @@ def open_files_browser(
 
             try:
                 _safe_after(0, finish)
-            except Exception:
+            except Exception as exc:  # noqa: BLE001
+                _log.debug("Falha ao agendar finish em _populate_children_async: %s", exc)
                 loading_nodes.discard(parent_iid)
 
         _executor.submit(work)
@@ -1277,13 +1285,13 @@ def open_files_browser(
                 if error is None:
                     try:
                         messagebox.showinfo("Sucesso", "Arquivo baixado!", parent=docs_window)
-                    except Exception:
-                        pass
+                    except Exception as exc:  # noqa: BLE001
+                        _log.debug("Falha ao exibir mensagem de sucesso em download: %s", exc)
                 else:
                     try:
                         messagebox.showerror("Erro", f"Falha ao baixar: {error}", parent=docs_window)
-                    except Exception:
-                        pass
+                    except Exception as exc:  # noqa: BLE001
+                        _log.debug("Falha ao exibir mensagem de erro em download: %s", exc)
 
             # Executar download em thread de fundo
             def _worker():
@@ -1321,16 +1329,16 @@ def open_files_browser(
         except Exception as exc:
             _log.exception("Falha ao escolher destino do ZIP", exc_info=exc)
             try:
-                ("Não foi possível carregar este arquivo.",)
-            except Exception:
-                pass
+                messagebox.showerror("Erro", "Não foi possível carregar este arquivo.", parent=docs_window)
+            except Exception as exc2:  # noqa: BLE001
+                _log.debug("Falha ao exibir erro de destino ZIP: %s", exc2)
             return
 
         if not destino_zip:
             try:
                 messagebox.showinfo("ZIP", "Operacao cancelada.", parent=docs_window)
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                _log.debug("Falha ao exibir mensagem de cancelamento ZIP: %s", exc)
             return
 
         wait: tk.Toplevel | None = None
@@ -1347,8 +1355,8 @@ def open_files_browser(
             wait.transient(docs_window)
             try:
                 wait.iconbitmap(resource_path("rc.ico"))
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                _log.debug("Falha ao definir ícone em wait ZIP: %s", exc)
             wait.grab_set()
 
             frm = ttk.Frame(wait, padding=12)
@@ -1379,8 +1387,8 @@ def open_files_browser(
                 try:
                     pb.stop()
                     pb.configure(mode="determinate", value=0, maximum=100)
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    _log.debug("Falha ao parar progressbar em _do_cancel: %s", exc)
                 cancel_event.set()
 
             btn_cancel.configure(command=_do_cancel)
@@ -1401,16 +1409,16 @@ def open_files_browser(
             def _on_zip_finished(future):
                 try:
                     pb.stop()
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    _log.debug("Falha ao parar pb em _on_zip_finished: %s", exc)
                 try:
                     wait.grab_release()
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    _log.debug("Falha ao liberar grab em _on_zip_finished: %s", exc)
                 try:
                     wait.destroy()
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    _log.debug("Falha ao destruir wait em _on_zip_finished: %s", exc)
 
                 btn_zip.configure(state="normal")
 
@@ -1423,8 +1431,8 @@ def open_files_browser(
                             "Voce cancelou o download.",
                             parent=docs_window,
                         )
-                    except Exception:
-                        pass
+                    except Exception as exc:  # noqa: BLE001
+                        _log.debug("Falha ao exibir mensagem de cancelamento: %s", exc)
                 except TimeoutError:
                     try:
                         messagebox.showerror(
@@ -1432,13 +1440,13 @@ def open_files_browser(
                             "O servidor nao respondeu a tempo (conexao ou leitura). Verifique sua internet e tente novamente.",
                             parent=docs_window,
                         )
-                    except Exception:
-                        pass
+                    except Exception as exc:  # noqa: BLE001
+                        _log.debug("Falha ao exibir mensagem de timeout: %s", exc)
                 except Exception as err:
                     try:
                         messagebox.showerror("Erro ao baixar pasta", str(err), parent=docs_window)
-                    except Exception:
-                        pass
+                    except Exception as exc:  # noqa: BLE001
+                        _log.debug("Falha ao exibir mensagem de erro genérico: %s", exc)
                 else:
                     try:
                         messagebox.showinfo(
@@ -1446,42 +1454,42 @@ def open_files_browser(
                             f"ZIP salvo em\n{destino}",
                             parent=docs_window,
                         )
-                    except Exception:
-                        pass
+                    except Exception as exc:  # noqa: BLE001
+                        _log.debug("Falha ao exibir mensagem de sucesso ZIP: %s", exc)
 
                 try:
                     docs_window.lift()
                     docs_window.attributes("-topmost", True)
                     _safe_after(200, lambda: docs_window.attributes("-topmost", False))
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    _log.debug("Falha ao trazer janela para frente após ZIP: %s", exc)
 
             def _dispatch_done(future):
                 try:
                     _safe_after(0, lambda: _on_zip_finished(future))
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    _log.debug("Falha ao agendar _on_zip_finished: %s", exc)
 
             fut.add_done_callback(_dispatch_done)
         except Exception as exc:
             if wait is not None:
                 try:
                     wait.grab_release()
-                except Exception:
-                    pass
+                except Exception as exc2:  # noqa: BLE001
+                    _log.debug("Falha ao liberar grab em exception handler: %s", exc2)
                 try:
                     wait.destroy()
-                except Exception:
-                    pass
+                except Exception as exc2:  # noqa: BLE001
+                    _log.debug("Falha ao destruir wait em exception handler: %s", exc2)
             try:
                 btn_zip.configure(state="normal")
-            except Exception:
-                pass
+            except Exception as exc2:  # noqa: BLE001
+                _log.debug("Falha ao reabilitar btn_zip em exception handler: %s", exc2)
             _log.exception("Erro ao iniciar download da pasta como ZIP", exc_info=exc)
             try:
                 messagebox.showerror("Baixar pasta", f"Falha ao baixar pasta\n{exc}", parent=docs_window)
-            except Exception:
-                pass
+            except Exception as exc2:  # noqa: BLE001
+                _log.debug("Falha ao exibir erro final em on_zip_folder: %s", exc2)
 
     btn_zip.configure(command=on_zip_folder)
 

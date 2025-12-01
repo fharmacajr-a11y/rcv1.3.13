@@ -6,7 +6,7 @@ from typing import Any, Sequence
 
 
 def fetch_clients(sb: Any) -> list[dict[str, Any]]:
-    """Return ordered list of clients from Supabase."""
+    """Return ordered list of clients from Supabase (dict rows only)."""
 
     res = sb.table("clients").select("*").order("id").execute()
     data = getattr(res, "data", None) or []
@@ -14,15 +14,20 @@ def fetch_clients(sb: Any) -> list[dict[str, Any]]:
 
 
 def fetch_auditorias(sb: Any) -> list[dict[str, Any]]:
-    """Return ordered list of auditorias from Supabase."""
+    """Return ordered list of auditorias from Supabase (dict rows only)."""
 
-    res = sb.table("auditorias").select("id, status, created_at, updated_at, cliente_id").order("updated_at", desc=True).execute()
+    res = (
+        sb.table("auditorias")
+        .select("id, status, created_at, updated_at, cliente_id")
+        .order("updated_at", desc=True)
+        .execute()
+    )
     data = getattr(res, "data", None) or []
     return [row for row in data if isinstance(row, dict)]
 
 
 def insert_auditoria(sb: Any, payload: dict[str, Any]) -> Any:
-    """Insert a new auditoria record."""
+    """Insert a new auditoria record and return execution result."""
 
     return sb.table("auditorias").insert(payload).execute()
 
@@ -30,11 +35,13 @@ def insert_auditoria(sb: Any, payload: dict[str, Any]) -> Any:
 def update_auditoria(sb: Any, auditoria_id: str, status: str) -> Any:
     """Update auditoria status and return selection result."""
 
-    return sb.table("auditorias").update({"status": status}).eq("id", auditoria_id).select("status, updated_at").execute()
+    return (
+        sb.table("auditorias").update({"status": status}).eq("id", auditoria_id).select("status, updated_at").execute()
+    )
 
 
 def delete_auditorias(sb: Any, auditoria_ids: Sequence[str]) -> None:
-    """Delete a batch of auditorias."""
+    """Delete a batch of auditorias (no-op when list is empty)."""
 
     if not auditoria_ids:
         return

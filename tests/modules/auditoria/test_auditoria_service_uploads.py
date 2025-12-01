@@ -78,8 +78,10 @@ def test_prepare_archive_plan_uses_extract_archive_stub(monkeypatch, tmp_path):
     monkeypatch.setattr(auditoria_service, "extract_archive_to", fake_extract)
 
     plan = auditoria_service.prepare_archive_plan(archive)
-
-    assert any(entry.relative_path == "Arquivo.pdf" for entry in plan.entries)
+    try:
+        assert any(entry.relative_path == "Arquivo.pdf" for entry in plan.entries)
+    finally:
+        plan.cleanup()
 
 
 def test_execute_archive_upload_renames_duplicates(monkeypatch, tmp_path):
