@@ -83,16 +83,21 @@ class ClientesViewModel:
         self._rebuild_rows()
 
     # ------------------------------------------------------------------ #
-    # Filtros públicos
+    # Filtros públicos (LEGACY)
     # ------------------------------------------------------------------ #
+    # MS-3: Estes métodos são mantidos para compatibilidade com testes existentes.
+    # MainScreen usa exclusivamente main_screen_controller.compute_main_screen_state
+    # para filtros/ordenação. Uso direto destes métodos na UI é desencorajado.
 
     def set_search_text(self, text: str, *, rebuild: bool = True) -> None:
+        """LEGACY: Mantido para testes. MainScreen usa controller para filtros."""
         self._search_text_raw = (text or "").strip()
         self._search_text_norm = normalize_search(text or "")
         if rebuild:
             self._rebuild_rows()
 
     def set_status_filter(self, status: Optional[str], *, rebuild: bool = True) -> None:
+        """LEGACY: Mantido para testes. MainScreen usa controller para filtros."""
         raw = (status or "").strip()
         self._status_filter = raw or None
         self._status_filter_norm = raw.lower() or None
@@ -100,6 +105,7 @@ class ClientesViewModel:
             self._rebuild_rows()
 
     def set_order_label(self, label: str, *, rebuild: bool = True) -> None:
+        """LEGACY: Mantido para testes. MainScreen usa controller para ordenação."""
         if label:
             self._order_label = label
         if rebuild:
@@ -126,10 +132,17 @@ class ClientesViewModel:
         return body
 
     # ------------------------------------------------------------------ #
-    # Consultas
+    # Consultas (LEGACY)
     # ------------------------------------------------------------------ #
+    # MS-3: get_rows() mantido para testes. MainScreen usa _clientes_raw +
+    # controller para obter lista filtrada/ordenada.
 
     def get_rows(self) -> List[ClienteRow]:
+        """LEGACY: Retorna linhas já filtradas/ordenadas pelo ViewModel.
+        
+        MainScreen não usa mais este método - acessa _clientes_raw diretamente
+        e delega filtros/ordenação ao controller headless.
+        """
         return list(self._rows)
 
     def get_status_choices(self) -> List[str]:
@@ -169,8 +182,10 @@ class ClientesViewModel:
         # TODO: Implementar exportação real (CSV/Excel) em fase futura
 
     # ------------------------------------------------------------------ #
-    # Implementação interna
+    # Implementação interna (LEGACY)
     # ------------------------------------------------------------------ #
+    # MS-3: Métodos de filtragem/ordenação interna mantidos para testes.
+    # MainScreen não depende mais desta pipeline - usa controller headless.
 
     def _resolve_order_preferences(self) -> tuple[Optional[str], bool]:
         column = None

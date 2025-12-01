@@ -772,11 +772,8 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
 
         log.info("Atualizando lista (busca='%s', ordem='%s')", search_term, order_label)
 
-        # Nota MS-2: Ainda precisamos chamar refresh_from_service para carregar dados do backend
-        # O ViewModel faz a busca no serviço, mas não aplicaremos seus filtros internos
-        self._vm.set_order_label(order_label, rebuild=False)
-        self._vm.set_search_text(search_term, rebuild=False)
-
+        # MS-3: ViewModel apenas carrega dados brutos do backend.
+        # Controller (compute_main_screen_state) aplica filtros/ordenação.
         try:
             self._vm.refresh_from_service()
 
@@ -874,10 +871,8 @@ class MainScreenFrame(tb.Frame):  # pyright: ignore[reportGeneralTypeIssues]
         if resolved != current:
             self.var_status.set(resolved)
 
-    def _refresh_list_from_vm(self) -> None:
-        self._current_rows = self._vm.get_rows()
-
-        self._render_clientes(self._current_rows)
+    # MS-3: Método _refresh_list_from_vm() removido - não é mais usado.
+    # MainScreen usa exclusivamente _refresh_with_controller() para atualizar lista.
 
     def _row_values_masked(self, row: ClienteRow) -> tuple[Any, ...]:
         mapping = {
