@@ -29,3 +29,16 @@ def mover_cliente_para_lixeira(cliente_id: int) -> bool:
     """
     # TODO: Implement actual service logic
     return False
+
+
+def extrair_dados_cartao_cnpj_em_pasta(pasta: str) -> dict[str, Any]:
+    """Extrai dados do cartão CNPJ em uma pasta.
+
+    Args:
+        pasta: Caminho da pasta
+
+    Returns:
+        Dict com dados extraídos
+    """
+    # TODO: Implement actual service logic
+    return {}
