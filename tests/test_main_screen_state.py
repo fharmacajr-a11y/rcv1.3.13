@@ -6,9 +6,9 @@ import sys
 from unittest import mock
 
 # Mock tkinter before importing anything from src
-sys.modules['tkinter'] = mock.MagicMock()
-sys.modules['tkinter.messagebox'] = mock.MagicMock()
-sys.modules['tkinter.filedialog'] = mock.MagicMock()
+sys.modules["tkinter"] = mock.MagicMock()
+sys.modules["tkinter.messagebox"] = mock.MagicMock()
+sys.modules["tkinter.filedialog"] = mock.MagicMock()
 
 from src.modules.clientes.views.main_screen_controller import (
     MainScreenState,

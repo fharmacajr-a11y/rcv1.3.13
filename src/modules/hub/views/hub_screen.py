@@ -59,10 +59,6 @@ class HubScreen(tk.Frame):
             True se os widgets existem e são válidos, False caso contrário
         """
         try:
-            return (
-                self.winfo_exists()
-                and self.notes_history is not None
-                and self.notes_history.winfo_exists()
-            )
+            return self.winfo_exists() and self.notes_history is not None and self.notes_history.winfo_exists()
         except Exception:
             return False
