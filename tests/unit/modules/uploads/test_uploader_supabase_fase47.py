@@ -7,10 +7,13 @@ cobrindo fluxos interativos de envio ao Supabase, erros esperados e casos de bor
 
 from __future__ import annotations
 
+from pathlib import Path
 import types
+
 import pytest
 
 import src.modules.uploads.uploader_supabase as uploader_supabase
+from src.modules.uploads.file_validator import FileValidationResult
 
 
 def _stub_messagebox(monkeypatch, askyesno_return=True):
@@ -40,6 +43,36 @@ def _stub_filedialog(monkeypatch, files=None, folder=None):
     )
     monkeypatch.setattr(uploader_supabase, "filedialog", fd)
     return fd
+
+
+def _make_upload_items(*names: str):
+    return [types.SimpleNamespace(path=Path(name), relative_path=name) for name in names]
+
+
+@pytest.fixture(autouse=True)
+def _stub_validate_upload_files(monkeypatch: pytest.MonkeyPatch):
+    """Evita tocar no disco em testes de upload_files_to_supabase."""
+
+    def _fake_validate(paths, **kwargs):
+        results = []
+        for path in paths:
+            file_path = Path(path)
+            ext = file_path.suffix or ".pdf"
+            results.append(
+                FileValidationResult(
+                    valid=True,
+                    path=file_path,
+                    size_bytes=1,
+                    extension=ext,
+                )
+            )
+        return results, []
+
+    monkeypatch.setattr(
+        uploader_supabase,
+        "validate_upload_files",
+        _fake_validate,
+    )
 
 
 def test_send_to_supabase_interactive_sem_cliente_retorna_zero(monkeypatch):
@@ -99,7 +132,7 @@ def test_send_to_supabase_interactive_caminho_feliz_chama_upload(monkeypatch):
     _stub_filedialog(monkeypatch, files=["a.pdf", "b.pdf"])
     monkeypatch.setattr(uploader_supabase, "_resolve_selected_cliente", lambda app: (10, {"CNPJ": "789"}))
     monkeypatch.setattr(uploader_supabase, "ensure_client_saved_or_abort", lambda app, cid: True)
-    items = [{"relative_path": "a.pdf"}, {"relative_path": "b.pdf"}]
+    items = _make_upload_items("a.pdf", "b.pdf")
     monkeypatch.setattr(uploader_supabase, "build_items_from_files", lambda paths: items)
     called = {}
 
@@ -130,7 +163,12 @@ def test_upload_files_to_supabase_sem_items(monkeypatch):
 def test_upload_files_to_supabase_confirma_false(monkeypatch):
     calls = _stub_messagebox(monkeypatch)
     monkeypatch.setattr(uploader_supabase, "_confirm_large_volume", lambda parent, total: False)
-    result = uploader_supabase.upload_files_to_supabase(object(), {"cnpj": "123"}, [{"relative_path": "a"}], None)
+    result = uploader_supabase.upload_files_to_supabase(
+        object(),
+        {"cnpj": "123"},
+        _make_upload_items("a.pdf"),
+        None,
+    )
     assert result == (0, 0)
     assert not calls["warning"]
 
@@ -139,7 +177,7 @@ def test_upload_files_to_supabase_sem_cnpj_mostra_warning(monkeypatch):
     calls = _stub_messagebox(monkeypatch)
     monkeypatch.setattr(uploader_supabase, "_confirm_large_volume", lambda parent, total: True)
     monkeypatch.setattr(uploader_supabase, "_upload_batch", lambda *a, **k: pytest.fail("nao deve chamar"))
-    items = [{"relative_path": "a"}, {"relative_path": "b"}]
+    items = _make_upload_items("a.pdf", "b.pdf")
 
     ok, errors = uploader_supabase.upload_files_to_supabase(object(), {"cnpj": ""}, items, None)
 
@@ -160,12 +198,14 @@ def test_upload_files_to_supabase_sucesso_com_bucket_e_org(monkeypatch):
     monkeypatch.setattr(
         uploader_supabase,
         "_show_upload_summary",
-        lambda ok_count, failed_paths, parent=None: captured.__setitem__("summary", (ok_count, failed_paths)),
+        lambda ok_count, failed_items, parent=None, validation_errors=None: captured.__setitem__(
+            "summary", (ok_count, failed_items)
+        ),
     )  # noqa: E501
     monkeypatch.setattr(
         uploader_supabase, "uploads_service", types.SimpleNamespace()
     )  # silence real service usage in summary
-    items = [{"relative_path": "a"}]
+    items = _make_upload_items("a.pdf")
 
     class AppStub:
         supabase = object()
@@ -224,7 +264,7 @@ def test_upload_files_to_supabase_usa_bucket_padrao_no_batch(monkeypatch):
 
     monkeypatch.setattr(uploader_supabase.uploads_service, "upload_items_for_client", fake_upload_items)
 
-    item = types.SimpleNamespace(relative_path="file.pdf")
+    item = types.SimpleNamespace(path=Path("file.pdf"), relative_path="file.pdf")
     ok, failures = uploader_supabase._upload_batch(
         app=types.SimpleNamespace(supabase=None),
         items=[item],
@@ -274,7 +314,7 @@ def test_send_folder_to_supabase_caminho_feliz(monkeypatch):
     _stub_filedialog(monkeypatch, folder="/tmp/dircliente")
     monkeypatch.setattr(uploader_supabase, "_resolve_selected_cliente", lambda app: (9, {"CNPJ": "999"}))
     monkeypatch.setattr(uploader_supabase, "ensure_client_saved_or_abort", lambda app, cid: True)
-    items = [{"relative_path": "dircliente/a.pdf"}]
+    items = _make_upload_items("dircliente/a.pdf")
     monkeypatch.setattr(uploader_supabase, "collect_pdfs_from_folder", lambda folder: items)
     captured = {}
 

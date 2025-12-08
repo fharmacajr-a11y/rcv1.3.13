@@ -426,8 +426,8 @@ def test_start_health_checker_online_iteration(db_client, monkeypatch):
     monkeypatch.setattr(db_client.threading, "Thread", FakeThread)
     monkeypatch.setattr(db_client.time, "sleep", lambda *_: (_ for _ in ()).throw(StopIteration()))
 
-    with pytest.raises(StopIteration):
-        db_client._start_health_checker()
+    # StopIteration agora é tratada internamente, não vaza da thread
+    db_client._start_health_checker()
 
 
 def test_start_health_checker_offline_iteration(db_client, monkeypatch):
@@ -447,8 +447,8 @@ def test_start_health_checker_offline_iteration(db_client, monkeypatch):
     monkeypatch.setattr(db_client.threading, "Thread", FakeThread)
     monkeypatch.setattr(db_client.time, "sleep", lambda *_: (_ for _ in ()).throw(StopIteration()))
 
-    with pytest.raises(StopIteration):
-        db_client._start_health_checker()
+    # StopIteration agora é tratada internamente, não vaza da thread
+    db_client._start_health_checker()
 
 
 def test_start_health_checker_exception_branch(db_client, monkeypatch):
@@ -474,8 +474,8 @@ def test_start_health_checker_exception_branch(db_client, monkeypatch):
     monkeypatch.setattr(db_client.time, "time", lambda: next(times))
     monkeypatch.setattr(db_client.time, "sleep", lambda *_: (_ for _ in ()).throw(StopIteration()))
 
-    with pytest.raises(StopIteration):
-        db_client._start_health_checker()
+    # StopIteration agora é tratada internamente, não vaza da thread
+    db_client._start_health_checker()
 
 
 def test_start_health_checker_unstable_warning(db_client, monkeypatch):
@@ -508,8 +508,8 @@ def test_start_health_checker_unstable_warning(db_client, monkeypatch):
 
     monkeypatch.setattr(db_client.time, "sleep", fake_sleep)
 
-    with pytest.raises(StopIteration):
-        db_client._start_health_checker()
+    # StopIteration agora é tratada internamente, não vaza da thread
+    db_client._start_health_checker()
     assert any("inst" in msg.lower() for msg in warnings)
 
 
@@ -540,8 +540,11 @@ def test_start_health_checker_unstable_no_threshold_hit(db_client, monkeypatch):
     monkeypatch.setattr(db_client.time, "time", lambda: next(times))
     monkeypatch.setattr(db_client.time, "sleep", fake_sleep)
 
-    with pytest.raises(StopIteration):
-        db_client._start_health_checker()
+    # Agora StopIteration é tratada internamente, não deve vazar da thread
+    db_client._start_health_checker()
+
+    # Valida que foram feitas 2 chamadas de sleep (thread encerrou corretamente)
+    assert sleep_calls["n"] == 2
 
 
 def test_start_health_checker_exception_after_last_bad(db_client, monkeypatch):
@@ -579,8 +582,10 @@ def test_start_health_checker_exception_after_last_bad(db_client, monkeypatch):
     monkeypatch.setattr(db_client.time, "time", lambda: next(time_seq))
     monkeypatch.setattr(db_client.time, "sleep", fake_sleep)
 
-    with pytest.raises(StopIteration):
-        db_client._start_health_checker()
+    # StopIteration agora é tratada internamente, não vaza da thread
+    db_client._start_health_checker()
+    # Valida que sleep foi chamado 2 vezes (thread encerrou corretamente)
+    assert sleep_count["n"] == 2
 
 
 def test_get_supabase_double_check_branch(db_client, monkeypatch):

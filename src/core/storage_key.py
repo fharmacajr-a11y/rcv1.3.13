@@ -7,8 +7,9 @@ from __future__ import annotations
 
 import hashlib
 import re
-import unicodedata as ud
 from typing import Final
+
+from src.core.text_normalization import normalize_ascii, strip_diacritics as _strip_diacritics
 
 _ALLOWED_RE: Final[re.Pattern[str]] = re.compile(r"^(\w|/|!|-|\.|\*|'|\(|\)| |&|\$|@|=|;|:|\+|,|\?)*$")
 
@@ -19,18 +20,13 @@ __all__ = [
 ]
 
 
-def _strip_diacritics(value: str | None) -> str:
-    if not value:
-        return ""
-    normalized = ud.normalize("NFD", value)
-    without_marks = "".join(ch for ch in normalized if ud.category(ch) != "Mn")
-    return ud.normalize("NFC", without_marks)
-
-
 def _ascii_only(value: str | None) -> str:
-    if not value:
-        return ""
-    return value.encode("ascii", "ignore").decode("ascii")
+    """
+    Converts a value to string, strips diacritics, and encodes as ASCII.
+
+    Wrapper mantido para compatibilidade interna. Delega para normalize_ascii do core.
+    """
+    return normalize_ascii(value)
 
 
 def storage_slug_part(part: str | None) -> str:

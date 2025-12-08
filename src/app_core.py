@@ -236,7 +236,7 @@ def abrir_pasta(app: Any, pk: int) -> None:
         _safe_messagebox(
             "showinfo",
             "Somente Nuvem",
-            "Este app está em modo somente nuvem.\nUse o botão 'Ver Subpastas' para navegar e baixar arquivos do Supabase.",
+            "Este app está em modo somente nuvem.\nUse o botão 'Subpastas (Supabase)' para navegar e baixar arquivos do Supabase.",
         )
         return
 
@@ -253,19 +253,19 @@ def abrir_pasta(app: Any, pk: int) -> None:
         log.exception("Failed to open file explorer for %s", path)
 
 
-def ver_subpastas(app: Any, pk: int) -> None:
+def open_client_local_subfolders(app: Any, pk: int) -> None:
     """Abre a UI de subpastas locais configuradas para o cliente."""
     if NO_FS:
         _safe_messagebox(
             "showinfo",
             "Subpastas",
-            "Navegação de pastas locais desativada.\nUse 'Ver Subpastas' na tela principal (Supabase).",
+            "Navegação de pastas locais desativada.\nUse 'Subpastas (Supabase)' na tela principal.",
         )
         return
 
     path = _ensure_live_folder_ready(pk)
     try:
-        from src.ui.subpastas.dialog import open_subpastas_dialog
+        from src.modules.clientes.forms import open_subpastas_dialog
         from src.utils.subpastas_config import load_subpastas_config
 
         subpastas, extras = load_subpastas_config()
@@ -274,6 +274,11 @@ def ver_subpastas(app: Any, pk: int) -> None:
         subpastas, extras = [], []
 
     open_subpastas_dialog(app, path, subpastas, extras)
+
+
+def ver_subpastas(app: Any, pk: int) -> None:
+    """DEPRECATED: mantenha compatibilidade com o nome antigo."""
+    open_client_local_subfolders(app, pk)
 
 
 # ---------------------------------------------------------------------------
@@ -286,7 +291,7 @@ def abrir_lixeira_ui(app: Any, *args: Any, **kwargs: Any) -> None:
 
     if abrir_fn is None:
         try:
-            from src.ui.lixeira import abrir_lixeira as _abrir
+            from src.modules.lixeira.views.lixeira import abrir_lixeira as _abrir
 
             abrir_fn = _abrir
         except Exception:
@@ -325,5 +330,6 @@ __all__ = [
     "editar_cliente",
     "excluir_cliente",
     "novo_cliente",
+    "open_client_local_subfolders",
     "ver_subpastas",
 ]

@@ -6,6 +6,7 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Any
 
+from src.ui.window_utils import show_centered
 from src.utils.resource_path import resource_path
 
 logger = logging.getLogger(__name__)
@@ -30,30 +31,13 @@ def _apply_icon(window: tk.Toplevel) -> None:
         logger.debug("Falha ao configurar icone do dialogo: %s", exc)
 
 
-def _center_on_parent(window: tk.Toplevel, parent: tk.Widget) -> None:
-    try:
-        window.update_idletasks()
-        parent.update_idletasks()
-        px = parent.winfo_rootx()
-        py = parent.winfo_rooty()
-        pw = parent.winfo_width()
-        ph = parent.winfo_height()
-        ww = window.winfo_reqwidth()
-        wh = window.winfo_reqheight()
-        x = px + (pw - ww) // 2
-        y = py + (ph - wh) // 2
-        window.geometry(f"{ww}x{wh}+{x}+{y}")
-    except Exception as exc:  # noqa: BLE001
-        logger.debug("Falha ao centralizar custom dialog: %s", exc)
-
-
 def show_info(parent: tk.Widget, title: str, message: str) -> None:
     """Mostra um diálogo de informação com ícone do app."""
     top = tk.Toplevel(parent)
+    top.withdraw()
     top.title(title)
     top.resizable(False, False)
     top.transient(parent)
-    top.grab_set()
     _apply_icon(top)
 
     content = ttk.Frame(top, padding=15)
@@ -86,11 +70,13 @@ def show_info(parent: tk.Widget, title: str, message: str) -> None:
 
     top.bind("<Return>", _close)
     top.bind("<Escape>", _close)
-    _center_on_parent(top, parent)
     try:
+        top.update_idletasks()
+        show_centered(top)
+        top.grab_set()
         top.focus_force()
     except Exception as exc:  # noqa: BLE001
-        logger.debug("Falha ao focar dialogo de info: %s", exc)
+        logger.debug("Falha ao exibir dialogo de info: %s", exc)
     top.wait_window()
 
 
@@ -99,10 +85,10 @@ def ask_ok_cancel(parent: tk.Widget, title: str, message: str) -> bool:
     result = {"ok": False}
 
     top = tk.Toplevel(parent)
+    top.withdraw()
     top.title(title)
     top.resizable(False, False)
     top.transient(parent)
-    top.grab_set()
     _apply_icon(top)
 
     content = ttk.Frame(top, padding=15)
@@ -153,11 +139,13 @@ def ask_ok_cancel(parent: tk.Widget, title: str, message: str) -> bool:
 
     top.bind("<Return>", _ok)
     top.bind("<Escape>", _cancel)
-    _center_on_parent(top, parent)
     try:
+        top.update_idletasks()
+        show_centered(top)
+        top.grab_set()
         top.focus_force()
     except Exception as exc:  # noqa: BLE001
-        logger.debug("Falha ao focar dialogo OK/Cancelar: %s", exc)
+        logger.debug("Falha ao exibir dialogo OK/Cancelar: %s", exc)
     top.wait_window()
     return bool(result["ok"])
 

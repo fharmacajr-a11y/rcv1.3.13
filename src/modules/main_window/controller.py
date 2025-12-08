@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from tkinter import messagebox
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 import time
 
@@ -10,7 +10,9 @@ from src.modules.notas import HubFrame
 
 log = logging.getLogger("app_gui")
 
-__all__ = ["create_frame", "navigate_to", "tk_report"]
+__all__ = ["create_frame", "navigate_to", "tk_report", "start_client_pick_mode"]
+
+LEGACY_PICK_MODE_BANNER_TEXT = "Modo seleção: escolha um cliente para continuar"
 
 
 def _forget_widget(widget: Optional[Any]) -> None:
@@ -126,8 +128,9 @@ def _show_main(app: Any) -> Any:
         on_edit=app.editar_cliente,
         on_delete=app._excluir_cliente,
         on_upload=app.enviar_para_supabase,
-        on_open_subpastas=app.ver_subpastas,
+        on_open_subpastas=app.open_client_storage_subfolders,
         on_open_lixeira=app.abrir_lixeira,
+        on_obrigacoes=app.abrir_obrigacoes_cliente,
         order_choices=ORDER_CHOICES,
         default_order_label=DEFAULT_ORDER_LABEL,
         on_upload_folder=app.enviar_pasta_supabase,
@@ -215,17 +218,27 @@ def _show_passwords(app: Any) -> Any:
     return frame
 
 
-def _open_clients_picker(app: Any, on_pick) -> None:
-    def _return_to_passwords():
-        navigate_to(app, "passwords")
+def _open_clients_picker(app: Any, on_pick, return_to=None, banner_text: Optional[str] = None) -> None:
+    """
+    Entrada legada para o modo seleção de clientes.
 
-    navigate_to(app, "main")
+    DEPRECATED: Prefer start_client_pick_mode() em novos fluxos. Esta função existe
+    apenas para manter compatibilidade com chamadas antigas de navigate_to(..., "clients_picker").
+    """
+    if return_to is None:
 
-    frame = getattr(app, "_main_frame_ref", None)
-    if frame is not None and hasattr(frame, "start_pick"):
-        frame.start_pick(on_pick=on_pick, return_to=_return_to_passwords)
-    else:
-        messagebox.showwarning("Ateno", "Tela de clientes no est disponvel.")
+        def _return_to_passwords() -> None:
+            navigate_to(app, "passwords")
+
+        return_to = _return_to_passwords
+
+    effective_banner = banner_text or LEGACY_PICK_MODE_BANNER_TEXT
+    start_client_pick_mode(
+        app,
+        on_client_picked=on_pick,
+        banner_text=effective_banner,
+        return_to=return_to,
+    )
 
 
 def _show_auditoria(app: Any) -> Any:
@@ -236,6 +249,51 @@ def _show_auditoria(app: Any) -> Any:
         AuditoriaFrame,
         go_back=lambda: navigate_to(app, "hub"),
     )
+
+
+def start_client_pick_mode(
+    app: Any,
+    on_client_picked: Callable[[dict[str, Any]], None],
+    banner_text: str,
+    return_to: Optional[Callable[[], None]] = None,
+) -> None:
+    """
+    API pública para iniciar modo seleção de clientes com callback customizado.
+
+    Args:
+        app: Instância do aplicativo principal
+        on_client_picked: Callback chamado quando cliente é selecionado
+        banner_text: Texto do banner exibido no modo seleção
+        return_to: Callback opcional para retornar após seleção/cancelamento
+
+    Uso:
+        # Para Senhas:
+        start_client_pick_mode(
+            app,
+            on_client_picked=self._handle_client_picked_for_passwords,
+            banner_text="Modo seleção: escolha um cliente para gerenciar senhas",
+            return_to=lambda: navigate_to(app, "passwords")
+        )
+
+        # Para Obrigações:
+        start_client_pick_mode(
+            app,
+            on_client_picked=self._handle_client_picked_for_obligations,
+            banner_text="Modo seleção: escolha um cliente para gerenciar obrigações",
+            return_to=lambda: navigate_to(app, "hub")
+        )
+    """
+    # Navegar para tela de clientes
+    navigate_to(app, "main")
+
+    # Obter frame de clientes
+    frame = getattr(app, "_main_frame_ref", None)
+    if frame is None or not hasattr(frame, "start_pick"):
+        messagebox.showwarning("Atenção", "Tela de clientes não está disponível.")
+        return
+
+    # Iniciar modo pick com callback customizado
+    frame.start_pick(on_pick=on_client_picked, return_to=return_to, banner_text=banner_text)
 
 
 def navigate_to(app: Any, target: str, **kwargs) -> Any:

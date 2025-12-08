@@ -31,7 +31,8 @@ class PdfToolbar(ttk.Frame):
     ) -> None:
         super().__init__(master)
 
-        self.var_text = tk.BooleanVar(value=False)
+        self._on_toggle_text = on_toggle_text
+        self.var_text = tk.BooleanVar(master=self, value=False)
 
         ttk.Button(self, text="\u2212", width=3, command=on_zoom_out).pack(side="left", padx=(8, 0), pady=6)
         ttk.Button(self, text="100%", command=on_zoom_100).pack(side="left", padx=4, pady=6)
@@ -43,15 +44,16 @@ class PdfToolbar(ttk.Frame):
         self.lbl_zoom = ttk.Label(self, text="100%")
         self.lbl_zoom.pack(side="left", padx=6)
 
-        self.chk_text = ttk.Checkbutton(
-            self,
-            text="Texto",
-            variable=self.var_text,
-            command=lambda: on_toggle_text(self.var_text.get()),
-        )
+        self.chk_text = ttk.Checkbutton(self, text="Texto", variable=self.var_text, command=self._handle_toggle_text)
         self.chk_text.pack(side="left", padx=12)
 
         self.btn_download_pdf = ttk.Button(self, text="Baixar PDF", command=on_download_pdf)
         self.btn_download_pdf.pack(side="right", padx=8, pady=6)
         self.btn_download_img = ttk.Button(self, text="Baixar imagem", command=on_download_image)
         self.btn_download_img.pack(side="right", padx=8, pady=6)
+
+    def _handle_toggle_text(self) -> None:
+        """Propaga o valor atual do toggle de texto para o callback da view."""
+        callback = getattr(self, "_on_toggle_text", None)
+        if callback is not None:
+            callback(bool(self.var_text.get()))

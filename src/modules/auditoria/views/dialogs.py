@@ -8,6 +8,9 @@ import tkinter as tk
 from tkinter import ttk
 from typing import TYPE_CHECKING, Callable
 
+from src.ui.components.progress_dialog import ProgressDialog
+from src.ui.window_utils import show_centered
+
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
@@ -17,42 +20,23 @@ __all__ = ["UploadProgressDialog", "DuplicatesDialog"]
 
 
 class UploadProgressDialog:
-    """Janela modal que acompanha envio de arquivos com barra de progresso e ETA."""
+    """Wrapper que utiliza ProgressDialog para exibir progresso detalhado."""
 
     def __init__(self, parent: tk.Misc, title: str, message: str, on_cancel: Callable[[], None] | None = None):
-        self._cancel_callback = on_cancel
-        self._window = tk.Toplevel(parent.winfo_toplevel())
-        self._window.title(title)
-        self._window.transient(parent)
-        self._window.grab_set()
-        self._window.resizable(False, False)
-
-        self._window.update_idletasks()
-        width, height = 420, 220
-        pos_x = (self._window.winfo_screenwidth() // 2) - (width // 2)
-        pos_y = (self._window.winfo_screenheight() // 2) - (height // 2)
-        self._window.geometry(f"{width}x{height}+{pos_x}+{pos_y}")
-
-        ttk.Label(self._window, text=message, font=("-size", 10)).pack(padx=20, pady=(20, 12))
-
-        self._progress = ttk.Progressbar(self._window, mode="determinate", length=360, maximum=100)
-        self._progress.pack(padx=20, pady=(0, 8), fill="x")
-        self._progress["value"] = 0
-
-        self._status_label = ttk.Label(self._window, text="0% — 0/0 itens", font=("-size", 9))
-        self._status_label.pack(padx=20, pady=(0, 4))
-
-        self._eta_label = ttk.Label(
-            self._window, text="00:00:00 restantes @ 0.0 MB/s", font=("-size", 9), foreground="#666"
+        self._dialog = ProgressDialog(
+            parent,
+            title=title,
+            message=message,
+            detail="0% - 0/0 itens",
+            can_cancel=on_cancel is not None,
+            on_cancel=on_cancel,
         )
-        self._eta_label.pack(padx=20, pady=(0, 16))
-
-        self._cancel_button = ttk.Button(self._window, text="Cancelar", command=self._on_cancel)
-        self._cancel_button.pack(pady=(0, 20))
+        self._dialog.set_progress(0.0)
+        self._dialog.set_eta_text("00:00:00 restantes @ 0.0 MB/s")
 
     def update_with_state(self, state: "_ProgressState", alpha: float = 0.2) -> None:
         """Atualiza a UI com base no estado atual do upload."""
-        if self._window is None:
+        if not self._dialog:
             return
 
         elapsed = time.monotonic() - state.start_ts
@@ -72,30 +56,26 @@ class UploadProgressDialog:
                 remaining_bytes = state.total_bytes - state.done_bytes
                 eta_sec = remaining_bytes / state.ema_bps
 
-        status_text = f"{pct:.0f}% — {state.done_files}/{state.total_files} itens — {bytes_text}"
-        self._status_label.configure(text=status_text)
-
+        status_text = f"{pct:.0f}% - {state.done_files}/{state.total_files} itens - {bytes_text}"
         eta_text = self._format_eta_text(eta_sec, state.ema_bps)
-        self._eta_label.configure(text=eta_text)
 
-        self._progress["value"] = pct
+        try:
+            self._dialog.set_detail(status_text)
+            self._dialog.set_eta_text(eta_text)
+            self._dialog.set_progress(pct / 100 if state.total_bytes > 0 else 0.0)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao atualizar UploadProgressDialog: %s", exc)
 
     def close(self) -> None:
         """Fecha o modal."""
-        if self._window is not None:
-            try:
-                self._window.destroy()
-            except Exception as exc:  # noqa: BLE001
-                logger.debug("Falha ao destruir UploadProgressDialog: %s", exc)
-            finally:
-                self._window = None
-
-    def _on_cancel(self) -> None:
-        if self._cancel_button["state"] == "disabled":
+        if not self._dialog:
             return
-        self._cancel_button.configure(state="disabled", text="Cancelando...")
-        if self._cancel_callback:
-            self._cancel_callback()
+        try:
+            self._dialog.close()
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao destruir UploadProgressDialog: %s", exc)
+        finally:
+            self._dialog = None
 
     def _format_eta_text(self, eta_sec: float, ema_bps: float) -> str:
         if eta_sec <= 0 or ema_bps <= 0:
@@ -136,23 +116,16 @@ class DuplicatesDialog(tk.Toplevel):
 
     def __init__(self, parent: tk.Misc, duplicates_count: int, sample_names: list[str]):
         super().__init__(parent)
+        self.withdraw()
         self.title("Duplicatas Detectadas")
 
         if hasattr(parent, "winfo_toplevel"):
             self.transient(parent.winfo_toplevel())
 
-        self.grab_set()
         self.resizable(False, False)
 
         self.strategy: str | None = None
         self.apply_once: bool = True
-
-        self.update_idletasks()
-        width = 560
-        height = 480
-        pos_x = (self.winfo_screenwidth() // 2) - (width // 2)
-        pos_y = (self.winfo_screenheight() // 2) - (height // 2)
-        self.geometry(f"{width}x{height}+{pos_x}+{pos_y}")
 
         msg = f"Encontrados {duplicates_count} arquivo(s) duplicado(s).\nEscolha como proceder:"
         ttk.Label(self, text=msg, font=("-size", 10), wraplength=520).pack(padx=20, pady=(20, 10))
@@ -221,6 +194,14 @@ class DuplicatesDialog(tk.Toplevel):
         btn_ok.pack(side="left", padx=5)
 
         ttk.Button(frame_buttons, text="Cancelar", command=self._on_cancel, width=12).pack(side="left", padx=5)
+
+        try:
+            self.update_idletasks()
+            show_centered(self)
+            self.grab_set()
+            self.focus_force()
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao centralizar DuplicatesDialog: %s", exc)
 
         btn_ok.focus_set()
         self.bind("<Return>", lambda _event: self._on_ok())

@@ -2,12 +2,16 @@
 Testes para src/app_utils.py (TEST-001 Fase 31).
 
 Cobertura:
-- fmt_data (formatação de strings ISO datetime)
+- fmt_data (wrapper DEPRECADO - delega para fmt_datetime_br)
 - only_digits (extração de dígitos de strings)
 - slugify_name (criação de slugs seguros para filesystem)
 - safe_base_from_fields (geração de nome de pasta a partir de campos)
 - split_meta (separação de metadados de pasta)
 - parse_pasta (extração de metadados de nome de pasta)
+
+NOTA FASE 5: fmt_data agora é um wrapper deprecado que delega para
+src.helpers.formatters.fmt_datetime_br. Os testes mantêm compatibilidade
+verificando que o comportamento permanece consistente.
 """
 
 from __future__ import annotations
@@ -22,7 +26,7 @@ from src.app_utils import (
 )
 
 
-# --- Testes para fmt_data ---
+# --- Testes para fmt_data (wrapper deprecado) ---
 
 
 def test_fmt_data_returns_empty_for_none() -> None:

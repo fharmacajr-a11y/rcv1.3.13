@@ -57,6 +57,7 @@ class DummyApp:
         callback(*cb_args, **cb_kwargs)
 
 
+@pytest.mark.skip(reason="UP-05: Teste legacy que depende de _upload.py removido. Fluxo atual usa UploadDialog.")
 def test_fluxo_salvar_cliente_com_upload_integra_pipeline_e_service(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     """Testa o fluxo completo: validação → preparação → upload → finalização.
 

@@ -2,11 +2,15 @@ target-version = "py313"
 line-length = 120
 
 [lint]
-select = ["E", "F"]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "N",    # pep8-naming (PEP 8 naming conventions)
+]
 ignore = [
-    "E501",
-    "F403",
-    "F821",
+    "E501",  # line too long (mantido flexível)
+    "F403",  # star imports legados
+    "F821",  # undefined name em caminhos condicionais
 ]
 
 [lint.per-file-ignores]

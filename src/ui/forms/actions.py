@@ -18,6 +18,7 @@ from src.modules.uploads.storage_browser_service import (
     list_storage_objects_service,
 )
 from src.utils.validators import only_digits
+from src.ui.components.upload_feedback import show_upload_result_message
 
 from src.modules.uploads.uploader_supabase import _select_pdfs_dialog
 
@@ -110,25 +111,25 @@ def salvar_e_enviar_para_supabase(self, row, ents, win=None):
     }
 
     # 3. DELEGAR AO SERVICE (headless, sem Tk)
-    service_result = salvar_e_enviar_para_supabase_service(ctx)
+    parent_widget: tk.Misc | None = None
+    if isinstance(win, tk.Misc):
+        parent_widget = win
+    elif isinstance(self, tk.Misc):
+        parent_widget = self
 
-    # 4. REAGIR AO RESULTADO (UI: messageboxes)
-    # O service indica se deve mostrar UI e qual tipo de mensagem
-    if service_result.get("should_show_ui"):
-        msg_type = service_result.get("ui_message_type")
-        title = service_result.get("ui_message_title", "")
-        body = service_result.get("ui_message_body", "")
+    try:
+        service_result = salvar_e_enviar_para_supabase_service(ctx)
+    except Exception as exc:  # noqa: BLE001
+        log.error("UI: falha ao executar service de upload: %s", exc, exc_info=True)
+        messagebox.showerror(
+            "Envio",
+            "Ocorreu um erro inesperado ao enviar os arquivos. Tente novamente.",
+            parent=parent_widget,
+        )
+        return None
 
-        win_parent: tk.Misc | None = win if isinstance(win, tk.Misc) else None
-
-        if msg_type == "warning":
-            messagebox.showwarning(title, body, parent=win_parent)
-        elif msg_type == "error":
-            messagebox.showerror(title, body, parent=win_parent)
-        elif msg_type == "info":
-            messagebox.showinfo(title, body, parent=win_parent)
-
-    return service_result.get("result")
+    show_upload_result_message(parent_widget, service_result)
+    return service_result.get("result") if isinstance(service_result, dict) else None
 
 
 # -----------------------------------------------------------------------------
@@ -175,9 +176,10 @@ def download_file(bucket_name: str | None, file_path: str, local_path: str | Non
     - Detectar chamada compacta download_file(remote, local)
     - Montar contexto
     - Delegar ao service headless
+    - Retornar resultado estruturado para o caller verificar sucesso/erro
 
-    Nota: Esta função não mostra UI (apenas logs), pois é usada
-    por outros módulos que tratam erros de forma específica.
+    Retorna:
+        dict com {"ok": bool, "errors": list, "message": str, "local_path": str | None}
     """
     # 1. DETECTAR CHAMADA COMPACTA
     compact_call = local_path is None
@@ -190,50 +192,40 @@ def download_file(bucket_name: str | None, file_path: str, local_path: str | Non
         "compact_call": compact_call,
     }
 
-    # 3. DELEGAR AO SERVICE
-    download_file_service(ctx)
-
-    # 4. SEM REAGIR A ERROS AQUI (callers tratam)
-    # O service já faz log dos erros
-    # Retorno implícito None (compatibilidade)
+    # 3. DELEGAR AO SERVICE E RETORNAR RESULTADO
+    return download_file_service(ctx)
 
 
 def salvar_e_upload_docs(self, row, ents: dict, arquivos_selecionados: list | None, win=None, **kwargs):
     """
-    Orquestra o fluxo de salvar + upload de documentos (UI layer).
+    DEPRECATED (UP-05): Use UploadDialog em vez disso.
 
-    Responsabilidades:
-    - Montar o contexto com dados coletados da UI
-    - Delegar a lógica de negócio ao service
-    - Reagir ao resultado (UI: messageboxes, atualização de estado)
+    Orquestra o fluxo de salvar + upload de documentos (UI layer) - LEGADO.
+
+    Novos fluxos devem usar:
+    - src.modules.uploads.views.upload_dialog.UploadDialog
+    - src.modules.uploads.service.upload_items_for_client
     """
-    # LAZY IMPORT: quebra ciclo form_service → pipeline → client_form → actions
-    from src.modules.uploads.form_service import salvar_e_upload_docs_service
+    from tkinter import messagebox
 
-    # Montar contexto para o service (sem lógica de negócio, apenas coleta de dados)
-    ctx = {
-        "self": self,
-        "row": row,
-        "ents": ents,
-        "arquivos_selecionados": arquivos_selecionados,
-        "win": win,
-        "kwargs": dict(kwargs),
-        "skip_duplicate_prompt": kwargs.get("skip_duplicate_prompt", False),
-    }
+    log.warning(
+        "DEPRECATED: salvar_e_upload_docs foi chamado. " "Use src.modules.uploads.views.upload_dialog.UploadDialog"
+    )
 
-    # Delegar ao service (headless, sem Tk)
-    service_result = salvar_e_upload_docs_service(ctx)
+    parent_widget = win if isinstance(win, tk.Misc) else (self if isinstance(self, tk.Misc) else None)
 
-    # TODO: Aqui poderíamos adicionar reações de UI baseadas em service_result
-    # Por enquanto, mantemos compatibilidade total com o comportamento original
-    # (o pipeline já mostra messageboxes internamente)
+    messagebox.showerror(
+        "Função Removida",
+        "Este fluxo de upload foi descontinuado.\n\n" "Use o botão 'Enviar documentos' no formulário de clientes.",
+        parent=parent_widget,
+    )
 
-    return service_result.get("result")
+    return None
 
 
 def __getattr__(name: str):
     if name == "SubpastaDialog":
-        from src.modules.clientes.forms import SubpastaDialog as _subpasta_dialog
+        from src.modules.clientes.forms import SubpastaDialog
 
-        return _subpasta_dialog
+        return SubpastaDialog
     raise AttributeError(f"module {__name__} has no attribute {name!r}")

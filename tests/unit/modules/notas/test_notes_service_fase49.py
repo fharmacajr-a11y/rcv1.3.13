@@ -45,19 +45,19 @@ class DummyQuery:
 
 
 def test_is_transient_net_error_true_para_timeout():
-    class Err(Exception):
+    class TimeoutError(Exception):
         def __str__(self):
             return "Timed out while connecting"
 
-    assert notes_service._is_transient_net_error(Err()) is True
+    assert notes_service._is_transient_net_error(TimeoutError()) is True
 
-    class Errno(Exception):
+    class ErrnoError(Exception):
         errno = notes_service.errno.EAGAIN
 
         def __str__(self):
             return "EAGAIN"
 
-    assert notes_service._is_transient_net_error(Errno()) is True
+    assert notes_service._is_transient_net_error(ErrnoError()) is True
 
 
 def test_is_transient_net_error_false_para_outros():
@@ -93,7 +93,7 @@ def test_check_table_missing_error_lanca(monkeypatch):
     with pytest.raises(notes_service.NotesTableMissingError):
         notes_service._check_table_missing_error(Exception("relation rc_notes does not exist"))
 
-    class Err(Exception):
+    class CodeError(Exception):
         code = "PGRST205"
 
         def get(self, key, default=None):
@@ -103,21 +103,21 @@ def test_check_table_missing_error_lanca(monkeypatch):
             return "other"
 
     with pytest.raises(notes_service.NotesTableMissingError):
-        notes_service._check_table_missing_error(Err())
+        notes_service._check_table_missing_error(CodeError())
 
 
 def test_check_auth_error_lanca():
     with pytest.raises(notes_service.NotesAuthError):
         notes_service._check_auth_error(Exception("permission denied for table"))
 
-    class Err(Exception):
+    class AuthCodeError(Exception):
         code = "42501"
 
         def get(self, key, default=None):
             return getattr(self, key, default)
 
     with pytest.raises(notes_service.NotesAuthError):
-        notes_service._check_auth_error(Err())
+        notes_service._check_auth_error(AuthCodeError())
 
 
 def test_list_notes_caminho_feliz(monkeypatch):
@@ -210,11 +210,13 @@ def test_add_note_auth_error(monkeypatch):
 
 
 def test_add_note_tabela_ausente(monkeypatch):
-    class Missing(Exception):
+    class MissingTableError(Exception):
         code = "PGRST205"
 
     monkeypatch.setattr(
-        notes_service, "_with_retry", lambda fn, retries=3, base_sleep=0.25: (_ for _ in ()).throw(Missing("no table"))
+        notes_service,
+        "_with_retry",
+        lambda fn, retries=3, base_sleep=0.25: (_ for _ in ()).throw(MissingTableError("no table")),
     )
     with pytest.raises(notes_service.NotesTableMissingError):
         notes_service.add_note("org-1", "user@example.com", "txt")
@@ -292,10 +294,10 @@ def test_is_transient_net_error_detecta_temporary_failure():
     assert notes_service._is_transient_net_error(err) is True
 
 
-def test_handle_table_missing_error_logged_com_pgrst205_dict(monkeypatch):
+def test_handle_table_missing_error_logged_com_dict():
     """Testa _handle_table_missing_error_logged com exceção dict-like (código PGRST205)."""
 
-    class DictException(Exception):
+    class DictCodeError(Exception):
         def get(self, key, default=None):
             if key == "code":
                 return "PGRST205"
@@ -304,7 +306,7 @@ def test_handle_table_missing_error_logged_com_pgrst205_dict(monkeypatch):
         def __str__(self):
             return "PGRST205: relation rc_notes does not exist"
 
-    exc = DictException()
+    exc = DictCodeError()
 
     # Deve lançar NotesTableMissingError
     with pytest.raises(notes_service.NotesTableMissingError):
@@ -314,7 +316,7 @@ def test_handle_table_missing_error_logged_com_pgrst205_dict(monkeypatch):
 def test_handle_auth_error_logged_com_42501_dict(monkeypatch):
     """Testa _handle_auth_error_logged com exceção dict-like (código 42501 RLS)."""
 
-    class DictException(Exception):
+    class DictAuthError(Exception):
         def get(self, key, default=None):
             if key == "code":
                 return "42501"
@@ -323,7 +325,7 @@ def test_handle_auth_error_logged_com_42501_dict(monkeypatch):
         def __str__(self):
             return "42501: permission denied for table"
 
-    exc = DictException()
+    exc = DictAuthError()
 
     # Deve lançar NotesAuthError
     with pytest.raises(notes_service.NotesAuthError):

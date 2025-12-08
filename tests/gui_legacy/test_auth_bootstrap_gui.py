@@ -1,6 +1,10 @@
+"""LEGACY TEST - Auth Bootstrap GUI"""
+
 import os
 import pytest
 from datetime import datetime, timezone
+
+pytestmark = [pytest.mark.legacy_ui]
 
 from src.core import auth_bootstrap
 from src.utils import prefs as prefs_module

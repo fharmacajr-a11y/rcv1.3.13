@@ -35,14 +35,27 @@ def configure_logging(*, preload: bool = False) -> Optional[logging.Logger]:
     if preload:
         return None
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    )
+    # Obter nível de log da variável de ambiente RC_LOG_LEVEL
+    import os
+
+    _level_name = os.getenv("RC_LOG_LEVEL", "INFO").upper()
+    _level_val = getattr(logging, _level_name, logging.INFO)
+
+    # Configurar logging apenas se ainda não foi configurado
+    if not logging.getLogger().hasHandlers():
+        logging.basicConfig(
+            level=_level_val,
+            format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+        )
+    else:
+        # Já foi configurado (por src.core.logger), apenas garantir que o nível está correto
+        logging.getLogger().setLevel(_level_val)
+
     logger = logging.getLogger("startup")
 
     root = Path(__file__).resolve().parents[1]
     logger.info("APP PATH = %s", root)
+    logger.info("Logging level ativo: %s", logging.getLevelName(logging.getLogger().level))
 
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)

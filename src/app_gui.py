@@ -15,8 +15,8 @@ APP_VERSION: str = get_version()
 bootstrap.configure_environment()
 bootstrap.configure_logging(preload=True)
 
-# Reexport da classe App
-from src.ui.main_window import App
+# Reexport da classe App (migrado de shim para módulo real)
+from src.modules.main_window.views.main_window import App
 
 __all__ = ["App", "apply_rc_icon"]
 
@@ -64,6 +64,14 @@ if __name__ == "__main__":
     except Exception as exc:  # noqa: BLE001
         logger.debug("Falha ao instalar global exception hook: %s", exc)
 
+    # Cleanup de arquivos temporários antigos no startup
+    try:
+        from src.modules.uploads.temp_files import cleanup_on_startup
+
+        cleanup_on_startup()
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Falha ao executar cleanup de temporários: %s", exc)
+
     # Parse CLI arguments
     try:
         from src.cli import get_args
@@ -84,11 +92,9 @@ if __name__ == "__main__":
 
     log: Optional[logging.Logger] = bootstrap.configure_logging()
 
-    # PERF-001: Criar app ANTES do health check para startup rápida
+    # PERF-001: Criar app oculto para startup rápida
+    # Health check será agendado APÓS login bem-sucedido
     app: App = App(start_hidden=True)
-
-    # PERF-001: Health check em background (não bloqueia startup)
-    bootstrap.schedule_healthcheck_after_gui(app, logger=log, delay_ms=500)
 
     # Show splash unless --no-splash flag is set
     if not app_args.no_splash:
@@ -101,20 +107,45 @@ if __name__ == "__main__":
     def _continue_after_splash() -> None:
         from src.core.auth_bootstrap import AppProtocol, SplashLike
 
-        login_ok = ensure_logged(
-            cast(AppProtocol, app),
-            splash=cast("SplashLike | None", splash),
-            logger=log,
-        )
-        if login_ok:
-            try:
-                app.show_hub_screen()
-            except Exception as exc:
+        # Callback executado APÓS splash fechar e login concluir
+        def _on_splash_and_login_done() -> None:
+            login_ok = ensure_logged(
+                cast(AppProtocol, app),
+                splash=cast("SplashLike | None", splash),
+                logger=log,
+            )
+            if login_ok:
+                # Só mostrar a janela principal APÓS login bem-sucedido
+                try:
+                    app.deiconify()  # Torna a janela principal visível
+                    app._maximize_window()  # Maximiza a janela
+                    if log:
+                        log.info("MainWindow exibida e maximizada após login bem-sucedido")
+                except Exception as exc:
+                    if log:
+                        log.debug("Falha ao exibir/maximizar MainWindow: %s", exc)
+
+                # PERF-001: Agendar health check em background APÓS login bem-sucedido
+                try:
+                    bootstrap.schedule_healthcheck_after_gui(app, logger=log, delay_ms=500)
+                except Exception as exc:
+                    if log:
+                        log.warning("Falha ao agendar healthcheck após login: %s", exc)
+
+                # Agora sim criar/mostrar o Hub
+                try:
+                    app.show_hub_screen()
+                except Exception as exc:
+                    if log:
+                        log.error("Erro ao carregar UI: %s", exc)
+                    app.destroy()
+            else:
+                # Login cancelado ou falhou (usuário já foi informado via messagebox se foi erro técnico)
                 if log:
-                    log.error("Erro ao carregar UI: %s", exc)
+                    log.info("Encerrando aplicação: login não completado")
                 app.destroy()
-        else:
-            app.destroy()
+
+        _on_splash_and_login_done()
 
     app.after(1250, _continue_after_splash)
     app.mainloop()

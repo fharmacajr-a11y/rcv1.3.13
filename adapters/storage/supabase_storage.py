@@ -1,9 +1,10 @@
 # adapters/storage/supabase_storage.py
 from __future__ import annotations
 
+import logging
 import mimetypes
 import os
-import unicodedata
+import time
 from pathlib import Path
 from typing import Iterable, Optional, Any
 
@@ -17,6 +18,8 @@ from src.config.paths import CLOUD_ONLY
 from infra.supabase_client import supabase, baixar_pasta_zip, DownloadCancelledError
 from adapters.storage.port import StoragePort
 
+logger = logging.getLogger("infra.supabase.storage")
+
 DEFAULT_BUCKET = (os.getenv("SUPABASE_BUCKET") or "rc-docs").strip() or "rc-docs"
 
 
@@ -25,20 +28,19 @@ def _normalize_bucket(bucket: Optional[str]) -> str:
     return value
 
 
-def _strip_accents(value: str) -> str:
-    """Remove acentos de uma string usando normalizacao Unicode NFKD."""
-    normalized = unicodedata.normalize("NFKD", value)
-    return "".join(ch for ch in normalized if not unicodedata.combining(ch))
-
-
 def normalize_key_for_storage(key: str) -> str:
-    """Normaliza key do Storage removendo acentos APENAS do nome do arquivo (ultimo segmento)."""
+    """Normaliza key do Storage removendo acentos APENAS do nome do arquivo (ultimo segmento).
+
+    Delega para src.core.text_normalization.normalize_ascii.
+    """
+    from src.core.text_normalization import normalize_ascii
+
     key = key.strip("/").replace("\\", "/")
     parts = key.split("/")
     if parts:
         # Remove acentos apenas do nome do arquivo (ultimo segmento)
         filename = parts[-1]
-        parts[-1] = _strip_accents(filename)
+        parts[-1] = normalize_ascii(filename)
     return "/".join(parts)
 
 
@@ -78,58 +80,211 @@ def _upload(
         "upsert": "true" if upsert else "false",
     }
     data = _read_data(source)
-    response = client.storage.from_(bucket).upload(key, data, file_options=file_options)
-    if isinstance(response, dict):
-        data_obj = response.get("data")
-        if isinstance(data_obj, dict):
-            return data_obj.get("path", key)
-    return key
+    data_size = len(data)
+
+    start = time.perf_counter()
+    logger.info(
+        "storage.op.start: op=upload, bucket=%s, key=%s, size=%d",
+        bucket,
+        key,
+        data_size,
+    )
+
+    try:
+        response = client.storage.from_(bucket).upload(key, data, file_options=file_options)
+        if isinstance(response, dict):
+            data_obj = response.get("data")
+            if isinstance(data_obj, dict):
+                result_path = data_obj.get("path", key)
+            else:
+                result_path = key
+        else:
+            result_path = key
+
+        duration_ms = (time.perf_counter() - start) * 1000
+        logger.info(
+            "storage.op.success: op=upload, bucket=%s, key=%s, size=%d, duration_ms=%.2f",
+            bucket,
+            key,
+            data_size,
+            duration_ms,
+        )
+        return result_path
+
+    except Exception as exc:
+        duration_ms = (time.perf_counter() - start) * 1000
+        logger.error(
+            "storage.op.error: op=upload, bucket=%s, key=%s, size=%d, duration_ms=%.2f, error=%s",
+            bucket,
+            key,
+            data_size,
+            duration_ms,
+            type(exc).__name__,
+            exc_info=True,
+        )
+        raise
 
 
 def _download(client: Any, bucket: str, remote_key: str, local_path: Optional[str]) -> str | bytes:
     key = _normalize_key(remote_key)
-    data = client.storage.from_(bucket).download(key)
-    if isinstance(data, dict) and "data" in data:
-        data = data["data"]
-    if local_path:
-        target = Path(local_path)
-        if not CLOUD_ONLY:
-            target.parent.mkdir(parents=True, exist_ok=True)
-        with target.open("wb") as handle:
-            handle.write(data)  # pyright: ignore[reportArgumentType]
-        return str(target)
-    return data  # pyright: ignore[reportReturnType]
+
+    start = time.perf_counter()
+    logger.info(
+        "storage.op.start: op=download, bucket=%s, key=%s",
+        bucket,
+        key,
+    )
+
+    try:
+        data = client.storage.from_(bucket).download(key)
+        if isinstance(data, dict) and "data" in data:
+            data = data["data"]
+
+        data_size = len(data) if isinstance(data, (bytes, bytearray)) else 0
+
+        if local_path:
+            target = Path(local_path)
+            if not CLOUD_ONLY:
+                target.parent.mkdir(parents=True, exist_ok=True)
+            with target.open("wb") as handle:
+                handle.write(data)  # pyright: ignore[reportArgumentType]
+
+            duration_ms = (time.perf_counter() - start) * 1000
+            logger.info(
+                "storage.op.success: op=download, bucket=%s, key=%s, size=%d, duration_ms=%.2f, local_path=%s",
+                bucket,
+                key,
+                data_size,
+                duration_ms,
+                str(target),
+            )
+            return str(target)
+
+        duration_ms = (time.perf_counter() - start) * 1000
+        logger.info(
+            "storage.op.success: op=download, bucket=%s, key=%s, size=%d, duration_ms=%.2f",
+            bucket,
+            key,
+            data_size,
+            duration_ms,
+        )
+        return data  # pyright: ignore[reportReturnType]
+
+    except Exception as exc:
+        duration_ms = (time.perf_counter() - start) * 1000
+        logger.error(
+            "storage.op.error: op=download, bucket=%s, key=%s, duration_ms=%.2f, error=%s",
+            bucket,
+            key,
+            duration_ms,
+            type(exc).__name__,
+            exc_info=True,
+        )
+        raise
 
 
 def _delete(client: Any, bucket: str, remote_key: str) -> bool:
     key = _normalize_key(remote_key)
-    response = client.storage.from_(bucket).remove([key])
-    if isinstance(response, dict):
-        error = response.get("error")
-        return not error
-    return True
+
+    start = time.perf_counter()
+    logger.info(
+        "storage.op.start: op=delete, bucket=%s, key=%s",
+        bucket,
+        key,
+    )
+
+    try:
+        response = client.storage.from_(bucket).remove([key])
+
+        success = True
+        if isinstance(response, dict):
+            error = response.get("error")
+            success = not error
+
+        duration_ms = (time.perf_counter() - start) * 1000
+
+        if success:
+            logger.info(
+                "storage.op.success: op=delete, bucket=%s, key=%s, duration_ms=%.2f",
+                bucket,
+                key,
+                duration_ms,
+            )
+        else:
+            logger.warning(
+                "storage.op.error: op=delete, bucket=%s, key=%s, duration_ms=%.2f, error=RemoveFailed",
+                bucket,
+                key,
+                duration_ms,
+            )
+
+        return success
+
+    except Exception as exc:
+        duration_ms = (time.perf_counter() - start) * 1000
+        logger.error(
+            "storage.op.error: op=delete, bucket=%s, key=%s, duration_ms=%.2f, error=%s",
+            bucket,
+            key,
+            duration_ms,
+            type(exc).__name__,
+            exc_info=True,
+        )
+        raise
 
 
 def _list(client: Any, bucket: str, prefix: str = "") -> list[dict[str, Any]]:
     base = prefix.strip("/")
     path = f"{base}/" if base else ""
-    response = client.storage.from_(bucket).list(
-        path=path,
-        options={
-            "limit": 1000,
-            "offset": 0,
-            "sortBy": {"column": "name", "order": "asc"},
-        },
+
+    start = time.perf_counter()
+    logger.info(
+        "storage.op.start: op=list, bucket=%s, prefix=%s",
+        bucket,
+        base,
     )
-    results: list[dict[str, Any]] = []
-    for obj in response or []:
-        if not isinstance(obj, dict):
-            continue
-        entry = dict(obj)
-        name = entry.get("name") or ""
-        entry["full_path"] = f"{base}/{name}".strip("/") if base else name
-        results.append(entry)
-    return results
+
+    try:
+        response = client.storage.from_(bucket).list(
+            path=path,
+            options={
+                "limit": 1000,
+                "offset": 0,
+                "sortBy": {"column": "name", "order": "asc"},
+            },
+        )
+
+        results: list[dict[str, Any]] = []
+        for obj in response or []:
+            if not isinstance(obj, dict):
+                continue
+            entry = dict(obj)
+            name = entry.get("name") or ""
+            entry["full_path"] = f"{base}/{name}".strip("/") if base else name
+            results.append(entry)
+
+        duration_ms = (time.perf_counter() - start) * 1000
+        logger.info(
+            "storage.op.success: op=list, bucket=%s, prefix=%s, count=%d, duration_ms=%.2f",
+            bucket,
+            base,
+            len(results),
+            duration_ms,
+        )
+
+        return results
+
+    except Exception as exc:
+        duration_ms = (time.perf_counter() - start) * 1000
+        logger.error(
+            "storage.op.error: op=list, bucket=%s, prefix=%s, duration_ms=%.2f, error=%s",
+            bucket,
+            base,
+            duration_ms,
+            type(exc).__name__,
+            exc_info=True,
+        )
+        raise
 
 
 class SupabaseStorageAdapter(StoragePort):

@@ -1,25 +1,34 @@
 """View principal do módulo de Login/Autenticação.
 
-Este módulo encapsula a UI legada de login e telas associadas
-(`src.ui.login.*`, `src.ui.login_dialog`, `src.ui.splash`) e
-reexporta os entrypoints usados pelo restante da aplicação.
+Este módulo é o ENTRYPOINT ÚNICO para UI de login no RC Gestor.
+Qualquer código que precise abrir a tela de login deve importar daqui.
 
-Qualquer ajuste visual futuro do fluxo de login deve ser feito
-aqui, mantendo a interface estável para o restante do app.
+IMPLEMENTAÇÃO ATUAL:
+  - LoginDialog: aponta para src.ui.login_dialog.LoginDialog (login moderno com Supabase)
+  - show_splash: splash screen inicial da aplicação
+
+ARQUIVOS LEGACY (apenas compatibilidade):
+  - src.ui.login.login.LoginDialog: wrapper deprecated, não usar em código novo
+
+EXEMPLO DE USO:
+  from src.modules.login.view import LoginDialog, show_splash
+
+  # Mostrar splash
+  show_splash()
+
+  # Abrir login
+  dialog = LoginDialog(parent)
+  dialog.wait_window()
+  if dialog.login_success:
+      # Login OK
 """
 
 from __future__ import annotations
 
-from src.ui.login import LoginDialog as LegacyLoginDialog
-from src.ui.login_dialog import LoginDialog as SupabaseLoginDialog
+from src.ui.login_dialog import LoginDialog
 from src.ui.splash import show_splash
-
-# Alias principal compatível com o diálogo usado atualmente
-LoginDialog = SupabaseLoginDialog
 
 __all__ = [
     "LoginDialog",
-    "LegacyLoginDialog",
-    "SupabaseLoginDialog",
     "show_splash",
 ]

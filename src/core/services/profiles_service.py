@@ -139,3 +139,63 @@ def get_email_prefix_map(org_id: str) -> dict[str, str]:
     except Exception as e:
         log.debug("Erro ao carregar mapa de prefixos para org %s: %s", org_id, e)
     return out
+
+
+def get_display_names_by_user_ids(
+    org_id: str,
+    user_ids: list[str],
+) -> dict[str, str]:
+    """
+    Retorna mapa de user_id -> display_name para uma lista de user_ids.
+
+    Args:
+        org_id: UUID da organização
+        user_ids: Lista de UUIDs de usuários
+
+    Returns:
+        Dicionário {user_id: display_name}
+        Apenas user_ids com display_name preenchido
+
+    Note:
+        A tabela profiles tem um campo 'id' que é o user_id (UUID).
+        Se não houver display_name, tenta usar o prefixo do email.
+    """
+    if not user_ids:
+        return {}
+
+    # Remove duplicados e None/vazios
+    clean_ids = [uid for uid in user_ids if uid and uid.strip()]
+    if not clean_ids:
+        return {}
+
+    out: dict[str, str] = {}
+    try:
+        supa = get_supabase()
+        # Buscar profiles por id (user_id) dentro da organização
+        resp = exec_postgrest(
+            supa.table(_TABLE).select("id, email, display_name").eq("org_id", org_id).in_("id", clean_ids)
+        )
+        rows: list[dict[str, Any]] = getattr(resp, "data", None) or []
+
+        for row in rows:
+            user_id = row.get("id")
+            if not user_id:
+                continue
+
+            # Prioridade: display_name > prefixo do email
+            display_name = (row.get("display_name") or "").strip()
+            if display_name:
+                out[user_id] = display_name
+            else:
+                # Fallback: usar prefixo do email
+                email = (row.get("email") or "").strip().lower()
+                if email and "@" in email:
+                    prefix = email.split("@", 1)[0]
+                    # Aplicar alias se existir
+                    prefix = EMAIL_PREFIX_ALIASES.get(prefix, prefix)
+                    out[user_id] = prefix
+
+    except Exception as e:
+        log.debug("Erro ao buscar display_names por user_ids: %s", e)
+
+    return out

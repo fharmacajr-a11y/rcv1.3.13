@@ -1,5 +1,15 @@
+"""LEGACY TEST - Hub Screen GUI (Fase 01)
+
+Este arquivo cobre a UI antiga do Hub.
+Não faz parte da bateria de regressão atual; mantido apenas por referência.
+"""
+
 import os
 import pytest
+
+pytestmark = [
+    pytest.mark.legacy_ui,
+]
 
 if os.environ.get("RC_RUN_GUI_TESTS") != "1":
     pytest.skip(

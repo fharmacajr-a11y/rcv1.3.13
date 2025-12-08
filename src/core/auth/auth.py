@@ -151,7 +151,8 @@ def ensure_users_db() -> None:
     # O SQLite cria o arquivo do DB, mas NÃO cria diretórios. Garanta a pasta-mãe.
     USERS_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-    with sqlite3.connect(str(USERS_DB_PATH)) as con:
+    con = sqlite3.connect(str(USERS_DB_PATH))
+    try:
         cur: sqlite3.Cursor = con.cursor()
         cur.execute(
             """
@@ -166,6 +167,8 @@ def ensure_users_db() -> None:
             """
         )
         con.commit()
+    finally:
+        con.close()
 
 
 def create_user(username: str, password: str | None = None) -> int:
@@ -177,7 +180,8 @@ def create_user(username: str, password: str | None = None) -> int:
     now: str = datetime.now(timezone.utc).isoformat()
     pwd_hash: str | None = pbkdf2_hash(password) if password else None
 
-    with sqlite3.connect(str(USERS_DB_PATH)) as con:
+    con = sqlite3.connect(str(USERS_DB_PATH))
+    try:
         cur: sqlite3.Cursor = con.cursor()
         cur.execute("SELECT id FROM users WHERE username=?", (username,))
         row: tuple[Any, ...] | None = cur.fetchone()
@@ -202,6 +206,8 @@ def create_user(username: str, password: str | None = None) -> int:
         )
         con.commit()
         return int(cur.lastrowid)  # pyright: ignore[reportArgumentType]
+    finally:
+        con.close()
 
 
 # ------------------------- Validação de credenciais ------------------------- #

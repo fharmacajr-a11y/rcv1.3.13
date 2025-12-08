@@ -15,6 +15,15 @@ HUB_TITLE = "Anotações Compartilhadas"
 MODULES_TITLE = "Módulos"
 NEW_NOTE_LABEL = "Nova anotação:"
 
+# Estilos de botões da coluna "Módulos" do Hub
+HUB_BTN_STYLE_CLIENTES = "info"  # azul claro
+HUB_BTN_STYLE_SENHAS = "info"  # azul claro
+HUB_BTN_STYLE_AUDITORIA = "info"  # azul claro
+HUB_BTN_STYLE_FLUXO_CAIXA = "secondary"  # cinza
+
+# Largura mínima da coluna de módulos (para caber 2 botões lado a lado)
+MODULES_COL_MINSIZE = 260
+
 __all__ = [
     "COL_LEFT_WIDTH",
     "NOTES_PANEL_MIN_WIDTH",
@@ -27,4 +36,9 @@ __all__ = [
     "HUB_TITLE",
     "MODULES_TITLE",
     "NEW_NOTE_LABEL",
+    "HUB_BTN_STYLE_CLIENTES",
+    "HUB_BTN_STYLE_SENHAS",
+    "HUB_BTN_STYLE_AUDITORIA",
+    "HUB_BTN_STYLE_FLUXO_CAIXA",
+    "MODULES_COL_MINSIZE",
 ]

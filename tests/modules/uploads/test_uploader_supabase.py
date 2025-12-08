@@ -79,10 +79,18 @@ def test_select_pdfs_dialog(monkeypatch):
 
 
 def test_show_upload_summary_warning_and_info(monkeypatch, stub_messagebox):
-    uploader._show_upload_summary(ok_count=1, failed_paths=["a.pdf"], parent=None)
-    uploader._show_upload_summary(ok_count=2, failed_paths=[], parent=None)
-    assert stub_messagebox["warn"][0][0] == "Envio concluido com falhas"
-    assert stub_messagebox["info"][0][0] == "Envio concluido"
+    # Cria um item fake para simular falha de upload
+    from src.modules.uploads.service import UploadItem
+    from pathlib import Path
+
+    fake_item = UploadItem(path=Path("a.pdf"), relative_path="a.pdf")
+    uploader._show_upload_summary(ok_count=1, failed_items=[(fake_item, Exception("test"))], parent=None)
+    uploader._show_upload_summary(ok_count=2, failed_items=[], parent=None)
+    # A nova implementação usa títulos diferentes:
+    # - "Envio concluído com falhas" quando ok_count > 0 e há falhas
+    # - "Envio concluído" quando não há falhas
+    assert stub_messagebox["warn"][0][0] == "Envio concluído com falhas"
+    assert stub_messagebox["info"][0][0] == "Envio concluído"
 
 
 def test_ensure_client_saved_or_abort(monkeypatch):
@@ -220,12 +228,52 @@ def test_upload_files_to_supabase_success(monkeypatch, stub_messagebox):
     monkeypatch.setattr(
         uploader, "_upload_batch", lambda *args, **kwargs: (2, [(UploadItem(Path("a"), "a"), Exception("x"))])
     )
+
+    # Stub _show_upload_summary com a nova assinatura (failed_items em vez de failed_paths)
+    def fake_show_summary(ok_count, failed_items, *, parent=None, validation_errors=None):
+        # Extrai os paths dos failed_items para compatibilidade com asserção existente
+        paths = [
+            str(Path(item.relative_path).name) if hasattr(item, "relative_path") else str(item)
+            for item, _ in failed_items
+        ]
+        stub_messagebox["info"].append((ok_count, paths))
+
+    monkeypatch.setattr(uploader, "_show_upload_summary", fake_show_summary)
+
+    # Stub validate_upload_files para evitar validação de arquivos físicos
+    from src.modules.uploads.file_validator import FileValidationResult
+
     monkeypatch.setattr(
         uploader,
-        "_show_upload_summary",
-        lambda ok_count, failed_paths, parent=None: stub_messagebox["info"].append((ok_count, failed_paths)),
+        "validate_upload_files",
+        lambda paths: (
+            [
+                FileValidationResult(valid=True, path=Path(p), size_bytes=1024, extension=".pdf", error=None)
+                for p in paths
+            ],
+            [],
+        ),
     )
-    monkeypatch.setattr(uploader, "log", type("L", (), {"debug": lambda *args, **kwargs: None}))
+
+    # Logger stub com todos os métodos necessários
+    class L:
+        @staticmethod
+        def debug(*args, **kwargs):
+            pass
+
+        @staticmethod
+        def info(*args, **kwargs):
+            pass
+
+        @staticmethod
+        def warning(*args, **kwargs):
+            pass
+
+        @staticmethod
+        def error(*args, **kwargs):
+            pass
+
+    monkeypatch.setattr(uploader, "log", L)
 
     class App:
         supabase = "sb"
@@ -303,16 +351,48 @@ def test_ask_storage_subfolder(monkeypatch):
     assert uploader.ask_storage_subfolder(parent) == "sub"
 
 
-def test_progress_dialog_constructs(monkeypatch, tk_root_session):
-    import tkinter as tk
+def test_progress_dialog_constructs(monkeypatch):
+    calls = {"messages": [], "details": [], "values": [], "closed": 0, "after": 0, "updates": 0}
 
-    monkeypatch.setattr(uploader, "center_window", lambda *args, **kwargs: None)
-    toplevel = tk.Toplevel(master=tk_root_session)
-    toplevel.withdraw()
-    dlg = uploader.UploadProgressDialog(toplevel, total=2)
+    class DummyProgress:
+        def __init__(self, *_args, **_kwargs):
+            calls["instance"] = self
+
+        def after(self, delay, callback):
+            calls["after"] += 1
+            return callback
+
+        def update_idletasks(self):
+            calls["updates"] += 1
+
+        def update(self):
+            calls["updates"] += 1
+
+        def set_message(self, text):
+            calls["messages"].append(text)
+
+        def set_detail(self, text):
+            calls["details"].append(text)
+
+        def set_progress(self, value):
+            calls["values"].append(value)
+
+        def close(self):
+            calls["closed"] += 1
+
+    monkeypatch.setattr("src.modules.uploads.uploader_supabase.ProgressDialog", DummyProgress)
+
+    dlg = uploader.UploadProgressDialog(parent=object(), total=2)
+    dlg.after(0, lambda: None)
+    dlg.update_idletasks()
+    dlg.update()
     dlg.advance("test")
     dlg.close()
-    toplevel.destroy()
+
+    assert calls["messages"] == ["test"]
+    assert calls["details"][-1].startswith("1/2")
+    assert calls["values"][-1] == 0.5
+    assert calls["closed"] == 1
 
 
 def test_send_folder_to_supabase_paths(monkeypatch, stub_messagebox):

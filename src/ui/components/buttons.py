@@ -23,6 +23,7 @@ class FooterButtons:
     enviar: ttk.Menubutton
     enviar_menu: tk.Menu
     excluir: Optional[tb.Button] = None
+    obrigacoes: Optional[tb.Button] = None
     batch_delete: Optional[tb.Button] = None
     batch_restore: Optional[tb.Button] = None
     batch_export: Optional[tb.Button] = None
@@ -45,6 +46,7 @@ def create_footer_buttons(
     on_enviar: Callable[[], Any],
     on_enviar_pasta: Callable[[], Any],
     on_excluir: Optional[Callable[[], Any]] = None,
+    on_obrigacoes: Optional[Callable[[], Any]] = None,
     on_batch_delete: Optional[Callable[[], Any]] = None,
     on_batch_restore: Optional[Callable[[], Any]] = None,
     on_batch_export: Optional[Callable[[], Any]] = None,
@@ -54,7 +56,7 @@ def create_footer_buttons(
 
     btn_novo = tb.Button(frame, text="Novo Cliente", command=on_novo, bootstyle="success")
     btn_editar = tb.Button(frame, text="Editar", command=on_editar, bootstyle="secondary")
-    btn_subpastas = tb.Button(frame, text="Ver Subpastas", command=on_subpastas, bootstyle="info")
+    btn_subpastas = tb.Button(frame, text="Subpastas (Supabase)", command=on_subpastas, bootstyle="info")
     menubutton_cls = getattr(tb, "Menubutton", ttk.Menubutton)
     btn_enviar = menubutton_cls(frame, text="Enviar Para SupaBase", style="info.TMenubutton")
     menu_enviar = tk.Menu(btn_enviar, tearoff=0)
@@ -74,11 +76,19 @@ def create_footer_buttons(
         btn_excluir = tb.Button(frame, text="Excluir", command=on_excluir, bootstyle="danger")
         btn_excluir.grid(row=0, column=4, padx=5, pady=5, sticky="w")
 
+    # Botão Obrigações (REMOVIDO - funcionalidade movida para Hub)
+    # HISTÓRICO: Anteriormente havia um botão "Obrigações" no módulo Clientes.
+    # A partir da v1.3.61, a funcionalidade foi centralizada no Hub:
+    # - Hub tem botão "+ Nova Obrigação" que abre Modo Seleção de Clientes
+    # - Após selecionar cliente, abre a janela de obrigações
+    # - Mantemos o campo no dataclass como None para compatibilidade
+    btn_obrigacoes: Optional[tb.Button] = None
+
     # Botões batch (opcionais)
     btn_batch_delete: Optional[tb.Button] = None
     btn_batch_restore: Optional[tb.Button] = None
     btn_batch_export: Optional[tb.Button] = None
-    next_column = 5
+    next_column = 6
 
     if on_batch_delete is not None or on_batch_restore is not None or on_batch_export is not None:
         # Separador visual entre ações unitárias e batch
@@ -115,6 +125,7 @@ def create_footer_buttons(
         enviar=btn_enviar,
         enviar_menu=menu_enviar,
         excluir=btn_excluir,
+        obrigacoes=btn_obrigacoes,
         batch_delete=btn_batch_delete,
         batch_restore=btn_batch_restore,
         batch_export=btn_batch_export,

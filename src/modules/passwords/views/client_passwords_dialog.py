@@ -15,6 +15,7 @@ from data.domain_types import ClientRow, PasswordRow
 from src.app_gui import apply_rc_icon
 from src.modules.passwords.controller import ClientPasswordsSummary, PasswordsController
 from src.modules.passwords.utils import format_cnpj
+from src.ui.window_utils import show_centered
 
 log = logging.getLogger(__name__)
 logger = log
@@ -46,10 +47,9 @@ class ClientPasswordsDialog(tb.Toplevel):
         apply_rc_icon(self)
 
         self.title(f"Senhas – {client_summary.display_name}")
-        self.geometry("800x500")
+        self.minsize(800, 500)
         self.resizable(True, True)
         self.transient(parent)
-        self.grab_set()
 
         self.controller = controller
         self.client_summary = client_summary
@@ -67,9 +67,6 @@ class ClientPasswordsDialog(tb.Toplevel):
         self._load_passwords()
         self._center_on_parent()
 
-        # FIX-SENHAS-013: Mostrar janela após centralização (elimina flash)
-        self.deiconify()
-
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _on_close(self) -> None:
@@ -79,22 +76,14 @@ class ClientPasswordsDialog(tb.Toplevel):
         self.destroy()
 
     def _center_on_parent(self) -> None:
-        """Centraliza o diálogo na janela principal."""
-        self.update_idletasks()
-        if self.master is None:
-            return
-        parent_x = self.master.winfo_rootx()
-        parent_y = self.master.winfo_rooty()
-        parent_width = self.master.winfo_width()
-        parent_height = self.master.winfo_height()
-
-        width = self.winfo_width()
-        height = self.winfo_height()
-
-        x = parent_x + (parent_width - width) // 2
-        y = parent_y + (parent_height - height) // 2
-
-        self.geometry(f"{width}x{height}+{x}+{y}")
+        """Centraliza o diálogo usando helper compartilhado."""
+        try:
+            self.update_idletasks()
+            show_centered(self)
+            self.grab_set()
+            self.focus_force()
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao centralizar ClientPasswordsDialog: %s", exc)
 
     def _build_ui(self) -> None:
         """Constrói a interface do diálogo."""

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 from typing import Optional
 
 from data.domain_types import ClientRow, PasswordRow
@@ -9,39 +8,11 @@ from data.supabase_repo import list_clients_for_picker
 from security.crypto import decrypt_text
 
 from src.modules.passwords import service as passwords_service
+from src.modules.passwords.service import ClientPasswordsSummary
 
 log = logging.getLogger(__name__)
 
 __all__ = ["PasswordsController", "ClientPasswordsSummary"]
-
-
-@dataclass
-class ClientPasswordsSummary:
-    """Resumo de senhas agrupadas por cliente."""
-
-    client_id: str
-    client_external_id: int  # ID numérico que aparece na tela de clientes
-    razao_social: str
-    cnpj: str
-    contato_nome: str
-    whatsapp: str
-    passwords_count: int
-    services: list[str]
-
-    @property
-    def display_name(self) -> str:
-        """Rótulo amigável para usar em títulos de janelas/dialogs (sem CNPJ)."""
-        parts: list[str] = []
-
-        if self.client_external_id is not None:
-            parts.append(f"ID {self.client_external_id}")
-
-        if self.razao_social:
-            parts.append(self.razao_social)
-
-        label = " – ".join(parts) if parts else self.client_id
-
-        return label
 
 
 class PasswordsController:
@@ -65,22 +36,7 @@ class PasswordsController:
         service_filter: Optional[str],
     ) -> list[PasswordRow]:
         """Filtra o cache atual por texto/serviço."""
-        filtered = list(self._all_passwords)
-
-        if search_text:
-            lowered = search_text.strip().lower()
-            filtered = [
-                p
-                for p in filtered
-                if lowered in p["client_name"].lower()
-                or lowered in p["service"].lower()
-                or lowered in p["username"].lower()
-            ]
-
-        if service_filter and service_filter != "Todos":
-            filtered = [p for p in filtered if p["service"] == service_filter]
-
-        return filtered
+        return passwords_service.filter_passwords(self._all_passwords, search_text, service_filter)
 
     def create_password(
         self,
@@ -144,55 +100,7 @@ class PasswordsController:
         Returns:
             list[ClientPasswordsSummary]: Lista de resumos por cliente.
         """
-        from collections import defaultdict
-
-        # Agrupa por client_id
-        grouped: dict[str, list[PasswordRow]] = defaultdict(list)
-        for pwd in self._all_passwords:
-            client_id = pwd.get("client_id", "")
-            if client_id:
-                grouped[client_id].append(pwd)
-
-        # Monta resumos
-        summaries: list[ClientPasswordsSummary] = []
-        for client_id, passwords in grouped.items():
-            # Pega dados do primeiro registro (todos do mesmo cliente)
-            first = passwords[0]
-
-            # Extrai todos os campos necessários do PasswordRow (que agora vem com JOIN)
-            razao_social = first.get("razao_social", first.get("client_name", ""))
-            cnpj = first.get("cnpj", "")
-            contato_nome = first.get("nome", "")
-            whatsapp = first.get("whatsapp", first.get("numero", ""))
-
-            # ID externo (numérico) do cliente - tenta converter de client_id
-            try:
-                client_external_id = int(first.get("client_external_id", client_id))
-            except (ValueError, TypeError):
-                # Se client_id não for numérico, tenta parsear ou usa 0
-                try:
-                    client_external_id = int(client_id)
-                except (ValueError, TypeError):
-                    client_external_id = 0
-
-            # Lista única de serviços
-            services = sorted(set(p.get("service", "") for p in passwords if p.get("service")))
-
-            summaries.append(
-                ClientPasswordsSummary(
-                    client_id=client_id,
-                    client_external_id=client_external_id,
-                    razao_social=razao_social,
-                    cnpj=cnpj,
-                    contato_nome=contato_nome,
-                    whatsapp=whatsapp,
-                    passwords_count=len(passwords),
-                    services=services,
-                )
-            )
-
-        # Ordena por nome do cliente
-        return sorted(summaries, key=lambda s: s.razao_social.lower())
+        return passwords_service.group_passwords_by_client(self._all_passwords)
 
     def get_passwords_for_client(self, client_id: str) -> list[PasswordRow]:
         """

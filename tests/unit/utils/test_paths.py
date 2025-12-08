@@ -96,3 +96,54 @@ def test_resource_path_empty_string():
     expected = os.path.abspath(".")
     # Normalize to handle trailing slashes
     assert os.path.normpath(result) == os.path.normpath(expected)
+
+
+# ==================== ensure_str_path ====================
+
+
+def test_ensure_str_path_with_string():
+    """Test ensure_str_path with a regular string."""
+
+    from src.utils.paths import ensure_str_path
+
+    result = ensure_str_path("/usr/local/bin")
+    assert result == "/usr/local/bin"
+    assert isinstance(result, str)
+
+
+def test_ensure_str_path_with_path_object():
+    """Test ensure_str_path with pathlib.Path."""
+    from pathlib import Path
+
+    from src.utils.paths import ensure_str_path
+
+    path = Path("/usr/local/bin")
+    result = ensure_str_path(path)
+    assert result == str(path)
+    assert isinstance(result, str)
+
+
+def test_ensure_str_path_with_windows_path():
+    """Test ensure_str_path with Windows-style path."""
+    from pathlib import Path
+
+    from src.utils.paths import ensure_str_path
+
+    result = ensure_str_path(Path("C:/Users/test"))
+    assert isinstance(result, str)
+    assert "Users" in result
+
+
+def test_ensure_str_path_with_custom_pathlike():
+    """Test ensure_str_path with custom PathLike object."""
+
+    from src.utils.paths import ensure_str_path
+
+    class CustomPath:
+        def __fspath__(self) -> str:
+            return "/custom/path"
+
+    custom = CustomPath()
+    result = ensure_str_path(custom)
+    assert result == "/custom/path"
+    assert isinstance(result, str)

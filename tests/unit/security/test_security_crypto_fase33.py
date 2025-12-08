@@ -25,6 +25,14 @@ def valid_fernet_key() -> str:
     return Fernet.generate_key().decode("utf-8")
 
 
+@pytest.fixture(autouse=True)
+def reset_crypto_cache():
+    """Limpa o cache singleton antes de cada teste."""
+    crypto._reset_fernet_cache()
+    yield
+    crypto._reset_fernet_cache()
+
+
 @pytest.fixture
 def mock_env_key(valid_fernet_key: str, monkeypatch):
     """Mock da variável de ambiente RC_CLIENT_SECRET_KEY com chave válida."""
@@ -187,6 +195,7 @@ def test_decrypt_with_wrong_key_levanta_runtime_error(valid_fernet_key, monkeypa
 
     # Trocar para outra chave válida mas diferente
     outra_chave = Fernet.generate_key().decode("utf-8")
+    crypto._reset_fernet_cache()  # IMPORTANTE: limpar cache antes de trocar chave
     monkeypatch.setenv("RC_CLIENT_SECRET_KEY", outra_chave)
 
     # Tentar descriptografar deve falhar
@@ -270,21 +279,18 @@ def test_encrypt_decrypt_com_espacos_e_caracteres_especiais(mock_env_key):
 # ========================================
 
 
-def test_get_encryption_key_retorna_bytes(mock_env_key):
+def test_get_fernet_retorna_instancia_valida(mock_env_key):
     """
-    Testa diretamente a função _get_encryption_key para garantir
-    que retorna bytes no formato esperado pelo Fernet.
+    Testa diretamente a função _get_fernet para garantir
+    que retorna uma instância Fernet válida.
     """
-    key = crypto._get_encryption_key()
+    fernet = crypto._get_fernet()
 
-    assert isinstance(key, bytes)
-    assert len(key) > 0
+    assert isinstance(fernet, Fernet)
 
-    # Deve ser uma chave Fernet válida (pode instanciar Fernet sem erro)
-    try:
-        Fernet(key)
-    except Exception as e:
-        pytest.fail(f"Chave retornada não é Fernet válida: {e}")
+    # Deve funcionar para criptografia/descriptografia
+    token = fernet.encrypt(b"test")
+    assert fernet.decrypt(token) == b"test"
 
 
 def test_encrypt_text_com_exception_no_fernet_e_capturada(monkeypatch, valid_fernet_key):
@@ -364,9 +370,9 @@ def test_decrypt_text_loga_exception_em_caso_de_erro(monkeypatch, valid_fernet_k
 # ========================================
 
 
-def test_get_encryption_key_erro_ao_processar_chave(monkeypatch):
+def test_get_fernet_erro_ao_processar_chave(monkeypatch):
     """
-    Testa branch de exceção no .encode() da chave (linhas 24-25).
+    Testa branch de exceção no .encode() da chave em _get_fernet.
     Simula uma situação onde key_str.encode() levanta exceção.
     """
 
@@ -379,5 +385,5 @@ def test_get_encryption_key_erro_ao_processar_chave(monkeypatch):
             raise UnicodeDecodeError("utf-8", b"", 0, 1, "test error")
 
     with patch("security.crypto.os.getenv", return_value=BadString()):
-        with pytest.raises(RuntimeError, match="Erro ao processar RC_CLIENT_SECRET_KEY"):
+        with pytest.raises(RuntimeError, match="RC_CLIENT_SECRET_KEY tem formato inválido para Fernet"):
             crypto.encrypt_text("test")

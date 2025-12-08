@@ -21,11 +21,35 @@ from .service import (
     upload_folder_to_supabase,
     upload_items_for_client,
 )
+from .exceptions import (
+    UploadError,
+    UploadValidationError,
+    UploadNetworkError,
+    UploadServerError,
+    ERROR_MESSAGES,
+    make_validation_error,
+    make_network_error,
+    make_server_error,
+)
+from .file_validator import (
+    ALLOWED_EXTENSIONS,
+    MAX_SIZE_BYTES,
+    FileValidationResult,
+    validate_upload_file,
+    validate_upload_file_strict,
+    validate_upload_files,
+)
+from .upload_retry import (
+    upload_with_retry,
+    classify_upload_exception,
+)
 from . import service
 
 __all__ = [
+    # View
     "UploadsFrame",
     "open_files_browser",
+    # Service
     "service",
     "UploadItem",
     "collect_pdfs_from_folder",
@@ -43,4 +67,23 @@ __all__ = [
     "get_current_org_id",
     "format_cnpj_for_display",
     "strip_cnpj_from_razao",
+    # Exceptions (FASE 7)
+    "UploadError",
+    "UploadValidationError",
+    "UploadNetworkError",
+    "UploadServerError",
+    "ERROR_MESSAGES",
+    "make_validation_error",
+    "make_network_error",
+    "make_server_error",
+    # File Validation (FASE 7)
+    "ALLOWED_EXTENSIONS",
+    "MAX_SIZE_BYTES",
+    "FileValidationResult",
+    "validate_upload_file",
+    "validate_upload_file_strict",
+    "validate_upload_files",
+    # Retry (FASE 7)
+    "upload_with_retry",
+    "classify_upload_exception",
 ]

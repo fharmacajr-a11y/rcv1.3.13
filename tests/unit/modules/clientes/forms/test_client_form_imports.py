@@ -14,8 +14,8 @@ if str(src_path) not in sys.path:
     sys.path.insert(0, str(src_path))
 
 # Importar no nível do módulo para pytest-cov capturar
-from src.modules.clientes.forms import client_form as client_form_mod
-from src.modules.clientes.forms.client_form import form_cliente
+from src.modules.clientes.forms import client_form as client_form_mod  # noqa: E402  # ruff: noqa: E402
+from src.modules.clientes.forms.client_form import form_cliente  # noqa: E402  # ruff: noqa: E402
 
 
 def test_client_form_module_imports_successfully():

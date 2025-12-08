@@ -19,7 +19,7 @@ from src.modules.clientes.service import (
     listar_clientes_na_lixeira,
     restaurar_clientes_da_lixeira,
 )
-from src.ui.utils import center_window
+from src.ui.window_utils import show_centered
 
 # ui/lixeira/lixeira.py
 
@@ -102,6 +102,7 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[tb.Toplev
 
     # Criar nova janela
     win = tb.Toplevel(parent)
+    win.withdraw()
     win.title("Lixeira de Clientes")
     try:
         win.minsize(900, 520)
@@ -227,9 +228,9 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[tb.Toplev
             ultima_raw = _get_val(r, "ultima_alteracao", "updated_at") or ""
             if ultima_raw:
                 try:
-                    from src.app_utils import fmt_data
+                    from src.helpers.formatters import fmt_datetime_br
 
-                    ultima_fmt = fmt_data(ultima_raw)
+                    ultima_fmt = fmt_datetime_br(ultima_raw)
                 except Exception:
                     ultima_fmt = str(ultima_raw)
             else:
@@ -250,7 +251,7 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[tb.Toplev
                     if alias:
                         initial = (alias[:1] or "").upper()
                     else:
-                        from src.ui.hub.authors import _author_display_name as _author_name
+                        from src.modules.hub.authors import _author_display_name as _author_name
 
                         display = _author_name(app, by) if app is not None else ""
                         if not display:
@@ -320,10 +321,10 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[tb.Toplev
 
         def _show_wait_dialog(count: int) -> Tuple[tk.Toplevel, ttk.Label, ttk.Progressbar]:
             dlg = tk.Toplevel(win)
+            dlg.withdraw()
             try:
                 dlg.title("Aguarde")
                 dlg.transient(win)
-                dlg.grab_set()
                 dlg.resizable(False, False)
             except Exception as exc:  # noqa: BLE001
                 _log_ui_issue("Falha ao configurar dialogo de aguardando", exc)
@@ -334,17 +335,17 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[tb.Toplev
             bar.pack(fill="x", padx=20, pady=(0, 15))
 
             try:
-                dlg.update_idletasks()
-                x = win.winfo_rootx() + (win.winfo_width() // 2 - dlg.winfo_width() // 2)
-                y = win.winfo_rooty() + (win.winfo_height() // 2 - dlg.winfo_height() // 2)
-                dlg.geometry(f"+{x}+{y}")
-            except Exception as exc:  # noqa: BLE001
-                _log_ui_issue("Falha ao posicionar dialogo de aguardando", exc)
-
-            try:
                 dlg.protocol("WM_DELETE_WINDOW", lambda: None)
             except Exception as exc:  # noqa: BLE001
                 _log_ui_issue("Falha ao bloquear fechamento do dialogo de aguardando", exc)
+
+            try:
+                dlg.update_idletasks()
+                show_centered(dlg)
+                dlg.grab_set()
+                dlg.focus_force()
+            except Exception as exc:  # noqa: BLE001
+                _log_ui_issue("Falha ao exibir dialogo de aguardando", exc)
 
             return dlg, label, bar
 
@@ -407,6 +408,13 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[tb.Toplev
     btn_refresh.configure(command=carregar)
 
     # expõe carregar para refresh externo e registra singleton
+    try:
+        win.update_idletasks()
+        show_centered(win)
+        win.focus_force()
+    except Exception as exc:  # noqa: BLE001
+        _log_ui_issue("Falha ao exibir janela da Lixeira", exc)
+
     win._carregar = carregar  # type: ignore[attr-defined]
     _OPEN_WINDOW = win
 
@@ -424,7 +432,7 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[tb.Toplev
     # primeira carga e centralização
     carregar()
     try:
-        center_window(win)
+        show_centered(win)
     except Exception as exc:  # noqa: BLE001
         _log_ui_issue("Falha ao centralizar janela da Lixeira", exc)
 

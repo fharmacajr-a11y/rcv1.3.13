@@ -71,7 +71,7 @@ class TestListEntries:
         ]
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.list_entries(dfrom="2025-01-01", dto="2025-01-31")
 
         assert len(result) == 2
@@ -90,7 +90,7 @@ class TestListEntries:
         mock_result.data = [{"id": "1", "type": "IN", "amount": 100.0}]
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.list_entries(dfrom="2025-01-01", dto="2025-01-31", type_filter="IN")
 
         assert len(result) == 1
@@ -108,7 +108,7 @@ class TestListEntries:
         mock_result.data = [{"id": "2", "type": "OUT", "amount": 50.0}]
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.list_entries(dfrom="2025-01-01", dto="2025-01-31", type_filter="OUT")
 
         assert len(result) == 1
@@ -122,7 +122,7 @@ class TestListEntries:
         mock_result.data = [{"id": "1", "description": "Venda produto X"}]
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.list_entries(dfrom="2025-01-01", dto="2025-01-31", text="produto")
 
         assert len(result) == 1
@@ -144,7 +144,7 @@ class TestListEntries:
         mock_result.data = []
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             # Não deve levantar exceção
             result = repository.list_entries(dfrom="2025-01-01", dto="2025-01-31", text="teste")
 
@@ -158,7 +158,7 @@ class TestListEntries:
         mock_result.data = [{"id": "1", "org_id": "org-123"}]
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.list_entries(dfrom="2025-01-01", dto="2025-01-31", org_id="org-123")
 
         assert len(result) == 1
@@ -175,7 +175,7 @@ class TestListEntries:
         mock_result.data = [{"id": "1", "type": "IN", "description": "Venda", "org_id": "org-456"}]
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.list_entries(
                 dfrom="2025-01-01", dto="2025-01-31", type_filter="IN", text="Venda", org_id="org-456"
             )
@@ -190,7 +190,7 @@ class TestListEntries:
         mock_result.data = []
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.list_entries(dfrom="2025-01-01", dto="2025-01-31")
 
         assert result == []
@@ -203,7 +203,7 @@ class TestListEntries:
         del mock_result.data  # Remove atributo data
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.list_entries(dfrom="2025-01-01", dto="2025-01-31")
 
         assert result == []
@@ -216,7 +216,7 @@ class TestListEntries:
         mock_result.data = []
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.list_entries(dfrom=date(2025, 1, 1), dto=date(2025, 1, 31))
 
         assert result == []
@@ -249,7 +249,7 @@ class TestTotals:
         ]
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.totals(dfrom="2025-01-01", dto="2025-01-31")
 
         assert result["in"] == 150.0
@@ -267,7 +267,7 @@ class TestTotals:
         ]
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.totals(dfrom="2025-01-01", dto="2025-01-31")
 
         assert result["in"] == 300.0
@@ -285,7 +285,7 @@ class TestTotals:
         ]
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.totals(dfrom="2025-01-01", dto="2025-01-31")
 
         assert result["in"] == 0.0
@@ -300,7 +300,7 @@ class TestTotals:
         mock_result.data = []
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.totals(dfrom="2025-01-01", dto="2025-01-31")
 
         assert result["in"] == 0.0
@@ -319,7 +319,7 @@ class TestTotals:
         ]
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.totals(dfrom="2025-01-01", dto="2025-01-31")
 
         assert result["in"] == 100.0
@@ -337,7 +337,7 @@ class TestTotals:
         ]
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.totals(dfrom="2025-01-01", dto="2025-01-31")
 
         assert result["in"] == 50.0
@@ -353,7 +353,7 @@ class TestTotals:
         ]
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.totals(dfrom="2025-01-01", dto="2025-01-31", org_id="org-123")
 
         assert result["in"] == 100.0
@@ -375,7 +375,7 @@ class TestCreateEntry:
         mock_result.data = [{"id": "new-123", "type": "IN", "amount": 100.0}]
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.create_entry({"type": "IN", "amount": 100.0, "description": "Venda"})
 
         assert result["id"] == "new-123"
@@ -389,7 +389,7 @@ class TestCreateEntry:
         mock_result.data = [{"id": "new-456", "org_id": "org-789"}]
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.create_entry({"type": "OUT", "amount": 50.0}, org_id="org-789")
 
         assert result["org_id"] == "org-789"
@@ -406,7 +406,7 @@ class TestCreateEntry:
         mock_result.data = [{"id": "new-789", "org_id": "org-original"}]
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             repository.create_entry(
                 {"type": "IN", "amount": 75.0, "org_id": "org-original"},
                 org_id="org-override",  # Não deve sobrescrever
@@ -426,7 +426,7 @@ class TestCreateEntry:
 
         payload = {"type": "IN", "amount": 100.0}
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.create_entry(payload)
 
         assert result == payload
@@ -448,7 +448,7 @@ class TestUpdateEntry:
         mock_result.data = [{"id": "entry-123", "amount": 150.0}]
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.update_entry("entry-123", {"amount": 150.0})
 
         assert result["id"] == "entry-123"
@@ -462,7 +462,7 @@ class TestUpdateEntry:
         mock_result.data = [{"id": "entry-456", "amount": 200.0, "description": "Updated"}]
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.update_entry("entry-456", {"amount": 200.0, "description": "Updated"})
 
         assert result["amount"] == 200.0
@@ -476,7 +476,7 @@ class TestUpdateEntry:
         mock_result.data = []
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.update_entry("entry-789", {"amount": 250.0})
 
         assert result["id"] == "entry-789"
@@ -499,7 +499,7 @@ class TestDeleteEntry:
         mock_result.data = []
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             # Não deve levantar exceção
             repository.delete_entry("entry-to-delete")
 
@@ -511,69 +511,11 @@ class TestDeleteEntry:
 # ============================================================================
 # TEST GROUP: Funções Auxiliares
 # ============================================================================
-
-
-class TestHelperFunctions:
-    """Testes para funções auxiliares (_get_client, _fmt_api_error, _iso)."""
-
-    def test_get_client_none_raises(self):
-        """Cenário: _get_client quando _GET retorna None."""
-        with patch.object(repository, "_GET", return_value=None):
-            with pytest.raises(RuntimeError, match="Cliente Supabase não disponível"):
-                repository._get_client()
-
-    def test_fmt_api_error_with_code(self):
-        """Cenário: _fmt_api_error com código."""
-        # Criar mock de erro em vez de instanciar classe real
-        error = MagicMock()
-        error.code = "42P01"
-        error.details = "Table not found"
-        error.hint = "Create the table first"
-        error.__str__ = lambda self: "Table not found"
-
-        result = repository._fmt_api_error(error, "SELECT")
-
-        assert "SELECT" in str(result)
-        assert "42P01" in str(result)
-        assert "Table not found" in str(result)
-        assert "Create the table first" in str(result)
-
-    def test_fmt_api_error_without_code(self):
-        """Cenário: _fmt_api_error sem código."""
-        error = MagicMock()
-        error.code = None
-        error.details = "Generic error"
-        error.hint = None
-
-        result = repository._fmt_api_error(error, "INSERT")
-
-        assert "INSERT" in str(result)
-        assert "Generic error" in str(result)
-
-    def test_fmt_api_error_fallback_to_str(self):
-        """Cenário: _fmt_api_error sem details (usa str(e))."""
-        error = MagicMock()
-        error.code = None
-        error.details = None
-        error.message = None
-        error.__str__ = lambda self: "Fallback message"
-
-        result = repository._fmt_api_error(error, "UPDATE")
-
-        assert "UPDATE" in str(result)
-        assert "Fallback message" in str(result)
-
-    def test_iso_with_date_object(self):
-        """Cenário: _iso com objeto date."""
-        d = date(2025, 11, 21)
-        result = repository._iso(d)
-        assert result == "2025-11-21"
-
-    def test_iso_with_string(self):
-        """Cenário: _iso com string (retorna a própria string)."""
-        s = "2025-11-21"
-        result = repository._iso(s)
-        assert result == "2025-11-21"
+# ============================================================================
+# HELPER FUNCTIONS: Movidos para data.supabase_repo
+# Os testes de get_supabase_client, format_api_error e to_iso_date
+# estão em tests/data/test_supabase_repo.py
+# ============================================================================
 
 
 # ============================================================================
@@ -592,7 +534,7 @@ class TestAdditionalCoverage:
         mock_result.data = []
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.list_entries(
                 dfrom="",  # Empty string
                 dto="2025-01-31",
@@ -608,7 +550,7 @@ class TestAdditionalCoverage:
         mock_result.data = []
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.list_entries(
                 dfrom="2025-01-01",
                 dto="",  # Empty string
@@ -624,7 +566,7 @@ class TestAdditionalCoverage:
         mock_result.data = []
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.list_entries(
                 dfrom="2025-01-01",
                 dto="2025-01-31",
@@ -645,7 +587,7 @@ class TestAdditionalCoverage:
         mock_result.data = []
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.list_entries(
                 dfrom="2025-01-01",
                 dto="2025-01-31",
@@ -665,7 +607,7 @@ class TestAdditionalCoverage:
         ]
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.totals(dfrom="2025-01-01", dto="2025-01-31")
 
         # Como type é None ou ausente, tudo vai para OUT
@@ -680,7 +622,7 @@ class TestAdditionalCoverage:
         mock_result.data = [{"id": "new-without-org"}]
         mock_table.execute.return_value = mock_result
 
-        with patch.object(repository, "_get_client", return_value=mock_client):
+        with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
             result = repository.create_entry(
                 {"type": "IN", "amount": 100.0}
                 # org_id não passado

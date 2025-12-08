@@ -6,8 +6,9 @@ import os
 from dataclasses import dataclass
 from typing import Any, Iterable, Sequence
 
+from src.shared.storage_ui_bridge import build_client_prefix as _build_client_prefix_shared
+
 CLIENTS_BUCKET = os.getenv("RC_STORAGE_BUCKET_CLIENTS", "rc-docs").strip() or "rc-docs"
-CLIENT_FOLDER_FMT = os.getenv("RC_STORAGE_CLIENTS_FOLDER_FMT", "{org_id}/{client_id}").strip() or "{org_id}/{client_id}"
 
 
 @dataclass(frozen=True)
@@ -36,8 +37,7 @@ def get_clients_bucket() -> str:
 
 
 def build_client_prefix(client_id: int, org_id: str) -> str:
-    base = CLIENT_FOLDER_FMT.format(org_id=org_id, client_id=client_id)
-    return str(base).strip("/")
+    return _build_client_prefix_shared(org_id=org_id, client_id=client_id)
 
 
 def build_auditoria_prefix(client_root: str) -> str:
@@ -96,7 +96,11 @@ def upload_storage_bytes(
     sb.storage.from_(bucket).upload(
         dest_path,
         data,
-        {"content-type": content_type or "application/octet-stream", "upsert": str(bool(upsert)).lower(), "cacheControl": cache_control},
+        {
+            "content-type": content_type or "application/octet-stream",
+            "upsert": str(bool(upsert)).lower(),
+            "cacheControl": cache_control,
+        },
     )
 
 

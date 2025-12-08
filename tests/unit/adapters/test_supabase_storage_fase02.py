@@ -66,36 +66,38 @@ def test_normalize_bucket_preserves_valid_name():
 
 
 # ============================================================================
-# TESTES - _strip_accents()
+# TESTES - normalize_key_for_storage() - remoção de acentos
+# A função _strip_accents foi removida na FASE 4.
+# Agora testamos normalize_key_for_storage que usa normalize_ascii do core.
 # ============================================================================
 
 
-def test_strip_accents_removes_accents():
-    """Testa remoção de acentos."""
-    result = supabase_storage._strip_accents("Relatório")
+def test_normalize_key_removes_accents():
+    """Testa que normalize_key_for_storage remove acentos do nome do arquivo."""
+    result = supabase_storage.normalize_key_for_storage("pasta/Relatório.pdf")
 
-    assert result == "Relatorio"
+    assert result == "pasta/Relatorio.pdf"
 
 
-def test_strip_accents_handles_cedilla():
+def test_normalize_key_handles_cedilla():
     """Testa remoção de cedilha."""
-    result = supabase_storage._strip_accents("Configuração")
+    result = supabase_storage.normalize_key_for_storage("pasta/Configuração.txt")
 
-    assert result == "Configuracao"
+    assert result == "pasta/Configuracao.txt"
 
 
-def test_strip_accents_handles_multiple_accents():
+def test_normalize_key_handles_multiple_accents():
     """Testa remoção de múltiplos acentos."""
-    result = supabase_storage._strip_accents("Análise técnica")
+    result = supabase_storage.normalize_key_for_storage("pasta/Análise técnica.doc")
 
-    assert result == "Analise tecnica"
+    assert result == "pasta/Analise tecnica.doc"
 
 
-def test_strip_accents_preserves_plain_text():
+def test_normalize_key_preserves_plain_text():
     """Testa que texto sem acentos permanece inalterado."""
-    result = supabase_storage._strip_accents("Simple text")
+    result = supabase_storage.normalize_key_for_storage("folder/Simple text.txt")
 
-    assert result == "Simple text"
+    assert result == "folder/Simple text.txt"
 
 
 # ============================================================================

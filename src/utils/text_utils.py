@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import logging
 import re
-import unicodedata
 from typing import Sequence
+
+from src.core.string_utils import only_digits
 
 log: logging.Logger = logging.getLogger(__name__)
 
@@ -54,8 +55,13 @@ def fix_mojibake(s: str | None) -> str | None:
 
 
 def normalize_ascii(s: str | None) -> str:
-    """Remove acentos e retorna string ASCII simples."""
-    return "".join(c for c in unicodedata.normalize("NFKD", s or "") if not unicodedata.combining(c))
+    """Remove acentos e retorna string ASCII simples.
+
+    Wrapper para compatibilidade. Delega para src.core.text_normalization.normalize_ascii.
+    """
+    from src.core.text_normalization import normalize_ascii as _normalize_ascii_core
+
+    return _normalize_ascii_core(s)
 
 
 def clean_text(s: str | None) -> str:
@@ -63,22 +69,37 @@ def clean_text(s: str | None) -> str:
     return re.sub(r"\s+", " ", (s or "").strip())
 
 
-def only_digits(s: str | None) -> str:
-    """Remove todos os caracteres nao numericos."""
-    return re.sub(r"\D", "", s or "")
+# only_digits agora importado de src.core.string_utils
 
 
 def cnpj_is_valid(cnpj: str | None) -> bool:
-    """Checa se tem 14 dígitos numéricos (validação simples)."""
-    return len(only_digits(cnpj or "")) == 14
+    """Valida CNPJ verificando dígitos verificadores.
+
+    Wrapper para compatibilidade. Delega para src.core.cnpj_norm.is_valid_cnpj.
+    NOTA: Esta função agora valida DV completo, não apenas tamanho.
+    """
+    from src.core.cnpj_norm import is_valid_cnpj as _is_valid_cnpj_core
+
+    return _is_valid_cnpj_core(cnpj)
 
 
 def format_cnpj(digits14: str | None) -> str | None:
-    """Formata string de 14 digitos como CNPJ; retorna entrada original se invalida."""
-    d: str = only_digits(digits14)
-    if len(d) != 14:
-        return digits14
-    return f"{d[0:2]}.{d[2:5]}.{d[5:8]}/{d[8:12]}-{d[12:14]}"
+    """Formata string de 14 digitos como CNPJ; retorna entrada original se invalida.
+
+    Wrapper para compatibilidade. Delega para src.helpers.formatters.format_cnpj.
+    Mantém assinatura original (str | None -> str | None) por compatibilidade.
+    """
+    from src.helpers.formatters import format_cnpj as _format_cnpj_canonical
+
+    # Preserva comportamento original: None input -> None output
+    if digits14 is None:
+        return None
+
+    result = _format_cnpj_canonical(digits14)
+    # Se entrada é "" e canônico retorna "", mantém compatibilidade retornando None
+    if not digits14 and not result:
+        return None
+    return result if result else digits14
 
 
 # -------- normalização de nome empresarial --------

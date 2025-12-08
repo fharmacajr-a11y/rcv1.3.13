@@ -1,6 +1,30 @@
 # -*- coding: utf-8 -*-
 # data/supabase_repo.py
-"""Repositório Supabase para operações CRUD na tabela client_passwords."""
+"""Repositório Supabase para operações CRUD e helpers genéricos.
+
+Este módulo centraliza:
+- Helpers genéricos de acesso a tabelas Supabase (get_client, error formatting, retry logic)
+- CRUD específico para client_passwords (senhas criptografadas)
+- Autocomplete de clientes
+
+PADRÃO DE IMPORTAÇÃO PARA REPOSITORIES:
+---------------------------------------
+Os repositories em src/features/* podem usar os helpers genéricos deste módulo:
+
+    from data.supabase_repo import (
+        get_supabase_client,
+        format_api_error,
+        with_retries,
+        PostgrestAPIError,
+    )
+
+HELPERS DISPONÍVEIS:
+-------------------
+- get_supabase_client(): Retorna cliente Supabase único (tenta vários paths)
+- format_api_error(exc, operation): Formata erro da API Supabase
+- with_retries(fn, tries, base_delay): Executa fn com retry + backoff
+- PostgrestAPIError: Exceção base da API Supabase
+"""
 
 from __future__ import annotations
 
@@ -39,6 +63,107 @@ class SupabaseResponse(TypedDict, total=False):
     data: Sequence[dict[str, Any]] | None
     error: SupabaseError | None
     count: int | None
+
+
+# -----------------------------------------------------------------------------
+# postgrest APIError (usado em todo o projeto)
+# -----------------------------------------------------------------------------
+try:
+    from postgrest.exceptions import APIError as PostgrestAPIError  # supabase-py v2
+except Exception:
+    # Fallback se lib mudar
+    class PostgrestAPIError(Exception):  # type: ignore
+        pass
+
+
+# -----------------------------------------------------------------------------
+# Helper genérico: get_supabase_client
+# -----------------------------------------------------------------------------
+def get_supabase_client() -> Any:
+    """
+    Retorna o cliente Supabase único do projeto.
+
+    Tenta importar de múltiplos paths para compatibilidade com diferentes layouts:
+    1) infra.supabase_client.get_supabase (padrão do projeto)
+    2) src.infra.supabase_client.get_supabase (fallback)
+
+    Raises:
+        RuntimeError: Se cliente não estiver disponível
+
+    Returns:
+        Cliente Supabase configurado
+    """
+    try:
+        client = get_supabase()
+        if client is None:
+            raise RuntimeError("Cliente Supabase retornou None. Verifique configuração de infra/supabase_client.")
+        return client
+    except Exception as exc:
+        log.exception("Erro ao obter cliente Supabase")
+        raise RuntimeError(
+            f"Cliente Supabase não disponível: {exc}. " "Verifique se infra.supabase_client está acessível."
+        ) from exc
+
+
+# -----------------------------------------------------------------------------
+# Helper genérico: format_api_error
+# -----------------------------------------------------------------------------
+def format_api_error(exc: Exception, operation: str) -> RuntimeError:
+    """
+    Formata erro da API Supabase de forma amigável.
+
+    Extrai code, details e hint do PostgrestAPIError e constrói mensagem padronizada.
+
+    Args:
+        exc: Exceção capturada (idealmente PostgrestAPIError)
+        operation: Nome da operação (ex: "SELECT", "INSERT", "UPDATE", "DELETE")
+
+    Returns:
+        RuntimeError com mensagem formatada
+
+    Example:
+        try:
+            result = query.execute()
+        except PostgrestAPIError as e:
+            raise format_api_error(e, "SELECT")
+    """
+    code: str | None = getattr(exc, "code", None)
+    details: str = getattr(exc, "details", None) or getattr(exc, "message", None) or str(exc)
+    hint: str | None = getattr(exc, "hint", None)
+
+    msg: str = f"[{operation}] Erro na API: {details}"
+    if code:
+        msg = f"[{operation}] ({code}) {details}"
+    if hint:
+        msg += f" | hint: {hint}"
+
+    return RuntimeError(msg)
+
+
+# -----------------------------------------------------------------------------
+# Helper genérico: to_iso_date
+# -----------------------------------------------------------------------------
+def to_iso_date(d: datetime | Any) -> str:
+    """
+    Converte date ou datetime para string ISO, ou retorna string como está.
+
+    Args:
+        d: date, datetime ou string
+
+    Returns:
+        String em formato ISO (YYYY-MM-DD)
+
+    Example:
+        >>> from datetime import date
+        >>> to_iso_date(date(2025, 1, 15))
+        '2025-01-15'
+        >>> to_iso_date("2025-01-15")
+        '2025-01-15'
+    """
+    if isinstance(d, str):
+        return d
+    # Suporta date e datetime
+    return d.isoformat() if hasattr(d, "isoformat") else str(d)
 
 
 # -----------------------------------------------------------------------------
@@ -520,3 +645,26 @@ def list_clients_for_picker(org_id: str, limit: int = 200) -> list[ClientRow]:
     except Exception as e:
         log.warning("list_clients_for_picker: erro ao listar, retornando vazio: %s", getattr(e, "args", e))
         return []
+
+
+# -----------------------------------------------------------------------------
+# Public API exports para uso em outros repositories
+# -----------------------------------------------------------------------------
+__all__ = [
+    # Helpers genéricos para repositories
+    "get_supabase_client",
+    "format_api_error",
+    "to_iso_date",
+    "with_retries",
+    "PostgrestAPIError",
+    # CRUD de senhas (específico deste módulo)
+    "list_passwords",
+    "add_password",
+    "update_password",
+    "delete_password",
+    "delete_passwords_by_client",
+    "decrypt_for_view",
+    # Autocomplete de clientes
+    "search_clients",
+    "list_clients_for_picker",
+]

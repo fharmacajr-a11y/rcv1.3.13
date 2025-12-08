@@ -31,6 +31,7 @@ def test_app_methods_exist():
     # Ações
     assert callable(getattr(App, "novo_cliente", None))
     assert callable(getattr(App, "editar_cliente", None))
+    assert callable(getattr(App, "open_client_storage_subfolders", None))
     assert callable(getattr(App, "ver_subpastas", None))
     assert callable(getattr(App, "abrir_lixeira", None))
     assert callable(getattr(App, "enviar_para_supabase", None))

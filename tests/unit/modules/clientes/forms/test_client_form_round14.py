@@ -53,15 +53,11 @@ class TestImportsAndDependencies:
 
     def test_import_actions(self) -> None:
         """Actions de formulário estão importadas."""
-        from src.modules.clientes.forms.client_form import (
-            preencher_via_pasta,
-            salvar_e_upload_docs,
-        )
+        from src.modules.clientes.forms.client_form import preencher_via_pasta
 
         if preencher_via_pasta is None:
             pytest.fail("preencher_via_pasta deveria estar disponível")
-        if salvar_e_upload_docs is None:
-            pytest.fail("salvar_e_upload_docs deveria estar disponível")
+        # salvar_e_upload_docs removido em UP-05 (legacy cleanup)
 
     def test_import_helpers(self) -> None:
         """Helpers de status estão importados."""

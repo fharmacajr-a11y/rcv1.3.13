@@ -96,12 +96,12 @@ def test_exception_hook_handles_missing_default_root(monkeypatch) -> None:
 
     tk_mod = types.ModuleType("tkinter")
 
-    def __getattr__(name: str):
+    def _mock_getattr(name: str):
         if name == "_default_root":
             raise RuntimeError("no default root")
         raise AttributeError(name)
 
-    tk_mod.__getattr__ = __getattr__  # type: ignore[attr-defined]
+    tk_mod.__getattr__ = _mock_getattr  # type: ignore[attr-defined]
     messagebox_mod = types.ModuleType("tkinter.messagebox")
     messagebox_mod.showerror = lambda *_args, **_kwargs: None
     tk_mod.messagebox = messagebox_mod  # type: ignore[attr-defined]

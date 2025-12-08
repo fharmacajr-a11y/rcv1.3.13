@@ -11,6 +11,9 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 from typing import Optional
 
+from src.shared.subfolders import sanitize_subfolder_name
+from src.ui.window_utils import show_centered
+
 logger = logging.getLogger(__name__)
 
 
@@ -33,7 +36,7 @@ class SubpastaDialog(tk.Toplevel):
         self.title("Escolher Subpasta")
         self.transient(parent)
         self.resizable(True, True)
-        self.geometry("600x400")
+        self.minsize(600, 400)
 
         self.result: Optional[str] = None
         self.prefix = prefix
@@ -91,17 +94,13 @@ class SubpastaDialog(tk.Toplevel):
         self.bind("<Return>", lambda e: self._ok())
         self.bind("<Escape>", lambda e: self._cancel())
 
-        # Centraliza
         self.update_idletasks()
-        x = parent.winfo_x() + (parent.winfo_width() // 2) - (self.winfo_width() // 2)
-        y = parent.winfo_y() + (parent.winfo_height() // 2) - (self.winfo_height() // 2)
-        self.geometry(f"+{x}+{y}")
+        show_centered(self)
 
         # Carrega subpastas se prefix foi fornecido
         if prefix:
             self._load_subpastas()
 
-        self.deiconify()
         self.grab_set()
         self.entry.focus_force()
 
@@ -159,11 +158,8 @@ class SubpastaDialog(tk.Toplevel):
 
     def _ok(self):
         raw = (self.var.get() or "").strip()
-        # Sanitize básico
-        if raw:
-            self.result = raw.replace("\\", "/").replace("..", "").strip("/")
-        else:
-            self.result = ""
+        # Usa sanitização centralizada
+        self.result = sanitize_subfolder_name(raw) if raw else ""
         self.destroy()
 
     def _cancel(self):

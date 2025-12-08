@@ -243,7 +243,8 @@ def test_ensure_logged_happy_path(monkeypatch):
 
     assert auth_bootstrap.ensure_logged(app, splash=splash)
     assert splash.destroy_called
-    assert app.deiconified
+    # app.deiconify() não é mais responsabilidade de auth_bootstrap
+    # O deiconify agora é feito em app_gui após login/sessão ok
     assert app.user_status_updates == 1
     assert refreshed == [True]
     assert app.footer.emails == ["user@example.com"]

@@ -7,6 +7,7 @@ from tkinter import ttk
 from pathlib import Path
 from typing import Optional
 
+from src.ui.window_utils import show_centered
 from src.utils.paths import resource_path
 
 _log = logging.getLogger(__name__)
@@ -15,6 +16,7 @@ _log = logging.getLogger(__name__)
 class PDFBatchProgressDialog(tk.Toplevel):
     def __init__(self, parent: tk.Tk | tk.Toplevel, total_bytes: int, total_subdirs: int) -> None:
         super().__init__(parent)
+        self.withdraw()
         self._parent = parent
         self.title("Conversor PDF")
         self.total_bytes = total_bytes
@@ -51,7 +53,6 @@ class PDFBatchProgressDialog(tk.Toplevel):
         self.resizable(False, False)
         try:
             self.transient(parent)
-            self.grab_set()
         except Exception as exc:  # noqa: BLE001
             _log.debug("Falha ao configurar modal em pdf_batch_progress: %s", exc)
 
@@ -101,33 +102,13 @@ class PDFBatchProgressDialog(tk.Toplevel):
         self._on_close()
 
     def _center_on_parent(self) -> None:
-        self.update_idletasks()
-
-        parent = getattr(self, "_parent", None)
-        if parent is not None:
-            try:
-                parent_x = parent.winfo_rootx()
-                parent_y = parent.winfo_rooty()
-                parent_w = parent.winfo_width()
-                parent_h = parent.winfo_height()
-
-                w = self.winfo_width()
-                h = self.winfo_height()
-
-                x = parent_x + (parent_w - w) // 2
-                y = parent_y + (parent_h - h) // 2
-            except Exception:
-                parent = None
-
-        if parent is None:
-            screen_w = self.winfo_screenwidth()
-            screen_h = self.winfo_screenheight()
-            w = self.winfo_width()
-            h = self.winfo_height()
-            x = (screen_w - w) // 2
-            y = (screen_h - h) // 2
-
-        self.geometry(f"+{x}+{y}")
+        try:
+            self.update_idletasks()
+            show_centered(self)
+            self.grab_set()
+            self.focus_force()
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao centralizar PDFBatchProgressDialog: %s", exc)
 
     def _on_close(self) -> None:
         if self._closed:

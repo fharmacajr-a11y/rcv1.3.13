@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+
+from src.core.string_utils import only_digits
 
 # Windows reserves specific directory names; keep them uppercase for lookups.
 RESERVED_WIN_NAMES: set[str] = {
@@ -21,27 +22,24 @@ _META_SEPARATOR = re.compile(r"\s*[-_/|]\s*")
 
 
 def fmt_data(iso_str: str | None) -> str:
-    """Format an ISO datetime string into 'DD/MM/YYYY - %H:%M:%S'."""
-    if not iso_str:
-        return ""
+    """[DEPRECATED] Formata data ISO para DD/MM/YYYY - HH:MM:SS.
 
-    cleaned: str = iso_str.strip()
-    if not cleaned:
-        return ""
+    **DEPRECADO**: Use fmt_datetime_br de src.helpers.formatters.
+    Esta função é mantida apenas para compatibilidade com código legado.
+    Delega para fmt_datetime_br que é mais robusta e aceita mais tipos.
 
-    normalized: str = cleaned.replace("Z", "+00:00")
-    try:
-        dt_obj: datetime = datetime.fromisoformat(normalized)
-        if dt_obj.tzinfo is None:
-            dt_obj = dt_obj.replace(tzinfo=timezone.utc)
-        return dt_obj.astimezone().strftime("%d/%m/%Y - %H:%M:%S")
-    except Exception:
-        return cleaned
+    Args:
+        iso_str: String ISO datetime ou None.
+
+    Returns:
+        String formatada no padrão brasileiro ou vazio se None/inválido.
+    """
+    from src.helpers.formatters import fmt_datetime_br
+
+    return fmt_datetime_br(iso_str)
 
 
-def only_digits(value: str | None) -> str:
-    """Return only the numeric characters from the provided string."""
-    return re.sub(r"\D", "", value or "")
+# only_digits agora importado de src.core.string_utils
 
 
 def slugify_name(value: str | None) -> str:

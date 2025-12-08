@@ -10,19 +10,11 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Optional
 
-from src.ui.utils import center_on_parent
+from src.shared.subfolders import sanitize_subfolder_name
+from src.ui.window_utils import show_centered
 from src.utils.resource_path import resource_path
 
 logger = logging.getLogger(__name__)
-
-try:
-    from src.utils.validators import sanitize_key_component as _sanitize_key_component
-except Exception:  # pragma: no cover
-
-    def _sanitize_key_component(s: str | None) -> str:
-        import re
-
-        return re.sub(r"[^\w\-]+", "", str(s or "").strip())
 
 
 DEFAULT_IMPORT_SUBFOLDER = "GERAL"
@@ -69,11 +61,9 @@ class SubpastaDialog(tk.Toplevel):
 
         try:
             self.update_idletasks()
-            center_on_parent(self, parent)
+            show_centered(self)
         except Exception as exc:  # noqa: BLE001
             logger.debug("Falha ao centralizar SubpastaDialog: %s", exc)
-
-        self.deiconify()
         self.grab_set()
         ent.focus_force()
 
@@ -82,7 +72,7 @@ class SubpastaDialog(tk.Toplevel):
 
     def _ok(self):
         raw = (self.var.get() or "").strip()
-        self.result = _sanitize_key_component(raw) if raw else ""
+        self.result = sanitize_subfolder_name(raw) if raw else ""
         self.cancelled = False
         self.destroy()
 

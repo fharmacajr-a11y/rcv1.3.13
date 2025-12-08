@@ -10,6 +10,11 @@ from typing import Any, Callable, Sequence, Tuple, TypeVar, cast
 from adapters.storage.api import list_files as _storage_list_files, upload_file as _storage_upload_file
 from adapters.storage.supabase_storage import SupabaseStorageAdapter
 from infra.supabase_client import exec_postgrest, supabase
+from src.modules.uploads.upload_retry import (
+    DEFAULT_MAX_RETRIES,
+    upload_with_retry,
+    classify_upload_exception,
+)
 
 if False:  # pragma: no cover
     pass
@@ -182,18 +187,25 @@ def upload_items_with_adapter(
                 subfolder,
             )
 
-            adapter.upload_file(
+            # Usar upload_with_retry para lidar com erros transientes de rede/servidor
+            upload_with_retry(
+                adapter.upload_file,
                 local_path,
                 remote_key,
                 content_type="application/pdf",
+                max_retries=DEFAULT_MAX_RETRIES,
             )
             ok += 1
             logger.info("Upload SUCCESS: %s -> %s", Path(local_path).name, remote_key)
 
         except Exception as exc:  # pragma: no cover - integration behavior
+            # Classificar exceção para tratamento apropriado
+            classified_exc = classify_upload_exception(exc)
+
             # Trata erro 409 Duplicate como "ja existe", nao como falha
-            error_msg = str(exc)
-            is_duplicate = "Duplicate" in error_msg or "409" in error_msg or "already exists" in error_msg
+            # Verifica o detail (que contém "duplicate") ao invés da mensagem amigável
+            error_detail = getattr(classified_exc, "detail", "")
+            is_duplicate = "duplicate" in error_detail.lower()
 
             if is_duplicate:
                 duplicates += 1
@@ -214,9 +226,9 @@ def upload_items_with_adapter(
                 remote_key if "remote_key" in locals() else "N/A",
                 client_id,
                 org_id,
-                repr(exc),
+                repr(classified_exc),
             )
-            failures.append((item, exc))
+            failures.append((item, classified_exc))
     return ok, failures
 
 

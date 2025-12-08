@@ -164,8 +164,14 @@ class TestOrderChoicesConstants:
 
     def test_order_choices_updated_recent_and_old(self) -> None:
         """Verifica ordenação por última alteração (recente vs antiga)."""
-        assert ORDER_CHOICES[ORDER_LABEL_UPDATED_RECENT] == ("ultima_alteracao", False)
-        assert ORDER_CHOICES[ORDER_LABEL_UPDATED_OLD] == ("ultima_alteracao", True)
+        assert ORDER_CHOICES[ORDER_LABEL_UPDATED_RECENT] == (
+            "ultima_alteracao",
+            True,
+        )  # True = DESC (mais recente primeiro)
+        assert ORDER_CHOICES[ORDER_LABEL_UPDATED_OLD] == (
+            "ultima_alteracao",
+            False,
+        )  # False = ASC (mais antiga primeiro)
 
 
 class TestOrderLabelConstants:

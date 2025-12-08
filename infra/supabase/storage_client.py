@@ -13,6 +13,8 @@ import threading
 
 from src.config.paths import CLOUD_ONLY
 from requests import exceptions as req_exc
+from http.client import RemoteDisconnected
+from urllib3.exceptions import ReadTimeoutError, ProtocolError
 
 from infra.net_session import make_session
 from infra.supabase.types import SUPABASE_ANON_KEY, SUPABASE_URL
@@ -120,6 +122,12 @@ def baixar_pasta_zip(
     timeouts: tuple[int, int] = (15, timeout_s)  # (connect, read)
 
     try:
+        logger.info(
+            "ZIP: iniciando preparo via zipper | bucket=%s prefix=%s name=%s",
+            bucket,
+            prefix,
+            desired_name,
+        )
         with sess.get(
             EDGE_FUNCTION_ZIPPER_URL,
             headers=headers,
@@ -207,14 +215,34 @@ def baixar_pasta_zip(
             os.replace(tmp_path, out_path)
             return out_path
 
-    except (req_exc.ConnectTimeout, req_exc.ReadTimeout, req_exc.Timeout) as e:
+    except (req_exc.ConnectTimeout, req_exc.ReadTimeout, req_exc.Timeout, ReadTimeoutError) as e:
+        logger.warning(
+            "ZIP: timeout (connect/read) | bucket=%s prefix=%s name=%s erro=%s",
+            bucket,
+            prefix,
+            desired_name,
+            e,
+        )
         raise TimeoutError(
             "Tempo esgotado ao baixar (conexão ou leitura). Verifique sua internet e tente novamente."
         ) from e
     except DownloadCancelledError:
         raise
-    except req_exc.RequestException as e:
-        raise RuntimeError(f"Falha de rede durante o download: {e}") from e
+    except (RemoteDisconnected, ProtocolError, req_exc.ConnectionError, req_exc.RequestException) as e:
+        # Conexão encerrada pelo servidor antes de responder ou erro de protocolo/conn.
+        friendly = (
+            "Não foi possível preparar o ZIP no Supabase. "
+            "O servidor encerrou a conexão antes de responder. Tente novamente em alguns instantes."
+        )
+        logger.warning(
+            "ZIP: conexão encerrada/erro de protocolo | bucket=%s prefix=%s name=%s erro=%s",
+            bucket,
+            prefix,
+            desired_name,
+            e,
+        )
+        # Mantém compat com testes legados que verificam 'Falha de rede':
+        raise RuntimeError(f"Falha de rede durante o download: {friendly}") from e
 
 
 # -----------------------------------------------------------------------------

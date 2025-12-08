@@ -1,3 +1,13 @@
+"""DEPRECATED UI MODULE - Menu Bar Antiga
+
+Este módulo pertence à UI antiga (pré-modules/*).
+Mantido apenas como referência histórica.
+
+NOVO CÓDIGO DEVE USAR:
+  - Menu específico de cada módulo em src.modules.*/views/
+  - Ou componentes de menu em src.ui.components/
+"""
+
 # gui/menu_bar.py
 from __future__ import annotations
 

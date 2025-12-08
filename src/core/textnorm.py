@@ -7,20 +7,13 @@ from __future__ import annotations
 
 import unicodedata as ud
 
+from src.core.text_normalization import strip_diacritics as _strip_diacritics
+
 __all__ = [
     "_strip_diacritics",
     "normalize_search",
     "join_and_normalize",
 ]
-
-
-def _strip_diacritics(s: str | None) -> str:
-    if s is None:
-        return ""
-    text: str = str(s)
-    decomposed: str = ud.normalize("NFD", text)
-    without_marks: str = "".join(ch for ch in decomposed if ud.category(ch) != "Mn")
-    return ud.normalize("NFC", without_marks)
 
 
 def normalize_search(value: object) -> str:

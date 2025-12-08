@@ -75,7 +75,7 @@ def test_list_entries_basic(mock_client, sample_entries):
     mock_table.execute.return_value = mock_response
     mock_client.table.return_value = mock_table
 
-    with patch.object(repository, "_get_client", return_value=mock_client):
+    with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
         result = repository.list_entries(
             dfrom=date(2024, 1, 1),
             dto=date(2024, 1, 31),
@@ -102,7 +102,7 @@ def test_list_entries_with_type_filter(mock_client, sample_entries):
     mock_table.execute.return_value = mock_response
     mock_client.table.return_value = mock_table
 
-    with patch.object(repository, "_get_client", return_value=mock_client):
+    with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
         result = repository.list_entries(
             dfrom="2024-01-01",
             dto="2024-01-31",
@@ -127,7 +127,7 @@ def test_list_entries_with_text_search(mock_client):
     mock_table.execute.return_value = mock_response
     mock_client.table.return_value = mock_table
 
-    with patch.object(repository, "_get_client", return_value=mock_client):
+    with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
         result = repository.list_entries(
             dfrom="2024-01-01",
             dto="2024-01-31",
@@ -151,7 +151,7 @@ def test_list_entries_empty_result(mock_client):
     mock_table.execute.return_value = mock_response
     mock_client.table.return_value = mock_table
 
-    with patch.object(repository, "_get_client", return_value=mock_client):
+    with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
         result = repository.list_entries(
             dfrom="2024-12-01",
             dto="2024-12-31",
@@ -178,7 +178,7 @@ def test_totals_basic(mock_client, sample_entries):
     mock_table.execute.return_value = mock_response
     mock_client.table.return_value = mock_table
 
-    with patch.object(repository, "_get_client", return_value=mock_client):
+    with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
         result = repository.totals(
             dfrom=date(2024, 1, 1),
             dto=date(2024, 1, 31),
@@ -209,7 +209,7 @@ def test_totals_only_income(mock_client):
     mock_table.execute.return_value = mock_response
     mock_client.table.return_value = mock_table
 
-    with patch.object(repository, "_get_client", return_value=mock_client):
+    with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
         result = repository.totals(dfrom="2024-01-01", dto="2024-01-31")
 
     assert result["in"] == 1500.0
@@ -234,7 +234,7 @@ def test_totals_only_expenses(mock_client):
     mock_table.execute.return_value = mock_response
     mock_client.table.return_value = mock_table
 
-    with patch.object(repository, "_get_client", return_value=mock_client):
+    with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
         result = repository.totals(dfrom="2024-01-01", dto="2024-01-31")
 
     assert result["in"] == 0.0
@@ -255,7 +255,7 @@ def test_totals_empty_period(mock_client):
     mock_table.execute.return_value = mock_response
     mock_client.table.return_value = mock_table
 
-    with patch.object(repository, "_get_client", return_value=mock_client):
+    with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
         result = repository.totals(dfrom="2024-12-01", dto="2024-12-31")
 
     assert result["in"] == 0.0
@@ -286,7 +286,7 @@ def test_create_entry_basic(mock_client):
     mock_table.execute.return_value = mock_response
     mock_client.table.return_value = mock_table
 
-    with patch.object(repository, "_get_client", return_value=mock_client):
+    with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
         result = repository.create_entry(new_entry)
 
     assert result["id"] == "new-123"
@@ -311,7 +311,7 @@ def test_create_entry_with_org_id(mock_client):
     mock_table.execute.return_value = mock_response
     mock_client.table.return_value = mock_table
 
-    with patch.object(repository, "_get_client", return_value=mock_client):
+    with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
         result = repository.create_entry(new_entry, org_id="org-999")
 
     assert result["org_id"] == "org-999"
@@ -336,7 +336,7 @@ def test_update_entry_basic(mock_client):
     mock_table.execute.return_value = mock_response
     mock_client.table.return_value = mock_table
 
-    with patch.object(repository, "_get_client", return_value=mock_client):
+    with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
         result = repository.update_entry("entry-123", updated_data)
 
     assert result["id"] == "entry-123"
@@ -357,7 +357,7 @@ def test_delete_entry_basic(mock_client):
     mock_table.execute.return_value = MagicMock()
     mock_client.table.return_value = mock_table
 
-    with patch.object(repository, "_get_client", return_value=mock_client):
+    with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
         # Não deve lançar exceção
         repository.delete_entry("entry-456")
 
@@ -389,7 +389,7 @@ def test_totals_handles_none_amounts(mock_client):
     mock_table.execute.return_value = mock_response
     mock_client.table.return_value = mock_table
 
-    with patch.object(repository, "_get_client", return_value=mock_client):
+    with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
         result = repository.totals(dfrom="2024-01-01", dto="2024-01-31")
 
     # None deve ser tratado como 0
@@ -400,11 +400,11 @@ def test_totals_handles_none_amounts(mock_client):
 
 def test_iso_date_conversion():
     """Testa conversão de date para ISO string."""
-    from src.features.cashflow.repository import _iso
+    from data.supabase_repo import to_iso_date
 
     # Date object
     d = date(2024, 1, 15)
-    assert _iso(d) == "2024-01-15"
+    assert to_iso_date(d) == "2024-01-15"
 
     # String já formatada
-    assert _iso("2024-01-15") == "2024-01-15"
+    assert to_iso_date("2024-01-15") == "2024-01-15"

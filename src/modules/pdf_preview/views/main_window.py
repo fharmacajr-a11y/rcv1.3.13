@@ -12,6 +12,7 @@ try:
 except Exception:
     Image = ImageTk = None
 
+from src.ui.window_utils import show_centered
 from src.ui.wheel_windows import wheel_steps
 from src.modules.pdf_preview.controller import PdfPreviewController, PageRenderData
 from src.modules.pdf_preview.download_service import (
@@ -49,9 +50,17 @@ class PdfViewerWin(tk.Toplevel):
         data_bytes: bytes | None = None,
     ) -> None:
         super().__init__(master)
+        logger.info(
+            "PDF VIEWER: nova janela criada - pdf_path=%r display_name=%r has_bytes=%s",
+            pdf_path,
+            display_name,
+            bool(data_bytes),
+        )
+        # Evita piscada no Windows mantendo janela oculta até carregar conteúdo inicial
+        self.withdraw()
         self._display_name: str = display_name or (os.path.basename(pdf_path) if pdf_path else "Documento")
         self.title(f"Visualizar: {self._display_name}")
-        self.geometry("1200x800")
+        self.minsize(1200, 800)
         self.zoom: float = 1.0
         self._img_refs: Dict[int, tk.PhotoImage] = {}  # id_canvas -> PhotoImage
         self._items: List[int] = []  # ids de imagens por página
@@ -79,6 +88,7 @@ class PdfViewerWin(tk.Toplevel):
         self._pdf_path: str | None = None
         self._controller: Optional[PdfPreviewController] = None
         self._text_buffer: List[str] = []
+        self._empty_state_item: int | None = None
         # ---------------------------------------------------
 
         # Top bar
@@ -161,6 +171,9 @@ class PdfViewerWin(tk.Toplevel):
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self.bind("<Destroy>", self._on_destroy)
 
+        self.update_idletasks()
+        show_centered(self)
+
         # Carrega conteúdo
         if data_bytes:
             # Se veio bytes, detecta o tipo e abre
@@ -169,10 +182,34 @@ class PdfViewerWin(tk.Toplevel):
             # Se veio caminho, carrega PDF tradicional
             self._load_pdf(pdf_path)
         else:
-            self._controller = None
+            self._show_empty_state()
+
+    def open_document(
+        self, pdf_path: str | None = None, data_bytes: bytes | None = None, display_name: str | None = None
+    ) -> None:
+        """Reabre/atualiza o viewer com novo documento sem recriar a janela."""
+        try:
+            self.withdraw()
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao esconder janela antes de recarregar documento: %s", exc)
+        self._display_name = display_name or (os.path.basename(pdf_path) if pdf_path else self._display_name)
+        self.title(f"Visualizar: {self._display_name}")
+        if data_bytes:
+            self.open_bytes(data_bytes, self._display_name)
+        elif pdf_path:
+            self._load_pdf(pdf_path)
+        else:
+            self._show_empty_state()
+        try:
+            self.deiconify()
+            self.lift()
+            self.focus_canvas()
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao restaurar janela do PDF viewer: %s", exc)
 
     # ======== PDF load / render ========
     def _load_pdf(self, path: str) -> None:
+        self._clear_empty_state()
         self._pdf_path = path
         self._pdf_bytes = None
         self._is_pdf = True
@@ -214,9 +251,87 @@ class PdfViewerWin(tk.Toplevel):
             self.chk_text.state(["!disabled"])
         self._update_page_label(0)
 
+    def _clear_empty_state(self) -> None:
+        if self._empty_state_item is None:
+            return
+        try:
+            self.canvas.delete(self._empty_state_item)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao limpar estado vazio do PDF viewer: %s", exc)
+        self._empty_state_item = None
+
+    def _refresh_empty_state_layout(self) -> None:
+        if self._empty_state_item is None:
+            return
+        w = max(400, self.canvas.winfo_width())
+        h = max(300, self.canvas.winfo_height())
+        try:
+            self.canvas.coords(self._empty_state_item, w // 2, h // 2)
+            self.canvas.itemconfig(self._empty_state_item, width=int(w * 0.7))
+            self.canvas.configure(scrollregion=(0, 0, w, h))
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao reposicionar estado vazio do PDF viewer: %s", exc)
+
+    def _show_empty_state(self) -> None:
+        """Mostra uma mensagem quando nenhum documento estÇ­ carregado."""
+        self._clear_empty_state()
+        self._is_pdf = False
+        self._img_pil = None
+        self._img_ref = None
+        self._controller = None
+        self._pdf_bytes = None
+        self._pdf_path = None
+        self.page_count = 1
+        self.zoom = 1.0
+        self._img_zoom = 1.0
+        self._page_sizes = []
+        self._page_tops = []
+        self._items.clear()
+        self._img_refs.clear()
+        self.cache.clear()
+        self._has_text = False
+        self._page_label_suffix = ""
+        self.var_show_text.set(False)
+        try:
+            self._pane.forget(self._pane_right)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao esconder painel de texto no estado vazio do PDF viewer: %s", exc)
+        self._pane_right_added = False
+        self.text_panel.clear()
+        try:
+            self.chk_text.state(["disabled"])
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao desabilitar toggle de texto no estado vazio do PDF viewer: %s", exc)
+        self._update_download_buttons(is_pdf=False, is_image=False)
+
+        w = max(400, self.canvas.winfo_width())
+        h = max(300, self.canvas.winfo_height())
+        message = "Nenhum PDF carregado. Use esta janela para visualizar documentos."
+        try:
+            self._empty_state_item = self.canvas.create_text(
+                w // 2,
+                h // 2,
+                text=message,
+                width=int(w * 0.7),
+                fill="#666666",
+                justify="center",
+            )
+            self.canvas.configure(scrollregion=(0, 0, w, h))
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao mostrar estado vazio no PDF viewer: %s", exc)
+            self._empty_state_item = None
+
+        self._update_page_label(0)
+
     def _reflow_pages(self) -> None:
         if self._closing or not self.canvas.winfo_exists():
             return
+
+        if self._empty_state_item is not None:
+            self._refresh_empty_state_layout()
+            return
+
+        self._clear_empty_state()
 
         # Limpa canvas
         for it in self._items:
@@ -244,6 +359,9 @@ class PdfViewerWin(tk.Toplevel):
 
     def _on_canvas_configure(self, event: Any) -> None:
         # manter scrollregion atualizada
+        if self._empty_state_item is not None:
+            self._refresh_empty_state_layout()
+            return
         if self._is_pdf:
             self._render_visible_pages()
             self._update_scrollregion()
@@ -306,8 +424,9 @@ class PdfViewerWin(tk.Toplevel):
         clamped = max(0, min(index, total - 1))
         if self._controller is not None:
             self._controller.go_to_page(clamped)
+            render_state = self._controller.get_render_state()
             label = f"{self._controller.get_page_label(prefix='Página')}"
-            zoom_pct = int(round(self._controller.state.zoom * 100))
+            zoom_pct = int(round(render_state.zoom * 100))
         else:
             zoom_pct = int(round(self.zoom * 100))
             # Usa helper para formatação
@@ -355,16 +474,17 @@ class PdfViewerWin(tk.Toplevel):
         return "break"
 
     def _zoom_by(self, wheel_steps_count: int | float, event: Any | None = None) -> None:
-        Z_MIN, Z_MAX, Z_STEP = 0.2, 6.0, 0.1
+        if self._empty_state_item is not None:
+            return
+        z_min, z_max, z_step = 0.2, 6.0, 0.1
         old = self.zoom
-        new = max(Z_MIN, min(Z_MAX, round(old + wheel_steps_count * Z_STEP, 2)))
+        new = max(z_min, min(z_max, round(old + wheel_steps_count * z_step, 2)))
         if abs(new - old) < 1e-9:
             return
         self._fit_mode = False
 
         if self._controller is not None:
-            self._controller.set_zoom(new, fit_mode="custom")
-            new = self._controller.state.zoom
+            new = self._controller.apply_zoom_delta(wheel_steps_count)
 
         # âncora do ponteiro no canvas
         if event is not None:
@@ -392,9 +512,9 @@ class PdfViewerWin(tk.Toplevel):
 
     def _zoom_image_by(self, wheel_steps_count: int | float) -> None:
         """Ajusta zoom da imagem com Ctrl+MouseWheel."""
-        Z_MIN, Z_MAX, Z_STEP = 0.1, 5.0, 0.1
+        z_min, z_max, z_step = 0.1, 5.0, 0.1
         old = self._img_zoom
-        new = max(Z_MIN, min(Z_MAX, round(old + wheel_steps_count * Z_STEP, 2)))
+        new = max(z_min, min(z_max, round(old + wheel_steps_count * z_step, 2)))
         if abs(new - old) < 1e-9:
             return
         self._img_zoom = new
@@ -402,6 +522,8 @@ class PdfViewerWin(tk.Toplevel):
             self._render_image(self._img_pil)
 
     def _set_zoom_fit_width(self) -> None:
+        if self._empty_state_item is not None:
+            return
         if not self._is_pdf and self._img_pil is not None:
             # Modo imagem: ajusta zoom baseado na largura
             cwidth = max(1, self.canvas.winfo_width() - 2 * GAP)
@@ -422,9 +544,11 @@ class PdfViewerWin(tk.Toplevel):
         self._set_zoom_exact(target, fit_mode=True)
 
     def _set_zoom_exact(self, value: float, *, fit_mode: bool = False) -> None:
+        if self._empty_state_item is not None:
+            return
         self._fit_mode = fit_mode
         if self._controller is not None:
-            self._controller.set_zoom(max(0.2, min(6.0, float(value))), fit_mode=("width" if fit_mode else "custom"))
+            self._controller.set_zoom(float(value), fit_mode=("width" if fit_mode else "custom"))
             self.zoom = self._controller.state.zoom
         else:
             self.zoom = max(0.2, min(6.0, float(value)))
@@ -439,7 +563,10 @@ class PdfViewerWin(tk.Toplevel):
             self._set_zoom_fit_width()
 
     def _on_toggle_text_toolbar(self, show: bool) -> None:
-        self.var_show_text.set(show)
+        actual = bool(show)
+        if self._controller is not None:
+            actual = self._controller.set_show_text(actual)
+        self.var_show_text.set(actual)
         self._toggle_text()
 
     # ======== Texto / Busca ========
@@ -447,9 +574,10 @@ class PdfViewerWin(tk.Toplevel):
         if not self._has_text and self.var_show_text.get():
             self.var_show_text.set(False)
             return
-        show = self.var_show_text.get()
+        show = bool(self.var_show_text.get())
         if self._controller is not None:
-            self._controller.state.show_text = bool(show)
+            show = self._controller.set_show_text(show)
+            self.var_show_text.set(show)
         if show and not self._pane_right_added:
             self._pane.add(self._pane_right, weight=2)
             self._pane_right_added = True
@@ -552,6 +680,7 @@ class PdfViewerWin(tk.Toplevel):
                 self.grab_release()
             except Exception as exc:  # noqa: BLE001
                 logger.debug("Falha ao liberar grab no fechamento do PDF viewer: %s", exc)
+            # Destrói a janela para evitar manter grabs ativos e congelar a UI
             self.destroy()
 
     def _on_destroy(self, event: Any | None = None) -> None:
@@ -727,6 +856,7 @@ class PdfViewerWin(tk.Toplevel):
         Abre arquivo a partir de bytes. Detecta automaticamente se é PDF ou imagem.
         Retorna True se abriu com sucesso.
         """
+        self._clear_empty_state()
         name = filename or ""
         guess_pdf, guess_image = is_pdf_or_image(name)
         lower_name = name.lower()

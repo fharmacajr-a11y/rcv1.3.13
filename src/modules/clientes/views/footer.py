@@ -27,6 +27,7 @@ class ClientesFooter(tb.Frame):  # type: ignore[misc]
         on_enviar_supabase: Callable[[], None],
         on_enviar_pasta: Callable[[], None],
         on_excluir: Optional[Callable[[], None]] = None,
+        # on_obrigacoes removido - funcionalidade movida para Hub
         on_batch_delete: Callable[[], None],
         on_batch_restore: Callable[[], None],
         on_batch_export: Callable[[], None],
@@ -41,6 +42,7 @@ class ClientesFooter(tb.Frame):  # type: ignore[misc]
             on_enviar=on_enviar_supabase,
             on_enviar_pasta=on_enviar_pasta,
             on_excluir=on_excluir,
+            on_obrigacoes=None,  # Sempre None - funcionalidade removida
             # Batch desabilitado na UI principal de clientes
             on_batch_delete=None,
             on_batch_restore=None,
@@ -53,6 +55,7 @@ class ClientesFooter(tb.Frame):  # type: ignore[misc]
         self.btn_subpastas = buttons.subpastas
         self.btn_enviar = buttons.enviar
         self.btn_excluir = buttons.excluir
+        self.btn_obrigacoes = buttons.obrigacoes
         self.enviar_menu = buttons.enviar_menu
         self.btn_batch_delete = buttons.batch_delete
         self.btn_batch_restore = buttons.batch_restore
@@ -92,6 +95,7 @@ class ClientesFooter(tb.Frame):  # type: ignore[misc]
         """Lista exatamente os botões do rodapé que devem ser controlados em pick mode."""
         buttons = []
         # Adiciona apenas os botões que existem e não são None
+        # Nota: btn_obrigacoes removido - funcionalidade movida para toolbar superior
         for btn in [self.btn_novo, self.btn_editar, self.btn_subpastas, self.btn_enviar]:
             if btn is not None:
                 buttons.append(btn)

@@ -240,7 +240,7 @@ def validate_inputs(*args, **kwargs) -> tuple[tuple, dict[str, Any]]:
             )
         logger.warning(
             "Tentativa de envio bloqueada: Estado da nuvem = %s (%s)",
-            state.upper(),
+            (state or "unknown").upper(),
             description,
         )
         ctx.abort = True

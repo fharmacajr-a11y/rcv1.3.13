@@ -13,25 +13,6 @@ from src.features.cashflow import repository as repo
 logger = logging.getLogger(__name__)
 
 
-# ------------ utilidades de centralização (sem "flash") ------------
-def _place_center(win: tk.Toplevel) -> bool:
-    try:
-        win.tk.call("tk::PlaceWindow", win._w, "center")
-        return True
-    except Exception:
-        return False
-
-
-def center_on_screen(win: tk.Toplevel) -> None:
-    """Centraliza a janela calculando geometria manualmente (fallback)."""
-    win.update_idletasks()
-    w = win.winfo_width() or win.winfo_reqwidth()
-    h = win.winfo_height() or win.winfo_reqheight()
-    x = (win.winfo_screenwidth() // 2) - (w // 2)
-    y = (win.winfo_screenheight() // 2) - (h // 2)
-    win.geometry(f"{w}x{h}+{x}+{y}")
-
-
 def _first_day_month(d: date) -> date:
     return d.replace(day=1)
 
@@ -232,7 +213,6 @@ class CashflowFrame(tb.Frame):
         from src.features.cashflow.dialogs import EntryDialog
 
         dlg = EntryDialog(self, title="Novo Lançamento")
-        _ = _place_center(dlg) or center_on_screen(dlg)  # Position dialog
         self.wait_window(dlg)
 
         if dlg.result:
@@ -263,7 +243,6 @@ class CashflowFrame(tb.Frame):
         from src.features.cashflow.dialogs import EntryDialog
 
         dlg = EntryDialog(self, initial=current, title="Editar Lançamento")
-        _ = _place_center(dlg) or center_on_screen(dlg)  # Position dialog
         self.wait_window(dlg)
 
         if dlg.result:

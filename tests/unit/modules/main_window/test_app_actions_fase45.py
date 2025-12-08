@@ -7,6 +7,7 @@ validando fluxos felizes, erros esperados e bordas das acoes da janela principal
 
 from __future__ import annotations
 
+import logging
 import sys
 import types
 from unittest.mock import MagicMock
@@ -199,33 +200,34 @@ def test_excluir_cliente_sucesso_atualiza_fluxos(monkeypatch):
     logger.info.assert_called()
 
 
-def test_abrir_lixeira_prefere_modulo_ui(monkeypatch):
-    called = []
-    fake_module = types.SimpleNamespace(abrir_lixeira=lambda app: called.append(app))
-
-    monkeypatch.setitem(sys.modules, "src.ui.lixeira", fake_module)
+def test_abrir_lixeira_usa_lixeira_views_moderno(monkeypatch):
+    """Valida que abrir_lixeira sempre usa src.modules.lixeira.views.lixeira."""
+    from unittest.mock import MagicMock
 
     app = object()
     actions = AppActions(app)
 
+    mock_abrir = MagicMock()
+    monkeypatch.setattr("src.modules.lixeira.views.lixeira.abrir_lixeira", mock_abrir)
+
     actions.abrir_lixeira()
 
-    assert called == [app]
+    mock_abrir.assert_called_once_with(app)
 
 
-def test_ver_subpastas_sem_selecao_exibe_alerta(monkeypatch):
+def test_open_client_storage_subfolders_sem_selecao_exibe_alerta(monkeypatch):
     calls, _ = _stub_tk_modules(monkeypatch)
     monkeypatch.setattr("src.modules.uploads.open_files_browser", lambda *a, **k: pytest.fail("nao deve abrir"))
 
     app = types.SimpleNamespace(_selected_main_values=lambda: [])
     actions = AppActions(app)
 
-    actions.ver_subpastas()
+    actions.open_client_storage_subfolders()
 
     assert calls["showwarning"]
 
 
-def test_ver_subpastas_sem_org_exibe_erro(monkeypatch):
+def test_open_client_storage_subfolders_sem_org_exibe_erro(monkeypatch):
     calls, _ = _stub_tk_modules(monkeypatch)
     monkeypatch.setattr("src.modules.uploads.open_files_browser", lambda *a, **k: pytest.fail("nao deve abrir"))
 
@@ -236,12 +238,12 @@ def test_ver_subpastas_sem_org_exibe_erro(monkeypatch):
     )
     actions = AppActions(app)
 
-    actions.ver_subpastas()
+    actions.open_client_storage_subfolders()
 
     assert calls["showerror"]
 
 
-def test_ver_subpastas_chama_browser_com_parametros(monkeypatch):
+def test_open_client_storage_subfolders_chama_browser_com_parametros(monkeypatch):
     calls, _ = _stub_tk_modules(monkeypatch)
     browser_called = {}
 
@@ -260,7 +262,7 @@ def test_ver_subpastas_chama_browser_com_parametros(monkeypatch):
     )
     actions = AppActions(app)
 
-    actions.ver_subpastas()
+    actions.open_client_storage_subfolders()
 
     assert browser_called["kwargs"]["org_id"] == "org-9"
     assert browser_called["kwargs"]["client_id"] == 2
@@ -443,7 +445,7 @@ def test_excluir_cliente_falha_refresh_lixeira(monkeypatch):
     assert calls["showinfo"]
 
 
-def test_ver_subpastas_sem_usuario_exibe_erro(monkeypatch):
+def test_open_client_storage_subfolders_sem_usuario_exibe_erro(monkeypatch):
     """Testa que falta de usuário autenticado mostra erro."""
     calls, _ = _stub_tk_modules(monkeypatch)
 
@@ -453,21 +455,32 @@ def test_ver_subpastas_sem_usuario_exibe_erro(monkeypatch):
     )
     actions = AppActions(app)
 
-    actions.ver_subpastas()
+    actions.open_client_storage_subfolders()
 
     assert calls["showerror"]
 
 
-def test_ver_subpastas_id_invalido_exibe_erro(monkeypatch):
+def test_open_client_storage_subfolders_id_invalido_exibe_erro(monkeypatch):
     """Testa que ID inválido mostra erro."""
     calls, _ = _stub_tk_modules(monkeypatch)
 
     app = types.SimpleNamespace(_selected_main_values=lambda: ["abc", "Razao"])
     actions = AppActions(app)
 
-    actions.ver_subpastas()
+    actions.open_client_storage_subfolders()
 
     assert calls["showerror"]
+
+
+def test_ver_subpastas_alias_delega_para_novo_metodo(monkeypatch):
+    """Garante que o wrapper legacy ainda funciona."""
+    app = types.SimpleNamespace(_selected_main_values=lambda: [])
+    actions = AppActions(app)
+    actions.open_client_storage_subfolders = MagicMock()
+
+    actions.ver_subpastas()
+
+    actions.open_client_storage_subfolders.assert_called_once()
 
 
 def test_enviar_para_supabase_sem_base_prefix(monkeypatch):
@@ -983,31 +996,19 @@ def test_run_pdf_batch_converter_app_after_falha_on_done(monkeypatch, tmp_path):
     assert "PDFs gerados: 1" in recorded_msg["message"]
 
 
-def test_abrir_lixeira_fallback_para_modulo_lixeira(monkeypatch):
-    """Testa fallback para src.modules.lixeira quando src.ui.lixeira falha."""
-    called = []
-
-    def fake_import_error(*args, **kwargs):
-        raise ImportError("ui.lixeira not found")
-
-    fallback_module = types.SimpleNamespace(abrir_lixeira=lambda app: called.append(app))
-
-    import builtins
-
-    original_import = builtins.__import__
-
-    def custom_import(name, *args, **kwargs):
-        if name == "src.ui.lixeira":
-            raise ImportError("not found")
-        if name == "src.modules.lixeira":
-            return fallback_module
-        return original_import(name, *args, **kwargs)
-
-    monkeypatch.setattr(builtins, "__import__", custom_import)
+def test_abrir_lixeira_loga_erro_quando_modulo_falha(monkeypatch, caplog):
+    """Valida que erros ao abrir lixeira são logados corretamente."""
+    from unittest.mock import MagicMock
 
     app = object()
     actions = AppActions(app)
 
-    actions.abrir_lixeira()
+    mock_abrir = MagicMock(side_effect=Exception("Erro simulado"))
+    monkeypatch.setattr("src.modules.lixeira.views.lixeira.abrir_lixeira", mock_abrir)
 
-    assert called == [app]
+    with caplog.at_level(logging.ERROR):
+        actions.abrir_lixeira()
+
+    # Valida que o erro foi logado
+    assert any("Erro ao abrir a tela da Lixeira" in rec.message for rec in caplog.records)
+    mock_abrir.assert_called_once_with(app)

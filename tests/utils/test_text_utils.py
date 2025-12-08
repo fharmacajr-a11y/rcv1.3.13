@@ -21,12 +21,14 @@ def test_clean_text_collapses_whitespace():
 
 def test_only_digits_and_cnpj_checks():
     assert text_utils.only_digits("12.a-34") == "1234"
-    assert text_utils.cnpj_is_valid("12.345.678/0001-95") is True
+    # CNPJ válido com DV correto (12.345.678/0001-10)
+    assert text_utils.cnpj_is_valid("12.345.678/0001-10") is True
     assert text_utils.cnpj_is_valid("123") is False
 
 
 def test_format_cnpj_returns_formatted_when_valid():
-    assert text_utils.format_cnpj("12345678000195") == "12.345.678/0001-95"
+    # Usa CNPJ com DV correto (12.345.678/0001-10)
+    assert text_utils.format_cnpj("12345678000110") == "12.345.678/0001-10"
     assert text_utils.format_cnpj("invalid") == "invalid"
 
 

@@ -280,11 +280,13 @@ def test_upload_items_with_adapter_empty_list(monkeypatch):
 
 
 def test_upload_items_with_adapter_duplicate_error(monkeypatch):
+    """Testa que erro 409 duplicate não aparece em failures (tratado como skip)."""
     calls = []
 
     class DuplicateAdapter:
         def upload_file(self, local_path: str, remote_path: str, **kwargs: Any) -> None:
             calls.append((local_path, remote_path))
+            # Simula erro 409 - será classificado como UploadServerError(reason="duplicate")
             raise RuntimeError("409 Conflict already exists")
 
     class FakeItem:
@@ -301,6 +303,7 @@ def test_upload_items_with_adapter_duplicate_error(monkeypatch):
         remote_path_builder=lambda cnpj, rel, sub, **kwargs: f"{cnpj}/{sub}/{rel}",
     )
 
+    # Duplicate não conta como ok nem como failure - é apenas skipped
     assert ok == 0
     assert failures == []
     assert calls  # confirm upload was attempted

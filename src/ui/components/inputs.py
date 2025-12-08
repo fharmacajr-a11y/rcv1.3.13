@@ -19,15 +19,18 @@ PLACEHOLDER_FG = "#C3C3C3"
 NORMAL_TEXT_FG = "black"
 
 
-def _clear_combobox_selection(combo: ttk.Combobox) -> None:
-    """Remove selecao visual (texto marcado) de um Combobox."""
+def _clear_combobox_selection(combo: tk.Widget) -> None:
+    """Remove selecao visual (texto marcado) de um Combobox.
+
+    Aceita ttk.Combobox ou ttkbootstrap.Combobox (ambos derivam de tk.Widget).
+    """
     try:
-        combo.selection_clear()
+        combo.selection_clear()  # type: ignore[attr-defined]
     except Exception:
         # Toleramos falhas silenciosas para combos que não suportam essa operação
         log.debug("Falha ao limpar seleção do combobox", exc_info=True)
     try:
-        combo.icursor(tk.END)
+        combo.icursor(tk.END)  # type: ignore[attr-defined]
     except Exception:
         log.debug("Falha ao mover cursor do combobox para o final", exc_info=True)
 
@@ -44,6 +47,7 @@ class SearchControls:
     order_combobox: tb.Combobox
     status_combobox: tb.Combobox
     lixeira_button: tb.Button
+    obrigacoes_button: tb.Button | None = None
     search_container: tk.Frame | None = None
     placeholder_label: tk.Label | None = None
     search_icon: tk.PhotoImage | None = None
@@ -70,6 +74,7 @@ def create_search_controls(
     on_order_change: Callable[[], Any] | None,
     on_status_change: Callable[[Any | None], Any] | None = None,
     on_lixeira: Callable[[], Any] | None = None,
+    on_obrigacoes: Callable[[], Any] | None = None,
     search_var: tk.StringVar | None = None,
     order_var: tk.StringVar | None = None,
     status_var: tk.StringVar | None = None,
@@ -146,7 +151,11 @@ def create_search_controls(
     if search_icon is not None:
         icon_label = tk.Label(search_container, image=search_icon, bg=search_container.cget("bg"), borderwidth=0)
         icon_label.pack(side="left", padx=(0, 4))
-        search_container._search_icon = search_icon  # keep PhotoImage alive
+        # FIX-TESTS-002: Manter referência forte à PhotoImage para evitar garbage collection
+        # Mantem referências em multiplos locais para garantir que a imagem sobreviva
+        icon_label.image = search_icon  # type: ignore[attr-defined]
+        search_container._search_icon = search_icon  # type: ignore[attr-defined]
+        frame._search_icon = search_icon  # type: ignore[attr-defined] - referência no frame retornado
 
     # Entry de busca (a caixinha visivel)
     entry_style = "Search.TEntry"
@@ -171,11 +180,12 @@ def create_search_controls(
     # Configurar cor da selecao (azul claro)
     try:
         entry.configure(
-            selectbackground="#5bc0de",  # azul claro
-            selectforeground="#000000",  # texto preto
+            selectbackground="#5bc0de",
+            selectforeground="#000000",
         )
-    except Exception:
-        log.debug("Falha ao configurar cores de seleção do entry de busca", exc_info=True)
+    except tk.TclError:
+        # ttk.Entry/ttkbootstrap geralmente nao suportam essas opcoes; ignora.
+        pass
 
     # Placeholder usando Label sobreposto ao Entry
     placeholder_label = tk.Label(
@@ -216,7 +226,8 @@ def create_search_controls(
     entry.bind("<KeyRelease>", _on_key_release, add="+")
     entry.bind("<FocusIn>", _hide_placeholder, add="+")
     entry.bind("<FocusOut>", _update_placeholder, add="+")
-    search_var.trace_add("write", lambda *_args: _update_placeholder())
+    if search_var is not None:
+        search_var.trace_add("write", lambda *_args: _update_placeholder())
     _update_placeholder()
 
     search_button = tb.Button(
@@ -228,7 +239,8 @@ def create_search_controls(
     search_button.pack(side="left", padx=5)
 
     def _on_clear_pressed() -> None:
-        search_var.set("")
+        if search_var is not None:
+            search_var.set("")
         _update_placeholder()
         if on_clear:
             on_clear()
@@ -264,7 +276,8 @@ def create_search_controls(
         order_combobox.configure(state="readonly")
     order_combobox.bind("<<ComboboxSelected>>", _order_changed, add="+")
     # Remove selecao cinza no texto do combobox sempre que o valor muda
-    order_var.trace_add("write", lambda *_args: _clear_combobox_selection(order_combobox))
+    if order_var is not None:
+        order_var.trace_add("write", lambda *_args: _clear_combobox_selection(order_combobox))
     _clear_combobox_selection(order_combobox)
 
     tb.Label(frame, text="Status:").pack(side="left", padx=5)
@@ -293,8 +306,26 @@ def create_search_controls(
         status_combobox.configure(state="readonly")
     status_combobox.bind("<<ComboboxSelected>>", _status_changed, add="+")
     # Remove selecao cinza no texto do combobox sempre que o valor muda
-    status_var.trace_add("write", lambda *_args: _clear_combobox_selection(status_combobox))
+    if status_var is not None:
+        status_var.trace_add("write", lambda *_args: _clear_combobox_selection(status_combobox))
     _clear_combobox_selection(status_combobox)
+
+    # Separator e botão Obrigações (se callback fornecido)
+    obrigacoes_button: tb.Button | None = None
+    if on_obrigacoes is not None:
+        # Separator visual
+        sep = ttk.Separator(frame, orient="vertical")
+        sep.pack(side="left", fill="y", padx=(8, 4))
+
+        # Botão Obrigações
+        obrigacoes_button = tb.Button(
+            frame,
+            text="Obrigações",
+            command=on_obrigacoes,
+            bootstyle="secondary",
+            width=12,
+        )
+        obrigacoes_button.pack(side="left", padx=(0, 4))
 
     # Botão Lixeira à direita
     lixeira_button = tb.Button(
@@ -316,6 +347,7 @@ def create_search_controls(
         order_combobox=order_combobox,
         status_combobox=status_combobox,
         lixeira_button=lixeira_button,
+        obrigacoes_button=obrigacoes_button,
         search_container=search_container,
         placeholder_label=placeholder_label,
         search_icon=search_icon,

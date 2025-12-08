@@ -9,9 +9,12 @@ para Supabase", onde o usuário seleciona PDFs externamente via diálogo de arqu
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any, Dict
 
 from infra.supabase_client import get_supabase_state, is_really_online
+from src.config.environment import env_int
+from src.modules.uploads.file_validator import FileValidationResult, validate_upload_file
 from src.modules.uploads.uploader_supabase import (
     build_items_from_files,
     upload_files_to_supabase,
@@ -20,7 +23,10 @@ from src.modules.uploads.uploader_supabase import (
 ServiceContext = Dict[str, Any]
 ServiceResult = Dict[str, Any]
 
-log: logging.Logger = logging.getLogger(__name__)
+MAX_FILES_PER_BATCH = env_int("RC_UPLOAD_MAX_FILES_PER_BATCH", 0)
+
+logger: logging.Logger = logging.getLogger(__name__)
+log = logger
 
 
 def salvar_e_enviar_para_supabase_service(ctx: ServiceContext) -> ServiceResult:
@@ -95,8 +101,18 @@ def salvar_e_enviar_para_supabase_service(ctx: ServiceContext) -> ServiceResult:
             return result
 
         # 2. Validar arquivos selecionados
-        files: Any = ctx.get("files", [])
-        if not files:
+        files_input: Any = ctx.get("files")
+        raw_files: list[str] = list(files_input or [])
+        total_files = len(raw_files)
+        stats: dict[str, int] = {
+            "total_selected": total_files,
+            "total_validated": 0,
+            "total_invalid": 0,
+            "total_skipped_by_limit": 0,
+        }
+        result["stats"] = stats
+
+        if not raw_files:
             result["ok"] = False
             result["should_show_ui"] = True
             result["ui_message_type"] = "info"
@@ -105,8 +121,84 @@ def salvar_e_enviar_para_supabase_service(ctx: ServiceContext) -> ServiceResult:
             log.info("Service: Nenhum arquivo selecionado")
             return result
 
+        files_for_batch: list[str] = list(raw_files)
+        skipped = 0
+
+        if MAX_FILES_PER_BATCH > 0 and total_files > MAX_FILES_PER_BATCH:
+            skipped = total_files - MAX_FILES_PER_BATCH
+            files_for_batch = files_for_batch[:MAX_FILES_PER_BATCH]
+
+            logger.warning(
+                "Batch de upload limitado por MAX_FILES_PER_BATCH",
+                extra={
+                    "total_files": total_files,
+                    "max_files": MAX_FILES_PER_BATCH,
+                    "skipped": skipped,
+                },
+            )
+
+            result["errors"].append(
+                f"Foram selecionados {total_files} arquivos; "
+                f"{skipped} foram ignorados devido ao limite configurado "
+                f"({MAX_FILES_PER_BATCH})."
+            )
+            stats["total_skipped_by_limit"] = skipped
+
+        paths = [Path(f) for f in files_for_batch]
+        valid_files: list[Path] = []
+        invalid_results: list[FileValidationResult] = []
+
+        for path in paths:
+            validation = validate_upload_file(path)
+            if validation.valid:
+                valid_files.append(validation.path)
+            else:
+                invalid_results.append(validation)
+
+        stats["total_validated"] = len(valid_files)
+        stats["total_invalid"] = len(invalid_results)
+
+        logger.info(
+            "External upload validation result",
+            extra={
+                "total_files": len(paths),
+                "valid_files": len(valid_files),
+                "invalid_files": len(invalid_results),
+            },
+        )
+
+        validation_messages = [
+            (f"{result.path.name}: {result.error}" if result.error else f"{result.path.name}: arquivo inválido")
+            for result in invalid_results
+        ]
+
+        if not valid_files:
+            result["ok"] = False
+            result["should_show_ui"] = True
+            result["ui_message_type"] = "warning"
+            result["ui_message_title"] = "Nenhum arquivo válido"
+            result["errors"].extend(validation_messages)
+
+            summary = "\n".join(f"• {msg}" for msg in validation_messages if msg)
+            if summary:
+                result["ui_message_body"] = (
+                    "Nenhum arquivo válido foi encontrado para envio.\n"
+                    "Revise os arquivos e tente novamente:\n"
+                    f"{summary}"
+                )
+            else:
+                result["ui_message_body"] = "Nenhum arquivo válido foi encontrado para envio."
+
+            log.warning("Service: Nenhum arquivo válido após validação OWASP")
+            return result
+
+        if validation_messages:
+            result["errors"].extend(validation_messages)
+
+        valid_paths_for_build = [str(path) for path in valid_files]
+
         # 3. Construir items de upload
-        items: Any = build_items_from_files(files)
+        items: Any = build_items_from_files(valid_paths_for_build)
         if not items:
             result["ok"] = False
             result["should_show_ui"] = True

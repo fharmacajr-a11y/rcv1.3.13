@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import re
 import tkinter
 from tkinter import messagebox
 from typing import Callable, Optional, TYPE_CHECKING
@@ -27,14 +26,25 @@ class PickModeController:
     _callback: Optional[PickCallback] = None
     _return_to: Optional[Callable[[], None]] = None
 
-    def start_pick(self, on_pick: PickCallback, return_to: Optional[Callable[[], None]] = None) -> None:
-        """Entra em modo pick e recarrega a lista."""
+    def start_pick(
+        self,
+        on_pick: PickCallback,
+        return_to: Optional[Callable[[], None]] = None,
+        banner_text: Optional[str] = None,
+    ) -> None:
+        """Entra em modo pick e recarrega a lista.
+
+        MS-21: Refatorado para usar API pública da MainScreenFrame.
+        """
         self._active = True
         self._callback = on_pick
         self._return_to = return_to
+        # MS-21: Manter _pick_mode para compatibilidade com código legacy
         self.frame._pick_mode = True
         self.frame._on_pick = on_pick
         self.frame._return_to = return_to
+        self._update_banner_text(banner_text=banner_text)
+        # MS-21: Usar API pública em vez de chamar método privado
         self._ensure_pick_ui(True)
         self.frame.carregar()
 
@@ -87,10 +97,15 @@ class PickModeController:
     # ------------------------------------------------------------------ #
 
     def _exit(self, *, call_return: bool) -> None:
+        """Sai de pick mode e executa callback de retorno se necessário.
+
+        MS-21: Refatorado para usar API pública da MainScreenFrame.
+        """
         self._active = False
         # FIX-CLIENTES-007: Manter _pick_mode=True durante _ensure_pick_ui(False)
         # para que _update_main_buttons_state() não sobrescreva o estado restaurado da Lixeira
         self._ensure_pick_ui(False)
+        # MS-21: Manter _pick_mode para compatibilidade com código legacy
         self.frame._pick_mode = False  # Resetar apenas APÓS restaurar a UI
 
         if call_return and callable(self._return_to):
@@ -105,16 +120,19 @@ class PickModeController:
         self.frame._return_to = None
 
     def _ensure_pick_ui(self, enable: bool) -> None:
-        """Exibe ou oculta UI específica do modo pick."""
+        """Exibe ou oculta UI específica do modo pick.
+
+        MS-21: Refatorado para usar APIs públicas da MainScreenFrame.
+        """
         frame = self.frame
         if not hasattr(frame, "_saved_toolbar_state"):
             frame._saved_toolbar_state = {}
 
         if enable:
-            # Entrar no modo pick UI
-            if hasattr(frame, "_enter_pick_mode_ui"):
+            # MS-21: Usar API pública para entrar em modo pick UI
+            if hasattr(frame, "enter_pick_mode"):
                 try:
-                    frame._enter_pick_mode_ui()
+                    frame.enter_pick_mode()
                 except Exception as exc:  # noqa: BLE001
                     log.debug("Falha ao entrar no modo pick UI: %s", exc)
 
@@ -199,10 +217,10 @@ class PickModeController:
             except Exception as exc:
                 log.debug("Falha ao restaurar binds do modo pick: %s", exc)
 
-            # Restaurar UI normal
-            if hasattr(frame, "_leave_pick_mode_ui"):
+            # MS-21: Usar API pública para sair do modo pick UI
+            if hasattr(frame, "exit_pick_mode"):
                 try:
-                    frame._leave_pick_mode_ui()
+                    frame.exit_pick_mode()
                 except Exception as exc:  # noqa: BLE001
                     log.debug("Falha ao sair do modo pick UI: %s", exc)
 
@@ -210,6 +228,28 @@ class PickModeController:
             frame._update_main_buttons_state()
         except Exception as exc:  # noqa: BLE001
             log.debug("Falha ao atualizar botoes no modo pick: %s", exc)
+
+    def _update_banner_text(self, banner_text: Optional[str]) -> None:
+        """Atualiza texto do banner conforme o contexto fornecido."""
+        frame = self.frame
+        label = getattr(frame, "_pick_label", None)
+        if label is None:
+            return
+
+        default_text = getattr(frame, "_pick_banner_default_text", None)
+        text = banner_text or default_text
+        if not text:
+            return
+
+        try:
+            if hasattr(label, "configure") and callable(label.configure):
+                label.configure(text=text)
+            elif hasattr(label, "config") and callable(label.config):
+                label.config(text=text)
+            else:
+                label["text"] = text  # type: ignore[index]
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao atualizar texto do banner do pick mode: %s", exc)
 
     def _get_selected_client_dict(self) -> dict | None:
         """Retorna dict com dados do cliente selecionado."""
@@ -281,10 +321,10 @@ class PickModeController:
 
     @staticmethod
     def _format_cnpj_for_pick(cnpj: str | None) -> str:
-        """Formata CNPJ para exibição (##.###.###/####-##)."""
-        if not cnpj:
-            return ""
-        digits = re.sub(r"\\D", "", cnpj)
-        if len(digits) != 14:
-            return cnpj
-        return f"{digits[0:2]}.{digits[2:5]}.{digits[5:8]}/{digits[8:12]}-{digits[12:14]}"
+        """Formata CNPJ para exibição (##.###.###/####-##).
+
+        Wrapper para compatibilidade. Delega para src.helpers.formatters.format_cnpj.
+        """
+        from src.helpers.formatters import format_cnpj as _format_cnpj_canonical
+
+        return _format_cnpj_canonical(cnpj)

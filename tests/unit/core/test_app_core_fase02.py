@@ -246,20 +246,20 @@ def test_abrir_pasta_respects_cloud_only_block(monkeypatch, tmp_path, reset_mess
     assert startfile_calls == []
 
 
-# ==================== Testes de ver_subpastas ====================
+# ==================== Testes de open_client_local_subfolders ====================
 
 
-def test_ver_subpastas_shows_info_when_no_fs(monkeypatch, reset_messagebox):
-    """Testa que ver_subpastas mostra info quando NO_FS está ativo."""
+def test_open_client_local_subfolders_shows_info_when_no_fs(monkeypatch, reset_messagebox):
+    """Testa que open_client_local_subfolders mostra info quando NO_FS está ativo."""
     monkeypatch.setattr(app_core, "NO_FS", True)
 
-    app_core.ver_subpastas(SimpleNamespace(), 42)
+    app_core.open_client_local_subfolders(SimpleNamespace(), 42)
 
     assert any("showinfo" in call[0] for call in reset_messagebox)
 
 
-def test_ver_subpastas_handles_config_load_exception(monkeypatch, tmp_path):
-    """Testa que ver_subpastas usa listas vazias quando load_subpastas_config falha."""
+def test_open_client_local_subfolders_handles_config_load_exception(monkeypatch, tmp_path):
+    """Testa que open_client_local_subfolders usa listas vazias quando load_subpastas_config falha."""
     monkeypatch.setattr(app_core, "NO_FS", False)
     monkeypatch.setattr(app_core, "_ensure_live_folder_ready", lambda pk: str(tmp_path))
 
@@ -268,24 +268,40 @@ def test_ver_subpastas_handles_config_load_exception(monkeypatch, tmp_path):
     def fake_dialog(app, path, subpastas, extras):
         dialog_calls.append((app, path, subpastas, extras))
 
-    dialog_module = SimpleNamespace(open_subpastas_dialog=fake_dialog)
-    monkeypatch.setitem(sys.modules, "src.ui.subpastas.dialog", dialog_module)
+    # O código real importa de src.modules.clientes.forms, não de src.ui.subpastas.dialog
+    forms_module = SimpleNamespace(open_subpastas_dialog=fake_dialog)
+    monkeypatch.setitem(sys.modules, "src.modules.clientes.forms", forms_module)
 
     config_module = SimpleNamespace(load_subpastas_config=lambda: (_ for _ in ()).throw(Exception("Config error")))
     monkeypatch.setitem(sys.modules, "src.utils.subpastas_config", config_module)
 
-    app_core.ver_subpastas(SimpleNamespace(), 42)
+    app_core.open_client_local_subfolders(SimpleNamespace(), 42)
 
     # Deve usar listas vazias
     assert dialog_calls[0][2] == []
     assert dialog_calls[0][3] == []
 
 
+def test_ver_subpastas_alias_calls_new_function(monkeypatch):
+    """Garante que o wrapper legacy delega para open_client_local_subfolders."""
+    called = {}
+
+    def fake_open(app, pk):
+        called["args"] = (app, pk)
+
+    monkeypatch.setattr(app_core, "open_client_local_subfolders", fake_open)
+
+    app_core.ver_subpastas("APP", 7)
+
+    assert called["args"] == ("APP", 7)
+
+
 # ==================== Testes de abrir_lixeira_ui ====================
 
 
 def test_abrir_lixeira_ui_with_primary_import(monkeypatch):
-    """Testa abrir_lixeira_ui com import primário de src.ui.lixeira."""
+    """Testa abrir_lixeira_ui com import primário de src.modules.lixeira.views.lixeira."""
+    # Limpar o _module_abrir_lixeira cache para forçar import dinâmico
     monkeypatch.setattr(app_core, "_module_abrir_lixeira", None)
 
     called = []
@@ -294,8 +310,9 @@ def test_abrir_lixeira_ui_with_primary_import(monkeypatch):
         called.append((parent, app_ctx))
         return "window"
 
-    lixeira_module = SimpleNamespace(abrir_lixeira=fake_open)
-    monkeypatch.setitem(sys.modules, "src.ui.lixeira", lixeira_module)
+    # O código primeiro tenta src.modules.lixeira.views.lixeira.abrir_lixeira
+    lixeira_views_module = SimpleNamespace(abrir_lixeira=fake_open)
+    monkeypatch.setitem(sys.modules, "src.modules.lixeira.views.lixeira", lixeira_views_module)
 
     app = SimpleNamespace(root="ROOT", app="CTX")
     app_core.abrir_lixeira_ui(app)

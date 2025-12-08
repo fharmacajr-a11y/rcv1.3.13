@@ -6,13 +6,27 @@ import logging
 import os
 from typing import Any, Mapping, Optional
 
-# Tenta importar a janela de arquivos usada pelo módulo Clientes
-try:
-    from src.modules.uploads import open_files_browser
-except Exception:
-    open_files_browser = None  # type: ignore[assignment]
-
 logger = logging.getLogger(__name__)
+
+open_files_browser = None  # carregado sob demanda
+_OPEN_BROWSER_LOAD_FAILED = False
+
+
+def _get_open_files_browser():
+    """Resolve o open_files_browser apenas quando necessário para evitar import circular."""
+    global open_files_browser, _OPEN_BROWSER_LOAD_FAILED
+    if open_files_browser is not None or _OPEN_BROWSER_LOAD_FAILED:
+        return open_files_browser
+
+    try:
+        from src.modules.uploads import open_files_browser as loaded
+
+        open_files_browser = loaded
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Falha ao importar open_files_browser: %s", exc)
+        _OPEN_BROWSER_LOAD_FAILED = True
+        open_files_browser = None
+    return open_files_browser
 
 
 def get_clients_bucket() -> str:
@@ -32,16 +46,26 @@ def client_prefix_for_id(client_id: int | str, org_id: str = "") -> str:
 
     Usa formato padrão {org_id}/{client_id} ou RC_STORAGE_CLIENTS_FOLDER_FMT quando presente.
     """
+    return build_client_prefix(org_id=org_id, client_id=client_id)
+
+
+def build_client_prefix(*, org_id: str, client_id: int | str) -> str:
+    """
+    Retorna o prefixo do cliente no Storage, respeitando RC_STORAGE_CLIENTS_FOLDER_FMT.
+
+    Args:
+        org_id: Identificador da organização (pode ser vazio em ambientes antigos).
+        client_id: Identificador do cliente (int ou str).
+    """
     fmt = os.getenv("RC_STORAGE_CLIENTS_FOLDER_FMT", "").strip()
+    base: str
     if fmt:
-        # Formato customizado
-        return fmt.format(client_id=client_id, org_id=org_id)
+        base = fmt.format(client_id=client_id, org_id=org_id)
+    elif org_id:
+        base = f"{org_id}/{client_id}"
     else:
-        # Formato padrão do files_browser
-        if org_id:
-            return f"{org_id}/{client_id}".strip("/")
-        else:
-            return str(client_id)
+        base = str(client_id)
+    return base.strip("/")
 
 
 def _get_org_id_from_supabase(sb: Any) -> Optional[str]:
@@ -118,9 +142,10 @@ def open_client_files_window(parent: Any, sb: Any, client_id: int) -> None:
 
     from tkinter import messagebox
 
-    if open_files_browser is not None:
+    browser = _get_open_files_browser()
+    if browser is not None:
         try:
-            open_files_browser(parent, org_id=org_id, client_id=client_id, razao=razao, cnpj=cnpj)
+            browser(parent, org_id=org_id, client_id=client_id, razao=razao, cnpj=cnpj)
             return
         except Exception:
             messagebox.showwarning("Arquivos", "Falha ao abrir janela de arquivos.")

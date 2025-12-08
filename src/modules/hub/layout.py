@@ -4,7 +4,7 @@ import tkinter as tk
 from typing import Any
 
 from src.modules.hub.constants import (
-    COL_LEFT_WIDTH,
+    MODULES_COL_MINSIZE,
     MODULES_WEIGHT,
     NOTES_PANEL_MIN_WIDTH,
     NOTES_WEIGHT,
@@ -48,7 +48,7 @@ def apply_hub_notes_right(root: tk.Widget, widgets: dict[str, Any]) -> None:
 
     # RC: hub-notes-right (layout base - grid de 3 colunas)
     # Garante 3 colunas: apenas coluna 1 (centro) cresce
-    root.grid_columnconfigure(0, weight=MODULES_WEIGHT, minsize=COL_LEFT_WIDTH)
+    root.grid_columnconfigure(0, weight=MODULES_WEIGHT, minsize=MODULES_COL_MINSIZE)
     root.grid_columnconfigure(1, weight=SPACER_WEIGHT, minsize=SPACER_MIN_WIDTH)  # centro elástico
     root.grid_columnconfigure(2, weight=NOTES_WEIGHT, minsize=NOTES_PANEL_MIN_WIDTH)
     root.grid_rowconfigure(0, weight=1)

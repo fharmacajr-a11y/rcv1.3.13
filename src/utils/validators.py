@@ -3,19 +3,14 @@
 from __future__ import annotations
 
 import logging
-import re
 import sqlite3
 from typing import Any, Dict, Iterable, Optional
+
+from src.core.string_utils import only_digits
 
 log = logging.getLogger(__name__)
 
 # -------------------------- helpers básicos --------------------------
-
-_ONLY_DIGITS = re.compile(r"\D+")
-
-
-def only_digits(s: Optional[str]) -> str:
-    return _ONLY_DIGITS.sub("", s or "")
 
 
 def normalize_text(s: Optional[str]) -> str:
@@ -53,32 +48,25 @@ def is_valid_whatsapp_br(num: Optional[str]) -> bool:
 
 # -------------------------- CNPJ --------------------------
 
+# Importa normalize_cnpj canônico do core
+from src.core.cnpj_norm import is_valid_cnpj as _is_valid_cnpj_core  # noqa: E402
+from src.core.cnpj_norm import normalize_cnpj_digits  # noqa: E402
+
 
 def normalize_cnpj(cnpj: Optional[str]) -> str:
-    return only_digits(cnpj)
+    """Normaliza CNPJ para apenas dígitos (compatibilidade com API existente).
+
+    Wrapper para compatibilidade. Delega para src.core.cnpj_norm.normalize_cnpj_digits.
+    """
+    return normalize_cnpj_digits(cnpj)
 
 
 def is_valid_cnpj(cnpj: Optional[str]) -> bool:
-    """
-    Valida CNPJ pelos dígitos verificadores.
-    """
-    c = normalize_cnpj(cnpj)
-    if len(c) != 14:
-        return False
-    # rejeita sequências óbvias
-    if c == c[0] * 14:
-        return False
+    """Valida CNPJ pelos dígitos verificadores.
 
-    def dv_calc(base: str) -> str:
-        pesos = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
-        soma = sum(int(d) * pesos[i] for i, d in enumerate(base))
-        r = soma % 11
-        dv = 0 if r < 2 else 11 - r
-        return str(dv)
-
-    d1 = dv_calc(c[:12])
-    d2 = dv_calc(c[:12] + d1)
-    return c[-2:] == d1 + d2
+    Wrapper para compatibilidade. Delega para src.core.cnpj_norm.is_valid_cnpj.
+    """
+    return _is_valid_cnpj_core(cnpj)
 
 
 # -------------------------- campos requeridos --------------------------

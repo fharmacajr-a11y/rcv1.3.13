@@ -262,7 +262,11 @@ class TestUploadItemsWithAdapterQA005:
         # Deve ter 0 uploads ok e 1 falha
         assert ok_count == 0
         assert len(failures) == 1
-        assert isinstance(failures[0][1], RuntimeError)
+        # Contrato de erro: domain exception com raw exception em __cause__
+        from src.modules.uploads.exceptions import UploadError
+
+        assert isinstance(failures[0][1], UploadError)
+        assert isinstance(failures[0][1].__cause__, RuntimeError)
 
 
 class TestRemotePathBuilderIntegration:
@@ -295,7 +299,11 @@ class TestRemotePathBuilderIntegration:
         # Deve falhar porque builder não aceita client_id/org_id
         assert ok_count == 0
         assert len(failures) == 1
-        assert isinstance(failures[0][1], TypeError)
+        # Contrato de erro: domain exception com raw exception em __cause__
+        from src.modules.uploads.exceptions import UploadError
+
+        assert isinstance(failures[0][1], UploadError)
+        assert isinstance(failures[0][1].__cause__, TypeError)
 
     def test_builder_with_kwargs_receives_values(self):
         """Testa que builder com **kwargs recebe client_id/org_id."""

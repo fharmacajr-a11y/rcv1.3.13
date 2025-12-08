@@ -206,13 +206,21 @@ def test_app_editar_cliente_delega_para_actions(app_hidden):
     app_hidden._actions.editar_cliente.assert_called_once()
 
 
-def test_app_ver_subpastas_delega_para_actions(app_hidden):
-    """Testa que ver_subpastas() delega para AppActions."""
-    app_hidden._actions.ver_subpastas = Mock()
+def test_app_open_storage_subfolders_delega_para_actions(app_hidden):
+    """Testa que open_client_storage_subfolders() delega para AppActions."""
+    app_hidden._actions.open_client_storage_subfolders = Mock()
+
+    app_hidden.open_client_storage_subfolders()
+
+    app_hidden._actions.open_client_storage_subfolders.assert_called_once()
+
+
+def test_app_ver_subpastas_wrapper_chama_novo_metodo(app_hidden):
+    app_hidden.open_client_storage_subfolders = Mock()
 
     app_hidden.ver_subpastas()
 
-    app_hidden._actions.ver_subpastas.assert_called_once()
+    app_hidden.open_client_storage_subfolders.assert_called_once()
 
 
 def test_app_abrir_lixeira_delega_para_actions(app_hidden):
@@ -375,8 +383,13 @@ def test_app_on_menu_logout_chama_auth_logout(app_hidden):
 
 
 def test_app_confirm_exit_pergunta_confirmacao(app_hidden):
-    """Testa que _confirm_exit() mostra confirmação."""
-    with patch("src.modules.main_window.views.main_window.custom_dialogs.ask_ok_cancel") as mock_confirm:
+    """Testa que _confirm_exit() mostra confirmação.
+
+    FIX-TESTS-001: Atualizado para patchar messagebox.askokcancel
+    em vez de custom_dialogs.ask_ok_cancel, pois a implementação
+    atual usa Tkinter messagebox diretamente.
+    """
+    with patch("src.modules.main_window.views.main_window.messagebox.askokcancel") as mock_confirm:
         mock_confirm.return_value = False  # Usuário cancela
 
         app_hidden._confirm_exit()
@@ -386,8 +399,11 @@ def test_app_confirm_exit_pergunta_confirmacao(app_hidden):
 
 
 def test_app_confirm_exit_destroi_quando_confirmado(app_hidden):
-    """Testa que _confirm_exit() destrói app quando confirmado."""
-    with patch("src.modules.main_window.views.main_window.custom_dialogs.ask_ok_cancel") as mock_confirm:
+    """Testa que _confirm_exit() destrói app quando confirmado.
+
+    FIX-TESTS-001: Atualizado para patchar messagebox.askokcancel.
+    """
+    with patch("src.modules.main_window.views.main_window.messagebox.askokcancel") as mock_confirm:
         mock_confirm.return_value = True  # Usuário confirma
         app_hidden.destroy = Mock()
 

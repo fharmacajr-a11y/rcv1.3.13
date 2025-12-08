@@ -1,4 +1,5 @@
 # security/crypto.py
+# CORREÇÃO CIRÚRGICA: Cache de Fernet + validação de chave na primeira inicialização
 """Criptografia local para senhas usando Fernet (symmetric encryption)."""
 
 from __future__ import annotations
@@ -10,19 +11,45 @@ from cryptography.fernet import Fernet
 
 log = logging.getLogger(__name__)
 
+# CORREÇÃO CIRÚRGICA: Singleton interno para cache da instância Fernet
+_fernet_instance: Fernet | None = None
 
-def _get_encryption_key() -> bytes:
+
+def _reset_fernet_cache() -> None:
     """
-    Obtém a chave de criptografia do .env (RC_CLIENT_SECRET_KEY).
-    A chave deve estar em formato base64 (gerada via Fernet.generate_key()).
+    Limpa o cache singleton da instância Fernet.
+    USO EXCLUSIVO PARA TESTES.
     """
+    global _fernet_instance
+    _fernet_instance = None
+
+
+def _get_fernet() -> Fernet:
+    """
+    Obtém (ou cria) a instância Fernet singleton com validação de chave.
+    A chave RC_CLIENT_SECRET_KEY é lida do ambiente apenas uma vez.
+
+    Raises:
+        RuntimeError: Se a chave estiver ausente ou tiver formato inválido.
+    """
+    global _fernet_instance
+
+    if _fernet_instance is not None:
+        return _fernet_instance
+
+    # CORREÇÃO CIRÚRGICA: Leitura e validação na primeira chamada
     key_str = os.getenv("RC_CLIENT_SECRET_KEY")
     if not key_str:
         raise RuntimeError("RC_CLIENT_SECRET_KEY não encontrada no .env. Defina uma chave Fernet válida (base64).")
+
     try:
-        return key_str.encode("utf-8")
+        key_bytes = key_str.encode("utf-8")
+        _fernet_instance = Fernet(key_bytes)
+        return _fernet_instance
     except Exception as e:
-        raise RuntimeError(f"Erro ao processar RC_CLIENT_SECRET_KEY: {e}")
+        raise RuntimeError(
+            f"RC_CLIENT_SECRET_KEY tem formato inválido para Fernet (deve ser base64 de 44 caracteres): {e}"
+        )
 
 
 def encrypt_text(plain: str | None) -> str:
@@ -34,8 +61,7 @@ def encrypt_text(plain: str | None) -> str:
     if not plain:
         return ""
     try:
-        key = _get_encryption_key()
-        f = Fernet(key)
+        f = _get_fernet()
         encrypted = f.encrypt(plain.encode("utf-8"))
         return encrypted.decode("utf-8")
     except Exception as e:
@@ -52,8 +78,7 @@ def decrypt_text(token: str | None) -> str:
     if not token:
         return ""
     try:
-        key = _get_encryption_key()
-        f = Fernet(key)
+        f = _get_fernet()
         decrypted = f.decrypt(token.encode("utf-8"))
         return decrypted.decode("utf-8")
     except Exception as e:

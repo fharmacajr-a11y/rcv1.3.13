@@ -17,6 +17,71 @@ from unittest.mock import MagicMock
 import pytest
 import tkinter as tk
 
+
+# ============================================================================
+# MARKERS PERSONALIZADOS - Categorização de testes
+# ============================================================================
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Registra markers customizados e reaplica filtros de warnings."""
+    # Registrar markers
+    config.addinivalue_line(
+        "markers", "legacy_ui: marca testes que cobrem UI antiga (src.ui.*) - mantidos apenas como referência histórica"
+    )
+
+    # Reaplicar filtros de warnings após pytest inicializar
+    _apply_global_warning_filters()
+
+
+# ============================================================================
+# FILTROS DE WARNINGS GLOBAIS
+# ============================================================================
+
+
+def _apply_global_warning_filters() -> None:
+    """Silencia avisos conhecidos que só aparecem na suíte completa."""
+
+    # DeprecationWarning da lib nativa "swigvarlink" (código de terceiros).
+    warnings.filterwarnings(
+        "ignore",
+        category=DeprecationWarning,
+        message=r"builtin type swigvarlink has no __module__ attribute",
+    )
+
+    # Fallback absoluto: se o warn escapar dos filtros (por exemplo, no shutdown do Python),
+    # interceptamos a escrita para não poluir o stdout.
+    _patch_showwarning()
+
+
+_ORIGINAL_SHOWWARNING = warnings.showwarning
+_SHOWWARNING_PATCHED = False
+
+
+def _patch_showwarning() -> None:
+    global _SHOWWARNING_PATCHED
+    if _SHOWWARNING_PATCHED:
+        return
+
+    def _filtered_showwarning(
+        message: Warning | str,
+        category: type[Warning],
+        filename: str,
+        lineno: int,
+        file=None,
+        line: str | None = None,
+    ):
+        text = str(message)
+        if category is DeprecationWarning and "swigvarlink has no __module__ attribute" in text:
+            return
+        return _ORIGINAL_SHOWWARNING(message, category, filename, lineno, file=file, line=line)
+
+    warnings.showwarning = _filtered_showwarning
+    _SHOWWARNING_PATCHED = True
+
+
+_apply_global_warning_filters()
+
 try:
     import ttkbootstrap as tb
     from ttkbootstrap import style as tb_style
@@ -187,8 +252,7 @@ def isolated_users_db(tmp_path, monkeypatch: pytest.MonkeyPatch):
 
     monkeypatch.setattr(auth_module, "USERS_DB_PATH", db_path)
 
-    conn = sqlite3.connect(str(db_path))
-    try:
+    with sqlite3.connect(str(db_path)) as conn:
         cur = conn.cursor()
         cur.execute(
             """
@@ -203,8 +267,6 @@ def isolated_users_db(tmp_path, monkeypatch: pytest.MonkeyPatch):
             """
         )
         conn.commit()
-    finally:
-        conn.close()
 
     return db_path
 

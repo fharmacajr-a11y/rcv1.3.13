@@ -4,6 +4,8 @@ import logging
 import tkinter as tk
 from tkinter import ttk
 from typing import Optional
+
+from src.ui.window_utils import show_centered
 from src.modules.main_window.views.constants import APP_ICON_PATH
 from src.modules.main_window.views.helpers import resource_path
 
@@ -42,10 +44,10 @@ def apply_app_icon(window: tk.Toplevel, parent: tk.Misc | None) -> None:
 class _BaseDialog(tk.Toplevel):
     def __init__(self, parent: tk.Misc, title: str) -> None:
         super().__init__(parent)
+        self.withdraw()
         self._parent = parent
         self.title(title)
         self.transient(parent)
-        self.grab_set()
         self.resizable(False, False)
 
         try:
@@ -54,26 +56,13 @@ class _BaseDialog(tk.Toplevel):
             logger.debug("Falha ao configurar icone no dialogo base: %s", exc)
 
     def center_on_parent(self) -> None:
-        self.update_idletasks()
-        parent = self._parent
-        if parent is not None:
-            px = parent.winfo_rootx()
-            py = parent.winfo_rooty()
-            pw = parent.winfo_width()
-            ph = parent.winfo_height()
-            w = self.winfo_width()
-            h = self.winfo_height()
-            x = px + (pw - w) // 2
-            y = py + (ph - h) // 2
-        else:
-            sw = self.winfo_screenwidth()
-            sh = self.winfo_screenheight()
-            w = self.winfo_width()
-            h = self.winfo_height()
-            x = (sw - w) // 2
-            y = (sh - h) // 2
-
-        self.geometry(f"+{x}+{y}")
+        try:
+            self.update_idletasks()
+            show_centered(self)
+            self.grab_set()
+            self.focus_force()
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao centralizar dialogo PDF: %s", exc)
 
 
 DELETE_IMAGES_MESSAGE = (
@@ -127,10 +116,6 @@ class PDFDeleteImagesConfirmDialog(_BaseDialog):
         self.protocol("WM_DELETE_WINDOW", self.on_cancel)
 
         self.center_on_parent()
-        try:
-            self.focus_force()
-        except Exception as exc:  # noqa: BLE001
-            logger.debug("Falha ao focar dialogo de confirmacao PDF: %s", exc)
 
     def on_yes(self) -> None:
         self._result = "yes"
@@ -178,10 +163,6 @@ class PDFConversionResultDialog(_BaseDialog):
         self.protocol("WM_DELETE_WINDOW", self.on_ok)
 
         self.center_on_parent()
-        try:
-            self.focus_force()
-        except Exception as exc:  # noqa: BLE001
-            logger.debug("Falha ao focar dialogo de resultado PDF: %s", exc)
 
     def on_ok(self) -> None:
         self.destroy()

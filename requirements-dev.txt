@@ -1,5 +1,5 @@
 # ============================================================================
-# DEPENDÊNCIAS DE DESENVOLVIMENTO - RC Gestor v1.3.28
+# DEPENDÊNCIAS DE DESENVOLVIMENTO - RC Gestor v1.3.92
 # ============================================================================
 # Este arquivo contém todas as ferramentas necessárias para desenvolvimento,
 # testes, build e CI/CD. Para instalação:

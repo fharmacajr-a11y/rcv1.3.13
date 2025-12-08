@@ -2,7 +2,11 @@
 src = ["src", "tests"]
 line-length = 120
 target-version = "py313"
-select = ["E", "F"]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "N",    # pep8-naming (PEP 8 naming conventions)
+]
 ignore = [
     "E501",  # linhas longas: manter flexível por enquanto
     "F403",  # star imports legados

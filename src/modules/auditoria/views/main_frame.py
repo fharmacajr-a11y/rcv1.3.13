@@ -30,15 +30,6 @@ from .upload_flow import AuditoriaUploadFlow
 
 logger = logging.getLogger(__name__)
 
-try:
-    from src.ui.files_browser import format_cnpj_for_display  # type: ignore[import-untyped]
-except Exception:
-
-    def format_cnpj_for_display(cnpj: str) -> str:  # fallback defensivo
-        c = "".join(filter(str.isdigit, cnpj or ""))
-        return f"{c[:2]}.{c[2:5]}.{c[5:8]}/{c[8:12]}-{c[12:14]}" if len(c) == 14 else (cnpj or "")
-
-
 OFFLINE_MSG = "Recurso on-line. Verifique internet e credenciais do Supabase."
 
 
@@ -88,12 +79,12 @@ class AuditoriaFrame(ttk.Frame):
         self._storage_actions: AuditoriaStorageActions = AuditoriaStorageActions(self, self._controller)
         self._upload_flow: AuditoriaUploadFlow = AuditoriaUploadFlow(self, self._controller)
 
-        UI_GAP = 6  # espacinho horizontal curto entre botões
-        UI_PADX = 8
-        UI_PADY = 6
-        self.UI_GAP = UI_GAP
-        self.UI_PADX = UI_PADX
-        self.UI_PADY = UI_PADY
+        ui_gap = 6  # espacinho horizontal curto entre botões
+        ui_padx = 8
+        ui_pady = 6
+        self.UI_GAP = ui_gap
+        self.UI_PADX = ui_padx
+        self.UI_PADY = ui_pady
 
         self._build_ui()
 

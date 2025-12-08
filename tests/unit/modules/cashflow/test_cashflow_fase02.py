@@ -12,7 +12,7 @@ Foco em branches não cobertas:
 from __future__ import annotations
 
 from datetime import date
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -49,98 +49,10 @@ def mock_postgrest_error():
 
 
 # ============================================================================
-# TESTES - _get_client() e fallbacks de importação
+# TESTES - Helpers centralizados movidos para data.supabase_repo
+# Os testes de get_supabase_client, format_api_error e to_iso_date
+# estão em tests/data/test_supabase_repo.py
 # ============================================================================
-
-
-def test_get_client_raises_when_unavailable(monkeypatch):
-    """Testa que _get_client lança exceção quando cliente não disponível."""
-    # Simula falha em todos os imports
-    monkeypatch.setattr(repository, "_GET", lambda: None)
-
-    with pytest.raises(RuntimeError, match="Cliente Supabase não disponível"):
-        repository._get_client()
-
-
-def test_get_client_returns_client_when_available(monkeypatch):
-    """Testa que _get_client retorna cliente quando disponível."""
-    mock = MagicMock()
-    monkeypatch.setattr(repository, "_GET", lambda: mock)
-
-    result = repository._get_client()
-
-    assert result is mock
-
-
-# ============================================================================
-# TESTES - _fmt_api_error()
-# ============================================================================
-
-
-def test_fmt_api_error_with_full_details(mock_postgrest_error):
-    """Testa formatação de erro com code, details e hint."""
-    result = repository._fmt_api_error(mock_postgrest_error, "SELECT")
-
-    assert isinstance(result, RuntimeError)
-    assert "SELECT" in str(result)
-    assert "PGRST116" in str(result)
-    assert "Row not found" in str(result)
-    assert "hint: Check your query" in str(result)
-
-
-def test_fmt_api_error_without_code():
-    """Testa formatação de erro sem código."""
-    error = MagicMock()
-    error.code = None
-    error.details = "Something went wrong"
-    error.hint = None
-    error.__str__ = lambda: "Generic error"
-
-    result = repository._fmt_api_error(error, "UPDATE")
-
-    assert isinstance(result, RuntimeError)
-    assert "UPDATE" in str(result)
-    assert "Something went wrong" in str(result)
-
-
-def test_fmt_api_error_with_message_fallback():
-    """Testa formatação de erro usando .message quando .details não existe."""
-    error = MagicMock()
-    error.code = None
-    error.details = None
-    error.message = "Fallback message"
-    error.hint = None
-    error.__str__ = lambda: "Error message"
-
-    result = repository._fmt_api_error(error, "DELETE")
-
-    assert isinstance(result, RuntimeError)
-    assert "DELETE" in str(result)
-
-
-# ============================================================================
-# TESTES - _iso() conversão de datas
-# ============================================================================
-
-
-def test_iso_converts_date_to_string():
-    """Testa conversão de date para ISO string."""
-    d = date(2024, 3, 15)
-
-    result = repository._iso(d)
-
-    assert result == "2024-03-15"
-    assert isinstance(result, str)
-
-
-def test_iso_preserves_string():
-    """Testa que _iso mantém string inalterada."""
-    s = "2024-03-15"
-
-    result = repository._iso(s)
-
-    assert result == "2024-03-15"
-    assert isinstance(result, str)
 
 
 # ============================================================================
@@ -185,7 +97,7 @@ def test_apply_text_filter_returns_unchanged_when_empty_text():
 # ============================================================================
 
 
-def test_list_entries_raises_on_postgrest_error(mock_client, mock_postgrest_error, monkeypatch):
+def test_list_entries_raises_on_postgrest_error(mock_client, mock_postgrest_error):
     """Testa que list_entries lança RuntimeError quando API retorna erro."""
     mock_table = MagicMock()
     mock_table.select.return_value = mock_table
@@ -195,16 +107,17 @@ def test_list_entries_raises_on_postgrest_error(mock_client, mock_postgrest_erro
     mock_table.execute.side_effect = mock_postgrest_error
     mock_client.table.return_value = mock_table
 
-    monkeypatch.setattr(repository, "_get_client", lambda: mock_client)
-
-    with pytest.raises(RuntimeError, match="SELECT.*PGRST116"):
+    with (
+        patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client),
+        pytest.raises(RuntimeError, match="SELECT.*PGRST116"),
+    ):
         repository.list_entries(
             dfrom=date(2024, 1, 1),
             dto=date(2024, 1, 31),
         )
 
 
-def test_list_entries_with_org_id_filter(mock_client, monkeypatch):
+def test_list_entries_with_org_id_filter(mock_client):
     """Testa list_entries com filtro de org_id."""
     mock_response = MagicMock()
     mock_response.data = [{"id": "1", "org_id": "org-123"}]
@@ -218,19 +131,18 @@ def test_list_entries_with_org_id_filter(mock_client, monkeypatch):
     mock_table.execute.return_value = mock_response
     mock_client.table.return_value = mock_table
 
-    monkeypatch.setattr(repository, "_get_client", lambda: mock_client)
-
-    result = repository.list_entries(
-        dfrom="2024-01-01",
-        dto="2024-01-31",
-        org_id="org-123",
-    )
+    with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
+        result = repository.list_entries(
+            dfrom="2024-01-01",
+            dto="2024-01-31",
+            org_id="org-123",
+        )
 
     assert len(result) == 1
     mock_table.eq.assert_called_with("org_id", "org-123")
 
 
-def test_list_entries_handles_response_without_data(mock_client, monkeypatch):
+def test_list_entries_handles_response_without_data(mock_client):
     """Testa que list_entries retorna lista vazia quando response.data é None."""
     mock_response = MagicMock()
     mock_response.data = None
@@ -243,9 +155,8 @@ def test_list_entries_handles_response_without_data(mock_client, monkeypatch):
     mock_table.execute.return_value = mock_response
     mock_client.table.return_value = mock_table
 
-    monkeypatch.setattr(repository, "_get_client", lambda: mock_client)
-
-    result = repository.list_entries(dfrom="2024-01-01", dto="2024-01-31")
+    with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
+        result = repository.list_entries(dfrom="2024-01-01", dto="2024-01-31")
 
     assert result == []
 
@@ -255,7 +166,7 @@ def test_list_entries_handles_response_without_data(mock_client, monkeypatch):
 # ============================================================================
 
 
-def test_totals_handles_mixed_none_values(mock_client, monkeypatch):
+def test_totals_handles_mixed_none_values(mock_client):
     """Testa totals com mix de valores None e numéricos."""
     entries = [
         {"type": "IN", "amount": None},
@@ -274,16 +185,15 @@ def test_totals_handles_mixed_none_values(mock_client, monkeypatch):
     mock_table.execute.return_value = mock_response
     mock_client.table.return_value = mock_table
 
-    monkeypatch.setattr(repository, "_get_client", lambda: mock_client)
-
-    result = repository.totals(dfrom="2024-01-01", dto="2024-01-31")
+    with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
+        result = repository.totals(dfrom="2024-01-01", dto="2024-01-31")
 
     assert result["in"] == 1000.0
     assert result["out"] == 300.0
     assert result["balance"] == 700.0
 
 
-def test_totals_handles_missing_type_field(mock_client, monkeypatch):
+def test_totals_handles_missing_type_field(mock_client):
     """Testa totals quando field 'type' está ausente (tratado como OUT)."""
     entries = [
         {"amount": 500.0},  # Sem type
@@ -300,9 +210,8 @@ def test_totals_handles_missing_type_field(mock_client, monkeypatch):
     mock_table.execute.return_value = mock_response
     mock_client.table.return_value = mock_table
 
-    monkeypatch.setattr(repository, "_get_client", lambda: mock_client)
-
-    result = repository.totals(dfrom="2024-01-01", dto="2024-01-31")
+    with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
+        result = repository.totals(dfrom="2024-01-01", dto="2024-01-31")
 
     # Entry sem type deve ser contabilizado como OUT
     assert result["in"] == 1000.0
@@ -310,7 +219,7 @@ def test_totals_handles_missing_type_field(mock_client, monkeypatch):
     assert result["balance"] == 500.0
 
 
-def test_totals_handles_zero_amounts(mock_client, monkeypatch):
+def test_totals_handles_zero_amounts(mock_client):
     """Testa totals com valores zero."""
     entries = [
         {"type": "IN", "amount": 0.0},
@@ -327,9 +236,8 @@ def test_totals_handles_zero_amounts(mock_client, monkeypatch):
     mock_table.execute.return_value = mock_response
     mock_client.table.return_value = mock_table
 
-    monkeypatch.setattr(repository, "_get_client", lambda: mock_client)
-
-    result = repository.totals(dfrom="2024-01-01", dto="2024-01-31")
+    with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
+        result = repository.totals(dfrom="2024-01-01", dto="2024-01-31")
 
     assert result["in"] == 0.0
     assert result["out"] == 0.0
@@ -341,20 +249,21 @@ def test_totals_handles_zero_amounts(mock_client, monkeypatch):
 # ============================================================================
 
 
-def test_create_entry_raises_on_postgrest_error(mock_client, mock_postgrest_error, monkeypatch):
-    """Testa que create_entry lança RuntimeError quando API falha."""
+def test_create_entry_raises_on_postgrest_error(mock_client, mock_postgrest_error):
+    """Testa que create_entry lança RuntimeError quando API retorna erro."""
     mock_table = MagicMock()
     mock_table.insert.return_value = mock_table
     mock_table.execute.side_effect = mock_postgrest_error
     mock_client.table.return_value = mock_table
 
-    monkeypatch.setattr(repository, "_get_client", lambda: mock_client)
-
-    with pytest.raises(RuntimeError, match="INSERT.*PGRST116"):
+    with (
+        patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client),
+        pytest.raises(RuntimeError, match="INSERT.*PGRST116"),
+    ):
         repository.create_entry({"date": "2024-01-01", "type": "IN", "amount": 100.0})
 
 
-def test_create_entry_returns_payload_when_response_empty(mock_client, monkeypatch):
+def test_create_entry_returns_payload_when_response_empty(mock_client):
     """Testa que create_entry retorna payload quando response.data é vazio."""
     mock_response = MagicMock()
     mock_response.data = []
@@ -364,16 +273,15 @@ def test_create_entry_returns_payload_when_response_empty(mock_client, monkeypat
     mock_table.execute.return_value = mock_response
     mock_client.table.return_value = mock_table
 
-    monkeypatch.setattr(repository, "_get_client", lambda: mock_client)
-
-    payload = {"date": "2024-01-01", "type": "IN", "amount": 100.0}
-    result = repository.create_entry(payload)
+    with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
+        payload = {"date": "2024-01-01", "type": "IN", "amount": 100.0}
+        result = repository.create_entry(payload)
 
     # Deve retornar o payload original quando response vazio
     assert result == payload
 
 
-def test_create_entry_preserves_existing_org_id(mock_client, monkeypatch):
+def test_create_entry_preserves_existing_org_id(mock_client):
     """Testa que create_entry não sobrescreve org_id existente no payload."""
     mock_response = MagicMock()
     mock_response.data = [{"id": "new-1", "org_id": "org-original"}]
@@ -383,10 +291,9 @@ def test_create_entry_preserves_existing_org_id(mock_client, monkeypatch):
     mock_table.execute.return_value = mock_response
     mock_client.table.return_value = mock_table
 
-    monkeypatch.setattr(repository, "_get_client", lambda: mock_client)
-
-    payload = {"date": "2024-01-01", "type": "IN", "amount": 100.0, "org_id": "org-original"}
-    result = repository.create_entry(payload, org_id="org-different")
+    with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
+        payload = {"date": "2024-01-01", "type": "IN", "amount": 100.0, "org_id": "org-original"}
+        result = repository.create_entry(payload, org_id="org-different")
 
     # Deve preservar org_id original do payload
     assert result["org_id"] == "org-original"
@@ -397,21 +304,22 @@ def test_create_entry_preserves_existing_org_id(mock_client, monkeypatch):
 # ============================================================================
 
 
-def test_update_entry_raises_on_postgrest_error(mock_client, mock_postgrest_error, monkeypatch):
-    """Testa que update_entry lança RuntimeError quando API falha."""
+def test_update_entry_raises_on_postgrest_error(mock_client, mock_postgrest_error):
+    """Testa que update_entry lança RuntimeError quando API retorna erro."""
     mock_table = MagicMock()
     mock_table.update.return_value = mock_table
     mock_table.eq.return_value = mock_table
     mock_table.execute.side_effect = mock_postgrest_error
     mock_client.table.return_value = mock_table
 
-    monkeypatch.setattr(repository, "_get_client", lambda: mock_client)
-
-    with pytest.raises(RuntimeError, match="UPDATE.*PGRST116"):
+    with (
+        patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client),
+        pytest.raises(RuntimeError, match="UPDATE.*PGRST116"),
+    ):
         repository.update_entry("entry-123", {"amount": 500.0})
 
 
-def test_update_entry_returns_fallback_when_response_empty(mock_client, monkeypatch):
+def test_update_entry_returns_fallback_when_response_empty(mock_client):
     """Testa que update_entry retorna fallback quando response.data é vazio."""
     mock_response = MagicMock()
     mock_response.data = []
@@ -422,10 +330,9 @@ def test_update_entry_returns_fallback_when_response_empty(mock_client, monkeypa
     mock_table.execute.return_value = mock_response
     mock_client.table.return_value = mock_table
 
-    monkeypatch.setattr(repository, "_get_client", lambda: mock_client)
-
-    data = {"amount": 2000.0, "description": "Updated"}
-    result = repository.update_entry("entry-456", data)
+    with patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client):
+        data = {"amount": 2000.0, "description": "Updated"}
+        result = repository.update_entry("entry-456", data)
 
     # Deve retornar fallback com id + data
     assert result["id"] == "entry-456"
@@ -438,17 +345,18 @@ def test_update_entry_returns_fallback_when_response_empty(mock_client, monkeypa
 # ============================================================================
 
 
-def test_delete_entry_raises_on_postgrest_error(mock_client, mock_postgrest_error, monkeypatch):
-    """Testa que delete_entry lança RuntimeError quando API falha."""
+def test_delete_entry_raises_on_postgrest_error(mock_client, mock_postgrest_error):
+    """Testa que delete_entry lança RuntimeError quando API retorna erro."""
     mock_table = MagicMock()
     mock_table.delete.return_value = mock_table
     mock_table.eq.return_value = mock_table
     mock_table.execute.side_effect = mock_postgrest_error
     mock_client.table.return_value = mock_table
 
-    monkeypatch.setattr(repository, "_get_client", lambda: mock_client)
-
-    with pytest.raises(RuntimeError, match="DELETE.*PGRST116"):
+    with (
+        patch("src.features.cashflow.repository.get_supabase_client", return_value=mock_client),
+        pytest.raises(RuntimeError, match="DELETE.*PGRST116"),
+    ):
         repository.delete_entry("entry-789")
 
 

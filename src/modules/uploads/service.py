@@ -9,6 +9,10 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
+import subprocess
+import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterable, Optional, Sequence, Tuple
@@ -17,6 +21,7 @@ from adapters.storage.api import (
     DownloadCancelledError as _DownloadCancelledError,
     delete_file as _delete_file,
     download_folder_zip as _download_folder_zip,
+    using_storage_backend,
 )
 from adapters.storage.supabase_storage import SupabaseStorageAdapter
 from infra.supabase.storage_helpers import download_bytes as _download_bytes
@@ -28,6 +33,7 @@ from src.modules.uploads.components.helpers import (
     get_current_org_id,
     strip_cnpj_from_razao,
 )
+from src.modules.uploads.temp_files import create_temp_file
 
 from . import repository, validation
 
@@ -183,31 +189,247 @@ def list_browser_items(prefix: str, *, bucket: str | None = None) -> Iterable[An
     nome do prefixo (ex.: 'org/cliente'), retornando lista vazia.
     """
     # Bucket de clientes (padrão: rc-docs), usa o informado se vier.
-    BN = (bucket or get_clients_bucket()).strip()
+    bn = (bucket or get_clients_bucket()).strip()
     normalized_prefix = (prefix or "").strip("/")
-    return list_storage_objects(BN, normalized_prefix)
+    return list_storage_objects(bn, normalized_prefix)
 
 
-def download_storage_object(remote_key: str, destination: str, *, bucket: str | None = None) -> None:
+def download_storage_object(remote_key: str, destination: str, *, bucket: str | None = None) -> dict[str, Any]:
     """
     Baixa um objeto do storage no bucket de clientes.
+
+    Retorna:
+        dict com {"ok": bool, "errors": list, "message": str, "local_path": str | None}
     """
-    BN = (bucket or get_clients_bucket()).strip()
+    bn = (bucket or get_clients_bucket()).strip()
     # usa o wrapper que já delega para src.ui.forms.actions.download_file(bucket, file, local)
-    download_file(BN, remote_key, destination)
+    return download_file(bn, remote_key, destination)
 
 
-def delete_storage_object(remote_key: str, *, bucket: str | None = None) -> None:
+def delete_storage_object(remote_key: str, *, bucket: str | None = None) -> bool:
     """
     Remove um objeto do storage no bucket de clientes.
+
+    Retorna:
+        bool: True se deletado com sucesso, False caso contrário
     """
     from adapters.storage.api import using_storage_backend  # lazy import para evitar efeitos colaterais
 
-    BN = (bucket or get_clients_bucket()).strip()
-    adapter = SupabaseStorageAdapter(bucket=BN)
-    with using_storage_backend(adapter):
-        # _delete_file já está importado no topo (adapters.storage.api.delete_file as _delete_file)
-        _delete_file(remote_key)
+    bn = (bucket or get_clients_bucket()).strip()
+    adapter = SupabaseStorageAdapter(bucket=bn)
+
+    try:
+        with using_storage_backend(adapter):
+            # _delete_file já está importado no topo (adapters.storage.api.delete_file as _delete_file)
+            result = _delete_file(remote_key)
+
+        if not result:
+            logger.warning("Falha ao deletar %s do bucket %s (retorno False)", remote_key, bn)
+            return False
+
+        logger.info("Arquivo deletado com sucesso: %s (bucket=%s)", remote_key, bn)
+        return True
+
+    except Exception as exc:
+        logger.error("Erro ao deletar %s do bucket %s: %s", remote_key, bn, exc, exc_info=True)
+        return False
+
+
+def _collect_storage_keys(bucket: str, prefix: str) -> list[str]:
+    entries = list_storage_objects(bucket, prefix=prefix) or []
+    collected: list[str] = []
+    for entry in entries:
+        full_path = (entry.get("full_path") or "").strip("/")
+        if not full_path:
+            continue
+        if entry.get("is_folder"):
+            collected.extend(_collect_storage_keys(bucket, full_path))
+        else:
+            collected.append(full_path)
+    return collected
+
+
+def delete_storage_folder(prefix: str, *, bucket: str | None = None) -> dict[str, Any]:
+    """
+    Remove recursivamente todos os arquivos dentro de um prefixo (pasta) no bucket.
+
+    Retorna dict com:
+        {"ok": bool, "deleted": int, "errors": list[str], "message": str}
+    """
+    bn = (bucket or get_clients_bucket()).strip()
+    target_prefix = (prefix or "").strip("/")
+    result: dict[str, Any] = {"ok": False, "deleted": 0, "errors": [], "message": ""}
+
+    if not target_prefix:
+        result["errors"].append("prefix vazio")
+        result["message"] = "Prefixo da pasta não informado"
+        logger.warning("delete_storage_folder chamado sem prefixo (bucket=%s)", bn)
+        return result
+
+    try:
+        keys = _collect_storage_keys(bn, target_prefix)
+    except Exception as exc:  # pragma: no cover - log e propaga erro tratado
+        logger.error("Erro ao coletar objetos para exclusão recursiva: %s", exc, exc_info=True)
+        result["errors"].append(str(exc))
+        result["message"] = f"Erro ao listar objetos sob {target_prefix}"
+        return result
+
+    adapter = SupabaseStorageAdapter(bucket=bn)
+    deleted_count = 0
+
+    try:
+        with using_storage_backend(adapter):
+            for key in keys:
+                try:
+                    if _delete_file(key):
+                        deleted_count += 1
+                    else:
+                        result["errors"].append(f"Falha ao excluir {key}")
+                except Exception as exc:  # noqa: BLE001
+                    result["errors"].append(f"{key}: {exc}")
+
+        result["deleted"] = deleted_count
+        result["ok"] = not result["errors"]
+        result["message"] = (
+            f"Removidos {deleted_count} arquivo(s) de {target_prefix}"
+            if result["ok"]
+            else "Falha ao excluir alguns arquivos da pasta"
+        )
+
+        if result["ok"]:
+            logger.info("Pasta excluída: %s (bucket=%s, %d arquivos)", target_prefix, BN, deleted_count)
+        else:
+            logger.warning(
+                "Exclusão parcial da pasta %s (bucket=%s). Removidos=%d Erros=%d",
+                target_prefix,
+                BN,
+                deleted_count,
+                len(result["errors"]),
+            )
+        return result
+    except Exception as exc:  # pragma: no cover - log de falha inesperada
+        logger.error("Erro ao excluir pasta %s no bucket %s: %s", target_prefix, BN, exc, exc_info=True)
+        result["errors"].append(str(exc))
+        result["message"] = f"Erro ao excluir pasta: {exc}"
+        return result
+
+
+def download_and_open_file(remote_key: str, *, bucket: str | None = None, mode: str = "external") -> dict[str, Any]:
+    """
+    Baixa um arquivo do Supabase para um temporário e abre no visualizador padrão.
+
+    Args:
+        remote_key: Caminho completo do arquivo no bucket
+        bucket: Nome do bucket (opcional, usa padrão se None)
+        mode: Modo de abertura - "external" (padrão, usa viewer do SO) ou "internal" (futuro: PDF preview)
+
+    Returns:
+        Dict com resultado da operação:
+        - ok: bool - True se sucesso, False se erro
+        - message: str - Mensagem de resultado
+        - temp_path: str (opcional) - Caminho do arquivo temporário criado
+        - error: str (opcional) - Detalhes do erro, se houver
+
+    Raises:
+        ValueError: Se mode for inválido
+    """
+    if mode not in ("external", "internal"):
+        raise ValueError(f"Modo inválido: {mode}. Use 'external' ou 'internal'.")
+
+    bn = (bucket or get_clients_bucket()).strip()
+    remote_filename = os.path.basename(remote_key)
+
+    logger.info(
+        "Iniciando download de arquivo: bucket=%s, remote_key=%s, mode=%s",
+        bn,
+        remote_key,
+        mode,
+    )
+
+    # Criar arquivo temporário gerenciado
+    try:
+        temp_info = create_temp_file(remote_filename)
+        local_path = temp_info.path
+    except Exception as exc:
+        logger.error("Erro ao criar arquivo temporário: %s", exc, exc_info=True)
+        return {
+            "ok": False,
+            "message": f"Erro ao preparar arquivo temporário: {exc}",
+            "error": str(exc),
+        }
+
+    # Baixar arquivo
+    start_time = time.time()
+    result = download_file(bn, remote_key, local_path)
+    download_time = time.time() - start_time
+
+    if not result.get("ok"):
+        error_msg = result.get("message", "Erro desconhecido ao baixar arquivo")
+        logger.error(
+            "Falha no download: bucket=%s, remote_key=%s, erro=%s",
+            bn,
+            remote_key,
+            error_msg,
+        )
+        return {
+            "ok": False,
+            "message": error_msg,
+            "error": error_msg,
+        }
+
+    # Log de sucesso do download
+    try:
+        file_size = os.path.getsize(local_path)
+        logger.info(
+            "Download concluído: arquivo=%s, tamanho=%d bytes, tempo=%.2fs",
+            remote_filename,
+            file_size,
+            download_time,
+        )
+    except Exception:  # noqa: BLE001
+        logger.debug("Não foi possível obter estatísticas do arquivo baixado")
+
+    # Mode "internal": retorna path para caller abrir no PDF viewer interno
+    if mode == "internal":
+        logger.info("Arquivo preparado para viewer interno: %s", local_path)
+        return {
+            "ok": True,
+            "message": "Arquivo baixado com sucesso (modo interno)",
+            "temp_path": local_path,
+            "display_name": remote_filename,
+            "mode": "internal",
+        }
+
+    # Mode "external": abrir no visualizador padrão do sistema
+    try:
+        if sys.platform.startswith("win"):
+            os.startfile(local_path)  # type: ignore[attr-defined]
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", local_path])
+        else:
+            subprocess.Popen(["xdg-open", local_path])
+
+        logger.info("Arquivo aberto no visualizador externo: %s", local_path)
+
+        return {
+            "ok": True,
+            "message": "Arquivo aberto com sucesso",
+            "temp_path": local_path,
+        }
+
+    except Exception as exc:
+        logger.error(
+            "Erro ao abrir arquivo no visualizador: path=%s, erro=%s",
+            local_path,
+            exc,
+            exc_info=True,
+        )
+        return {
+            "ok": False,
+            "message": f"Arquivo baixado, mas não foi possível abri-lo: {exc}",
+            "temp_path": local_path,
+            "error": str(exc),
+        }
 
 
 __all__ = [
@@ -230,5 +452,7 @@ __all__ = [
     "list_storage_objects",
     "list_browser_items",
     "delete_storage_object",
+    "download_and_open_file",
     "download_storage_object",
+    "delete_storage_folder",
 ]

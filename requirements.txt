@@ -1,5 +1,5 @@
 ﻿# ============================================================================
-# DEPENDÊNCIAS DE PRODUÇÃO - RC Gestor v1.3.28
+# DEPENDÊNCIAS DE PRODUÇÃO - RC Gestor v1.3.92
 # ============================================================================
 # Apenas dependências essenciais para execução do aplicativo.
 # Para desenvolvimento, use: pip install -r requirements-dev.txt

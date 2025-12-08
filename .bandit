@@ -1,17 +1,6 @@
-# .bandit (YAML)
-exclude_dirs:
-  - tests
-  - .venv
-  - docs
-  - .git
-  - .ruff_cache
-  - .pytest_cache
-  - htmlcov
-  - devtools/qa/reports
-  - reports
-targets:
-  - src
-  - adapters
-  - data
-  - infra
-  - security
+[bandit]
+# Diretórios-alvo principais do projeto
+targets: ./src,./infra,./adapters,./helpers,./data,./security
+
+# Diretórios que NÃO devem ser analisados
+exclude: ./.venv,./.venv_backup_20251204,./tests

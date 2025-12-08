@@ -5,7 +5,7 @@ Estratégia: Testar apenas os métodos públicos sem criar a janela Tk.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
@@ -39,6 +39,7 @@ def app_mock():
     app.show_placeholder_screen = RealApp.show_placeholder_screen.__get__(app, type(app))
     app.novo_cliente = RealApp.novo_cliente.__get__(app, type(app))
     app.editar_cliente = RealApp.editar_cliente.__get__(app, type(app))
+    app.open_client_storage_subfolders = RealApp.open_client_storage_subfolders.__get__(app, type(app))
     app.ver_subpastas = RealApp.ver_subpastas.__get__(app, type(app))
     app.abrir_lixeira = RealApp.abrir_lixeira.__get__(app, type(app))
     app._excluir_cliente = RealApp._excluir_cliente.__get__(app, type(app))
@@ -103,10 +104,16 @@ def test_app_editar_cliente_delega_para_actions(app_mock):
     app_mock._actions.editar_cliente.assert_called_once()
 
 
-def test_app_ver_subpastas_delega_para_actions(app_mock):
-    """Testa que ver_subpastas delega para AppActions."""
+def test_app_open_storage_subfolders_delega_para_actions(app_mock):
+    """Testa que open_client_storage_subfolders delega para AppActions."""
+    app_mock.open_client_storage_subfolders()
+    app_mock._actions.open_client_storage_subfolders.assert_called_once()
+
+
+def test_app_ver_subpastas_wrapper_chama_novo_metodo(app_mock):
+    app_mock.open_client_storage_subfolders = Mock()
     app_mock.ver_subpastas()
-    app_mock._actions.ver_subpastas.assert_called_once()
+    app_mock.open_client_storage_subfolders.assert_called_once()
 
 
 def test_app_abrir_lixeira_delega_para_actions(app_mock):

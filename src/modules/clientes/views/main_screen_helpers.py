@@ -8,12 +8,22 @@ from __future__ import annotations
 
 from collections.abc import Collection
 from datetime import date, datetime
-from typing import Any, Dict, Literal, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Literal, Protocol, Sequence
+
+if TYPE_CHECKING:
+    from src.modules.clientes.viewmodel import ClienteRow
 
 
-# ============================================================================
-# CONSTANTES DE ORDENAÇÃO
-# ============================================================================
+class ClientWithCreatedAt(Protocol):
+    """Protocol para objetos cliente que possuem campo created_at.
+
+    Permite duck typing para dicts e objetos com o campo created_at.
+    """
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Método get para acesso estilo dict."""
+        ...
+
 
 ORDER_LABEL_RAZAO = "Razão Social (A→Z)"
 ORDER_LABEL_CNPJ = "CNPJ (A→Z)"
@@ -37,31 +47,54 @@ ORDER_LABEL_ALIASES = {
 
 DEFAULT_ORDER_LABEL = ORDER_LABEL_RAZAO
 
-ORDER_CHOICES: Dict[str, Tuple[Optional[str], bool]] = {
+ORDER_CHOICES: dict[str, tuple[str | None, bool]] = {
     ORDER_LABEL_RAZAO: ("razao_social", False),
     ORDER_LABEL_CNPJ: ("cnpj", False),
     ORDER_LABEL_NOME: ("nome", False),
     ORDER_LABEL_ID_ASC: ("id", False),
     ORDER_LABEL_ID_DESC: ("id", True),
-    ORDER_LABEL_UPDATED_RECENT: ("ultima_alteracao", False),
-    ORDER_LABEL_UPDATED_OLD: ("ultima_alteracao", True),
+    ORDER_LABEL_UPDATED_RECENT: ("ultima_alteracao", True),  # True = mais recente primeiro
+    ORDER_LABEL_UPDATED_OLD: ("ultima_alteracao", False),  # False = mais antiga primeiro
 }
 
 
-# ============================================================================
-# CONSTANTES DE FILTROS
-# ============================================================================
+UNICODE_MAX_CODEPOINT = 0x10FFFF
 
-# Label especial para "sem filtro" / "todos os registros"
+
+def _normalize_razao_social_value(row: "ClienteRow") -> str:
+    """Extrai e normaliza a Razão Social usada para ordenação."""
+    return (getattr(row, "razao_social", "") or "").strip()
+
+
+def _invert_casefold_value(value: str) -> str:
+    """Inverte os codepoints para permitir ordenação descendente sem reverse."""
+    if not value:
+        return value
+
+    max_codepoint = UNICODE_MAX_CODEPOINT
+    return "".join(chr(max_codepoint - ord(ch)) for ch in value)
+
+
+def sort_key_razao_social_asc(row: "ClienteRow") -> tuple[int, str]:
+    """Key function para Razão Social (A→Z) mantendo vazios no final."""
+    normalized = _normalize_razao_social_value(row)
+    is_empty = 1 if not normalized else 0
+    return (is_empty, normalized.casefold())
+
+
+def sort_key_razao_social_desc(row: "ClienteRow") -> tuple[int, str]:
+    """Key function para Razão Social (Z→A) mantendo vazios no final."""
+    normalized = _normalize_razao_social_value(row)
+    is_empty = 1 if not normalized else 0
+    casefolded = normalized.casefold()
+    return (is_empty, _invert_casefold_value(casefolded))
+
+
 FILTER_LABEL_TODOS = "Todos"
 
-# Labels canônicos de filtro (podem ser expandidos conforme necessidade)
-# Por enquanto, o filtro principal é por status, que é dinâmico
 DEFAULT_FILTER_LABEL = FILTER_LABEL_TODOS
 
-# Aliases para normalização de filtros (case-insensitive)
-# Mapeia variações para o label canônico
-FILTER_LABEL_ALIASES: Dict[str, str] = {
+FILTER_LABEL_ALIASES: dict[str, str] = {
     "todos": FILTER_LABEL_TODOS,
     "TODOS": FILTER_LABEL_TODOS,
     "all": FILTER_LABEL_TODOS,
@@ -70,12 +103,7 @@ FILTER_LABEL_ALIASES: Dict[str, str] = {
 }
 
 
-# ============================================================================
-# HELPERS DE NORMALIZAÇÃO DE FILTROS
-# ============================================================================
-
-
-def normalize_filter_label(label: Optional[str]) -> str:
+def normalize_filter_label(label: str | None) -> str:
     """Normaliza um rótulo de filtro.
 
     - None ou string vazia -> "" (string vazia)
@@ -102,7 +130,7 @@ def normalize_filter_label(label: Optional[str]) -> str:
     return FILTER_LABEL_ALIASES.get(normalized, normalized)
 
 
-def normalize_status_filter_value(status_value: Optional[str]) -> Optional[str]:
+def normalize_status_filter_value(status_value: str | None) -> str | None:
     """Normaliza valor de filtro de status para uso interno.
 
     Converte "Todos" (e variações) para None, indicando sem filtro.
@@ -161,7 +189,7 @@ def build_filter_choices_with_all_option(status_options: Sequence[str]) -> list[
 
 
 def resolve_filter_choice_from_options(
-    current_value: Optional[str],
+    current_value: str | None,
     available_choices: Sequence[str],
 ) -> str:
     """Resolve qual filtro deve estar selecionado dadas as opções disponíveis.
@@ -205,12 +233,7 @@ def resolve_filter_choice_from_options(
     return DEFAULT_FILTER_LABEL
 
 
-# ============================================================================
-# HELPERS DE NORMALIZAÇÃO DE ORDENAÇÃO
-# ============================================================================
-
-
-def normalize_order_label(label: Optional[str]) -> str:
+def normalize_order_label(label: str | None) -> str:
     """Normaliza um rótulo de ordenação usando ORDER_LABEL_ALIASES.
 
     - None ou string vazia -> "" (string vazia)
@@ -236,8 +259,8 @@ def normalize_order_label(label: Optional[str]) -> str:
 
 
 def normalize_order_choices(
-    order_choices: Dict[str, Tuple[Optional[str], bool]],
-) -> Dict[str, Tuple[Optional[str], bool]]:
+    order_choices: dict[str, tuple[str | None, bool]],
+) -> dict[str, tuple[str | None, bool]]:
     """Normaliza as chaves do dict de opções de ordenação usando normalize_order_label.
 
     Mantém os valores (campo, reverse) intocados.
@@ -259,19 +282,15 @@ def normalize_order_choices(
         >>> normalized[ORDER_LABEL_RAZAO]
         ('razao_social', False)
     """
-    normalized: Dict[str, Tuple[Optional[str], bool]] = {}
+    normalized: dict[str, tuple[str | None, bool]] = {}
     for key, value in order_choices.items():
         normalized_label = normalize_order_label(key)
         normalized[normalized_label] = value
     return normalized
 
 
-# ============================================================================
-# HELPERS DE EVENTOS (SELEÇÃO E DECISÃO)
-# ============================================================================
-
 SelectionStatus = Literal["none", "single", "multiple"]
-SelectionResult = Tuple[SelectionStatus, Optional[str]]
+SelectionResult = tuple[SelectionStatus, str | None]
 
 
 def classify_selection(selected_ids: Collection[str]) -> SelectionResult:
@@ -360,7 +379,7 @@ def can_perform_multi_item_action(selection_status: SelectionStatus) -> bool:
 
 def validate_single_selection(
     selected_ids: Collection[str],
-) -> Tuple[bool, Optional[str], Optional[str]]:
+) -> tuple[bool, str | None, str | None]:
     """Valida seleção para ações que requerem exatamente 1 item.
 
     Combina classificação e validação em um único helper conveniente.
@@ -440,11 +459,6 @@ def has_selection(selected_ids: Collection[str]) -> bool:
     return len(selected_ids) > 0
 
 
-# ============================================================================
-# HELPERS DE CÁLCULO DE ESTADOS DE BOTÕES
-# ============================================================================
-
-
 def calculate_button_states(
     *,
     has_selection: bool,
@@ -474,29 +488,25 @@ def calculate_button_states(
         >>> calculate_button_states(has_selection=True, is_online=False, is_uploading=False)
         {'editar': False, 'subpastas': False, 'enviar': False, 'novo': False, 'lixeira': False, 'select': False}
     """
-    # FIX-CLIENTES-007: Em pick mode, botões do footer devem estar desabilitados
-    # O controle do estado visual é feito por footer.enter_pick_mode()
+    # Em pick mode, botões do footer devem estar desabilitados
     if is_pick_mode:
         return {
             "editar": False,
             "subpastas": False,
             "enviar": False,
             "novo": False,
-            "lixeira": False,  # Visível mas desabilitado
-            "select": has_selection,  # Botão Selecionar depende de seleção
+            "lixeira": False,
+            "select": has_selection,
         }
 
     allow_send = has_selection and is_online and not is_uploading
 
     return {
-        # Botões que dependem de conexão E seleção
         "editar": has_selection and is_online,
         "subpastas": has_selection and is_online,
         "enviar": allow_send,
-        # Botões que dependem apenas de conexão
         "novo": is_online,
         "lixeira": is_online,
-        # Botão de seleção (modo pick) - não depende de conexão
         "select": is_pick_mode and has_selection,
     }
 
@@ -527,7 +537,7 @@ def parse_created_at_date(created_at: str | None) -> date | None:
         return None
 
 
-def extract_created_at_from_client(client: Any) -> str | None:
+def extract_created_at_from_client(client: ClientWithCreatedAt | Any) -> str | None:
     """Extrai campo created_at de um objeto cliente (dict ou objeto).
 
     Args:
@@ -553,7 +563,7 @@ def extract_created_at_from_client(client: Any) -> str | None:
 
 
 def calculate_new_clients_stats(
-    clients: Sequence[Any],
+    clients: Sequence[ClientWithCreatedAt | Any],
     today: date,
 ) -> tuple[int, int]:
     """Calcula quantos clientes foram criados hoje e no mês atual.
@@ -630,64 +640,18 @@ def format_clients_summary(
     return base
 
 
-# ======== FASE 02: Selection logic ========
-
-
 def is_single_selection(selection_tuple: Sequence[str]) -> bool:
-    """Verifica se há exatamente 1 item selecionado.
-
-    Args:
-        selection_tuple: Tupla de IDs retornada por Treeview.selection()
-
-    Returns:
-        True se há exatamente 1 item selecionado
-
-    Examples:
-        >>> is_single_selection(("item1",))
-        True
-        >>> is_single_selection(())
-        False
-        >>> is_single_selection(("item1", "item2"))
-        False
-    """
+    """Verifica se há exatamente 1 item selecionado."""
     return len(selection_tuple) == 1
 
 
 def is_multiple_selection(selection_tuple: Sequence[str]) -> bool:
-    """Verifica se há múltiplos itens selecionados.
-
-    Args:
-        selection_tuple: Tupla de IDs retornada por Treeview.selection()
-
-    Returns:
-        True se há 2 ou mais itens selecionados
-
-    Examples:
-        >>> is_multiple_selection(("item1", "item2"))
-        True
-        >>> is_multiple_selection(("item1",))
-        False
-        >>> is_multiple_selection(())
-        False
-    """
+    """Verifica se há múltiplos itens selecionados."""
     return len(selection_tuple) >= 2
 
 
 def get_first_selected_id(selection_tuple: Sequence[str]) -> str | None:
-    """Retorna ID do primeiro item selecionado (ou None se vazio).
-
-    Args:
-        selection_tuple: Tupla de IDs retornada por Treeview.selection()
-
-    Returns:
-        ID do primeiro item ou None
-
-    Examples:
-        >>> get_first_selected_id(("item1", "item2"))
-        'item1'
-        >>> get_first_selected_id(())
-        None
-    """
+    """Retorna ID do primeiro item selecionado (ou None se vazio)."""
     return selection_tuple[0] if selection_tuple else None
 
 
@@ -696,23 +660,7 @@ def can_edit_selection(
     *,
     is_online: bool = True,
 ) -> bool:
-    """Determina se pode editar a seleção atual.
-
-    Args:
-        selection_tuple: Tupla de IDs selecionados
-        is_online: Se está conectado ao backend
-
-    Returns:
-        True se pode editar (exatamente 1 selecionado e online)
-
-    Examples:
-        >>> can_edit_selection(("item1",), is_online=True)
-        True
-        >>> can_edit_selection(("item1", "item2"), is_online=True)
-        False
-        >>> can_edit_selection(("item1",), is_online=False)
-        False
-    """
+    """Determina se pode editar a seleção atual (1 selecionado e online)."""
     return is_single_selection(selection_tuple) and is_online
 
 
@@ -721,51 +669,16 @@ def can_delete_selection(
     *,
     is_online: bool = True,
 ) -> bool:
-    """Determina se pode excluir a seleção atual.
-
-    Args:
-        selection_tuple: Tupla de IDs selecionados
-        is_online: Se está conectado ao backend
-
-    Returns:
-        True se pode excluir (pelo menos 1 selecionado e online)
-
-    Examples:
-        >>> can_delete_selection(("item1",), is_online=True)
-        True
-        >>> can_delete_selection(("item1", "item2"), is_online=True)
-        True
-        >>> can_delete_selection((), is_online=True)
-        False
-    """
+    """Determina se pode excluir a seleção atual (pelo menos 1 selecionado e online)."""
     return has_selection(selection_tuple) and is_online
 
 
 def can_open_folder_for_selection(
     selection_tuple: Sequence[str],
 ) -> bool:
-    """Determina se pode abrir pasta para a seleção atual.
-
-    Args:
-        selection_tuple: Tupla de IDs selecionados
-
-    Returns:
-        True se pode abrir pasta (exatamente 1 selecionado)
-
-    Examples:
-        >>> can_open_folder_for_selection(("item1",))
-        True
-        >>> can_open_folder_for_selection(("item1", "item2"))
-        False
-        >>> can_open_folder_for_selection(())
-        False
-    """
+    """Determina se pode abrir pasta para a seleção atual (exatamente 1 selecionado)."""
     return is_single_selection(selection_tuple)
 
-
-# ============================================================================ #
-# FASE 03: Filter Logic Helpers
-# ============================================================================ #
 
 ClientRow = dict[str, Any]
 
@@ -999,11 +912,6 @@ def normalize_status_choice(
     choices_map = {choice.lower(): choice for choice in available_choices}
 
     return choices_map.get(current_norm, all_option_label)
-
-
-# ============================================================================ #
-# FASE 04: Batch Operations (Multi-Selection)
-# ============================================================================ #
 
 
 def can_batch_delete(

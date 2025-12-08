@@ -71,6 +71,47 @@ class TestPickModeActivation:
 
         # Assert
         assert pick_controller.is_active() is False
+
+
+class TestPickModeBannerText:
+    """Testes para o texto do banner em diferentes contextos."""
+
+    def test_start_pick_updates_banner_with_custom_text(
+        self,
+        pick_controller: PickModeController,
+        mock_frame: Mock,
+    ) -> None:
+        mock_label = Mock()
+        mock_frame._pick_label = mock_label
+        mock_frame._pick_banner_default_text = "texto padrão"
+
+        callback = Mock()
+        return_callback = Mock()
+
+        pick_controller.start_pick(on_pick=callback, return_to=return_callback, banner_text="Contexto específico")
+
+        mock_label.configure.assert_called_with(text="Contexto específico")
+
+    def test_start_pick_without_banner_uses_default(
+        self,
+        pick_controller: PickModeController,
+        mock_frame: Mock,
+    ) -> None:
+        mock_label = Mock()
+        mock_frame._pick_label = mock_label
+        mock_frame._pick_banner_default_text = "texto padrão"
+
+        callback = Mock()
+        return_callback = Mock()
+
+        pick_controller.start_pick(on_pick=callback, return_to=return_callback, banner_text="Outro contexto")
+        pick_controller.cancel_pick()
+
+        mock_label.configure.assert_called_with(text="Outro contexto")
+        mock_label.configure.reset_mock()
+
+        pick_controller.start_pick(on_pick=callback, return_to=return_callback)
+        mock_label.configure.assert_called_with(text="texto padrão")
         return_callback.assert_called_once()
 
     def test_cancel_pick_when_not_active_does_nothing(self, pick_controller: PickModeController) -> None:

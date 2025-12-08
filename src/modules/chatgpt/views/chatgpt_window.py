@@ -7,6 +7,7 @@ from tkinter import ttk
 from typing import Callable
 
 from src.modules.chatgpt.service import send_chat_completion
+from src.ui.window_utils import show_centered
 
 log = logging.getLogger(__name__)
 
@@ -20,7 +21,12 @@ class ChatGPTWindow(tk.Toplevel):
         send_fn: Callable[[list[dict[str, str]]], str] | None = None,
         on_close_callback: Callable[[], None] | None = None,
     ) -> None:
-        super().__init__(parent)
+        try:
+            master = parent.winfo_toplevel()
+        except Exception:
+            master = parent
+        super().__init__(master)
+        self.withdraw()
 
         self.title("ChatGPT")
         # REMOVIDO: self.transient(parent) - impede uso de iconify()
@@ -49,12 +55,24 @@ class ChatGPTWindow(tk.Toplevel):
         self._build_ui()
         self._build_custom_header()
 
-        self.update_idletasks()
         width = 700
         height = 500
-        x = max(self.winfo_rootx(), int(self.winfo_screenwidth() / 2 - width / 2))
-        y = max(self.winfo_rooty(), int(self.winfo_screenheight() / 2 - height / 2))
-        self.geometry(f"{width}x{height}+{x}+{y}")
+        self.minsize(width, height)
+
+        # Centraliza apenas uma vez, após todo o layout estar montado
+        log.debug("[CHATGPT_WINDOW] Antes de update_idletasks()")
+        self.update_idletasks()
+        log.debug("[CHATGPT_WINDOW] Antes de show_centered()")
+        show_centered(self)
+        log.debug("[CHATGPT_WINDOW] Após show_centered()")
+
+        # Verifica estado da janela
+        try:
+            window_state = self.state()
+            geometry = self.geometry()
+            log.debug(f"[CHATGPT_WINDOW] Janela exibida: state={window_state}, geometry={geometry}")
+        except Exception as exc:  # noqa: BLE001
+            log.warning(f"[CHATGPT_WINDOW] Não foi possível verificar estado: {exc}")
 
     def _build_ui(self) -> None:
         main = ttk.Frame(self, padding=10)

@@ -13,7 +13,9 @@ import ttkbootstrap as tb
 from data.domain_types import ClientRow, PasswordRow
 from src.app_gui import apply_rc_icon
 from src.modules.passwords.controller import PasswordsController
+from src.modules.passwords.passwords_actions import PasswordDialogActions, PasswordFormData
 from src.modules.passwords.utils import format_cnpj
+from src.ui.window_utils import show_centered
 
 log = logging.getLogger(__name__)
 
@@ -44,10 +46,9 @@ class PasswordDialog(tb.Toplevel):
         apply_rc_icon(self)
 
         self.title("Nova Senha" if password_data is None else "Editar Senha")
-        self.geometry("500x400")
+        self.minsize(500, 400)
         self.resizable(False, False)
         self.transient(parent)
-        self.grab_set()
 
         self.org_id = org_id
         self.user_id = user_id
@@ -57,6 +58,7 @@ class PasswordDialog(tb.Toplevel):
         self.is_editing = password_data is not None
         self.controller = controller or PasswordsController()
         self._on_select_client = on_select_client
+        self.actions = PasswordDialogActions(controller=self.controller)
 
         # FIX-SENHAS-002: Cliente pré-selecionado (trava o botão Selecionar)
         self._client_locked = client_id is not None
@@ -77,9 +79,6 @@ class PasswordDialog(tb.Toplevel):
 
         self._center_on_parent()
 
-        # FIX-SENHAS-013: Mostrar janela após centralização (elimina flash)
-        self.deiconify()
-
         # Configurar handler de fechamento (FIX-CLIENTES-005: sem cancelamento de pick)
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
@@ -88,22 +87,14 @@ class PasswordDialog(tb.Toplevel):
         self.destroy()
 
     def _center_on_parent(self) -> None:
-        """Centraliza o diálogo na janela principal."""
-        self.update_idletasks()
-        if self.master is None:
-            return
-        parent_x = self.master.winfo_rootx()
-        parent_y = self.master.winfo_rooty()
-        parent_width = self.master.winfo_width()
-        parent_height = self.master.winfo_height()
-
-        width = self.winfo_width()
-        height = self.winfo_height()
-
-        x = parent_x + (parent_width - width) // 2
-        y = parent_y + (parent_height - height) // 2
-
-        self.geometry(f"{width}x{height}+{x}+{y}")
+        """Centraliza o diálogo usando helper compartilhado."""
+        try:
+            self.update_idletasks()
+            show_centered(self)
+            self.grab_set()
+            self.focus_force()
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao centralizar PasswordDialog: %s", exc)
 
     def _build_ui(self) -> None:
         """Constrói a interface do diálogo."""
@@ -251,33 +242,28 @@ class PasswordDialog(tb.Toplevel):
         password = self.password_var.get()
         notes = self.notes_var.get().strip()
 
-        if not client_name or not service or not username or not password:
-            messagebox.showerror("Erro", "Todos os campos são obrigatórios.", parent=self)
+        form_data = PasswordFormData(
+            client_id=self.selected_client_id or "",
+            client_name=client_name,
+            service=service,
+            username=username,
+            password=password,
+            notes=notes,
+            is_editing=self.is_editing,
+            password_id=str(self.password_data["id"]) if self.password_data else None,
+        )
+        errors = self.actions.validate_form(form_data)
+        if errors:
+            messagebox.showerror("Erro", "\n".join(errors), parent=self)
             return
 
-        if not self.selected_client_id:
-            messagebox.showerror("Erro", "Por favor, selecione um cliente usando o botão 'Selecionar...'.", parent=self)
+        if not self.org_id or not self.user_id:
+            messagebox.showerror("Erro", "Usuário ou organização não identificados.", parent=self)
             return
 
         try:
-            if self.is_editing and self.password_data:
-                self.controller.update_password(
-                    self.password_data["id"],
-                    client_id=self.selected_client_id,
-                    client_name=client_name,
-                    service=service,
-                    username=username,
-                    password_plain=password,
-                    notes=notes,
-                )
-                messagebox.showinfo("Sucesso", "Senha atualizada com sucesso!", parent=self)
-            else:
-                # FIX-SENHAS-001: Verificar duplicidade por (cliente + serviço)
-                duplicates = self.controller.find_duplicate_passwords_by_service(
-                    org_id=self.org_id,
-                    client_id=self.selected_client_id,
-                    service=service,
-                )
+            if not self.is_editing:
+                duplicates = self.actions.find_duplicates(self.org_id, form_data.client_id, form_data.service)
                 if duplicates:
                     decision = self._ask_duplicate_service_decision(duplicates)
                     if decision == "cancel":
@@ -285,20 +271,15 @@ class PasswordDialog(tb.Toplevel):
                     if decision == "edit":
                         self._open_existing_password_for_edit(duplicates[0])
                         return
-                    # decision == "force" => segue criando mesmo assim
 
-                self.controller.create_password(
-                    self.org_id,
-                    client_id=self.selected_client_id,
-                    client_name=client_name,
-                    service=service,
-                    username=username,
-                    password=password,
-                    notes=notes,
-                    user_id=self.user_id,
-                )
-                messagebox.showinfo("Sucesso", "Senha criada com sucesso!", parent=self)
+            if self.is_editing:
+                self.actions.update_password(form_data)
+                success_message = "Senha atualizada com sucesso!"
+            else:
+                self.actions.create_password(self.org_id, self.user_id, form_data)
+                success_message = "Senha criada com sucesso!"
 
+            messagebox.showinfo("Sucesso", success_message, parent=self)
             self.on_save()
             self.destroy()
         except Exception as e:

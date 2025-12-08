@@ -1,21 +1,24 @@
 # ui/theme_toggle.py
 from __future__ import annotations
 
-from ttkbootstrap import Style
+from typing import Any
 
 
-def toggle_theme(style: Style):
+def toggle_theme(style_or_app: Any = None) -> str:
     """
-    Alterna entre tema claro e escuro sem reiniciar o app.
+    Alterna entre tema claro e escuro usando utils.themes como fonte da verdade.
 
     Args:
-        style: Objeto Style do ttkbootstrap
+        style_or_app: Objeto Style do ttkbootstrap ou app principal (opcional)
+
+    Returns:
+        Nome do novo tema aplicado
     """
-    darks = {"darkly", "cyborg", "superhero", "vapor"}
-    now = style.theme.name
-    # escolhe um "par" simples
-    newt = "flatly" if now in darks else "darkly"
-    style.theme_use(newt)
+    from src.utils import themes
+
+    # Delega para utils.themes que gerencia persistência e aplicação
+    new_theme = themes.toggle_theme(app=style_or_app)
+    return new_theme
 
 
 def get_available_themes() -> list[str]:

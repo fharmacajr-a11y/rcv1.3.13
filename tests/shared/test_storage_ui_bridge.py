@@ -15,25 +15,24 @@ def warning_calls(monkeypatch):
     return calls
 
 
-def reload_bridge(monkeypatch, fail_import: bool = False):
+def test_get_open_files_browser_handles_import_failure(monkeypatch):
+    bridge.open_files_browser = None
+    monkeypatch.setattr(bridge, "_OPEN_BROWSER_LOAD_FAILED", False)
+
     original_import = builtins.__import__
 
     def fake_import(name, *args, **kwargs):
-        if fail_import and name == "src.modules.uploads":
+        if name == "src.modules.uploads":
             raise ImportError("forced failure")
         return original_import(name, *args, **kwargs)
 
-    if fail_import:
-        monkeypatch.setattr(builtins, "__import__", fake_import)
-    reloaded = importlib.reload(bridge)
-    if fail_import:
-        monkeypatch.setattr(builtins, "__import__", original_import)
-    return reloaded
+    monkeypatch.setattr(builtins, "__import__", fake_import)
 
+    assert bridge._get_open_files_browser() is None
+    assert bridge._OPEN_BROWSER_LOAD_FAILED is True
 
-def test_import_fallback_sets_open_files_browser_none(monkeypatch):
-    reloaded = reload_bridge(monkeypatch, fail_import=True)
-    assert reloaded.open_files_browser is None
+    # restaurar import normal para outros testes
+    monkeypatch.setattr(builtins, "__import__", original_import)
     importlib.reload(bridge)
 
 
@@ -45,13 +44,18 @@ def test_get_clients_bucket_default_and_env(monkeypatch):
     assert bridge.get_clients_bucket() == "custom-bucket"
 
 
-def test_client_prefix_for_id_default_and_custom_format(monkeypatch):
+def test_build_client_prefix_default_and_custom(monkeypatch):
     monkeypatch.delenv("RC_STORAGE_CLIENTS_FOLDER_FMT", raising=False)
-    assert bridge.client_prefix_for_id(10, "ORG") == "ORG/10"
-    assert bridge.client_prefix_for_id(10, "") == "10"
+    assert bridge.build_client_prefix(org_id="ORG", client_id=10) == "ORG/10"
+    assert bridge.build_client_prefix(org_id="", client_id=10) == "10"
 
     monkeypatch.setenv("RC_STORAGE_CLIENTS_FOLDER_FMT", "{org_id}-x-{client_id}")
-    assert bridge.client_prefix_for_id("abc", "ORG") == "ORG-x-abc"
+    assert bridge.build_client_prefix(org_id="ORG", client_id="abc") == "ORG-x-abc"
+
+
+def test_client_prefix_for_id_delegates_to_builder(monkeypatch):
+    monkeypatch.setenv("RC_STORAGE_CLIENTS_FOLDER_FMT", "{org_id}|{client_id}")
+    assert bridge.client_prefix_for_id(5, "ORG") == "ORG|5"
 
 
 class _Query:
@@ -164,6 +168,7 @@ def test_open_client_files_window_open_error(monkeypatch, warning_calls):
 
 def test_open_client_files_window_when_no_browser(monkeypatch, warning_calls):
     monkeypatch.setattr(bridge, "open_files_browser", None)
+    monkeypatch.setattr(bridge, "_OPEN_BROWSER_LOAD_FAILED", True)
     sb = _SB(clients_data=[{"name": "N", "cnpj": ""}], users_data=[{"org_id": ""}])
 
     bridge.open_client_files_window(parent=None, sb=sb, client_id=3)

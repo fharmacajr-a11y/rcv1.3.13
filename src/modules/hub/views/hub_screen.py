@@ -6,7 +6,7 @@ from __future__ import annotations
 import threading
 import time
 from datetime import datetime, timezone
-from tkinter import messagebox
+from tkinter import messagebox, TclError
 from typing import Any, Callable, Dict, List, Optional
 
 import ttkbootstrap as tb
@@ -20,11 +20,17 @@ except Exception:
         return logging.getLogger(name)
 
 
-from src.modules.hub.actions import on_add_note_clicked as actions_on_add_note_clicked
 from src.modules.hub.actions import on_show as actions_on_show
 from src.modules.hub.authors import _author_display_name, _debug_resolve_author
 from src.modules.hub.colors import _ensure_author_tag
-from src.modules.hub.constants import MODULES_TITLE, PAD_OUTER
+from src.modules.hub.constants import (
+    HUB_BTN_STYLE_AUDITORIA,
+    HUB_BTN_STYLE_CLIENTES,
+    HUB_BTN_STYLE_FLUXO_CAIXA,
+    HUB_BTN_STYLE_SENHAS,
+    MODULES_TITLE,
+    PAD_OUTER,
+)
 from src.modules.hub.controller import append_note_incremental as controller_append_note_incremental
 from src.modules.hub.controller import cancel_poll as controller_cancel_poll
 from src.modules.hub.controller import on_realtime_note as controller_on_realtime_note
@@ -33,8 +39,11 @@ from src.modules.hub.controller import refresh_notes_async as controller_refresh
 from src.modules.hub.controller import retry_after_table_missing as controller_retry_after_table_missing
 from src.modules.hub.controller import schedule_poll as controller_schedule_poll
 from src.modules.hub.layout import apply_hub_notes_right
+from src.modules.hub.viewmodels import DashboardViewModel, NotesViewModel
+from src.modules.hub.controllers import DashboardActionController, NotesController
 from src.modules.hub.panels import build_notes_panel
 from src.modules.hub.state import HubState
+from src.modules.hub.views.dashboard_center import build_dashboard_center, build_dashboard_error
 from src.modules.hub.state import ensure_hub_state as ensure_state
 from src.modules.hub.utils import _normalize_note
 from src.modules.hub.views.hub_screen_helpers import (
@@ -110,6 +119,15 @@ class HubScreen(tb.Frame):
         open_sites: Optional[Callable[[], None]] = None,
         **kwargs,
     ) -> None:
+        """Inicializa a tela HubScreen com menu vertical, dashboard central e notas compartilhadas.
+
+        A inicialização é dividida em etapas organizadas para melhor legibilidade:
+        1. Configuração de estado inicial (callbacks, atributos, HubState)
+        2. Construção dos painéis de UI (módulos, dashboard, notas)
+        3. Setup de layout (grid 3 colunas)
+        4. Configuração de bindings (atalhos de teclado)
+        5. Início de timers (polling, dashboard, live sync)
+        """
         # Compatibilidade com kwargs antigos (mantém snjpc para retrocompatibilidade)
         open_clientes = (
             open_clientes or kwargs.pop("on_open_clientes", None) or open_sifap or kwargs.pop("on_open_sifap", None)
@@ -124,77 +142,59 @@ class HubScreen(tb.Frame):
         open_sites = open_sites or kwargs.pop("on_open_sites", None)
 
         super().__init__(master, padding=0, **kwargs)
+
+        # Inicialização estruturada em métodos privados
+        self._init_state(
+            open_clientes=open_clientes,
+            open_anvisa=open_anvisa,
+            open_auditoria=open_auditoria,
+            open_farmacia_popular=open_farmacia_popular,
+            open_sngpc=open_sngpc,
+            open_senhas=open_senhas,
+            open_mod_sifap=open_mod_sifap,
+            open_cashflow=open_cashflow,
+            open_sites=open_sites,
+        )
+        self._build_modules_panel()
+        self._build_dashboard_panel()
+        self._build_notes_panel()
+        self._setup_layout()
+        self._setup_bindings()
+        self._start_timers()
+
+    # ============================================================================
+    # MÉTODOS DE INICIALIZAÇÃO (Builders Privados)
+    # ============================================================================
+
+    def _init_state(
+        self,
+        *,
+        open_clientes: Optional[Callable[[], None]] = None,
+        open_anvisa: Optional[Callable[[], None]] = None,
+        open_auditoria: Optional[Callable[[], None]] = None,
+        open_farmacia_popular: Optional[Callable[[], None]] = None,
+        open_sngpc: Optional[Callable[[], None]] = None,
+        open_senhas: Optional[Callable[[], None]] = None,
+        open_mod_sifap: Optional[Callable[[], None]] = None,
+        open_cashflow: Optional[Callable[[], None]] = None,
+        open_sites: Optional[Callable[[], None]] = None,
+    ) -> None:
+        """Inicializa estado interno: HubState, callbacks, atributos de polling/cache."""
         self.AUTH_RETRY_MS = AUTH_RETRY_MS
         s = ensure_state(self)
         s.auth_retry_ms = AUTH_RETRY_MS
         self._hub_state: HubState = s
 
-        # Armazenar callbacks
+        # Armazenar callbacks de navegação
         self.open_clientes = open_clientes
         self.open_anvisa = open_anvisa
         self.open_auditoria = open_auditoria
         self.open_farmacia_popular = open_farmacia_popular
-        self.open_sngpc = open_sngpc  # Corrigido: snjpc -> sngpc
+        self.open_sngpc = open_sngpc
         self.open_senhas = open_senhas
         self.open_mod_sifap = open_mod_sifap
         self.open_cashflow = open_cashflow
         self.open_sites = open_sites
-
-        # --- MENU VERTICAL (coluna 0) ---
-        self.modules_panel = tb.Labelframe(self, text=MODULES_TITLE, padding=PAD_OUTER)
-        modules_panel = self.modules_panel
-
-        def mk_btn(
-            text: str,
-            cmd: Optional[Callable] = None,
-            highlight: bool = False,
-            yellow: bool = False,
-            bootstyle: Optional[str] = None,
-        ) -> tb.Button:
-            """Cria um botão com estilo consistente no painel de módulos."""
-            style = calculate_module_button_style(
-                highlight=highlight,
-                yellow=yellow,
-                bootstyle=bootstyle,
-            )
-
-            b = tb.Button(
-                modules_panel,
-                text=text,
-                command=(cmd or self._noop),
-                bootstyle=style,
-            )
-            b.pack(fill="x", pady=4)
-            return b
-
-        # Ordem e rótulos padronizados (primeira letra maiúscula)
-        mk_btn("Clientes", self.open_clientes, bootstyle="info")
-        mk_btn("Senhas", self.open_senhas, bootstyle="info")
-        mk_btn("Auditoria", self.open_auditoria, bootstyle="success")
-        # --- Fluxo de Caixa (novo módulo) ---
-        if getattr(self, "open_cashflow", None):
-            mk_btn("Fluxo de Caixa", self.open_cashflow, yellow=True)
-        else:
-            _btn_cf = mk_btn("Fluxo de Caixa", None, yellow=True)
-            _btn_cf.configure(state="disabled")
-        # Demais módulos em desenvolvimento (placeholder cinza)
-        mk_btn("Anvisa", self.open_anvisa)
-        mk_btn("Farmácia Popular", self.open_farmacia_popular)
-        mk_btn("Sngpc", self.open_sngpc)
-        mk_btn("Sifap", self.open_mod_sifap)
-
-        # --- ESPAÇO CENTRAL VAZIO (coluna 1) ---
-        self.center_spacer = tb.Frame(self)
-
-        # --- LATERAL DIREITA (coluna 2) - Notas Compartilhadas ---
-        self.notes_panel = build_notes_panel(self, parent=self)
-
-        widgets = {
-            "modules_panel": self.modules_panel,
-            "spacer": self.center_spacer,
-            "notes_panel": self.notes_panel,
-        }
-        apply_hub_notes_right(self, widgets)
 
         # Estado de polling
         self._notes_poll_ms = 10000  # 10 segundos
@@ -228,6 +228,139 @@ class HubScreen(tb.Frame):
         self._live_sync_on = False
         self._live_last_ts = None  # ISO da última nota conhecida
 
+        # Dashboard ViewModel
+        self._dashboard_vm = DashboardViewModel()
+
+        # Dashboard Action Controller (headless)
+        # Usa self como navigator adapter (implementa HubNavigatorProtocol)
+        self._dashboard_actions = DashboardActionController(navigator=self, logger=logger)
+
+        # Notes ViewModel
+        try:
+            from src.modules.notas.service import NotesService
+
+            notes_service = NotesService()
+        except Exception:
+            notes_service = None
+        self._notes_vm = NotesViewModel(notes_service=notes_service)
+
+        # Notes Controller (headless)
+        # Usa self como gateway adapter (implementa NotesGatewayProtocol)
+        self._notes_controller = NotesController(
+            vm=self._notes_vm,
+            gateway=self,
+            notes_service=notes_service,
+            logger=logger,
+        )
+
+    def _build_modules_panel(self) -> None:
+        """Constrói o painel de módulos (menu vertical à esquerda) com 3 blocos."""
+        self.modules_panel = tb.Labelframe(self, text=MODULES_TITLE, padding=PAD_OUTER)
+        modules_panel = self.modules_panel
+
+        def mk_btn(
+            parent_frame: tb.Frame,
+            text: str,
+            cmd: Optional[Callable] = None,
+            highlight: bool = False,
+            yellow: bool = False,
+            bootstyle: Optional[str] = None,
+        ) -> tb.Button:
+            """Cria um botão com estilo consistente no painel de módulos."""
+            style = calculate_module_button_style(
+                highlight=highlight,
+                yellow=yellow,
+                bootstyle=bootstyle,
+            )
+
+            b = tb.Button(
+                parent_frame,
+                text=text,
+                command=(cmd or self._noop),
+                bootstyle=style,
+            )
+            # Não faz pack/grid aqui; o caller posiciona
+            return b
+
+        # --- Bloco 1: Cadastros / Acesso ---
+        frame_cadastros = tb.Labelframe(modules_panel, text="Cadastros / Acesso", bootstyle="dark", padding=(8, 6))
+        frame_cadastros.pack(fill="x", pady=(0, 8))
+        frame_cadastros.columnconfigure(0, weight=1)
+        frame_cadastros.columnconfigure(1, weight=1)
+
+        btn_clientes = mk_btn(frame_cadastros, "Clientes", self.open_clientes, bootstyle=HUB_BTN_STYLE_CLIENTES)
+        btn_clientes.grid(row=0, column=0, sticky="ew", padx=3, pady=3)
+
+        btn_senhas = mk_btn(frame_cadastros, "Senhas", self.open_senhas, bootstyle=HUB_BTN_STYLE_SENHAS)
+        btn_senhas.grid(row=0, column=1, sticky="ew", padx=3, pady=3)
+
+        # --- Bloco 2: Gestão / Auditoria ---
+        frame_gestao = tb.Labelframe(modules_panel, text="Gestão / Auditoria", bootstyle="dark", padding=(8, 6))
+        frame_gestao.pack(fill="x", pady=(0, 8))
+        frame_gestao.columnconfigure(0, weight=1)
+        frame_gestao.columnconfigure(1, weight=1)
+
+        btn_auditoria = mk_btn(frame_gestao, "Auditoria", self.open_auditoria, bootstyle=HUB_BTN_STYLE_AUDITORIA)
+        btn_auditoria.grid(row=0, column=0, sticky="ew", padx=3, pady=3)
+
+        # --- Fluxo de Caixa ---
+        if getattr(self, "open_cashflow", None):
+            btn_fluxo_caixa = mk_btn(
+                frame_gestao, "Fluxo de Caixa", self.open_cashflow, bootstyle=HUB_BTN_STYLE_FLUXO_CAIXA
+            )
+        else:
+            btn_fluxo_caixa = mk_btn(frame_gestao, "Fluxo de Caixa", None, bootstyle=HUB_BTN_STYLE_FLUXO_CAIXA)
+            btn_fluxo_caixa.configure(state="disabled")
+        btn_fluxo_caixa.grid(row=0, column=1, sticky="ew", padx=3, pady=3)
+
+        # --- Bloco 3: Regulatório / Programas ---
+        frame_regulatorio = tb.Labelframe(
+            modules_panel, text="Regulatório / Programas", bootstyle="dark", padding=(8, 6)
+        )
+        frame_regulatorio.pack(fill="x", pady=(0, 0))
+        frame_regulatorio.columnconfigure(0, weight=1)
+        frame_regulatorio.columnconfigure(1, weight=1)
+
+        btn_anvisa = mk_btn(frame_regulatorio, "Anvisa", self.open_anvisa, bootstyle="secondary")
+        btn_anvisa.grid(row=0, column=0, sticky="ew", padx=3, pady=3)
+
+        btn_farmacia_pop = mk_btn(
+            frame_regulatorio, "Farmácia Popular", self.open_farmacia_popular, bootstyle="secondary"
+        )
+        btn_farmacia_pop.grid(row=0, column=1, sticky="ew", padx=3, pady=3)
+
+        btn_sngpc = mk_btn(frame_regulatorio, "Sngpc", self.open_sngpc, bootstyle="secondary")
+        btn_sngpc.grid(row=1, column=0, sticky="ew", padx=3, pady=3)
+
+        btn_sifap = mk_btn(frame_regulatorio, "Sifap", self.open_mod_sifap, bootstyle="secondary")
+        btn_sifap.grid(row=1, column=1, sticky="ew", padx=3, pady=3)
+
+    def _build_dashboard_panel(self) -> None:
+        """Constrói o painel central com ScrollableFrame para o dashboard."""
+        # Container da coluna central
+        self.center_spacer = tb.Frame(self)
+
+        # ScrollableFrame dentro do container para permitir scroll do dashboard
+        from src.ui.widgets.scrollable_frame import ScrollableFrame
+
+        self.dashboard_scroll = ScrollableFrame(self.center_spacer)
+        self.dashboard_scroll.pack(fill="both", expand=True)
+
+    def _build_notes_panel(self) -> None:
+        """Constrói o painel de notas compartilhadas (lateral direita)."""
+        self.notes_panel = build_notes_panel(self, parent=self)
+
+    def _setup_layout(self) -> None:
+        """Configura o layout grid de 3 colunas (módulos | dashboard | notas)."""
+        widgets = {
+            "modules_panel": self.modules_panel,
+            "spacer": self.center_spacer,
+            "notes_panel": self.notes_panel,
+        }
+        apply_hub_notes_right(self, widgets)
+
+    def _setup_bindings(self) -> None:
+        """Configura atalhos de teclado (Ctrl+D para diagnóstico, Ctrl+L para reload cache)."""
         # Configurar atalhos (apenas uma vez)
         self._binds_ready = getattr(self, "_binds_ready", False)
         if not self._binds_ready:
@@ -246,18 +379,26 @@ class HubScreen(tb.Frame):
             )
             self._binds_ready = True
 
+    def _start_timers(self) -> None:
+        """Inicia timers de polling (notas) e carregamento de dashboard."""
         # Iniciar timers com gate de autenticação
         self.after(500, self._start_home_timers_safely)
 
-    # -------------------- Helpers de Autenticação Segura --------------------
+        # Carregar dashboard no centro
+        self.after(600, self._load_dashboard)
+
+    # ============================================================================
+    # MÉTODOS AUXILIARES E CALLBACKS
+    # ============================================================================
 
     def _auth_ready(self) -> bool:
         """Verifica se autenticação está pronta (sem levantar exceção)."""
         try:
             app = self._get_app()
             has_app = app is not None
-            has_auth = has_app and hasattr(app, "auth") and app.auth is not None
-            is_authenticated = has_auth and bool(app.auth.is_authenticated)
+            auth = getattr(app, "auth", None) if has_app else None
+            has_auth = auth is not None
+            is_authenticated = has_auth and bool(getattr(auth, "is_authenticated", False))
             return is_auth_ready(has_app, has_auth, is_authenticated)
         except Exception:
             return False
@@ -269,14 +410,15 @@ class HubScreen(tb.Frame):
             if not app or not hasattr(app, "auth") or not app.auth:
                 return None
 
+            auth = app.auth  # guarda local para satisfazer narrowing do Pyright
             # Tentar via accessor seguro
-            org_id = app.auth.get_org_id()
+            org_id = auth.get_org_id()
             if org_id:
                 return org_id
 
             # Fallback: usar método antigo se disponível
             if hasattr(app, "_get_org_id_cached"):
-                user_id = app.auth.get_user_id()
+                user_id = auth.get_user_id()
                 if user_id:
                     return app._get_org_id_cached(user_id)
 
@@ -324,6 +466,381 @@ class HubScreen(tb.Frame):
 
         self._update_notes_ui_state()  # Atualizar estado do botão/placeholder
         self._start_notes_polling()
+
+    def _load_dashboard(self) -> None:
+        """Carrega os dados do dashboard de forma assíncrona via ViewModel.
+
+        Obtém o org_id atual, usa o DashboardViewModel para buscar snapshot
+        em uma thread separada (para não travar a UI), e atualiza o painel
+        central quando pronto.
+        """
+        org_id = self._get_org_id_safe()
+        if not org_id:
+            log.debug("HubScreen: org_id não disponível, aguardando para carregar dashboard...")
+            # Reagendar se auth ainda não está pronta
+            if not self._auth_ready():
+                self.after(AUTH_RETRY_MS, self._load_dashboard)
+            return
+
+        def _fetch_via_viewmodel():
+            """Thread worker para buscar snapshot via ViewModel."""
+            # Usar ViewModel para carregar (headless, sem Tkinter)
+            state = self._dashboard_vm.load(org_id=org_id, today=None)
+
+            # Agendar atualização da UI na thread principal
+            self.after(0, lambda: self._update_dashboard_ui(state))
+
+        # Executar em thread separada para não bloquear a UI
+        threading.Thread(target=_fetch_via_viewmodel, daemon=True).start()
+
+    def _update_dashboard_ui(self, state: "DashboardViewState") -> None:
+        """Atualiza a UI do dashboard baseado no estado do ViewModel.
+
+        Args:
+            state: Estado do DashboardViewModel com snapshot e cards formatados.
+        """
+
+        # Se houver erro, mostrar tela de erro
+        if state.error_message:
+            log.error("Dashboard em estado de erro: %s", state.error_message)
+            build_dashboard_error(self.dashboard_scroll.content)
+            return
+
+        # Se não houver snapshot, não fazer nada (estado inválido)
+        if not state.snapshot:
+            log.warning("Dashboard sem snapshot disponível")
+            return
+
+        # Renderizar dashboard com state completo (ViewModel driving UI)
+        build_dashboard_center(
+            self.dashboard_scroll.content,
+            state,  # ← Passa DashboardViewState completo, não apenas snapshot
+            on_new_task=self._on_new_task,
+            on_new_obligation=self._on_new_obligation,
+            on_view_all_activity=self._on_view_all_activity,
+            on_card_clients_click=self._on_card_clients_click,
+            on_card_pendencias_click=self._on_card_pendencias_click,
+            on_card_tarefas_click=self._on_card_tarefas_click,
+        )
+
+    def _on_new_task(self) -> None:
+        """Abre diálogo para criar nova tarefa."""
+        try:
+            # Obter org_id e user_id
+            org_id = self._get_org_id_safe()
+            user_id = self._get_user_id_safe()
+
+            if not org_id or not user_id:
+                messagebox.showwarning(
+                    "Autenticação Necessária",
+                    "Por favor, faça login para criar tarefas.",
+                    parent=self,
+                )
+                return
+
+            # Carregar lista de clientes
+            clients: list = []
+            try:
+                from data.supabase_repo import list_clients_for_picker
+
+                clients = list_clients_for_picker(org_id, limit=500)
+            except Exception as e:  # noqa: BLE001
+                log.warning("Não foi possível carregar clientes: %s", e)
+
+            # Abrir diálogo
+            from src.modules.tasks.views import NovaTarefaDialog
+
+            dialog = NovaTarefaDialog(
+                parent=self,
+                org_id=org_id,
+                user_id=user_id,
+                on_success=self._load_dashboard,
+                clients=clients,
+            )
+            dialog.deiconify()  # Mostra a janela
+
+        except Exception as e:  # noqa: BLE001
+            log.exception("Erro ao abrir diálogo de nova tarefa")
+            messagebox.showerror(
+                "Erro",
+                f"Erro ao abrir diálogo: {e}",
+                parent=self,
+            )
+
+    def _on_new_obligation(self) -> None:
+        """Abre modo seleção de Clientes e depois janela de obrigações do cliente selecionado."""
+        try:
+            # Obter org_id e user_id
+            org_id = self._get_org_id_safe()
+            user_id = self._get_user_id_safe()
+
+            if not org_id or not user_id:
+                messagebox.showwarning(
+                    "Autenticação Necessária",
+                    "Por favor, faça login para criar obrigações.",
+                    parent=self,
+                )
+                return
+
+            # Salvar IDs para uso no callback
+            self._pending_obligation_org_id = org_id
+            self._pending_obligation_user_id = user_id
+
+            # Abrir modo seleção de Clientes usando API explícita
+            app = self._get_main_app()
+            if not app:
+                messagebox.showwarning(
+                    "Erro",
+                    "Aplicação principal não encontrada.",
+                    parent=self,
+                )
+                return
+
+            from src.modules.main_window.controller import start_client_pick_mode, navigate_to
+
+            # Usar nova API com callback específico para Obrigações
+            start_client_pick_mode(
+                app,
+                on_client_picked=self._handle_client_picked_for_obligation,
+                banner_text="🔍 Modo seleção: escolha um cliente para gerenciar obrigações",
+                return_to=lambda: navigate_to(app, "hub"),
+            )
+
+        except Exception as e:  # noqa: BLE001
+            log.exception("Erro ao iniciar fluxo de nova obrigação")
+            messagebox.showerror(
+                "Erro",
+                f"Erro ao iniciar fluxo: {e}",
+                parent=self,
+            )
+
+    def _on_view_all_activity(self) -> None:
+        """Abre visualização completa da atividade da equipe."""
+        try:
+            messagebox.showinfo(
+                "Em Desenvolvimento",
+                "A visualização completa da atividade estará disponível em breve.\n\n"
+                "No momento, você pode ver as últimas atividades diretamente no Hub.",
+                parent=self,
+            )
+        except Exception as e:  # noqa: BLE001
+            log.exception("Erro ao abrir visualização de atividades")
+            messagebox.showerror(
+                "Erro",
+                f"Erro ao abrir visualização: {e}",
+                parent=self,
+            )
+
+    def _on_card_clients_click(self) -> None:
+        """Handler de clique no card 'Clientes Ativos' - delega para controller."""
+        try:
+            state = self._dashboard_vm.state
+            self._dashboard_actions.handle_clients_card_click(state)
+        except Exception as e:  # noqa: BLE001
+            log.exception("Erro ao navegar para Clientes a partir do card")
+            messagebox.showerror(
+                "Erro",
+                f"Erro ao abrir tela de Clientes: {e}",
+                parent=self,
+            )
+
+    def _on_card_pendencias_click(self) -> None:
+        """Handler de clique no card 'Pendências Regulatórias' - delega para controller."""
+        try:
+            state = self._dashboard_vm.state
+            self._dashboard_actions.handle_pending_card_click(state)
+        except Exception as e:  # noqa: BLE001
+            log.exception("Erro ao navegar para Auditoria a partir do card")
+            messagebox.showerror(
+                "Erro",
+                f"Erro ao abrir tela de Auditoria: {e}",
+                parent=self,
+            )
+
+    def _on_card_tarefas_click(self) -> None:
+        """Handler de clique no card 'Tarefas Hoje' - delega para controller."""
+        try:
+            state = self._dashboard_vm.state
+            self._dashboard_actions.handle_tasks_today_card_click(state)
+        except Exception as e:  # noqa: BLE001
+            log.exception("Erro ao abrir tarefas a partir do card")
+            messagebox.showerror(
+                "Erro",
+                f"Erro ao abrir tarefas: {e}",
+                parent=self,
+            )
+
+    # ============================================================================
+    # MÉTODOS DE NAVEGAÇÃO (HubNavigatorProtocol)
+    # ============================================================================
+
+    def go_to_clients(self) -> None:
+        """Navega para a tela de Clientes (implementa HubNavigatorProtocol)."""
+        if self.open_clientes:
+            self.open_clientes()
+        else:
+            log.debug("HubScreen: Callback open_clientes não definido")
+
+    def go_to_pending(self) -> None:
+        """Navega para a tela de Pendências Regulatórias/Auditoria (implementa HubNavigatorProtocol)."""
+        if self.open_auditoria:
+            self.open_auditoria()
+        else:
+            log.debug("HubScreen: Callback open_auditoria não definido")
+
+    def go_to_tasks_today(self) -> None:
+        """Abre interface de tarefas de hoje (implementa HubNavigatorProtocol)."""
+        # Por enquanto, abre o diálogo de nova tarefa (mesma ação do botão ➕)
+        # No futuro, pode abrir uma visualização filtrada de tarefas pendentes
+        self._on_new_task()
+
+    # ============================================================================
+    # MÉTODOS DE GATEWAY NOTES (NotesGatewayProtocol)
+    # ============================================================================
+
+    def show_note_editor(self, note_data: dict[str, Any] | None = None) -> dict[str, Any] | None:
+        """Mostra editor de nota (NotesGatewayProtocol).
+
+        Args:
+            note_data: Dados da nota para editar (None para criar nova).
+
+        Returns:
+            Dados da nota editada/criada, ou None se cancelado.
+        """
+        # TODO: Implementar dialog de edição quando necessário
+        logger.debug("show_note_editor não implementado ainda")
+        return None
+
+    def confirm_delete_note(self, note_data: dict[str, Any]) -> bool:
+        """Confirma exclusão de nota (NotesGatewayProtocol).
+
+        Args:
+            note_data: Dados da nota a ser deletada.
+
+        Returns:
+            True se confirmado, False se cancelado.
+        """
+        body = note_data.get("body", "")
+        preview = body[:50] + "..." if len(body) > 50 else body
+        return messagebox.askyesno(
+            "Confirmar exclusão",
+            f"Excluir anotação:\n\n{preview}",
+            parent=self,
+        )
+
+    def show_error(self, title: str, message: str) -> None:
+        """Mostra mensagem de erro (NotesGatewayProtocol)."""
+        messagebox.showerror(title, message, parent=self)
+
+    def show_info(self, title: str, message: str) -> None:
+        """Mostra mensagem informativa (NotesGatewayProtocol)."""
+        messagebox.showinfo(title, message, parent=self)
+
+    def get_org_id(self) -> str | None:
+        """Obtém ID da organização atual (NotesGatewayProtocol)."""
+        try:
+            from src.data.supabase_repo import SupabaseClientManager
+
+            repo = SupabaseClientManager.get_instance()
+            return repo.org_id if repo else None
+        except Exception:
+            return None
+
+    def get_user_email(self) -> str | None:
+        """Obtém email do usuário atual (NotesGatewayProtocol)."""
+        try:
+            from src.data.supabase_repo import SupabaseClientManager
+
+            repo = SupabaseClientManager.get_instance()
+            session = repo.get_session() if repo else None
+            return session.user.email if session and session.user else None
+        except Exception:
+            return None
+
+    def is_authenticated(self) -> bool:
+        """Verifica se usuário está autenticado (NotesGatewayProtocol)."""
+        try:
+            from src.data.supabase_repo import SupabaseClientManager
+
+            repo = SupabaseClientManager.get_instance()
+            session = repo.get_session() if repo else None
+            return bool(session and session.user)
+        except Exception:
+            return False
+
+    def is_online(self) -> bool:
+        """Verifica se há conexão com internet (NotesGatewayProtocol)."""
+        # Simplificação: verifica se está autenticado (implica online)
+        # Poderia ter validação de conectividade mais sofisticada
+        return self.is_authenticated()
+
+    # ============================================================================
+    # HANDLERS DE CALLBACKS DE CLIENTES
+    # ============================================================================
+
+    def _handle_client_picked_for_obligation(self, client_data: dict) -> None:
+        """Callback chamado quando cliente é selecionado no modo pick."""
+        try:
+            org_id = getattr(self, "_pending_obligation_org_id", None)
+            user_id = getattr(self, "_pending_obligation_user_id", None)
+
+            if not org_id or not user_id:
+                log.warning("org_id ou user_id não disponível no callback de obrigações")
+                return
+
+            # Extrair dados do cliente
+            client_id = client_data.get("id")
+            if not client_id:
+                log.warning("Client data sem ID: %s", client_data)
+                return
+
+            # Converter para int se necessário
+            if isinstance(client_id, str):
+                try:
+                    client_id = int(client_id)
+                except ValueError:
+                    log.error("Não foi possível converter client_id '%s' para int", client_id)
+                    return
+
+            # Montar nome do cliente para exibição
+            client_name = client_data.get("razao_social") or client_data.get("nome") or f"Cliente {client_id}"
+
+            # Abrir janela de obrigações
+            from src.modules.clientes.views.client_obligations_window import show_client_obligations_window
+
+            # Voltar para o Hub primeiro
+            app = self._get_main_app()
+            if app:
+                from src.modules.main_window.controller import navigate_to
+
+                navigate_to(app, "hub")
+
+            # Depois abrir janela de obrigações
+            show_client_obligations_window(
+                parent=self.winfo_toplevel(),
+                org_id=org_id,
+                created_by=user_id,
+                client_id=client_id,
+                client_name=client_name,
+                on_refresh_hub=self._load_dashboard,
+            )
+
+        except Exception as e:  # noqa: BLE001
+            log.exception("Erro ao processar cliente selecionado para obrigações")
+            messagebox.showerror(
+                "Erro",
+                f"Erro ao processar seleção: {e}",
+                parent=self,
+            )
+
+    def _get_main_app(self):
+        """Obtém referência ao app principal navegando pela hierarquia de widgets."""
+        widget = self.master
+        while widget:
+            if hasattr(widget, "show_frame") and hasattr(widget, "_main_frame_ref"):
+                return widget
+            widget = getattr(widget, "master", None)
+        return None
 
     def _update_notes_ui_state(self) -> None:
         """Atualiza estado do botão e placeholder baseado em org_id."""
@@ -603,6 +1120,18 @@ class HubScreen(tb.Frame):
         self._last_render_hash = render_hash
 
         try:
+            # 1) Verificar se o atributo existe e não é None
+            if not hasattr(self, "notes_history") or self.notes_history is None:
+                logger.warning("Hub: notes_history ausente ao renderizar; pulando atualização de notas.")
+                return
+
+            # 2) Verificar se o widget Tk ainda existe
+            #    winfo_exists() retorna 1 se o widget existir, 0 se já foi destruído.
+            if not self.notes_history.winfo_exists():
+                logger.warning("Hub: notes_history destruído (frame/aba fechada?); pulando atualização de notas.")
+                return
+
+            # A partir daqui, é seguro usar o widget
             self.notes_history.configure(state="normal")
             self.notes_history.delete("1.0", "end")
 
@@ -644,6 +1173,8 @@ class HubScreen(tb.Frame):
             # Scrollar para o fim (mais recente)
             self.notes_history.see("end")
             self.notes_history.see("end")
+        except TclError:
+            logger.exception("Hub: erro crítico ao renderizar lista de notas.")
         except Exception:
             logger.exception("Hub: erro crítico ao renderizar lista de notas.")
             try:
@@ -658,7 +1189,27 @@ class HubScreen(tb.Frame):
         controller_retry_after_table_missing(self)
 
     def _on_add_note_clicked(self) -> None:
-        actions_on_add_note_clicked(self)
+        """Handler para clique no botão 'Adicionar' nota.
+
+        Usa o NotesController para validar e adicionar a nota.
+        """
+        try:
+            # Obter texto da entrada
+            note_text = self.new_note.get("1.0", "end-1c").strip()
+
+            # Delegar ao controller
+            success, message = self._notes_controller.handle_add_note_click(note_text)
+
+            if success:
+                # Limpar entrada
+                self.new_note.delete("1.0", "end")
+                # Refresh automático será feito via polling/realtime
+            else:
+                if message:  # Mensagens vazias já foram tratadas pelo controller
+                    logger.debug(f"Falha ao adicionar nota: {message}")
+        except Exception as e:
+            logger.exception("Erro no handler _on_add_note_clicked")
+            self.show_error("Erro", f"Erro inesperado ao adicionar nota: {e}")
 
     def _get_app(self):
         """Obtém referência para a janela principal (App)."""

@@ -1,15 +1,12 @@
 # -*- coding: utf-8 -*-
 """Utilitários para formatação e normalização de números de telefone/WhatsApp."""
 
-import re
+from __future__ import annotations
+
+from src.core.string_utils import only_digits
 
 
-def only_digits(s: str) -> str:
-    """Remove todos os caracteres não-numéricos de uma string."""
-    return re.sub(r"\D", "", s or "")
-
-
-def normalize_br_whatsapp(raw: str) -> dict:
+def normalize_br_whatsapp(raw: str | None) -> dict:
     """
     Recebe qualquer entrada (com/sem +55, espaços, parênteses, etc.)
     e retorna:

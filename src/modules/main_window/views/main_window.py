@@ -34,7 +34,7 @@ A classe App herda de tb.Window e orquestra os componentes principais:
 3. AÇÕES DELEGADAS (via AppActions)
    - novo_cliente()
    - editar_cliente()
-   - ver_subpastas()
+   - open_client_storage_subfolders() (alias ver_subpastas())
    - abrir_lixeira()
    - _excluir_cliente()
    - enviar_para_supabase()
@@ -119,7 +119,7 @@ from src.modules.clientes import ClientesFrame
 from src.modules.clientes import service as clientes_service
 from src.modules.chatgpt.views.chatgpt_window import ChatGPTWindow
 from src.modules.main_window.app_actions import AppActions
-from src.modules.main_window.controller import create_frame, navigate_to, tk_report
+from src.modules.main_window.controller import create_frame, navigate_to, start_client_pick_mode, tk_report
 from src.modules.main_window.session_service import SessionCache
 from src.ui.menu_bar import AppMenuBar
 from src.ui.topbar import TopBar
@@ -199,10 +199,13 @@ class App(tb.Window):
             self,
             on_home=self.show_hub_screen,
             on_pdf_converter=self.run_pdf_batch_converter,
+            on_pdf_viewer=self._open_pdf_viewer_empty,
             on_chatgpt=self.open_chatgpt_window,
             on_sites=self.show_sites_screen,
         )
         self._topbar.pack(side="top", fill="x")
+        self._pdf_viewer_window = None
+        self._pdf_viewer_signature: Optional[str] = None
 
         # Separador 2: logo abaixo da toolbar (antes do conteúdo principal)
         if not hasattr(self, "sep_toolbar_main") or self.sep_toolbar_main is None:
@@ -269,6 +272,10 @@ class App(tb.Window):
 
         # --- Aplicar política Fit-to-WorkArea ---
         apply_fit_policy(self)
+
+        # --- Maximização adiada para _maximize_window() (chamado após login) ---
+        # NOTA: Não maximizar aqui durante __init__ para evitar mostrar a janela
+        # antes do splash/login terminarem. A maximização é feita em _maximize_window().
 
         self.tema_atual = _theme_name
         self._restarting = False
@@ -363,7 +370,7 @@ class App(tb.Window):
                 "delete": self._excluir_cliente,
                 "upload": self.enviar_para_supabase,
                 "lixeira": self.abrir_lixeira,
-                "subpastas": self.ver_subpastas,
+                "subpastas": self.open_client_storage_subfolders,
                 "hub": self.show_hub_screen,
                 "find": lambda: getattr(self, "_main_frame_ref", None)
                 and getattr(self._main_frame_ref, "_buscar", lambda: None)(),
@@ -372,7 +379,7 @@ class App(tb.Window):
 
         self.after(INITIAL_STATUS_DELAY, self._schedule_user_status_refresh)
         self.bind("<FocusIn>", lambda e: self._update_user_status(), add="+")
-        self.show_hub_screen()
+        # REMOVIDO: self.show_hub_screen() - agora é chamado em app_gui.py APÓS login bem-sucedido
 
     def show_frame(self, frame_cls: Any, **kwargs: Any) -> Any:
         frame = self.nav.show_frame(frame_cls, **kwargs)
@@ -508,7 +515,25 @@ class App(tb.Window):
 
         threading.Thread(target=_work, daemon=True).start()
 
+    def _maximize_window(self) -> None:
+        """Maximiza a janela principal. Chamado após login bem-sucedido."""
+        try:
+            self.state("zoomed")  # Maximiza a janela mantendo barra de título
+            log.info("Janela maximizada (zoomed) após login")
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao maximizar janela com state('zoomed'): %s", exc)
+            try:
+                self.attributes("-zoomed", True)  # Fallback alternativo
+                log.info("Janela maximizada usando attributes('-zoomed')")
+            except Exception as exc2:  # noqa: BLE001
+                log.debug("Falha ao maximizar janela com attributes: %s", exc2)
+
     def show_hub_screen(self) -> Any:
+        """Mostra o hub inicial.
+
+        A centralização da janela principal é feita apenas por apply_fit_policy()
+        no __init__, que usa a API nativa de janela. Aqui só navegamos para o hub.
+        """
         return navigate_to(self, "hub")
 
     def show_main_screen(self) -> Any:
@@ -526,8 +551,27 @@ class App(tb.Window):
     def show_sites_screen(self) -> Any:
         return navigate_to(self, "sites")
 
-    def open_clients_picker(self, on_pick: Callable[[dict[str, Any]], None]) -> Any:
-        return navigate_to(self, "clients_picker", on_pick=on_pick)
+    def open_clients_picker(
+        self,
+        on_pick: Callable[[dict[str, Any]], None],
+        *,
+        banner_text: str | None = None,
+        return_to: Callable[[], None] | None = None,
+    ) -> None:
+        """Compat helper legado. Prefira start_client_pick_mode em novos fluxos."""
+        if return_to is None:
+
+            def _return_to_passwords() -> None:
+                navigate_to(self, "passwords")
+
+            return_to = _return_to_passwords
+        effective_banner = banner_text or "Modo seleção: escolha um cliente para continuar"
+        start_client_pick_mode(
+            self,
+            on_client_picked=on_pick,
+            banner_text=effective_banner,
+            return_to=return_to,
+        )
 
     def _on_menu_logout(self) -> None:
         """Handler do menu Sair: confirmação + logout + fechar app."""
@@ -595,10 +639,20 @@ class App(tb.Window):
     # ---------- Confirmação de saída ----------
     def _confirm_exit(self, *_):
         try:
-            if custom_dialogs.ask_ok_cancel(self, "Sair", "Tem certeza de que deseja sair?"):
-                self.destroy()
+            confirm = messagebox.askokcancel(
+                "Sair",
+                "Tem certeza de que deseja sair do RC Gestor?",
+                parent=self,
+                icon="question",
+            )
         except Exception:
-            self.destroy()
+            confirm = True
+
+        if confirm:
+            try:
+                self.destroy()
+            except Exception as exc:  # noqa: BLE001
+                log.exception("Erro ao destruir janela: %s", exc)
 
     # ---------- Tema ----------
     def _set_theme(self, new_theme: str) -> None:
@@ -720,10 +774,15 @@ class App(tb.Window):
             try:
                 from src.core import session
 
-                email = (session.get_current_user() or "") or email
+                fallback_user = session.get_current_user()
+                if isinstance(fallback_user, str):
+                    email = fallback_user
+                elif fallback_user:
+                    email = str(fallback_user)
             except Exception as exc:  # noqa: BLE001
                 log.debug("Falha ao obter email de sessão fallback: %s", exc)
-        return build_user_status_suffix(email, role)
+        email_str = str(email or "")
+        return build_user_status_suffix(email_str, role)
 
     def _update_status_dot(self, is_online: Optional[bool]) -> None:
         # Calcular estilo usando helper
@@ -831,9 +890,17 @@ class App(tb.Window):
         """Delegador para AppActions.editar_cliente."""
         self._actions.editar_cliente()
 
+    def open_client_storage_subfolders(self) -> None:
+        """Delegador para AppActions.open_client_storage_subfolders."""
+        self._actions.open_client_storage_subfolders()
+
     def ver_subpastas(self) -> None:
-        """Delegador para AppActions.ver_subpastas."""
-        self._actions.ver_subpastas()
+        """DEPRECATED: mantenha compatibilidade com o nome antigo."""
+        self.open_client_storage_subfolders()
+
+    def abrir_obrigacoes_cliente(self) -> None:
+        """Delegador para AppActions.abrir_obrigacoes_cliente."""
+        self._actions.abrir_obrigacoes_cliente()
 
     def abrir_lixeira(self) -> None:
         """Delegador para AppActions.abrir_lixeira."""
@@ -859,7 +926,7 @@ class App(tb.Window):
 
             client_id = values[0]
 
-            # Usa mesma lógica do ver_subpastas
+            # Usa mesma lógica do open_client_storage_subfolders
             u = self._get_user_cached()
             if not u:
                 return ""
@@ -899,6 +966,15 @@ class App(tb.Window):
         """Delegador para AppActions.run_pdf_batch_converter."""
         self._actions.run_pdf_batch_converter()
 
+    def _open_pdf_viewer_empty(self) -> None:
+        """Abre o visualizador de PDF sem arquivo inicial."""
+        try:
+            from src.modules.pdf_preview import open_pdf_viewer
+
+            open_pdf_viewer(self, pdf_path=None, display_name="Visualizador de PDF")
+        except Exception as exc:  # noqa: BLE001
+            log.error("Erro ao abrir visualizador de PDF vazio: %s", exc)
+
     def open_chatgpt_window(self) -> None:
         """Abre ou traz para frente a janela do ChatGPT."""
         window = getattr(self, "_chatgpt_window", None)
@@ -911,7 +987,11 @@ class App(tb.Window):
             self._chatgpt_window = None
 
         # Criar nova janela com callback para limpar referência ao fechar
-        window = ChatGPTWindow(self, on_close_callback=self._on_chatgpt_close)
+        try:
+            parent_window = self.winfo_toplevel()
+        except Exception:
+            parent_window = self
+        window = ChatGPTWindow(parent_window, on_close_callback=self._on_chatgpt_close)
         self._chatgpt_window = window
 
         try:
@@ -1040,6 +1120,7 @@ def _log_call(fn):
 try:
     App.novo_cliente = _log_call(App.novo_cliente)
     App.editar_cliente = _log_call(App.editar_cliente)
+    App.open_client_storage_subfolders = _log_call(App.open_client_storage_subfolders)
     App.ver_subpastas = _log_call(App.ver_subpastas)
     App.enviar_para_supabase = _log_call(App.enviar_para_supabase)
 except Exception as exc:  # noqa: BLE001

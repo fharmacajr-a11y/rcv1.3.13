@@ -9,15 +9,33 @@ from pathlib import Path
 from typing import Any, List, Optional, Sequence, Tuple, cast
 
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
-
-import ttkbootstrap as tb
+from tkinter import filedialog, messagebox
 
 from src.modules.uploads import service as uploads_service
 from src.modules.uploads.components.helpers import _cnpj_only_digits
-from src.ui.utils import center_window
+from src.modules.uploads.exceptions import (
+    UploadNetworkError,
+    UploadServerError,
+    UploadValidationError,
+)
+from src.modules.uploads.upload_retry import classify_upload_exception
+from src.modules.uploads.file_validator import (
+    validate_upload_files,
+    FileValidationResult,
+)
+from src.ui.components.progress_dialog import ProgressDialog
+from src.ui.window_utils import show_centered
 
 log = logging.getLogger(__name__)
+
+
+def center_window(window: tk.Misc, *args: object, **kwargs: object) -> None:
+    """Wrapper de compatibilidade para centralizar janelas de upload."""
+
+    # Mantido para testes e codigo legado que ainda chamam center_window.
+    # Hoje delega para src.ui.window_utils.show_centered.
+    show_centered(window)
+
 
 CLIENTS_BUCKET = (os.getenv("SUPABASE_CLIENTS_BUCKET") or "clientes").strip() or "clientes"
 VOLUME_CONFIRM_THRESHOLD = int(os.getenv("RC_UPLOAD_CONFIRM_THRESHOLD") or "200")
@@ -28,59 +46,53 @@ collect_pdfs_from_folder = uploads_service.collect_pdfs_from_folder
 build_items_from_files = uploads_service.build_items_from_files
 
 
-class UploadProgressDialog(tb.Toplevel):
-    """Janela simples com barra de progresso deterministica."""
+class UploadProgressDialog:
+    """Wrapper fino que reutiliza ProgressDialog."""
 
     def __init__(self, parent: tk.Misc, total: int) -> None:
-        # tb.Toplevel herda de tk.Toplevel; aceita parent como primeiro argumento posicional
-        super().__init__(parent)  # type: ignore[arg-type]
-        self.withdraw()
-        self.title("Enviando arquivos")
-        # Cast parent para tk.Tk para chamar transient()
-        parent_window = cast(tk.Tk, parent)
-        self.transient(parent_window)
-        self.resizable(False, False)
-
         self._total = max(int(total), 1)
         self._value = 0
+        self._dialog = ProgressDialog(
+            parent,
+            title="Enviando arquivos",
+            message="Preparando...",
+            detail=self._detail_text(),
+        )
+        self._dialog.set_progress(0.0)
 
-        frame = tb.Frame(self, padding=16)
-        frame.pack(fill="both", expand=True)
+    def after(self, delay: int, callback: Any) -> Any:
+        return self._dialog.after(delay, callback)
 
-        self._label = tb.Label(frame, text="Preparando", anchor="w")
-        self._label.pack(fill="x", pady=(0, 8))
-
-        self._bar = ttk.Progressbar(frame, maximum=self._total, mode="determinate", length=360)
-        self._bar.pack(fill="x")
-
+    def update_idletasks(self) -> None:
         try:
-            # center_window espera (win, width, height)
-            center_window(self, w=400, h=120)
-        except Exception as e:
-            log.debug("Failed to center progress window: %s", e)
+            self._dialog.update_idletasks()
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Failed to update_idletasks on ProgressDialog: %s", exc)
 
-        self.deiconify()
-        self.grab_set()
-        self.update_idletasks()
+    def update(self) -> None:
+        try:
+            self._dialog.update()
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Failed to update ProgressDialog: %s", exc)
 
     def advance(self, label: str) -> None:
         self._value = min(self._total, self._value + 1)
+        detail = self._detail_text()
         try:
-            self._label.configure(text=label)
-            self._bar.configure(value=self._value)
-            self.update_idletasks()
-        except Exception as e:
-            log.debug("Failed to update progress bar: %s", e)
+            self._dialog.set_message(label)
+            self._dialog.set_detail(detail)
+            self._dialog.set_progress(self._value / self._total)
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Failed to update progress bar: %s", exc)
 
     def close(self) -> None:
         try:
-            self.grab_release()
-        except Exception as e:
-            log.debug("Failed to release grab: %s", e)
-        try:
-            self.destroy()
-        except Exception as e:
-            log.debug("Failed to destroy progress window: %s", e)
+            self._dialog.close()
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Failed to destroy progress window: %s", exc)
+
+    def _detail_text(self) -> str:
+        return f"{self._value}/{self._total} arquivo(s)"
 
 
 def _select_pdfs_dialog(parent: Optional[tk.Misc] = None) -> List[str]:
@@ -93,20 +105,103 @@ def _select_pdfs_dialog(parent: Optional[tk.Misc] = None) -> List[str]:
     return list(paths or [])
 
 
-def _show_upload_summary(ok_count: int, failed_paths: List[str], *, parent: Optional[tk.Misc] = None) -> None:
-    """Exibe resumo de sucesso/falha dos uploads em dialog de alerta."""
-    # messagebox fun��es esperam parent n�o-None; usar None como fallback padr�o
-    if failed_paths:
+def _show_upload_summary(
+    ok_count: int,
+    failed_items: List[Tuple[Any, Exception]],
+    *,
+    parent: Optional[tk.Misc] = None,
+    validation_errors: List[FileValidationResult] | None = None,
+) -> None:
+    """Exibe resumo de sucesso/falha dos uploads com mensagens específicas.
+
+    FASE 7: Mensagens de erro melhoradas baseadas no tipo de exceção.
+    """
+    # Coletar mensagens de erro por categoria
+    network_errors: List[str] = []
+    server_errors: List[str] = []
+    validation_msgs: List[str] = []
+    other_errors: List[str] = []
+
+    # Processar falhas de upload
+    for item, exc in failed_items:
+        filename = Path(getattr(item, "relative_path", str(item))).name
+        typed_exc = classify_upload_exception(exc)
+
+        if isinstance(typed_exc, UploadNetworkError):
+            network_errors.append(filename)
+        elif isinstance(typed_exc, UploadServerError):
+            server_errors.append(filename)
+        elif isinstance(typed_exc, UploadValidationError):
+            validation_msgs.append(f"{filename}: {typed_exc.message}")
+        else:
+            other_errors.append(f"{filename}: {typed_exc.message}")
+
+    # Processar erros de validação prévia
+    if validation_errors:
+        for result in validation_errors:
+            validation_msgs.append(f"{result.path.name}: {result.error}")
+
+    # Montar mensagem
+    total_failed = len(failed_items) + (len(validation_errors) if validation_errors else 0)
+
+    if total_failed == 0:
+        messagebox.showinfo(
+            "Envio concluído",
+            f"Todos os {ok_count} arquivo(s) foram enviados com sucesso.",
+            parent=parent,
+        )
+        return
+
+    # Construir mensagem detalhada
+    lines: List[str] = []
+
+    if ok_count > 0:
+        lines.append(f"✓ {ok_count} arquivo(s) enviado(s) com sucesso.\n")
+
+    if validation_msgs:
+        lines.append("⚠ Arquivos inválidos:")
+        for msg in validation_msgs[:5]:  # Limitar a 5 para não poluir
+            lines.append(f"  • {msg}")
+        if len(validation_msgs) > 5:
+            lines.append(f"  ... e mais {len(validation_msgs) - 5} arquivo(s)")
+        lines.append("")
+
+    if network_errors:
+        lines.append("⚠ Falha de conexão (verifique sua internet):")
+        for name in network_errors[:3]:
+            lines.append(f"  • {name}")
+        if len(network_errors) > 3:
+            lines.append(f"  ... e mais {len(network_errors) - 3} arquivo(s)")
+        lines.append("")
+
+    if server_errors:
+        lines.append("⚠ Erro no servidor (tente novamente mais tarde):")
+        for name in server_errors[:3]:
+            lines.append(f"  • {name}")
+        if len(server_errors) > 3:
+            lines.append(f"  ... e mais {len(server_errors) - 3} arquivo(s)")
+        lines.append("")
+
+    if other_errors:
+        lines.append("⚠ Outros erros:")
+        for msg in other_errors[:3]:
+            lines.append(f"  • {msg}")
+        if len(other_errors) > 3:
+            lines.append(f"  ... e mais {len(other_errors) - 3} arquivo(s)")
+
+    message = "\n".join(lines).strip()
+
+    if ok_count > 0:
         messagebox.showwarning(
-            "Envio concluido com falhas",
-            "Alguns arquivos nao foram enviados:\n- " + "\n- ".join(failed_paths),
-            parent=parent if parent is not None else None,  # type: ignore[arg-type]
+            "Envio concluído com falhas",
+            message,
+            parent=parent,
         )
     else:
-        messagebox.showinfo(
-            "Envio concluido",
-            f"Todos os {ok_count} arquivo(s) foram enviados com sucesso.",
-            parent=parent if parent is not None else None,  # type: ignore[arg-type]
+        messagebox.showerror(
+            "Falha no envio",
+            message,
+            parent=parent,
         )
 
 
@@ -230,8 +325,25 @@ def upload_files_to_supabase(
     parent: Optional[tk.Misc] = None,
     bucket: Optional[str] = None,
     client_id: Optional[int] = None,
+    skip_validation: bool = False,
 ) -> Tuple[int, int]:
-    """Executa o upload para <bucket>/<org_id>/<client_id>/GERAL/<arquivo>."""
+    """Executa o upload para <bucket>/<org_id>/<client_id>/GERAL/<arquivo>.
+
+    FASE 7: Inclui validação prévia de arquivos e mensagens de erro específicas.
+
+    Args:
+        app: Referência ao app principal.
+        cliente: Dict com dados do cliente (deve ter 'cnpj').
+        items: Sequência de UploadItem para enviar.
+        subpasta: Subpasta no storage (opcional).
+        parent: Widget pai para diálogos.
+        bucket: Nome do bucket (opcional, usa padrão).
+        client_id: ID do cliente (opcional).
+        skip_validation: Se True, pula validação de arquivos.
+
+    Returns:
+        Tupla (sucesso, falhas).
+    """
     if not items:
         return 0, 0
 
@@ -244,10 +356,41 @@ def upload_files_to_supabase(
     if not cnpj_digits:
         messagebox.showwarning(
             "Envio",
-            "Este cliente nao possui CNPJ cadastrado. Salve antes de enviar.",
+            "Este cliente não possui CNPJ cadastrado. Salve antes de enviar.",
             parent=target,
         )
         return 0, len(items)
+
+    # FASE 7: Validar arquivos antes de iniciar upload
+    validation_errors: List[FileValidationResult] = []
+    valid_items: List[UploadItem] = list(items)
+
+    if not skip_validation:
+        paths = [str(item.path) for item in items]
+        valid_results, invalid_results = validate_upload_files(paths)
+        validation_errors = invalid_results
+
+        if invalid_results:
+            # Filtrar apenas os itens válidos
+            valid_paths = {str(r.path) for r in valid_results}
+            valid_items = [item for item in items if str(item.path) in valid_paths]
+
+            log.info(
+                "Validação: %d válidos, %d inválidos de %d total",
+                len(valid_items),
+                len(invalid_results),
+                len(items),
+            )
+
+            # Se todos inválidos, mostrar erro e sair
+            if not valid_items:
+                _show_upload_summary(
+                    ok_count=0,
+                    failed_items=[],
+                    parent=target,
+                    validation_errors=validation_errors,
+                )
+                return 0, len(items)
 
     # Obtem org_id do usuario logado
     org_id: Optional[str] = None
@@ -261,21 +404,39 @@ def upload_files_to_supabase(
         except Exception as exc:  # noqa: BLE001
             log.debug("Falha ao resolver org_id para upload: %s", exc)
 
-    ok, failures = _upload_batch(
-        app,
-        items,
-        cnpj_digits,
-        subpasta,
-        target,
-        bucket=bucket,
-        client_id=client_id,
-        org_id=org_id,
+    # Executar upload dos itens válidos
+    try:
+        ok, failures = _upload_batch(
+            app,
+            valid_items,
+            cnpj_digits,
+            subpasta,
+            target,
+            bucket=bucket,
+            client_id=client_id,
+            org_id=org_id,
+        )
+    except Exception as exc:
+        # Erro geral (ex: sem autenticação)
+        log.error("Erro crítico no upload: %s", exc, exc_info=True)
+        typed_exc = classify_upload_exception(exc)
+        messagebox.showerror(
+            "Erro no envio",
+            typed_exc.message,
+            parent=target,
+        )
+        return 0, len(items)
+
+    # Mostrar resumo com erros de validação incluídos
+    _show_upload_summary(
+        ok_count=ok,
+        failed_items=failures,
+        parent=target,
+        validation_errors=validation_errors,
     )
 
-    failed_paths = [Path(item.relative_path).name for item, _ in failures]
-    _show_upload_summary(ok_count=ok, failed_paths=failed_paths, parent=target)
-
-    return ok, len(failures)
+    total_failed = len(failures) + len(validation_errors)
+    return ok, total_failed
 
 
 def _resolve_selected_cliente(app: tk.Misc) -> Optional[Tuple[int, dict[str, str]]]:

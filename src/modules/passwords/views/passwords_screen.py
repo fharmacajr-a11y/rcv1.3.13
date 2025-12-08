@@ -12,6 +12,7 @@ import ttkbootstrap as tb
 
 from data.domain_types import ClientRow, PasswordRow
 from src.modules.passwords.controller import ClientPasswordsSummary, PasswordsController
+from src.modules.passwords.passwords_actions import PasswordsActions, PasswordsScreenState
 from src.modules.passwords.views.client_passwords_dialog import ClientPasswordsDialog
 from src.modules.passwords.views.password_dialog import PasswordDialog
 
@@ -38,11 +39,13 @@ class PasswordsScreen(tb.Frame):
 
         self.main_window = main_window
         self.controller = controller or PasswordsController()
+        self.actions = PasswordsActions(controller=self.controller)
         self.org_id: Optional[str] = None
         self.user_id: Optional[str] = None
         self.clients: list[ClientRow] = []
         self.passwords: list[PasswordRow] = []
         self._all_passwords: list[PasswordRow] = []
+        self._screen_state: Optional[PasswordsScreenState] = None
         self.password_cache: dict[str, str] = {}  # id -> decrypted password
         self._sort_column: Optional[str] = None
         self._sort_order: str = "asc"
@@ -71,7 +74,7 @@ class PasswordsScreen(tb.Frame):
         if not self.org_id:
             return
         try:
-            self._all_passwords = self.controller.load_all_passwords(self.org_id)
+            self._all_passwords = self.actions.reload_passwords(self.org_id)
         except Exception as e:
             log.exception("Erro ao carregar senhas")
             messagebox.showerror("Erro", f"Falha ao carregar senhas: {e}")
@@ -247,114 +250,22 @@ class PasswordsScreen(tb.Frame):
         if not self.org_id:
             return
 
-        # FIX-SENHAS-004: Criar _client_summaries e _client_summaries_by_id de TODAS as senhas
-        # para que os diálogos sempre encontrem o cliente, independente dos filtros
-        from collections import defaultdict
-
-        # 1. Cria summaries de TODAS as senhas (para _client_summaries e _client_summaries_by_id)
-        all_grouped: dict[str, list[PasswordRow]] = defaultdict(list)
-        for pwd in self._all_passwords:
-            client_id = pwd.get("client_id", "")
-            if client_id:
-                all_grouped[client_id].append(pwd)
-
-        all_summaries: list[ClientPasswordsSummary] = []
-        for client_id, passwords in all_grouped.items():
-            first = passwords[0]
-
-            # FIX-SENHAS-006: Extrai todos os campos necessários
-            razao_social = first.get("razao_social", first.get("client_name", ""))
-            cnpj = first.get("cnpj", "")
-            contato_nome = first.get("nome", "")
-            whatsapp = first.get("whatsapp", first.get("numero", ""))
-
-            try:
-                client_external_id = int(first.get("client_external_id", client_id))
-            except (ValueError, TypeError):
-                try:
-                    client_external_id = int(client_id)
-                except (ValueError, TypeError):
-                    client_external_id = 0
-
-            services = sorted(set(p.get("service", "") for p in passwords if p.get("service")))
-
-            all_summaries.append(
-                ClientPasswordsSummary(
-                    client_id=client_id,
-                    client_external_id=client_external_id,
-                    razao_social=razao_social,
-                    cnpj=cnpj,
-                    contato_nome=contato_nome,
-                    whatsapp=whatsapp,
-                    passwords_count=len(passwords),
-                    services=services,
-                )
-            )
-
-        # Ordena por nome
-        all_summaries.sort(key=lambda s: s.razao_social.lower())
-        self._client_summaries = all_summaries
-
-        # FIX-SENHAS-004: Popula dict para busca rápida por client_id
-        # FIX-SENHAS-005: Chaves em string porque Treeview.selection() retorna strings
-        self._client_summaries_by_id = {str(s.client_id): s for s in all_summaries}
-
-        # 2. Aplica filtros para a EXIBIÇÃO na árvore
         raw_search = self.search_var.get().strip()
         search_text = raw_search if raw_search else None
         service_filter = self.service_filter_var.get()
 
-        # Filtra senhas
-        filtered_passwords = self.controller.filter_passwords(search_text, service_filter)
+        summaries = self.actions.build_summaries(
+            self._all_passwords,
+            search_text=search_text,
+            service_filter=service_filter,
+        )
 
-        # Agrupa senhas filtradas (para exibir na árvore)
-        filtered_grouped: dict[str, list[PasswordRow]] = defaultdict(list)
-        for pwd in filtered_passwords:
-            client_id = pwd.get("client_id", "")
-            if client_id:
-                filtered_grouped[client_id].append(pwd)
+        self._client_summaries = summaries.all_summaries
+        self._client_summaries_by_id = summaries.summaries_by_id
 
-        display_summaries: list[ClientPasswordsSummary] = []
-        for client_id, passwords in filtered_grouped.items():
-            first = passwords[0]
-
-            # FIX-SENHAS-006: Extrai todos os campos necessários
-            razao_social = first.get("razao_social", first.get("client_name", ""))
-            cnpj = first.get("cnpj", "")
-            contato_nome = first.get("nome", "")
-            whatsapp = first.get("whatsapp", first.get("numero", ""))
-
-            try:
-                client_external_id = int(first.get("client_external_id", client_id))
-            except (ValueError, TypeError):
-                try:
-                    client_external_id = int(client_id)
-                except (ValueError, TypeError):
-                    client_external_id = 0
-
-            services = sorted(set(p.get("service", "") for p in passwords if p.get("service")))
-
-            display_summaries.append(
-                ClientPasswordsSummary(
-                    client_id=client_id,
-                    client_external_id=client_external_id,
-                    razao_social=razao_social,
-                    cnpj=cnpj,
-                    contato_nome=contato_nome,
-                    whatsapp=whatsapp,
-                    passwords_count=len(passwords),
-                    services=services,
-                )
-            )
-
-        # Ordena por nome
-        display_summaries.sort(key=lambda s: s.razao_social.lower())
-
-        # Atualiza UI (exibe apenas summaries filtrados)
         previous_selection = self._selected_client_id
-        self._populate_clients_tree(display_summaries)
+        self._populate_clients_tree(summaries.filtered_summaries)
 
-        # Tenta manter a seleção anterior
         if previous_selection and self.tree_clients.exists(previous_selection):
             self.tree_clients.selection_set(previous_selection)
             self.tree_clients.see(previous_selection)
@@ -435,9 +346,15 @@ class PasswordsScreen(tb.Frame):
             messagebox.showerror("Erro", "Não foi possível acessar a tela de clientes.")
             return
 
-        from src.modules.main_window.controller import navigate_to
+        from src.modules.main_window.controller import start_client_pick_mode, navigate_to
 
-        navigate_to(app, "clients_picker", on_pick=self._handle_client_picked_for_new_password)
+        # Usar nova API explícita para modo seleção de Senhas
+        start_client_pick_mode(
+            app,
+            on_client_picked=self._handle_client_picked_for_new_password,
+            banner_text="🔍 Modo seleção: escolha um cliente para criar nova senha",
+            return_to=lambda: navigate_to(app, "passwords"),
+        )
 
     def _handle_client_picked_for_new_password(self, client_data: dict[str, Any]) -> None:
         """Callback chamado pelo pick mode de Clientes ao escolher cliente para Nova Senha."""
@@ -526,10 +443,7 @@ class PasswordsScreen(tb.Frame):
             return
 
         try:
-            count = self.controller.delete_all_passwords_for_client(
-                org_id=self.org_id,
-                client_id=summary.client_id,
-            )
+            count = self.actions.delete_client_passwords(self.org_id, summary.client_id)
 
             # Recarrega lista de clientes com senhas
             self._load_all_passwords()
@@ -550,9 +464,15 @@ class PasswordsScreen(tb.Frame):
         if not app:
             return
 
-        from src.modules.main_window.controller import navigate_to
+        from src.modules.main_window.controller import start_client_pick_mode, navigate_to
 
-        navigate_to(app, "clients_picker", on_pick=self._handle_client_picked)
+        # Usar nova API explícita para modo seleção de Senhas
+        start_client_pick_mode(
+            app,
+            on_client_picked=self._handle_client_picked,
+            banner_text="🔍 Modo seleção: escolha um cliente para gerenciar senhas",
+            return_to=lambda: navigate_to(app, "passwords"),
+        )
 
     def _handle_client_picked(self, client_data: dict[str, Any]) -> None:
         """Callback vindo do pick mode de Clientes."""
@@ -645,27 +565,16 @@ class PasswordsScreen(tb.Frame):
     def on_show(self) -> None:
         """Callback chamado ao exibir a tela."""
         try:
-            # Obter org_id e user_id
-            from infra.supabase_client import supabase
-
-            user = supabase.auth.get_user()
-            if user and hasattr(user, "user") and user.user:
-                self.user_id = user.user.id
-
-                app = self.winfo_toplevel()
-                if hasattr(app, "_get_org_id_cached"):
-                    self.org_id = app._get_org_id_cached(self.user_id)
-
-            if not self.org_id:
-                messagebox.showerror("Erro", "Organização não identificada.")
-                return
-
-            # Carregar clientes
-            self.clients = self.controller.list_clients(self.org_id)
-
-            # Carregar senhas e popular a lista de clientes
-            self._load_all_passwords()
-            self._refresh_clients_list()
+            main_app = self._get_main_app() or self.winfo_toplevel()
+            state = self.actions.bootstrap_screen(main_app)
         except Exception as e:
             log.exception("Erro ao inicializar tela de senhas")
             messagebox.showerror("Erro", f"Falha ao inicializar: {e}")
+            return
+
+        self._screen_state = state
+        self.org_id = state.org_id
+        self.user_id = state.user_id
+        self.clients = state.clients
+        self._all_passwords = state.all_passwords
+        self._refresh_clients_list()

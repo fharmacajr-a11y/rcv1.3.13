@@ -106,7 +106,7 @@ def send_chat_completion(
     try:
         response = client.responses.create(
             model=model_name,
-            input=[{"role": m["role"], "content": m["content"]} for m in messages],
+            input=[{"role": m["role"], "content": m["content"]} for m in messages],  # type: ignore[arg-type]
             max_output_tokens=1024,
         )
         text = getattr(response, "output_text", None)

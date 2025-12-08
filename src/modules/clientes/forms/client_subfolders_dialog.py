@@ -13,19 +13,10 @@ from typing import Iterable, List
 import ttkbootstrap as tb
 
 from src.config.paths import CLOUD_ONLY
+from src.ui.window_utils import show_centered
 from src.utils.file_utils import ensure_subpastas, open_folder
 
 logger = logging.getLogger(__name__)
-
-try:  # pragma: no cover
-    from ui import center_on_parent
-except Exception:  # pragma: no cover
-    try:
-        from src.ui.utils import center_on_parent
-    except Exception:  # pragma: no cover
-
-        def center_on_parent(win, parent=None, pad=0):
-            return win
 
 
 def open_subpastas_dialog(
@@ -35,6 +26,7 @@ def open_subpastas_dialog(
     extras_visiveis: Iterable[str] | None = None,
 ) -> None:
     win = tb.Toplevel(parent)
+    win.withdraw()
     win.title("Subpastas do Cliente")
     win.transient(parent)
     win.resizable(True, True)
@@ -194,10 +186,10 @@ def open_subpastas_dialog(
     ent_filter.bind("<KeyRelease>", lambda e: _refresh_rows())
     win.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
 
-    win.update_idletasks()
     min_w, min_h = 640, 420
     win.minsize(min_w, min_h)
-    center_on_parent(win, parent)
+    win.update_idletasks()
+    show_centered(win)
     _refresh_rows()
     win.grab_set()
     win.focus_force()

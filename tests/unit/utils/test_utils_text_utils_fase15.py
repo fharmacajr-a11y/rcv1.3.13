@@ -20,7 +20,8 @@ def test_clean_text_collapses_whitespace() -> None:
 
 def test_only_digits_and_cnpj_validation() -> None:
     assert text_utils.only_digits("12a.34-56") == "123456"
-    assert text_utils.cnpj_is_valid("12.345.678/0001-90") is True
+    # CNPJ válido com DV correto (12.345.678/0001-10)
+    assert text_utils.cnpj_is_valid("12.345.678/0001-10") is True
     assert text_utils.cnpj_is_valid("123") is False
 
 

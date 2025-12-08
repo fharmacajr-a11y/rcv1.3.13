@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_Nenhuma mudança pendente no momento._
+
+## [1.3.61] - 2025-12-04
+
+### Changed
+- **[BUMP-VERSION]**: Bump de versão v1.3.51 → v1.3.61
+  - Atualização de `src/version.py` com nova versão
+  - Atualização de metadados do executável em `version_file.txt`
+  - Atualização de comentários em `requirements.txt` e `requirements-dev.txt`
+  - Atualização de `installer/rcgestor.iss` com nova versão
+  - Atualização de documentação em `README.md` e `docs/BUILD.md`
+
+## [1.3.51] - 2025-12-02
+
 ### Fixed
 - **[FIX-HUB-CORES-002]**: Botões Clientes e Senhas com azul claro
   - **Cor azul claro**: Botões Clientes e Senhas agora usam `bootstyle="info"` (azul claro)
@@ -152,6 +166,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Todos os 116 testes do módulo Senhas passando
   - Verificações ruff e bandit OK
 
+### Changed
+- Bump de versão: v1.3.28 → v1.3.51
+- Alinhamento de versionamento em `src/version.py`, `version_file.txt`, `requirements.txt` e `requirements-dev.txt`
+
 ## [1.3.28] - 2025-11-30
 
 ### Added
@@ -260,7 +278,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Supabase integration for backend storage
 - Tkinter GUI with ttkbootstrap themes
 
-[Unreleased]: https://github.com/fharmacajr-a11y/rcv1.3.13/compare/v1.3.28...HEAD
+[Unreleased]: https://github.com/fharmacajr-a11y/rcv1.3.13/compare/v1.3.61...HEAD
+[1.3.61]: https://github.com/fharmacajr-a11y/rcv1.3.13/compare/v1.3.51...v1.3.61
+[1.3.51]: https://github.com/fharmacajr-a11y/rcv1.3.13/compare/v1.3.28...v1.3.51
 [1.3.28]: https://github.com/fharmacajr-a11y/rcv1.3.13/compare/v1.2.0...v1.3.28
 [1.2.0]: https://github.com/fharmacajr-a11y/rcv1.3.13/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/fharmacajr-a11y/rcv1.3.13/compare/v1.0.99...v1.1.0

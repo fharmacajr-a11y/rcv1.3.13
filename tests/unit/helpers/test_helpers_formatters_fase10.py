@@ -1,9 +1,10 @@
 """
-Testes para src/helpers/formatters.py (TEST-001 Fase 10).
+Testes para src/helpers/formatters.py (TEST-001 Fase 10, atualizado Fase 11).
 
 Cobertura:
 - format_cnpj (formatação de CNPJ)
-- fmt_datetime (formatação de data/hora padrão ISO)
+- format_datetime (formatação de data/hora padrão ISO - CANÔNICA desde FASE 11)
+- fmt_datetime (wrapper deprecado para format_datetime)
 - fmt_datetime_br (formatação de data/hora padrão brasileiro)
 - _parse_any_dt (parser interno de datas - testado indiretamente)
 """
@@ -15,7 +16,7 @@ from typing import Any
 
 import pytest
 
-from src.helpers.formatters import format_cnpj, fmt_datetime, fmt_datetime_br
+from src.helpers.formatters import format_cnpj, format_datetime, fmt_datetime, fmt_datetime_br
 
 
 # --- Testes para format_cnpj ---
@@ -70,7 +71,7 @@ def test_format_cnpj_idempotent() -> None:
     assert formatted_once == formatted_twice == "12.345.678/0001-90"
 
 
-# --- Testes para fmt_datetime ---
+# --- Testes para format_datetime (CANÔNICA desde FASE 11) ---
 
 
 @pytest.mark.parametrize(
@@ -99,9 +100,9 @@ def test_format_cnpj_idempotent() -> None:
         (1700000000.5, "2023-11-14 22:13:20"),  # Float ignora fração
     ],
 )
-def test_fmt_datetime(value: Any, expected: str) -> None:
+def test_format_datetime(value: Any, expected: str) -> None:
     """Testa formatação de datetime com vários tipos de input."""
-    result = fmt_datetime(value)
+    result = format_datetime(value)
     # Para timestamps, a conversão pode variar com timezone local
     # Vamos aceitar que o formato está correto
     if isinstance(value, (int, float)) and value != 0:
@@ -112,45 +113,58 @@ def test_fmt_datetime(value: Any, expected: str) -> None:
         assert result == expected
 
 
-def test_fmt_datetime_invalid_string() -> None:
-    """Testa fmt_datetime com string inválida (retorna a string original)."""
+def test_format_datetime_invalid_string() -> None:
+    """Testa format_datetime com string inválida (retorna a string original)."""
     invalid = "not-a-date"
-    result = fmt_datetime(invalid)
+    result = format_datetime(invalid)
     assert result == invalid
 
 
-def test_fmt_datetime_timezone_aware() -> None:
-    """Testa fmt_datetime com datetime timezone-aware (converte para local)."""
+def test_format_datetime_timezone_aware() -> None:
+    """Testa format_datetime com datetime timezone-aware (converte para local)."""
     dt_utc = datetime(2025, 11, 21, 12, 0, 0, tzinfo=timezone.utc)
-    result = fmt_datetime(dt_utc)
+    result = format_datetime(dt_utc)
     # Resultado depende do timezone local, mas deve ter formato correto
     assert len(result) == 19
     assert result[4] == "-" and result[10] == " "
 
 
-def test_fmt_datetime_edge_case_zero_timestamp() -> None:
-    """Testa fmt_datetime com timestamp zero (epoch)."""
-    result = fmt_datetime(0)
+def test_format_datetime_edge_case_zero_timestamp() -> None:
+    """Testa format_datetime com timestamp zero (epoch)."""
+    result = format_datetime(0)
     # Epoch: 1970-01-01 00:00:00 UTC (pode variar com timezone local)
     assert "1970-01-01" in result or "1969-12-31" in result  # Dependendo do TZ
 
 
-def test_fmt_datetime_utc_string_converts_to_local() -> None:
-    """Testa fmt_datetime com string UTC (Z) que converte para timezone local."""
+def test_format_datetime_utc_string_converts_to_local() -> None:
+    """Testa format_datetime com string UTC (Z) que converte para timezone local."""
     # UTC string é convertido para timezone local
-    result = fmt_datetime("2025-11-21T14:30:45Z")
+    result = format_datetime("2025-11-21T14:30:45Z")
     # Deve ter formato correto, mas hora pode variar com timezone
     assert len(result) == 19
     assert result.startswith("2025-11-21")
     assert result[10] == " "
 
 
-def test_fmt_datetime_br_date_without_time_not_parsed() -> None:
-    """Testa fmt_datetime com formato brasileiro só data (não é parseado)."""
+def test_format_datetime_br_date_without_time_not_parsed() -> None:
+    """Testa format_datetime com formato brasileiro só data (não é parseado)."""
     # O parser não reconhece "DD/MM/YYYY" sem hora, retorna original
-    result = fmt_datetime("21/11/2025")
+    result = format_datetime("21/11/2025")
     # Função retorna a string original quando não consegue parsear
     assert result == "21/11/2025"
+
+
+# --- Testes para fmt_datetime (WRAPPER DEPRECADO) ---
+
+
+def test_fmt_datetime_wrapper_delegates_to_format_datetime() -> None:
+    """Testa que fmt_datetime delega corretamente para format_datetime."""
+    dt = datetime(2025, 12, 7, 15, 30, 45)
+
+    # Ambas devem retornar o mesmo resultado
+    assert fmt_datetime(dt) == format_datetime(dt)
+    assert fmt_datetime(None) == format_datetime(None)
+    assert fmt_datetime("2025-12-07T15:30:45") == format_datetime("2025-12-07T15:30:45")
 
 
 # --- Testes para fmt_datetime_br ---
@@ -231,12 +245,12 @@ def test_fmt_datetime_br_idempotent() -> None:
     assert formatted == formatted_again == "21/11/2025 - 14:30:45"
 
 
-def test_fmt_datetime_idempotent() -> None:
-    """Testa que aplicar fmt_datetime no resultado não quebra."""
+def test_format_datetime_idempotent() -> None:
+    """Testa que aplicar format_datetime no resultado não quebra."""
     dt = datetime(2025, 11, 21, 14, 30, 45)
-    formatted = fmt_datetime(dt)
+    formatted = format_datetime(dt)
     # Aplicar novamente na string formatada
-    formatted_again = fmt_datetime(formatted)
+    formatted_again = format_datetime(formatted)
     # Deve reconhecer o formato padrão e retornar o mesmo
     assert formatted == formatted_again == "2025-11-21 14:30:45"
 
@@ -254,9 +268,9 @@ def test_format_cnpj_whitespace_only() -> None:
     assert format_cnpj("   ") == "   "  # Não tem 14 dígitos, retorna original
 
 
-def test_fmt_datetime_date_only_string() -> None:
-    """Testa fmt_datetime com string de data sem hora."""
-    assert fmt_datetime("2025-11-21") == "2025-11-21 00:00:00"
+def test_format_datetime_date_only_string() -> None:
+    """Testa format_datetime com string de data sem hora."""
+    assert format_datetime("2025-11-21") == "2025-11-21 00:00:00"
 
 
 def test_fmt_datetime_br_date_only_string() -> None:
@@ -264,10 +278,10 @@ def test_fmt_datetime_br_date_only_string() -> None:
     assert fmt_datetime_br("21/11/2025") == "21/11/2025 - 00:00:00"
 
 
-def test_fmt_datetime_with_time_object() -> None:
-    """Testa fmt_datetime com objeto time (não suportado, deve retornar string do objeto)."""
+def test_format_datetime_with_time_object() -> None:
+    """Testa format_datetime com objeto time (não suportado, deve retornar string do objeto)."""
     t = time(14, 30, 45)
-    result = fmt_datetime(t)
+    result = format_datetime(t)
     # time object não é convertido, retorna str(t)
     assert "14:30:45" in result
 

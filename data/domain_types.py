@@ -12,7 +12,8 @@ columns or fields that may not always be present in query results.
 
 from __future__ import annotations
 
-from typing import TypedDict
+from datetime import date, datetime, time
+from typing import Literal, TypedDict
 
 from typing_extensions import NotRequired
 
@@ -83,3 +84,63 @@ class MembershipRow(TypedDict, total=False):
     org_id: str  # UUID foreign key to organizations
     role: str  # Optional: user role in the organization
     created_at: str  # Optional: ISO timestamp of membership creation
+
+
+# =============================================================================
+# RC Tasks Table
+# =============================================================================
+
+
+class RCTaskRow(TypedDict):
+    """Row from the 'rc_tasks' table.
+
+    Represents a task in the RC system (Regularize Consultoria).
+    Tasks can be assigned to users, linked to clients, and have priorities/deadlines.
+
+    Required fields are always present. Optional fields use NotRequired.
+    """
+
+    id: str  # UUID primary key
+    org_id: str  # UUID foreign key to organizations
+    created_by: str  # UUID of user who created this task
+    assigned_to: NotRequired[str | None]  # UUID of user assigned to this task (nullable)
+    client_id: NotRequired[int | None]  # Foreign key to clients (nullable)
+    title: str  # Task title
+    description: NotRequired[str | None]  # Task description (nullable)
+    priority: Literal["low", "normal", "high", "urgent"]  # Task priority level
+    due_date: NotRequired[date | None]  # Due date (nullable)
+    due_time: NotRequired[time | None]  # Due time (nullable)
+    status: Literal["pending", "done", "canceled"]  # Task status
+    created_at: datetime  # Timestamp of creation
+    updated_at: datetime  # Timestamp of last update
+    completed_at: NotRequired[datetime | None]  # Timestamp of completion (nullable)
+
+
+# =============================================================================
+# Regulatory Obligations Table
+# =============================================================================
+
+
+class RegObligationRow(TypedDict):
+    """Row from the 'reg_obligations' table.
+
+    Represents a regulatory obligation for a client (SNGPC, Farmácia Popular, etc.).
+    Used to track compliance deadlines and status.
+
+    Required fields are always present. Optional fields use NotRequired.
+    """
+
+    id: str  # UUID primary key
+    org_id: str  # UUID foreign key to organizations
+    client_id: int  # Foreign key to clients
+    kind: Literal["SNGPC", "FARMACIA_POPULAR", "SIFAP", "LICENCA_SANITARIA", "OUTRO"]
+    title: str  # Obligation title/description
+    reference_start: NotRequired[date | None]  # Reference period start (nullable)
+    reference_end: NotRequired[date | None]  # Reference period end (nullable)
+    due_date: date  # Due date for the obligation
+    status: Literal["pending", "done", "overdue", "canceled"]  # Obligation status
+    created_by: str  # UUID of user who created this record
+    created_at: datetime  # Timestamp of creation
+    updated_at: datetime  # Timestamp of last update
+    completed_at: NotRequired[datetime | None]  # Timestamp of completion (nullable)
+    notes: NotRequired[str | None]  # Additional notes (nullable)

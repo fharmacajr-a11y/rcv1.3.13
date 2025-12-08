@@ -1,48 +1,13 @@
 from __future__ import annotations
 
 import logging
-import tkinter as tk
 
 from src.modules.pdf_preview.views.main_window import PdfViewerWin
 
 _log = logging.getLogger(__name__)
 
 
-def _center_modal(window: tk.Toplevel, parent: tk.Misc | None) -> None:
-    """Centraliza janela relativa ao pai ou à tela."""
-    try:
-        window.update_idletasks()
-        # Se não há parent, tente centralização nativa do Tk (uma única vez)
-        try:
-            if not parent or not parent.winfo_exists():
-                window.tk.call("tk::PlaceWindow", str(window), "center")
-                return
-        except Exception as exc:  # noqa: BLE001
-            # se não estiver disponível, seguimos com o cálculo manual abaixo
-            _log.debug("Falha ao usar tk::PlaceWindow: %s", exc)
-        width = window.winfo_width() or window.winfo_reqwidth()
-        height = window.winfo_height() or window.winfo_reqheight()
-
-        if parent and parent.winfo_exists():
-            try:
-                parent.update_idletasks()
-                px, py = parent.winfo_rootx(), parent.winfo_rooty()
-                pw, ph = parent.winfo_width(), parent.winfo_height()
-                if pw > 0 and ph > 0:
-                    x = px + (pw - width) // 2
-                    y = py + (ph - height) // 2
-                else:
-                    raise ValueError
-            except Exception:
-                parent = None
-        if not parent or not parent.winfo_exists():
-            screen_w = window.winfo_screenwidth()
-            screen_h = window.winfo_screenheight()
-            x = max(0, (screen_w - width) // 2)
-            y = max(0, (screen_h - height) // 2)
-        window.geometry(f"{width}x{height}+{x}+{y}")
-    except Exception as exc:  # noqa: BLE001
-        _log.debug("Falha ao centralizar modal: %s", exc)
+_singleton_viewer: PdfViewerWin | None = None
 
 
 def open_pdf_viewer(
@@ -60,26 +25,52 @@ def open_pdf_viewer(
         display_name: nome para exibição
         data_bytes: bytes do arquivo (alternativa a pdf_path)
     """
+    global _singleton_viewer
+
+    # Se já existe e está viva, reutiliza
+    if _singleton_viewer and _singleton_viewer.winfo_exists():
+        win = _singleton_viewer
+        _log.info(
+            "PDF VIEWER: reutilizando janela existente - display_name=%r has_new_content=%s",
+            display_name,
+            bool(pdf_path or data_bytes),
+        )
+        try:
+            # Se veio com conteúdo novo, carrega
+            if pdf_path or data_bytes:
+                win.open_document(pdf_path=pdf_path, data_bytes=data_bytes, display_name=display_name)
+            # Apenas foca e levanta a janela existente
+            win.lift()
+            win.focus_set()
+            win.focus_canvas()
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao reutilizar viewer existente: %s", exc)
+        return win
+
+    # Cria nova janela
     win = PdfViewerWin(
         master,
         pdf_path=pdf_path,
         display_name=display_name,
         data_bytes=data_bytes,
     )
-    parent = None
-    try:
-        parent = master.winfo_toplevel() if master else None
-    except Exception:
-        parent = None
-    if parent:
-        try:
-            win.transient(parent)
-        except Exception as exc:  # noqa: BLE001
-            _log.debug("Falha ao tornar pdf_viewer transient: %s", exc)
-    _center_modal(win, parent)
-    try:
-        win.grab_set()
-    except Exception as exc:  # noqa: BLE001
-        _log.debug("Falha ao definir grab_set em pdf_viewer: %s", exc)
+    _singleton_viewer = win
+
+    # NÃO usar transient() nem grab_set() para permitir que a janela
+    # permaneça aberta independentemente e seja reutilizável
+
     win.focus_canvas()
+
+    # Quando a janela é destruída, resetar singleton
+    def _on_destroy(event):
+        global _singleton_viewer
+        if event.widget is win:
+            _singleton_viewer = None
+            _log.debug("PDF VIEWER: singleton resetado após destruição")
+
+    try:
+        win.bind("<Destroy>", _on_destroy, add="+")
+    except Exception as exc:  # noqa: BLE001
+        _log.debug("Falha ao bind Destroy para resetar singleton: %s", exc)
+
     return win

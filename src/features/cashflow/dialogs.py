@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from tkinter import Toplevel, StringVar, DoubleVar, ttk, messagebox
 from datetime import date
 from typing import Optional, Dict, Any
@@ -10,6 +11,10 @@ try:
 except Exception:  # fallback simples (campo texto)
     DateEntry = None  # type: ignore
 
+from src.ui.window_utils import show_centered
+
+log = logging.getLogger(__name__)
+
 CATEGORIES_IN = ["Vendas", "Servi��os", "Outros"]
 CATEGORIES_OUT = ["Compra", "Impostos", "Folha", "Aluguel", "Outros"]
 
@@ -17,13 +22,14 @@ CATEGORIES_OUT = ["Compra", "Impostos", "Folha", "Aluguel", "Outros"]
 class EntryDialog(Toplevel):
     def __init__(self, master, initial: Optional[Dict[str, Any]] = None, title="Lan��amento"):
         super().__init__(master)
+        self.withdraw()
         self._init_state(initial, title)
         self._build_form()
+        self._finalize_modal()
 
     def _init_state(self, initial: Optional[Dict[str, Any]], title: str) -> None:
         self.title(title)
         self.resizable(False, False)
-        self.grab_set()
 
         self.var_type = StringVar(value=(initial or {}).get("type", "IN"))
         self.var_date = StringVar(value=(initial or {}).get("date", str(date.today())))
@@ -72,6 +78,15 @@ class EntryDialog(Toplevel):
 
         frm.columnconfigure(1, weight=1)
         cb_type.bind("<<ComboboxSelected>>", lambda e: self._update_cats())
+
+    def _finalize_modal(self) -> None:
+        try:
+            self.update_idletasks()
+            show_centered(self)
+            self.grab_set()
+            self.focus_force()
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao exibir EntryDialog: %s", exc)
 
     def _cats(self):
         return CATEGORIES_IN if self.var_type.get() == "IN" else CATEGORIES_OUT

@@ -8,25 +8,34 @@ from __future__ import annotations
 import logging
 import re
 
+from src.core.string_utils import only_digits
+from src.shared.storage_ui_bridge import build_client_prefix
+
 logger = logging.getLogger(__name__)
 
 
 def _cnpj_only_digits(text: str) -> str:
-    """Retorna apenas digitos do CNPJ; se vier None, devolve string vazia."""
+    """Retorna apenas digitos do CNPJ; se vier None, devolve string vazia.
+
+    Note:
+        Esta é uma função wrapper para compatibilidade. A implementação
+        canônica está em src.core.string_utils.only_digits
+    """
     if text is None:
         return ""
-    return re.sub(r"\D", "", str(text))
+    return only_digits(str(text))
 
 
 def format_cnpj_for_display(cnpj: str) -> str:
     """
     Formata CNPJ numerico em 00.000.000/0000-00.
     Se nao tiver 14 digitos (ex.: futuro alfanumerico), retorna como veio.
+
+    Wrapper para compatibilidade. Delega para src.helpers.formatters.format_cnpj.
     """
-    digits = _cnpj_only_digits(cnpj)
-    if len(digits) == 14:
-        return f"{digits[:2]}.{digits[2:5]}.{digits[5:8]}/{digits[8:12]}-{digits[12:]}"
-    return str(cnpj or "")
+    from src.helpers.formatters import format_cnpj as _format_cnpj_canonical
+
+    return _format_cnpj_canonical(cnpj)
 
 
 def strip_cnpj_from_razao(razao: str, cnpj: str) -> str:
@@ -49,11 +58,8 @@ def get_clients_bucket() -> str:
 
 
 def client_prefix_for_id(client_id: int, org_id: str) -> str:
-    """
-    Monta o prefixo do cliente no Storage.
-    Formato: {org_id}/{client_id}
-    """
-    return f"{org_id}/{client_id}".strip("/")
+    """Retorna o prefixo do cliente delegando para a função canônica."""
+    return build_client_prefix(org_id=org_id, client_id=client_id)
 
 
 def get_current_org_id(sb) -> str:  # type: ignore[no-untyped-def]

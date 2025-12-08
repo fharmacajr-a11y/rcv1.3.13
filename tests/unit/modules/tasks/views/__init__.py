@@ -1,0 +1,6 @@
+# -*- coding: utf-8 -*-
+"""Init file for tasks module views tests."""
+
+from __future__ import annotations
+
+__all__ = []

@@ -16,6 +16,12 @@
     "dist"
   ],
   "stubPath": "./typings",
+  "strict": [
+    "src/modules/clientes/views/main_screen_state.py",
+    "src/modules/clientes/views/main_screen_controller.py",
+    "src/modules/clientes/views/main_screen_helpers.py",
+    "src/modules/clientes/views/main_screen.py"
+  ],
   "reportCallIssue": "error",
   "reportAttributeAccessIssue": "none",
   "reportRedeclaration": "error",

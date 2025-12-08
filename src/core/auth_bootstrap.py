@@ -188,6 +188,17 @@ def _ensure_session(app: AppProtocol, logger: Optional[logging.Logger]) -> bool:
     client = _supabase_client()
     if not client:
         (logger or log).warning("Cliente Supabase não disponível.")
+        # UX: Informar usuário sobre problema técnico
+        try:
+            from tkinter import messagebox
+
+            messagebox.showerror(
+                "Erro de Conexão",
+                "Não foi possível conectar ao serviço de autenticação.\n\n"
+                "Verifique sua conexão com a internet e tente novamente.",
+            )
+        except Exception as exc:
+            (logger or log).debug("Falha ao exibir messagebox de erro: %s", exc)
         return False
 
     try:
@@ -242,11 +253,8 @@ def _update_footer_email(app: AppProtocol) -> None:
 
 
 def _mark_app_online(app: AppProtocol, logger: Optional[logging.Logger]) -> None:
-    """Restaura a janela principal e atualiza indicadores visuais."""
-    try:
-        app.deiconify()
-    except Exception as exc:
-        (logger or log).debug("Falha ao restaurar janela principal", exc_info=exc)
+    """Atualiza indicadores visuais sem exibir a janela (deiconify é responsabilidade do app_gui)."""
+    # REMOVIDO: app.deiconify() - isso agora é feito em app_gui.py APÓS ensure_logged retornar True
 
     try:
         status_monitor = getattr(app, "_status_monitor", None)
@@ -283,6 +291,17 @@ def ensure_logged(
         login_ok = _ensure_session(app, logger)
     except Exception as exc:  # noqa: BLE001
         log_obj.warning("Erro no fluxo de login: %s", exc)
+        # UX: Informar usuário sobre erro inesperado
+        try:
+            from tkinter import messagebox
+
+            messagebox.showerror(
+                "Erro Inesperado",
+                f"Ocorreu um erro durante a autenticação:\n\n{exc}\n\n"
+                "Por favor, tente novamente ou contate o suporte.",
+            )
+        except Exception as msg_exc:
+            log_obj.debug("Falha ao exibir messagebox de erro inesperado: %s", msg_exc)
         login_ok = False
 
     _log_session_state(logger)

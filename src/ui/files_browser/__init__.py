@@ -1,11 +1,18 @@
 # -*- coding: utf-8 -*-
 """
-File Browser para navegação de arquivos no Supabase Storage.
+Files Browser Utilities
 
-API Pública:
-- open_files_browser: Função principal para abrir o browser
+Este pacote contém utilitários reutilizáveis para navegação de arquivos.
+
+A implementação do browser de uploads está em:
+    src.modules.uploads.views.browser.UploadsBrowserWindow
+
+API pública para abrir o browser:
+    from src.modules.uploads import open_files_browser
+
+Utilitários disponíveis:
+    - utils.py: sanitize_filename, format_file_size, suggest_zip_filename
+    - constants.py: constantes de UI e status de pastas
 """
 
-from .main import open_files_browser
-
-__all__ = ["open_files_browser"]
+__all__ = []

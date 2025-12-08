@@ -14,7 +14,12 @@ def _workarea_win32() -> tuple[int, int, int, int] | None:
     SPI_GETWORKAREA = 48  # 0x0030
 
     class RECT(ctypes.Structure):
-        _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long), ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
+        _fields_ = [
+            ("left", ctypes.c_long),
+            ("top", ctypes.c_long),
+            ("right", ctypes.c_long),
+            ("bottom", ctypes.c_long),
+        ]
 
     rect = RECT()
     ok = ctypes.windll.user32.SystemParametersInfoW(SPI_GETWORKAREA, 0, ctypes.byref(rect), 0)
@@ -40,27 +45,27 @@ def fit_geometry_for_device(root: tk.Misc) -> str:
     - usa % da área útil (evita fullscreen/maximize)
     - aplica mínimos seguros
     """
-    x, y, W, H = get_workarea(root)
+    x, y, w, h = get_workarea(root)
     # perfis automáticos por resolução
-    notebook_like = (W <= 1440) or (H <= 900)
+    notebook_like = (w <= 1440) or (h <= 900)
 
     # percentuais por perfil (afinados para 1366x768, 1600x900, 1920x1080)
     if notebook_like:
-        w = int(W * 0.96)
-        h = int(H * 0.94)
+        win_w = int(w * 0.96)
+        win_h = int(h * 0.94)
         min_w, min_h = 1100, 650
     else:
-        w = int(W * 0.92)
-        h = int(H * 0.90)
+        win_w = int(w * 0.92)
+        win_h = int(h * 0.90)
         min_w, min_h = 1200, 720
 
-    w = max(min_w, min(w, W))
-    h = max(min_h, min(h, H))
+    win_w = max(min_w, min(win_w, w))
+    win_h = max(min_h, min(win_h, h))
 
     # centraliza na workarea
-    gx = x + (W - w) // 2
-    gy = y + (H - h) // 2
-    return f"{w}x{h}+{gx}+{gy}"
+    gx = x + (w - win_w) // 2
+    gy = y + (h - win_h) // 2
+    return f"{win_w}x{win_h}+{gx}+{gy}"
 
 
 def apply_fit_policy(win: tk.Misc) -> None:

@@ -60,7 +60,6 @@ def storage_funcs(setup_test_environment):
     from adapters.storage.supabase_storage import (
         SupabaseStorageAdapter,
         _normalize_bucket,
-        _strip_accents,
         normalize_key_for_storage,
         _normalize_key,
         _guess_content_type,
@@ -70,11 +69,12 @@ def storage_funcs(setup_test_environment):
         _delete,
         _list,
     )
+    from src.core.text_normalization import normalize_ascii
 
     return {
         "SupabaseStorageAdapter": SupabaseStorageAdapter,
         "_normalize_bucket": _normalize_bucket,
-        "_strip_accents": _strip_accents,
+        "normalize_ascii": normalize_ascii,
         "normalize_key_for_storage": normalize_key_for_storage,
         "_normalize_key": _normalize_key,
         "_guess_content_type": _guess_content_type,
@@ -122,12 +122,12 @@ class TestUtilityFunctions:
         result = storage_funcs["_normalize_bucket"](None)
         assert result == "rc-docs"
 
-    def test_strip_accents_simples(self, storage_funcs):
-        result = storage_funcs["_strip_accents"]("café")
+    def test_normalize_ascii_simples(self, storage_funcs):
+        result = storage_funcs["normalize_ascii"]("café")
         assert result == "cafe"
 
-    def test_strip_accents_multiplos(self, storage_funcs):
-        result = storage_funcs["_strip_accents"]("Ação São João")
+    def test_normalize_ascii_multiplos(self, storage_funcs):
+        result = storage_funcs["normalize_ascii"]("Ação São João")
         assert result == "Acao Sao Joao"
 
     def test_normalize_key_for_storage_remove_acentos(self, storage_funcs):
@@ -381,8 +381,8 @@ class TestEdgeCases:
         result = storage_funcs["_normalize_bucket"]("  spaced-bucket  ")
         assert result == "spaced-bucket"
 
-    def test_strip_accents_sem_acentos(self, storage_funcs):
-        result = storage_funcs["_strip_accents"]("hello world")
+    def test_normalize_ascii_sem_acentos(self, storage_funcs):
+        result = storage_funcs["normalize_ascii"]("hello world")
         assert result == "hello world"
 
     def test_normalize_key_for_storage_backslash(self, storage_funcs):

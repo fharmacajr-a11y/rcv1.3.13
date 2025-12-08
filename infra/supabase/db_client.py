@@ -155,6 +155,10 @@ def _start_health_checker() -> None:
                     elif (time.time() - last_bad) >= supa_types.HEALTHCHECK_UNSTABLE_THRESHOLD:
                         log.warning("Supabase instável há >= %.0fs", supa_types.HEALTHCHECK_UNSTABLE_THRESHOLD)
 
+            except StopIteration:
+                # Para testes que usam generator em time.sleep, sair da thread de forma limpa
+                log.debug("SupabaseHealthChecker: StopIteration recebida, encerrando thread")
+                break
             except Exception as e:
                 # Erro na verificação: marca offline
                 with _STATE_LOCK:
@@ -166,7 +170,12 @@ def _start_health_checker() -> None:
                 log.warning("Health check error: %s", str(e)[:150])
 
             # Aguarda próximo ciclo
-            time.sleep(supa_types.HEALTHCHECK_INTERVAL_SECONDS)
+            try:
+                time.sleep(supa_types.HEALTHCHECK_INTERVAL_SECONDS)
+            except StopIteration:
+                # Para testes que patcham time.sleep com generator
+                log.debug("SupabaseHealthChecker: StopIteration em sleep, encerrando thread")
+                break
 
     thread = threading.Thread(target=_checker, daemon=True, name="SupabaseHealthChecker")
     thread.start()

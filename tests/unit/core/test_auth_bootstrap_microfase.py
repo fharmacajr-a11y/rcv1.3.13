@@ -804,7 +804,7 @@ def test_update_footer_email_nao_quebra_quando_get_session_falha(monkeypatch):
 
 
 def test_mark_app_online_restaura_janela_e_atualiza_status(monkeypatch):
-    """Testa que _mark_app_online restaura janela, atualiza cloud status e user status."""
+    """Testa que _mark_app_online atualiza cloud status e user status sem tocar na janela."""
     fake_client = MagicMock()
     fake_user = MagicMock()
     fake_user.email = "test@example.com"
@@ -821,7 +821,8 @@ def test_mark_app_online_restaura_janela_e_atualiza_status(monkeypatch):
 
     auth_bootstrap._mark_app_online(fake_app, None)
 
-    fake_app.deiconify.assert_called_once()
+    # _mark_app_online não chama mais deiconify
+    fake_app.deiconify.assert_not_called()
     fake_status_monitor.set_cloud_status.assert_called_once_with(True)
     fake_app._update_user_status.assert_called_once()
 
@@ -831,12 +832,13 @@ def test_mark_app_online_funciona_sem_status_monitor(monkeypatch):
     fake_client = MagicMock()
     monkeypatch.setattr("src.core.auth_bootstrap._supabase_client", lambda: fake_client)
 
-    fake_app = MagicMock(spec=["deiconify", "_update_user_status"])  # Sem _status_monitor
+    fake_app = MagicMock(spec=["_update_user_status"])  # Sem _status_monitor
 
     # Não deve lançar exceção
     auth_bootstrap._mark_app_online(fake_app, None)
 
-    fake_app.deiconify.assert_called_once()
+    # Não exige deiconify mais
+    fake_app._update_user_status.assert_called_once()
 
 
 def test_mark_app_online_loga_warning_quando_falha_set_cloud_status(monkeypatch):
@@ -870,12 +872,16 @@ def test_mark_app_online_loga_warning_quando_falha_update_user_status(monkeypatc
 
 
 def test_mark_app_online_loga_debug_quando_falha_deiconify(monkeypatch):
-    """Testa que _mark_app_online loga debug quando deiconify falha."""
+    """Testa que _mark_app_online loga debug quando set_cloud_status falha (teste renomeado)."""
+    # Teste renomeado: agora verifica log debug quando set_cloud_status falha
+    # (não mais deiconify, que não é responsabilidade de _mark_app_online)
     fake_client = MagicMock()
     monkeypatch.setattr("src.core.auth_bootstrap._supabase_client", lambda: fake_client)
 
     fake_app = MagicMock()
-    fake_app.deiconify.side_effect = RuntimeError("Deiconify failed")
+    fake_status_monitor = MagicMock()
+    fake_status_monitor.set_cloud_status.side_effect = RuntimeError("Monitor failed")
+    fake_app._status_monitor = fake_status_monitor
 
     logger = MagicMock()
     auth_bootstrap._mark_app_online(fake_app, logger)

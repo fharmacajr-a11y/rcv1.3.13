@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
-"""Pipeline helpers reais para salvar_e_upload_docs."""
+"""
+DEPRECATED (UP-05): Pipeline helpers legados para salvar_e_upload_docs.
 
-# Duplicidade (CNPJ/Razão): confirmação é responsabilidade do FORM.
-# O pipeline é headless (sem messagebox); o core (salvar_cliente) valida novamente.
+Mantido apenas para compatibilidade com testes legacy.
+Novos fluxos devem usar:
+- src.modules.uploads.service (upload_items_for_client)
+- src.modules.uploads.views.upload_dialog (UploadDialog)
+"""
 
 from __future__ import annotations
 
@@ -12,7 +16,6 @@ from ._prepare import (
     traduzir_erro_supabase_para_msg_amigavel,
     validate_inputs as _validate_inputs,
 )
-from ._upload import perform_uploads as _perform_uploads
 
 
 def validate_inputs(*args, **kwargs):
@@ -24,7 +27,14 @@ def prepare_payload(*args, **kwargs):
 
 
 def perform_uploads(*args, **kwargs):
-    return _perform_uploads(*args, **kwargs)
+    """
+    DEPRECATED (UP-05): Removido junto com _upload.py.
+
+    Use src.modules.uploads.service.upload_items_for_client em vez disso.
+    """
+    raise NotImplementedError(
+        "perform_uploads foi removido (UP-05). " "Use src.modules.uploads.service.upload_items_for_client"
+    )
 
 
 def finalize_state(*args, **kwargs):

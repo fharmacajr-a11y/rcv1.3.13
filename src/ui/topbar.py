@@ -22,6 +22,7 @@ class TopBar(tb.Frame):
         master=None,
         on_home: Optional[Callable[[], None]] = None,
         on_pdf_converter: Optional[Callable[[], None]] = None,
+        on_pdf_viewer: Optional[Callable[[], None]] = None,
         on_chatgpt: Optional[Callable[[], None]] = None,
         on_sites: Optional[Callable[[], None]] = None,
         **kwargs,
@@ -29,6 +30,7 @@ class TopBar(tb.Frame):
         super().__init__(master, **kwargs)
         self._on_home = on_home
         self._on_pdf_converter = on_pdf_converter
+        self._on_pdf_viewer = on_pdf_viewer
         self._on_chatgpt = on_chatgpt
         self._on_sites = on_sites
 
@@ -83,6 +85,14 @@ class TopBar(tb.Frame):
         )
         self.btn_pdf_converter.pack(side="left", padx=0, pady=6)
 
+        self.btn_pdf_viewer = tb.Button(
+            container,
+            text="Visualizador PDF",
+            command=self._handle_pdf_viewer,
+            bootstyle="info",
+        )
+        self.btn_pdf_viewer.pack(side="left", padx=8, pady=6)
+
         self.btn_chatgpt = tb.Button(
             container,
             text="ChatGPT",
@@ -119,6 +129,13 @@ class TopBar(tb.Frame):
                 self._on_pdf_converter()
             except Exception as exc:  # noqa: BLE001
                 _log.debug("Falha ao executar on_pdf_converter: %s", exc)
+
+    def _handle_pdf_viewer(self) -> None:
+        if callable(self._on_pdf_viewer):
+            try:
+                self._on_pdf_viewer()
+            except Exception as exc:  # noqa: BLE001
+                _log.debug("Falha ao executar on_pdf_viewer: %s", exc)
 
     def _handle_chatgpt(self) -> None:
         if callable(self._on_chatgpt):

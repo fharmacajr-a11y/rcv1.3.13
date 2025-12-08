@@ -9,32 +9,9 @@ from tkinter import StringVar, Toplevel, messagebox, ttk
 from typing import Optional
 
 from . import repository as repo
+from src.ui.window_utils import show_centered
 
 logger = logging.getLogger(__name__)
-
-
-# ------------ utilidades de centralização (sem "flash") ------------
-def _place_center(win: tk.Toplevel) -> bool:
-    """
-    Tenta usar o helper nativo do Tk para centralizar.
-    Retorna True se conseguiu.
-    """
-    try:
-        # equivalente a: win.eval('tk::PlaceWindow <pathname> center')
-        win.tk.call("tk::PlaceWindow", win._w, "center")
-        return True
-    except Exception:
-        return False
-
-
-def center_on_screen(win: tk.Toplevel) -> None:
-    """Centraliza a janela calculando geometria manualmente (fallback)."""
-    win.update_idletasks()
-    w = win.winfo_width() or win.winfo_reqwidth()
-    h = win.winfo_height() or win.winfo_reqheight()
-    x = (win.winfo_screenwidth() // 2) - (w // 2)
-    y = (win.winfo_screenheight() // 2) - (h // 2)
-    win.geometry(f"{w}x{h}+{x}+{y}")
 
 
 def _first_day_month(d: date) -> date:
@@ -54,6 +31,7 @@ class CashflowWindow(Toplevel):
 
     def __init__(self, master):
         super().__init__(master)
+        self.withdraw()
 
         self._init_base_window(master)
         self._build_filters_row()
@@ -63,8 +41,6 @@ class CashflowWindow(Toplevel):
 
     def _init_base_window(self, master) -> None:
         # Evita flicker: cria oculta, monta widgets, centraliza e so entao mostra
-        self.withdraw()
-
         self.title("Fluxo de Caixa")
         self.minsize(820, 480)
 
@@ -145,11 +121,8 @@ class CashflowWindow(Toplevel):
         self.lbl_totals.pack(fill="x")
 
     def _finalize_window(self, master) -> None:
-        if not _place_center(self):
-            center_on_screen(self)
-        self.deiconify()
-        self.lift()
-        self.focus_force()
+        self.update_idletasks()
+        show_centered(self)
 
         if hasattr(master, "_cashflow_window") and master._cashflow_window is self:
             self.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -272,7 +245,6 @@ class CashflowWindow(Toplevel):
         from .dialogs import EntryDialog
 
         dlg = EntryDialog(self, title="Novo Lançamento")
-        center_on_screen(dlg)  # centraliza o diálogo
         self.wait_window(dlg)
 
         if dlg.result:
@@ -304,7 +276,6 @@ class CashflowWindow(Toplevel):
         from .dialogs import EntryDialog
 
         dlg = EntryDialog(self, initial=current, title="Editar Lançamento")
-        center_on_screen(dlg)
         self.wait_window(dlg)
 
         if dlg.result:

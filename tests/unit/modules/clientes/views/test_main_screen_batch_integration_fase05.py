@@ -4,9 +4,9 @@ Módulo: src.modules.clientes.views.main_screen
 Fase: 05 - Integration Layer (Selection + Batch Buttons)
 
 NOTA (FEATURE-CLIENTES-001): Os botões de batch foram removidos da tela principal.
+NOTA (MS-37): _update_batch_buttons_state foi removido (código morto). Testes desabilitados.
 Este arquivo foi adaptado para testar:
 - _get_selected_ids: centralização da leitura de seleção
-- _update_batch_buttons_state: atualização de estados (lida graciosamente com ausência de botões)
 """
 
 from __future__ import annotations
@@ -20,14 +20,18 @@ import pytest
 def mock_frame() -> Mock:
     """Fixture que cria um mock do MainScreenFrame para testes."""
     from src.modules.clientes.views.main_screen import MainScreenFrame
+    from src.modules.clientes.controllers.selection_manager import SelectionManager
 
     # Cria mock do frame sem inicialização completa
     frame = Mock(spec=MainScreenFrame)
     frame.client_list = Mock()
 
+    # MS-24: Inicializa SelectionManager necessário
+    frame._selection_manager = SelectionManager(all_clients=[])
+
     # Injeta os métodos reais que queremos testar
     frame._get_selected_ids = MainScreenFrame._get_selected_ids.__get__(frame)
-    frame._update_batch_buttons_state = MainScreenFrame._update_batch_buttons_state.__get__(frame)
+    frame._build_selection_snapshot = MainScreenFrame._build_selection_snapshot.__get__(frame)
 
     return frame
 
@@ -84,6 +88,7 @@ class TestGetSelectedIds:
         assert isinstance(result, set)
 
 
+@pytest.mark.skip(reason="MS-37: _update_batch_buttons_state removido")
 class TestUpdateBatchButtonsStateWithoutButtons:
     """Testes para _update_batch_buttons_state sem botões presentes."""
 
@@ -125,6 +130,7 @@ class TestUpdateBatchButtonsStateWithoutButtons:
         assert True
 
 
+@pytest.mark.skip(reason="MS-37: _update_batch_buttons_state removido")
 class TestUpdateBatchButtonsStateWithButtons:
     """Testes para _update_batch_buttons_state COM botões (para outras telas)."""
 
@@ -210,6 +216,7 @@ class TestUpdateBatchButtonsStateWithButtons:
         mock_frame.btn_batch_export.configure.assert_called_once_with(state="normal")
 
 
+@pytest.mark.skip(reason="MS-37: _update_batch_buttons_state removido")
 class TestBatchOperationsConsistency:
     """Testes de consistência entre helpers e UI."""
 

@@ -28,6 +28,7 @@ class LoginDialog(tk.Toplevel):
     def __init__(self, master):
         t0 = time.perf_counter()
         super().__init__(master)
+        self.withdraw()
         self.title("Login - Gestor de Clientes")
         self.resizable(False, False)
 
@@ -170,11 +171,19 @@ class LoginDialog(tk.Toplevel):
         # Reaplica foco no ciclo seguinte para dialogos criados em sequencia
         self.after_idle(target_entry.focus_force)
 
-        # Centralizar
+        # Centralizar e exibir (UI-GLOBAL-01)
+        from src.ui.window_utils import show_centered
+
+        # FIX: Garantir que o layout seja calculado completamente antes de centralizar
         self.update_idletasks()
-        x = (self.winfo_screenwidth() // 2) - (self.winfo_width() // 2)
-        y = (self.winfo_screenheight() // 2) - (self.winfo_height() // 2)
-        self.geometry(f"+{x}+{y}")
+
+        # Definir tamanho mínimo explícito para evitar corte
+        req_w = self.winfo_reqwidth()
+        req_h = self.winfo_reqheight()
+        if req_w > 1 and req_h > 1:
+            self.minsize(req_w, req_h)
+
+        show_centered(self)
         try:
             log.info("LoginDialog: inicializado em %.3fs", time.perf_counter() - t0)
         except Exception:

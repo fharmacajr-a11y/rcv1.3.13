@@ -2,10 +2,28 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
 
 from src.modules.uploads.external_upload_service import salvar_e_enviar_para_supabase_service
+from src.modules.uploads.file_validator import FileValidationResult
+
+
+@pytest.fixture(autouse=True)
+def _stub_validate_upload_file(monkeypatch: pytest.MonkeyPatch):
+    """Permite que os testes usem arquivos fictícios."""
+
+    def _fake_validate(path, **kwargs):
+        file_path = Path(path)
+        ext = file_path.suffix.lower() or ".pdf"
+        return FileValidationResult(valid=True, path=file_path, size_bytes=1, extension=ext)
+
+    monkeypatch.setattr(
+        "src.modules.uploads.external_upload_service.validate_upload_file",
+        _fake_validate,
+    )
 
 
 class TestSalvarEEnviarParaSupabaseService:

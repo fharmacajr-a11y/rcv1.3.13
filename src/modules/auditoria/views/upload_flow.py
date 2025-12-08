@@ -4,16 +4,17 @@ from __future__ import annotations
 
 import threading
 import time
-from dataclasses import dataclass
 from pathlib import Path
 from tkinter import messagebox
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
-from src.modules.auditoria.service import ArchiveError, AuditoriaServiceError
+from src.modules.auditoria.service import ArchiveError, AuditoriaServiceError, AuditoriaUploadResult
 from src.modules.uploads.components.helpers import client_prefix_for_id
+from src.modules.uploads.exceptions import UploadError
+from src.modules.uploads.views import UploadDialog, UploadDialogContext, UploadDialogResult
 from src.ui.dialogs.file_select import select_archive_file
 from ..application import AuditoriaApplication
-from .dialogs import DuplicatesDialog, UploadProgressDialog
+from .dialogs import DuplicatesDialog
 
 if TYPE_CHECKING:  # pragma: no cover
     from .main_frame import AuditoriaFrame
@@ -24,54 +25,20 @@ except Exception:
     open_files_browser = None  # fallback defensivo
 
 
-@dataclass
-class ProgressState:
-    total_files: int = 0
-    total_bytes: int = 0
-    done_files: int = 0
-    done_bytes: int = 0
-    start_ts: float = 0.0
-    ema_bps: float = 0.0  # Exponential Moving Average de bytes por segundo
-    skipped_count: int = 0  # Arquivos pulados (duplicatas com strategy=skip)
-    failed_count: int = 0  # Arquivos que falharam no upload
-
-
 class AuditoriaUploadFlow:
     def __init__(self, frame: "AuditoriaFrame", controller: AuditoriaApplication):  # type: ignore[name-defined]
         self.frame = frame
         self.controller = controller
-        self._progress_dialog: UploadProgressDialog | None = None
+        self._progress_dialog: Any | None = None
         self._cancel_flag = False
-
-    # ---------- Progresso ----------
-    def _handle_upload_progress(self, state: ProgressState, progress: Any) -> None:
-        """Recebe progresso do service e atualiza o estado local na thread principal."""
-
-        def _apply() -> None:
-            state.total_files = progress.total_files
-            state.total_bytes = progress.total_bytes
-            state.done_files = progress.done_files
-            state.done_bytes = progress.done_bytes
-            state.skipped_count = progress.skipped_duplicates
-            state.failed_count = progress.failed_count
-            dialog = self._progress_dialog
-            if dialog:
-                dialog.update_with_state(state)
-
-        self.frame.after(0, _apply)
-
-    def _open_progress_dialog(self, titulo: str, msg: str) -> None:
-        self._close_progress_dialog()
-        self._cancel_flag = False
-        self._progress_dialog = UploadProgressDialog(self.frame, titulo, msg, on_cancel=self._on_progress_cancel)
 
     def _close_progress_dialog(self) -> None:
-        if self._progress_dialog:
-            self._progress_dialog.close()
+        if getattr(self, "_progress_dialog", None):
+            try:
+                self._progress_dialog.close()  # type: ignore[union-attr]
+            except Exception:
+                pass
             self._progress_dialog = None
-
-    def _on_progress_cancel(self) -> None:
-        self._cancel_flag = True
 
     def _ask_rollback(self, uploaded_paths: list[str], bucket: str) -> None:
         """
@@ -98,15 +65,34 @@ class AuditoriaUploadFlow:
                         batch = uploaded_paths[i : i + batch_size]
                         self.controller.remove_storage_objects(bucket, batch)
 
-                    self.frame.after(0, lambda: messagebox.showinfo("Revertido", f"{len(uploaded_paths)} arquivo(s) removido(s) com sucesso."))
+                    self.frame.after(
+                        0,
+                        lambda: messagebox.showinfo(
+                            "Revertido", f"{len(uploaded_paths)} arquivo(s) removido(s) com sucesso."
+                        ),
+                    )
                 except AuditoriaServiceError as exc:
-                    self.frame.after(0, lambda err=str(exc): messagebox.showerror("Erro ao Reverter", f"Falha ao remover arquivos:\n{err}"))
+                    self.frame.after(
+                        0,
+                        lambda err=str(exc): messagebox.showerror(
+                            "Erro ao Reverter", f"Falha ao remover arquivos:\n{err}"
+                        ),
+                    )
 
             threading.Thread(target=_do_rollback, daemon=True).start()
         else:
             messagebox.showinfo("Cancelado", "Upload cancelado. Arquivos já enviados foram mantidos.")
 
-    def _busy_done(self, ok: int, fail: list[tuple[str, str]], base_prefix: str, cliente_nome: str, cnpj: str, client_id: int, org_id: str) -> None:
+    def _busy_done(
+        self,
+        ok: int,
+        fail: list[tuple[str, str]],
+        base_prefix: str,
+        cliente_nome: str,
+        cnpj: str,
+        client_id: int,
+        org_id: str,
+    ) -> None:
         """
         Callback de sucesso do upload (executado na thread principal via after()).
 
@@ -126,27 +112,23 @@ class AuditoriaUploadFlow:
             messagebox.showinfo("Upload cancelado", "O upload foi cancelado pelo usuário.")
             return
 
+        # Usa implementação canônica de format_cnpj
         try:
-            from helpers.formatters import format_cnpj as _format_cnpj  # import local para evitar dependência circular
+            from src.helpers.formatters import format_cnpj
         except Exception:
-
-            def _format_cnpj(raw: str) -> str:
-                return raw
-
-        def _format_cnpj_normalizer(value: str) -> str:
-            return _format_cnpj(value)
-
-        normalizer: Callable[[str], str] = _format_cnpj_normalizer
+            # Fallback simplificado caso o import falhe
+            def format_cnpj(raw: str) -> str:
+                return str(raw)
 
         c_digits = "".join(filter(str.isdigit, cnpj or ""))
-        cnpj_fmt = normalizer(c_digits) if c_digits else cnpj
-        msg = f"Upload concluído para {cliente_nome} — {cnpj_fmt}.\n"
+        cnpj_fmt = format_cnpj(c_digits) if c_digits else cnpj
+        msg = f"Upload concluído para {cliente_nome} - {cnpj_fmt}.\n"
         msg += f"{ok} arquivo(s) enviado(s)."
 
         if fail:
             msg += f"\n\nFalhas: {len(fail)}"
             for path, err in fail[:3]:  # limita a 3 erros
-                msg += f"\n• {Path(path).name}: {err}"
+                msg += f"\n- {Path(path).name}: {err}"
             if len(fail) > 3:
                 msg += f"\n... e mais {len(fail) - 3} erro(s)"
 
@@ -219,6 +201,7 @@ class AuditoriaUploadFlow:
         client_id = row["cliente_id"]
         cliente_nome = row["cliente_nome"]
         cnpj = row.get("cnpj", "")
+        self._cancel_flag = False
 
         # 2) Escolher arquivo .zip, .rar ou .7z
         path = select_archive_file(title="Selecione arquivo .ZIP, .RAR ou .7Z (volumes: selecione .7z.001)")
@@ -235,41 +218,39 @@ class AuditoriaUploadFlow:
             )
             return
 
-        # 3) Mostrar modal de progresso
-        self._open_progress_dialog("Processando arquivos", f"Enviando {Path(path).name}...")
+        # 3) Executar upload via dialog unificado
+        def _upload_callable(ctx: UploadDialogContext) -> dict[str, Any]:
+            ctx.report(
+                label="Preparando envio...",
+                detail=f"Validando {Path(path).name}",
+                fraction=None,
+            )
 
-        # 4) Lançar thread worker
-        threading.Thread(
-            target=self.worker_upload,
-            args=(path, client_id, org_id, cliente_nome, cnpj),
-            daemon=True,
-        ).start()
+            try:
+                context = self.controller.prepare_upload_context(client_id, org_id=org_id)
+                self.frame._org_id = context.org_id
+            except AuditoriaServiceError as exc:
+                raise UploadError(str(exc)) from exc
 
-    def worker_upload(self, archive_path: str, client_id: int, org_id: str, cliente_nome: str, cnpj: str) -> None:
-        """Executa upload delegando processamento pesado ao service."""
-        try:
-            context = self.controller.prepare_upload_context(client_id, org_id=org_id)
-            self.frame._org_id = context.org_id
-        except AuditoriaServiceError as exc:
-            self.frame.after(0, lambda err=str(exc): self._busy_fail(err))
-            return
+            try:
+                plan = self.controller.prepare_archive_plan(path)
+            except (AuditoriaServiceError, ArchiveError) as exc:
+                raise UploadError(str(exc)) from exc
 
-        plan = None
-        try:
-            plan = self.controller.prepare_archive_plan(archive_path)
-        except (AuditoriaServiceError, ArchiveError) as exc:
-            self.frame.after(0, lambda err=str(exc): self._busy_fail(err))
-            return
+            total_files = len(getattr(plan, "entries", []) or [])
+            ctx.set_total(total_files or 1)
 
-        try:
             try:
                 existing_names = self.controller.list_existing_names_for_context(context)
             except AuditoriaServiceError:
                 existing_names = set()
 
-            duplicates_names = self.controller.detect_duplicate_file_names(plan, existing_names)
-            strategy = "skip"
+            try:
+                duplicates_names = self.controller.detect_duplicate_file_names(plan, existing_names)
+            except AuditoriaServiceError:
+                duplicates_names = set()
 
+            strategy = "skip"
             if duplicates_names:
                 dialog_result: dict[str, Any] = {"strategy": None}
 
@@ -282,55 +263,69 @@ class AuditoriaUploadFlow:
 
                 while dialog_result["strategy"] is None:
                     time.sleep(0.05)
-                    if self._cancel_flag:
-                        self.controller.cleanup_archive_plan(plan)
-                        return
+                    if ctx.is_cancelled():
+                        return {"context": context, "result": None, "cancelled": True}
 
                 strategy_value = dialog_result["strategy"]
                 if strategy_value is None:
-                    self.frame.after(0, lambda: self._busy_fail("Upload cancelado pelo usuário"))
-                    return
+                    raise UploadError("Upload cancelado pelo usuário.")
                 strategy = strategy_value or "skip"
 
-            state = ProgressState()
-            state.start_ts = time.monotonic()
+            def _handle_progress(prog: Any) -> None:
+                fraction = 0.0
+                if prog.total_bytes:
+                    fraction = prog.done_bytes / prog.total_bytes
+                elif prog.total_files:
+                    fraction = prog.done_files / prog.total_files
 
-            result = self.controller.execute_archive_upload(
-                plan,
-                context,
-                strategy=strategy,
-                existing_names=existing_names,
-                duplicates=duplicates_names,
-                cancel_check=lambda: self._cancel_flag,
-                progress_callback=lambda prog: self._handle_upload_progress(state, prog),
-            )
-        except AuditoriaServiceError as exc:
-            self.frame.after(0, lambda err=str(exc): self._busy_fail(err))
-            return
-        except Exception as exc:
-            self.frame.after(0, lambda err=str(exc): self._busy_fail(err))
-            return
-        finally:
-            self.controller.cleanup_archive_plan(plan)
-
-        if result.cancelled or self._cancel_flag:
-
-            def _show_cancel_summary() -> None:
-                msg = (
-                    "Upload cancelado.\n\n"
-                    f"{result.done_files} arquivo(s) enviado(s)\n"
-                    f"{result.skipped_duplicates} pulado(s) (duplicatas)\n"
-                    f"{len(result.failed)} falha(s)"
+                detail = (
+                    f"{prog.done_files}/{prog.total_files} itens - "
+                    f"{self._fmt_bytes(prog.done_bytes)}/{self._fmt_bytes(prog.total_bytes)}"
                 )
-                messagebox.showinfo("Upload Cancelado", msg)
-                self._close_progress_dialog()
+                ctx.report(
+                    label="Enviando arquivos...",
+                    detail=detail,
+                    completed=prog.done_files,
+                    total=prog.total_files,
+                    fraction=fraction,
+                )
 
-            self.frame.after(0, _show_cancel_summary)
-            return
+            try:
+                result = self.controller.execute_archive_upload(
+                    plan,
+                    context,
+                    strategy=strategy,
+                    existing_names=existing_names,
+                    duplicates=duplicates_names,
+                    cancel_check=ctx.is_cancelled,
+                    progress_callback=_handle_progress,
+                )
+            except AuditoriaServiceError as exc:
+                raise UploadError(str(exc)) from exc
 
-        self.frame.after(
-            0,
-            lambda: self._busy_done(
+            return {"context": context, "result": result, "cancelled": False}
+
+        def _on_upload_complete(outcome: UploadDialogResult) -> None:
+            if outcome.error:
+                self._busy_fail(outcome.error.message)
+                return
+
+            payload = outcome.result or {}
+            result: AuditoriaUploadResult | None = payload.get("result")
+            context = payload.get("context")
+
+            if payload.get("cancelled") or (result and result.cancelled):
+                if result and context:
+                    self._ask_rollback(result.uploaded_paths, context.bucket)
+                else:
+                    messagebox.showinfo("Upload cancelado", "Upload cancelado pelo usuário.")
+                return
+
+            if not result or not context:
+                self._busy_fail("Falha ao processar upload.")
+                return
+
+            self._busy_done(
                 result.done_files,
                 result.failed,
                 context.base_prefix,
@@ -338,5 +333,14 @@ class AuditoriaUploadFlow:
                 cnpj,
                 client_id,
                 context.org_id,
-            ),
+            )
+
+        dialog = UploadDialog(
+            self.frame,
+            _upload_callable,
+            title="Processando arquivos",
+            message=f"Enviando {Path(path).name}...",
+            total_items=None,
+            on_complete=_on_upload_complete,
         )
+        dialog.start()

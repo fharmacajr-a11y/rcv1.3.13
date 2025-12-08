@@ -17,8 +17,7 @@ except Exception:
 from src.app_gui import apply_rc_icon
 from src.modules.clientes.components.helpers import STATUS_CHOICES, STATUS_PREFIX_RE
 from src.modules.passwords.helpers import open_senhas_for_cliente
-from src.ui.forms.actions import salvar_e_upload_docs
-from src.ui.utils import center_on_parent
+from src.ui.window_utils import show_centered
 from ._collect import coletar_valores as _collect_values
 from ._dupes import (
     ask_razao_confirm,
@@ -78,8 +77,25 @@ class FormDataAdapter:
 
 
 # -----------------------------------------------------------------------------
-# Wrappers de Compatibilidade (Round 14)
+# Wrappers de Compatibilidade (Round 14 + FIX-TESTS-001)
 # -----------------------------------------------------------------------------
+
+
+def center_on_parent(win: tk.Misc) -> bool:
+    """Wrapper de compatibilidade para centralização de janela.
+
+    Mantido para compatibilidade com testes que importam center_on_parent
+    de client_form.py. A implementação real vive em src.ui.window_utils.
+
+    Args:
+        win: Janela a ser centralizada.
+
+    Returns:
+        True se centralização foi bem-sucedida, False caso contrário.
+    """
+    from src.ui.window_utils import center_on_parent as _impl
+
+    return _impl(win)
 
 
 def apply_status_prefix(observacoes: str, status: str) -> str:
@@ -129,10 +145,18 @@ def preencher_via_pasta(*args: Any, **kwargs: Any) -> Any:
 
 
 def form_cliente(self: tk.Misc, row: ClientRow | None = None, preset: FormPreset | None = None) -> None:
-    win = tk.Toplevel(self)
+    try:
+        parent_window: tk.Misc = self.winfo_toplevel()  # type: ignore[assignment]
+    except Exception:
+        parent_window = self
+
+    win = tk.Toplevel(parent_window)
     apply_rc_icon(win)
     win.withdraw()
-    win.transient(self)
+    try:
+        win.transient(parent_window)
+    except Exception:
+        win.transient(self)
     win.resizable(False, False)
     win.minsize(940, 520)
 
@@ -159,33 +183,20 @@ def form_cliente(self: tk.Misc, row: ClientRow | None = None, preset: FormPreset
     row_idx = 0
 
     def _apply_light_selection(widget: tk.Widget) -> None:
+        """
+        Tenta aplicar uma cor de selecao mais clara nos widgets que suportam.
+        Em ttk/ttkbootstrap, muitas vezes selectbackground nao existe; nesse caso,
+        simplesmente ignora silenciosamente para nao poluir o log.
+        """
         try:
-            widget.configure(selectbackground="#5bc0de", selectforeground="#000000")
-        except Exception:
-            # Erro não crítico: widget não suporta essa opção de configuração
-            logger.debug("Erro ao ajustar cores de seleção em widget", exc_info=True)
-
-    def _center_editor_window(win_ref: tk.Misc, parent_ref: tk.Misc | None) -> None:
-        win_ref.update_idletasks()
-        ww = max(win_ref.winfo_reqwidth(), win_ref.winfo_width())
-        wh = max(win_ref.winfo_reqheight(), win_ref.winfo_height())
-        try:
-            if parent_ref is not None:
-                try:
-                    parent_ref.update_idletasks()
-                except Exception:
-                    logger.debug("Falha ao atualizar idletasks da janela parent", exc_info=True)
-                px, py = parent_ref.winfo_rootx(), parent_ref.winfo_rooty()
-                pw, ph = parent_ref.winfo_width(), parent_ref.winfo_height()
-                x = int(px + (pw - ww) * 0.45)
-                y = int(py + (ph - wh) * 0.5)
-            else:
-                sw, sh = win_ref.winfo_screenwidth(), win_ref.winfo_screenheight()
-                x = int((sw - ww) * 0.45)
-                y = int((sh - wh) * 0.5)
-            win_ref.geometry(f"{ww}x{wh}+{x}+{y}")
-        except Exception:
-            center_on_parent(win_ref, parent_ref)
+            widget.configure(
+                selectbackground="#5bc0de",  # azul claro
+                selectforeground="#000000",  # texto preto
+            )
+        except tk.TclError:
+            # Widget (por ex. ttk.Entry) nao suporta essas opcoes; mantem selecao padrao.
+            # Nao loga nada para evitar spam no console.
+            pass
 
     # Razão Social
     ttk.Label(left_frame, text="Razão Social:").grid(row=row_idx, column=0, sticky="w", padx=6, pady=(5, 0))
@@ -573,7 +584,7 @@ def form_cliente(self: tk.Misc, row: ClientRow | None = None, preset: FormPreset
     def _salvar_e_enviar() -> None:
         nonlocal row
 
-        # Adaptadores para o módulo headless de upload
+        # Adaptador para persistir cliente antes do upload
         class TkClientPersistence:
             """Adaptador para persistir cliente antes do upload."""
 
@@ -600,8 +611,9 @@ def form_cliente(self: tk.Misc, row: ClientRow | None = None, preset: FormPreset
 
                 return (True, state.client_id)
 
+        # Adaptador para executar upload (usa lógica unificada de upload existente)
         class TkUploadExecutor:
-            """Adaptador para executar upload via UI existente."""
+            """Adaptador que delega para a lógica de upload unificada."""
 
             def execute_upload(
                 self,
@@ -612,8 +624,27 @@ def form_cliente(self: tk.Misc, row: ClientRow | None = None, preset: FormPreset
                 win: Any,
                 **kwargs: Any,
             ) -> Any:
-                """Delega para salvar_e_upload_docs existente."""
-                return salvar_e_upload_docs(host, row, ents, arquivos_selecionados, win, **kwargs)
+                """Executa upload delegando para módulo de upload unificado."""
+                parent_widget = win or host
+
+                # Importar helpers de formatação e lógica de upload
+                from src.modules.clientes.forms.client_form_upload_helpers import (
+                    execute_upload_flow,
+                )
+
+                # Delegar para helper headless
+                try:
+                    execute_upload_flow(
+                        parent_widget=parent_widget,
+                        ents=ents,
+                        client_id=state.client_id,
+                        host=host,
+                    )
+                except Exception as exc:
+                    logger.exception("Erro durante upload de documentos")
+                    messagebox.showerror("Erro", f"Erro durante upload: {exc}", parent=parent_widget)
+
+                return None
 
         # Preparar contexto de upload
         upload_ctx = client_form_upload_actions.prepare_upload_context(
@@ -747,10 +778,23 @@ def form_cliente(self: tk.Misc, row: ClientRow | None = None, preset: FormPreset
 
     win.protocol("WM_DELETE_WINDOW", _on_close)
     initializing[0] = False
-    # centraliza e mostra
-    parent = win.master if isinstance(win.master, tk.Misc) else None
-    _center_editor_window(win, parent)
+
+    # Centraliza e mostra (apenas uma vez, após todo o layout estar montado)
+    logger.debug("[FORM_CLIENTE] Antes de update_idletasks()")
+    win.update_idletasks()
+    logger.debug("[FORM_CLIENTE] Antes de show_centered()")
+    show_centered(win)
+    logger.debug("[FORM_CLIENTE] Após show_centered()")
+
+    # Verifica estado da janela
+    try:
+        window_state = win.state()
+        geometry = win.geometry()
+        logger.debug(f"[FORM_CLIENTE] Janela exibida: state={window_state}, geometry={geometry}")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(f"[FORM_CLIENTE] Não foi possível verificar estado: {exc}")
+
     _update_title()
-    win.deiconify()
     win.grab_set()
     win.focus_force()
+    logger.debug("[FORM_CLIENTE] Fim da função form_cliente")

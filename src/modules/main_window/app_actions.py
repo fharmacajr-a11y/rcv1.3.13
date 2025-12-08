@@ -103,16 +103,19 @@ class AppActions:
         self._logger.info("Cliente %s enviado para a Lixeira com sucesso", label_cli)
 
     def abrir_lixeira(self) -> None:
-        """Fluxo original de abertura da UI de Lixeira, movido da App."""
+        """Abre a tela de Lixeira usando o módulo moderno.
+
+        Em caso de erro ao importar ou abrir a tela, loga o problema.
+        """
         try:
-            from src.ui.lixeira import abrir_lixeira as abrir_lixeira_ui
-        except Exception:
-            from src.modules.lixeira import abrir_lixeira as abrir_lixeira_ui
+            from src.modules.lixeira.views.lixeira import abrir_lixeira as abrir_lixeira_view
 
-        abrir_lixeira_ui(self._app)
+            abrir_lixeira_view(self._app)
+        except Exception:  # noqa: BLE001
+            self._logger.error("Erro ao abrir a tela da Lixeira", exc_info=True)
 
-    def ver_subpastas(self) -> None:
-        """Fluxo original de visualização de subpastas do cliente."""
+    def open_client_storage_subfolders(self) -> None:
+        """Abre o navegador de arquivos do Supabase para o cliente selecionado."""
         from tkinter import messagebox
         from src.modules.uploads import open_files_browser
         from src.modules.uploads.components.helpers import client_prefix_for_id, get_clients_bucket
@@ -151,6 +154,62 @@ class AppActions:
             base_prefix=base_prefix,
             start_prefix=base_prefix,
             modal=True,
+        )
+
+    def ver_subpastas(self) -> None:
+        """DEPRECATED: mantenha compatibilidade com o nome antigo."""
+        self.open_client_storage_subfolders()
+
+    def abrir_obrigacoes_cliente(self) -> None:
+        """Abre a janela de obrigações regulatórias para o cliente selecionado."""
+        from tkinter import messagebox
+        from src.modules.clientes.views.client_obligations_window import show_client_obligations_window
+
+        values = self._app._selected_main_values()
+        if not values:
+            messagebox.showwarning("Atenção", "Selecione um cliente para gerenciar obrigações.", parent=self._app)
+            return
+
+        try:
+            client_id = int(values[0])
+        except Exception:
+            messagebox.showerror("Erro", "ID inválido.", parent=self._app)
+            return
+
+        # Pega razão social ou nome fantasia ou nome
+        razao = (values[1] or "").strip()
+        nome = (values[3] or "").strip()
+        client_name = razao or nome or f"Cliente #{client_id}"
+
+        u = self._app._get_user_cached()
+        if not u:
+            messagebox.showerror("Erro", "Usuário não autenticado.", parent=self._app)
+            return
+
+        org_id = self._app._get_org_id_cached(u["id"])
+        if not org_id:
+            messagebox.showerror("Erro", "Organização não encontrada para o usuário.", parent=self._app)
+            return
+
+        user_id = u["id"]
+
+        # Callback para atualizar Hub se necessário
+        def on_refresh_hub() -> None:
+            try:
+                # Se hub estiver aberto, recarrega
+                hub_instance = getattr(self._app, "_hub_screen_instance", None)
+                if hub_instance is not None:
+                    hub_instance.on_show()
+            except Exception as exc:
+                self._logger.debug("Falha ao atualizar Hub após mudança em obrigações: %s", exc)
+
+        show_client_obligations_window(
+            parent=self._app,
+            org_id=org_id,
+            created_by=user_id,
+            client_id=client_id,
+            client_name=client_name,
+            on_refresh_hub=on_refresh_hub,
         )
 
     def enviar_para_supabase(self) -> None:

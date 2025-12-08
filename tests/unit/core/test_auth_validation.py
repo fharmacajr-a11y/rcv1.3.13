@@ -8,6 +8,7 @@ Cobre: src/core/auth/auth.py (validate_credentials, check_rate_limit, pbkdf2_has
 
 import binascii
 import os
+import sqlite3
 import time
 from unittest.mock import Mock, patch
 
@@ -444,14 +445,15 @@ def test_ensure_users_db_creates_table(isolated_users_db):
     # Verificar que o banco e a tabela foram criados
     assert db_path.exists()
 
-    import sqlite3
-
-    with sqlite3.connect(str(db_path)) as con:
+    con = sqlite3.connect(str(db_path))
+    try:
         cur = con.cursor()
         cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
         result = cur.fetchone()
         assert result is not None
         assert result[0] == "users"
+    finally:
+        con.close()
 
 
 def test_create_user_new(isolated_users_db):
@@ -463,15 +465,16 @@ def test_create_user_new(isolated_users_db):
     assert user_id > 0
 
     # Verificar que usuário foi criado
-    import sqlite3
-
-    with sqlite3.connect(str(db_path)) as con:
+    con = sqlite3.connect(str(db_path))
+    try:
         cur = con.cursor()
         cur.execute("SELECT username, is_active FROM users WHERE id=?", (user_id,))
         row = cur.fetchone()
         assert row is not None
         assert row[0] == "test@example.com"
         assert row[1] == 1  # is_active
+    finally:
+        con.close()
 
 
 def test_create_user_update_existing(isolated_users_db):
@@ -488,15 +491,16 @@ def test_create_user_update_existing(isolated_users_db):
     assert user_id_1 == user_id_2
 
     # Verificar que senha foi atualizada
-    import sqlite3
-
-    with sqlite3.connect(str(db_path)) as con:
+    con = sqlite3.connect(str(db_path))
+    try:
         cur = con.cursor()
         cur.execute("SELECT password_hash FROM users WHERE id=?", (user_id_1,))
         row = cur.fetchone()
         assert row is not None
         # Hash deve ter mudado (nova senha)
         assert "pbkdf2_sha256" in row[0]
+    finally:
+        con.close()
 
 
 def test_create_user_without_password(isolated_users_db):
@@ -507,14 +511,15 @@ def test_create_user_without_password(isolated_users_db):
 
     assert user_id > 0
 
-    import sqlite3
-
-    with sqlite3.connect(str(db_path)) as con:
+    con = sqlite3.connect(str(db_path))
+    try:
         cur = con.cursor()
         cur.execute("SELECT password_hash FROM users WHERE id=?", (user_id,))
         row = cur.fetchone()
         assert row is not None
         assert row[0] is None  # Sem senha
+    finally:
+        con.close()
 
 
 def test_create_user_empty_username_raises(isolated_users_db):
@@ -544,15 +549,16 @@ def test_create_user_update_without_password(isolated_users_db):
     # Deve retornar mesmo ID
     assert user_id_1 == user_id_2
 
-    import sqlite3
-
-    with sqlite3.connect(str(db_path)) as con:
+    con = sqlite3.connect(str(db_path))
+    try:
         cur = con.cursor()
         cur.execute("SELECT password_hash FROM users WHERE id=?", (user_id_1,))
         row = cur.fetchone()
         assert row is not None
         # Hash deve permanecer (senha original)
         assert "pbkdf2_sha256" in row[0]
+    finally:
+        con.close()
 
 
 # ====================================================================
