@@ -1,8 +1,10 @@
 """
-Teste de guarda: impede novos imports de src.ui.* (fora da allowlist).
+Teste de guarda: policy de imports de src.ui.*.
 
-Este teste falha se encontrar imports de src.ui em arquivos de produção
-que não estão na allowlist de módulos de compatibilidade permitidos.
+Regras:
+1. Toolkit ativo (window_utils, components, dialogs, widgets) → PERMITIDO
+2. Wrappers deprecated (hub, lixeira, main_window, etc) → PROIBIDO
+3. src.ui.forms.* → PERMITIDO apenas para 4 arquivos grandfather
 """
 
 import os
@@ -13,14 +15,45 @@ from typing import List, Tuple
 import pytest
 
 
-# Allowlist de módulos que ainda podem importar src.ui.*
-ALLOWED_LEGACY_UI_IMPORTERS = {
-    "src/ui/placeholders.py",
-    "src/ui/login_dialog.py",
-    "src/ui/window_utils.py",
-    "src/ui/components/progress_dialog.py",
-    "src/utils/resource_path.py",
-    # Adicione mais conforme necessário durante migração
+# Prefixos de toolkit ativo (permitidos)
+ALLOWED_PREFIXES = [
+    "src.ui.window_utils",
+    "src.ui.components",
+    "src.ui.dialogs",
+    "src.ui.widgets",
+    "src.ui.files_browser",
+    "src.ui.login_dialog",
+    "src.ui.splash",
+    "src.ui.menu_bar",
+    "src.ui.topbar",
+    "src.ui.status_footer",
+    "src.ui.window_policy",
+    "src.ui.search_nav",
+    "src.ui.pdf_preview_native",
+    "src.ui.wheel_windows",
+    "src.ui.placeholders",
+    "src.ui.custom_dialogs",
+    "src.ui.utils",  # OkCancelMixin, center_on_parent
+    "src.ui.progress.pdf_batch_progress",  # PDF batch progress específico
+]
+
+# Prefixos de wrappers deprecated (proibidos)
+BANNED_PREFIXES = [
+    "src.ui.hub",
+    "src.ui.hub_screen",
+    "src.ui.lixeira",
+    "src.ui.main_window",
+    "src.ui.main_screen",
+    "src.ui.passwords_screen",
+    "src.ui.login.login",
+]
+
+# Arquivos grandfather que podem usar src.ui.forms (legado)
+GRANDFATHER_FORMS_FILES = {
+    "src/modules/clientes/forms/_prepare.py",
+    "src/modules/clientes/forms/client_form.py",
+    "src/modules/clientes/forms/client_form_new.py",
+    "src/modules/forms/view.py",
 }
 
 IGNORE_DIRS = {
@@ -53,8 +86,11 @@ def discover_src_files(root_path: Path) -> List[str]:
     return sorted(src_files)
 
 
-def find_legacy_ui_imports(file_path: Path) -> List[Tuple[int, str]]:
-    """Encontra imports de src.ui.* no arquivo."""
+def find_legacy_ui_imports(file_path: Path) -> List[Tuple[int, str, str]]:
+    """Encontra imports de src.ui.* no arquivo.
+
+    Retorna: List[(line_num, line_content, imported_module)]
+    """
     results = []
 
     try:
@@ -64,17 +100,62 @@ def find_legacy_ui_imports(file_path: Path) -> List[Tuple[int, str]]:
         return results
 
     for i, line in enumerate(lines, start=1):
-        # Busca por: import src.ui ou from src.ui
-        if re.search(r"\b(import|from)\s+src\.ui\b", line):
-            results.append((i, line.strip()))
+        # Busca por: from src.ui import X ou from src.ui.Y import Z
+        from_match = re.search(r"\bfrom\s+(src\.ui(?:\.\w+)*)\s+import\s+(\w+)", line)
+        if from_match:
+            base_module = from_match.group(1)
+            imported_name = from_match.group(2)
+            # Constrói o módulo completo: src.ui.custom_dialogs
+            imported_module = f"{base_module}.{imported_name}"
+            results.append((i, line.strip(), imported_module))
+            continue
+
+        # Busca por: import src.ui.X
+        import_match = re.search(r"\bimport\s+(src\.ui(?:\.\w+)*)", line)
+        if import_match:
+            imported_module = import_match.group(1)
+            results.append((i, line.strip(), imported_module))
 
     return results
 
 
+def is_import_allowed(imported_module: str, source_file: str) -> Tuple[bool, str]:
+    """Verifica se o import é permitido.
+
+    Retorna: (is_allowed, reason)
+    """
+    # 1. Verifica se é wrapper banned
+    for banned_prefix in BANNED_PREFIXES:
+        if imported_module.startswith(banned_prefix):
+            return False, f"❌ BANNED: {banned_prefix} (wrapper deprecated)"
+
+    # 2. Verifica se é src.ui.forms (caso especial)
+    if imported_module.startswith("src.ui.forms"):
+        if source_file in GRANDFATHER_FORMS_FILES:
+            return True, f"✓ GRANDFATHER: src.ui.forms permitido para {source_file}"
+        else:
+            return (
+                False,
+                f"❌ FORMS: src.ui.forms proibido (apenas {len(GRANDFATHER_FORMS_FILES)} arquivos grandfather)",
+            )
+
+    # 3. Verifica se é toolkit ativo permitido
+    for allowed_prefix in ALLOWED_PREFIXES:
+        if imported_module.startswith(allowed_prefix):
+            return True, f"✓ ALLOWED: {allowed_prefix}"
+
+    # 4. Se não é nenhum dos acima, proibido
+    return False, f"❌ UNKNOWN: {imported_module} não está em ALLOWED_PREFIXES nem BANNED_PREFIXES"
+
+
 def test_no_new_legacy_ui_imports():
     """
-    Teste de guarda: nenhum novo arquivo em src/ deve importar src.ui.*
-    (exceto os da allowlist).
+    Teste de guarda: policy de imports de src.ui.*.
+
+    Regras:
+    1. Toolkit ativo → PERMITIDO
+    2. Wrappers deprecated → PROIBIDO
+    3. src.ui.forms → PERMITIDO apenas para grandfather files
     """
     root_path = Path.cwd()
     violations = []
@@ -83,46 +164,58 @@ def test_no_new_legacy_ui_imports():
     src_files = discover_src_files(root_path)
 
     for src_file in src_files:
-        # Pula arquivos na allowlist
-        if src_file in ALLOWED_LEGACY_UI_IMPORTERS:
-            continue
-
         file_path = root_path / src_file
         imports = find_legacy_ui_imports(file_path)
 
-        if imports:
-            violations.append((src_file, imports))
+        for line_num, line_content, imported_module in imports:
+            allowed, reason = is_import_allowed(imported_module, src_file)
+
+            if not allowed:
+                violations.append((src_file, line_num, line_content, reason))
 
     # Se houver violações, falha o teste com mensagem detalhada
     if violations:
-        msg = ["\n❌ Encontrados imports de src.ui.* em arquivos não permitidos:\n"]
-        for file_path, imports in violations:
-            msg.append(f"\n  {file_path}:")
-            for line_num, line_content in imports:
-                msg.append(f"    Linha {line_num}: {line_content}")
+        msg = ["\n" + "=" * 70]
+        msg.append("\n❌ POLICY VIOLATION: Imports proibidos de src.ui.*")
+        msg.append("\n" + "=" * 70 + "\n")
 
-        msg.append(
-            "\n\n💡 Para corrigir:"
-            "\n  1. Remova o import de src.ui.* deste arquivo"
-            "\n  2. Use módulos migrados (src.modules.*)"
-            "\n  3. Ou adicione o arquivo à ALLOWED_LEGACY_UI_IMPORTERS se for compat necessária"
-        )
+        # Agrupa por arquivo
+        by_file = {}
+        for file_path, line_num, line_content, reason in violations:
+            if file_path not in by_file:
+                by_file[file_path] = []
+            by_file[file_path].append((line_num, line_content, reason))
+
+        for file_path, file_violations in sorted(by_file.items()):
+            msg.append(f"\n📁 {file_path}")
+            for line_num, line_content, reason in file_violations:
+                msg.append(f"\n   Linha {line_num}: {line_content}")
+                msg.append(f"\n   {reason}")
+            msg.append("\n")
+
+        msg.append("\n" + "=" * 70)
+        msg.append("\n💡 PARA CORRIGIR:")
+        msg.append("\n" + "=" * 70)
+        msg.append("\n1. TOOLKIT ATIVO → Use prefixos em ALLOWED_PREFIXES")
+        msg.append("\n2. WRAPPERS BANNED → Migre para src.modules.*")
+        msg.append("\n3. src.ui.forms → Remova (ou adicione a GRANDFATHER_FORMS_FILES se crítico)")
+        msg.append("\n")
 
         pytest.fail("".join(msg))
 
 
-def test_allowlist_files_exist():
-    """Verifica que todos os arquivos na allowlist existem."""
+def test_grandfather_files_exist():
+    """Verifica que todos os arquivos grandfather existem."""
     root_path = Path.cwd()
     missing = []
 
-    for allowed_file in ALLOWED_LEGACY_UI_IMPORTERS:
-        if not (root_path / allowed_file).exists():
-            missing.append(allowed_file)
+    for grandfather_file in GRANDFATHER_FORMS_FILES:
+        if not (root_path / grandfather_file).exists():
+            missing.append(grandfather_file)
 
     if missing:
-        msg = ["\n⚠️  Arquivos na allowlist não encontrados:\n"]
+        msg = ["\n⚠️  Arquivos grandfather não encontrados:\n"]
         for file_path in missing:
             msg.append(f"  - {file_path}\n")
-        msg.append("\n💡 Remova-os de ALLOWED_LEGACY_UI_IMPORTERS se foram deletados.")
+        msg.append("\n💡 Remova-os de GRANDFATHER_FORMS_FILES se foram deletados.")
         pytest.fail("".join(msg))
