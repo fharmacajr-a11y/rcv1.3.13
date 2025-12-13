@@ -62,6 +62,120 @@ def discover_python_files(root_path: Path) -> Tuple[List[str], List[str]]:
 
 LEGACY_PATTERNS = re.compile(r"\b(deprecated|legacy|wrapper|compat)\b", re.IGNORECASE)
 
+# Stdlib e libs externas conhecidas (não registrar como unresolved)
+KNOWN_EXTERNAL_MODULES = {
+    # Stdlib
+    "os",
+    "sys",
+    "re",
+    "ast",
+    "json",
+    "pathlib",
+    "typing",
+    "collections",
+    "datetime",
+    "time",
+    "functools",
+    "itertools",
+    "io",
+    "logging",
+    "unittest",
+    "enum",
+    "dataclasses",
+    "contextlib",
+    "warnings",
+    "importlib",
+    "pkgutil",
+    "traceback",
+    "inspect",
+    "copy",
+    "pickle",
+    "tempfile",
+    "shutil",
+    "argparse",
+    "configparser",
+    "subprocess",
+    "threading",
+    "multiprocessing",
+    "queue",
+    "socket",
+    "http",
+    "urllib",
+    "email",
+    "base64",
+    "hashlib",
+    "hmac",
+    "string",
+    "random",
+    "math",
+    "decimal",
+    "fractions",
+    "statistics",
+    "abc",
+    "weakref",
+    "types",
+    "operator",
+    "heapq",
+    "bisect",
+    # UI/External libs comuns
+    "tkinter",
+    "ttkbootstrap",
+    "PIL",
+    "numpy",
+    "pandas",
+    "requests",
+    "httpx",
+    "yaml",
+    "pyyaml",
+    "toml",
+    "pytest",
+    "unittest",
+    "mock",
+    "faker",
+    "cryptography",
+    "bcrypt",
+    "jwt",
+    "dotenv",
+    "pydantic",
+    "sqlalchemy",
+}
+
+
+def is_relevant_unresolved(import_name: str) -> bool:
+    """Verifica se o import não resolvido é relevante (não stdlib/externo)."""
+    if not import_name:
+        return False
+
+    # Pega primeiro componente do import
+    root_module = import_name.split(".")[0]
+
+    # Só registrar se for módulo interno (src, infra, adapters, data, security)
+    if root_module in {"src", "infra", "adapters", "data", "security"}:
+        return True
+
+    # Se for conhecido externo, não registrar
+    if root_module.lower() in KNOWN_EXTERNAL_MODULES:
+        return False
+
+    # Se não for nosso módulo interno e não for conhecido, é relevante
+    # (pode ser typo ou módulo faltando)
+    return False
+
+
+def normalize_path(path: str) -> str:
+    """Normaliza path para relativo ao repo (remove prefixo absoluto)."""
+    # Remove prefixo C:/Users/... se existir
+    normalized = path.replace("\\", "/")
+
+    # Se tem drive letter ou começa com /Users, tenta extrair parte relativa
+    if re.match(r"^[A-Za-z]:/", normalized):
+        # Procura por src/, tests/, adapters/, etc
+        match = re.search(r"((?:src|tests|adapters|data|infra|security)/.*)", normalized)
+        if match:
+            return match.group(1)
+
+    return normalized
+
 
 def scan_legacy_markers(file_path: Path) -> Optional[Dict]:
     """Procura por termos deprecated/legacy/wrapper/compat."""
@@ -87,7 +201,7 @@ def scan_legacy_markers(file_path: Path) -> Optional[Dict]:
             if len(contexts) >= 3:
                 break
 
-    return {"file": str(file_path).replace("\\", "/"), "matches": unique_matches, "contexts": contexts[:3]}
+    return {"file": normalize_path(str(file_path)), "matches": unique_matches, "contexts": contexts[:3]}
 
 
 # ============================================================================
@@ -148,7 +262,7 @@ def detect_shim(file_path: Path) -> Optional[Dict]:
 
     if ratio >= 0.8:
         return {
-            "file": str(file_path).replace("\\", "/"),
+            "file": normalize_path(str(file_path)),
             "reason": f"{relevant_lines} linhas relevantes; {int(ratio*100)}% imports/reexports; sem lógica",
             "lines_relevant": relevant_lines,
             "import_ratio": round(ratio, 2),
@@ -210,7 +324,7 @@ def extract_imports_from_file(file_path: Path, module_index: Dict[str, str]) -> 
                 module_name = alias.name
                 if module_name in module_index:
                     resolved.append(module_index[module_name])
-                else:
+                elif is_relevant_unresolved(module_name):
                     unresolved.append(
                         {"file": rel_path, "import": module_name, "kind": "Import", "note": "not in module_index"}
                     )
@@ -243,7 +357,7 @@ def extract_imports_from_file(file_path: Path, module_index: Dict[str, str]) -> 
                 candidate = f"{full_module}.{alias.name}" if full_module else alias.name
                 if candidate in module_index:
                     resolved.append(module_index[candidate])
-                elif full_module not in module_index:
+                elif full_module not in module_index and is_relevant_unresolved(candidate):
                     # Só registra como unresolved se nem o base nem o submódulo foram resolvidos
                     unresolved.append(
                         {"file": rel_path, "import": candidate, "kind": "ImportFrom", "note": "not in module_index"}
@@ -322,7 +436,7 @@ def detect_dynamic_imports(file_path: Path) -> Optional[Dict]:
 
     if examples:
         return {
-            "file": str(file_path).replace("\\", "/"),
+            "file": normalize_path(str(file_path)),
             "examples": examples[:5],  # Limita a 5 exemplos
         }
 
