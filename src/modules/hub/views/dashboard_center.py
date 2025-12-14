@@ -393,10 +393,16 @@ def build_dashboard_center(
         on_card_tarefas_click: Callback opcional para clique no card de Tarefas Hoje.
             Recebe DashboardViewState como parâmetro.
     """
+    import logging
+
+    logger = logging.getLogger(__name__)
+    logger.debug("[build_dashboard_center] Iniciando construção do dashboard...")
+
     # Extrair snapshot para uso em seções que ainda precisam dele
     snapshot = state.snapshot
     if snapshot is None:
         # Estado inválido, não renderizar nada
+        logger.warning("[build_dashboard_center] snapshot é None, não renderizando")
         return
 
     # Limpar widgets existentes

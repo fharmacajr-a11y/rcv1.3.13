@@ -267,7 +267,7 @@ def test_ensure_logged_handles_login_failure(monkeypatch):
     assert not auth_bootstrap.ensure_logged(app, splash=None)
 
 
-def test_ensure_logged_returns_false_when_client_missing(monkeypatch):
+def test_ensure_logged_returns_false_when_client_missing(monkeypatch, tk_root_session):
     app = DummyApp()
     monkeypatch.setattr(auth_bootstrap, "_supabase_client", lambda: None)
     monkeypatch.setattr(auth_bootstrap, "_log_session_state", lambda logger: None)

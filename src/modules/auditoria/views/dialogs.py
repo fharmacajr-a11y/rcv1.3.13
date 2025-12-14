@@ -6,17 +6,25 @@ import logging
 import time
 import tkinter as tk
 from tkinter import ttk
-from typing import TYPE_CHECKING, Callable
+from typing import Callable, Protocol
 
 from src.ui.components.progress_dialog import ProgressDialog
 from src.ui.window_utils import show_centered
 
 logger = logging.getLogger(__name__)
 
-if TYPE_CHECKING:
-    from .main_frame import _ProgressState
-
 __all__ = ["UploadProgressDialog", "DuplicatesDialog"]
+
+
+class _ProgressState(Protocol):
+    """Protocol para estado de progresso de upload."""
+
+    start_ts: float
+    done_bytes: int
+    total_bytes: int
+    done_files: int
+    total_files: int
+    ema_bps: float
 
 
 class UploadProgressDialog:

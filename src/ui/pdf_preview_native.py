@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import tkinter as tk
 
 from src.modules.pdf_preview.views.main_window import PdfViewerWin
 
@@ -11,11 +12,11 @@ _singleton_viewer: PdfViewerWin | None = None
 
 
 def open_pdf_viewer(
-    master,
+    master: tk.Misc,
     pdf_path: str | None = None,
     display_name: str | None = None,
     data_bytes: bytes | None = None,
-):
+) -> PdfViewerWin:
     """
     Abre visualizador unificado de PDF/imagem.
 
@@ -56,8 +57,12 @@ def open_pdf_viewer(
     )
     _singleton_viewer = win
 
-    # NÃO usar transient() nem grab_set() para permitir que a janela
-    # permaneça aberta independentemente e seja reutilizável
+    # Configurar janela como transiente ao master e com grab
+    try:
+        win.transient(master)
+        win.grab_set()
+    except Exception as exc:  # noqa: BLE001
+        _log.debug("Falha ao configurar transient/grab: %s", exc)
 
     win.focus_canvas()
 

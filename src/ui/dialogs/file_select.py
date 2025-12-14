@@ -32,7 +32,9 @@ ARCHIVE_FILETYPES = [
 ]
 
 
-def select_archive_file(title: str = "Selecione arquivo .ZIP, .RAR ou .7Z (volumes: selecione .7z.001)", parent: Optional[tk.Misc] = None) -> str:
+def select_archive_file(
+    title: str = "Selecione arquivo .ZIP, .RAR ou .7Z (volumes: selecione .7z.001)", parent: Optional[tk.Misc] = None
+) -> str:
     """
     Abre diálogo para seleção de arquivo ZIP, RAR ou 7Z (incluindo volumes .7z.001).
 
@@ -45,7 +47,9 @@ def select_archive_file(title: str = "Selecione arquivo .ZIP, .RAR ou .7Z (volum
     """
     # Loga quem chamou e o filetypes usado
     caller = inspect.stack()[1]
-    log.debug("Abrindo askopenfilename | caller=%s:%s | filetypes=%r", caller.filename, caller.lineno, ARCHIVE_FILETYPES)
+    log.debug(
+        "Abrindo askopenfilename | caller=%s:%s | filetypes=%r", caller.filename, caller.lineno, ARCHIVE_FILETYPES
+    )
 
     path = fd.askopenfilename(
         title=title,
@@ -57,7 +61,9 @@ def select_archive_file(title: str = "Selecione arquivo .ZIP, .RAR ou .7Z (volum
     return path or ""
 
 
-def select_archive_files(title: str = "Selecione arquivo(s) .ZIP, .RAR ou .7Z", parent: Optional[tk.Misc] = None) -> tuple[str, ...]:
+def select_archive_files(
+    title: str = "Selecione arquivo(s) .ZIP, .RAR ou .7Z", parent: Optional[tk.Misc] = None
+) -> tuple[str, ...]:
     """
     Abre diálogo para seleção de múltiplos arquivos ZIP, RAR ou 7Z.
 
@@ -70,7 +76,9 @@ def select_archive_files(title: str = "Selecione arquivo(s) .ZIP, .RAR ou .7Z", 
     """
     # Loga quem chamou e o filetypes usado
     caller = inspect.stack()[1]
-    log.debug("Abrindo askopenfilenames | caller=%s:%s | filetypes=%r", caller.filename, caller.lineno, ARCHIVE_FILETYPES)
+    log.debug(
+        "Abrindo askopenfilenames | caller=%s:%s | filetypes=%r", caller.filename, caller.lineno, ARCHIVE_FILETYPES
+    )
 
     paths = fd.askopenfilenames(
         title=title,
@@ -103,7 +111,6 @@ def validate_archive_extension(path: str) -> bool:
         >>> validate_archive_extension("arquivo.tar")
         False
     """
-    # Delega para a função centralizada
     return is_supported_archive(path)
 
     return False

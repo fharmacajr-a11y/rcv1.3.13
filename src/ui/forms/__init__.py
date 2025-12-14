@@ -9,7 +9,7 @@ from __future__ import annotations
 import warnings
 from typing import Any
 
-__all__ = ["form_cliente"]
+# __all__ removido - form_cliente é carregado via __getattr__ lazy import
 
 
 def __getattr__(name: str) -> Any:

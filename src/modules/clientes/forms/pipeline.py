@@ -33,7 +33,7 @@ def perform_uploads(*args, **kwargs):
     Use src.modules.uploads.service.upload_items_for_client em vez disso.
     """
     raise NotImplementedError(
-        "perform_uploads foi removido (UP-05). " "Use src.modules.uploads.service.upload_items_for_client"
+        "perform_uploads foi removido (UP-05). Use src.modules.uploads.service.upload_items_for_client"
     )
 
 

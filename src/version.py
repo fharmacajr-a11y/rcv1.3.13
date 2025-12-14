@@ -4,7 +4,7 @@
 import os
 
 # Fonte única de verdade da versão do aplicativo.
-__version__ = "1.3.92"
+__version__ = "1.4.26"
 APP_VERSION = __version__
 
 
@@ -15,7 +15,7 @@ def get_version() -> str:
     Pode ser sobrescrita via variável de ambiente RC_APP_VERSION.
 
     Returns:
-        str: Versão do aplicativo (ex.: "1.3.92")
+        str: Versão do aplicativo (ex.: "1.4.26")
     """
     try:
         return os.getenv("RC_APP_VERSION", __version__)

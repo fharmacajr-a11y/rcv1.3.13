@@ -1,0 +1,990 @@
+[main]	INFO	Using command line arg for selected targets
+[main]	INFO	profile include tests: None
+[main]	INFO	profile exclude tests: None
+[main]	INFO	cli include tests: None
+[main]	INFO	cli exclude tests: None
+[main]	INFO	running on Python 3.13.7
+[manager]	WARNING	Test in comment: invoca is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: es is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: 7 is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: Zip is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: controladas is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: sempre is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: shell is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: False is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: comando is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: em is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: lista is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: shell is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: False is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: abre is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: pasta is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: local is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: controlada is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: pelo is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: app is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: jitter is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: de is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: backoff is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: n is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: o is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: criptografia is not a test name or id, ignoring
+[tester]	WARNING	nosec encountered (B324), but no failed test on line 380
+[tester]	WARNING	nosec encountered (B324), but no failed test on line 380
+[tester]	WARNING	nosec encountered (B324), but no failed test on line 380
+[manager]	WARNING	Test in comment: Safe is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: Fallback is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: retornar is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: None is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: rein is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: cio is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: local is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: do is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: app is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: com is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: argumentos is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: controlados is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: caminho is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: local is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: controlado is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: pela is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: aplica is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: o is not a test name or id, ignoring
+[tester]	WARNING	nosec encountered (B606), but no failed test on line 47
+[tester]	WARNING	nosec encountered (B606), but no failed test on line 47
+[tester]	WARNING	nosec encountered (B608), but no failed test on line 160
+Working... ---------------------------------------- 100% 0:00:04
+Run started:2025-12-04 11:07:16.862052
+
+Test results:
+>> Issue: [B404:blacklist] Consider possible security implications associated with the subprocess module.
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/blacklists/blacklist_imports.html#b404-import-subprocess
+   Location: .\docs\devtools\qa\analyze_security.py:6:0
+5
+6	import subprocess
+7	from pathlib import Path
+
+--------------------------------------------------
+>> Issue: [B603:subprocess_without_shell_equals_true] subprocess call - check for execution of untrusted input.
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b603_subprocess_without_shell_equals_true.html
+   Location: .\docs\devtools\qa\analyze_security.py:16:11
+15	    cmd = ["bandit", "-r", *TARGET_DIRS, "-x", ",".join(EXCLUDE)]
+16	    return subprocess.call(cmd, cwd=REPO_ROOT)
+17
+
+--------------------------------------------------
+>> Issue: [B102:exec_used] Use of exec detected.
+   Severity: Medium   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b102_exec_used.html
+   Location: .\docs\scripts\dev_smoke.py:92:12
+91	            print(f"  Testando: from {module} import {symbol} ... ", end="")
+92	            exec(f"from {module} import {symbol}")
+93	            print("[OK]")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:31:4
+30	    # Acentos
+31	    assert _norm_text("Ósimar") == "osimar"
+32	    print("✓ 'Ósimar' → 'osimar'")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:34:4
+33
+34	    assert _norm_text("José") == "jose"
+35	    print("✓ 'José' → 'jose'")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:37:4
+36
+37	    assert _norm_text("María") == "maria"
+38	    print("✓ 'María' → 'maria'")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:41:4
+40	    # Case-insensitive
+41	    assert _norm_text("AMAFARMA") == "amafarma"
+42	    print("✓ 'AMAFARMA' → 'amafarma'")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:44:4
+43
+44	    assert _norm_text("Ocimar Silva") == "ocimar silva"
+45	    print("✓ 'Ocimar Silva' → 'ocimar silva'")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:48:4
+47	    # None-safe
+48	    assert _norm_text(None) == ""
+49	    print("✓ None → ''")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:59:4
+58	    # CNPJ com máscara
+59	    assert _digits("07.816.095/0001-65") == "07816095000165"
+60	    print("✓ '07.816.095/0001-65' → '07816095000165'")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:62:4
+61
+62	    assert _digits("12.345.678/0001-90") == "12345678000190"
+63	    print("✓ '12.345.678/0001-90' → '12345678000190'")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:66:4
+65	    # Telefones
+66	    assert _digits("(11) 98765-4321") == "11987654321"
+67	    print("✓ '(11) 98765-4321' → '11987654321'")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:70:4
+69	    # None-safe
+70	    assert _digits(None) == ""
+71	    print("✓ None → ''")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:74:4
+73	    # Já sem máscara
+74	    assert _digits("07816095000165") == "07816095000165"
+75	    print("✓ '07816095000165' → '07816095000165'")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:97:4
+96
+97	    assert "Ocimar" in nomes
+98	    assert "João Silva" in nomes
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:98:4
+97	    assert "Ocimar" in nomes
+98	    assert "João Silva" in nomes
+99	    assert "Maria Santos" in nomes
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:99:4
+98	    assert "João Silva" in nomes
+99	    assert "Maria Santos" in nomes
+100	    print("✓ Campos 'nome', 'contato', 'responsavel' detectados")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:103:4
+102	    # Deve ignorar campos não relacionados a nomes
+103	    assert "AMAFARMA LTDA" not in nomes  # razão social não é nome de pessoa
+104	    assert "(11) 98765-4321" not in nomes  # telefone não é nome
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:104:4
+103	    assert "AMAFARMA LTDA" not in nomes  # razão social não é nome de pessoa
+104	    assert "(11) 98765-4321" not in nomes  # telefone não é nome
+105	    print("✓ Campos não relacionados ignorados")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:124:4
+123	    # Razão social normalizada
+124	    assert idx["razao"] == "amafarma ltda"
+125	    print(f"✓ razao: '{idx['razao']}'")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:128:4
+127	    # CNPJ sem máscara
+128	    assert idx["cnpj"] == "07816095000165"
+129	    print(f"✓ cnpj: '{idx['cnpj']}'")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:132:4
+131	    # Nomes normalizados
+132	    assert "ocimar silva" in idx["nomes"]
+133	    assert "joao santos" in idx["nomes"]
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:133:4
+132	    assert "ocimar silva" in idx["nomes"]
+133	    assert "joao santos" in idx["nomes"]
+134	    print(f"✓ nomes: {idx['nomes']}")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:171:4
+170	    results = [c for c in clientes if q_text in _build_search_index(c)["razao"]]
+171	    assert len(results) == 1
+172	    assert results[0]["razao_social"] == "AMAFARMA LTDA"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:172:4
+171	    assert len(results) == 1
+172	    assert results[0]["razao_social"] == "AMAFARMA LTDA"
+173	    print(f"   ✓ Encontrado: {results[0]['razao_social']}")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:184:4
+183	            results.append(c)
+184	    assert len(results) == 1
+185	    assert results[0]["nome"] == "Ocimar Silva"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:185:4
+184	    assert len(results) == 1
+185	    assert results[0]["nome"] == "Ocimar Silva"
+186	    print(f"   ✓ Encontrado: {results[0]['razao_social']} (contato: {results[0]['nome']})")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:193:4
+192	    results = [c for c in clientes if q_digits in _build_search_index(c)["cnpj"]]
+193	    assert len(results) == 1
+194	    assert results[0]["cnpj"] == "07.816.095/0001-65"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:194:4
+193	    assert len(results) == 1
+194	    assert results[0]["cnpj"] == "07.816.095/0001-65"
+195	    print(f"   ✓ Encontrado: {results[0]['razao_social']} ({results[0]['cnpj']})")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:202:4
+201	    results = [c for c in clientes if q_digits in _build_search_index(c)["cnpj"]]
+202	    assert len(results) == 1
+203	    assert results[0]["cnpj"] == "07.816.095/0001-65"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:203:4
+202	    assert len(results) == 1
+203	    assert results[0]["cnpj"] == "07.816.095/0001-65"
+204	    print(f"   ✓ Encontrado: {results[0]['razao_social']} ({results[0]['cnpj']})")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:211:4
+210	    results = [c for c in clientes if q_digits in _build_search_index(c)["cnpj"]]
+211	    assert len(results) == 1
+212	    print(f"   ✓ Encontrado: {results[0]['razao_social']}")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:223:4
+222	            results.append(c)
+223	    assert len(results) == 1
+224	    assert results[0]["razao_social"] == "JOSÉ TRANSPORTES"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_busca_robusta.py:224:4
+223	    assert len(results) == 1
+224	    assert results[0]["razao_social"] == "JOSÉ TRANSPORTES"
+225	    print(f"   ✓ Encontrado: {results[0]['razao_social']}")
+
+--------------------------------------------------
+>> Issue: [B311:blacklist] Standard pseudo-random generators are not suitable for security/cryptographic purposes.
+   Severity: Low   Confidence: High
+   CWE: CWE-330 (https://cwe.mitre.org/data/definitions/330.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/blacklists/blacklist_calls.html#b311-random
+   Location: .\docs\scripts\test_deterministic_progress.py:136:32
+135	        state.total_files = 50
+136	        state.total_bytes = sum(random.randint(1_000_000, 10_000_000) for _ in range(50))
+137	        state.start_ts = time.monotonic()
+
+--------------------------------------------------
+>> Issue: [B311:blacklist] Standard pseudo-random generators are not suitable for security/cryptographic purposes.
+   Severity: Low   Confidence: High
+   CWE: CWE-330 (https://cwe.mitre.org/data/definitions/330.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/blacklists/blacklist_calls.html#b311-random
+   Location: .\docs\scripts\test_deterministic_progress.py:139:22
+138
+139	        file_sizes = [random.randint(1_000_000, 10_000_000) for _ in range(50)]
+140
+
+--------------------------------------------------
+>> Issue: [B311:blacklist] Standard pseudo-random generators are not suitable for security/cryptographic purposes.
+   Severity: Low   Confidence: High
+   CWE: CWE-330 (https://cwe.mitre.org/data/definitions/330.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/blacklists/blacklist_calls.html#b311-random
+   Location: .\docs\scripts\test_deterministic_progress.py:151:20
+150	            # Simular upload de 1 arquivo (delay variável)
+151	            delay = random.randint(50, 200)  # 50-200ms por arquivo
+152	            state.done_files = idx + 1
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_progress_e2e.py:77:8
+76
+77	        assert state.total_files == expected_files, f"Esperado {expected_files} arquivos, obteve {state.total_files}"
+78	        assert state.total_bytes == expected_bytes, f"Esperado {expected_bytes} bytes, obteve {state.total_bytes}"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_progress_e2e.py:78:8
+77	        assert state.total_files == expected_files, f"Esperado {expected_files} arquivos, obteve {state.total_files}"
+78	        assert state.total_bytes == expected_bytes, f"Esperado {expected_bytes} bytes, obteve {state.total_bytes}"
+79
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_progress_e2e.py:119:16
+118
+119	                assert abs(pct - expected_pct) < 1, f"% inconsistente: {pct:.1f}% vs {expected_pct:.1f}%"
+120
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_progress_e2e.py:122:8
+121	        # Validar conclusão
+122	        assert (
+123	            state.done_files == state.total_files
+124	        ), f"Esperado {state.total_files} enviados, obteve {state.done_files}"
+125	        assert state.done_bytes == state.total_bytes, f"Esperado {state.total_bytes} bytes, obteve {state.done_bytes}"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_progress_e2e.py:125:8
+124	        ), f"Esperado {state.total_files} enviados, obteve {state.done_files}"
+125	        assert state.done_bytes == state.total_bytes, f"Esperado {state.total_bytes} bytes, obteve {state.done_bytes}"
+126
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_progress_e2e.py:171:8
+170	        variation = abs(speeds[i] - speeds[i - 1]) / speeds[i - 1]
+171	        assert variation < 0.5, f"Variação muito alta: {variation * 100:.1f}% entre amostras {i - 1} e {i}"
+172
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_progress_e2e.py:211:8
+210
+211	        assert eta_str == expected_eta, f"ETA incorreto: esperado {expected_eta}, obteve {eta_str}"
+212
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_progress_e2e.py:232:8
+231	        pct = (done / total) * 100 if total > 0 else 0
+232	        assert abs(pct - expected_pct) < 0.01, f"% incorreto: esperado {expected_pct:.2f}%, obteve {pct:.2f}%"
+233
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_search_normalize.py:28:4
+27	    # Acentos
+28	    assert _normalize("Ósimar") == "osimar"
+29	    assert _normalize("José") == "jose"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_search_normalize.py:29:4
+28	    assert _normalize("Ósimar") == "osimar"
+29	    assert _normalize("José") == "jose"
+30	    assert _normalize("María") == "maria"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_search_normalize.py:30:4
+29	    assert _normalize("José") == "jose"
+30	    assert _normalize("María") == "maria"
+31
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_search_normalize.py:33:4
+32	    # Case-insensitive
+33	    assert _normalize("OCIMAR") == "ocimar"
+34	    assert _normalize("Ocimar") == "ocimar"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_search_normalize.py:34:4
+33	    assert _normalize("OCIMAR") == "ocimar"
+34	    assert _normalize("Ocimar") == "ocimar"
+35	    assert _normalize("ocimar") == "ocimar"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_search_normalize.py:35:4
+34	    assert _normalize("Ocimar") == "ocimar"
+35	    assert _normalize("ocimar") == "ocimar"
+36
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_search_normalize.py:38:4
+37	    # Múltiplas palavras
+38	    assert _normalize("João da Silva") == "joao da silva"
+39	    assert _normalize("MARIA JOSÉ") == "maria jose"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_search_normalize.py:39:4
+38	    assert _normalize("João da Silva") == "joao da silva"
+39	    assert _normalize("MARIA JOSÉ") == "maria jose"
+40
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_search_normalize.py:42:4
+41	    # CNPJ (mantém números)
+42	    assert _normalize("12.345.678/0001-90") == "12 345 678 0001 90"
+43
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_search_normalize.py:74:4
+73	    print(f"  Resultados: {len(results)}")
+74	    assert len(results) == 1, f"Esperado 1, encontrado {len(results)}"
+75	    assert results[0]["razao_social"] == "Ocimar e Cia Ltda"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_search_normalize.py:75:4
+74	    assert len(results) == 1, f"Esperado 1, encontrado {len(results)}"
+75	    assert results[0]["razao_social"] == "Ocimar e Cia Ltda"
+76	    print(f"✅ Busca por 'ocimar' encontrou: {results[0]['razao_social']}")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_search_normalize.py:93:4
+92
+93	    assert len(results) == 1
+94	    assert results[0]["razao_social"] == "Ocimar e Cia Ltda"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_search_normalize.py:94:4
+93	    assert len(results) == 1
+94	    assert results[0]["razao_social"] == "Ocimar e Cia Ltda"
+95	    print(f"✅ Busca por 'OCIMAR' encontrou: {results[0]['razao_social']}")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_search_normalize.py:112:4
+111
+112	    assert len(results) == 1
+113	    assert results[0]["razao_social"] == "José Transportes"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_search_normalize.py:113:4
+112	    assert len(results) == 1
+113	    assert results[0]["razao_social"] == "José Transportes"
+114	    print(f"✅ Busca por 'José' encontrou: {results[0]['razao_social']}")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_search_normalize.py:131:4
+130
+131	    assert len(results) == 1
+132	    assert results[0]["razao_social"] == "José Transportes"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_search_normalize.py:132:4
+131	    assert len(results) == 1
+132	    assert results[0]["razao_social"] == "José Transportes"
+133	    print(f"✅ Busca por 'jose' (sem acento) encontrou: {results[0]['razao_social']}")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_search_normalize.py:144:4
+143
+144	    assert len(results) == 1
+145	    assert results[0]["cnpj"] == "12.345.678/0001-90"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_search_normalize.py:145:4
+144	    assert len(results) == 1
+145	    assert results[0]["cnpj"] == "12.345.678/0001-90"
+146	    print(f"✅ Busca por CNPJ '12345678' encontrou: {results[0]['razao_social']}")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_search_normalize.py:165:4
+164
+165	    assert len(results) == 1
+166	    print(f"✅ Busca por CNPJ completo encontrou: {results[0]['razao_social']}")
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_upload_advanced.py:30:4
+29	    result = _next_copy_name("doc.pdf", set())
+30	    assert result == "doc.pdf", f"Esperado 'doc.pdf', obteve '{result}'"
+31
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_upload_advanced.py:34:4
+33	    result = _next_copy_name("doc.pdf", {"doc.pdf"})
+34	    assert result == "doc (2).pdf", f"Esperado 'doc (2).pdf', obteve '{result}'"
+35
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_upload_advanced.py:38:4
+37	    result = _next_copy_name("doc.pdf", {"doc.pdf", "doc (2).pdf"})
+38	    assert result == "doc (3).pdf", f"Esperado 'doc (3).pdf', obteve '{result}'"
+39
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_upload_advanced.py:44:4
+43	    result = _next_copy_name("doc.pdf", existing)
+44	    assert result == "doc (10).pdf", f"Esperado 'doc (10).pdf', obteve '{result}'"
+45
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_upload_advanced.py:61:4
+60
+61	    assert plan.source_path == Path("test/doc.pdf")
+62	    assert plan.dest_name == "doc.pdf"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_upload_advanced.py:62:4
+61	    assert plan.source_path == Path("test/doc.pdf")
+62	    assert plan.dest_name == "doc.pdf"
+63	    assert plan.upsert is False
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_upload_advanced.py:63:4
+62	    assert plan.dest_name == "doc.pdf"
+63	    assert plan.upsert is False
+64	    assert plan.file_size == 1024
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_upload_advanced.py:64:4
+63	    assert plan.upsert is False
+64	    assert plan.file_size == 1024
+65
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_upload_advanced.py:69:4
+68
+69	    assert plan2.upsert is True
+70
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_upload_advanced.py:95:4
+94	    pct = (state.done_bytes / state.total_bytes) * 100
+95	    assert pct == 50.0, f"Esperado 50%, obteve {pct}%"
+96
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_upload_advanced.py:98:4
+97	    # EMA inicial
+98	    assert state.ema_bps == 0.0
+99
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_upload_advanced.py:108:4
+107
+108	    assert state.ema_bps > 0, "EMA deve ser > 0"
+109
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_upload_advanced.py:132:4
+131	    # Testes
+132	    assert frame._fmt_bytes(500) == "500 B"
+133	    assert frame._fmt_bytes(1024) == "1.0 KB"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_upload_advanced.py:133:4
+132	    assert frame._fmt_bytes(500) == "500 B"
+133	    assert frame._fmt_bytes(1024) == "1.0 KB"
+134	    assert frame._fmt_bytes(1536) == "1.5 KB"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_upload_advanced.py:134:4
+133	    assert frame._fmt_bytes(1024) == "1.0 KB"
+134	    assert frame._fmt_bytes(1536) == "1.5 KB"
+135	    assert frame._fmt_bytes(1_048_576) == "1.0 MB"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_upload_advanced.py:135:4
+134	    assert frame._fmt_bytes(1536) == "1.5 KB"
+135	    assert frame._fmt_bytes(1_048_576) == "1.0 MB"
+136	    assert frame._fmt_bytes(1_572_864) == "1.5 MB"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_upload_advanced.py:136:4
+135	    assert frame._fmt_bytes(1_048_576) == "1.0 MB"
+136	    assert frame._fmt_bytes(1_572_864) == "1.5 MB"
+137	    assert frame._fmt_bytes(1_073_741_824) == "1.0 GB"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_upload_advanced.py:137:4
+136	    assert frame._fmt_bytes(1_572_864) == "1.5 MB"
+137	    assert frame._fmt_bytes(1_073_741_824) == "1.0 GB"
+138
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_upload_advanced.py:161:4
+160	    # Testes
+161	    assert frame._fmt_eta(0) == "00:00:00"
+162	    assert frame._fmt_eta(59) == "00:00:59"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_upload_advanced.py:162:4
+161	    assert frame._fmt_eta(0) == "00:00:00"
+162	    assert frame._fmt_eta(59) == "00:00:59"
+163	    assert frame._fmt_eta(60) == "00:01:00"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_upload_advanced.py:163:4
+162	    assert frame._fmt_eta(59) == "00:00:59"
+163	    assert frame._fmt_eta(60) == "00:01:00"
+164	    assert frame._fmt_eta(65) == "00:01:05"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_upload_advanced.py:164:4
+163	    assert frame._fmt_eta(60) == "00:01:00"
+164	    assert frame._fmt_eta(65) == "00:01:05"
+165	    assert frame._fmt_eta(3600) == "01:00:00"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_upload_advanced.py:165:4
+164	    assert frame._fmt_eta(65) == "00:01:05"
+165	    assert frame._fmt_eta(3600) == "01:00:00"
+166	    assert frame._fmt_eta(3665) == "01:01:05"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_upload_advanced.py:166:4
+165	    assert frame._fmt_eta(3600) == "01:00:00"
+166	    assert frame._fmt_eta(3665) == "01:01:05"
+167	    assert frame._fmt_eta(7325) == "02:02:05"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: .\docs\scripts\test_upload_advanced.py:167:4
+166	    assert frame._fmt_eta(3665) == "01:01:05"
+167	    assert frame._fmt_eta(7325) == "02:02:05"
+168
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: .\docs\scripts\test_upload_thread.py:81:8
+80	            self._busy.destroy()
+81	        except Exception:
+82	            pass
+83
+
+--------------------------------------------------
+
+Code scanned:
+	Total lines of code: 35950
+	Total lines skipped (#nosec): 0
+	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 12
+
+Run metrics:
+	Total issues (by severity):
+		Undefined: 0
+		Low: 90
+		Medium: 1
+		High: 0
+	Total issues (by confidence):
+		Undefined: 0
+		Low: 0
+		Medium: 0
+		High: 91
+Files skipped (0):

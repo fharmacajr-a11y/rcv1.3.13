@@ -14,6 +14,9 @@ logger = logging.getLogger(__name__)
 
 SOCKET_TEST_HOST = ("8.8.8.8", 53)
 
+# Flag global para log único de WinError 10013
+_winerror_10013_logged = False
+
 
 def _socket_check(timeout: float) -> bool:
     """Tenta abrir socket TCP para o host de teste; retorna True em sucesso, False em erro."""
@@ -21,11 +24,14 @@ def _socket_check(timeout: float) -> bool:
         with socket.create_connection(SOCKET_TEST_HOST, timeout=timeout):
             return True
     except OSError as exc:
+        global _winerror_10013_logged
         # Se for WinError 10013, é típico de firewall/VPN bloqueando esse tipo de socket.
         if getattr(exc, "winerror", None) == 10013:
-            logger.warning(
-                "Internet connectivity check blocked by local policy (WinError 10013). " "Will try HTTP fallback."
-            )
+            if not _winerror_10013_logged:
+                logger.debug(
+                    "Internet connectivity check blocked by local policy (WinError 10013). Will try HTTP fallback."
+                )
+                _winerror_10013_logged = True
         else:
             logger.warning("Internet connectivity check failed (socket): %s", exc)
         return False

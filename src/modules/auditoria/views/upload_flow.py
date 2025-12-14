@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import threading
 import time
 from pathlib import Path
@@ -15,6 +16,8 @@ from src.modules.uploads.views import UploadDialog, UploadDialogContext, UploadD
 from src.ui.dialogs.file_select import select_archive_file
 from ..application import AuditoriaApplication
 from .dialogs import DuplicatesDialog
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:  # pragma: no cover
     from .main_frame import AuditoriaFrame
@@ -37,6 +40,7 @@ class AuditoriaUploadFlow:
             try:
                 self._progress_dialog.close()  # type: ignore[union-attr]
             except Exception:
+                logger.debug("Erro ao fechar progress dialog (provavelmente já fechado)", exc_info=True)
                 pass
             self._progress_dialog = None
 

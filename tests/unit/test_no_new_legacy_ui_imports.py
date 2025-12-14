@@ -4,7 +4,10 @@ Teste de guarda: policy de imports de src.ui.*.
 Regras:
 1. Toolkit ativo (window_utils, components, dialogs, widgets) → PERMITIDO
 2. Wrappers deprecated (hub, lixeira, main_window, etc) → PROIBIDO
-3. src.ui.forms.* → PERMITIDO apenas para 4 arquivos grandfather
+3. src.ui.forms.* → PROIBIDO (migrado para src.modules.forms.*)
+
+LEGADO-MIGRATE-01: src.ui.forms.actions migrado para src.modules.forms.actions.
+Não há mais arquivos grandfather para src.ui.forms.
 """
 
 import os
@@ -46,15 +49,8 @@ BANNED_PREFIXES = [
     "src.ui.main_screen",
     "src.ui.passwords_screen",
     "src.ui.login.login",
+    "src.ui.forms",  # Migrado para src.modules.forms (LEGADO-MIGRATE-01)
 ]
-
-# Arquivos grandfather que podem usar src.ui.forms (legado)
-GRANDFATHER_FORMS_FILES = {
-    "src/modules/clientes/forms/_prepare.py",
-    "src/modules/clientes/forms/client_form.py",
-    "src/modules/clientes/forms/client_form_new.py",
-    "src/modules/forms/view.py",
-}
 
 IGNORE_DIRS = {
     "__pycache__",
@@ -124,27 +120,17 @@ def is_import_allowed(imported_module: str, source_file: str) -> Tuple[bool, str
 
     Retorna: (is_allowed, reason)
     """
-    # 1. Verifica se é wrapper banned
+    # 1. Verifica se é wrapper banned (inclui src.ui.forms)
     for banned_prefix in BANNED_PREFIXES:
         if imported_module.startswith(banned_prefix):
-            return False, f"❌ BANNED: {banned_prefix} (wrapper deprecated)"
+            return False, f"❌ BANNED: {banned_prefix} (deprecated/migrado)"
 
-    # 2. Verifica se é src.ui.forms (caso especial)
-    if imported_module.startswith("src.ui.forms"):
-        if source_file in GRANDFATHER_FORMS_FILES:
-            return True, f"✓ GRANDFATHER: src.ui.forms permitido para {source_file}"
-        else:
-            return (
-                False,
-                f"❌ FORMS: src.ui.forms proibido (apenas {len(GRANDFATHER_FORMS_FILES)} arquivos grandfather)",
-            )
-
-    # 3. Verifica se é toolkit ativo permitido
+    # 2. Verifica se é toolkit ativo permitido
     for allowed_prefix in ALLOWED_PREFIXES:
         if imported_module.startswith(allowed_prefix):
             return True, f"✓ ALLOWED: {allowed_prefix}"
 
-    # 4. Se não é nenhum dos acima, proibido
+    # 3. Se não é nenhum dos acima, proibido
     return False, f"❌ UNKNOWN: {imported_module} não está em ALLOWED_PREFIXES nem BANNED_PREFIXES"
 
 
@@ -155,7 +141,7 @@ def test_no_new_legacy_ui_imports():
     Regras:
     1. Toolkit ativo → PERMITIDO
     2. Wrappers deprecated → PROIBIDO
-    3. src.ui.forms → PERMITIDO apenas para grandfather files
+    3. src.ui.forms → PROIBIDO (migrado para src.modules.forms)
     """
     root_path = Path.cwd()
     violations = []
@@ -198,24 +184,7 @@ def test_no_new_legacy_ui_imports():
         msg.append("\n" + "=" * 70)
         msg.append("\n1. TOOLKIT ATIVO → Use prefixos em ALLOWED_PREFIXES")
         msg.append("\n2. WRAPPERS BANNED → Migre para src.modules.*")
-        msg.append("\n3. src.ui.forms → Remova (ou adicione a GRANDFATHER_FORMS_FILES se crítico)")
+        msg.append("\n3. src.ui.forms → USE src.modules.forms.actions")
         msg.append("\n")
 
-        pytest.fail("".join(msg))
-
-
-def test_grandfather_files_exist():
-    """Verifica que todos os arquivos grandfather existem."""
-    root_path = Path.cwd()
-    missing = []
-
-    for grandfather_file in GRANDFATHER_FORMS_FILES:
-        if not (root_path / grandfather_file).exists():
-            missing.append(grandfather_file)
-
-    if missing:
-        msg = ["\n⚠️  Arquivos grandfather não encontrados:\n"]
-        for file_path in missing:
-            msg.append(f"  - {file_path}\n")
-        msg.append("\n💡 Remova-os de GRANDFATHER_FORMS_FILES se foram deletados.")
         pytest.fail("".join(msg))

@@ -79,9 +79,11 @@ audit-report.md
 
 # Ferramentas de analise / coverage
 .coverage
+.coverage.*
 coverage.xml
+coverage.json
 htmlcov/
-reports/
+reports/coverage/
 bandit_.txt
 bandit_.csv
 bandit_.json

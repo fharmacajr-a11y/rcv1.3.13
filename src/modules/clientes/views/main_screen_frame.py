@@ -75,7 +75,7 @@ class MainScreenFrame(
         on_upload_folder: Callable[[], None] | None = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(master, **kwargs)
+        super().__init__(master, **kwargs)  # pyright: ignore[reportCallIssue] - tb.Frame aceita master posicional
 
         # Atributos básicos (callbacks e configuração)
         self.app: Any | None = app
@@ -328,9 +328,9 @@ class MainScreenFrame(
         raw = email or ""
 
         try:
-            from src.modules.hub.authors import _author_display_name as _author_name
+            from src.modules.hub.services.authors_service import get_author_display_name
 
-            display = _author_name(self, raw)
+            display = get_author_display_name(self, raw, start_async_fetch=False)
 
             return display or raw
 

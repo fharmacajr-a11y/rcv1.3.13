@@ -8,7 +8,6 @@ from unittest.mock import Mock
 import pytest
 
 from src.modules.clientes.viewmodel import ClienteRow
-from src.modules.clientes.views import main_screen
 from src.modules.clientes.views.main_screen import MainScreenFrame
 
 
@@ -114,108 +113,6 @@ def _make_headless_frame() -> MainScreenFrame:
     return frame
 
 
-@pytest.mark.skip(reason="MS-16: _build_main_screen_state foi substituído por construção direta de FilterSortInput")
-def test_build_main_screen_state_collects_ui_inputs(monkeypatch: pytest.MonkeyPatch) -> None:
-    frame = _make_headless_frame()
-    frame._vm._clientes_raw = [_make_row("10")]
-    frame._vm._build_row_from_cliente = lambda raw: raw
-    frame.var_ordem.set(" Razão Social (A→Z) ")
-    frame.var_status.set(" Ativos ")
-    frame.var_busca.set(" Cliente X ")
-    frame._get_selected_ids = lambda: {"10"}
-
-    captured: dict[str, object] = {}
-
-    def fake_builder(**kwargs):
-        captured.update(kwargs)
-        return "STATE"
-
-    monkeypatch.setattr(main_screen, "build_main_screen_state", fake_builder)
-
-    result = frame._build_main_screen_state()
-
-    assert result == "STATE"
-    assert captured["clients"] == frame._vm._clientes_raw
-    assert captured["raw_order_label"] == " Razão Social (A→Z) "
-    assert captured["raw_filter_label"] == " Ativos "
-    assert captured["raw_search_text"] == " Cliente X "
-    assert captured["selected_ids"] == {"10"}
-
-
-@pytest.mark.skip(
-    reason="MS-16: _build_main_screen_state e compute_main_screen_state foram substituídos por FilterSortManager"
-)
-def test_refresh_with_controller_delegates_to_compute(monkeypatch: pytest.MonkeyPatch) -> None:
-    frame = _make_headless_frame()
-    sentinel_state = object()
-    sentinel_computed = object()
-    frame._build_main_screen_state = Mock(return_value=sentinel_state)  # type: ignore[method-assign]
-    frame._update_ui_from_computed = Mock()  # type: ignore[method-assign]
-
-    def fake_compute(state):
-        assert state is sentinel_state
-        return sentinel_computed
-
-    monkeypatch.setattr(main_screen, "compute_main_screen_state", fake_compute)
-
-    frame._refresh_with_controller()
-
-    frame._build_main_screen_state.assert_called_once()  # type: ignore[attr-defined]
-    frame._update_ui_from_computed.assert_called_once_with(sentinel_computed)  # type: ignore[attr-defined]
-
-
-def test_update_ui_from_computed_updates_rows_and_helpers() -> None:
-    frame = _make_headless_frame()
-    frame._render_clientes = Mock()  # type: ignore[method-assign]
-    frame._update_batch_buttons_from_computed = Mock()  # type: ignore[method-assign]
-    frame._update_main_buttons_state = Mock()  # type: ignore[method-assign]
-    visible = [_make_row("1"), _make_row("2")]
-    computed = SimpleNamespace(
-        visible_clients=visible,
-        can_batch_delete=True,
-        can_batch_restore=False,
-        can_batch_export=True,
-    )
-
-    frame._update_ui_from_computed(computed)
-
-    assert frame._current_rows == visible
-    frame._render_clientes.assert_called_once_with(visible)  # type: ignore[attr-defined]
-    frame._update_batch_buttons_from_computed.assert_called_once_with(computed)  # type: ignore[attr-defined]
-    frame._update_main_buttons_state.assert_called_once()  # type: ignore[attr-defined]
-
-
-@pytest.mark.skip(
-    reason="MS-16: build_main_screen_state e compute_main_screen_state foram substituídos por FilterSortManager"
-)
-def test_update_batch_buttons_on_selection_change_uses_current_rows(monkeypatch: pytest.MonkeyPatch) -> None:
-    frame = _make_headless_frame()
-    frame._current_rows = [_make_row("30")]
-    frame.var_ordem.set(" Nome ")
-    frame.var_status.set("Todos")
-    frame.var_busca.set("ABC")
-    frame._get_selected_ids = lambda: {"30"}
-
-    captured_state: dict[str, object] = {}
-
-    def fake_builder(**kwargs):
-        captured_state.update(kwargs)
-        return "STATE"
-
-    computed = SimpleNamespace(
-        visible_clients=[], can_batch_delete=False, can_batch_restore=False, can_batch_export=False
-    )
-
-    monkeypatch.setattr(main_screen, "build_main_screen_state", fake_builder)
-    monkeypatch.setattr(main_screen, "compute_main_screen_state", lambda state: computed)
-    frame._update_batch_buttons_from_computed = Mock()  # type: ignore[method-assign]
-
-    frame._update_batch_buttons_on_selection_change()
-
-    assert captured_state["clients"] == frame._current_rows
-    frame._update_batch_buttons_from_computed.assert_called_once_with(computed)  # type: ignore[attr-defined]
-
-
 def test_carregar_refreshes_vm_and_uses_controller(monkeypatch: pytest.MonkeyPatch) -> None:
     frame = _make_headless_frame()
     frame._populate_status_filter_options = Mock()  # type: ignore[method-assign]
@@ -236,45 +133,3 @@ def test_apply_filters_triggers_controller_refresh() -> None:
     frame.apply_filters()
 
     frame._refresh_with_controller.assert_called_once()  # type: ignore[attr-defined]
-
-
-@pytest.mark.skip(reason="MS-18: calculate_button_states foi substituído por UiStateManager.compute_button_states")
-def test_update_main_buttons_state_uses_calculate_button_states(monkeypatch: pytest.MonkeyPatch) -> None:
-    frame = _make_headless_frame()
-    frame.client_list = SimpleNamespace(selection=lambda: ("row",))
-    frame._uploading_busy = True
-    frame._pick_mode = False
-    frame._update_batch_buttons_on_selection_change = Mock()  # type: ignore[method-assign]
-
-    monkeypatch.setattr(main_screen, "get_supabase_state", lambda: ("online", "Conectado"))
-
-    captured_args: dict[str, object] = {}
-
-    def fake_calculate(**kwargs):
-        captured_args.update(kwargs)
-        return {
-            "editar": True,
-            "subpastas": False,
-            "enviar": False,
-            "novo": True,
-            "lixeira": False,
-            "select": True,
-        }
-
-    monkeypatch.setattr(main_screen, "calculate_button_states", fake_calculate)
-
-    frame._update_main_buttons_state()
-
-    assert captured_args == {
-        "has_selection": True,
-        "is_online": True,
-        "is_uploading": True,
-        "is_pick_mode": False,
-    }
-    assert frame.btn_editar.last_state == "normal"
-    assert frame.btn_subpastas.last_state == "disabled"
-    assert frame.btn_enviar.state_calls[-1] == ("disabled",)
-    assert frame.btn_novo.last_state == "normal"
-    assert frame.btn_lixeira.last_state == "disabled"
-    assert frame.btn_excluir.last_state == "normal"
-    frame._update_batch_buttons_on_selection_change.assert_called_once()  # type: ignore[attr-defined]

@@ -3,11 +3,16 @@
 
 Valida que os cards de indicadores (Clientes, Pendências, Tarefas) são clicáveis
 e executam os callbacks apropriados quando fornecidos.
+
+NOTA HUB-TEST-TK-01:
+- Alguns testes dependem de Tkinter funcional (tk.Tk()).
+- Em ambientes com Tcl/Tk mal configurado, esses testes são automaticamente
+  marcados como skip com mensagem clara.
+- Erro típico: "couldn't read file .../tcl8.6/auto.tcl" ou "Can't find a usable tk.tcl".
 """
 
 from __future__ import annotations
 
-import tkinter as tk
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
@@ -28,17 +33,6 @@ if TYPE_CHECKING:
 # ============================================================================
 # FIXTURES
 # ============================================================================
-
-
-@pytest.fixture
-def tk_root():
-    """Cria root Tk para testes de widgets."""
-    root = tk.Tk()
-    yield root
-    try:
-        root.destroy()
-    except tk.TclError:
-        pass
 
 
 @pytest.fixture

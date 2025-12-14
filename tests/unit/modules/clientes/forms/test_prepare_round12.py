@@ -5,7 +5,7 @@ Foco nas branches não cobertas pelos 20 testes existentes em test_clientes_form
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, PropertyMock
 
 
 from src.modules.clientes.forms._prepare import (
@@ -137,17 +137,44 @@ class TestAskSubpastaBranches:
     """Testa branches não cobertas de _ask_subpasta."""
 
     def test_ask_subpasta_import_error(self):
-        """Testa handling de ImportError ao importar SubpastaDialog."""
+        """Testa handling de ImportError ao importar SubpastaDialog.
+
+        Este teste garante que quando SubpastaDialog não pode ser importado,
+        a função retorna None e registra o erro apropriadamente.
+        """
         parent = MagicMock()
 
-        with patch("src.modules.clientes.forms._prepare.logger") as mock_logger:
-            # Simular ImportError ao tentar importar SubpastaDialog
-            with patch.dict("sys.modules", {"src.ui.forms.actions": None}):
+        # Estratégia: fazer o import dentro de _ask_subpasta falhar
+        # Mockamos o módulo para que o atributo SubpastaDialog não exista
+        import sys
+
+        # Garantir que o módulo está importado
+        if "src.modules.forms.actions" not in sys.modules:
+            pass
+
+        # Salvar o original
+        original_module = sys.modules["src.modules.forms.actions"]
+
+        # Criar um mock que levanta ImportError quando tenta acessar SubpastaDialog
+        mock_module = MagicMock()
+        # Configurar para que acessar SubpastaDialog levante ImportError
+        type(mock_module).SubpastaDialog = PropertyMock(side_effect=ImportError("Mocked: SubpastaDialog not available"))
+
+        try:
+            # Substituir o módulo temporariamente
+            sys.modules["src.modules.forms.actions"] = mock_module
+
+            with patch("src.modules.clientes.forms._prepare.logger") as mock_logger:
                 result = _ask_subpasta(parent)
 
-        assert result is None
-        # Logger deve ter registrado o erro
-        mock_logger.exception.assert_called_once()
+            # Verificações
+            assert result is None
+            mock_logger.exception.assert_called_once()
+            parent.wait_window.assert_not_called()
+
+        finally:
+            # Restaurar o módulo original
+            sys.modules["src.modules.forms.actions"] = original_module
 
     def test_ask_subpasta_returns_result(self):
         """Testa retorno normal de SubpastaDialog.result."""
@@ -155,7 +182,7 @@ class TestAskSubpastaBranches:
         mock_dialog = MagicMock()
         mock_dialog.result = "SIFAP"
 
-        with patch("src.ui.forms.actions.SubpastaDialog") as MockDialog:
+        with patch("src.modules.forms.actions.SubpastaDialog") as MockDialog:  # noqa: N806
             MockDialog.return_value = mock_dialog
 
             result = _ask_subpasta(parent)
@@ -167,7 +194,7 @@ class TestAskSubpastaBranches:
         parent = MagicMock()
         mock_dialog = MagicMock(spec=[])  # Sem atributo .result
 
-        with patch("src.ui.forms.actions.SubpastaDialog") as MockDialog:
+        with patch("src.modules.forms.actions.SubpastaDialog") as MockDialog:  # noqa: N806
             MockDialog.return_value = mock_dialog
 
             result = _ask_subpasta(parent)

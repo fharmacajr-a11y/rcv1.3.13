@@ -6,6 +6,7 @@ Testes de UI que requerem Tk/display gráfico.
 
 from __future__ import annotations
 
+import sys
 from datetime import date
 from unittest.mock import MagicMock, patch
 
@@ -18,6 +19,16 @@ import ttkbootstrap as tb  # noqa: E402
 
 from data.domain_types import ClientRow, RCTaskRow  # noqa: E402
 from src.modules.tasks.views.task_dialog import NovaTarefaDialog  # noqa: E402
+
+
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32" and sys.version_info >= (3, 13),
+    reason=(
+        "Tkinter/ttkbootstrap em Python 3.13 no Windows pode causar "
+        "'Windows fatal exception: access violation' durante os testes "
+        "(bug conhecido da runtime, ver CPython #118973 e #125179)."
+    ),
+)
 
 
 @pytest.fixture(scope="function")

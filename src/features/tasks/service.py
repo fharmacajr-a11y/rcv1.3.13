@@ -57,7 +57,7 @@ def _normalize_priority(priority: str) -> str:
 
     # Valor inválido
     raise ValueError(
-        f"Prioridade '{priority}' inválida. " f"Use: low, normal, high, urgent (ou baixa, normal, alta, urgente)"
+        f"Prioridade '{priority}' inválida. Use: low, normal, high, urgent (ou baixa, normal, alta, urgente)"
     )
 
 
@@ -157,6 +157,7 @@ def create_task(
                 error_dict = e.json()
                 error_code = error_dict.get("code") if isinstance(error_dict, dict) else None
         except Exception:  # noqa: BLE001
+            logger.debug("Falha ao extrair error code da exceção", exc_info=True)
             pass
 
         if error_code == "42501" or "row-level security policy" in error_msg.lower():

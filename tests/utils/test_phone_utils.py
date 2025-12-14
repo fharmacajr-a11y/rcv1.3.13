@@ -149,3 +149,27 @@ class TestEdgeCases:
         result = phone_utils.normalize_br_whatsapp("5511987654321")
         assert result["ddd"] == "11"
         assert result["e164"] == "5511987654321"
+
+    def test_none_input(self):
+        """Testa entrada None."""
+        result = phone_utils.normalize_br_whatsapp(None)
+        assert result["e164"] == ""
+        assert result["display"] == ""
+        assert result["ddd"] == ""
+        assert result["local"] == ""
+
+    def test_numero_apenas_um_digito(self):
+        """Testa número com apenas 1 dígito."""
+        result = phone_utils.normalize_br_whatsapp("5")
+        assert result["ddd"] == ""
+        assert result["local"] == "5"
+        assert result["display"] == "5"
+        assert result["e164"] == ""
+
+    def test_numero_com_dois_digitos(self):
+        """Testa número com apenas 2 dígitos."""
+        result = phone_utils.normalize_br_whatsapp("12")
+        assert result["ddd"] == ""
+        assert result["local"] == "12"
+        assert result["display"] == "12"
+        assert result["e164"] == ""

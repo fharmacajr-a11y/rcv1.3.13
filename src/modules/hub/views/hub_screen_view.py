@@ -1,0 +1,574 @@
+# -*- coding: utf-8 -*-
+"""HubScreenView - View Tkinter pura do HubScreen.
+
+Responsável apenas por UI: widgets, layout, bindings.
+Não contém lógica de negócio, chamadas a services ou estado.
+"""
+
+from __future__ import annotations
+
+import logging
+import tkinter as tk
+from typing import Any, Callable, Protocol
+
+import ttkbootstrap as tb
+
+from src.modules.hub.viewmodels import DashboardViewState
+from src.modules.hub.views.dashboard_center import build_dashboard_center, build_dashboard_error
+from src.modules.hub.views.notes_panel_view import NotesViewCallbacks, build_notes_side_panel
+
+logger = logging.getLogger(__name__)
+
+
+class HubViewCallbacks(Protocol):
+    """Protocolo de callbacks do HubScreen para o Controller.
+
+    View não conhece lógica de negócio - apenas chama callbacks.
+    """
+
+    def on_module_click(self, module: str) -> None:
+        """Callback para clique em módulo (Clientes, Senhas, etc.)."""
+        ...
+
+    def on_card_click(self, card_type: str, client_id: str | None = None) -> None:
+        """Callback para clique em card do dashboard."""
+        ...
+
+    def on_new_task_click(self) -> None:
+        """Callback para botão '+' de nova tarefa."""
+        ...
+
+    def on_new_obligation_click(self) -> None:
+        """Callback para botão '+' de nova obrigação."""
+        ...
+
+    def on_view_all_activity_click(self) -> None:
+        """Callback para 'Ver todas as atividades'."""
+        ...
+
+    def on_add_note_click(self, note_text: str) -> None:
+        """Callback para adicionar nota."""
+        ...
+
+    def on_edit_note_click(self, note_id: str) -> None:
+        """Callback para editar nota."""
+        ...
+
+    def on_delete_note_click(self, note_id: str) -> None:
+        """Callback para deletar nota."""
+        ...
+
+    def on_toggle_pin_click(self, note_id: str) -> None:
+        """Callback para pin/unpin nota."""
+        ...
+
+    def on_toggle_done_click(self, note_id: str) -> None:
+        """Callback para marcar nota como done."""
+        ...
+
+    def on_debug_shortcut(self) -> None:
+        """Callback para Ctrl+D (debug info)."""
+        ...
+
+    def on_refresh_authors_cache(self, force: bool = False) -> None:
+        """Callback para Ctrl+L (refresh cache de autores)."""
+        ...
+
+
+class HubScreenView:
+    """View pura do HubScreen (UI Tkinter).
+
+    Responsabilidades:
+    - Criar widgets Tkinter (frames, labels, buttons, etc.)
+    - Montar layout grid 3 colunas (módulos | dashboard | notas)
+    - Configurar bindings de eventos → callbacks
+    - Expor métodos de atualização visual (update_dashboard, update_notes, etc.)
+
+    NÃO responsável por:
+    - Lógica de negócio (salvar, validar, buscar dados)
+    - Chamadas a services/repos/ViewModels
+    - Estado de dados (apenas referências a widgets)
+    - Timers/polling (delegado ao Controller via Lifecycle)
+    """
+
+    def __init__(
+        self,
+        parent: tk.Misc,
+        callbacks: HubViewCallbacks,
+        *,
+        open_clientes: Callable[[], None] | None = None,
+        open_anvisa: Callable[[], None] | None = None,
+        open_auditoria: Callable[[], None] | None = None,
+        open_farmacia_popular: Callable[[], None] | None = None,
+        open_sngpc: Callable[[], None] | None = None,
+        open_senhas: Callable[[], None] | None = None,
+        open_mod_sifap: Callable[[], None] | None = None,
+        open_cashflow: Callable[[], None] | None = None,
+        open_sites: Callable[[], None] | None = None,
+    ) -> None:
+        """Inicializa a view com callbacks do controller.
+
+        Args:
+            parent: Widget pai (HubScreen frame)
+            callbacks: Protocolo de callbacks para eventos
+            open_*: Callbacks de navegação para módulos
+        """
+        self.parent = parent
+        self.callbacks = callbacks
+
+        # Armazenar callbacks de navegação
+        self.open_clientes = open_clientes
+        self.open_anvisa = open_anvisa
+        self.open_auditoria = open_auditoria
+        self.open_farmacia_popular = open_farmacia_popular
+        self.open_sngpc = open_sngpc
+        self.open_senhas = open_senhas
+        self.open_mod_sifap = open_mod_sifap
+        self.open_cashflow = open_cashflow
+        self.open_sites = open_sites
+
+        # Widgets principais (criados em build_layout)
+        self.modules_panel: tb.Labelframe | None = None
+        self.center_spacer: tb.Frame | None = None
+        self.dashboard_scroll: Any | None = None
+        self.notes_panel: Any | None = None
+        self.notes_history: Any | None = None
+        self.new_note: Any | None = None
+        self.btn_add_note: Any | None = None
+
+        # Referências necessárias para o HubScreenController
+        # Serão injetadas pelo HubScreen após criação
+        self._hub_screen: Any | None = None  # Referência ao HubScreen (para métodos como get_org_id)
+        self._dashboard_actions: Any | None = None  # DashboardActionController
+        self._notes_view: Any | None = None  # HubNotesView para render_notes
+
+    def build_layout(self) -> None:
+        """Constrói layout 3 colunas (módulos | dashboard | notas).
+
+        Layout grid:
+        - Coluna 0: Painel de módulos (peso 0, largura fixa)
+        - Coluna 1: Dashboard central (peso 1, expansível)
+        - Coluna 2: Painel de notas (peso 0, largura fixa)
+        """
+        # Build painel de módulos (esquerda)
+        self._build_modules_panel()
+
+        # Build painel de dashboard (centro)
+        self._build_dashboard_panel()
+
+        # Build painel de notas (direita)
+        self._build_notes_panel()
+
+        # Setup layout grid
+        self._setup_layout()
+
+        # Setup bindings de teclado
+        self._setup_bindings()
+
+    def _build_modules_panel(self) -> None:
+        """Constrói o painel de módulos (menu vertical à esquerda).
+
+        Delega construção para build_modules_panel helper, mas inline
+        para compatibilidade com testes existentes.
+        """
+        from src.modules.hub.constants import (
+            HUB_BTN_STYLE_AUDITORIA,
+            HUB_BTN_STYLE_CLIENTES,
+            HUB_BTN_STYLE_FLUXO_CAIXA,
+            HUB_BTN_STYLE_SENHAS,
+            MODULES_TITLE,
+            PAD_OUTER,
+        )
+
+        # Helper para criar botão com bootstyle
+        def mk_btn(parent, text, command=None, bootstyle="secondary"):
+            return tb.Button(parent, text=text, command=command, bootstyle=bootstyle)
+
+        # Painel principal
+        self.modules_panel = tb.Labelframe(self.parent, text=MODULES_TITLE, padding=PAD_OUTER)
+
+        # BLOCO 1: Cadastros / Acesso
+        frame_cadastros = tb.Labelframe(
+            self.modules_panel,
+            text="Cadastros / Acesso",
+            bootstyle="dark",
+            padding=(8, 6),
+        )
+        frame_cadastros.pack(fill="x", pady=(0, 8))
+        frame_cadastros.columnconfigure(0, weight=1)
+        frame_cadastros.columnconfigure(1, weight=1)
+
+        btn_clientes = mk_btn(frame_cadastros, "Clientes", self.open_clientes, HUB_BTN_STYLE_CLIENTES)
+        btn_clientes.grid(row=0, column=0, sticky="ew", padx=3, pady=3)
+
+        btn_senhas = mk_btn(frame_cadastros, "Senhas", self.open_senhas, HUB_BTN_STYLE_SENHAS)
+        btn_senhas.grid(row=0, column=1, sticky="ew", padx=3, pady=3)
+
+        # BLOCO 2: Gestão / Auditoria
+        frame_gestao = tb.Labelframe(
+            self.modules_panel,
+            text="Gestão / Auditoria",
+            bootstyle="dark",
+            padding=(8, 6),
+        )
+        frame_gestao.pack(fill="x", pady=(0, 8))
+        frame_gestao.columnconfigure(0, weight=1)
+        frame_gestao.columnconfigure(1, weight=1)
+
+        btn_auditoria = mk_btn(frame_gestao, "Auditoria", self.open_auditoria, HUB_BTN_STYLE_AUDITORIA)
+        btn_auditoria.grid(row=0, column=0, sticky="ew", padx=3, pady=3)
+
+        btn_fluxo_caixa = mk_btn(frame_gestao, "Fluxo de Caixa", self.open_cashflow, HUB_BTN_STYLE_FLUXO_CAIXA)
+        btn_fluxo_caixa.grid(row=0, column=1, sticky="ew", padx=3, pady=3)
+
+        # BLOCO 3: Regulatório / Programas
+        frame_regulatorio = tb.Labelframe(
+            self.modules_panel,
+            text="Regulatório / Programas",
+            bootstyle="dark",
+            padding=(8, 6),
+        )
+        frame_regulatorio.pack(fill="x", pady=(0, 0))
+        frame_regulatorio.columnconfigure(0, weight=1)
+        frame_regulatorio.columnconfigure(1, weight=1)
+
+        btn_anvisa = mk_btn(frame_regulatorio, "Anvisa", self.open_anvisa, "secondary")
+        btn_anvisa.grid(row=0, column=0, sticky="ew", padx=3, pady=3)
+
+        btn_farmacia_pop = mk_btn(frame_regulatorio, "Farmácia Popular", self.open_farmacia_popular, "secondary")
+        btn_farmacia_pop.grid(row=0, column=1, sticky="ew", padx=3, pady=3)
+
+        btn_sngpc = mk_btn(frame_regulatorio, "Sngpc", self.open_sngpc, "secondary")
+        btn_sngpc.grid(row=1, column=0, sticky="ew", padx=3, pady=3)
+
+        btn_sifap = mk_btn(frame_regulatorio, "Sifap", self.open_mod_sifap, "secondary")
+        btn_sifap.grid(row=1, column=1, sticky="ew", padx=3, pady=3)
+
+    def _build_dashboard_panel(self) -> None:
+        """Constrói o painel central com ScrollableFrame para o dashboard."""
+        from src.ui.widgets.scrollable_frame import ScrollableFrame
+
+        # Container da coluna central
+        self.center_spacer = tb.Frame(self.parent)
+
+        # ScrollableFrame dentro do container para permitir scroll do dashboard
+        self.dashboard_scroll = ScrollableFrame(self.center_spacer)
+        self.dashboard_scroll.pack(fill="both", expand=True)
+
+    def _build_notes_panel(self) -> None:
+        """Constrói o painel de notas compartilhadas (lateral direita).
+
+        Delega a construção de UI para build_notes_side_panel helper.
+        """
+
+        # Preparar callbacks de notas (wrappers que extraem texto do widget)
+        def on_add_wrapper() -> None:
+            if self.new_note:
+                text = self.new_note.get("1.0", "end-1c").strip()
+                self.callbacks.on_add_note_click(text)
+
+        def on_edit_wrapper(note_id: str) -> None:
+            self.callbacks.on_edit_note_click(note_id)
+
+        def on_delete_wrapper(note_id: str) -> None:
+            self.callbacks.on_delete_note_click(note_id)
+
+        def on_pin_wrapper(note_id: str) -> None:
+            self.callbacks.on_toggle_pin_click(note_id)
+
+        def on_done_wrapper(note_id: str) -> None:
+            self.callbacks.on_toggle_done_click(note_id)
+
+        notes_callbacks = NotesViewCallbacks(
+            on_add_note_click=on_add_wrapper,
+            on_edit_note_click=on_edit_wrapper,
+            on_delete_note_click=on_delete_wrapper,
+            on_toggle_pin_click=on_pin_wrapper,
+            on_toggle_done_click=on_done_wrapper,
+        )
+
+        # Build panel usando helper (extrai lógica de UI)
+        # State inicial vazio (será atualizado pelo controller)
+        from src.modules.hub.viewmodels import NotesViewModel
+
+        empty_state = NotesViewModel().state
+
+        # Cast parent para tb.Frame (parent é sempre Frame no HubScreen)
+        parent_frame = self.parent if isinstance(self.parent, tb.Frame) else tb.Frame(self.parent)
+
+        self.notes_panel = build_notes_side_panel(
+            parent=parent_frame,
+            state=empty_state,
+            callbacks=notes_callbacks,
+        )
+
+        # Store references to widgets for update methods
+        self.notes_history = self.notes_panel.notes_history  # type: ignore[attr-defined]
+        self.new_note = self.notes_panel.new_note  # type: ignore[attr-defined]
+        self.btn_add_note = self.notes_panel.btn_add_note  # type: ignore[attr-defined]
+
+    def _setup_layout(self) -> None:
+        """Configura o layout grid de 3 colunas (módulos | dashboard | notas)."""
+        from src.modules.hub.layout import apply_hub_notes_right
+
+        widgets = {
+            "modules_panel": self.modules_panel,
+            "spacer": self.center_spacer,
+            "notes_panel": self.notes_panel,
+        }
+        apply_hub_notes_right(self.parent, widgets)
+
+    def _setup_bindings(self) -> None:
+        """Configura atalhos de teclado (Ctrl+D para diagnóstico, Ctrl+L para reload cache)."""
+        # Ctrl+D para diagnóstico
+        self.parent.bind_all("<Control-d>", lambda _e: self.callbacks.on_debug_shortcut())
+        self.parent.bind_all("<Control-D>", lambda _e: self.callbacks.on_debug_shortcut())
+
+        # Ctrl+L para recarregar cache de nomes (teste)
+        self.parent.bind_all("<Control-l>", lambda _e: self.callbacks.on_refresh_authors_cache(force=True))
+        self.parent.bind_all("<Control-L>", lambda _e: self.callbacks.on_refresh_authors_cache(force=True))
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # Métodos de Atualização de UI
+    # ═══════════════════════════════════════════════════════════════════════
+
+    def update_dashboard(
+        self,
+        state: DashboardViewState,
+        *,
+        on_new_task: Callable[[], None] | None = None,
+        on_new_obligation: Callable[[], None] | None = None,
+        on_view_all_activity: Callable[[], None] | None = None,
+        on_card_clients_click: Callable[[DashboardViewState], None] | None = None,
+        on_card_pendencias_click: Callable[[DashboardViewState], None] | None = None,
+        on_card_tarefas_click: Callable[[DashboardViewState], None] | None = None,
+    ) -> None:
+        """Atualiza painel central do dashboard.
+
+        Args:
+            state: Estado do DashboardViewModel
+            on_*: Callbacks para eventos do dashboard
+        """
+        if not self.dashboard_scroll:
+            return
+
+        # Se houver erro, mostrar tela de erro
+        if state.error_message:
+            build_dashboard_error(self.dashboard_scroll.content)
+            return
+
+        # Se não houver snapshot, não fazer nada (estado inválido)
+        if not state.snapshot:
+            return
+
+        # Renderizar dashboard com state completo
+        build_dashboard_center(
+            self.dashboard_scroll.content,
+            state,
+            on_new_task=on_new_task or self.callbacks.on_new_task_click,
+            on_new_obligation=on_new_obligation or self.callbacks.on_new_obligation_click,
+            on_view_all_activity=on_view_all_activity or self.callbacks.on_view_all_activity_click,
+            on_card_clients_click=on_card_clients_click or (lambda _s: self.callbacks.on_card_click("clients")),
+            on_card_pendencias_click=on_card_pendencias_click or (lambda _s: self.callbacks.on_card_click("pending")),
+            on_card_tarefas_click=on_card_tarefas_click or (lambda _s: self.callbacks.on_card_click("tasks")),
+        )
+
+    def update_notes_panel(self, notes: list[dict[str, Any]]) -> None:
+        """Atualiza painel de notas compartilhadas.
+
+        Args:
+            notes: Lista de notas para renderizar
+        """
+        if not self.notes_history:
+            return
+
+        # Habilitar edição temporária
+        self.notes_history.configure(state="normal")
+        self.notes_history.delete("1.0", "end")
+
+        # Renderizar notas
+        if not notes:
+            self.notes_history.insert("end", "Nenhuma anotação ainda.\n")
+        else:
+            for note in notes:
+                # Formato básico: [hora] autor: texto
+                created_at = note.get("created_at", "")
+                author_email = note.get("author_email", "")
+                body = note.get("body", "")
+
+                # Extrair hora do timestamp
+                try:
+                    from datetime import datetime
+
+                    if "T" in created_at:
+                        dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                        time_str = dt.strftime("%H:%M")
+                    else:
+                        time_str = created_at[:5] if len(created_at) >= 5 else ""
+                except Exception:
+                    time_str = ""
+
+                # Montar linha
+                line = f"[{time_str}] {author_email}: {body}\n"
+                self.notes_history.insert("end", line)
+
+        # Desabilitar edição novamente
+        self.notes_history.configure(state="disabled")
+
+        # Auto-scroll para o final
+        self.notes_history.see("end")
+
+    def show_loading(self, _message: str = "Carregando...") -> None:
+        """Exibe estado de loading.
+
+        Args:
+            _message: Mensagem de loading (não utilizada ainda)
+        """
+        # Desabilitar botões e campos durante loading
+        if self.btn_add_note:
+            self.btn_add_note.configure(state="disabled")
+
+        if self.new_note:
+            self.new_note.configure(state="disabled")
+
+        # Opcional: Poderia criar um overlay de loading
+        # ou atualizar o painel de notas com mensagem
+        if self.notes_history:
+            self.notes_history.configure(state="normal")
+            self.notes_history.delete("1.0", "end")
+            self.notes_history.insert("end", "⏳ Carregando notas...\n")
+            self.notes_history.configure(state="disabled")
+
+    def hide_loading(self) -> None:
+        """Esconde estado de loading.
+
+        Reativa widgets que foram desabilitados durante loading.
+        """
+        # Reabilitar botões e campos
+        if self.btn_add_note:
+            self.btn_add_note.configure(state="normal")
+
+        if self.new_note:
+            self.new_note.configure(state="normal")
+
+    def update_notes_ui_state(self, *, button_enabled: bool, placeholder_message: str | None = None) -> None:
+        """Atualiza estado do botão e placeholder de notas.
+
+        Args:
+            button_enabled: Se botão de adicionar deve estar habilitado
+            placeholder_message: Mensagem placeholder (None para habilitar campo)
+        """
+        if not self.btn_add_note or not self.new_note:
+            return
+
+        # Atualizar botão
+        btn_state = "normal" if button_enabled else "disabled"
+        self.btn_add_note.configure(state=btn_state)
+
+        # Atualizar campo de texto
+        text_state = "normal" if not placeholder_message else "disabled"
+        self.new_note.configure(state="normal")  # Temporário para editar
+        self.new_note.delete("1.0", "end")
+
+        if placeholder_message:
+            self.new_note.insert("1.0", placeholder_message)
+
+        self.new_note.configure(state=text_state)
+
+    def clear_new_note_text(self) -> None:
+        """Limpa campo de nova nota (após sucesso)."""
+        if self.new_note:
+            self.new_note.delete("1.0", "end")
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # Métodos de Acesso (usados pelo HubScreenController)
+    # ═══════════════════════════════════════════════════════════════════════
+
+    def _get_org_id_safe(self) -> str | None:
+        """Obtém org_id de forma segura (delegando para HubScreen).
+
+        Returns:
+            org_id ou None se não disponível.
+        """
+        if self._hub_screen and hasattr(self._hub_screen, "_get_org_id_safe"):
+            return self._hub_screen._get_org_id_safe()
+        return None
+
+    def _get_email_safe(self) -> str | None:
+        """Obtém email de forma segura (delegando para HubScreen).
+
+        Returns:
+            email ou None se não disponível.
+        """
+        if self._hub_screen and hasattr(self._hub_screen, "_get_email_safe"):
+            return self._hub_screen._get_email_safe()
+        return None
+
+    def _get_user_id_safe(self) -> str | None:
+        """Obtém user_id de forma segura (delegando para HubScreen).
+
+        Returns:
+            user_id ou None se não disponível.
+        """
+        if self._hub_screen and hasattr(self._hub_screen, "_get_user_id_safe"):
+            return self._hub_screen._get_user_id_safe()
+        return None
+
+    def _get_app(self) -> Any | None:
+        """Obtém referência ao MainApp (delegando para HubScreen).
+
+        Returns:
+            MainApp ou None se não disponível.
+        """
+        if self._hub_screen and hasattr(self._hub_screen, "_get_app"):
+            return self._hub_screen._get_app()
+        return None
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # Métodos de Renderização (delegados)
+    # ═══════════════════════════════════════════════════════════════════════
+
+    def render_notes(self, notes: list[dict[str, Any]], force: bool = False) -> None:
+        """Renderiza lista de notas (delega para HubNotesView).
+
+        Args:
+            notes: Lista de notas para renderizar (dicts ou NoteItemView).
+            force: Se True, força re-renderização mesmo se cache não mudou.
+        """
+        # MF-39: Converter NoteItemView para dict se necessário
+        notes_as_dicts = []
+        for note in notes or []:
+            if isinstance(note, dict):
+                notes_as_dicts.append(note)
+            else:
+                # NoteItemView ou objeto similar - converter para dict
+                notes_as_dicts.append(
+                    {
+                        "id": getattr(note, "id", None),
+                        "body": getattr(note, "body", ""),
+                        "created_at": getattr(note, "created_at", ""),
+                        "author_email": getattr(note, "author_email", ""),
+                        "author_name": getattr(note, "author_name", ""),
+                        "is_pinned": getattr(note, "is_pinned", False),
+                        "is_done": getattr(note, "is_done", False),
+                    }
+                )
+
+        if self._notes_view and hasattr(self._notes_view, "render_notes"):
+            # Delegar para HubNotesView
+            # MF-38: Corrigido - state é HubState (dataclass), não dict
+            state = getattr(self._hub_screen, "state", None)
+            author_tags = state.author_tags if state else {}
+            author_cache = state.author_cache if state else {}
+
+            self._notes_view.render_notes(
+                notes_as_dicts,
+                force=force,
+                author_tags=author_tags,
+                author_names_cache=author_cache,
+                hub_screen=self._hub_screen,
+                debug_logger=lambda tag: None,  # No-op debug logger
+            )
+        elif self.notes_history:
+            # Fallback: renderização simples direta no widget
+            self.update_notes_panel(notes_as_dicts)

@@ -366,7 +366,7 @@ class ClientesViewModel:
             # Ordenação por timestamp de última alteração
             from datetime import datetime
 
-            def key_func_ts(row: ClienteRow) -> tuple[int, Any]:
+            def key_func_ts(row: ClienteRow) -> tuple[int | bool, Any]:
                 ts = row.ultima_alteracao_ts
                 if ts is None:
                     # Clientes sem data vão para o final sempre
@@ -397,7 +397,7 @@ class ClientesViewModel:
                 grupo_final = 0 if reverse else 1
                 return (grupo_final, datetime.min)
 
-            key_func = key_func_ts
+            key_func = key_func_ts  # type: ignore[assignment]  # Pyright não consegue inferir união de int|bool
 
         else:
             # Ordenação alfabética por campo genérico

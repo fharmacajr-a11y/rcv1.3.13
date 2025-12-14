@@ -1,7 +1,18 @@
+import sys
+
 import pytest
 
 from src.core.services import clientes_service
 from src.modules.clientes.forms import client_form
+
+
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32" and sys.version_info >= (3, 13),
+    reason=(
+        "Tkinter/ttkbootstrap + pytest em Python 3.13 no Windows pode causar "
+        "'Windows fatal exception: access violation' (bug do runtime, ver CPython #125179/118973)."
+    ),
+)
 
 
 def _patch_service_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -91,8 +102,7 @@ def test_salvar_cliente_ignora_notas_no_update(monkeypatch: pytest.MonkeyPatch) 
     assert "nota3" not in captured
 
 
-def test_form_cliente_cria_campos_internos(monkeypatch: pytest.MonkeyPatch) -> None:
-    tk = pytest.importorskip("tkinter")
+def test_form_cliente_cria_campos_internos(monkeypatch: pytest.MonkeyPatch, tk_root) -> None:
     created: list[object] = []
     real_toplevel = client_form.tk.Toplevel
 
@@ -105,12 +115,7 @@ def test_form_cliente_cria_campos_internos(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr(client_form, "apply_rc_icon", lambda *_args, **_kwargs: None)
 
     try:
-        root = tk.Tk()
-    except tk.TclError:
-        pytest.skip("Tk indisponível no ambiente de teste")
-    root.withdraw()
-    try:
-        client_form.form_cliente(root)
+        client_form.form_cliente(tk_root)
         assert created
         win = created[-1]
         vars_map = getattr(win, "_rc_internal_notes_vars", {})
@@ -123,14 +128,9 @@ def test_form_cliente_cria_campos_internos(monkeypatch: pytest.MonkeyPatch) -> N
                 w.destroy()
             except Exception:
                 pass
-        try:
-            root.destroy()
-        except Exception:
-            pass
 
 
-def test_form_cliente_preenche_endereco_quando_disponivel(monkeypatch: pytest.MonkeyPatch) -> None:
-    tk = pytest.importorskip("tkinter")
+def test_form_cliente_preenche_endereco_quando_disponivel(monkeypatch: pytest.MonkeyPatch, tk_root) -> None:
     created: list[object] = []
     real_toplevel = client_form.tk.Toplevel
 
@@ -142,19 +142,14 @@ def test_form_cliente_preenche_endereco_quando_disponivel(monkeypatch: pytest.Mo
     monkeypatch.setattr(client_form.tk, "Toplevel", fake_toplevel)
     monkeypatch.setattr(client_form, "apply_rc_icon", lambda *_args, **_kwargs: None)
 
-    try:
-        root = tk.Tk()
-    except tk.TclError:
-        pytest.skip("Tk indisponível no ambiente de teste")
-    root.withdraw()
-    root._cliente_atual = type(
+    tk_root._cliente_atual = type(
         "C",
         (),
         {"endereco": "Rua X", "bairro": "Centro", "cidade": "Sao Paulo", "cep": "01000-000"},
     )()
 
     try:
-        client_form.form_cliente(root)
+        client_form.form_cliente(tk_root)
         win = created[-1]
         vars_map = getattr(win, "_rc_internal_notes_vars", {})
         assert vars_map["endereco"].get() == "Rua X"
@@ -167,14 +162,9 @@ def test_form_cliente_preenche_endereco_quando_disponivel(monkeypatch: pytest.Mo
                 w.destroy()
             except Exception:
                 pass
-        try:
-            root.destroy()
-        except Exception:
-            pass
 
 
-def test_form_cliente_define_titulo_dinamico(monkeypatch: pytest.MonkeyPatch) -> None:
-    tk = pytest.importorskip("tkinter")
+def test_form_cliente_define_titulo_dinamico(monkeypatch: pytest.MonkeyPatch, tk_root) -> None:
     created: list[object] = []
     real_toplevel = client_form.tk.Toplevel
 
@@ -186,15 +176,10 @@ def test_form_cliente_define_titulo_dinamico(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setattr(client_form.tk, "Toplevel", fake_toplevel)
     monkeypatch.setattr(client_form, "apply_rc_icon", lambda *_args, **_kwargs: None)
 
-    try:
-        root = tk.Tk()
-    except tk.TclError:
-        pytest.skip("Tk indisponível no ambiente de teste")
-    root.withdraw()
     row = (21, "Cliente X", "12.345.678/0001-99", "", "", "", "")
 
     try:
-        client_form.form_cliente(root, row)
+        client_form.form_cliente(tk_root, row)
         win = created[-1]
         assert "Editar Cliente" in win.title()
         assert "21" in win.title()
@@ -206,7 +191,3 @@ def test_form_cliente_define_titulo_dinamico(monkeypatch: pytest.MonkeyPatch) ->
                 w.destroy()
             except Exception:
                 pass
-        try:
-            root.destroy()
-        except Exception:
-            pass

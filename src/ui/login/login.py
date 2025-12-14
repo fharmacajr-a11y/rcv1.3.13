@@ -18,14 +18,15 @@ from __future__ import annotations
 import logging
 import warnings
 
+# MF-11: Import movido para o topo (Ruff E402)
+from src.ui.login_dialog import LoginDialog as ModernLoginDialog
+
 # Emite warning ao importar este módulo
 warnings.warn(
     "src.ui.login.login está deprecated. Use src.ui.login_dialog.LoginDialog",
     DeprecationWarning,
     stacklevel=2,
 )
-
-from src.ui.login_dialog import LoginDialog as ModernLoginDialog
 
 log = logging.getLogger(__name__)
 

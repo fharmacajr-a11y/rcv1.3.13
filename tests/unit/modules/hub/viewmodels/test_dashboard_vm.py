@@ -305,3 +305,79 @@ class TestEdgeCases:
         assert state2.error_message is None
         assert state2.snapshot is not None
         assert state2.snapshot.active_clients == 5
+
+
+class TestDashboardViewModelStateFactories:
+    """Testes para métodos factory de estados (start_loading, from_error)."""
+
+    def test_start_loading_creates_loading_state(self):
+        """start_loading deve criar estado de loading limpo."""
+        vm = DashboardViewModel()
+        state = vm.start_loading()
+
+        assert state.is_loading is True
+        assert state.error_message is None
+        assert state.snapshot is None
+        assert state.card_clientes is None
+        assert state.card_pendencias is None
+        assert state.card_tarefas is None
+
+    def test_from_error_creates_error_state(self):
+        """from_error deve criar estado de erro com mensagem."""
+        vm = DashboardViewModel()
+        state = vm.from_error("Erro de teste")
+
+        assert state.is_loading is False
+        assert state.error_message == "Erro de teste"
+        assert state.snapshot is None
+        assert state.card_clientes is None
+        assert state.card_pendencias is None
+        assert state.card_tarefas is None
+
+    def test_start_loading_clears_previous_state(self):
+        """start_loading deve limpar estado anterior (sucesso ou erro)."""
+        mock_snapshot = DashboardSnapshot(active_clients=10)
+        mock_service = Mock(return_value=mock_snapshot)
+
+        vm = DashboardViewModel(service=mock_service)
+
+        # Carregar com sucesso
+        state1 = vm.load(org_id="test-org")
+        assert state1.snapshot is not None
+        assert state1.card_clientes is not None
+
+        # Iniciar loading deve limpar tudo
+        state2 = vm.start_loading()
+        assert state2.is_loading is True
+        assert state2.snapshot is None
+        assert state2.card_clientes is None
+
+    def test_from_error_after_success(self):
+        """from_error deve substituir estado de sucesso."""
+        mock_snapshot = DashboardSnapshot(active_clients=5)
+        mock_service = Mock(return_value=mock_snapshot)
+
+        vm = DashboardViewModel(service=mock_service)
+
+        # Carregar com sucesso
+        state1 = vm.load(org_id="test-org")
+        assert state1.error_message is None
+        assert state1.snapshot is not None
+
+        # Criar estado de erro
+        state2 = vm.from_error("Novo erro")
+        assert state2.error_message == "Novo erro"
+        assert state2.snapshot is None
+
+    def test_state_factories_update_vm_state_property(self):
+        """Métodos factory devem atualizar vm.state."""
+        vm = DashboardViewModel()
+
+        # Após start_loading, state deve refletir loading
+        vm.start_loading()
+        assert vm.state.is_loading is True
+
+        # Após from_error, state deve refletir erro
+        vm.from_error("Teste")
+        assert vm.state.error_message == "Teste"
+        assert vm.state.is_loading is False

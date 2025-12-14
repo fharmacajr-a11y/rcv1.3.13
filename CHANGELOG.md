@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _Nenhuma mudança pendente no momento._
 
+## [1.4.26] - 2025-12-11
+
+### Fixed
+- **[FIX-HUB-BLANK-001]**: Correção de Dashboard e Notas ficando em branco
+  - **Estado inicial de loading**: Dashboard e Notas agora mostram "Carregando..." logo após construção
+  - **Tratamento de erros robusto**: Mensagens amigáveis exibidas em caso de erro ao carregar dados
+  - **Estado vazio tratado**: Quando não há dados, mensagens informativas são exibidas
+  - **Tratamento de autenticação**: Mensagem "Aguardando autenticação..." exibida quando org_id não disponível
+  - **Prevenção de painéis em branco**: Garantia que NUNCA fiquem completamente vazios
+  - Arquivos modificados:
+    - `src/modules/hub/views/hub_screen.py`: Renderização inicial de loading
+    - `src/modules/hub/services/hub_async_tasks_service.py`: Tratamento de erros e estados vazios
+
+### Changed
+- **[BUMP-VERSION]**: Atualização de versão 1.4.19 → 1.4.26
+  - Atualização de `src/version.py` com nova versão
+  - Atualização de metadados do executável em `version_file.txt`
+  - Atualização de comentários em `requirements.txt` e `requirements-dev.txt`
+  - Atualização de badge e changelog em `README.md`
+
 ## [1.3.61] - 2025-12-04
 
 ### Changed

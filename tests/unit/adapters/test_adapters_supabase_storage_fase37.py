@@ -98,7 +98,7 @@ def fake_supabase_client():
 @pytest.fixture
 def adapter(fake_supabase_client, storage_funcs):
     """Instância do SupabaseStorageAdapter."""
-    SupabaseStorageAdapter = storage_funcs["SupabaseStorageAdapter"]
+    SupabaseStorageAdapter = storage_funcs["SupabaseStorageAdapter"]  # noqa: N806
     return SupabaseStorageAdapter(client=fake_supabase_client, bucket="test-bucket")
 
 
@@ -312,7 +312,7 @@ class TestSupabaseStorageAdapter:
         assert len(result) == 1
 
     def test_adapter_usa_bucket_correto(self, fake_supabase_client, storage_funcs):
-        SupabaseStorageAdapter = storage_funcs["SupabaseStorageAdapter"]
+        SupabaseStorageAdapter = storage_funcs["SupabaseStorageAdapter"]  # noqa: N806
         adapter = SupabaseStorageAdapter(client=fake_supabase_client, bucket="custom-bucket")
         bucket_mock = fake_supabase_client.storage.from_.return_value
         bucket_mock.list.return_value = []
@@ -322,7 +322,7 @@ class TestSupabaseStorageAdapter:
         fake_supabase_client.storage.from_.assert_called_with("custom-bucket")
 
     def test_adapter_normaliza_bucket(self, fake_supabase_client, storage_funcs):
-        SupabaseStorageAdapter = storage_funcs["SupabaseStorageAdapter"]
+        SupabaseStorageAdapter = storage_funcs["SupabaseStorageAdapter"]  # noqa: N806
         adapter = SupabaseStorageAdapter(client=fake_supabase_client, bucket="  Bucket  ")
         bucket_mock = fake_supabase_client.storage.from_.return_value
         bucket_mock.list.return_value = []
@@ -434,7 +434,7 @@ class TestEdgeCases:
         assert result[0]["name"] == "valid.txt"
 
     def test_adapter_bucket_default(self, fake_supabase_client, storage_funcs):
-        SupabaseStorageAdapter = storage_funcs["SupabaseStorageAdapter"]
+        SupabaseStorageAdapter = storage_funcs["SupabaseStorageAdapter"]  # noqa: N806
         adapter = SupabaseStorageAdapter(client=fake_supabase_client, bucket="")
         bucket_mock = fake_supabase_client.storage.from_.return_value
         bucket_mock.list.return_value = []

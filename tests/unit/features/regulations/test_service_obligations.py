@@ -541,3 +541,500 @@ def test_update_obligation_normalizes_kind_portuguese(mock_supabase_client):
 
     update_data = mock_client.table().update.call_args[0][0]
     assert update_data["kind"] == "LICENCA_SANITARIA"
+
+
+# ---------------------------------------------------------------------------
+# Testes para normalização de status e kind
+# ---------------------------------------------------------------------------
+
+
+def test_normalize_status_with_none_returns_default():
+    """Testa _normalize_status com None retorna default."""
+    from src.features.regulations.service import _normalize_status
+
+    result = _normalize_status(None, default="pending")
+    assert result == "pending"
+
+
+def test_normalize_status_with_empty_string_returns_default():
+    """Testa _normalize_status com string vazia retorna default."""
+    from src.features.regulations.service import _normalize_status
+
+    result = _normalize_status("", default="canceled")
+    assert result == "canceled"
+
+
+def test_normalize_status_already_canonical():
+    """Testa _normalize_status com valor já canônico."""
+    from src.features.regulations.service import _normalize_status
+
+    assert _normalize_status("pending") == "pending"
+    assert _normalize_status("done") == "done"
+    assert _normalize_status("overdue") == "overdue"
+    assert _normalize_status("canceled") == "canceled"
+
+
+def test_normalize_status_portuguese_mapping():
+    """Testa _normalize_status com mapeamento PT-BR."""
+    from src.features.regulations.service import _normalize_status
+
+    assert _normalize_status("Pendente") == "pending"
+    assert _normalize_status("PENDENTE") == "pending"
+    assert _normalize_status("Concluída") == "done"
+    assert _normalize_status("Concluida") == "done"
+    assert _normalize_status("Concluído") == "done"
+    assert _normalize_status("Concluido") == "done"
+    assert _normalize_status("CONCLUIDA") == "done"
+    assert _normalize_status("CONCLUIDO") == "done"
+    assert _normalize_status("Atrasada") == "overdue"
+    assert _normalize_status("Atrasado") == "overdue"
+    assert _normalize_status("ATRASADA") == "overdue"
+    assert _normalize_status("ATRASADO") == "overdue"
+    assert _normalize_status("Cancelada") == "canceled"
+    assert _normalize_status("Cancelado") == "canceled"
+    assert _normalize_status("CANCELADA") == "canceled"
+    assert _normalize_status("CANCELADO") == "canceled"
+
+
+def test_normalize_status_fallback_lowercase():
+    """Testa _normalize_status com fallback para lowercase."""
+    from src.features.regulations.service import _normalize_status
+
+    # Valor desconhecido mas que vira canônico após lowercase
+    assert _normalize_status("DONE") == "done"
+    assert _normalize_status("PENDING") == "pending"
+
+
+def test_normalize_status_unknown_returns_default():
+    """Testa _normalize_status com valor desconhecido retorna default."""
+    from src.features.regulations.service import _normalize_status
+
+    result = _normalize_status("unknown_status", default="pending")
+    assert result == "pending"
+
+
+def test_normalize_kind_with_none_returns_outro():
+    """Testa _normalize_kind com None retorna OUTRO."""
+    from src.features.regulations.service import _normalize_kind
+
+    result = _normalize_kind(None)  # type: ignore[arg-type]
+    assert result == "OUTRO"
+
+
+def test_normalize_kind_with_empty_string_returns_outro():
+    """Testa _normalize_kind com string vazia retorna OUTRO."""
+    from src.features.regulations.service import _normalize_kind
+
+    result = _normalize_kind("")
+    assert result == "OUTRO"
+
+
+def test_normalize_kind_exact_mapping():
+    """Testa _normalize_kind com mapeamento exato."""
+    from src.features.regulations.service import _normalize_kind
+
+    assert _normalize_kind("SNGPC") == "SNGPC"
+    assert _normalize_kind("sngpc") == "SNGPC"
+    assert _normalize_kind("Farmácia Popular") == "FARMACIA_POPULAR"
+    assert _normalize_kind("Farmacia Popular") == "FARMACIA_POPULAR"
+    assert _normalize_kind("FARMACIA POPULAR") == "FARMACIA_POPULAR"
+    assert _normalize_kind("farmacia popular") == "FARMACIA_POPULAR"
+    assert _normalize_kind("FARMACIA_POPULAR") == "FARMACIA_POPULAR"
+    assert _normalize_kind("Sifap") == "SIFAP"
+    assert _normalize_kind("SIFAP") == "SIFAP"
+    assert _normalize_kind("sifap") == "SIFAP"
+    assert _normalize_kind("Licença Sanitária") == "LICENCA_SANITARIA"
+    assert _normalize_kind("Licenca Sanitaria") == "LICENCA_SANITARIA"
+    assert _normalize_kind("Licença Sanitaria") == "LICENCA_SANITARIA"
+    assert _normalize_kind("LICENCA SANITARIA") == "LICENCA_SANITARIA"
+    assert _normalize_kind("LICENCA_SANITARIA") == "LICENCA_SANITARIA"
+    assert _normalize_kind("Outro") == "OUTRO"
+    assert _normalize_kind("OUTRO") == "OUTRO"
+    assert _normalize_kind("outro") == "OUTRO"
+
+
+def test_normalize_kind_unknown_returns_outro():
+    """Testa _normalize_kind com valor desconhecido retorna OUTRO."""
+    from src.features.regulations.service import _normalize_kind
+
+    result = _normalize_kind("unknown_kind")
+    assert result == "OUTRO"
+
+
+# ---------------------------------------------------------------------------
+# Testes para create_obligation - campos opcionais
+# ---------------------------------------------------------------------------
+
+
+def test_create_obligation_with_reference_dates(mock_supabase_client):
+    """Testa create_obligation com reference_start e reference_end."""
+    mock_client, mock_execute = mock_supabase_client
+
+    ref_start = date(2025, 12, 1)
+    ref_end = date(2025, 12, 31)
+
+    mock_execute.data = [
+        {
+            "id": "obl-ref",
+            "org_id": "org-123",
+            "client_id": 10,
+            "kind": "SNGPC",
+            "title": "Test",
+            "due_date": date(2025, 12, 31),
+            "status": "pending",
+            "reference_start": ref_start,
+            "reference_end": ref_end,
+            "created_by": "user-1",
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
+        }
+    ]
+
+    with patch("src.features.regulations.service._get_client", return_value=mock_client):
+        create_obligation(
+            org_id="org-123",
+            created_by="user-1",
+            client_id=10,
+            kind="SNGPC",
+            title="Test",
+            due_date=date(2025, 12, 31),
+            reference_start=ref_start,
+            reference_end=ref_end,
+        )
+
+    insert_data = mock_client.table().insert.call_args[0][0]
+    assert insert_data["reference_start"] == ref_start.isoformat()
+    assert insert_data["reference_end"] == ref_end.isoformat()
+
+
+def test_create_obligation_with_notes(mock_supabase_client):
+    """Testa create_obligation com notes."""
+    mock_client, mock_execute = mock_supabase_client
+
+    mock_execute.data = [
+        {
+            "id": "obl-notes",
+            "org_id": "org-123",
+            "client_id": 10,
+            "kind": "SNGPC",
+            "title": "Test",
+            "due_date": date(2025, 12, 31),
+            "status": "pending",
+            "notes": "Observação importante",
+            "created_by": "user-1",
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
+        }
+    ]
+
+    with patch("src.features.regulations.service._get_client", return_value=mock_client):
+        create_obligation(
+            org_id="org-123",
+            created_by="user-1",
+            client_id=10,
+            kind="SNGPC",
+            title="Test",
+            due_date=date(2025, 12, 31),
+            notes="Observação importante",
+        )
+
+    insert_data = mock_client.table().insert.call_args[0][0]
+    assert insert_data["notes"] == "Observação importante"
+
+
+# ---------------------------------------------------------------------------
+# Testes para update_obligation - campos opcionais
+# ---------------------------------------------------------------------------
+
+
+def test_update_obligation_with_reference_start(mock_supabase_client):
+    """Testa update_obligation com reference_start."""
+    mock_client, mock_execute = mock_supabase_client
+
+    ref_start = date(2025, 12, 1)
+
+    mock_execute.data = [
+        {
+            "id": "obl-123",
+            "org_id": "org-456",
+            "client_id": 5,
+            "kind": "SNGPC",
+            "title": "Test",
+            "due_date": date.today(),
+            "status": "pending",
+            "reference_start": ref_start,
+            "created_by": "user-1",
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
+        }
+    ]
+
+    with patch("src.features.regulations.service._get_client", return_value=mock_client):
+        update_obligation(
+            org_id="org-456",
+            obligation_id="obl-123",
+            reference_start=ref_start,
+        )
+
+    update_data = mock_client.table().update.call_args[0][0]
+    assert update_data["reference_start"] == ref_start.isoformat()
+
+
+def test_update_obligation_with_reference_end(mock_supabase_client):
+    """Testa update_obligation com reference_end."""
+    mock_client, mock_execute = mock_supabase_client
+
+    ref_end = date(2025, 12, 31)
+
+    mock_execute.data = [
+        {
+            "id": "obl-123",
+            "org_id": "org-456",
+            "client_id": 5,
+            "kind": "SNGPC",
+            "title": "Test",
+            "due_date": date.today(),
+            "status": "pending",
+            "reference_end": ref_end,
+            "created_by": "user-1",
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
+        }
+    ]
+
+    with patch("src.features.regulations.service._get_client", return_value=mock_client):
+        update_obligation(
+            org_id="org-456",
+            obligation_id="obl-123",
+            reference_end=ref_end,
+        )
+
+    update_data = mock_client.table().update.call_args[0][0]
+    assert update_data["reference_end"] == ref_end.isoformat()
+
+
+def test_update_obligation_with_notes(mock_supabase_client):
+    """Testa update_obligation com notes."""
+    mock_client, mock_execute = mock_supabase_client
+
+    mock_execute.data = [
+        {
+            "id": "obl-123",
+            "org_id": "org-456",
+            "client_id": 5,
+            "kind": "SNGPC",
+            "title": "Test",
+            "due_date": date.today(),
+            "status": "pending",
+            "notes": "Nova observação",
+            "created_by": "user-1",
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
+        }
+    ]
+
+    with patch("src.features.regulations.service._get_client", return_value=mock_client):
+        update_obligation(
+            org_id="org-456",
+            obligation_id="obl-123",
+            notes="Nova observação",
+        )
+
+    update_data = mock_client.table().update.call_args[0][0]
+    assert update_data["notes"] == "Nova observação"
+
+
+def test_update_obligation_with_due_date(mock_supabase_client):
+    """Testa update_obligation com due_date."""
+    mock_client, mock_execute = mock_supabase_client
+
+    new_due_date = date(2026, 1, 15)
+
+    mock_execute.data = [
+        {
+            "id": "obl-123",
+            "org_id": "org-456",
+            "client_id": 5,
+            "kind": "SNGPC",
+            "title": "Test",
+            "due_date": new_due_date,
+            "status": "pending",
+            "created_by": "user-1",
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
+        }
+    ]
+
+    with patch("src.features.regulations.service._get_client", return_value=mock_client):
+        update_obligation(
+            org_id="org-456",
+            obligation_id="obl-123",
+            due_date=new_due_date,
+        )
+
+    update_data = mock_client.table().update.call_args[0][0]
+    assert update_data["due_date"] == new_due_date.isoformat()
+
+
+def test_update_obligation_status_done_with_normalization(mock_supabase_client):
+    """Testa update_obligation com status PT-BR que normaliza para done."""
+    mock_client, mock_execute = mock_supabase_client
+
+    mock_execute.data = [
+        {
+            "id": "obl-123",
+            "org_id": "org-456",
+            "client_id": 5,
+            "kind": "SNGPC",
+            "title": "Test",
+            "due_date": date.today(),
+            "status": "done",
+            "completed_at": datetime.now(timezone.utc),
+            "created_by": "user-1",
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
+        }
+    ]
+
+    with patch("src.features.regulations.service._get_client", return_value=mock_client):
+        # Usa variação PT-BR que normaliza para "done"
+        update_obligation(
+            org_id="org-456",
+            obligation_id="obl-123",
+            status="Concluída",  # PT-BR -> normaliza para "done"
+        )
+
+    update_data = mock_client.table().update.call_args[0][0]
+    assert update_data["status"] == "done"
+    assert "completed_at" in update_data  # completed_at deve ser definido
+
+
+def test_update_obligation_status_not_done(mock_supabase_client):
+    """Testa update_obligation com status diferente de done."""
+    mock_client, mock_execute = mock_supabase_client
+
+    mock_execute.data = [
+        {
+            "id": "obl-123",
+            "org_id": "org-456",
+            "client_id": 5,
+            "kind": "SNGPC",
+            "title": "Test",
+            "due_date": date.today(),
+            "status": "overdue",
+            "created_by": "user-1",
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
+        }
+    ]
+
+    with patch("src.features.regulations.service._get_client", return_value=mock_client):
+        update_obligation(
+            org_id="org-456",
+            obligation_id="obl-123",
+            status="overdue",
+        )
+
+    update_data = mock_client.table().update.call_args[0][0]
+    assert update_data["status"] == "overdue"
+    assert "completed_at" not in update_data  # completed_at NÃO deve ser definido
+
+
+# ---------------------------------------------------------------------------
+# Testes para tratamento de erros em create_obligation
+# ---------------------------------------------------------------------------
+
+
+def test_create_obligation_no_data_returned(mock_supabase_client):
+    """Testa create_obligation quando Supabase retorna sem data."""
+    mock_client, mock_execute = mock_supabase_client
+
+    # Simula resposta vazia
+    mock_execute.data = None
+
+    with patch("src.features.regulations.service._get_client", return_value=mock_client):
+        with pytest.raises(RuntimeError, match="Failed to create obligation: no data returned"):
+            create_obligation(
+                org_id="org-123",
+                created_by="user-1",
+                client_id=10,
+                kind="SNGPC",
+                title="Test",
+                due_date=date(2025, 12, 31),
+            )
+
+
+def test_create_obligation_database_exception(mock_supabase_client):
+    """Testa create_obligation quando ocorre exceção no banco."""
+    mock_client, _ = mock_supabase_client
+
+    # Simula exceção no insert
+    mock_client.table().insert().execute.side_effect = Exception("Database error")
+
+    with patch("src.features.regulations.service._get_client", return_value=mock_client):
+        with pytest.raises(RuntimeError, match="Failed to create obligation: Database error"):
+            create_obligation(
+                org_id="org-123",
+                created_by="user-1",
+                client_id=10,
+                kind="SNGPC",
+                title="Test",
+                due_date=date(2025, 12, 31),
+            )
+
+
+# ---------------------------------------------------------------------------
+# Testes para tratamento de erros em update_obligation
+# ---------------------------------------------------------------------------
+
+
+def test_update_obligation_no_data_returned(mock_supabase_client):
+    """Testa update_obligation quando Supabase retorna sem data."""
+    mock_client, mock_execute = mock_supabase_client
+
+    # Simula resposta vazia
+    mock_execute.data = None
+
+    with patch("src.features.regulations.service._get_client", return_value=mock_client):
+        with pytest.raises(RuntimeError, match="Failed to update obligation: no data returned"):
+            update_obligation(
+                org_id="org-456",
+                obligation_id="obl-123",
+                title="New Title",
+            )
+
+
+def test_update_obligation_database_exception(mock_supabase_client):
+    """Testa update_obligation quando ocorre exceção no banco."""
+    mock_client, _ = mock_supabase_client
+
+    # Simula exceção no update
+    mock_client.table().update().eq().eq().execute.side_effect = Exception("Update failed")
+
+    with patch("src.features.regulations.service._get_client", return_value=mock_client):
+        with pytest.raises(RuntimeError, match="Failed to update obligation: Update failed"):
+            update_obligation(
+                org_id="org-456",
+                obligation_id="obl-123",
+                status="done",
+            )
+
+
+# ---------------------------------------------------------------------------
+# Testes para tratamento de erros em delete_obligation
+# ---------------------------------------------------------------------------
+
+
+def test_delete_obligation_database_exception(mock_supabase_client):
+    """Testa delete_obligation quando ocorre exceção no banco."""
+    mock_client, _ = mock_supabase_client
+
+    # Simula exceção no delete
+    mock_client.table().delete().eq().eq().execute.side_effect = Exception("Delete failed")
+
+    with patch("src.features.regulations.service._get_client", return_value=mock_client):
+        with pytest.raises(RuntimeError, match="Failed to delete obligation: Delete failed"):
+            delete_obligation(
+                org_id="org-456",
+                obligation_id="obl-123",
+            )

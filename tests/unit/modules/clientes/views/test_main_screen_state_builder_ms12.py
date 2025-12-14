@@ -22,10 +22,7 @@ def _make_row(row_id: str = "1") -> ClienteRow:
 
 
 def test_build_main_screen_state_normalizes_labels(monkeypatch: MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "src.modules.clientes.views.main_screen_state_builder.get_supabase_state",
-        lambda: ("online", "Conectado"),
-    )
+    """MS-12: build_main_screen_state normaliza labels de ordem/filtro e texto de busca."""
     rows = [_make_row("10")]
 
     state = build_main_screen_state(
@@ -35,6 +32,7 @@ def test_build_main_screen_state_normalizes_labels(monkeypatch: MonkeyPatch) -> 
         raw_search_text="  teste  ",
         selected_ids={"1", "2"},
         is_trash_screen=False,
+        is_online=True,  # MS-12: is_online é parâmetro explícito
     )
 
     assert state.order_label == "Razão Social (A→Z)"

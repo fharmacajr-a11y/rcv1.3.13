@@ -297,18 +297,18 @@ def delete_storage_folder(prefix: str, *, bucket: str | None = None) -> dict[str
         )
 
         if result["ok"]:
-            logger.info("Pasta excluída: %s (bucket=%s, %d arquivos)", target_prefix, BN, deleted_count)
+            logger.info("Pasta excluída: %s (bucket=%s, %d arquivos)", target_prefix, bn, deleted_count)
         else:
             logger.warning(
                 "Exclusão parcial da pasta %s (bucket=%s). Removidos=%d Erros=%d",
                 target_prefix,
-                BN,
+                bn,
                 deleted_count,
                 len(result["errors"]),
             )
         return result
     except Exception as exc:  # pragma: no cover - log de falha inesperada
-        logger.error("Erro ao excluir pasta %s no bucket %s: %s", target_prefix, BN, exc, exc_info=True)
+        logger.error("Erro ao excluir pasta %s no bucket %s: %s", target_prefix, bn, exc, exc_info=True)
         result["errors"].append(str(exc))
         result["message"] = f"Erro ao excluir pasta: {exc}"
         return result

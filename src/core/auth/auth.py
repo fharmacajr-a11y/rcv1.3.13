@@ -135,11 +135,25 @@ def pbkdf2_hash(
     """
     Gera hash PBKDF2-SHA256 no formato:
       pbkdf2_sha256$<iter>$<hex_salt>$<hex_hash>
+
+    Para testes, pode-se reduzir iterações via RC_PBKDF2_ITERS (PERF-001).
+    Se iterations for passado explicitamente (diferente do default), ele tem prioridade.
     """
     if not password:
         raise ValueError("password vazio")
     if salt is None:
         salt = os.urandom(16)
+
+    # PERF-001: Permitir override de iterações para testes via env var
+    # Somente se iterations for o default (1_000_000), aplicar o override
+    if iterations == 1_000_000:
+        env_iters = os.getenv("RC_PBKDF2_ITERS")
+        if env_iters:
+            try:
+                iterations = int(env_iters)
+            except ValueError:
+                pass  # Usar default se inválido
+
     pepper: str = _get_auth_pepper()
     dk: bytes = pbkdf2_hmac("sha256", (password + pepper).encode("utf-8"), salt, iterations, dklen)
     return f"pbkdf2_sha256${iterations}${binascii.hexlify(salt).decode()}${binascii.hexlify(dk).decode()}"

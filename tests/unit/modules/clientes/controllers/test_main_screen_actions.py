@@ -273,3 +273,300 @@ def test_handle_send_supabase_error():
     assert isinstance(result, ActionResult)
     assert result.kind == "error"
     assert "Network error" in result.message if result.message else False
+
+
+# ────────────────────────────────────────────────────────────────────────────────
+# Tests: Missing Coverage (Lines 146-252)
+# ────────────────────────────────────────────────────────────────────────────────
+
+
+def test_handle_new_with_non_callable():
+    """handle_new deve retornar no_callback se callback não for callable."""
+    from unittest.mock import Mock
+
+    controller = MainScreenActions(
+        vm=Mock(),
+        batch=Mock(),
+        selection=Mock(),
+        view=Mock(),
+        on_new_callback="not_callable",  # type: ignore
+    )
+
+    result = controller.handle_new()
+
+    assert isinstance(result, ActionResult)
+    assert result.kind == "no_callback"
+    assert "não configurado" in result.message.lower() if result.message else False
+
+
+def test_handle_edit_with_non_callable():
+    """handle_edit deve retornar no_callback se callback não for callable."""
+    from unittest.mock import Mock
+
+    controller = MainScreenActions(
+        vm=Mock(),
+        batch=Mock(),
+        selection=Mock(),
+        view=Mock(),
+        on_edit_callback="not_callable",  # type: ignore
+    )
+
+    result = controller.handle_edit()
+
+    assert isinstance(result, ActionResult)
+    assert result.kind == "no_callback"
+
+
+def test_handle_open_trash_with_non_callable():
+    """handle_open_trash deve retornar no_callback se callback não for callable."""
+    from unittest.mock import Mock
+
+    controller = MainScreenActions(
+        vm=Mock(),
+        batch=Mock(),
+        selection=Mock(),
+        view=Mock(),
+        on_open_lixeira_callback=123,  # type: ignore
+    )
+
+    result = controller.handle_open_trash()
+
+    assert isinstance(result, ActionResult)
+    assert result.kind == "no_callback"
+
+
+def test_handle_open_trash_error():
+    """handle_open_trash deve retornar error se callback lançar exceção."""
+    from unittest.mock import Mock
+
+    controller = MainScreenActions(
+        vm=Mock(),
+        batch=Mock(),
+        selection=Mock(),
+        view=Mock(),
+        on_open_lixeira_callback=Mock(side_effect=RuntimeError("Trash error")),
+    )
+
+    result = controller.handle_open_trash()
+
+    assert isinstance(result, ActionResult)
+    assert result.kind == "error"
+    assert "Trash error" in result.message if result.message else False
+
+
+def test_handle_open_subfolders_without_callback():
+    """handle_open_subfolders deve retornar no_callback se não configurado."""
+    from unittest.mock import Mock
+
+    controller = MainScreenActions(
+        vm=Mock(),
+        batch=Mock(),
+        selection=Mock(),
+        view=Mock(),
+        on_open_subpastas_callback=None,
+    )
+
+    result = controller.handle_open_subfolders()
+
+    assert isinstance(result, ActionResult)
+    assert result.kind == "no_callback"
+
+
+def test_handle_open_subfolders_with_non_callable():
+    """handle_open_subfolders deve retornar no_callback se não for callable."""
+    from unittest.mock import Mock
+
+    controller = MainScreenActions(
+        vm=Mock(),
+        batch=Mock(),
+        selection=Mock(),
+        view=Mock(),
+        on_open_subpastas_callback=[],  # type: ignore
+    )
+
+    result = controller.handle_open_subfolders()
+
+    assert isinstance(result, ActionResult)
+    assert result.kind == "no_callback"
+
+
+def test_handle_open_subfolders_error():
+    """handle_open_subfolders deve retornar error se callback lançar exceção."""
+    from unittest.mock import Mock
+
+    controller = MainScreenActions(
+        vm=Mock(),
+        batch=Mock(),
+        selection=Mock(),
+        view=Mock(),
+        on_open_subpastas_callback=Mock(side_effect=ValueError("Subfolder error")),
+    )
+
+    result = controller.handle_open_subfolders()
+
+    assert isinstance(result, ActionResult)
+    assert result.kind == "error"
+    assert "Subfolder error" in result.message if result.message else False
+
+
+def test_handle_send_supabase_without_callback():
+    """handle_send_supabase deve retornar no_callback se não configurado."""
+    from unittest.mock import Mock
+
+    controller = MainScreenActions(
+        vm=Mock(),
+        batch=Mock(),
+        selection=Mock(),
+        view=Mock(),
+        on_upload_callback=None,
+    )
+
+    result = controller.handle_send_supabase()
+
+    assert isinstance(result, ActionResult)
+    assert result.kind == "no_callback"
+
+
+def test_handle_send_supabase_with_non_callable():
+    """handle_send_supabase deve retornar no_callback se não for callable."""
+    from unittest.mock import Mock
+
+    controller = MainScreenActions(
+        vm=Mock(),
+        batch=Mock(),
+        selection=Mock(),
+        view=Mock(),
+        on_upload_callback={},  # type: ignore
+    )
+
+    result = controller.handle_send_supabase()
+
+    assert isinstance(result, ActionResult)
+    assert result.kind == "no_callback"
+
+
+def test_handle_send_folder_without_callback():
+    """handle_send_folder deve retornar no_callback se não configurado."""
+    from unittest.mock import Mock
+
+    controller = MainScreenActions(
+        vm=Mock(),
+        batch=Mock(),
+        selection=Mock(),
+        view=Mock(),
+        on_upload_folder_callback=None,
+    )
+
+    result = controller.handle_send_folder()
+
+    assert isinstance(result, ActionResult)
+    assert result.kind == "no_callback"
+
+
+def test_handle_send_folder_with_non_callable():
+    """handle_send_folder deve retornar no_callback se não for callable."""
+    from unittest.mock import Mock
+
+    controller = MainScreenActions(
+        vm=Mock(),
+        batch=Mock(),
+        selection=Mock(),
+        view=Mock(),
+        on_upload_folder_callback=42,  # type: ignore
+    )
+
+    result = controller.handle_send_folder()
+
+    assert isinstance(result, ActionResult)
+    assert result.kind == "no_callback"
+
+
+def test_handle_send_folder_error():
+    """handle_send_folder deve retornar error se callback lançar exceção."""
+    from unittest.mock import Mock
+
+    controller = MainScreenActions(
+        vm=Mock(),
+        batch=Mock(),
+        selection=Mock(),
+        view=Mock(),
+        on_upload_folder_callback=Mock(side_effect=IOError("Folder error")),
+    )
+
+    result = controller.handle_send_folder()
+
+    assert isinstance(result, ActionResult)
+    assert result.kind == "error"
+    assert "Folder error" in result.message if result.message else False
+
+
+def test_handle_obrigacoes_without_callback():
+    """handle_obrigacoes deve retornar no_callback se não configurado."""
+    from unittest.mock import Mock
+
+    controller = MainScreenActions(
+        vm=Mock(),
+        batch=Mock(),
+        selection=Mock(),
+        view=Mock(),
+        on_obrigacoes_callback=None,
+    )
+
+    result = controller.handle_obrigacoes()
+
+    assert isinstance(result, ActionResult)
+    assert result.kind == "no_callback"
+
+
+def test_handle_obrigacoes_with_non_callable():
+    """handle_obrigacoes deve retornar no_callback se não for callable."""
+    from unittest.mock import Mock
+
+    controller = MainScreenActions(
+        vm=Mock(),
+        batch=Mock(),
+        selection=Mock(),
+        view=Mock(),
+        on_obrigacoes_callback="string",  # type: ignore
+    )
+
+    result = controller.handle_obrigacoes()
+
+    assert isinstance(result, ActionResult)
+    assert result.kind == "no_callback"
+
+
+def test_handle_obrigacoes_error():
+    """handle_obrigacoes deve retornar error se callback lançar exceção."""
+    from unittest.mock import Mock
+
+    controller = MainScreenActions(
+        vm=Mock(),
+        batch=Mock(),
+        selection=Mock(),
+        view=Mock(),
+        on_obrigacoes_callback=Mock(side_effect=Exception("Obrigacoes error")),
+    )
+
+    result = controller.handle_obrigacoes()
+
+    assert isinstance(result, ActionResult)
+    assert result.kind == "error"
+    assert "Obrigacoes error" in result.message if result.message else False
+
+
+def test_handle_delete_always_returns_ok():
+    """handle_delete sempre retorna ok (delegação para View)."""
+    from unittest.mock import Mock
+
+    controller = MainScreenActions(
+        vm=Mock(),
+        batch=Mock(),
+        selection=Mock(),
+        view=Mock(),
+    )
+
+    result = controller.handle_delete()
+
+    assert isinstance(result, ActionResult)
+    assert result.kind == "ok"

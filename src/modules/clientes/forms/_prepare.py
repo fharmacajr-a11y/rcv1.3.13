@@ -151,10 +151,10 @@ def _ask_subpasta(parent: Any) -> str | None:
     Retorna o nome da subpasta escolhida ou None se cancelado/indisponível.
     """
     try:
-        from src.ui.forms.actions import SubpastaDialog
+        from src.modules.forms.actions import SubpastaDialog
     except ImportError as exc:
         logger.exception(
-            "Erro ao importar SubpastaDialog: %s. Verifique src.ui.forms.actions.",
+            "Erro ao importar SubpastaDialog: %s. Verifique src.modules.forms.actions.",
             exc,
         )
         return None

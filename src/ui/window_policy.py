@@ -11,7 +11,7 @@ log = logging.getLogger(__name__)
 
 def _workarea_win32() -> tuple[int, int, int, int] | None:
     """Retorna (x, y, w, h) da área útil (sem taskbar) no Windows."""
-    SPI_GETWORKAREA = 48  # 0x0030
+    SPI_GETWORKAREA = 48  # noqa: N806 (Win32 constant)
 
     class RECT(ctypes.Structure):
         _fields_ = [

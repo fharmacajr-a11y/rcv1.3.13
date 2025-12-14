@@ -118,9 +118,15 @@ def schedule_healthcheck_after_gui(
     logger: Optional[logging.Logger] = None,
     delay_ms: int = 500,
 ) -> None:
-    """Agenda o health-check em background após a GUI existir."""
+    """Agenda o health-check em background após a GUI existir.
 
-    def _run_check():
+    CORREÇÃO: Executa check em threading.Thread para não bloquear a UI.
+    Atualiza UI via app.after(0, ...) de forma thread-safe.
+    """
+    import threading
+
+    def _run_check_in_background():
+        """Executado em thread daemon para não bloquear UI."""
         try:
             from src.utils.network import check_internet_connectivity
             import os
@@ -132,7 +138,7 @@ def schedule_healthcheck_after_gui(
                     logger.debug("Not in cloud-only mode, skipping health check")
                 return
 
-            # Run check with aggressive timeout (non-blocking)
+            # Run check with aggressive timeout (now truly non-blocking)
             has_internet = check_internet_connectivity(timeout=1.0)
 
             if logger:
@@ -141,21 +147,34 @@ def schedule_healthcheck_after_gui(
                 else:
                     logger.warning("Background health check: No internet detected")
 
-            # Update app footer or status if available
+            # Update app footer or status if available (thread-safe via after)
+            def _update_ui():
+                try:
+                    if hasattr(app, "footer"):
+                        status = "online" if has_internet else "offline"
+                        app.footer.set_cloud(status)
+                except Exception as exc:
+                    if logger:
+                        logger.debug("Falha ao atualizar footer com status da nuvem", exc_info=exc)
+
+            # Schedule UI update on main thread
             try:
-                if hasattr(app, "footer"):
-                    status = "online" if has_internet else "offline"
-                    app.footer.set_cloud(status)
+                app.after(0, _update_ui)
             except Exception as exc:
                 if logger:
-                    logger.debug("Falha ao atualizar footer com status da nuvem", exc_info=exc)
+                    logger.debug("Falha ao agendar atualização de UI: %s", exc)
 
         except Exception as exc:
             if logger:
                 logger.warning("Background health check failed: %s", exc)
 
-    # Schedule to run after GUI is ready
-    app.after(delay_ms, _run_check)
+    def _start_worker():
+        """Inicia worker thread (daemon) para não bloquear shutdown."""
+        worker = threading.Thread(target=_run_check_in_background, daemon=True, name="HealthCheckWorker")
+        worker.start()
+
+    # Schedule worker start after GUI is ready (não bloqueia)
+    app.after(delay_ms, _start_worker)
 
 
 __all__ = [

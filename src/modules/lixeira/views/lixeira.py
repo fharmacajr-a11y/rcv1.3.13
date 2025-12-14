@@ -251,9 +251,9 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[tb.Toplev
                     if alias:
                         initial = (alias[:1] or "").upper()
                     else:
-                        from src.modules.hub.authors import _author_display_name as _author_name
+                        from src.modules.hub.services.authors_service import get_author_display_name
 
-                        display = _author_name(app, by) if app is not None else ""
+                        display = get_author_display_name(app, by, start_async_fetch=False) if app is not None else ""
                         if not display:
                             display = by
                         initial = (display[:1] or by[:1] or "").upper()

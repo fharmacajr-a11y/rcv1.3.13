@@ -201,7 +201,7 @@ class UploadsBrowserWindow(tk.Toplevel):
         if not folder_path.endswith("/"):
             folder_path = folder_path + "/"
         items = list_browser_items(folder_path, bucket=self._bucket)
-        return items
+        return list(items)  # Convert Iterable to list
 
     # ------------------------------------------------------------------
     # Actions

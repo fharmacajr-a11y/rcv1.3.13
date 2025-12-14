@@ -189,7 +189,7 @@ def format_confirmation_message(
         True
     """
     if is_destructive:
-        return f"APAGAR DEFINITIVAMENTE {count} registro(s)? " "Esta ação não pode ser desfeita."
+        return f"APAGAR DEFINITIVAMENTE {count} registro(s)? Esta ação não pode ser desfeita."
 
     return f"{action} {count} registro(s) para a lista principal?"
 
@@ -294,7 +294,7 @@ def should_open_new_trash_window(window_exists: bool) -> bool:
 
 def should_refresh_trash_window(
     window_exists: bool,
-    has_pending_changes: bool = False,
+    has_pending_changes: bool = False,  # noqa: ARG001
 ) -> bool:
     """
     Determina se deve recarregar a janela da lixeira.

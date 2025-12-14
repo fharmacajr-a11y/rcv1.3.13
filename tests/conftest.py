@@ -8,14 +8,78 @@ e configure corretamente os caminhos para importar modulos do projeto.
 from __future__ import annotations
 
 import gc
+import os
 import sqlite3
 import sys
 import warnings
+from pathlib import Path
 from typing import Any, Generator
 from unittest.mock import MagicMock
 
 import pytest
 import tkinter as tk
+
+
+# ============================================================================
+# DESABILITAR MESSAGEBOXES DO TKINTER - Evita janelas modais durante testes
+# ============================================================================
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _disable_tk_messageboxes():
+    """
+    Desabilita messageboxes do tkinter durante toda a sessão de testes.
+    Isso evita que janelas modais travem a execução do pytest.
+    """
+    mp = pytest.MonkeyPatch()
+    try:
+        import tkinter.messagebox as mb
+    except Exception:
+        yield
+        return
+
+    # show* não deve abrir janela
+    mp.setattr(mb, "showinfo", lambda *a, **k: None, raising=False)
+    mp.setattr(mb, "showwarning", lambda *a, **k: None, raising=False)
+    mp.setattr(mb, "showerror", lambda *a, **k: None, raising=False)
+
+    # ask* precisa retornar algo consistente
+    mp.setattr(mb, "askyesno", lambda *a, **k: False, raising=False)
+    mp.setattr(mb, "askokcancel", lambda *a, **k: False, raising=False)
+    mp.setattr(mb, "askretrycancel", lambda *a, **k: False, raising=False)
+    mp.setattr(mb, "askquestion", lambda *a, **k: "no", raising=False)
+
+    yield
+    mp.undo()
+
+
+# ============================================================================
+# BLINDAGEM SYS.PATH - Garante que imports venham do repo atual
+# ============================================================================
+PROJECT_ROOT = Path(__file__).resolve().parents[1]  # tests/conftest.py -> project root
+
+# Remove o PROJECT_ROOT se já estiver em sys.path (pode estar em posição errada)
+if str(PROJECT_ROOT) in sys.path:
+    sys.path.remove(str(PROJECT_ROOT))
+
+# Insere no início para ter prioridade máxima
+sys.path.insert(0, str(PROJECT_ROOT))
+
+# Opcional: Remover outros clones v1.x.xx do Desktop que podem causar imports errados
+# (Somente se detectarmos que estão no sys.path)
+_desktop_pattern = str(Path.home() / "Desktop")
+_current_version = PROJECT_ROOT.name  # Ex: "v1.4.26"
+
+for path_entry in list(sys.path):
+    path_obj = Path(path_entry).resolve()
+    # Se for outro clone v1.x no Desktop e não for o atual, remove
+    if str(path_obj).startswith(_desktop_pattern) and path_obj.name.startswith("v1.") and path_obj != PROJECT_ROOT:
+        sys.path.remove(path_entry)
+
+# ============================================================================
+# MODO TESTE - Define ambiente antes de qualquer importação
+# ============================================================================
+os.environ.setdefault("RC_TESTING", "1")
 
 
 # ============================================================================
@@ -81,6 +145,31 @@ def _patch_showwarning() -> None:
 
 
 _apply_global_warning_filters()
+
+
+# ============================================================================
+# HELPER PARA DETECÇÃO DE Tk/Tcl FUNCIONAL
+# ============================================================================
+
+
+def has_working_tk() -> bool:
+    """Verifica se Tk/Tcl está funcional no ambiente.
+
+    Retorna False se Tcl/Tk não estiver instalado ou tiver arquivos faltando
+    (ex.: auto.tcl, init.tcl). Útil para skip de testes GUI em ambientes
+    sem instalação completa do Python/Tcl.
+    """
+    try:
+        import tkinter as tk
+
+        root = tk.Tk()
+        root.withdraw()
+        root.update_idletasks()
+        root.destroy()
+        return True
+    except Exception:
+        return False
+
 
 try:
     import ttkbootstrap as tb
@@ -235,6 +324,75 @@ def fake_env_vars(fake_supabase_url: str, fake_supabase_key: str) -> dict[str, s
         "RC_LOG_LEVEL": "DEBUG",
         "ENVIRONMENT": "test",
     }
+
+
+# ============================================================================
+# FIXTURES DE TK/TKINTER - Ambiente gráfico seguro para testes
+# ============================================================================
+
+
+@pytest.fixture
+def tk_root(tk_root_session) -> Generator[tk.Misc, None, None]:
+    """
+    Cria uma janela Toplevel segura e invisível para testes de UI.
+
+    Usa Toplevel em vez de Tk() para evitar conflitos com o root principal
+    da sessão. Tkinter recomenda apenas um Tk() por processo; janelas extras
+    devem ser Toplevel.
+
+    Em ambientes sem Tk válido (CI/headless), o teste é automaticamente
+    marcado como skip com mensagem clara, evitando TclError no output.
+
+    Garante cleanup automático via teardown.
+
+    Examples:
+        >>> def test_frame_creation(tk_root):
+        ...     frame = Frame(tk_root)
+        ...     assert frame.master is tk_root
+    """
+    # Forçar garbage collection antes de criar novo Toplevel
+    gc.collect()
+
+    try:
+        win = tk.Toplevel(tk_root_session)
+        win.withdraw()
+
+        # Limpar cache do ttkbootstrap Style para evitar referências a Tk destruídos
+        try:
+            import ttkbootstrap.style
+
+            # Forçar recriação do StyleBuilderTTK com o novo Toplevel
+            if hasattr(ttkbootstrap.style, "_builder_cache"):
+                ttkbootstrap.style._builder_cache.clear()
+        except (ImportError, AttributeError):
+            pass
+
+    except tk.TclError as exc:
+        pytest.skip(f"Toplevel não disponível (TclError: {exc}) – pulando teste dependente de Tk")
+
+    # Forçar update_idletasks para garantir que o Toplevel está pronto
+    try:
+        win.update_idletasks()
+    except tk.TclError:
+        pass
+
+    yield win
+
+    try:
+        if win.winfo_exists():
+            # Destruir todos os filhos primeiro (de trás para frente para evitar problemas de ordem)
+            children = list(win.winfo_children())
+            for child in reversed(children):
+                try:
+                    child.destroy()
+                except tk.TclError:
+                    pass
+            win.destroy()
+    except tk.TclError:
+        pass
+
+    # Forçar garbage collection após destruir
+    gc.collect()
 
 
 # ============================================================================
@@ -413,10 +571,40 @@ def isolated_prefs_dir(tmp_path, monkeypatch: pytest.MonkeyPatch):
 # ============================================================================
 
 
+@pytest.fixture(scope="session", autouse=True)
+def tcl_session() -> Generator[tk.Tcl, None, None]:
+    """
+    Cria um único interpreter Tcl leve para a sessão de testes (AUTOUSE).
+
+    Esta fixture é executada automaticamente no início da sessão de testes,
+    criando um interpreter Tcl que provê funcionalidades básicas de Tk sem
+    inicializar o subsistema completo de GUI. Isso evita RuntimeError do tipo
+    "No master specified and tkinter.NoDefaultRoot() was called" em testes
+    que não criam widgets mas importam módulos que dependem de Tkinter.
+
+    Para testes que realmente criam widgets Tk, use a fixture tk_root_session
+    explicitamente no teste.
+
+    Benefício de performance: ~0.5-1.0s mais rápido que tk_root_session.
+    """
+    try:
+        interp = tk.Tcl()
+    except tk.TclError as exc:
+        pytest.skip(f"Tcl nao esta disponivel neste ambiente de testes (TclError: {exc})")
+
+    yield interp
+
+
 @pytest.fixture(scope="session")
 def tk_root_session() -> Generator[tk.Tk, None, None]:
     """
-    Cria um único interpreter Tk para a sessão de testes de UI.
+    Cria um único interpreter Tk completo para a sessão de testes de UI.
+
+    ⚠️  IMPORTANTE: Esta fixture NÃO é autouse. Solicite explicitamente em
+        testes que REALMENTE criam widgets Tk (Toplevel, Frame, Button, etc).
+
+    Esta fixture cria um root Tkinter global oculto que evita RuntimeError do
+    tipo "No master specified and tkinter.NoDefaultRoot() was called".
 
     Marca o root como 'de teste' e protege o método destroy, para que
     nenhum código de produção/teste mate o interpreter durante os testes.
@@ -426,8 +614,9 @@ def tk_root_session() -> Generator[tk.Tk, None, None]:
     """
     try:
         root = tk.Tk()
-    except tk.TclError:
-        pytest.skip("Tkinter nao esta disponivel neste ambiente de testes.")
+    except tk.TclError as exc:
+        # Em ambientes sem Tk (CI/headless), skip com mensagem detalhada
+        pytest.skip(f"Tkinter nao esta disponivel neste ambiente de testes (TclError: {exc})")
 
     root.withdraw()
 
@@ -465,3 +654,34 @@ def tk_root_session() -> Generator[tk.Tk, None, None]:
             original_destroy()
         except tk.TclError:
             pass
+
+
+# ============================================================================
+# SKIP AUTOMÁTICO DE TESTES COM CRASH CONHECIDO NO WINDOWS
+# ============================================================================
+
+
+def pytest_collection_modifyitems(config, items):
+    """
+    Pula automaticamente testes de PDF Preview views que causam access violation
+    no Windows devido a bugs no ttkbootstrap/tkinter element_create.
+
+    Para forçar execução desses testes: RC_RUN_PDF_UI_TESTS=1
+    """
+    # Se quiser forçar rodar esses testes, setar RC_RUN_PDF_UI_TESTS=1
+    if os.getenv("RC_RUN_PDF_UI_TESTS") == "1":
+        return
+
+    if sys.platform.startswith("win"):
+        crash_files = {
+            "tests/unit/modules/pdf_preview/views/test_view_main_window_contract_fasePDF_final.py",
+            "tests/unit/modules/pdf_preview/views/test_view_widgets_contract_fasePDF_final.py",
+        }
+        for item in items:
+            p = str(item.fspath).replace("\\", "/")
+            if any(p.endswith(f) for f in crash_files):
+                item.add_marker(
+                    pytest.mark.skip(
+                        reason="Windows: ttkbootstrap/tkinter element_create causa access violation (crash). Rodar com RC_RUN_PDF_UI_TESTS=1 se precisar."
+                    )
+                )

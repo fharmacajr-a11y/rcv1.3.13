@@ -108,6 +108,14 @@ class NotesGatewayProtocol(Protocol):
         """
         ...
 
+    def reload_notes(self) -> None:
+        """Força recarregamento das notas."""
+        ...
+
+    def reload_dashboard(self) -> None:
+        """Força recarregamento do dashboard."""
+        ...
+
 
 class NotesController:
     """Controller headless para ações da Central de Anotações.
@@ -157,7 +165,9 @@ class NotesController:
                 return (False, "Texto vazio")
 
             # Validar autenticação
-            if not self._gateway.is_authenticated():
+            is_auth = self._gateway.is_authenticated()
+
+            if not is_auth:
                 self._gateway.show_error(
                     "Não autenticado",
                     "Você precisa estar autenticado para adicionar uma anotação.",
@@ -165,7 +175,9 @@ class NotesController:
                 return (False, "Não autenticado")
 
             # Validar conexão
-            if not self._gateway.is_online():
+            is_onl = self._gateway.is_online()
+
+            if not is_onl:
                 self._gateway.show_error(
                     "Sem conexão",
                     "Não é possível adicionar anotações sem conexão com a internet.",
@@ -194,11 +206,16 @@ class NotesController:
                 # Atualizar estado do ViewModel
                 self._vm.after_note_created(new_note)
 
-            self._logger.debug("Nota adicionada com sucesso")
+                # Forçar reload das notas para garantir que a UI seja atualizada
+                self._gateway.reload_notes()
+
+                # CRÍTICO: Dashboard também precisa ser atualizado (notas podem afetar dashboard)
+                self._gateway.reload_dashboard()
+
             return (True, "")
 
         except Exception as e:
-            self._logger.exception("Erro ao adicionar nota")
+            self._logger.exception(f"NotesController.handle_add_note_click: EXCEÇÃO: {e}")
             self._gateway.show_error(
                 "Erro",
                 f"Erro ao adicionar anotação: {e}",
@@ -248,6 +265,10 @@ class NotesController:
                 # Atualizar estado
                 self._vm.after_note_updated(updated_note)
 
+                # Forçar reload das notas
+                self._gateway.reload_notes()
+                self._gateway.reload_dashboard()
+
             return (True, "")
 
         except Exception as e:
@@ -291,6 +312,10 @@ class NotesController:
                 # Atualizar estado
                 self._vm.after_note_deleted(note_id)
 
+                # Forçar reload das notas
+                self._gateway.reload_notes()
+                self._gateway.reload_dashboard()
+
             return (True, "")
 
         except Exception as e:
@@ -299,7 +324,9 @@ class NotesController:
             return (False, str(e))
 
     def handle_toggle_pin(self, note_id: Any) -> tuple[bool, str]:
-        """Handle para fixar/desfixar nota (futuro).
+        """Handle para fixar/desfixar nota.
+
+        MF-5: Inverte o estado is_pinned da nota.
 
         Args:
             note_id: ID da nota.
@@ -307,12 +334,48 @@ class NotesController:
         Returns:
             Tuple (success: bool, message: str)
         """
-        # TODO: implementar quando necessário
-        self._logger.debug("Toggle pin não implementado ainda")
-        return (False, "Não implementado")
+        try:
+            # Encontrar nota no estado
+            current_state = self._vm.state
+            note_data = None
+            for note in current_state.notes:
+                if note.id == note_id:
+                    note_data = note
+                    break
+
+            if not note_data:
+                self._gateway.show_error("Erro", "Nota não encontrada.")
+                return (False, "Nota não encontrada")
+
+            # Inverter flag is_pinned
+            new_is_pinned = not getattr(note_data, "is_pinned", False)
+
+            # Atualizar via service
+            if self._notes_service:
+                updated_note = self._notes_service.update_note(
+                    note_id=note_id,
+                    is_pinned=new_is_pinned,
+                )
+
+                # Atualizar estado
+                self._vm.after_note_updated(updated_note)
+
+                # Forçar reload das notas
+                self._gateway.reload_notes()
+                self._gateway.reload_dashboard()
+
+            self._logger.debug(f"Nota {note_id} {'fixada' if new_is_pinned else 'desfixada'}")
+            return (True, "")
+
+        except Exception as e:
+            self._logger.exception("Erro ao fixar/desfixar nota")
+            self._gateway.show_error("Erro", f"Erro ao alterar fixação da nota: {e}")
+            return (False, str(e))
 
     def handle_toggle_done(self, note_id: Any) -> tuple[bool, str]:
-        """Handle para marcar/desmarcar nota como feita (futuro).
+        """Handle para marcar/desmarcar nota como feita.
+
+        MF-5: Inverte o estado is_done da nota.
 
         Args:
             note_id: ID da nota.
@@ -320,9 +383,43 @@ class NotesController:
         Returns:
             Tuple (success: bool, message: str)
         """
-        # TODO: implementar quando necessário
-        self._logger.debug("Toggle done não implementado ainda")
-        return (False, "Não implementado")
+        try:
+            # Encontrar nota no estado
+            current_state = self._vm.state
+            note_data = None
+            for note in current_state.notes:
+                if note.id == note_id:
+                    note_data = note
+                    break
+
+            if not note_data:
+                self._gateway.show_error("Erro", "Nota não encontrada.")
+                return (False, "Nota não encontrada")
+
+            # Inverter flag is_done
+            new_is_done = not getattr(note_data, "is_done", False)
+
+            # Atualizar via service
+            if self._notes_service:
+                updated_note = self._notes_service.update_note(
+                    note_id=note_id,
+                    is_done=new_is_done,
+                )
+
+                # Atualizar estado
+                self._vm.after_note_updated(updated_note)
+
+                # Forçar reload das notas
+                self._gateway.reload_notes()
+                self._gateway.reload_dashboard()
+
+            self._logger.debug(f"Nota {note_id} marcada como {'concluída' if new_is_done else 'pendente'}")
+            return (True, "")
+
+        except Exception as e:
+            self._logger.exception("Erro ao marcar/desmarcar nota como feita")
+            self._gateway.show_error("Erro", f"Erro ao alterar conclusão da nota: {e}")
+            return (False, str(e))
 
     def handle_load_notes(self, org_id: str, author_names_cache: dict[str, str] | None = None) -> NotesViewState:
         """Handle para carregar notas.

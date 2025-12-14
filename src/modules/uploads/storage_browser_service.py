@@ -85,7 +85,9 @@ def list_storage_objects_service(ctx: Dict[str, Any]) -> Dict[str, Any]:
             if isinstance(obj, dict):
                 is_folder = obj.get("metadata") is None
                 name = obj.get("name")
-                full_path = obj.get("full_path") or (f"{normalized_prefix}/{name}".strip("/") if normalized_prefix else name)
+                full_path = obj.get("full_path") or (
+                    f"{normalized_prefix}/{name}".strip("/") if normalized_prefix else name
+                )
                 objects.append({"name": name, "is_folder": is_folder, "full_path": full_path})
 
         result["ok"] = True

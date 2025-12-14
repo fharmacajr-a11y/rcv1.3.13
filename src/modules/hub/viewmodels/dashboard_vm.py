@@ -95,6 +95,30 @@ class DashboardViewModel:
         """Estado atual do Dashboard (imutável)."""
         return self._state
 
+    def start_loading(self) -> DashboardViewState:
+        """Cria estado de loading inicial.
+
+        Returns:
+            Estado com is_loading=True e campos limpos.
+        """
+        self._state = DashboardViewState(is_loading=True)
+        return self._state
+
+    def from_error(self, message: str) -> DashboardViewState:
+        """Cria estado de erro.
+
+        Args:
+            message: Mensagem de erro a ser exibida.
+
+        Returns:
+            Estado com error_message preenchido e is_loading=False.
+        """
+        self._state = DashboardViewState(
+            is_loading=False,
+            error_message=message,
+        )
+        return self._state
+
     def load(self, org_id: str, today: date | None = None) -> DashboardViewState:
         """Carrega snapshot e monta cards de indicadores.
 

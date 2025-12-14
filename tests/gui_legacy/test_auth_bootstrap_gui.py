@@ -4,10 +4,10 @@ import os
 import pytest
 from datetime import datetime, timezone
 
-pytestmark = [pytest.mark.legacy_ui]
+from src.core import auth_bootstrap  # noqa: E402
+from src.utils import prefs as prefs_module  # noqa: E402
 
-from src.core import auth_bootstrap
-from src.utils import prefs as prefs_module
+pytestmark = [pytest.mark.legacy_ui]
 
 if os.environ.get("RC_RUN_GUI_TESTS") != "1":
     pytest.skip(

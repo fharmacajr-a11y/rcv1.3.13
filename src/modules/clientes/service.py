@@ -61,7 +61,7 @@ class ClienteCNPJDuplicadoError(ClienteServiceError):
     def __init__(self, cliente: Any) -> None:
         self.cliente = cliente
         super().__init__(
-            f"CNPJ duplicado para ID {getattr(cliente, 'id', '?')} " f"- {getattr(cliente, 'razao_social', '') or '-'}"
+            f"CNPJ duplicado para ID {getattr(cliente, 'id', '?')} - {getattr(cliente, 'razao_social', '') or '-'}"
         )
 
 

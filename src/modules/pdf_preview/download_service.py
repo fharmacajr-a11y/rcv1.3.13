@@ -27,7 +27,7 @@ def get_default_download_dir() -> Path:
         import uuid
 
         folder_id_downloads = uuid.UUID("{374DE290-123F-4565-9164-39C4925E467B}")
-        SHGetKnownFolderPath = ctypes.windll.shell32.SHGetKnownFolderPath
+        SHGetKnownFolderPath = ctypes.windll.shell32.SHGetKnownFolderPath  # noqa: N806 (Win32 API name)
         SHGetKnownFolderPath.argtypes = [
             ctypes.c_void_p,
             ctypes.c_uint32,

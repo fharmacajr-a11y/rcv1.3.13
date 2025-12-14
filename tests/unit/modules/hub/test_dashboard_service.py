@@ -514,7 +514,7 @@ class TestGetDashboardSnapshot:
             {
                 "id": f"task-{i}",
                 "title": f"Tarefa {i}",
-                "due_date": f"2025-01-{20+i}",
+                "due_date": f"2025-01-{20 + i}",
                 "client_id": None,
                 "priority": "normal",
                 "status": "pending",

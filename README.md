@@ -1,6 +1,6 @@
 # RC – Gestor de Clientes
 
-![Versão](https://img.shields.io/badge/versão-1.3.92-blue)
+![Versão](https://img.shields.io/badge/versão-1.4.26-blue)
 ![Python](https://img.shields.io/badge/python-3.10+-green)
 ![Plataforma](https://img.shields.io/badge/plataforma-Windows-lightgrey)
 
@@ -178,7 +178,7 @@ O projeto usa **PyInstaller** para gerar o executável e **Inno Setup** para cri
 pyinstaller rcgestor.spec
 ```
 
-O executável será gerado em `dist/RC-Gestor-Clientes-1.3.92.exe`.
+O executável será gerado em `dist/RC-Gestor-Clientes-1.4.26.exe`.
 
 ### Gerar instalador (Inno Setup)
 
@@ -247,7 +247,13 @@ Ao reportar um bug, inclua:
 
 Veja o histórico completo de alterações em [CHANGELOG.md](CHANGELOG.md).
 
-### Última versão: v1.3.92 (2025-12-07)
+### Última versão: v1.4.26 (2025-12-11)
+
+- Correção do Hub: Dashboard e Notas agora sempre mostram conteúdo (loading/erro/dados/vazio)
+- Melhoria de UX: mensagens amigáveis em caso de erro ou ausencia de dados
+- Tratamento robusto de estados de carregamento e autenticação
+
+### Versão anterior: v1.3.92 (2025-12-07)
 
 - Correção de cores dos botões no Hub
 - Reordenação de botões (Clientes → Senhas → Auditoria)

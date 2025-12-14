@@ -346,7 +346,8 @@ def test_ask_storage_subfolder(monkeypatch):
         def wait_window(self, dialog):
             self.dialog = dialog
 
-    monkeypatch.setattr("src.modules.forms.view.SubpastaDialog", FakeDialog)
+    # Patch no lugar correto onde uploader_supabase importa SubpastaDialog
+    monkeypatch.setattr("src.modules.clientes.forms.client_subfolder_prompt.SubpastaDialog", FakeDialog)
     parent = Parent()
     assert uploader.ask_storage_subfolder(parent) == "sub"
 

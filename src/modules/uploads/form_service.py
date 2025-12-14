@@ -24,8 +24,7 @@ def salvar_e_upload_docs_service(ctx: Dict[str, Any]) -> Dict[str, Any]:
     Este service legado não é mais chamado em produção.
     """
     log.warning(
-        "DEPRECATED: salvar_e_upload_docs_service foi chamado. "
-        "Use src.modules.uploads.views.upload_dialog.UploadDialog"
+        "DEPRECATED: salvar_e_upload_docs_service foi chamado. Use src.modules.uploads.views.upload_dialog.UploadDialog"
     )
 
     raise NotImplementedError(
@@ -33,15 +32,4 @@ def salvar_e_upload_docs_service(ctx: Dict[str, Any]) -> Dict[str, Any]:
         "Use src.modules.uploads.views.upload_dialog.UploadDialog + "
         "src.modules.uploads.service.upload_items_for_client"
     )
-
-    ctx = getattr(self, "_upload_ctx", None)
-    if not ctx:
-        log.warning("_upload_ctx não encontrado no self")
-        return None
-
-    if ctx.abort:
-        log.warning("Upload abortado pelo usuário (ctx.abort=True)")
-        return None
-
-    # TODO: Aqui pode-se adicionar mais lógica de negócio conforme necessário
     return None

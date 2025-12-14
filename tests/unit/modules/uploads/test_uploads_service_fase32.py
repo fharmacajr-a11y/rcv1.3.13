@@ -39,14 +39,12 @@ class TestUploadFolderToSupabase:
         mock_repository.upload_local_file.assert_not_called()
         mock_repository.insert_document_record.assert_not_called()
 
-    @patch("src.modules.uploads.service._sha256")
     @patch("src.modules.uploads.service.repository")
     @patch("src.modules.uploads.service.validation")
     def test_upload_caminho_feliz(
         self,
         mock_validation: Mock,
         mock_repository: Mock,
-        mock_sha256: Mock,
     ) -> None:
         """Deve fazer upload completo com sucesso quando tudo está OK."""
         # Arrange
@@ -461,14 +459,61 @@ class TestDeleteStorageObject:
         mock_get_bucket.return_value = "rc-docs"
         mock_adapter_instance = MagicMock()
         mock_adapter_class.return_value = mock_adapter_instance
+        mock_delete_fn.return_value = True
 
         # Act
-        uploads_service.delete_storage_object("org/client/file.pdf")
+        result = uploads_service.delete_storage_object("org/client/file.pdf")
 
         # Assert
+        assert result is True
         mock_get_bucket.assert_called_once()
         mock_adapter_class.assert_called_once_with(bucket="rc-docs")
         mock_delete_fn.assert_called_once_with("org/client/file.pdf")
+
+    @patch("src.modules.uploads.service._delete_file")
+    @patch("src.modules.uploads.service.SupabaseStorageAdapter")
+    @patch("src.modules.uploads.service.get_clients_bucket")
+    def test_delete_retorna_false_quando_delete_falha(
+        self,
+        mock_get_bucket: Mock,
+        mock_adapter_class: Mock,
+        mock_delete_fn: Mock,
+    ) -> None:
+        """Deve retornar False quando _delete_file retorna False."""
+        # Arrange
+        mock_get_bucket.return_value = "rc-docs"
+        mock_adapter_instance = MagicMock()
+        mock_adapter_class.return_value = mock_adapter_instance
+        mock_delete_fn.return_value = False
+
+        # Act
+        result = uploads_service.delete_storage_object("org/client/file.pdf")
+
+        # Assert
+        assert result is False
+        mock_delete_fn.assert_called_once_with("org/client/file.pdf")
+
+    @patch("src.modules.uploads.service._delete_file")
+    @patch("src.modules.uploads.service.SupabaseStorageAdapter")
+    @patch("src.modules.uploads.service.get_clients_bucket")
+    def test_delete_retorna_false_quando_exception(
+        self,
+        mock_get_bucket: Mock,
+        mock_adapter_class: Mock,
+        mock_delete_fn: Mock,
+    ) -> None:
+        """Deve retornar False quando lança exceção."""
+        # Arrange
+        mock_get_bucket.return_value = "rc-docs"
+        mock_adapter_instance = MagicMock()
+        mock_adapter_class.return_value = mock_adapter_instance
+        mock_delete_fn.side_effect = RuntimeError("Erro de conexão")
+
+        # Act
+        result = uploads_service.delete_storage_object("org/client/file.pdf")
+
+        # Assert
+        assert result is False
 
     @patch("src.modules.uploads.service._delete_file")
     @patch("src.modules.uploads.service.SupabaseStorageAdapter")
@@ -483,11 +528,13 @@ class TestDeleteStorageObject:
         # Arrange
         mock_adapter_instance = MagicMock()
         mock_adapter_class.return_value = mock_adapter_instance
+        mock_delete_fn.return_value = True
 
         # Act
-        uploads_service.delete_storage_object("path/to/file.pdf", bucket="custom-bucket")
+        result = uploads_service.delete_storage_object("path/to/file.pdf", bucket="custom-bucket")
 
         # Assert
+        assert result is True
         mock_get_bucket.assert_not_called()
         mock_adapter_class.assert_called_once_with(bucket="custom-bucket")
         mock_delete_fn.assert_called_once_with("path/to/file.pdf")
@@ -539,6 +586,32 @@ class TestWrapperFunctions:
         assert result == b"FILE_CONTENT"
         mock_download_bytes.assert_called_once_with("bucket", "path/file.pdf")
 
+    @patch("src.modules.forms.view.download_file")
+    def test_download_file_lazy_import(self, mock_forms_download: Mock) -> None:
+        """Deve fazer lazy import e delegar para src.modules.forms.view.download_file."""
+        # Arrange
+        mock_forms_download.return_value = {"ok": True}
+
+        # Act
+        result = uploads_service.download_file("bucket", "remote_key", "/local/path")
+
+        # Assert
+        assert result == {"ok": True}
+        mock_forms_download.assert_called_once_with("bucket", "remote_key", "/local/path")
+
+    @patch("src.modules.forms.view.list_storage_objects")
+    def test_list_storage_objects_lazy_import(self, mock_forms_list: Mock) -> None:
+        """Deve fazer lazy import e delegar para src.modules.forms.view.list_storage_objects."""
+        # Arrange
+        mock_forms_list.return_value = [{"name": "file1.pdf"}, {"name": "file2.pdf"}]
+
+        # Act
+        result = list(uploads_service.list_storage_objects("bucket", "prefix"))
+
+        # Assert
+        assert len(result) == 2
+        mock_forms_list.assert_called_once_with("bucket", "prefix")
+
 
 # ========================================
 # Testes para UploadItem dataclass
@@ -589,3 +662,451 @@ class TestMakeUploadItem:
         assert isinstance(item, UploadItem)
         assert item.path == path
         assert item.relative_path == relative
+
+
+# ========================================
+# Testes para _collect_storage_keys
+# ========================================
+
+
+class TestCollectStorageKeys:
+    """Testes para a função _collect_storage_keys."""
+
+    @patch("src.modules.uploads.service.list_storage_objects")
+    def test_coleta_arquivos_simples(self, mock_list_fn: Mock) -> None:
+        """Deve coletar keys de arquivos sem recursão."""
+        # Arrange
+        mock_list_fn.return_value = [
+            {"full_path": "org/client/file1.pdf", "is_folder": False},
+            {"full_path": "org/client/file2.pdf", "is_folder": False},
+        ]
+
+        # Act
+        result = uploads_service._collect_storage_keys("rc-docs", "org/client")
+
+        # Assert
+        assert result == ["org/client/file1.pdf", "org/client/file2.pdf"]
+        mock_list_fn.assert_called_once_with("rc-docs", prefix="org/client")
+
+    @patch("src.modules.uploads.service.list_storage_objects")
+    def test_coleta_recursivamente_pastas(self, mock_list_fn: Mock) -> None:
+        """Deve coletar keys recursivamente quando há subpastas."""
+        # Arrange
+        # Primeira chamada: retorna uma pasta e um arquivo
+        # Segunda chamada (recursiva): retorna arquivos dentro da pasta
+        mock_list_fn.side_effect = [
+            [
+                {"full_path": "org/client/subfolder", "is_folder": True},
+                {"full_path": "org/client/file1.pdf", "is_folder": False},
+            ],
+            [
+                {"full_path": "org/client/subfolder/file2.pdf", "is_folder": False},
+                {"full_path": "org/client/subfolder/file3.pdf", "is_folder": False},
+            ],
+        ]
+
+        # Act
+        result = uploads_service._collect_storage_keys("rc-docs", "org/client")
+
+        # Assert
+        assert len(result) == 3
+        assert "org/client/file1.pdf" in result
+        assert "org/client/subfolder/file2.pdf" in result
+        assert "org/client/subfolder/file3.pdf" in result
+        assert mock_list_fn.call_count == 2
+
+    @patch("src.modules.uploads.service.list_storage_objects")
+    def test_ignora_entradas_sem_full_path(self, mock_list_fn: Mock) -> None:
+        """Deve ignorar entradas sem full_path."""
+        # Arrange
+        mock_list_fn.return_value = [
+            {"full_path": "", "is_folder": False},
+            {"full_path": "org/client/file.pdf", "is_folder": False},
+            {"is_folder": False},  # sem full_path
+        ]
+
+        # Act
+        result = uploads_service._collect_storage_keys("rc-docs", "org/client")
+
+        # Assert
+        assert result == ["org/client/file.pdf"]
+
+    @patch("src.modules.uploads.service.list_storage_objects")
+    def test_retorna_vazio_quando_sem_arquivos(self, mock_list_fn: Mock) -> None:
+        """Deve retornar lista vazia quando não há arquivos."""
+        # Arrange
+        mock_list_fn.return_value = []
+
+        # Act
+        result = uploads_service._collect_storage_keys("rc-docs", "org/client/empty")
+
+        # Assert
+        assert result == []
+
+
+# ========================================
+# Testes para delete_storage_folder
+# ========================================
+
+
+class TestDeleteStorageFolder:
+    """Testes para a função delete_storage_folder."""
+
+    @patch("src.modules.uploads.service._delete_file")
+    @patch("src.modules.uploads.service._collect_storage_keys")
+    @patch("src.modules.uploads.service.SupabaseStorageAdapter")
+    @patch("src.modules.uploads.service.get_clients_bucket")
+    def test_delete_folder_com_sucesso(
+        self,
+        mock_get_bucket: Mock,
+        mock_adapter_class: Mock,
+        mock_collect_keys: Mock,
+        mock_delete_fn: Mock,
+    ) -> None:
+        """Deve deletar todos os arquivos da pasta com sucesso."""
+        # Arrange
+        mock_get_bucket.return_value = "rc-docs"
+        mock_adapter_instance = MagicMock()
+        mock_adapter_class.return_value = mock_adapter_instance
+        mock_collect_keys.return_value = ["org/client/file1.pdf", "org/client/file2.pdf"]
+        mock_delete_fn.return_value = True
+
+        # Act
+        result = uploads_service.delete_storage_folder("org/client")
+
+        # Assert
+        assert result["ok"] is True
+        assert result["deleted"] == 2
+        assert result["errors"] == []
+        assert "Removidos 2 arquivo(s)" in result["message"]
+        mock_collect_keys.assert_called_once_with("rc-docs", "org/client")
+        assert mock_delete_fn.call_count == 2
+
+    @patch("src.modules.uploads.service._delete_file")
+    @patch("src.modules.uploads.service._collect_storage_keys")
+    @patch("src.modules.uploads.service.SupabaseStorageAdapter")
+    @patch("src.modules.uploads.service.get_clients_bucket")
+    def test_delete_folder_com_falhas_parciais(
+        self,
+        mock_get_bucket: Mock,
+        mock_adapter_class: Mock,
+        mock_collect_keys: Mock,
+        mock_delete_fn: Mock,
+    ) -> None:
+        """Deve reportar falhas ao deletar alguns arquivos."""
+        # Arrange
+        mock_get_bucket.return_value = "rc-docs"
+        mock_adapter_instance = MagicMock()
+        mock_adapter_class.return_value = mock_adapter_instance
+        mock_collect_keys.return_value = ["org/client/file1.pdf", "org/client/file2.pdf", "org/client/file3.pdf"]
+
+        # Simular: primeiro arquivo OK, segundo falha (retorna False), terceiro lança exceção
+        mock_delete_fn.side_effect = [True, False, RuntimeError("Erro de rede")]
+
+        # Act
+        result = uploads_service.delete_storage_folder("org/client")
+
+        # Assert
+        assert result["ok"] is False
+        assert result["deleted"] == 1
+        assert len(result["errors"]) == 2
+        assert "Falha ao excluir org/client/file2.pdf" in result["errors"]
+        assert "org/client/file3.pdf: Erro de rede" in result["errors"]
+        assert "Falha ao excluir alguns arquivos" in result["message"]
+
+    @patch("src.modules.uploads.service.get_clients_bucket")
+    def test_delete_folder_sem_prefix(self, mock_get_bucket: Mock) -> None:
+        """Deve retornar erro quando prefix está vazio."""
+        # Arrange
+        mock_get_bucket.return_value = "rc-docs"
+
+        # Act
+        result = uploads_service.delete_storage_folder("")
+
+        # Assert
+        assert result["ok"] is False
+        assert result["deleted"] == 0
+        assert "prefix vazio" in result["errors"]
+        assert "Prefixo da pasta não informado" in result["message"]
+
+    @patch("src.modules.uploads.service._collect_storage_keys")
+    @patch("src.modules.uploads.service.get_clients_bucket")
+    def test_delete_folder_erro_ao_coletar_keys(self, mock_get_bucket: Mock, mock_collect_keys: Mock) -> None:
+        """Deve tratar erro ao coletar keys dos arquivos."""
+        # Arrange
+        mock_get_bucket.return_value = "rc-docs"
+        mock_collect_keys.side_effect = RuntimeError("Erro ao listar")
+
+        # Act
+        result = uploads_service.delete_storage_folder("org/client")
+
+        # Assert
+        assert result["ok"] is False
+        assert result["deleted"] == 0
+        assert "Erro ao listar" in result["errors"]
+        assert "Erro ao listar objetos" in result["message"]
+
+    @patch("src.modules.uploads.service._delete_file")
+    @patch("src.modules.uploads.service._collect_storage_keys")
+    @patch("src.modules.uploads.service.SupabaseStorageAdapter")
+    @patch("src.modules.uploads.service.get_clients_bucket")
+    def test_delete_folder_com_bucket_customizado(
+        self,
+        mock_get_bucket: Mock,
+        mock_adapter_class: Mock,
+        mock_collect_keys: Mock,
+        mock_delete_fn: Mock,
+    ) -> None:
+        """Deve usar bucket especificado quando fornecido."""
+        # Arrange
+        mock_adapter_instance = MagicMock()
+        mock_adapter_class.return_value = mock_adapter_instance
+        mock_collect_keys.return_value = ["path/file.pdf"]
+        mock_delete_fn.return_value = True
+
+        # Act
+        result = uploads_service.delete_storage_folder("path", bucket="custom-bucket")
+
+        # Assert
+        assert result["ok"] is True
+        mock_get_bucket.assert_not_called()
+        mock_collect_keys.assert_called_once_with("custom-bucket", "path")
+        mock_adapter_class.assert_called_once_with(bucket="custom-bucket")
+
+
+# ========================================
+# Testes para download_and_open_file
+# ========================================
+
+
+class TestDownloadAndOpenFile:
+    """Testes para a função download_and_open_file."""
+
+    @patch("src.modules.uploads.service.sys.platform", "win32")
+    @patch("src.modules.uploads.service.os.startfile")
+    @patch("src.modules.uploads.service.os.path.getsize")
+    @patch("src.modules.uploads.service.download_file")
+    @patch("src.modules.uploads.service.create_temp_file")
+    @patch("src.modules.uploads.service.get_clients_bucket")
+    def test_download_and_open_modo_external_sucesso(
+        self,
+        mock_get_bucket: Mock,
+        mock_create_temp: Mock,
+        mock_download_fn: Mock,
+        mock_getsize: Mock,
+        mock_startfile: Mock,
+    ) -> None:
+        """Deve baixar e abrir arquivo no modo external com sucesso."""
+        # Arrange
+        mock_get_bucket.return_value = "rc-docs"
+        mock_temp_info = MagicMock()
+        mock_temp_info.path = "/tmp/downloaded_file.pdf"
+        mock_create_temp.return_value = mock_temp_info
+        mock_download_fn.return_value = {"ok": True, "message": "Download OK"}
+        mock_getsize.return_value = 2048
+
+        # Act
+        result = uploads_service.download_and_open_file("org/client/file.pdf", mode="external")
+
+        # Assert
+        assert result["ok"] is True
+        assert result["temp_path"] == "/tmp/downloaded_file.pdf"
+        assert "aberto com sucesso" in result["message"]
+        mock_create_temp.assert_called_once_with("file.pdf")
+        mock_download_fn.assert_called_once_with("rc-docs", "org/client/file.pdf", "/tmp/downloaded_file.pdf")
+        mock_startfile.assert_called_once_with("/tmp/downloaded_file.pdf")
+
+    @patch("src.modules.uploads.service.download_file")
+    @patch("src.modules.uploads.service.create_temp_file")
+    @patch("src.modules.uploads.service.get_clients_bucket")
+    def test_download_and_open_modo_internal_sucesso(
+        self,
+        mock_get_bucket: Mock,
+        mock_create_temp: Mock,
+        mock_download_fn: Mock,
+    ) -> None:
+        """Deve baixar arquivo no modo internal sem abrir."""
+        # Arrange
+        mock_get_bucket.return_value = "rc-docs"
+        mock_temp_info = MagicMock()
+        mock_temp_info.path = "/tmp/downloaded_file.pdf"
+        mock_create_temp.return_value = mock_temp_info
+        mock_download_fn.return_value = {"ok": True}
+
+        # Act
+        result = uploads_service.download_and_open_file("org/client/file.pdf", mode="internal")
+
+        # Assert
+        assert result["ok"] is True
+        assert result["temp_path"] == "/tmp/downloaded_file.pdf"
+        assert result["mode"] == "internal"
+        assert result["display_name"] == "file.pdf"
+        assert "modo interno" in result["message"]
+
+    @patch("src.modules.uploads.service.get_clients_bucket")
+    def test_download_and_open_modo_invalido(self, mock_get_bucket: Mock) -> None:
+        """Deve lançar ValueError para modo inválido."""
+        # Act & Assert
+        with pytest.raises(ValueError, match="Modo inválido: invalid"):
+            uploads_service.download_and_open_file("org/client/file.pdf", mode="invalid")
+
+    @patch("src.modules.uploads.service.create_temp_file")
+    @patch("src.modules.uploads.service.get_clients_bucket")
+    def test_download_and_open_erro_ao_criar_temp(self, mock_get_bucket: Mock, mock_create_temp: Mock) -> None:
+        """Deve retornar erro quando falha ao criar arquivo temporário."""
+        # Arrange
+        mock_get_bucket.return_value = "rc-docs"
+        mock_create_temp.side_effect = RuntimeError("Sem espaço em disco")
+
+        # Act
+        result = uploads_service.download_and_open_file("org/client/file.pdf")
+
+        # Assert
+        assert result["ok"] is False
+        assert "Erro ao preparar arquivo temporário" in result["message"]
+        assert "Sem espaço em disco" in result["error"]
+
+    @patch("src.modules.uploads.service.download_file")
+    @patch("src.modules.uploads.service.create_temp_file")
+    @patch("src.modules.uploads.service.get_clients_bucket")
+    def test_download_and_open_erro_no_download(
+        self,
+        mock_get_bucket: Mock,
+        mock_create_temp: Mock,
+        mock_download_fn: Mock,
+    ) -> None:
+        """Deve retornar erro quando download falha."""
+        # Arrange
+        mock_get_bucket.return_value = "rc-docs"
+        mock_temp_info = MagicMock()
+        mock_temp_info.path = "/tmp/file.pdf"
+        mock_create_temp.return_value = mock_temp_info
+        mock_download_fn.return_value = {"ok": False, "message": "Arquivo não encontrado"}
+
+        # Act
+        result = uploads_service.download_and_open_file("org/client/missing.pdf")
+
+        # Assert
+        assert result["ok"] is False
+        assert "Arquivo não encontrado" in result["message"]
+
+    @patch("src.modules.uploads.service.sys.platform", "win32")
+    @patch("src.modules.uploads.service.os.startfile")
+    @patch("src.modules.uploads.service.os.path.getsize")
+    @patch("src.modules.uploads.service.download_file")
+    @patch("src.modules.uploads.service.create_temp_file")
+    @patch("src.modules.uploads.service.get_clients_bucket")
+    def test_download_and_open_erro_ao_abrir_viewer(
+        self,
+        mock_get_bucket: Mock,
+        mock_create_temp: Mock,
+        mock_download_fn: Mock,
+        mock_getsize: Mock,
+        mock_startfile: Mock,
+    ) -> None:
+        """Deve retornar erro quando falha ao abrir no visualizador."""
+        # Arrange
+        mock_get_bucket.return_value = "rc-docs"
+        mock_temp_info = MagicMock()
+        mock_temp_info.path = "/tmp/file.pdf"
+        mock_create_temp.return_value = mock_temp_info
+        mock_download_fn.return_value = {"ok": True}
+        mock_getsize.return_value = 1024
+
+        # Simular erro ao abrir
+        mock_startfile.side_effect = RuntimeError("Visualizador não encontrado")
+
+        # Act
+        result = uploads_service.download_and_open_file("org/client/file.pdf", mode="external")
+
+        # Assert
+        assert result["ok"] is False
+        assert "não foi possível abri-lo" in result["message"]
+        assert result["temp_path"] == "/tmp/file.pdf"
+        assert "Visualizador não encontrado" in result["error"]
+
+    @patch("src.modules.uploads.service.download_file")
+    @patch("src.modules.uploads.service.create_temp_file")
+    @patch("src.modules.uploads.service.get_clients_bucket")
+    def test_download_and_open_com_bucket_customizado(
+        self,
+        mock_get_bucket: Mock,
+        mock_create_temp: Mock,
+        mock_download_fn: Mock,
+    ) -> None:
+        """Deve usar bucket especificado quando fornecido."""
+        # Arrange
+        mock_temp_info = MagicMock()
+        mock_temp_info.path = "/tmp/file.pdf"
+        mock_create_temp.return_value = mock_temp_info
+        mock_download_fn.return_value = {"ok": True}
+
+        # Act
+        result = uploads_service.download_and_open_file("path/file.pdf", bucket="custom-bucket", mode="internal")
+
+        # Assert
+        assert result["ok"] is True
+        mock_get_bucket.assert_not_called()
+        mock_download_fn.assert_called_once_with("custom-bucket", "path/file.pdf", "/tmp/file.pdf")
+
+    @patch("src.modules.uploads.service.sys.platform", "darwin")
+    @patch("src.modules.uploads.service.subprocess.Popen")
+    @patch("src.modules.uploads.service.os.path.getsize")
+    @patch("src.modules.uploads.service.download_file")
+    @patch("src.modules.uploads.service.create_temp_file")
+    @patch("src.modules.uploads.service.get_clients_bucket")
+    def test_download_and_open_modo_external_darwin(
+        self,
+        mock_get_bucket: Mock,
+        mock_create_temp: Mock,
+        mock_download_fn: Mock,
+        mock_getsize: Mock,
+        mock_popen: Mock,
+    ) -> None:
+        """Deve abrir arquivo no macOS usando 'open' command."""
+        # Arrange
+        mock_get_bucket.return_value = "rc-docs"
+        mock_temp_info = MagicMock()
+        mock_temp_info.path = "/tmp/file.pdf"
+        mock_create_temp.return_value = mock_temp_info
+        mock_download_fn.return_value = {"ok": True}
+        mock_getsize.return_value = 1024
+
+        # Act
+        result = uploads_service.download_and_open_file("org/client/file.pdf", mode="external")
+
+        # Assert
+        assert result["ok"] is True
+        assert result["temp_path"] == "/tmp/file.pdf"
+        mock_popen.assert_called_once_with(["open", "/tmp/file.pdf"])
+
+    @patch("src.modules.uploads.service.sys.platform", "linux")
+    @patch("src.modules.uploads.service.subprocess.Popen")
+    @patch("src.modules.uploads.service.os.path.getsize")
+    @patch("src.modules.uploads.service.download_file")
+    @patch("src.modules.uploads.service.create_temp_file")
+    @patch("src.modules.uploads.service.get_clients_bucket")
+    def test_download_and_open_modo_external_linux(
+        self,
+        mock_get_bucket: Mock,
+        mock_create_temp: Mock,
+        mock_download_fn: Mock,
+        mock_getsize: Mock,
+        mock_popen: Mock,
+    ) -> None:
+        """Deve abrir arquivo no Linux usando 'xdg-open' command."""
+        # Arrange
+        mock_get_bucket.return_value = "rc-docs"
+        mock_temp_info = MagicMock()
+        mock_temp_info.path = "/tmp/file.pdf"
+        mock_create_temp.return_value = mock_temp_info
+        mock_download_fn.return_value = {"ok": True}
+        mock_getsize.return_value = 1024
+
+        # Act
+        result = uploads_service.download_and_open_file("org/client/file.pdf", mode="external")
+
+        # Assert
+        assert result["ok"] is True
+        assert result["temp_path"] == "/tmp/file.pdf"
+        mock_popen.assert_called_once_with(["xdg-open", "/tmp/file.pdf"])

@@ -164,14 +164,21 @@ class TestUploadWithRetry:
         assert isinstance(exc, ConnectionError)
         assert delay > 0
 
-    def test_backoff_increases_with_attempts(self) -> None:
+    def test_backoff_increases_with_attempts(self, monkeypatch: pytest.MonkeyPatch) -> None:
         delays: list[float] = []
+        sleep_calls: list[float] = []
 
         def capture_delay(attempt: int, exc: Exception, delay: float) -> None:
             delays.append(delay)
 
         def always_fails(*args: Any, **kwargs: Any) -> str:
             raise ConnectionError("fail")
+
+        # Patch time.sleep para não esperar de verdade (PERF-001)
+        def fake_sleep(seconds: float) -> None:
+            sleep_calls.append(seconds)
+
+        monkeypatch.setattr("src.modules.uploads.upload_retry.time.sleep", fake_sleep)
 
         with pytest.raises(UploadNetworkError):
             upload_with_retry(
@@ -186,6 +193,9 @@ class TestUploadWithRetry:
         assert len(delays) == 3
         assert delays[1] > delays[0]
         assert delays[2] > delays[1]
+        # Verificar que sleep foi chamado com os delays corretos
+        assert len(sleep_calls) == 3
+        assert sleep_calls == delays
 
     def test_permission_error_no_retry(self) -> None:
         def raise_permission_error(*args: Any, **kwargs: Any) -> str:

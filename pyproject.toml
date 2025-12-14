@@ -18,6 +18,12 @@ ignore = [
 "tests/unit/core/test_auth_bootstrap_microfase.py" = ["E741", "F401"]
 "tests/unit/modules/passwords/test_passwords_screen_ui.py" = ["F401", "F811", "F841"]
 "tests/unit/modules/lixeira/test_lixeira_service.py" = ["E731"]
+"typings/**/*" = ["N801", "N802", "N803", "N806"]  # Typings refletem APIs externas
+"tests/utils/test_themes.py" = ["N802"]  # Mock classes simulam API externa
+"tests/unit/infra/test_archives.py" = ["N802"]  # Test name matches ZIP64 standard
+"tests/unit/adapters/test_adapters_supabase_storage_fase37.py" = ["N806"]  # Mock naming convention
+"tests/unit/modules/clientes/forms/test_prepare_round12.py" = ["N806"]  # Mock naming convention
+"docs/devtools/pdf_batch_from_images.py" = ["N806"]  # REPO_ROOT is a constant pattern
 
 [tool.mypy]
 ignore_missing_imports = true

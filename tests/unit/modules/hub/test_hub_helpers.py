@@ -15,6 +15,7 @@ from src.modules.hub.colors import _author_color, _ensure_author_tag
 from src.modules.hub.format import _format_note_line, _format_timestamp
 from src.modules.hub.state import HubState, ensure_hub_state, ensure_state
 from src.modules.hub.utils import _hash_dict, _hsl_to_hex, _normalize_note
+from src.modules.hub.viewmodels.notes_vm import NoteItemView
 
 
 # ====================================================================
@@ -306,6 +307,37 @@ def test_normalize_note_string():
     assert result["created_at"] == ""
     assert result["author_email"] == ""
     assert result["body"] == "String simples"
+
+
+def test_normalize_note_dataclass_noteitemview():
+    """_normalize_note deve extrair campos de NoteItemView (dataclass) sem usar repr."""
+    note = NoteItemView(
+        id="abc123",
+        body="Texto da nota",
+        created_at="2025-01-15T10:00:00+00:00",
+        author_email="user@test.com",
+        author_name="User Test",
+        is_pinned=False,
+        is_done=False,
+        formatted_line="[10:00] User Test: Texto da nota",
+        tag_name="author_user@test.com",
+    )
+    result = _normalize_note(note)
+
+    # Verifica que extrai corretamente os atributos
+    assert result["id"] == "abc123"
+    assert result["created_at"] == "2025-01-15T10:00:00+00:00"
+    assert result["author_email"] == "user@test.com"
+    assert result["author_name"] == "User Test"
+    assert result["body"] == "Texto da nota"
+    assert result["is_pinned"] is False
+    assert result["is_done"] is False
+    assert result["formatted_line"] == "[10:00] User Test: Texto da nota"
+    assert result["tag_name"] == "author_user@test.com"
+
+    # Verifica que NÃO retorna repr do dataclass
+    assert "NoteItemView" not in result["body"]
+    assert "NoteItemView" not in str(result)
 
 
 def test_normalize_note_integer():

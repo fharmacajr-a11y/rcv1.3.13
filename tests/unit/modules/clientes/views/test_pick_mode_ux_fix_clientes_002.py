@@ -15,9 +15,6 @@ from __future__ import annotations
 from unittest.mock import Mock, patch
 from typing import TYPE_CHECKING
 
-import pytest
-from tests.helpers.tk_skip import require_tk
-
 
 if TYPE_CHECKING:
     pass
@@ -465,193 +462,162 @@ __all__ = [
 class TestFooterPickModeMethods:
     """FIX-CLIENTES-007: Testa métodos enter_pick_mode e leave_pick_mode do ClientesFooter."""
 
-    def test_footer_enter_pick_mode_disables_all_buttons(self) -> None:
+    def test_footer_enter_pick_mode_disables_all_buttons(self, tk_root) -> None:
         """enter_pick_mode deve salvar estados e desabilitar todos os botões do footer."""
-        import tkinter as tk
         from src.modules.clientes.views.footer import ClientesFooter
 
-        require_tk("Tkinter não está disponível neste ambiente")
-        root = tk.Tk()
+        footer = ClientesFooter(
+            master=tk_root,
+            on_novo=lambda: None,
+            on_editar=lambda: None,
+            on_subpastas=lambda: None,
+            on_enviar_supabase=lambda: None,
+            on_enviar_pasta=lambda: None,
+            on_batch_delete=lambda: None,
+            on_batch_restore=lambda: None,
+            on_batch_export=lambda: None,
+        )
+        footer.pack()
+        tk_root.update_idletasks()
 
-        try:
-            footer = ClientesFooter(
-                master=root,
-                on_novo=lambda: None,
-                on_editar=lambda: None,
-                on_subpastas=lambda: None,
-                on_enviar_supabase=lambda: None,
-                on_enviar_pasta=lambda: None,
-                on_batch_delete=lambda: None,
-                on_batch_restore=lambda: None,
-                on_batch_export=lambda: None,
-            )
-            footer.pack()
-            root.update_idletasks()
+        # Garantir estados iniciais variados
+        footer.btn_novo.configure(state="normal")
+        footer.btn_editar.configure(state="disabled")
+        footer.btn_subpastas.configure(state="normal")
+        footer.btn_enviar.configure(state="normal")
+        tk_root.update_idletasks()
 
-            # Garantir estados iniciais variados
-            footer.btn_novo.configure(state="normal")
-            footer.btn_editar.configure(state="disabled")
-            footer.btn_subpastas.configure(state="normal")
-            footer.btn_enviar.configure(state="normal")
-            root.update_idletasks()
+        # Act
+        footer.enter_pick_mode()
+        tk_root.update_idletasks()
 
-            # Act
-            footer.enter_pick_mode()
-            root.update_idletasks()
+        # Assert - todos devem estar disabled
+        assert str(footer.btn_novo["state"]) == "disabled"
+        assert str(footer.btn_editar["state"]) == "disabled"
+        assert str(footer.btn_subpastas["state"]) == "disabled"
+        assert str(footer.btn_enviar["state"]) == "disabled"
 
-            # Assert - todos devem estar disabled
-            assert str(footer.btn_novo["state"]) == "disabled"
-            assert str(footer.btn_editar["state"]) == "disabled"
-            assert str(footer.btn_subpastas["state"]) == "disabled"
-            assert str(footer.btn_enviar["state"]) == "disabled"
+        # Assert - estados foram salvos
+        assert footer.btn_novo in footer._pick_prev_states
+        assert footer._pick_prev_states[footer.btn_novo] == "normal"
+        assert footer._pick_prev_states[footer.btn_editar] == "disabled"
 
-            # Assert - estados foram salvos
-            assert footer.btn_novo in footer._pick_prev_states
-            assert footer._pick_prev_states[footer.btn_novo] == "normal"
-            assert footer._pick_prev_states[footer.btn_editar] == "disabled"
-
-        finally:
-            root.destroy()
-
-    def test_footer_leave_pick_mode_restores_saved_states(self) -> None:
+    def test_footer_leave_pick_mode_restores_saved_states(self, tk_root) -> None:
         """leave_pick_mode deve restaurar os estados originais dos botões."""
-        import tkinter as tk
         from src.modules.clientes.views.footer import ClientesFooter
 
-        require_tk("Tkinter não está disponível neste ambiente")
-        root = tk.Tk()
+        footer = ClientesFooter(
+            master=tk_root,
+            on_novo=lambda: None,
+            on_editar=lambda: None,
+            on_subpastas=lambda: None,
+            on_enviar_supabase=lambda: None,
+            on_enviar_pasta=lambda: None,
+            on_batch_delete=lambda: None,
+            on_batch_restore=lambda: None,
+            on_batch_export=lambda: None,
+        )
+        footer.pack()
+        tk_root.update_idletasks()
 
-        try:
-            footer = ClientesFooter(
-                master=root,
-                on_novo=lambda: None,
-                on_editar=lambda: None,
-                on_subpastas=lambda: None,
-                on_enviar_supabase=lambda: None,
-                on_enviar_pasta=lambda: None,
-                on_batch_delete=lambda: None,
-                on_batch_restore=lambda: None,
-                on_batch_export=lambda: None,
-            )
-            footer.pack()
-            root.update_idletasks()
+        # Configurar estados variados ANTES de entrar em pick mode
+        footer.btn_novo.configure(state="normal")
+        footer.btn_editar.configure(state="disabled")
+        footer.btn_subpastas.configure(state="normal")
+        footer.btn_enviar.configure(state="disabled")
+        tk_root.update_idletasks()
 
-            # Configurar estados variados ANTES de entrar em pick mode
-            footer.btn_novo.configure(state="normal")
-            footer.btn_editar.configure(state="disabled")
-            footer.btn_subpastas.configure(state="normal")
-            footer.btn_enviar.configure(state="disabled")
-            root.update_idletasks()
+        # Entrar em pick mode (vai salvar os estados acima)
+        footer.enter_pick_mode()
+        tk_root.update_idletasks()
 
-            # Entrar em pick mode (vai salvar os estados acima)
-            footer.enter_pick_mode()
-            root.update_idletasks()
+        # Verificar que TODOS ficaram disabled
+        assert str(footer.btn_novo["state"]) == "disabled"
+        assert str(footer.btn_editar["state"]) == "disabled"
 
-            # Verificar que TODOS ficaram disabled
-            assert str(footer.btn_novo["state"]) == "disabled"
-            assert str(footer.btn_editar["state"]) == "disabled"
+        # Act - sair do pick mode
+        footer.leave_pick_mode()
+        tk_root.update_idletasks()
 
-            # Act - sair do pick mode
-            footer.leave_pick_mode()
-            root.update_idletasks()
+        # Assert - estados originais devem ser restaurados
+        assert str(footer.btn_novo["state"]) == "normal", "btn_novo deve voltar a 'normal'"
+        assert str(footer.btn_editar["state"]) == "disabled", "btn_editar deve continuar 'disabled'"
+        assert str(footer.btn_subpastas["state"]) == "normal", "btn_subpastas deve voltar a 'normal'"
+        assert str(footer.btn_enviar["state"]) == "disabled", "btn_enviar deve continuar 'disabled'"
 
-            # Assert - estados originais devem ser restaurados
-            assert str(footer.btn_novo["state"]) == "normal", "btn_novo deve voltar a 'normal'"
-            assert str(footer.btn_editar["state"]) == "disabled", "btn_editar deve continuar 'disabled'"
-            assert str(footer.btn_subpastas["state"]) == "normal", "btn_subpastas deve voltar a 'normal'"
-            assert str(footer.btn_enviar["state"]) == "disabled", "btn_enviar deve continuar 'disabled'"
+        # Assert - dicionário de estados foi limpo
+        assert len(footer._pick_prev_states) == 0, "Estados salvos devem ser limpos após restauração"
 
-            # Assert - dicionário de estados foi limpo
-            assert len(footer._pick_prev_states) == 0, "Estados salvos devem ser limpos após restauração"
-
-        finally:
-            root.destroy()
-
-    def test_footer_leave_pick_mode_without_enter_does_not_crash(self) -> None:
+    def test_footer_leave_pick_mode_without_enter_does_not_crash(self, tk_root) -> None:
         """leave_pick_mode sem enter_pick_mode prévio não deve crashar."""
-        import tkinter as tk
         from src.modules.clientes.views.footer import ClientesFooter
 
-        require_tk("Tkinter não está disponível neste ambiente")
-        root = tk.Tk()
-        try:
-            footer = ClientesFooter(
-                master=root,
-                on_novo=lambda: None,
-                on_editar=lambda: None,
-                on_subpastas=lambda: None,
-                on_enviar_supabase=lambda: None,
-                on_enviar_pasta=lambda: None,
-                on_batch_delete=lambda: None,
-                on_batch_restore=lambda: None,
-                on_batch_export=lambda: None,
-            )
-            footer.pack()
-            root.update_idletasks()
+        footer = ClientesFooter(
+            master=tk_root,
+            on_novo=lambda: None,
+            on_editar=lambda: None,
+            on_subpastas=lambda: None,
+            on_enviar_supabase=lambda: None,
+            on_enviar_pasta=lambda: None,
+            on_batch_delete=lambda: None,
+            on_batch_restore=lambda: None,
+            on_batch_export=lambda: None,
+        )
+        footer.pack()
+        tk_root.update_idletasks()
 
-            # Act & Assert - não deve lançar exceção
-            footer.leave_pick_mode()
-            root.update_idletasks()
+        # Act & Assert - não deve lançar exceção
+        footer.leave_pick_mode()
+        tk_root.update_idletasks()
 
-        finally:
-            root.destroy()
-
-    @pytest.mark.skip(reason="Ambiente Tkinter não configurado - tk.tcl missing")
-    def test_footer_enter_pick_mode_multiple_times_keeps_first_state(self) -> None:
+    def test_footer_enter_pick_mode_multiple_times_keeps_first_state(self, tk_root) -> None:
         """Chamar enter_pick_mode múltiplas vezes deve preservar o estado original."""
-        import tkinter as tk
         from src.modules.clientes.views.footer import ClientesFooter
 
-        require_tk("Tkinter não está disponível neste ambiente")
-        root = tk.Tk()
-        try:
-            footer = ClientesFooter(
-                master=root,
-                on_novo=lambda: None,
-                on_editar=lambda: None,
-                on_subpastas=lambda: None,
-                on_enviar_supabase=lambda: None,
-                on_enviar_pasta=lambda: None,
-                on_batch_delete=lambda: None,
-                on_batch_restore=lambda: None,
-                on_batch_export=lambda: None,
-            )
-            footer.pack()
-            root.update_idletasks()
+        footer = ClientesFooter(
+            master=tk_root,
+            on_novo=lambda: None,
+            on_editar=lambda: None,
+            on_subpastas=lambda: None,
+            on_enviar_supabase=lambda: None,
+            on_enviar_pasta=lambda: None,
+            on_batch_delete=lambda: None,
+            on_batch_restore=lambda: None,
+            on_batch_export=lambda: None,
+        )
+        footer.pack()
+        tk_root.update_idletasks()
 
-            # Estado inicial
-            footer.btn_novo.configure(state="normal")
-            root.update_idletasks()
+        # Estado inicial
+        footer.btn_novo.configure(state="normal")
+        tk_root.update_idletasks()
 
-            # Act - entrar em pick mode duas vezes
-            footer.enter_pick_mode()
-            root.update_idletasks()
+        # Act - entrar em pick mode duas vezes
+        footer.enter_pick_mode()
+        tk_root.update_idletasks()
 
-            # Verificar que estado foi salvo
-            first_saved = footer._pick_prev_states.get(footer.btn_novo)
-            assert first_saved == "normal"
+        # Verificar que estado foi salvo
+        first_saved = footer._pick_prev_states.get(footer.btn_novo)
+        assert first_saved == "normal"
 
-            # Modificar estado (simular mudança externa)
-            footer.btn_novo.configure(state="active")
+        # Modificar estado (simular mudança externa)
+        footer.btn_novo.configure(state="active")
 
-            # Entrar novamente
-            footer.enter_pick_mode()
-            root.update_idletasks()
+        # Entrar novamente
+        footer.enter_pick_mode()
+        tk_root.update_idletasks()
 
-            # Assert - deve preservar o PRIMEIRO estado salvo
-            assert (
-                footer._pick_prev_states[footer.btn_novo] == "normal"
-            ), "Deve manter o estado original (normal), não o intermediário (active)"
+        # Assert - deve preservar o PRIMEIRO estado salvo
+        assert (
+            footer._pick_prev_states[footer.btn_novo] == "normal"
+        ), "Deve manter o estado original (normal), não o intermediário (active)"
 
-            # Sair do pick mode
-            footer.leave_pick_mode()
-            root.update_idletasks()
+        # Sair do pick mode
+        footer.leave_pick_mode()
+        tk_root.update_idletasks()
 
-            # Assert - deve restaurar para o primeiro estado
-            assert str(footer.btn_novo["state"]) == "normal"
-
-        finally:
-            root.destroy()
+        # Assert - deve restaurar para o primeiro estado
+        assert str(footer.btn_novo["state"]) == "normal"
 
 
 class TestPickModeTextConstants:
@@ -881,110 +847,3 @@ class TestPickModeButtonStatesInPickMode:
 
         # Assert - topbar.set_pick_mode_active(True) deve ter sido chamado para desabilitar Conversor PDF
         mock_topbar.set_pick_mode_active.assert_called_once_with(True)
-
-
-class TestPickModeRealWidgets:
-    """FIX-CLIENTES-007: Testes com widgets reais do Tkinter para garantir textos e estados corretos."""
-
-    @pytest.mark.skip(
-        reason="Requer Tkinter com suporte completo a imagens/PhotoImage (não disponível em ambientes headless/CI)"
-    )
-    def test_banner_and_buttons_text_with_real_widgets(self) -> None:
-        """Banner e botões devem usar as constantes corretas (testado com widgets reais)."""
-        import tkinter as tk
-        from src.modules.clientes.views.main_screen import (
-            MainScreenFrame,
-            PICK_MODE_BANNER_TEXT,
-            PICK_MODE_SELECT_TEXT,
-            PICK_MODE_CANCEL_TEXT,
-        )
-
-        require_tk("Tkinter não está disponível para testes de GUI com widgets reais")
-        root = tk.Tk()
-        try:
-            # NÃO usar root.withdraw() - precisamos que widgets sejam mapeados
-
-            # Mock supabase para estar SEMPRE online (necessário para btn_lixeira ficar habilitado)
-            # IMPORTANTE: O mock deve permanecer ativo durante TODO o teste, incluindo após sair do pick mode
-            with patch("infra.supabase_client.get_supabase_state", return_value=("online", "Conectado")):
-                # Criar frame com mocks mínimos para evitar dependências pesadas
-                with patch("src.modules.clientes.viewmodel.ClientesViewModel"):
-                    with patch("src.modules.clientes.controllers.connectivity.ClientesConnectivityController"):
-                        frame = MainScreenFrame(master=root, app=None)
-
-                # Parar o controller de conectividade para evitar que ele altere estados
-                # após sair do pick mode
-                if hasattr(frame, "_connectivity"):
-                    frame._connectivity._running = False
-
-                # IMPORTANTE: packear o frame e atualizar root para mapear os widgets
-                frame.pack(fill="both", expand=True)
-                root.update_idletasks()  # Força geometria e mapeamento dos widgets
-
-                # Garantir que a Lixeira está habilitada antes de entrar em pick mode
-                # (simula estado normal da aplicação com conectividade)
-                frame.btn_lixeira.configure(state="normal")
-                root.update_idletasks()
-
-                # Act - entrar em pick mode
-                frame.start_pick(on_pick=lambda c: None, return_to=lambda: None)
-
-                # Assert - verificar textos dos widgets reais
-                assert frame._pick_label["text"] == PICK_MODE_BANNER_TEXT, (
-                    f"Banner deve mostrar '{PICK_MODE_BANNER_TEXT}', " f"mas mostra '{frame._pick_label['text']}'"
-                )
-
-                assert frame.btn_select["text"] == PICK_MODE_SELECT_TEXT, (
-                    f"Botão Selecionar deve mostrar '{PICK_MODE_SELECT_TEXT}', "
-                    f"mas mostra '{frame.btn_select['text']}'"
-                )
-
-                assert frame._pick_cancel_button["text"] == PICK_MODE_CANCEL_TEXT, (
-                    f"Botão Cancelar deve mostrar '{PICK_MODE_CANCEL_TEXT}', "
-                    f"mas mostra '{frame._pick_cancel_button['text']}'"
-                )
-
-                # Assert - verificar que botões do footer estão ocultos em pick mode
-                footer = frame.footer
-
-                # Botões do rodapé devem estar ocultos (pack_forget) em pick mode
-                assert not footer.btn_novo.winfo_ismapped(), "Botão 'Novo Cliente' deve estar oculto em pick mode"
-
-                assert not footer.btn_editar.winfo_ismapped(), "Botão 'Editar' deve estar oculto em pick mode"
-
-                assert not footer.btn_subpastas.winfo_ismapped(), "Botão 'Ver Subpastas' deve estar oculto em pick mode"
-
-                assert (
-                    not footer.btn_enviar.winfo_ismapped()
-                ), "Botão 'Enviar Para Supabase' deve estar oculto em pick mode"
-
-                # FIX-CLIENTES-007: Botão Lixeira deve estar VISÍVEL mas DESABILITADO
-                assert (
-                    frame.btn_lixeira.winfo_ismapped()
-                ), "Botão Lixeira deve continuar visível em modo seleção (FIX-CLIENTES-007)"
-                assert (
-                    str(frame.btn_lixeira["state"]) == "disabled"
-                ), "Botão Lixeira deve estar desabilitado (cinza) em modo seleção (FIX-CLIENTES-007)"
-
-                # Act - cancelar pick mode
-                frame._pick_controller.cancel_pick()
-                root.update_idletasks()  # Atualizar geometria após restauração
-
-                # Assert - verificar que botões foram restaurados (visíveis novamente)
-                footer = frame.footer
-
-                assert footer.btn_novo.winfo_ismapped(), "Após sair do pick mode, btn_novo deve estar visível novamente"
-
-                assert (
-                    footer.btn_editar.winfo_ismapped()
-                ), "Após sair do pick mode, btn_editar deve estar visível novamente"
-
-                # FIX-CLIENTES-007: Lixeira deve voltar a estar visível E habilitada
-                assert (
-                    frame.btn_lixeira.winfo_ismapped()
-                ), "Após sair do pick mode, btn_lixeira deve estar visível novamente (FIX-CLIENTES-007)"
-                assert (
-                    str(frame.btn_lixeira["state"]) == "normal"
-                ), "Após sair do pick mode, btn_lixeira deve voltar a ficar habilitada (FIX-CLIENTES-007)"
-        finally:
-            root.destroy()

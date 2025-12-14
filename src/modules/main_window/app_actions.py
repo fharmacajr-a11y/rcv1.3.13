@@ -325,7 +325,7 @@ class AppActions:
             return
 
         if total_bytes == 0:
-            msg = "Nenhum PDF foi gerado.\n" "Verifique se as subpastas cont\u00eam arquivos JPG, JPEG, PNG ou JFIF."
+            msg = "Nenhum PDF foi gerado.\nVerifique se as subpastas cont\u00eam arquivos JPG, JPEG, PNG ou JFIF."
             show_conversion_result(parent_window, msg)
             return
 
@@ -397,8 +397,7 @@ class AppActions:
                     except Exception as exc:  # noqa: BLE001
                         self._logger.debug("progress_dialog.close() failed in on_empty: %s", exc)
                     msg = (
-                        "Nenhum PDF foi gerado.\n"
-                        "Verifique se as subpastas cont\u00eam arquivos JPG, JPEG, PNG ou JFIF."
+                        "Nenhum PDF foi gerado.\nVerifique se as subpastas cont\u00eam arquivos JPG, JPEG, PNG ou JFIF."
                     )
                     show_conversion_result(parent_window, msg)
 

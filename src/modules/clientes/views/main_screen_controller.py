@@ -240,8 +240,7 @@ def decide_batch_restore(
         return BatchDecision(
             kind="warning",
             message=(
-                "A restauração em lote não está disponível nesta tela.\n"
-                "Use a tela de Lixeira para restaurar clientes."
+                "A restauração em lote não está disponível nesta tela.\nUse a tela de Lixeira para restaurar clientes."
             ),
             operation="restore",
         )
@@ -264,7 +263,7 @@ def decide_batch_export(
     if not batch_operations.can_batch_export(selected_set):
         return BatchDecision(
             kind="warning",
-            message=("A exportação em lote não está disponível no momento.\n" "Verifique se há clientes selecionados."),
+            message=("A exportação em lote não está disponível no momento.\nVerifique se há clientes selecionados."),
             operation="export",
         )
 

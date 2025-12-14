@@ -99,7 +99,7 @@ def is_supported_archive(path: str | Path) -> bool:
     return _infra_is_supported_archive(path)
 
 
-def _normalize_archive_relative_path(value: str) -> str:
+def _normalize_archive_relative_path(value: str | None) -> str:
     rel = (value or "").lstrip("/").replace("\\", "/")
     if not rel or rel.startswith((".", "__MACOSX")) or ".." in rel:
         return ""

@@ -4,28 +4,17 @@
 
 from __future__ import annotations
 
-
 import threading
-
 from tkinter import messagebox
-
 from typing import Any, Dict, List
 
-
 from src.core.logger import get_logger
-
-from src.modules.notas import service as notes_service
-
-from src.modules.hub.authors import _author_display_name
-
 from src.modules.hub.colors import _ensure_author_tag
-
+from src.modules.hub.services.authors_service import get_author_display_name
 from src.modules.hub.format import _format_note_line, _format_timestamp
-
 from src.modules.hub.state import ensure_state as _ensure_hub_state
-
 from src.modules.hub.utils import _normalize_note
-
+from src.modules.notas import service as notes_service
 
 logger = get_logger(__name__)
 
@@ -49,7 +38,7 @@ def schedule_poll(screen, ms: int = 6000) -> None:
 
     hub_state = _ensure_poll_attrs(screen)
 
-    if not getattr(screen, "_live_sync_on", False):
+    if not screen.state.live_sync_on:
         return
 
     try:
@@ -82,16 +71,16 @@ def poll_notes_if_needed(screen) -> None:
 
     _ensure_poll_attrs(screen)
 
-    if not getattr(screen, "_live_sync_on", False):
+    if not screen.state.live_sync_on:
         return
 
     try:
-        org_id = getattr(screen, "_live_org_id", None)
+        org_id = screen.state.live_org_id
 
         if org_id is None:
-            return  # org_id obrigat├│rio para polling
+            return  # org_id obrigatório para polling
 
-        since = getattr(screen, "_live_last_ts", None)
+        since = screen.state.live_last_ts
 
         new_notes = notes_service.list_notes_since(org_id, since)
 
@@ -100,15 +89,16 @@ def poll_notes_if_needed(screen) -> None:
                 append_note_incremental(screen, note)
 
             try:
-                screen._live_last_ts = max(
+                max_ts = max(
                     [
-                        screen._live_last_ts or "",
+                        screen.state.live_last_ts or "",
                         *[n.get("created_at") or "" for n in new_notes],
                     ]
                 )
+                screen.update_live_last_ts(max_ts)
 
             except Exception as exc:  # noqa: BLE001
-                log.debug("Failed to update _live_last_ts: %s", exc)
+                log.debug("Failed to update live_last_ts: %s", exc)
 
     except Exception as exc:  # noqa: BLE001
         log.debug("poll_notes_if_needed error: %s", exc)
@@ -150,25 +140,27 @@ def append_note_incremental(screen, row: Dict[str, Any]) -> None:
     else:
         note = _normalize_note(row)
 
-    notes = getattr(screen, "_notes_last_data", None) or []
+    notes = screen.state.notes_last_data or []
 
     if any(str(n.get("id")) == str(note.get("id")) for n in notes if n.get("id") is not None):
         return
 
     notes = notes + [note]
 
-    screen._notes_last_data = notes
+    # MF-19: Usar método público do HubScreen (que usa StateManager)
+    screen.update_notes_data(notes, update_snapshot=True)
 
     try:
-        screen._notes_last_snapshot = [(n.get("id"), n.get("created_at")) for n in notes]
+        pass  # snapshot já foi atualizado em update_notes_data
 
     except Exception as exc:  # noqa: BLE001
         log.debug("Failed to update _notes_last_snapshot: %s", exc)
 
     ts_value = note.get("created_at") or ""
 
-    if ts_value and (getattr(screen, "_live_last_ts", "") or "") < ts_value:
-        screen._live_last_ts = ts_value
+    if ts_value and (screen.state.live_last_ts or "") < ts_value:
+        # MF-19: Usar método público do HubScreen (que usa StateManager)
+        screen.set_live_last_ts(ts_value)
 
     try:
         screen.notes_history.configure(state="normal")
@@ -178,7 +170,7 @@ def append_note_incremental(screen, row: Dict[str, Any]) -> None:
         name = (note.get("author_name") or "").strip()
 
         if not name:
-            name = _author_display_name(screen, email)
+            name = get_author_display_name(screen, email, start_async_fetch=True)
 
         tag = None
 
@@ -230,14 +222,14 @@ def append_note_incremental(screen, row: Dict[str, Any]) -> None:
 def refresh_notes_async(screen, force: bool = False) -> None:
     """Refresh notes asynchronously using the worker thread."""
 
-    if not getattr(screen, "_polling_active", False):
+    if not screen.state.polling_active:
         return
 
-    if getattr(screen, "_notes_table_missing", False):
+    if screen.state.notes_table_missing:
         log.debug("HubScreen: Tabela rc_notes ausente, aguardando retry period...")
 
         screen._notes_after_handle = screen.after(
-            getattr(screen, "_notes_retry_ms", 60000),
+            screen.state.notes_retry_ms,
             lambda: retry_after_table_missing(screen),
         )
 
@@ -275,7 +267,7 @@ def refresh_notes_async(screen, force: bool = False) -> None:
             log.debug("HubScreen: Erro transit├│rio ao listar notas, retry em 2s")
 
             def _schedule_transient_retry():
-                if getattr(screen, "_polling_active", False):
+                if screen.state.polling_active:
                     try:
                         screen._notes_after_handle = screen.after(2000, lambda: refresh_notes_async(screen))
 
@@ -296,10 +288,11 @@ def refresh_notes_async(screen, force: bool = False) -> None:
             log.warning("HubScreen: %s", exc)
 
             def _notify_table_missing():
-                screen._notes_table_missing = True
+                # MF-19: Usar método público do HubScreen (que usa StateManager)
+                screen.set_notes_table_missing(True)
 
-                if not getattr(screen, "_notes_table_missing_notified", False):
-                    screen._notes_table_missing_notified = True
+                if not screen.state.notes_table_missing_notified:
+                    screen.set_notes_table_missing_notified(True)
 
                     try:
                         messagebox.showwarning(
@@ -354,12 +347,11 @@ def refresh_notes_async(screen, force: bool = False) -> None:
 
             snapshot = [(n.get("id"), n.get("created_at")) for n in notes]
 
-            changed = (snapshot != getattr(screen, "_notes_last_snapshot", None)) or force
+            changed = (snapshot != screen.state.notes_last_snapshot) or force
 
             if changed:
-                screen._notes_last_snapshot = snapshot
-
-                screen._notes_last_data = notes
+                # MF-19: Usar método público do HubScreen (que usa StateManager)
+                screen.update_notes_data(notes, update_snapshot=True)
 
                 try:
                     screen.after(0, lambda: screen.render_notes(notes))
@@ -367,8 +359,9 @@ def refresh_notes_async(screen, force: bool = False) -> None:
                 except Exception as exc:  # noqa: BLE001
                     log.debug("after(0) failed for render_notes: %s", exc)
 
-            if not getattr(screen, "_names_cache_loaded", False):
-                screen._names_cache_loaded = True
+            if not screen.state.names_cache_loaded:
+                # MF-19: Usar método público do HubScreen (que usa StateManager)
+                screen.set_names_cache_loaded(True)
 
                 try:
                     screen.after(0, screen._refresh_author_names_cache_async)
@@ -376,7 +369,7 @@ def refresh_notes_async(screen, force: bool = False) -> None:
                 except Exception as exc:  # noqa: BLE001
                     log.debug("after(0) failed for _refresh_author_names_cache_async: %s", exc)
 
-        if getattr(screen, "_polling_active", False):
+        if screen.state.polling_active:
             try:
                 screen._notes_after_handle = screen.after(
                     getattr(screen, "_notes_poll_ms", 10000),
@@ -392,10 +385,11 @@ def refresh_notes_async(screen, force: bool = False) -> None:
 def retry_after_table_missing(screen) -> None:
     """Retry refresh after the table was missing previously."""
 
-    log.info("HubScreen: Tentando novamente ap├│s per├¡odo de espera (tabela ausente).")
+    log.info("HubScreen: Tentando novamente após período de espera (tabela ausente).")
 
-    screen._notes_table_missing = False
+    # MF-19: Usar método público do HubScreen (que usa StateManager)
+    screen.set_notes_table_missing(False)
 
-    screen._notes_table_missing_notified = False
+    screen.set_notes_table_missing_notified(False)
 
     refresh_notes_async(screen, force=True)

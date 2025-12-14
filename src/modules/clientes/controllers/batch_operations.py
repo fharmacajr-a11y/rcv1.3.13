@@ -311,9 +311,7 @@ class BatchOperationsCoordinator:
         if not can_batch_export(selected_ids, max_items=max_items):
             return BatchValidationResult(
                 is_valid=False,
-                reason=(
-                    "A exportação em lote não está disponível no momento.\n" "Verifique se há clientes selecionados."
-                ),
+                reason=("A exportação em lote não está disponível no momento.\nVerifique se há clientes selecionados."),
             )
 
         return BatchValidationResult(is_valid=True)

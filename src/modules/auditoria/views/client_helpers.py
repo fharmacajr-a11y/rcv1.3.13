@@ -22,7 +22,14 @@ def cliente_razao_from_row(row: dict | None) -> str:
     """Extrai a razão social/nome mais representativo do registro do cliente."""
     if not isinstance(row, dict):
         return ""
-    return (row.get("display_name") or row.get("razao_social") or row.get("Razao Social") or row.get("legal_name") or row.get("name") or "").strip()
+    return (
+        row.get("display_name")
+        or row.get("razao_social")
+        or row.get("Razao Social")
+        or row.get("legal_name")
+        or row.get("name")
+        or ""
+    ).strip()
 
 
 def cliente_cnpj_from_row(row: dict | None) -> str:

@@ -31,7 +31,15 @@ class Frame(Misc):
 
 class Label(Misc):
     """ttk.Label widget with ttkbootstrap extensions."""
-    def __init__(self, master: Misc | None = ..., *, text: str = ..., textvariable: Any = ..., bootstyle: Bootstyle | None = ..., **kwargs: Any) -> None: ...
+    def __init__(
+        self,
+        master: Misc | None = ...,
+        *,
+        text: str = ...,
+        textvariable: Any = ...,
+        bootstyle: Bootstyle | None = ...,
+        **kwargs: Any,
+    ) -> None: ...
     def pack(self, **kwargs: Any) -> None: ...
     def grid(self, **kwargs: Any) -> None: ...
     def configure(self, **kwargs: Any) -> None: ...
@@ -92,7 +100,15 @@ class Combobox(Entry):
 
 class Treeview(Misc):
     """ttk.Treeview widget."""
-    def __init__(self, master: Misc | None = ..., *, columns: Sequence[str] = ..., show: str = ..., selectmode: str = ..., **kwargs: Any) -> None: ...
+    def __init__(
+        self,
+        master: Misc | None = ...,
+        *,
+        columns: Sequence[str] = ...,
+        show: str = ...,
+        selectmode: str = ...,
+        **kwargs: Any,
+    ) -> None: ...
     def heading(self, column: str, option: str | None = ..., **kw: Any) -> Any: ...
     def column(self, column: str, option: str | None = ..., **kw: Any) -> Any: ...
     def insert(self, parent: str, index: int | str, iid: str | None = ..., **kw: Any) -> str: ...

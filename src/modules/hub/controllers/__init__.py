@@ -15,10 +15,16 @@ from src.modules.hub.controllers.notes_controller import (
     NotesController,
     NotesGatewayProtocol,
 )
+from src.modules.hub.controllers.quick_actions_controller import (
+    HubQuickActionsNavigatorProtocol,
+    QuickActionsController,
+)
 
 __all__ = [
     "DashboardActionController",
     "HubNavigatorProtocol",
     "NotesController",
     "NotesGatewayProtocol",
+    "QuickActionsController",
+    "HubQuickActionsNavigatorProtocol",
 ]

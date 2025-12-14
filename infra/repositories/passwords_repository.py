@@ -46,15 +46,15 @@ def get_passwords(
     if search_text:
         search_lower: str = search_text.lower()
         passwords = [
-            p
-            for p in passwords
-            if search_lower in p["client_name"].lower()
-            or search_lower in p["service"].lower()
-            or search_lower in p["username"].lower()
+            password
+            for password in passwords
+            if search_lower in password["client_name"].lower()
+            or search_lower in password["service"].lower()
+            or search_lower in password["username"].lower()
         ]
 
     if client_filter and client_filter != "Todos":
-        passwords = [p for p in passwords if p["client_name"] == client_filter]
+        passwords = [password for password in passwords if password["client_name"] == client_filter]
 
     return passwords
 
@@ -208,6 +208,10 @@ def find_duplicate_password_by_service(
     """
     from data.supabase_repo import list_passwords
 
-    all_passwords = list_passwords(org_id)
+    all_passwords: list[PasswordRow] = list_passwords(org_id)
 
-    return [p for p in all_passwords if p.get("client_id") == client_id and p.get("service") == service]
+    return [
+        password
+        for password in all_passwords
+        if password.get("client_id") == client_id and password.get("service") == service
+    ]

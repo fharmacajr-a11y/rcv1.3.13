@@ -40,6 +40,7 @@ def _format_validation_errors(results: list[Any] | None) -> list[str]:
             error_text = getattr(res, "error", "") or "arquivo invalido"
             messages.append(f"{name}: {error_text}")
         except Exception:
+            logger.debug("Erro ao formatar mensagem de validação de arquivo", exc_info=True)
             continue
     return messages
 
@@ -98,6 +99,7 @@ def execute_upload_flow(
     try:
         cnpj_value = cnpj_widget.get().strip() if cnpj_widget else ""
     except Exception:
+        logger.debug("Erro ao obter valor do CNPJ do widget", exc_info=True)
         pass
 
     cnpj_digits = _cnpj_only_digits(cnpj_value)

@@ -1,2 +1,12 @@
-# DEPRECATED: Use src.modules.hub.authors em vez deste modulo
-from src.modules.hub.authors import *  # noqa: F401,F403
+"""Authors wrapper for Hub UI.
+
+UPDATED: Import directly from authors_service instead of legacy shim.
+"""
+
+from src.modules.hub.services.authors_service import (
+    debug_resolve_author,
+    get_author_display_name,
+)
+
+# Re-export for backward compatibility
+__all__ = ["get_author_display_name", "debug_resolve_author"]

@@ -91,14 +91,16 @@ class AuditoriaViewModel:
                 self._clientes_rows_map[key_int] = row
         self._apply_client_filter()
 
-    def refresh_auditorias(self, *, fetcher: Callable[[], Iterable[dict[str, Any]]] | None = None) -> list[AuditoriaRow]:
+    def refresh_auditorias(
+        self, *, fetcher: Callable[[], Iterable[dict[str, Any]]] | None = None
+    ) -> list[AuditoriaRow]:
         fetch_func = fetcher or auditoria_service.fetch_auditorias
         rows = fetch_func()
         self._auditorias = [row for row in rows if isinstance(row, dict)]
         return self._build_aud_rows()
 
     # --- Filtering ----------------------------------------------------
-    def set_search_text(self, text: str) -> None:
+    def set_search_text(self, text: str | None) -> None:
         self._search_text = text or ""
         self._apply_client_filter()
 
@@ -204,13 +206,20 @@ def _safe_int(value: Any) -> Optional[int]:
         return None
 
 
-def _cliente_razao_from_row(row: dict | None) -> str:
+def _cliente_razao_from_row(row: Any) -> str:
     if not isinstance(row, dict):
         return ""
-    return (row.get("display_name") or row.get("razao_social") or row.get("Razao Social") or row.get("legal_name") or row.get("name") or "").strip()
+    return (
+        row.get("display_name")
+        or row.get("razao_social")
+        or row.get("Razao Social")
+        or row.get("legal_name")
+        or row.get("name")
+        or ""
+    ).strip()
 
 
-def _cliente_cnpj_from_row(row: dict | None) -> str:
+def _cliente_cnpj_from_row(row: Any) -> str:
     if not isinstance(row, dict):
         return ""
     return (row.get("cnpj") or row.get("tax_id") or "").strip()
@@ -254,4 +263,8 @@ def _build_search_index(cliente: dict[str, Any]) -> ClienteSearchIndex:
         raw = cliente.get(key)
         if raw:
             nomes.append(_norm_text(str(raw)))
-    return {"razao": _norm_text(_cliente_razao_from_row(cliente)), "nomes": nomes, "cnpj": _digits(_cliente_cnpj_from_row(cliente))}
+    return {
+        "razao": _norm_text(_cliente_razao_from_row(cliente)),
+        "nomes": nomes,
+        "cnpj": _digits(_cliente_cnpj_from_row(cliente)),
+    }

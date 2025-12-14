@@ -16,9 +16,6 @@ from src.modules.uploads.upload_retry import (
     classify_upload_exception,
 )
 
-if False:  # pragma: no cover
-    pass
-
 _TUploadItem = TypeVar("_TUploadItem")
 logger = logging.getLogger(__name__)
 

@@ -212,7 +212,7 @@ def test_abrir_pasta_shows_info_when_no_fs(monkeypatch, reset_messagebox):
     assert any("showinfo" in call[0] for call in reset_messagebox)
 
 
-def test_abrir_pasta_handles_startfile_exception(monkeypatch, tmp_path, reset_messagebox):
+def test_abrir_pasta_handles_startfile_exception(monkeypatch, tmp_path):
     """Testa que abrir_pasta lida com exceção de os.startfile."""
     monkeypatch.setattr(app_core, "NO_FS", False)
     monkeypatch.setattr(app_core, "_ensure_live_folder_ready", lambda pk: str(tmp_path))
@@ -229,7 +229,7 @@ def test_abrir_pasta_handles_startfile_exception(monkeypatch, tmp_path, reset_me
     app_core.abrir_pasta(SimpleNamespace(), 42)
 
 
-def test_abrir_pasta_respects_cloud_only_block(monkeypatch, tmp_path, reset_messagebox):
+def test_abrir_pasta_respects_cloud_only_block(monkeypatch, tmp_path):
     """Testa que abrir_pasta respeita check_cloud_only_block."""
     monkeypatch.setattr(app_core, "NO_FS", False)
     monkeypatch.setattr(app_core, "_ensure_live_folder_ready", lambda pk: str(tmp_path))
@@ -330,14 +330,21 @@ def test_abrir_lixeira_ui_handles_setattr_exception(monkeypatch):
 
     monkeypatch.setattr(app_core, "_module_abrir_lixeira", fake_open)
 
-    # App que não permite setattr
-    app = SimpleNamespace()
-    app.__setattr__ = lambda *args: (_ for _ in ()).throw(Exception("Readonly"))
-    app.root = "ROOT"
-    app.app = "CTX"
+    # App que lança exceção ao tentar setattr
+    class BadApp:
+        root = "ROOT"
+        app = "CTX"
+
+        def __setattr__(self, name, value):
+            if name == "lixeira_win":
+                raise RuntimeError("Cannot set attribute")
+            super().__setattr__(name, value)
+
+    app = BadApp()
 
     # Não deve lançar exceção
     app_core.abrir_lixeira_ui(app)
+    assert called == [True]
     assert called == [True]
 
 

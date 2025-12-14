@@ -69,10 +69,10 @@ class SupabaseResponse(TypedDict, total=False):
 # postgrest APIError (usado em todo o projeto)
 # -----------------------------------------------------------------------------
 try:
-    from postgrest.exceptions import APIError as PostgrestAPIError  # supabase-py v2
+    from postgrest.exceptions import APIError as PostgrestAPIError  # type: ignore[assignment] # supabase-py v2
 except Exception:
     # Fallback se lib mudar
-    class PostgrestAPIError(Exception):  # type: ignore
+    class PostgrestAPIError(Exception):  # type: ignore[no-redef,misc]
         pass
 
 
@@ -101,7 +101,7 @@ def get_supabase_client() -> Any:
     except Exception as exc:
         log.exception("Erro ao obter cliente Supabase")
         raise RuntimeError(
-            f"Cliente Supabase não disponível: {exc}. " "Verifique se infra.supabase_client está acessível."
+            f"Cliente Supabase não disponível: {exc}. Verifique se infra.supabase_client está acessível."
         ) from exc
 
 
@@ -327,7 +327,7 @@ def list_passwords(org_id: str) -> list[PasswordRow]:
             # JOIN com clients para obter dados completos do cliente
             # Campos do client_passwords: *,
             # Campos de clients: id (renomeado), razao_social, cnpj, nome, numero (WhatsApp)
-            select_query = "*," "clients!client_id(" "id," "razao_social," "cnpj," "nome," "numero" ")"
+            select_query = "*,clients!client_id(id,razao_social,cnpj,nome,numero)"
             return exec_postgrest(
                 supabase.table("client_passwords")
                 .select(select_query)

@@ -45,6 +45,17 @@ def _stub_tk_modules(monkeypatch):
     return calls, responses
 
 
+class _ImmediateThread:
+    """Thread stub que executa o target imediatamente ao chamar start(), evitando race conditions nos testes."""
+
+    def __init__(self, target=None, daemon=None, **kwargs):
+        self._target = target
+
+    def start(self):
+        if self._target:
+            self._target()
+
+
 def _stub_pdf_dependencies(monkeypatch):
     """Garante que imports de pdf_batch_converter usem stubs sem tkinter real."""
     convert_mock = MagicMock(return_value=[])
@@ -69,6 +80,11 @@ def _stub_pdf_dependencies(monkeypatch):
         ui_pkg.__path__ = []
         monkeypatch.setitem(sys.modules, "src.ui", ui_pkg)
     monkeypatch.setattr(ui_pkg, "progress", progress_pkg, raising=False)
+
+    # Aplica stub de threading.Thread para execução síncrona no módulo threading
+    import threading
+
+    monkeypatch.setattr(threading, "Thread", _ImmediateThread)
 
     return convert_mock, dialog_class
 

@@ -112,7 +112,7 @@ def test_toggle_theme_switches_and_updates_buttons(monkeypatch, tmp_path):
             style_calls.append(name)
 
     class FakeTb:
-        def Style(self):
+        def Style(self):  # noqa: N802
             return FakeStyle()
 
     themes.tb = FakeTb()
@@ -165,7 +165,7 @@ def test_apply_theme_uses_style_when_available(monkeypatch, tmp_path):
             calls.append(name)
 
     class FakeTb:
-        def Style(self):
+        def Style(self):  # noqa: N802
             return FakeStyle()
 
     themes.tb = FakeTb()

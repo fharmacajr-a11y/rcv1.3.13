@@ -2,6 +2,9 @@
 # Mede apenas o "App Core" oficial (src + adapters + infra + data + security)
 
 [run]
+# Arquivo de dados do coverage (sempre na raiz do projeto)
+data_file = .coverage
+
 # Fontes do App Core a serem medidas:
 # - src: núcleo da aplicação
 # - adapters: integrações (ex.: Supabase Storage)

@@ -20,8 +20,11 @@ NÃO faz:
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
-from typing import Callable, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================================================
@@ -372,7 +375,8 @@ class ColumnManager:
         try:
             saver(user_key, dict(self._visibility))
         except Exception:
-            # Falha silenciosa (logging seria responsabilidade da UI)
+            # Falha silenciosa ao salvar preferências de colunas
+            logger.debug(f"Erro ao salvar preferências de colunas para {user_key}", exc_info=True)
             pass
 
     def get_visible_columns(self) -> list[str]:

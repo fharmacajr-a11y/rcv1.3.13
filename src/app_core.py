@@ -83,7 +83,7 @@ def novo_cliente(app: Any) -> None:
     """Abre o formulário para cadastro de um novo cliente."""
     log.info("Opening form for new client")
 
-    from src.modules.forms.view import form_cliente
+    from src.modules.clientes.forms.client_form import form_cliente
 
     form_cliente(app)
 
@@ -91,7 +91,7 @@ def novo_cliente(app: Any) -> None:
 def editar_cliente(app: Any, pk: int) -> None:
     """Abre o formulário de edição para o cliente informado."""
     log.info("Opening edit form for client id=%s", pk)
-    from src.modules.forms.view import form_cliente
+    from src.modules.clientes.forms.client_form import form_cliente
 
     row = _resolve_cliente_row(pk)
     if row:

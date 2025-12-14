@@ -543,7 +543,7 @@ def test_restore_persisted_auth_session_retorna_true_quando_sucesso(monkeypatch)
 # ==================== Testes de _ensure_session ====================
 
 
-def test_ensure_session_retorna_false_quando_client_none(monkeypatch):
+def test_ensure_session_retorna_false_quando_client_none(monkeypatch, tk_root_session):
     """Testa que _ensure_session retorna False quando cliente Supabase não está disponível."""
     monkeypatch.setattr("src.core.auth_bootstrap._supabase_client", lambda: None)
 
@@ -999,7 +999,7 @@ def test_ensure_logged_ignora_excecao_ao_aguardar_splash(monkeypatch):
     assert result is True
 
 
-def test_ensure_logged_retorna_false_quando_ensure_session_lanca_excecao(monkeypatch):
+def test_ensure_logged_retorna_false_quando_ensure_session_lanca_excecao(monkeypatch, tk_root_session):
     """Testa que ensure_logged retorna False quando _ensure_session lança exceção."""
 
     def fake_ensure_session(app, logger):

@@ -297,8 +297,7 @@ def ensure_logged(
 
             messagebox.showerror(
                 "Erro Inesperado",
-                f"Ocorreu um erro durante a autenticação:\n\n{exc}\n\n"
-                "Por favor, tente novamente ou contate o suporte.",
+                f"Ocorreu um erro durante a autenticação:\n\n{exc}\n\nPor favor, tente novamente ou contate o suporte.",
             )
         except Exception as msg_exc:
             log_obj.debug("Falha ao exibir messagebox de erro inesperado: %s", msg_exc)

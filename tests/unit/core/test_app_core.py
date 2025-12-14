@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import os
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 import src.app_core as app_core
+import src.modules.clientes.forms.client_form as cf
 
 
 @pytest.fixture(autouse=True)
@@ -24,9 +27,17 @@ def reset_messagebox(monkeypatch):
 
 
 def test_novo_cliente_calls_form(monkeypatch):
+    # Blindagem: verificar que estamos usando o módulo do repo atual
+    cwd = Path(os.getcwd()).resolve()
+    assert str(Path(cf.__file__).resolve()).startswith(str(cwd)), f"Módulo de versão errada: {cf.__file__}"
+
     called = []
-    module = SimpleNamespace(form_cliente=lambda app, row=None: called.append((app, row)))
-    monkeypatch.setitem(sys.modules, "src.modules.forms.view", module)
+
+    def fake_form_cliente(app, row=None):
+        called.append((app, row))
+
+    # Patch no objeto real importado (where to patch: onde app_core vai buscar em runtime)
+    monkeypatch.setattr(cf, "form_cliente", fake_form_cliente, raising=True)
 
     app_core.novo_cliente("APP")
 
@@ -34,9 +45,17 @@ def test_novo_cliente_calls_form(monkeypatch):
 
 
 def test_editar_cliente_calls_form_when_row_found(monkeypatch):
+    # Blindagem: verificar que estamos usando o módulo do repo atual
+    cwd = Path(os.getcwd()).resolve()
+    assert str(Path(cf.__file__).resolve()).startswith(str(cwd)), f"Módulo de versão errada: {cf.__file__}"
+
     called = []
-    module = SimpleNamespace(form_cliente=lambda app, row=None: called.append((app, row)))
-    monkeypatch.setitem(sys.modules, "src.modules.forms.view", module)
+
+    def fake_form_cliente(app, row=None):
+        called.append((app, row))
+
+    # Patch no objeto real importado (where to patch: onde app_core vai buscar em runtime)
+    monkeypatch.setattr(cf, "form_cliente", fake_form_cliente, raising=True)
     monkeypatch.setattr(app_core, "_resolve_cliente_row", lambda pk: ("row", pk))
 
     app_core.editar_cliente("APP", 123)

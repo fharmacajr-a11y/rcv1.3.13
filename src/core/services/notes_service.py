@@ -381,7 +381,7 @@ def _fetch_notes(org_id: str, limit: int) -> list[dict[str, Any]]:
         supa.table(TABLE)
         .select("id, author_email, body, created_at")
         .eq("org_id", org_id)
-        .order("created_at", desc=False)
+        .order("created_at", desc=True)
         .limit(limit)
     )
 
@@ -568,7 +568,7 @@ def list_notes_since(org_id: str, since_iso: str | None) -> list[dict[str, Any]]
             .select("id,created_at,author_email,author_name,body")
             .eq("org_id", org_id)
             .gt("created_at", since_iso)
-            .order("created_at", desc=False)
+            .order("created_at", desc=True)
             .limit(100)
         )
 

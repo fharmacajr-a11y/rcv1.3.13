@@ -25,6 +25,13 @@ from src.core.auth.auth import (
 )
 
 
+# PERF-001: Fixture para reduzir iterações PBKDF2 em testes (1000 em vez de 1_000_000)
+@pytest.fixture(autouse=True)
+def fast_pbkdf2_for_tests(monkeypatch):
+    """Reduz iterações PBKDF2 para 1000 nos testes (PERF-001)."""
+    monkeypatch.setenv("RC_PBKDF2_ITERS", "1000")
+
+
 # ====================================================================
 # Validação de credenciais
 # ====================================================================
@@ -217,10 +224,12 @@ def test_pbkdf2_hash_basic():
 
 
 def test_pbkdf2_hash_default_iterations():
-    """pbkdf2_hash deve usar 1_000_000 iterações por padrão."""
+    """pbkdf2_hash deve usar iterações do env RC_PBKDF2_ITERS (1000 em testes, 1_000_000 em prod)."""
     result = pbkdf2_hash("password")
     parts = result.split("$")
-    assert parts[1] == "1000000"
+    # PERF-001: Em testes usa 1000 (via fixture), em prod usa 1_000_000
+    expected_iters = os.getenv("RC_PBKDF2_ITERS", "1000000")
+    assert parts[1] == expected_iters
 
 
 def test_pbkdf2_hash_custom_iterations():

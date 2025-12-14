@@ -81,7 +81,7 @@ class TestZipExtraction:
         with pytest.raises(ArchiveError, match="ZIP corrompido ou inválido"):
             extract_archive(zip_path, extract_dir)
 
-    def test_extract_zip_allowZip64(self, tmp_path: Path) -> None:
+    def test_extract_zip_allowZip64(self, tmp_path: Path) -> None:  # noqa: N802
         """Testa que ZIP64 é suportado."""
         zip_path = tmp_path / "test_zip64.zip"
         extract_dir = tmp_path / "extracted"

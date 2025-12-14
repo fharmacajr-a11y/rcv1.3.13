@@ -328,11 +328,13 @@ def get_supabase() -> Client:
 
         url_from_env = os.getenv("SUPABASE_URL")
         url: str = url_from_env or supa_types.SUPABASE_URL or ""
-        key_from_env = os.getenv("SUPABASE_ANON_KEY")
+
+        # CORREÇÃO: Suportar SUPABASE_KEY como alias de SUPABASE_ANON_KEY
+        key_from_env = os.getenv("SUPABASE_ANON_KEY") or os.getenv("SUPABASE_KEY")
         key: str = key_from_env or supa_types.SUPABASE_ANON_KEY or ""
 
         if not url or not key:
-            raise RuntimeError("Faltam SUPABASE_URL/SUPABASE_ANON_KEY no .env")
+            raise RuntimeError("Faltam SUPABASE_URL e SUPABASE_ANON_KEY (ou SUPABASE_KEY) no .env")
 
         options: ClientOptions = ClientOptions(
             httpx_client=HTTPX_CLIENT,

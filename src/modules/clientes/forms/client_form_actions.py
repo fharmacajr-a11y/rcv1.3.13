@@ -35,19 +35,19 @@ logger = logging.getLogger(__name__)
 class MessageSink(Protocol):
     """Protocolo para exibir mensagens (warning, info, etc.), sem depender de Tk diretamente."""
 
-    def warn(self, title: str, message: str) -> None:
+    def warn(self, title: str, message: str) -> None:  # noqa: ARG002 - Protocol signature
         """Exibe um aviso ao usuário."""
         ...
 
-    def ask_yes_no(self, title: str, message: str) -> bool:
+    def ask_yes_no(self, title: str, message: str) -> bool:  # noqa: ARG002 - Protocol signature
         """Pergunta sim/não ao usuário."""
         ...
 
-    def show_error(self, title: str, message: str) -> None:
+    def show_error(self, title: str, message: str) -> None:  # noqa: ARG002 - Protocol signature
         """Exibe um erro ao usuário."""
         ...
 
-    def show_info(self, title: str, message: str) -> None:
+    def show_info(self, title: str, message: str) -> None:  # noqa: ARG002 - Protocol signature
         """Exibe uma informação ao usuário."""
         ...
 

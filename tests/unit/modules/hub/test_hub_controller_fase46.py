@@ -10,6 +10,7 @@ from __future__ import annotations
 import importlib
 import sys
 import types
+from types import SimpleNamespace
 from typing import Any, Callable, List, Tuple
 
 import pytest
@@ -36,21 +37,27 @@ class ScreenStub:
         self.after_calls: List[Tuple[int, Callable, tuple]] = []
         self.after_cancel_calls: List[Any] = []
         self._auto_run_zero_after = True
-        self._live_sync_on = True
-        self._polling_active = True
         self._notes_poll_ms = 100
-        self._notes_retry_ms = 60000
         self._auth_ready_value = True
         self._org_id_value = "org-1"
         self.notes_history = DummyText()
         self.rendered_notes = None
         self.names_cache_refreshed = False
         self._names_cache_loaded = False
-        self._notes_last_snapshot = None
-        self._notes_last_data = []
+        self.state = SimpleNamespace(
+            notes_last_snapshot=None,
+            notes_last_data=[],
+            polling_active=True,
+            notes_retry_ms=60000,
+            notes_table_missing=False,
+            notes_table_missing_notified=False,
+            names_cache_loaded=False,
+            live_sync_on=True,
+            live_org_id="org-1",
+            live_channel=None,
+            live_last_ts=None,
+        )
         self._notes_after_handle = None
-        self._notes_table_missing = False
-        self._notes_table_missing_notified = False
 
     def after(self, delay, func=None, *args):  # noqa: ANN001
         self.after_calls.append((delay, func, args))
@@ -72,6 +79,45 @@ class ScreenStub:
 
     def _refresh_author_names_cache_async(self) -> None:
         self.names_cache_refreshed = True
+
+    # MF-19: Métodos públicos para modificar estado (encapsulam StateManager)
+    def update_notes_data(self, notes, update_snapshot=True):  # noqa: ANN001
+        self.state.notes_last_data = notes
+        if update_snapshot:
+            self.state.notes_last_snapshot = [(n.get("id"), n.get("created_at")) for n in notes]
+
+    def set_notes_table_missing(self, missing: bool) -> None:
+        self.state.notes_table_missing = missing
+
+    def set_notes_table_missing_notified(self, notified: bool) -> None:
+        self.state.notes_table_missing_notified = notified
+
+    def set_names_cache_loaded(self, loaded: bool) -> None:
+        self.state.names_cache_loaded = loaded
+
+    def update_live_last_ts(self, timestamp: str) -> None:
+        """Atualiza live_last_ts se o novo timestamp for maior."""
+        current = self.state.live_last_ts or ""
+        if timestamp > current:
+            self.state.live_last_ts = timestamp
+
+    def set_live_last_ts(self, timestamp: str) -> None:
+        self.state.live_last_ts = timestamp
+
+    def clear_pending_name_fetch(self) -> None:
+        if not hasattr(self.state, "pending_name_fetch"):
+            self.state.pending_name_fetch = set()
+        else:
+            self.state.pending_name_fetch.clear()
+
+    def add_pending_name_fetch(self, email: str) -> None:
+        if not hasattr(self.state, "pending_name_fetch"):
+            self.state.pending_name_fetch = set()
+        self.state.pending_name_fetch.add(email)
+
+    def remove_pending_name_fetch(self, email: str) -> None:
+        if hasattr(self.state, "pending_name_fetch"):
+            self.state.pending_name_fetch.discard(email)
 
 
 @pytest.fixture
@@ -125,7 +171,7 @@ def instant_thread(monkeypatch, hub_controller):
 
 def test_schedule_poll_ativa_flag_e_agenda_refresh(hub_controller):
     screen = ScreenStub()
-    screen._live_sync_on = True
+    screen.state.live_sync_on = True
 
     hub_controller.schedule_poll(screen, ms=123)
 
@@ -135,7 +181,7 @@ def test_schedule_poll_ativa_flag_e_agenda_refresh(hub_controller):
 
 def test_schedule_poll_nao_agenda_quando_sync_off(hub_controller):
     screen = ScreenStub()
-    screen._live_sync_on = False
+    screen.state.live_sync_on = False
 
     hub_controller.schedule_poll(screen)
 
@@ -145,7 +191,7 @@ def test_schedule_poll_nao_agenda_quando_sync_off(hub_controller):
 
 def test_schedule_poll_cancela_job_anterior(hub_controller):
     screen = ScreenStub()
-    screen._live_sync_on = True
+    screen.state.live_sync_on = True
     hub_state = hub_controller._ensure_poll_attrs(screen)
     hub_state.poll_job = "job-old"
 
@@ -168,7 +214,7 @@ def test_cancel_poll_desativa_job(hub_controller):
 
 def test_poll_notes_if_needed_sem_live_sync_nao_faz_nada(monkeypatch, hub_controller):
     screen = ScreenStub()
-    screen._live_sync_on = False
+    screen.state.live_sync_on = False
     monkeypatch.setattr(
         hub_controller.notes_service, "list_notes_since", lambda *a, **k: pytest.fail("nao deveria chamar")
     )
@@ -180,8 +226,8 @@ def test_poll_notes_if_needed_sem_live_sync_nao_faz_nada(monkeypatch, hub_contro
 
 def test_poll_notes_if_needed_sem_org_agenda_retry(monkeypatch, hub_controller):
     screen = ScreenStub()
-    screen._live_sync_on = True
-    screen._live_org_id = None
+    screen.state.live_sync_on = True
+    screen.state.live_org_id = None
     called = []
     monkeypatch.setattr(
         hub_controller.notes_service, "list_notes_since", lambda *a, **k: pytest.fail("nao deveria chamar")
@@ -195,9 +241,9 @@ def test_poll_notes_if_needed_sem_org_agenda_retry(monkeypatch, hub_controller):
 
 def test_poll_notes_if_needed_com_novas_notas_atualiza_ts(monkeypatch, hub_controller):
     screen = ScreenStub()
-    screen._live_sync_on = True
-    screen._live_org_id = "org1"
-    screen._live_last_ts = "2023-01-01T00:00:00Z"
+    screen.state.live_sync_on = True
+    screen.state.live_org_id = "org1"
+    screen.state.live_last_ts = "2023-01-01T00:00:00Z"
     added = []
     monkeypatch.setattr(
         hub_controller.notes_service,
@@ -211,7 +257,7 @@ def test_poll_notes_if_needed_com_novas_notas_atualiza_ts(monkeypatch, hub_contr
     hub_controller.poll_notes_if_needed(screen)
 
     assert added and added[0][1]["id"] == 1
-    assert screen._live_last_ts == "2024-01-01T00:00:01Z"
+    assert screen.state.live_last_ts == "2024-01-01T00:00:01Z"
     assert scheduled == [screen]
 
 
@@ -228,31 +274,32 @@ def test_on_realtime_note_encaminha_para_append(monkeypatch, hub_controller):
 
 def test_append_note_incremental_ignora_duplicata(monkeypatch, hub_controller):
     screen = ScreenStub()
-    screen._notes_last_data = [{"id": "1", "created_at": "ts"}]
+    screen.state.notes_last_data = [{"id": "1", "created_at": "ts"}]
     screen.notes_history = DummyText()
     monkeypatch.setattr(hub_controller, "_ensure_author_tag", lambda *a, **k: "tag")
 
     hub_controller.append_note_incremental(screen, {"id": 1, "created_at": "ts"})
 
-    assert screen._notes_last_data == [{"id": "1", "created_at": "ts"}]
+    assert screen.state.notes_last_data == [{"id": "1", "created_at": "ts"}]
     assert screen.notes_history.insert_calls == []
 
 
 def test_append_note_incremental_insere_nota_e_atualiza_estado(monkeypatch, hub_controller):
     screen = ScreenStub()
     screen.notes_history = DummyText()
-    screen._live_last_ts = "2024-01-01T00:00:00Z"
+    screen.state.live_last_ts = "2024-01-01T00:00:00Z"
     monkeypatch.setattr(hub_controller, "_ensure_author_tag", lambda *a, **k: "tag-1")
-    monkeypatch.setattr(hub_controller, "_author_display_name", lambda _scr, _email: "Alias")
+    # LEGACY-02: Atualizado para usar get_author_display_name do serviço
+    monkeypatch.setattr("src.modules.hub.services.authors_service.get_author_display_name", lambda _email: "Alias")
 
     hub_controller.append_note_incremental(
         screen,
         {"id": 99, "created_at": "2024-01-02T00:00:00Z", "author_email": "a@b.com", "author_name": "", "body": "texto"},
     )
 
-    assert screen._notes_last_snapshot == [(99, "2024-01-02T00:00:00Z")]
-    assert screen._notes_last_data and screen._notes_last_data[0]["id"] == 99
-    assert screen._live_last_ts == "2024-01-02T00:00:00Z"
+    assert screen.state.notes_last_snapshot == [(99, "2024-01-02T00:00:00Z")]
+    assert screen.state.notes_last_data and screen.state.notes_last_data[0]["id"] == 99
+    assert screen.state.live_last_ts == "2024-01-02T00:00:00Z"
     assert screen.notes_history.configure_calls
     assert screen.notes_history.insert_calls
     assert screen.notes_history.see_calls == 1
@@ -260,7 +307,7 @@ def test_append_note_incremental_insere_nota_e_atualiza_estado(monkeypatch, hub_
 
 def test_refresh_notes_async_nao_roda_sem_polling(monkeypatch, hub_controller):
     screen = ScreenStub()
-    screen._polling_active = False
+    screen.state.polling_active = False
     monkeypatch.setattr(hub_controller.threading, "Thread", lambda *a, **k: pytest.fail("nao deve criar thread"))
 
     hub_controller.refresh_notes_async(screen)
@@ -270,9 +317,9 @@ def test_refresh_notes_async_nao_roda_sem_polling(monkeypatch, hub_controller):
 
 def test_refresh_notes_async_tabela_ausente_agenda_retry(monkeypatch, hub_controller):
     screen = ScreenStub()
-    screen._polling_active = True
-    screen._notes_table_missing = True
-    screen._notes_retry_ms = 1234
+    screen.state.polling_active = True
+    screen.state.notes_table_missing = True
+    screen.state.notes_retry_ms = 1234
     monkeypatch.setattr(hub_controller.threading, "Thread", lambda *a, **k: pytest.fail("nao deve criar thread"))
 
     hub_controller.refresh_notes_async(screen)
@@ -283,8 +330,8 @@ def test_refresh_notes_async_tabela_ausente_agenda_retry(monkeypatch, hub_contro
 
 def test_refresh_notes_async_auth_pendente_agenda_retry(monkeypatch, hub_controller):
     screen = ScreenStub()
-    screen._polling_active = True
-    screen._notes_table_missing = False
+    screen.state.polling_active = True
+    screen.state.notes_table_missing = False
     screen._auth_ready_value = False
     screen.AUTH_RETRY_MS = 321
     monkeypatch.setattr(hub_controller.threading, "Thread", lambda *a, **k: pytest.fail("nao deve criar thread"))
@@ -295,10 +342,10 @@ def test_refresh_notes_async_auth_pendente_agenda_retry(monkeypatch, hub_control
     assert screen._notes_after_handle == "job1"
 
 
-def test_refresh_notes_async_sem_org_agenda_retry(monkeypatch, hub_controller):
+def test_refresh_notes_async_sem_org_id_agenda_retry(monkeypatch, hub_controller):
     screen = ScreenStub()
-    screen._polling_active = True
-    screen._notes_table_missing = False
+    screen.state.polling_active = True
+    screen.state.notes_table_missing = False
     screen._auth_ready_value = True
     screen._org_id_value = None
     screen.AUTH_RETRY_MS = 321
@@ -312,7 +359,7 @@ def test_refresh_notes_async_sem_org_agenda_retry(monkeypatch, hub_controller):
 
 def test_refresh_notes_async_caminho_feliz_renderiza_e_agenda_proximo(monkeypatch, instant_thread, hub_controller):
     screen = ScreenStub()
-    screen._polling_active = True
+    screen.state.polling_active = True
     screen._auth_ready_value = True
     screen._org_id_value = "org1"
     screen._notes_poll_ms = 150
@@ -329,15 +376,15 @@ def test_refresh_notes_async_caminho_feliz_renderiza_e_agenda_proximo(monkeypatc
 
     assert screen.rendered_notes == [{"id": 5, "created_at": "ts", "body": "b"}]
     assert screen.names_cache_refreshed is True
-    assert screen._notes_last_snapshot == [(5, "ts")]
-    assert screen._notes_last_data[0]["id"] == 5
+    assert screen.state.notes_last_snapshot == [(5, "ts")]
+    assert screen.state.notes_last_data[0]["id"] == 5
     assert screen._notes_after_handle == "job3"
     assert any(call[0] == 150 for call in screen.after_calls)
 
 
 def test_refresh_notes_async_transient_error_agenda_retry(monkeypatch, instant_thread, hub_controller):
     screen = ScreenStub()
-    screen._polling_active = True
+    screen.state.polling_active = True
     screen._auth_ready_value = True
     screen._org_id_value = "org1"
 
@@ -358,7 +405,7 @@ def test_refresh_notes_async_transient_error_agenda_retry(monkeypatch, instant_t
 
 def test_refresh_notes_async_tabela_ausente_marca_flags(monkeypatch, instant_thread, messagebox_calls, hub_controller):
     screen = ScreenStub()
-    screen._polling_active = True
+    screen.state.polling_active = True
     screen._auth_ready_value = True
     screen._org_id_value = "org1"
 
@@ -373,15 +420,15 @@ def test_refresh_notes_async_tabela_ausente_marca_flags(monkeypatch, instant_thr
 
     hub_controller.refresh_notes_async(screen)
 
-    assert screen._notes_table_missing is True
-    assert screen._notes_table_missing_notified is True
+    assert screen.state.notes_table_missing is True
+    assert screen.state.notes_table_missing_notified is True
     assert messagebox_calls
     assert screen._notes_after_handle is None
 
 
 def test_refresh_notes_async_auth_error_emite_aviso(monkeypatch, instant_thread, messagebox_calls, hub_controller):
     screen = ScreenStub()
-    screen._polling_active = True
+    screen.state.polling_active = True
     screen._auth_ready_value = True
     screen._org_id_value = "org1"
 
@@ -417,4 +464,4 @@ def test_refresh_notes_async_exception_generica_ainda_agenda(monkeypatch, instan
     assert screen.rendered_notes == []
     assert screen.names_cache_refreshed is True
     assert screen._notes_after_handle == "job3"
-    assert screen._notes_last_snapshot == []
+    assert screen.state.notes_last_snapshot == []

@@ -215,7 +215,7 @@ def ensure_client_saved_or_abort(app: tk.Misc, client_id: int) -> bool:
 
 def ask_storage_subfolder(parent: tk.Misc) -> Optional[str]:
     """Abre dialogo para escolher subpasta de storage (pode retornar None se cancelado)."""
-    from src.modules.forms.view import SubpastaDialog
+    from src.modules.clientes.forms.client_subfolder_prompt import SubpastaDialog
 
     dialog = SubpastaDialog(parent, default="")
     parent.wait_window(dialog)

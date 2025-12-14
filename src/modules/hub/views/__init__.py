@@ -6,7 +6,16 @@ from typing import Any
 # Importar HubScreen antes de listá-lo em __all__
 from .hub_screen import HubScreen
 
-__all__ = ["HubScreen"]
+# Importar helpers de view
+from .modules_panel import build_modules_panel
+from .notes_panel_view import NotesViewCallbacks, build_notes_side_panel
+
+__all__ = [
+    "HubScreen",
+    "build_modules_panel",
+    "build_notes_side_panel",
+    "NotesViewCallbacks",
+]
 
 
 def __getattr__(name: str) -> Any:
