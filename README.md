@@ -163,7 +163,7 @@ ruff check src/
 pyright src/
 
 # Análise de segurança com bandit
-bandit -c .bandit -r src/
+bandit --ini .bandit -r src adapters infra helpers
 ```
 
 ---

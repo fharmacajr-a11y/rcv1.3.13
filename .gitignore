@@ -84,9 +84,10 @@ coverage.xml
 coverage.json
 htmlcov/
 reports/coverage/
-bandit_.txt
-bandit_.csv
-bandit_.json
-ruff_.json
-pyright_.json
+reports/_qa/
+bandit_*.txt
+bandit_*.csv
+bandit_*.json
+ruff_*.json
+pyright_*.json
 pyright_final.json
