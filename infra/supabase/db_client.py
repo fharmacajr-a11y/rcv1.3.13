@@ -85,7 +85,9 @@ def _health_check_once(client: Client) -> bool:
         return True
     except Exception as e:
         # Só marque offline se for erro de conexão/timeouts
-        log.warning("Health fallback error: %s", str(e)[:150])
+        # Silencia em testes para evitar spam
+        if os.getenv("PYTEST_CURRENT_TEST") is None:
+            log.warning("Health fallback error: %s", str(e)[:150])
         return False
 
 
@@ -129,6 +131,7 @@ def _start_health_checker() -> None:
         )
 
         last_bad: float | None = None
+        unstable_warned: bool = False
 
         while True:
             try:
@@ -143,6 +146,7 @@ def _start_health_checker() -> None:
 
                     # Reset janela de instabilidade
                     last_bad = None
+                    unstable_warned = False
                     log.debug("Health check: Supabase ONLINE")
                 else:
                     # Falha: marca offline
@@ -151,9 +155,15 @@ def _start_health_checker() -> None:
 
                     if last_bad is None:
                         last_bad = time.time()
-                        log.warning("Health check: Supabase OFFLINE")
-                    elif (time.time() - last_bad) >= supa_types.HEALTHCHECK_UNSTABLE_THRESHOLD:
-                        log.warning("Supabase instável há >= %.0fs", supa_types.HEALTHCHECK_UNSTABLE_THRESHOLD)
+                        # Silencia em testes para evitar spam
+                        if os.getenv("PYTEST_CURRENT_TEST") is None:
+                            log.warning("Health check: Supabase OFFLINE")
+                    elif not unstable_warned and (time.time() - last_bad) >= supa_types.HEALTHCHECK_UNSTABLE_THRESHOLD:
+                        # Emitir warning de instabilidade apenas 1 vez por sequência offline
+                        unstable_warned = True
+                        # Silencia em testes para evitar spam
+                        if os.getenv("PYTEST_CURRENT_TEST") is None:
+                            log.warning("Supabase instável há >= %.0fs", supa_types.HEALTHCHECK_UNSTABLE_THRESHOLD)
 
             except StopIteration:
                 # Para testes que usam generator em time.sleep, sair da thread de forma limpa

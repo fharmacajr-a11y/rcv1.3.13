@@ -178,7 +178,7 @@ class TestUploadWithRetry:
         def fake_sleep(seconds: float) -> None:
             sleep_calls.append(seconds)
 
-        monkeypatch.setattr("src.modules.uploads.upload_retry.time.sleep", fake_sleep)
+        monkeypatch.setattr("src.modules.uploads.upload_retry._sleep", fake_sleep)
 
         with pytest.raises(UploadNetworkError):
             upload_with_retry(

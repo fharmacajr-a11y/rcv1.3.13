@@ -25,6 +25,9 @@ from .exceptions import (
 
 logger = logging.getLogger(__name__)
 
+# Alias interno para permitir patch local em testes (sem afetar outros módulos)
+_sleep = time.sleep
+
 T = TypeVar("T")
 
 # ============================================================================
@@ -296,7 +299,7 @@ def upload_with_retry(
                 except Exception as cb_exc:  # noqa: BLE001
                     logger.debug("Erro no callback on_retry: %s", cb_exc)
 
-            time.sleep(delay)
+            _sleep(delay)
 
     # Todas as tentativas falharam
     if last_exception is None:

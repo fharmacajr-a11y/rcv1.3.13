@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import importlib
 import itertools
+import os
 import sys
 import time
 from types import ModuleType, SimpleNamespace
@@ -16,9 +17,23 @@ from unittest.mock import MagicMock
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _ensure_healthcheck_disabled():
+    """Garante que RC_HEALTHCHECK_DISABLE permaneça ativo durante testes."""
+    # Testes específicos que precisam testar o healthcheck podem sobrescrever
+    original = os.environ.get("RC_HEALTHCHECK_DISABLE")
+    if original is None:
+        os.environ["RC_HEALTHCHECK_DISABLE"] = "1"
+    yield
+    if original is None:
+        os.environ.pop("RC_HEALTHCHECK_DISABLE", None)
+
+
 @pytest.fixture
 def db_client(monkeypatch):
     """Isola import com stubs para dependencias externas."""
+    import os
+
     supa_types = ModuleType("infra.supabase.types")
     supa_types.SUPABASE_URL = "https://stub.supabase.co"
     supa_types.SUPABASE_ANON_KEY = "anon"
@@ -27,7 +42,8 @@ def db_client(monkeypatch):
     supa_types.HEALTHCHECK_FALLBACK_TABLE = "profiles"
     supa_types.HEALTHCHECK_UNSTABLE_THRESHOLD = 5.0
     supa_types.HEALTHCHECK_INTERVAL_SECONDS = 0.01
-    supa_types.HEALTHCHECK_DISABLED = False
+    # Respeitar RC_HEALTHCHECK_DISABLE do ambiente ao invés de forçar False
+    supa_types.HEALTHCHECK_DISABLED = os.getenv("RC_HEALTHCHECK_DISABLE", "0") == "1"
     monkeypatch.setitem(sys.modules, "infra.supabase.types", supa_types)
 
     http_client = ModuleType("infra.supabase.http_client")
@@ -487,6 +503,8 @@ def test_start_health_checker_unstable_warning(db_client, monkeypatch):
     monkeypatch.setattr(db_client, "get_supabase", lambda: SimpleNamespace())
     warnings = []
     monkeypatch.setattr(db_client.log, "warning", lambda *a, **k: warnings.append(a[0]))
+    # Mockar os.getenv para permitir que warnings sejam emitidos durante o teste
+    monkeypatch.setattr(db_client.os, "getenv", lambda key, default=None: None)
 
     class FakeThread:
         def __init__(self, target, daemon=None, name=None):
