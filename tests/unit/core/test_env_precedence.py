@@ -12,6 +12,9 @@ import pytest  # type: ignore[import-untyped]
 
 def test_env_precedence_local_overwrites_bundled(tmp_path, monkeypatch):
     """Test that local .env overwrites bundled .env values."""
+    # Load dotenv (simulate app behavior)
+    load_dotenv = pytest.importorskip("dotenv", reason="python-dotenv não instalado").load_dotenv
+
     # Setup: create two .env files
     bundled_env = tmp_path / "bundled.env"
     bundled_env.write_text("TEST_VAR=bundled_value\nONLY_BUNDLED=yes\n")
@@ -23,12 +26,6 @@ def test_env_precedence_local_overwrites_bundled(tmp_path, monkeypatch):
     monkeypatch.delenv("TEST_VAR", raising=False)
     monkeypatch.delenv("ONLY_BUNDLED", raising=False)
     monkeypatch.delenv("ONLY_LOCAL", raising=False)
-
-    # Load dotenv (simulate app behavior)
-    try:
-        from dotenv import load_dotenv
-    except ImportError:
-        pytest.skip("python-dotenv not installed")
 
     # Load bundled first (override=False)
     load_dotenv(str(bundled_env), override=False)
@@ -44,16 +41,13 @@ def test_env_precedence_local_overwrites_bundled(tmp_path, monkeypatch):
 
 def test_env_bundled_does_not_overwrite_existing(tmp_path, monkeypatch):
     """Test that bundled .env (override=False) doesn't overwrite existing env vars."""
+    load_dotenv = pytest.importorskip("dotenv", reason="python-dotenv não instalado").load_dotenv
+
     bundled_env = tmp_path / "bundled.env"
     bundled_env.write_text("PREEXISTING=from_bundled\n")
 
     # Set environment variable before loading
     monkeypatch.setenv("PREEXISTING", "already_set")
-
-    try:
-        from dotenv import load_dotenv
-    except ImportError:
-        pytest.skip("python-dotenv not installed")
 
     # Load with override=False
     load_dotenv(str(bundled_env), override=False)
@@ -64,16 +58,16 @@ def test_env_bundled_does_not_overwrite_existing(tmp_path, monkeypatch):
 
 def test_env_local_overwrites_existing(tmp_path, monkeypatch):
     """Test that local .env (override=True) does overwrite existing env vars."""
+    load_dotenv = pytest.importorskip("dotenv", reason="python-dotenv não instalado").load_dotenv
+
     local_env = tmp_path / "local.env"
     local_env.write_text("PREEXISTING=from_local\n")
 
     # Set environment variable before loading
     monkeypatch.setenv("PREEXISTING", "already_set")
 
-    try:
-        from dotenv import load_dotenv
-    except ImportError:
-        pytest.skip("python-dotenv not installed")
+    # Load with override=True
+    load_dotenv(str(local_env), override=True)
 
     # Load with override=True
     load_dotenv(str(local_env), override=True)
@@ -93,6 +87,8 @@ def test_env_loading_order_matches_app(tmp_path, monkeypatch, fake_supabase_url)
 
     ⚠️ SEGURANÇA: Usa fake_supabase_url do conftest.py ao invés de hardcoded URL
     """
+    load_dotenv = pytest.importorskip("dotenv", reason="python-dotenv não instalado").load_dotenv
+
     # Simulate the exact loading pattern from src/app_gui.py
     bundled = tmp_path / "bundled.env"
     bundled.write_text(f"RC_LOG_LEVEL=INFO\nSUPABASE_URL={fake_supabase_url}\n")
@@ -103,10 +99,9 @@ def test_env_loading_order_matches_app(tmp_path, monkeypatch, fake_supabase_url)
     monkeypatch.delenv("RC_LOG_LEVEL", raising=False)
     monkeypatch.delenv("SUPABASE_URL", raising=False)
 
-    try:
-        from dotenv import load_dotenv
-    except ImportError:
-        pytest.skip("python-dotenv not installed")
+    # Exact order from app_gui.py:
+    load_dotenv(str(bundled), override=False)  # empacotado
+    load_dotenv(str(local), override=True)  # externo sobrescreve
 
     # Exact order from app_gui.py:
     load_dotenv(str(bundled), override=False)  # empacotado

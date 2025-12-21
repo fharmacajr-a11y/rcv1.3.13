@@ -13,6 +13,7 @@ from src.modules.uploads.service import download_and_open_file
 class TestDownloadAndOpenFile:
     """Testes para download_and_open_file()."""
 
+    @pytest.mark.skipif(not sys.platform.startswith("win"), reason="Windows-only")
     @patch("src.modules.uploads.service.create_temp_file")
     @patch("src.modules.uploads.service.download_file")
     @patch("src.modules.uploads.service.get_clients_bucket")
@@ -25,8 +26,6 @@ class TestDownloadAndOpenFile:
         mock_create_temp: Mock,
     ):
         """Deve baixar arquivo e abrir no viewer (Windows)."""
-        if not sys.platform.startswith("win"):
-            pytest.skip("Teste específico para Windows")
 
         # Arrange
         mock_get_bucket.return_value = "bucket-clientes"
@@ -53,6 +52,7 @@ class TestDownloadAndOpenFile:
         )
         mock_opener.assert_called_once_with("C:\\Temp\\rc_gestor_uploads\\documento.pdf")
 
+    @pytest.mark.skipif(sys.platform.startswith("win") or sys.platform == "darwin", reason="Linux-only")
     @patch("src.modules.uploads.service.create_temp_file")
     @patch("src.modules.uploads.service.download_file")
     @patch("src.modules.uploads.service.get_clients_bucket")
@@ -65,8 +65,6 @@ class TestDownloadAndOpenFile:
         mock_create_temp: Mock,
     ):
         """Deve baixar arquivo e abrir no viewer (Linux)."""
-        if sys.platform.startswith("win") or sys.platform == "darwin":
-            pytest.skip("Teste específico para Linux")
 
         # Arrange
         mock_get_bucket.return_value = "bucket-clientes"
