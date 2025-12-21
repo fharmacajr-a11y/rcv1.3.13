@@ -172,9 +172,8 @@ def get_display_names_by_user_ids(
     try:
         supa = get_supabase()
         # Buscar profiles por id (user_id) dentro da organização
-        resp = exec_postgrest(
-            supa.table(_TABLE).select("id, email, display_name").eq("org_id", org_id).in_("id", clean_ids)
-        )
+        query = supa.table(_TABLE).select("id, email, display_name").eq("org_id", org_id).in_("id", clean_ids)
+        resp = exec_postgrest(query)
         rows: list[dict[str, Any]] = getattr(resp, "data", None) or []
 
         for row in rows:

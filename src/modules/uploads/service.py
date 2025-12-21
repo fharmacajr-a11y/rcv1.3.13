@@ -10,7 +10,8 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
-import subprocess
+import shutil
+import subprocess  # nosec B404  # Uso controlado: abrir arquivos locais do app, sem shell=True
 import sys
 import time
 from dataclasses import dataclass
@@ -403,11 +404,22 @@ def download_and_open_file(remote_key: str, *, bucket: str | None = None, mode: 
     # Mode "external": abrir no visualizador padrão do sistema
     try:
         if sys.platform.startswith("win"):
-            os.startfile(local_path)  # type: ignore[attr-defined]
+            # Windows: usar startfile (caminho controlado pelo app, não input externo)
+            os.startfile(local_path)  # type: ignore[attr-defined]  # nosec B606
         elif sys.platform == "darwin":
-            subprocess.Popen(["open", local_path])
+            # macOS: resolver 'open' com which() para evitar injeção de PATH
+            open_cmd = shutil.which("open")
+            if open_cmd:
+                subprocess.Popen([open_cmd, local_path])  # nosec B603
+            else:
+                raise FileNotFoundError("Executável 'open' não encontrado no PATH")
         else:
-            subprocess.Popen(["xdg-open", local_path])
+            # Linux: resolver 'xdg-open' com which() para evitar injeção de PATH
+            xdg_cmd = shutil.which("xdg-open")
+            if xdg_cmd:
+                subprocess.Popen([xdg_cmd, local_path])  # nosec B603
+            else:
+                raise FileNotFoundError("Executável 'xdg-open' não encontrado no PATH")
 
         logger.info("Arquivo aberto no visualizador externo: %s", local_path)
 

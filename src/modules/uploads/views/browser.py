@@ -26,6 +26,7 @@ from src.modules.uploads.service import (
     list_browser_items,
 )
 from src.modules.pdf_preview import open_pdf_viewer
+from src.ui.components.progress_dialog import ProgressDialog
 from src.ui.files_browser.utils import sanitize_filename, suggest_zip_filename
 from src.ui.window_utils import show_centered
 from src.utils.prefs import load_browser_status_map
@@ -49,6 +50,18 @@ def _join(*parts: str) -> str:
 
 def _norm(path: str) -> str:
     return _join(path)
+
+
+def _short_prefix(p: str, max_len: int = 50) -> str:
+    """Trunca o prefixo para exibição com reticências se exceder max_len."""
+    p = p or ""
+    return p if len(p) <= max_len else (p[:max_len] + "…")
+
+
+def _short_client_code(prefix: str) -> str:
+    """Abrevia o código do cliente no formato: prefix[:12] + '…' + prefix[-8:]."""
+    p = prefix or ""
+    return p if len(p) <= 24 else f"{p[:12]}…{p[-8:]}"
 
 
 UI_GAP = 6
@@ -85,6 +98,7 @@ class UploadsBrowserWindow(tk.Toplevel):
         module: str = "",
         modal: bool = False,
         delete_folder_handler: Callable[[str, str], Any] | None = None,
+        anvisa_context: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(parent)
         self.withdraw()
@@ -102,6 +116,8 @@ class UploadsBrowserWindow(tk.Toplevel):
         self._delete_folder_handler = delete_folder_handler
         self._pdf_viewer_window = None
         self._last_view_signature: str | None = None
+        self._anvisa_context = anvisa_context
+        self._download_in_progress = False
 
         razao_clean = strip_cnpj_from_razao(razao, cnpj)
         cnpj_fmt = format_cnpj_for_display(cnpj)
@@ -110,6 +126,8 @@ class UploadsBrowserWindow(tk.Toplevel):
         else:
             title = f"Arquivos: ID {client_id} - {razao_clean} - {cnpj_fmt}"
         self.title(title)
+
+        # FIX: Apenas iconbitmap (Windows), sem carregar PNG para evitar uso em Label
         try:
             self.iconbitmap(resource_path("rc.ico"))
         except Exception as exc:  # noqa: BLE001
@@ -136,44 +154,79 @@ class UploadsBrowserWindow(tk.Toplevel):
         self.columnconfigure(0, weight=1)
         self.rowconfigure(1, weight=1)  # Linha do LabelFrame principal cresce
 
-        # Barra superior com prefixo e botão atualizar
+        # Barra superior com código do cliente e botão refresh
         top_bar = ttk.Frame(self, padding=(UI_PADX, UI_PADY))
         top_bar.grid(row=0, column=0, sticky="ew")
-        top_bar.columnconfigure(1, weight=1)
+        top_bar.columnconfigure(0, weight=1)  # Entry expande
+        top_bar.columnconfigure(1, weight=0)  # Botão fixo
 
-        ttk.Label(top_bar, text="Prefixo atual:").grid(row=0, column=0, sticky="w")
-        self.prefix_var = tk.StringVar(value=self._base_prefix)
-        prefix_entry = ttk.Entry(top_bar, textvariable=self.prefix_var, state="readonly")
-        prefix_entry.grid(row=0, column=1, sticky="ew", padx=(UI_GAP, 0))
+        # Entry única com código do cliente
+        self.prefix_var = tk.StringVar(value=f"Código do cliente no Supabase: {_short_client_code(self._base_prefix)}")
+        prefix_entry = ttk.Entry(top_bar, textvariable=self.prefix_var, state="readonly", width=60)
+        prefix_entry.grid(row=0, column=0, sticky="ew")
 
-        # Botão Atualizar removido - recarregamento é automático
+        # Botão refresh (ícone-only) à direita
+        btn_refresh_top = ttk.Button(top_bar, text="⟳", width=3, command=self._refresh_listing, bootstyle="info")
+        btn_refresh_top.grid(row=0, column=1, sticky="e", padx=(UI_GAP, 0))
 
         # LabelFrame contendo a árvore de arquivos (ocupa toda a área central)
         file_frame = ttk.LabelFrame(self, text="Nome do arquivo/pasta", padding=(UI_PADX, UI_PADY))
         file_frame.grid(row=1, column=0, sticky="nsew", padx=UI_PADX, pady=(0, UI_PADY))
-        file_frame.rowconfigure(0, weight=1)
+        file_frame.rowconfigure(0, weight=1)  # Lista cresce
+        file_frame.rowconfigure(1, weight=0)  # Barra fixa
         file_frame.columnconfigure(0, weight=1)
 
+        # FileList no topo
         self.file_list = FileList(
             file_frame,
             on_download=self._download_selected,
             on_delete=self._delete_selected,
             on_open_file=self._view_selected,
             on_expand_folder=self._load_folder_children,
+            on_download_folder=self._download_folder_zip,
         )
         self.file_list.grid(row=0, column=0, sticky="nsew")
         self.file_list.tree.bind("<<TreeviewSelect>>", lambda _event: self._sync_actions_state())
 
-        # Barra de ações no rodapé
-        actions = ActionBar(
-            self,
-            padding=(UI_PADX, UI_PADY),
+        # Barra de ações embaixo da lista
+        self.actions = ActionBar(
+            file_frame,
             on_download=self._download_selected,
             on_download_folder=self._download_folder_zip,
             on_delete=self._delete_selected,
             on_view=self._view_selected,
+            on_close=self._close_window,
         )
-        actions.grid(row=2, column=0, sticky="ew")
+        self.actions.grid(row=1, column=0, sticky="ew", pady=(8, 0))
+
+        # Footer ANVISA (condicional)
+        if self._anvisa_context is not None:
+            from src.modules.anvisa.views.anvisa_footer import AnvisaFooter
+
+            anvisa_footer = AnvisaFooter(
+                self,
+                default_process=self._anvisa_context.get("request_type"),
+                base_prefix=self._base_prefix,
+                org_id=self._org_id,
+                on_upload_complete=lambda: self._refresh_listing(),
+                padding=(UI_PADX, UI_PADY),
+            )
+            anvisa_footer.grid(row=3, column=0, sticky="ew")
+
+    # ------------------------------------------------------------------
+    # UI actions
+    # ------------------------------------------------------------------
+    def _close_window(self) -> None:
+        """Fecha a janela respeitando o flag _is_closing."""
+        if not self._is_closing:
+            self._is_closing = True
+            self.destroy()
+
+    def _show_download_done_dialog(self, text: str) -> None:
+        """Mostra messagebox nativo do Windows para download concluído."""
+        # FIX: Usar messagebox.showinfo nativo do Windows em vez de Toplevel custom
+        # Isso cria um diálogo padrão do sistema operacional (não Tk)
+        messagebox.showinfo("Download", text, parent=self)
 
     # ------------------------------------------------------------------
     # Data loading
@@ -182,13 +235,27 @@ class UploadsBrowserWindow(tk.Toplevel):
         self.after(100, self._refresh_listing)
 
     def _sync_actions_state(self) -> None:
-        """Placeholder para futuros ajustes de estado conforme a seleção atual."""
-        return
+        """Atualiza o estado dos botões de ação conforme a seleção atual."""
+        selected_info = self.file_list.get_selected_info()
+
+        if not selected_info:
+            # Nada selecionado: desabilitar todos os botões
+            self.actions.set_enabled(download=False, download_folder=False, delete=False, view=False)
+            return
+
+        _, item_type, _ = selected_info
+
+        if item_type == "Pasta":
+            # Pasta selecionada: habilitar apenas download_folder e delete
+            self.actions.set_enabled(download=False, download_folder=True, delete=True, view=False)
+        else:
+            # Arquivo selecionado: habilitar download, view e delete
+            self.actions.set_enabled(download=True, download_folder=False, delete=True, view=True)
 
     def _refresh_listing(self) -> None:
         """Carrega a árvore completa de arquivos do prefixo base do cliente."""
         prefix = self._base_prefix
-        self.prefix_var.set(prefix)
+        self.prefix_var.set(f"Código do cliente no Supabase: {_short_client_code(prefix)}")
         _log.info("Browser prefix atual: %s (bucket=%s, cliente=%s)", prefix, self._bucket, self._client_id)
         items = list_browser_items(prefix, bucket=self._bucket)
         self.file_list.populate_tree_hierarchical(items, self._base_prefix, self._status_cache)
@@ -253,119 +320,76 @@ class UploadsBrowserWindow(tk.Toplevel):
             messagebox.showinfo("ZIP", "Operacao cancelada.", parent=self)
             return
 
-        wait: tk.Toplevel | None = None
         cancel_event = threading.Event()
 
-        try:
-            wait = tk.Toplevel(self)
-            wait.withdraw()
-            wait.title("Aguarde...")
-            wait.resizable(False, False)
-            wait.transient(self)
+        def _do_cancel() -> None:
+            cancel_event.set()
             try:
-                wait.iconbitmap(resource_path("rc.ico"))
-            except Exception as exc:  # noqa: BLE001
-                _log.debug("Falha ao definir icone em janela de progresso ZIP: %s", exc)
+                dlg.set_eta_text("Cancelando...")
+            except Exception:  # noqa: BLE001
+                pass
 
-            frm = ttk.Frame(wait, padding=12)
-            frm.pack(fill="both", expand=True)
-            ttk.Label(
-                frm,
-                text=f"Preparando ZIP no Supabase - isto pode levar alguns segundos.\nPasta: {item_name}",
-            ).pack(pady=(0, 8))
-            pb = ttk.Progressbar(frm, mode="indeterminate", length=260)
-            pb.pack()
-            pb.start(12)
+        dlg = ProgressDialog(
+            parent=self,
+            title="Aguarde...",
+            message="Preparando ZIP no Supabase.",
+            detail=f"Pasta: {item_name}",
+            can_cancel=True,
+            on_cancel=_do_cancel,
+        )
+        dlg.set_progress(None)  # indeterminate
+        dlg.set_eta_text("Aguardando resposta do servidor...")
 
-            btns = ttk.Frame(frm)
-            btns.pack(pady=(10, 0))
-            btn_cancel = ttk.Button(btns, text="Cancelar")
-            btn_cancel.pack(side="left")
-
-            def _do_cancel() -> None:
-                btn_cancel.configure(state="disabled")
-                try:
-                    pb.stop()
-                    pb.configure(mode="determinate", value=0, maximum=100)
-                except Exception as exc:  # noqa: BLE001
-                    _log.debug("Falha ao parar progressbar em cancelamento ZIP: %s", exc)
-                cancel_event.set()
-
-            btn_cancel.configure(command=_do_cancel)
-
-            try:
-                wait.update_idletasks()
-                show_centered(wait)
-                wait.grab_set()
-                wait.focus_force()
-            except Exception as exc:  # noqa: BLE001
-                _log.debug("Falha ao exibir dialogo de progresso zip: %s", exc)
-
-            def _download_zip_worker() -> Path:
-                return Path(
-                    download_folder_zip(
-                        remote_prefix,
-                        bucket=self._bucket,
-                        zip_name=destination.stem,
-                        out_dir=str(destination.parent),
-                        timeout_s=ZIP_TIMEOUT_SECONDS,
-                        cancel_event=cancel_event,
-                    )
+        def _download_zip_worker() -> Path:
+            """Worker que baixa ZIP."""
+            return Path(
+                download_folder_zip(
+                    remote_prefix,
+                    bucket=self._bucket,
+                    zip_name=destination.stem,
+                    out_dir=str(destination.parent),
+                    timeout_s=ZIP_TIMEOUT_SECONDS,
+                    cancel_event=cancel_event,
                 )
+            )
 
-            fut = _executor.submit(_download_zip_worker)
+        fut = _executor.submit(_download_zip_worker)
 
-            def _on_zip_finished(future) -> None:  # type: ignore[no-untyped-def]
-                try:
-                    pb.stop()
-                except Exception as exc:  # noqa: BLE001
-                    _log.debug("Falha ao parar progressbar no fim do ZIP: %s", exc)
-                try:
-                    wait.grab_release()
-                except Exception as exc:  # noqa: BLE001
-                    _log.debug("Falha ao liberar grab apos ZIP: %s", exc)
-                try:
-                    wait.destroy()
-                except Exception as exc:  # noqa: BLE001
-                    _log.debug("Falha ao destruir dialogo ZIP: %s", exc)
+        def _on_zip_finished(future) -> None:  # type: ignore[no-untyped-def]
+            try:
+                dlg.close()
+            except Exception as exc:  # noqa: BLE001
+                _log.debug("Falha ao fechar dialogo ZIP: %s", exc)
 
-                try:
-                    destino = future.result()
-                except DownloadCancelledError:
-                    messagebox.showinfo("Download cancelado", "Voce cancelou o download.", parent=self)
-                except TimeoutError:
-                    messagebox.showerror(
-                        "Tempo esgotado",
-                        "O servidor nao respondeu a tempo (conexao ou leitura). Verifique sua internet e tente novamente.",
-                        parent=self,
-                    )
-                except Exception as err:
-                    messagebox.showerror("Erro ao baixar pasta", str(err), parent=self)
-                else:
-                    messagebox.showinfo("Download concluido", f"ZIP salvo em\n{destino}", parent=self)
+            try:
+                destino = future.result()
+            except DownloadCancelledError:
+                messagebox.showinfo("Download cancelado", "Voce cancelou o download.", parent=self)
+            except TimeoutError:
+                messagebox.showerror(
+                    "Tempo esgotado",
+                    "O servidor nao respondeu a tempo (conexao ou leitura). Verifique sua internet e tente novamente.",
+                    parent=self,
+                )
+            except Exception as err:
+                messagebox.showerror("Erro ao baixar pasta", str(err), parent=self)
+            else:
+                messagebox.showinfo("Download concluído", f"ZIP salvo em:\n{destino}", parent=self)
 
-                try:
-                    self.lift()
-                    self.attributes("-topmost", True)
-                    self.after(200, lambda: self.attributes("-topmost", False))
-                except Exception as exc:  # noqa: BLE001
-                    _log.debug("Falha ao trazer janela para frente apos ZIP: %s", exc)
+            try:
+                self.lift()
+                self.attributes("-topmost", True)
+                self.after(200, lambda: self.attributes("-topmost", False))
+            except Exception as exc:  # noqa: BLE001
+                _log.debug("Falha ao trazer janela para frente apos ZIP: %s", exc)
 
-            fut.add_done_callback(lambda future: self.after(0, lambda: _on_zip_finished(future)))
-        except Exception as exc:
-            if wait is not None:
-                try:
-                    wait.grab_release()
-                except Exception as exc2:  # noqa: BLE001
-                    _log.debug("Falha ao liberar grab em erro de ZIP: %s", exc2)
-                try:
-                    wait.destroy()
-                except Exception as exc2:  # noqa: BLE001
-                    _log.debug("Falha ao destruir janela ZIP em erro: %s", exc2)
-            _log.exception("Erro ao iniciar download da pasta como ZIP", exc_info=exc)
-            messagebox.showerror("Baixar pasta", f"Falha ao baixar pasta\n{exc}", parent=self)
+        fut.add_done_callback(lambda future: self.after(0, lambda: _on_zip_finished(future)))
 
     def _download_selected(self) -> None:
+        # Guard contra duplo-clique/execução duplicada
+        if self._download_in_progress:
+            return
+
         selected_info = self.file_list.get_selected_info()
         if not selected_info:
             messagebox.showinfo("Arquivos", "Selecione um item para baixar.", parent=self)
@@ -373,30 +397,30 @@ class UploadsBrowserWindow(tk.Toplevel):
 
         item_name, item_type, full_path = selected_info
 
+        # Bloquear download de pasta pelo botão "Baixar"
         if item_type == "Pasta":
-            self._download_folder_zip()
+            messagebox.showinfo("Baixar", "Para pasta, use o botão 'Baixar pasta (.zip)'.", parent=self)
             return
 
-        remote_key = full_path
-        local_path = filedialog.asksaveasfilename(parent=self, initialfile=item_name)
-        if self._is_folder(item_name):
-            self._download_folder_zip()
-            return
-
+        # Download de arquivo
         remote_key = full_path
         local_path = filedialog.asksaveasfilename(parent=self, initialfile=item_name)
         if not local_path:
             return
+
+        self._download_in_progress = True
         try:
             result = download_storage_object(remote_key, local_path, bucket=self._bucket)
             if result.get("ok"):
-                messagebox.showinfo("Download", f"Arquivo salvo em {local_path}.", parent=self)
+                self._show_download_done_dialog(f"Arquivo salvo em {local_path}.")
             else:
                 error_msg = result.get("message", "Erro desconhecido ao baixar arquivo")
                 messagebox.showerror("Download", error_msg, parent=self)
         except Exception as exc:
             _log.exception("Download falhou")
             messagebox.showerror("Download", f"Falha ao baixar arquivo: {exc}", parent=self)
+        finally:
+            self._download_in_progress = False
 
     def _delete_selected(self) -> None:
         selected_info = self.file_list.get_selected_info()
@@ -459,10 +483,28 @@ class UploadsBrowserWindow(tk.Toplevel):
         pdf_path: str | None = None,
         display_name: str | None = None,
         data_bytes: bytes | None = None,
-        signature: str | None = None,
+        _signature: str | None = None,
+        signature: str | None = None,  # Compatibilidade com chamadas antigas
     ):
-        """Abre o visualizador de PDF usando o singleton global."""
-        return open_pdf_viewer(self, pdf_path=pdf_path, display_name=display_name, data_bytes=data_bytes)
+        """Abre o visualizador de PDF usando o singleton global.
+
+        Args:
+            pdf_path: Caminho local do PDF
+            display_name: Nome para exibir
+            data_bytes: Bytes do arquivo
+            _signature: Assinatura/identificador (nome preferido)
+            signature: Alias para _signature (compatibilidade)
+        """
+        # Compatibilidade: se passou signature mas não _signature, usar signature
+        if _signature is None and signature is not None:
+            _signature = signature
+
+        return open_pdf_viewer(
+            self,
+            pdf_path=pdf_path,
+            display_name=display_name,
+            data_bytes=data_bytes,
+        )
 
     def _view_selected(self, name: str = "", item_type: str = "", full_path: str = "") -> None:
         """Abre o arquivo selecionado no visualizador interno de PDF/imagens.
@@ -552,6 +594,7 @@ def open_files_browser(
     module: str = "",
     modal: bool = False,
     delete_folder_handler: Callable[[str, str], Any] | None = None,
+    anvisa_context: dict[str, Any] | None = None,
 ) -> UploadsBrowserWindow:
     """
     Entry point compatível com o open_files_browser legacy.
@@ -569,6 +612,7 @@ def open_files_browser(
         module: Nome do módulo que está abrindo o browser (ex: "auditoria")
         modal: Se True, janela fica modal ao parent
         delete_folder_handler: Handler para exclusao de pastas (opcional)
+        anvisa_context: Dict com contexto ANVISA (request_type, on_upload_complete)
 
     Returns:
         Janela UploadsBrowserWindow criada e exibida
@@ -586,6 +630,7 @@ def open_files_browser(
         module=module,
         modal=modal,
         delete_folder_handler=delete_folder_handler,
+        anvisa_context=anvisa_context,
     )
 
     window.deiconify()

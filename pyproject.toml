@@ -2,6 +2,8 @@
 src = ["src", "tests"]
 line-length = 120
 target-version = "py313"
+
+[tool.ruff.lint]
 select = [
     "E",    # pycodestyle errors
     "F",    # pyflakes
@@ -13,8 +15,10 @@ ignore = [
     "F821",  # nomes indefinidos em caminhos condicionais
 ]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "tests/**/*" = ["D", "ANN", "S101"]
+"tests/conftest.py" = ["E402"]  # Import após setup de ambiente é intencional
+"tests\\conftest.py" = ["E402"]  # Import após setup de ambiente é intencional (Windows)
 "tests/unit/core/test_auth_bootstrap_microfase.py" = ["E741", "F401"]
 "tests/unit/modules/passwords/test_passwords_screen_ui.py" = ["F401", "F811", "F841"]
 "tests/unit/modules/lixeira/test_lixeira_service.py" = ["E731"]
@@ -29,11 +33,82 @@ ignore = [
 ignore_missing_imports = true
 
 [tool.deptry]
-# analisa código-fonte somente
-ignore = ["ajuda", "runtime", "build", "dist", ".venv", "tests", ".ruff_cache", ".pytest_cache"]
-# mapeamento opcional de import->distribuição (adicione se precisar)
-# [tool.deptry.package_module_name_map]
-# "Pillow" = ["PIL"]
+# Arquivos de requirements a usar
+requirements_files = ["requirements.txt"]
+requirements_files_dev = ["requirements-dev.txt"]
+
+# Diretórios a excluir da análise
+extend_exclude = [
+    "tests",
+    "docs",
+    "htmlcov",
+    "reports",
+    "build",
+    "dist",
+    ".venv",
+    ".venv_backup_20251204",
+    ".pytest_cache",
+    ".ruff_cache",
+    "__pycache__",
+    "migrations",
+    "third_party",
+    "typings",
+    "installer",
+    "scripts",
+    "tools",
+]
+
+# Módulos first-party do projeto
+known_first_party = ["src", "infra", "adapters", "data", "security", "helpers"]
+
+# Mapeamento de nomes de pacotes para módulos importados
+[tool.deptry.package_module_name_map]
+Pillow = ["PIL"]
+
+# Ignorar DEP002 para dependências transitivas e pacotes fixados
+[tool.deptry.per_rule_ignores]
+DEP002 = [
+    "sv_ttk",
+    "tkinterweb",
+    "tkinterweb-tkhtml",
+    "supabase-auth",
+    "supabase-functions",
+    "storage3",
+    "realtime",
+    "websockets",
+    "psycopg",
+    "psycopg-binary",
+    "psycopg2-binary",
+    "SQLAlchemy",
+    "alembic",
+    "h11",
+    "h2",
+    "hpack",
+    "hyperframe",
+    "certifi",
+    "bcrypt",
+    "PyJWT",
+    "passlib",
+    "cffi",
+    "pycparser",
+    "pydantic",
+    "pydantic-settings",
+    "pydantic_core",
+    "annotated-types",
+    "typing-inspection",
+    "click",
+    "rich",
+    "colorama",
+    "PyYAML-ft",
+    "tzdata",
+    "anyio",
+    "sniffio",
+    "idna",
+    "charset-normalizer",
+    "iniconfig",
+    "packaging",
+    "platformdirs",
+]
 
 [tool.vulture]
 paths = ["app_gui.py", "application", "gui", "ui", "core", "infra", "utils", "adapters", "shared"]

@@ -9,6 +9,7 @@ Refatoração: UI-DECOUPLE-CLIENT-FORM-002 (Fase 2)
 
 from __future__ import annotations
 
+import logging
 import tkinter as tk
 from tkinter import ttk
 from typing import Any, Callable, Dict, List
@@ -17,6 +18,8 @@ try:
     import ttkbootstrap as tb
 except Exception:
     tb = ttk  # type: ignore
+
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -205,6 +208,5 @@ def bind_dirty_tracking(widget: tk.Widget, on_change: Callable[..., None]) -> No
         widget.bind("<KeyRelease>", on_change, add="+")
         widget.bind("<<Paste>>", on_change, add="+")
         widget.bind("<<Cut>>", on_change, add="+")
-    except Exception:  # noqa: BLE001  # nosec B110 - Silently ignore widgets that don't support bindings
-        # Silenciosamente ignora se widget não suporta esses bindings
-        pass
+    except Exception as exc:  # noqa: BLE001  # nosec B110
+        logger.debug("Widget não suporta bindings de evento: %s", exc)

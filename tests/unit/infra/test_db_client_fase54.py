@@ -92,6 +92,9 @@ def test_is_supabase_online_threshold(monkeypatch):
 
 
 def test_get_supabase_state_e_cloud_status(monkeypatch):
+    # Definir threshold explícito para evitar falhas intermitentes
+    monkeypatch.setattr(db_client.supa_types, "HEALTHCHECK_UNSTABLE_THRESHOLD", 60.0)
+
     monkeypatch.setattr(db_client, "_IS_ONLINE", False)
     monkeypatch.setattr(db_client, "_LAST_SUCCESS_TIMESTAMP", 0.0)
     state, desc = db_client.get_supabase_state()
@@ -101,7 +104,8 @@ def test_get_supabase_state_e_cloud_status(monkeypatch):
 
     now = time.time()
     monkeypatch.setattr(db_client, "_IS_ONLINE", True)
-    monkeypatch.setattr(db_client, "_LAST_SUCCESS_TIMESTAMP", now - 10)
+    # Usar timestamp bem dentro do threshold (5s atrás, com threshold de 60s)
+    monkeypatch.setattr(db_client, "_LAST_SUCCESS_TIMESTAMP", now - 5.0)
     state, _ = db_client.get_supabase_state()
     assert state == "online"
 

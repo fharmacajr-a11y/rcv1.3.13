@@ -328,6 +328,7 @@ class SupabaseStorageAdapter(StoragePort):
         out_dir: Optional[str] = None,
         timeout_s: int = 300,
         cancel_event: Optional[Any] = None,
+        progress_cb: Optional[Any] = None,
     ):
         normalized_prefix = prefix.strip("/")
         return baixar_pasta_zip(
@@ -337,6 +338,7 @@ class SupabaseStorageAdapter(StoragePort):
             out_dir=out_dir,
             timeout_s=timeout_s,
             cancel_event=cancel_event,
+            progress_cb=progress_cb,
         )
 
 
@@ -367,6 +369,7 @@ def download_folder_zip(
     out_dir: Optional[str] = None,
     timeout_s: int = 300,
     cancel_event: Optional[Any] = None,
+    progress_cb: Optional[Any] = None,
 ):
     adapter = _default_adapter if bucket is None else SupabaseStorageAdapter(bucket=bucket)
     return adapter.download_folder_zip(
@@ -375,6 +378,7 @@ def download_folder_zip(
         out_dir=out_dir,
         timeout_s=timeout_s,
         cancel_event=cancel_event,
+        progress_cb=progress_cb,
     )
 
 

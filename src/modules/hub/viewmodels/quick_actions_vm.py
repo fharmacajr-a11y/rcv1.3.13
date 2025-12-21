@@ -135,16 +135,8 @@ class QuickActionsViewModel:
                     id="anvisa",
                     label="Anvisa",
                     description="Regulatório Anvisa",
-                    bootstyle="secondary",
+                    bootstyle="info",
                     order=50,
-                    category="regulatorio",
-                ),
-                QuickActionItemView(
-                    id="farmacia_popular",
-                    label="Farmácia Popular",
-                    description="Programa Farmácia Popular",
-                    bootstyle="secondary",
-                    order=60,
                     category="regulatorio",
                 ),
                 QuickActionItemView(
@@ -153,14 +145,6 @@ class QuickActionsViewModel:
                     description="Sistema Nacional de Gerenciamento de Produtos Controlados",
                     bootstyle="secondary",
                     order=70,
-                    category="regulatorio",
-                ),
-                QuickActionItemView(
-                    id="sifap",
-                    label="Sifap",
-                    description="Sistema Integrado de Farmácia Popular",
-                    bootstyle="secondary",
-                    order=80,
                     category="regulatorio",
                 ),
                 QuickActionItemView(

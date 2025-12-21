@@ -28,6 +28,7 @@ class PdfToolbar(ttk.Frame):
         on_toggle_text: Callable[[bool], None],
         on_download_pdf: Callable[[], None],
         on_download_image: Callable[[], None],
+        on_open_converter: Callable[[], None] | None = None,
     ) -> None:
         super().__init__(master)
 
@@ -47,10 +48,22 @@ class PdfToolbar(ttk.Frame):
         self.chk_text = ttk.Checkbutton(self, text="Texto", variable=self.var_text, command=self._handle_toggle_text)
         self.chk_text.pack(side="left", padx=12)
 
+        # Botões da direita (ordem de pack para visual correto)
         self.btn_download_pdf = ttk.Button(self, text="Baixar PDF", command=on_download_pdf)
         self.btn_download_pdf.pack(side="right", padx=8, pady=6)
         self.btn_download_img = ttk.Button(self, text="Baixar imagem", command=on_download_image)
         self.btn_download_img.pack(side="right", padx=8, pady=6)
+
+        # Novo botão Conversor PDF (pack por último para ficar à esquerda dos downloads)
+        self.btn_converter = ttk.Button(self, text="Conversor PDF", command=on_open_converter or (lambda: None))
+        self.btn_converter.pack(side="right", padx=8, pady=6)
+
+        # Se callback não fornecido, desabilita botão
+        if on_open_converter is None:
+            try:
+                self.btn_converter.state(["disabled"])
+            except Exception:
+                self.btn_converter["state"] = "disabled"
 
     def _handle_toggle_text(self) -> None:
         """Propaga o valor atual do toggle de texto para o callback da view."""

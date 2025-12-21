@@ -112,5 +112,3 @@ def validate_archive_extension(path: str) -> bool:
         False
     """
     return is_supported_archive(path)
-
-    return False

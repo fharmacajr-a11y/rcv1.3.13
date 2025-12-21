@@ -29,6 +29,7 @@ def test_pdf_toolbar_dispatches_callbacks(tk_root):
         on_toggle_text=lambda value: toggle_calls.append(value),
         on_download_pdf=lambda: events.append("download_pdf"),
         on_download_image=lambda: events.append("download_image"),
+        on_open_converter=lambda: events.append("open_converter"),
     )
     toolbar.pack()
     tk_root.update_idletasks()
@@ -41,8 +42,11 @@ def test_pdf_toolbar_dispatches_callbacks(tk_root):
     toolbar.chk_text.invoke()
     toolbar.btn_download_pdf.invoke()
     toolbar.btn_download_img.invoke()
+    toolbar.btn_converter.invoke()
 
-    assert {"zoom_in", "zoom_out", "zoom_100", "fit_width", "download_pdf", "download_image"} <= set(events)
+    assert {"zoom_in", "zoom_out", "zoom_100", "fit_width", "download_pdf", "download_image", "open_converter"} <= set(
+        events
+    )
     assert toggle_calls == [True, False]
 
 

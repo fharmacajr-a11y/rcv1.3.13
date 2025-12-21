@@ -13,7 +13,7 @@ try:
     from src.config.paths import APP_DATA, CLOUD_ONLY  # type: ignore
 except Exception:  # pragma: no cover - fallback when src package is unavailable
     try:
-        from config.paths import APP_DATA, CLOUD_ONLY  # type: ignore
+        from src.config.paths import APP_DATA, CLOUD_ONLY  # type: ignore
     except Exception:
         APP_DATA = Path.cwd()
         CLOUD_ONLY = False

@@ -32,4 +32,3 @@ def salvar_e_upload_docs_service(ctx: Dict[str, Any]) -> Dict[str, Any]:
         "Use src.modules.uploads.views.upload_dialog.UploadDialog + "
         "src.modules.uploads.service.upload_items_for_client"
     )
-    return None

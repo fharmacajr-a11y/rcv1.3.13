@@ -43,11 +43,14 @@ def apply_rc_icon(window: tk.Misc) -> None:
                 except Exception:
                     logger.debug("Falha ao configurar ícone como default para messageboxes", exc_info=True)
             except Exception:
+                # FIX: Fallback deve usar rc.png (PhotoImage não funciona com .ico no Windows)
                 try:
-                    img = tk.PhotoImage(file=icon_path)
-                    window.iconphoto(True, img)  # type: ignore[attr-defined]
-                    # Manter referência para evitar garbage collection
-                    window._rc_icon_img = img  # type: ignore[attr-defined]
+                    png_path = resource_path("rc.png")
+                    if os.path.exists(png_path):
+                        img = tk.PhotoImage(file=png_path)
+                        window.iconphoto(True, img)  # type: ignore[attr-defined]
+                        # Manter referência para evitar garbage collection
+                        window._rc_icon_img = img  # type: ignore[attr-defined]
                 except Exception:
                     logger.debug("Falha ao carregar ícone PNG como fallback", exc_info=True)
     except Exception:

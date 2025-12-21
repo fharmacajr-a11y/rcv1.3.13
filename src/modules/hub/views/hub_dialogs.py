@@ -130,8 +130,8 @@ def show_note_editor(
     ).pack(side="left")
 
     # Keyboard bindings
-    dialog.bind("<Control-Return>", lambda e: on_confirm())
-    dialog.bind("<Escape>", lambda e: on_cancel())
+    dialog.bind("<Control-Return>", lambda _e: on_confirm())
+    dialog.bind("<Escape>", lambda _e: on_cancel())
 
     # Wait for dialog
     dialog.wait_window()

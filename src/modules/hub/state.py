@@ -211,13 +211,13 @@ class HubState:
 
         return elapsed >= cooldown_s
 
-    def update_notes_hash(self, notes: Iterable[Any]) -> bool:
+    def update_notes_hash(self, notes: Optional[Iterable[Any]]) -> bool:
         """Atualiza hash de notas. Retorna True se mudou.
 
         Suporta tanto lista de dicts quanto lista de objetos (NoteItemView).
 
         Args:
-            notes: Lista de notas para calcular hash (dicts ou objetos)
+            notes: Lista de notas para calcular hash (dicts, objetos ou None)
 
         Returns:
             True se hash mudou, False se igual

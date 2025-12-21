@@ -274,8 +274,8 @@ def test_show_hub_wires_navigation_callbacks(monkeypatch):
     assert nav_calls[0][0] == "main"
     assert nav_calls[1][0] == "cashflow"
     assert nav_calls[3][0] == "sites"
-    # Callback de placeholder passa o título
-    assert nav_calls[-1] == ("placeholder", {"title": "Anvisa"})
+    # Callback de anvisa agora navega para a tela real, não placeholder
+    assert nav_calls[-1] == ("anvisa", {})
 
 
 def test_open_clients_picker_delegates_to_start_client_pick_mode(monkeypatch):

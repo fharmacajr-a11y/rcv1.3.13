@@ -130,6 +130,8 @@ from src.utils.themes import apply_combobox_style
 from src.utils.theme_manager import theme_manager
 from src.utils.validators import only_digits  # noqa: F401
 from src.modules.uploads.uploader_supabase import send_folder_to_supabase
+from src.core.notifications_service import NotificationsService
+from infra.repositories.notifications_repository import NotificationsRepositoryAdapter
 
 # Imports internos do módulo main_window.views
 from .constants import (
@@ -156,7 +158,9 @@ class App(tb.Window):
 
         # Try to initialize with ttkbootstrap theme, fallback to standard ttk
         try:
-            super().__init__(themename=_theme_name)
+            # FIX: iconphoto=None desliga o iconphoto padrão do ttkbootstrap
+            # que contamina os dialogs com PNG. Usamos apenas iconbitmap com .ico
+            super().__init__(themename=_theme_name, iconphoto=None)
         except Exception as e:
             log.warning(
                 "Falha ao aplicar tema '%s': %s. Fallback ttk padrão.",
@@ -202,6 +206,8 @@ class App(tb.Window):
             on_pdf_viewer=self._open_pdf_viewer_empty,
             on_chatgpt=self.open_chatgpt_window,
             on_sites=self.show_sites_screen,
+            on_notifications_clicked=self._on_notifications_clicked,
+            on_mark_all_read=self._mark_all_notifications_read,
         )
         self._topbar.pack(side="top", fill="x")
         self._pdf_viewer_window = None
@@ -226,13 +232,16 @@ class App(tb.Window):
                     self.iconbitmap(icon_path)
                     log.info("iconbitmap aplicado com sucesso: %s", icon_path)
                 except Exception:
-                    log.warning("iconbitmap falhou, tentando iconphoto para %s", icon_path, exc_info=True)
+                    log.warning("iconbitmap falhou, tentando iconphoto com PNG", exc_info=True)
+                    # FIX: Fallback deve usar rc.png (PhotoImage não funciona bem com .ico no Windows)
                     try:
-                        img = tk.PhotoImage(file=icon_path)
-                        self.iconphoto(True, img)
-                        log.info("iconphoto aplicado com sucesso: %s", icon_path)
+                        png_path = resource_path("rc.png")
+                        if os.path.exists(png_path):
+                            img = tk.PhotoImage(file=png_path)
+                            self.iconphoto(True, img)
+                            log.info("iconphoto aplicado com sucesso usando rc.png")
                     except Exception:
-                        log.error("iconphoto também falhou ao aplicar ícone: %s", icon_path, exc_info=True)
+                        log.error("iconphoto com PNG também falhou", exc_info=True)
             else:
                 log.warning("Ícone %s não encontrado em: %s", APP_ICON_PATH, icon_path)
         except Exception:
@@ -282,6 +291,29 @@ class App(tb.Window):
 
         # Cache de sessão (user, role, org_id) delegado para SessionCache
         self._session: SessionCache = SessionCache()
+
+        # Serviço de notificações
+        try:
+            notifications_repo = NotificationsRepositoryAdapter()
+            self._notifications_service: Optional[NotificationsService] = NotificationsService(
+                repository=notifications_repo,
+                org_id_provider=self._get_org_id_cached_simple,
+                user_provider=self._get_user_with_org,
+                logger=log,
+            )
+            log.info("[MainWindow] NotificationsService inicializado com sucesso")
+        except Exception as exc:
+            log.exception("[MainWindow] Falha ao inicializar NotificationsService: %s", exc)
+            self._notifications_service = None
+
+        # Propriedade pública para acesso de módulos filhos
+        self.notifications_service = self._notifications_service
+
+        # Flag para silenciar toasts de notificações
+        self._mute_notifications: bool = False
+
+        # Contador anterior de notificações não lidas (para detectar novas)
+        self._last_unread_count: int = 0
 
         # Estado de conectividade usando helper
         self._connectivity_state: ConnectivityState = ConnectivityState(
@@ -379,6 +411,11 @@ class App(tb.Window):
 
         self.after(INITIAL_STATUS_DELAY, self._schedule_user_status_refresh)
         self.bind("<FocusIn>", lambda e: self._update_user_status(), add="+")
+
+        # Iniciar polling de notificações
+        if self._notifications_service:
+            self.after(1000, self._poll_notifications)
+
         # REMOVIDO: self.show_hub_screen() - agora é chamado em app_gui.py APÓS login bem-sucedido
 
     def show_frame(self, frame_cls: Any, **kwargs: Any) -> Any:
@@ -1023,6 +1060,212 @@ class App(tb.Window):
     def _on_chatgpt_destroy(self, window: ChatGPTWindow) -> None:
         if self._chatgpt_window is window:
             self._chatgpt_window = None
+
+    # -------- Notifica\u00e7\u00f5es --------
+    def _poll_notifications(self) -> None:
+        """Polling peri\u00f3dico de notifica\u00e7\u00f5es (a cada 20s)."""
+        if not self._notifications_service:
+            return
+
+        # Verificar se temos org_id
+        org_id = self._get_org_id_cached_simple()
+        if not org_id:
+            # Reagendar sem org_id
+            self.after(20000, self._poll_notifications)
+            return
+
+        try:
+            # Buscar contador de não lidas
+            unread_count = self._notifications_service.fetch_unread_count()
+
+            # Atualizar badge no TopBar
+            if hasattr(self, "_topbar") and self._topbar:
+                self._topbar.set_notifications_count(unread_count)
+
+            # Detectar NOVAS notificações (contador aumentou)
+            if unread_count > self._last_unread_count:
+                new_count = unread_count - self._last_unread_count
+                log.info("[Notifications] Polling: %d NOVA(S) notificação(ões) detectada(s)", new_count)
+
+                # Mostrar toast se não estiver silenciado
+                if not self._mute_notifications:
+                    self._show_notification_toast(new_count)
+            else:
+                log.debug("[Notifications] Polling: %d não lida(s) (sem mudanças)", unread_count)
+
+            # Atualizar contador anterior
+            self._last_unread_count = unread_count
+
+        except Exception:
+            log.exception("[Notifications] Erro ao fazer polling")
+
+        # Reagendar para 20s
+        self.after(20000, self._poll_notifications)
+
+    def _show_notification_toast(self, count: int) -> None:
+        """Mostra toast do Windows quando chegar nova notificação.
+
+        Args:
+            count: Número de novas notificações
+
+        Notas:
+            - Requer winotify instalado (pip install winotify)
+            - Em versões instaladas do app, pode ser necessário registrar AppId
+              via atalho no Menu Iniciar para banners aparecerem corretamente
+        """
+        try:
+            from winotify import Notification, audio  # type: ignore[import-untyped]
+        except ImportError:
+            # winotify não instalado - fallback silencioso
+            log.info(
+                "[Notifications] winotify não instalado; toasts do Windows desativados. "
+                "Para ativar, rode: pip install winotify"
+            )
+            return
+
+        try:
+            # Título e mensagem
+            title = "RCGestor"
+            message = f"Você tem {count} nova(s) notificação(ões)"
+
+            # Obter caminho do ícone (winotify requer caminho absoluto)
+            icon_path = None
+            try:
+                png_path = resource_path("rc.png")
+                if os.path.exists(png_path):
+                    # Garantir caminho absoluto
+                    icon_path = os.path.abspath(png_path)
+                    log.debug("[Notifications] Toast: ícone encontrado em %s", icon_path)
+                else:
+                    log.debug("[Notifications] Toast: ícone rc.png não encontrado, usando sem ícone")
+            except Exception as exc:
+                log.debug("[Notifications] Toast: erro ao buscar ícone, continuando sem ícone: %s", exc)
+
+            # Log de diagnóstico
+            log.info(
+                "[Notifications] Toast: tentando mostrar (app_id=RCGestor, title=%s, icon=%s)",
+                title,
+                icon_path or "None",
+            )
+
+            # Criar toast (com ou sem ícone)
+            if icon_path:
+                toast = Notification(
+                    app_id="RCGestor",
+                    title=title,
+                    msg=message,
+                    duration="short",
+                    icon=icon_path,
+                )
+            else:
+                toast = Notification(
+                    app_id="RCGestor",
+                    title=title,
+                    msg=message,
+                    duration="short",
+                )
+
+            # Definir áudio (usar Default para som de notificação)
+            toast.set_audio(audio.Default, loop=False)
+
+            # Mostrar
+            toast.show()
+
+            log.info("[Notifications] Toast exibido com sucesso: %s", message)
+
+        except Exception:
+            # Erro ao mostrar toast - logar stack completo
+            log.exception("[Notifications] Erro ao mostrar toast do Windows")
+            # Nota: não re-raise para não quebrar a aplicação
+
+    def _on_notifications_clicked(self) -> None:
+        """Callback quando usuário clica no botão de notificações."""
+        if not self._notifications_service:
+            return
+
+        try:
+            # Buscar últimas notificações (já formatadas para UI)
+            notifications = self._notifications_service.fetch_latest_for_ui(limit=20)
+
+            # Buscar contador de não lidas e atualizar badge
+            unread_count = self._notifications_service.fetch_unread_count()
+            if hasattr(self, "_topbar") and self._topbar:
+                self._topbar.set_notifications_count(unread_count)
+
+            # Atualizar dados no TopBar (também passa flag de mute)
+            if hasattr(self, "_topbar") and self._topbar:
+                self._topbar.set_notifications_data(notifications, mute_callback=self._toggle_mute_notifications)
+
+        except Exception:
+            log.exception("[Notifications] Erro ao buscar notificações")
+
+    def _mark_all_notifications_read(self) -> bool:
+        """Marca todas notificações como lidas.
+
+        Returns:
+            True se sucesso, False caso contrário
+        """
+        if not self._notifications_service:
+            return False
+
+        try:
+            # Chamar serviço para marcar como lidas
+            success = self._notifications_service.mark_all_read()
+
+            if success:
+                # Zerar contador interno para não voltar no polling
+                self._last_unread_count = 0
+
+                # Atualizar badge imediatamente
+                if hasattr(self, "_topbar") and self._topbar:
+                    self._topbar.set_notifications_count(0)
+
+                log.info("[Notifications] Todas notificações marcadas como lidas")
+            else:
+                log.warning("[Notifications] Falha ao marcar notificações como lidas")
+
+            return success
+
+        except Exception:
+            log.exception("[Notifications] Erro ao marcar notificações como lidas")
+            return False
+
+    def _toggle_mute_notifications(self, muted: bool) -> None:
+        """Toggle do estado de silenciar notificações.
+
+        Args:
+            muted: True para silenciar, False para permitir toasts
+        """
+        self._mute_notifications = muted
+        status = "silenciadas" if muted else "ativadas"
+        log.info("[Notifications] Notificações %s", status)
+
+    def _get_org_id_cached_simple(self) -> Optional[str]:
+        """Retorna org_id sem precisar de uid (para uso interno)."""
+        try:
+            user = self._session.get_user()
+            if not user:
+                return None
+            uid = user.get("id")
+            if not uid:
+                return None
+            return self._session.get_org_id(uid)
+        except Exception:
+            return None
+
+    def _get_user_with_org(self) -> Optional[dict[str, Any]]:
+        """Retorna dados do usuário com uid e email (para NotificationsService)."""
+        try:
+            user = self._session.get_user()
+            if not user:
+                return None
+
+            return {
+                "uid": user.get("id"),
+                "email": user.get("email"),
+            }
+        except Exception:
+            return None
 
     # -------- Sessao / usuario --------
     def _get_user_cached(self) -> Optional[dict[str, Any]]:

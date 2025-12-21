@@ -236,10 +236,12 @@ class LoginDialog(tk.Toplevel):
             except Exception as e:
                 log.warning("Falha ao atualizar sessão/org_id: %s", e)
 
-            # >>>>>>> HEALTHCHECK PÓS-LOGIN (INSERT/DELETE em public.test_health + storage + tesseract)
+            # >>>>>>> HEALTHCHECK PÓS-LOGIN (INSERT/DELETE em public.test_health + storage)
             try:
                 hc = healthcheck()
-                logging.getLogger("health").info("HEALTH: ok=%s | itens=%s", hc["ok"], hc["items"])
+                # Log apenas se falhar (evitar spam)
+                if not hc["ok"]:
+                    logging.getLogger("health").warning("HEALTH: falhou - itens=%s", hc["items"])
             except Exception as e:
                 logging.getLogger("health").warning("HEALTH: falhou ao executar healthcheck: %r", e)
 

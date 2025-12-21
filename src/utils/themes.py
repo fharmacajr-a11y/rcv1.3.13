@@ -20,7 +20,7 @@ ENV_DEFAULT_THEME = (os.getenv("RC_DEFAULT_THEME") or "").strip()  # opcional
 if not NO_FS:
     try:
         # Usa BASE_DIR se existir no projeto
-        from config.paths import BASE_DIR as _BASE_DIR  # type: ignore
+        from src.config.paths import BASE_DIR as _BASE_DIR  # type: ignore
     except Exception:
         # Fallback: pasta acima de utils/
         from pathlib import Path

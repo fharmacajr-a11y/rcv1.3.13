@@ -37,6 +37,11 @@ def open_pdf_viewer(
             bool(pdf_path or data_bytes),
         )
         try:
+            # Atualiza contexto do master antes de carregar conteúdo
+            win.set_context_master(master)
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao atualizar contexto do PDF viewer no reuso: %s", exc)
+        try:
             # Se veio com conteúdo novo, carrega
             if pdf_path or data_bytes:
                 win.open_document(pdf_path=pdf_path, data_bytes=data_bytes, display_name=display_name)

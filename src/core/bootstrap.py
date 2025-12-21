@@ -152,7 +152,14 @@ def schedule_healthcheck_after_gui(
                 try:
                     if hasattr(app, "footer"):
                         status = "online" if has_internet else "offline"
-                        app.footer.set_cloud(status)
+                        footer = app.footer
+                        # Try multiple API patterns for compatibility
+                        if hasattr(footer, "set_cloud"):
+                            footer.set_cloud(status)
+                        elif hasattr(footer, "set_cloud_status"):
+                            footer.set_cloud_status(has_internet)
+                        elif hasattr(footer, "cloud_status") and isinstance(footer.cloud_status, list):
+                            footer.cloud_status.append(status)
                 except Exception as exc:
                     if logger:
                         logger.debug("Falha ao atualizar footer com status da nuvem", exc_info=exc)

@@ -217,15 +217,27 @@ def install_network_module(monkeypatch, *, result=True, raises=False):
 
 
 def test_schedule_healthcheck_runs_when_cloud_only(monkeypatch):
+    import time
+
     state = install_network_module(monkeypatch, result=True)
     app = DummyApp()
-    monkeypatch.setattr(os, "getenv", lambda key: "1" if key == "RC_NO_LOCAL_FS" else "")
+    monkeypatch.setenv("RC_NO_LOCAL_FS", "1")
     logger = DummyLogger("health")
 
     bootstrap.schedule_healthcheck_after_gui(app, logger=logger)
+
+    # Run the first callback (_start_worker)
     delay, callback = app.after_calls[0]
     assert delay == 500
     callback()
+
+    # Wait for thread to complete
+    time.sleep(0.1)
+
+    # Run the UI update callback if scheduled
+    if len(app.after_calls) > 1:
+        _, ui_callback = app.after_calls[1]
+        ui_callback()
 
     assert state["calls"] == 1
     assert app.footer.cloud_status == ["online"]
@@ -233,13 +245,20 @@ def test_schedule_healthcheck_runs_when_cloud_only(monkeypatch):
 
 
 def test_schedule_healthcheck_skips_when_not_cloud_only(monkeypatch):
+    import time
+
     state = install_network_module(monkeypatch, result=True)
     app = DummyApp()
-    monkeypatch.setattr(os, "getenv", lambda _key: "0")
+    monkeypatch.setenv("RC_NO_LOCAL_FS", "0")
 
     bootstrap.schedule_healthcheck_after_gui(app)
+
+    # Run the first callback (_start_worker)
     _, callback = app.after_calls[0]
     callback()
+
+    # Wait for thread to complete
+    time.sleep(0.1)
 
     assert state["calls"] == 0
     assert app.footer.cloud_status == []

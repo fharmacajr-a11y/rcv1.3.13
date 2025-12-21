@@ -59,12 +59,12 @@ def test_should_refresh_trash_window_window_exists() -> None:
 
 def test_should_refresh_trash_window_with_pending_changes() -> None:
     """Testa refresh com mudanças pendentes (mas janela existe)."""
-    assert should_refresh_trash_window(window_exists=True, has_pending_changes=True) is True
+    assert should_refresh_trash_window(window_exists=True, _has_pending_changes=True) is True
 
 
 def test_should_refresh_trash_window_no_window_but_pending() -> None:
     """Testa que não faz refresh se janela não existe (mesmo com pending)."""
-    assert should_refresh_trash_window(window_exists=False, has_pending_changes=True) is False
+    assert should_refresh_trash_window(window_exists=False, _has_pending_changes=True) is False
 
 
 # ==============================================================================

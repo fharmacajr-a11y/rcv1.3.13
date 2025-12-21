@@ -129,6 +129,38 @@ class TestIsValidWhatsappBr:
         """Testa is_valid_whatsapp_br com None."""
         assert is_valid_whatsapp_br(None) is False
 
+    # TEST-002: Casos adicionais de WhatsApp
+    @pytest.mark.parametrize(
+        "input_num,expected",
+        [
+            # Com prefixo +55
+            ("+5511987654321", True),  # com +55
+            ("+55 11 98765-4321", True),  # com +55 e formatação
+            ("+55 (11) 98765-4321", True),  # com +55 e parênteses
+            # Com 55 mas sem +
+            ("55 11 98765-4321", True),
+            ("55 (11) 98765-4321", True),
+            # Sem DDI (55)
+            ("(11) 98765-4321", True),  # será normalizado com 55
+            ("11 98765-4321", True),
+            ("21 98765-4321", True),  # RJ
+            ("47 98765-4321", True),  # SC
+            # Com espaços e hífens variados
+            ("11-98765-4321", True),
+            ("11 9 8765 4321", True),
+            ("  11987654321  ", True),  # com espaços nas pontas
+            # Números de linha fixa (10 dígitos + 55)
+            ("1133334444", True),  # fixo SP
+            ("(21) 3333-4444", True),  # fixo RJ
+            # Inválidos
+            ("11 9876", False),  # muito curto
+            ("11 98765 4321 9999", False),  # muito longo (após normalizar)
+        ],
+    )
+    def test_is_valid_whatsapp_br_test002_additional_cases(self, input_num, expected):
+        """TEST-002: Testes adicionais de WhatsApp com vários formatos."""
+        assert is_valid_whatsapp_br(input_num) == expected
+
 
 # ==================== normalize_cnpj ====================
 
@@ -186,6 +218,36 @@ class TestIsValidCnpj:
     def test_is_valid_cnpj_none(self):
         """Testa is_valid_cnpj com None."""
         assert is_valid_cnpj(None) is False
+
+    # TEST-002: Casos adicionais de CNPJ
+    @pytest.mark.parametrize(
+        "input_cnpj,expected",
+        [
+            # CNPJs válidos conhecidos (dos testes existentes)
+            ("11.222.333/0001-65", True),  # já testado, confirmado válido
+            ("12.345.678/0001-10", True),  # já testado, confirmado válido
+            # Testando formatação variada dos mesmos CNPJs válidos
+            ("11 222 333 0001 65", True),  # espaços
+            ("11-222-333-0001-65", True),  # hífens
+            ("12 345 678 0001 10", True),  # espaços
+            ("12-345-678-0001-10", True),  # hífens
+            # Dígitos verificadores incorretos (mesmo base, DV errado)
+            ("11.222.333/0001-99", False),  # DV errado
+            ("12.345.678/0001-99", False),  # DV errado
+            # Sequências que devem ser rejeitadas (mais casos)
+            ("22222222222222", False),
+            ("55555555555555", False),
+            ("77777777777777", False),
+            ("88888888888888", False),
+            # Tamanhos incorretos
+            ("1122233300016", False),  # 13 dígitos
+            ("112223330001655", False),  # 15 dígitos
+            ("123456789", False),  # muito curto
+        ],
+    )
+    def test_is_valid_cnpj_test002_additional_cases(self, input_cnpj, expected):
+        """TEST-002: Testes adicionais de CNPJ - formatação e edge cases."""
+        assert is_valid_cnpj(input_cnpj) == expected
 
 
 # ==================== validate_required_fields ====================
@@ -289,6 +351,58 @@ class TestCheckDuplicates:
             existing=existing,
         )
         assert result["has_any"] is False
+
+    # TEST-002: Casos adicionais de check_duplicates
+    def test_check_duplicates_multiple_criteria_test002(self):
+        """TEST-002: Testa múltiplos critérios de duplicação simultaneamente."""
+        existing = [
+            {"ID": 1, "CNPJ": "11222333000181", "RAZAO_SOCIAL": "Empresa A"},
+            {"ID": 2, "CNPJ": "22333444000182", "RAZAO_SOCIAL": "Empresa B"},
+            {"ID": 3, "CNPJ": "33444555000183", "RAZAO_SOCIAL": "Empresa C"},
+        ]
+        # Busca com CNPJ de ID=1 e Razão de ID=2
+        result = check_duplicates(
+            cnpj="11222333000181",  # match ID=1
+            razao_social="Empresa B",  # match ID=2
+            existing=existing,
+        )
+        assert result["has_any"] is True
+        assert 1 in result["duplicates"]["CNPJ"]
+        assert 2 in result["duplicates"]["RAZAO_SOCIAL"]
+
+    def test_check_duplicates_razao_social_normalization_test002(self):
+        """TEST-002: Testa normalização de Razão Social (espaços, case)."""
+        existing = [
+            {"ID": 1, "CNPJ": "11222333000181", "RAZAO_SOCIAL": "  EMPRESA ABC LTDA  "},
+            {"ID": 2, "CNPJ": "22333444000182", "RAZAO_SOCIAL": "Empresa XYZ"},
+        ]
+        # Case insensitive e trim
+        result = check_duplicates(
+            cnpj="99999999999999",
+            razao_social="empresa abc ltda",  # minúsculas, sem espaços extras
+            existing=existing,
+        )
+        assert result["has_any"] is True
+        assert 1 in result["duplicates"]["RAZAO_SOCIAL"]
+
+    def test_check_duplicates_skip_id_multiple_test002(self):
+        """TEST-002: Testa exclude_id quando há múltiplos registros similares."""
+        existing = [
+            {"ID": 1, "CNPJ": "11222333000181", "RAZAO_SOCIAL": "Empresa A"},
+            {"ID": 2, "CNPJ": "11222333000181", "RAZAO_SOCIAL": "Empresa A Filial"},  # mesmo CNPJ
+            {"ID": 3, "CNPJ": "22333444000182", "RAZAO_SOCIAL": "Empresa A"},  # mesma razão
+        ]
+        # Edição do registro ID=1, deve ignorá-lo mas encontrar ID=2 (CNPJ) e ID=3 (Razão)
+        result = check_duplicates(
+            cnpj="11222333000181",
+            razao_social="Empresa A",
+            exclude_id=1,
+            existing=existing,
+        )
+        assert result["has_any"] is True
+        assert 1 not in result["duplicates"]["CNPJ"]  # ID=1 excluído
+        assert 2 in result["duplicates"]["CNPJ"]  # ID=2 encontrado
+        assert 3 in result["duplicates"]["RAZAO_SOCIAL"]  # ID=3 encontrado
 
     def test_check_duplicates_with_db_connection(self, tmp_path):
         """Testa check_duplicates usando conexão SQLite."""

@@ -80,6 +80,12 @@ for path_entry in list(sys.path):
 # MODO TESTE - Define ambiente antes de qualquer importação
 # ============================================================================
 os.environ.setdefault("RC_TESTING", "1")
+os.environ.setdefault("RC_HEALTHCHECK_DISABLE", "1")
+
+# Silenciar logs de health check durante testes para evitar spam
+import logging  # noqa: E402 - Import após configuração de ambiente é intencional
+
+logging.getLogger("infra.supabase.db_client").setLevel(logging.ERROR)
 
 
 # ============================================================================
@@ -592,6 +598,12 @@ def tcl_session() -> Generator[tk.Tcl, None, None]:
     except tk.TclError as exc:
         pytest.skip(f"Tcl nao esta disponivel neste ambiente de testes (TclError: {exc})")
 
+    # Garante que o Tcl msgcat esteja disponível (ttkbootstrap pode precisar)
+    try:
+        interp.eval("package require msgcat")
+    except tk.TclError:
+        pass
+
     yield interp
 
 
@@ -619,6 +631,14 @@ def tk_root_session() -> Generator[tk.Tk, None, None]:
         pytest.skip(f"Tkinter nao esta disponivel neste ambiente de testes (TclError: {exc})")
 
     root.withdraw()
+
+    # Garante que o Tcl msgcat esteja disponível (ttkbootstrap usa ::msgcat::mcmset)
+    try:
+        root.tk.call("package", "require", "msgcat")
+    except tk.TclError:
+        # Se o pacote msgcat não existir no ambiente, não falhar aqui;
+        # porém isso evita crash em ambientes onde ele existe mas não está carregado.
+        pass
 
     # Marca esse root como "root de teste"
     setattr(root, "_is_test_root", True)

@@ -5,9 +5,76 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.72] - 2025-12-20
+
+### Changed
+- **[BUMP-VERSION]**: Atualização de versão 1.4.52 → 1.4.72
+- Notificações: timezone local, "marcar tudo como lido", coluna Por, toast winotify, ícones, alinhamento
+- QA: cobertura alta em módulos de Notificações, ANVISA, db_client e network
+- Upload ANVISA: sistema completo de upload de PDFs por processo com organização automática
+- Melhorias diversas de UX e tratamento de erros
+
 ## [Unreleased]
 
-_Nenhuma mudança pendente no momento._
+### Added
+- **[ANVISA-UPLOAD]**: Sistema completo de upload de PDFs por processo ANVISA
+  - Footer condicional no browser de arquivos para upload ANVISA
+  - Seleção de múltiplos PDFs com dialog nativo
+  - Organização automática em pastas: `GERAL/anvisa/{process_slug}/`
+  - Slugificação de nomes de processos (helper `process_slug.py`)
+  - Componente `AnvisaFooter` com interface completa (240 linhas)
+  - Upload com feedback visual e tratamento de erros
+  - Callback automático para refresh após upload
+  - Documentação completa em `docs/ANVISA_UPLOAD_FEATURE.md`
+  - Testes unitários (6 testes) e integração (2 testes)
+  - Arquivos criados:
+    - `src/modules/anvisa/views/anvisa_footer.py`
+    - `src/modules/anvisa/helpers/process_slug.py`
+    - `tests/modules/anvisa/test_anvisa_footer.py`
+    - `tests/modules/uploads/test_browser_anvisa_integration.py`
+    - `docs/ANVISA_UPLOAD_FEATURE.md`
+  - Arquivos modificados:
+    - `src/modules/uploads/views/browser.py` (+20 linhas)
+    - `src/modules/anvisa/views/anvisa_screen.py` (+152 linhas)
+
+### Fixed
+- **[FIX-ANVISA-PATH]**: Path de upload ANVISA corrigido para dentro de GERAL (18/12/2025)
+  - Path alterado de `org/client/anvisa/...` para `org/client/GERAL/anvisa/...`
+  - Mantém organização consistente com estrutura de pastas do cliente
+  - Mensagem de sucesso atualizada para refletir caminho correto
+  - Arquivos modificados:
+    - `src/modules/anvisa/views/anvisa_footer.py`
+    - `docs/ANVISA_UPLOAD_FEATURE.md`
+
+- **[FIX-ANVISA-UPLOAD]**: Correção de TypeError no upload de arquivos ANVISA (18/12/2025)
+  - Corrigida chamada de `upload_file()` para usar assinatura correta: `(local_path, remote_key, content_type)`
+  - Removido parâmetro `bucket` desnecessário do `AnvisaFooter.__init__()`
+  - Bucket agora é gerenciado automaticamente pelo adapter (padrão: 'rc-docs')
+  - Testes atualizados para refletir nova assinatura
+  - Arquivos modificados:
+    - `src/modules/anvisa/views/anvisa_footer.py`
+    - `src/modules/uploads/views/browser.py`
+    - `tests/modules/anvisa/test_anvisa_footer.py`
+    - `docs/ANVISA_UPLOAD_FEATURE.md`
+
+## [1.4.52] - 2025-12-17
+
+### Changed
+- **[BUMP-VERSION]**: Atualização de versão 1.4.26 → 1.4.52
+  - Atualização de `src/version.py` com nova versão
+  - Atualização de metadados do executável em `version_file.txt`
+  - Atualização de comentários em `requirements.txt` e `requirements-dev.txt`
+  - Atualização de badge e referências no `README.md`
+  - Atualização de exemplos em `docs/BUILD.md`
+
+### Fixed
+- **[FIX-DEPS]**: Correção de dependência com typo
+  - Corrigido `plugggy` → `pluggy` em `requirements-dev.txt`
+  - Plugin system do pytest agora com nome correto
+
+### Security
+- Varredura de segurança realizada (Bandit, ruff, deptry)
+- Confirmação do módulo ANVISA funcional e integrado
 
 ## [1.4.26] - 2025-12-11
 

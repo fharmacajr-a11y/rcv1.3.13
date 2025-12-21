@@ -294,14 +294,14 @@ def should_open_new_trash_window(window_exists: bool) -> bool:
 
 def should_refresh_trash_window(
     window_exists: bool,
-    has_pending_changes: bool = False,  # noqa: ARG001
+    _has_pending_changes: bool = False,
 ) -> bool:
     """
     Determina se deve recarregar a janela da lixeira.
 
     Args:
         window_exists: Se a janela está aberta
-        has_pending_changes: Se há mudanças pendentes que requerem refresh
+        _has_pending_changes: Se há mudanças pendentes que requerem refresh (não usado)
 
     Returns:
         bool: True se deve fazer refresh

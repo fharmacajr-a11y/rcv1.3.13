@@ -250,19 +250,23 @@ def test_get_display_name_by_email_not_found(monkeypatch):
 
 def test_get_display_names_by_user_ids_success(monkeypatch):
     """Testa mapeamento de user_ids para display_names."""
+    from src.core.services import profiles_service as ps
+
     fake_profiles = [
         {"id": "user-1", "email": "ana@example.com", "display_name": "Ana"},
         {"id": "user-2", "email": "junior@example.com", "display_name": "Junior"},
     ]
 
-    def fake_exec_postgrest(query: Any) -> FakeSupabaseResponse:
-        return query.execute()
-
     fake_client = FakeSupabaseClient(response_data=fake_profiles)
-    monkeypatch.setattr("src.core.services.profiles_service.get_supabase", lambda: fake_client)
-    monkeypatch.setattr("src.core.services.profiles_service.exec_postgrest", fake_exec_postgrest)
 
-    result = profiles_service.get_display_names_by_user_ids("org-123", ["user-1", "user-2"])
+    # exec_postgrest deve retornar FakeSupabaseResponse diretamente
+    def fake_exec_postgrest(query: Any) -> FakeSupabaseResponse:
+        return FakeSupabaseResponse(fake_profiles)
+
+    monkeypatch.setattr(ps, "get_supabase", lambda: fake_client)
+    monkeypatch.setattr(ps, "exec_postgrest", fake_exec_postgrest)
+
+    result = ps.get_display_names_by_user_ids("org-123", ["user-1", "user-2"])
 
     assert result == {"user-1": "Ana", "user-2": "Junior"}
 
@@ -275,37 +279,45 @@ def test_get_display_names_by_user_ids_empty_list(monkeypatch):
 
 def test_get_display_names_by_user_ids_fallback_to_email_prefix(monkeypatch):
     """Testa fallback para prefixo do email quando display_name está vazio."""
+    from src.core.services import profiles_service as ps
+
     fake_profiles = [
         {"id": "user-1", "email": "ana_silva@example.com", "display_name": ""},
         {"id": "user-2", "email": "junior@example.com", "display_name": "Junior"},
     ]
 
-    def fake_exec_postgrest(query: Any) -> FakeSupabaseResponse:
-        return query.execute()
-
     fake_client = FakeSupabaseClient(response_data=fake_profiles)
-    monkeypatch.setattr("src.core.services.profiles_service.get_supabase", lambda: fake_client)
-    monkeypatch.setattr("src.core.services.profiles_service.exec_postgrest", fake_exec_postgrest)
 
-    result = profiles_service.get_display_names_by_user_ids("org-123", ["user-1", "user-2"])
+    # exec_postgrest deve retornar FakeSupabaseResponse diretamente
+    def fake_exec_postgrest(query: Any) -> FakeSupabaseResponse:
+        return FakeSupabaseResponse(fake_profiles)
+
+    monkeypatch.setattr(ps, "get_supabase", lambda: fake_client)
+    monkeypatch.setattr(ps, "exec_postgrest", fake_exec_postgrest)
+
+    result = ps.get_display_names_by_user_ids("org-123", ["user-1", "user-2"])
 
     assert result == {"user-1": "ana_silva", "user-2": "Junior"}
 
 
 def test_get_display_names_by_user_ids_filters_none_and_empty(monkeypatch):
     """Testa que filtra user_ids None e vazios."""
+    from src.core.services import profiles_service as ps
+
     fake_profiles = [
         {"id": "user-1", "email": "ana@example.com", "display_name": "Ana"},
     ]
 
-    def fake_exec_postgrest(query: Any) -> FakeSupabaseResponse:
-        return query.execute()
-
     fake_client = FakeSupabaseClient(response_data=fake_profiles)
-    monkeypatch.setattr("src.core.services.profiles_service.get_supabase", lambda: fake_client)
-    monkeypatch.setattr("src.core.services.profiles_service.exec_postgrest", fake_exec_postgrest)
 
-    result = profiles_service.get_display_names_by_user_ids("org-123", ["user-1", None, "", "  "])
+    # exec_postgrest deve retornar FakeSupabaseResponse diretamente
+    def fake_exec_postgrest(query: Any) -> FakeSupabaseResponse:
+        return FakeSupabaseResponse(fake_profiles)
+
+    monkeypatch.setattr(ps, "get_supabase", lambda: fake_client)
+    monkeypatch.setattr(ps, "exec_postgrest", fake_exec_postgrest)
+
+    result = ps.get_display_names_by_user_ids("org-123", ["user-1", None, "", "  "])
 
     assert result == {"user-1": "Ana"}
 

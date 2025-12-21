@@ -1,0 +1,223 @@
+================================================================================
+PATCH DIFF CONSOLIDADO - RC Gestor v1.4.37
+================================================================================
+
+Este arquivo contém todos os diffs aplicados para corrigir travamentos UI
+e otimizar testes.
+
+================================================================================
+ARQUIVO 1: src/core/bootstrap.py
+================================================================================
+
+--- a/src/core/bootstrap.py
++++ b/src/core/bootstrap.py
+@@ -116,7 +116,12 @@ def run_initial_healthcheck(logger: Optional[logging.Logger] = None) -> bool:
+ def schedule_healthcheck_after_gui(
+     app: AfterCapableApp,
+     logger: Optional[logging.Logger] = None,
+     delay_ms: int = 500,
+ ) -> None:
+-    """Agenda o health-check em background após a GUI existir."""
++    """Agenda o health-check em background após a GUI existir.
++
++    CORREÇÃO: Executa check em threading.Thread para não bloquear a UI.
++    Atualiza UI via app.after(0, ...) de forma thread-safe.
++    """
++    import threading
+
+-    def _run_check():
++    def _run_check_in_background():
++        """Executado em thread daemon para não bloquear UI."""
+         try:
+             from src.utils.network import check_internet_connectivity
+             import os
+@@ -127,7 +132,7 @@ def schedule_healthcheck_after_gui(
+                     logger.debug("Not in cloud-only mode, skipping health check")
+                 return
+
+-            # Run check with aggressive timeout (non-blocking)
++            # Run check with aggressive timeout (now truly non-blocking)
+             has_internet = check_internet_connectivity(timeout=1.0)
+
+             if logger:
+@@ -136,18 +141,30 @@ def schedule_healthcheck_after_gui(
+                 else:
+                     logger.warning("Background health check: No internet detected")
+
+-            # Update app footer or status if available
+-            try:
+-                if hasattr(app, "footer"):
+-                    status = "online" if has_internet else "offline"
+-                    app.footer.set_cloud(status)
+-            except Exception as exc:
+-                if logger:
+-                    logger.debug("Falha ao atualizar footer com status da nuvem", exc_info=exc)
++            # Update app footer or status if available (thread-safe via after)
++            def _update_ui():
++                try:
++                    if hasattr(app, "footer"):
++                        status = "online" if has_internet else "offline"
++                        app.footer.set_cloud(status)
++                except Exception as exc:
++                    if logger:
++                        logger.debug("Falha ao atualizar footer com status da nuvem", exc_info=exc)
++
++            # Schedule UI update on main thread
++            try:
++                app.after(0, _update_ui)
++            except Exception as exc:
++                if logger:
++                    logger.debug("Falha ao agendar atualização de UI: %s", exc)
+
+         except Exception as exc:
+             if logger:
+                 logger.warning("Background health check failed: %s", exc)
+
+-    # Schedule to run after GUI is ready
+-    app.after(delay_ms, _run_check)
++    def _start_worker():
++        """Inicia worker thread (daemon) para não bloquear shutdown."""
++        worker = threading.Thread(
++            target=_run_check_in_background,
++            daemon=True,
++            name="HealthCheckWorker"
++        )
++        worker.start()
++
++    # Schedule worker start after GUI is ready (não bloqueia)
++    app.after(delay_ms, _start_worker)
+
+================================================================================
+ARQUIVO 2: pytest.ini
+================================================================================
+
+--- a/pytest.ini
++++ b/pytest.ini
+@@ -1,15 +1,10 @@
+ [pytest]
+ pythonpath = .
+
++# MODO RÁPIDO POR PADRÃO (sem coverage)
++# Para rodar com coverage: RC_COV=1 pytest
++# ou: pytest --cov --cov-report=html --cov-report=json
+ addopts =
+     -q
+     --tb=short
+     --import-mode=importlib
+-    --cov
+-    --cov-config=.coveragerc
+-    --cov-report=term-missing
+-    --cov-report=json:coverage.json
+-    --cov-report=html:htmlcov
+-    --cov-fail-under=25
+
+ testpaths = tests
+
+================================================================================
+ARQUIVO 3: infra/supabase/db_client.py
+================================================================================
+
+--- a/infra/supabase/db_client.py
++++ b/infra/supabase/db_client.py
+@@ -328,10 +328,13 @@ def get_supabase() -> Client:
+
+         url_from_env = os.getenv("SUPABASE_URL")
+         url: str = url_from_env or supa_types.SUPABASE_URL or ""
+-        key_from_env = os.getenv("SUPABASE_ANON_KEY")
++
++        # CORREÇÃO: Suportar SUPABASE_KEY como alias de SUPABASE_ANON_KEY
++        key_from_env = os.getenv("SUPABASE_ANON_KEY") or os.getenv("SUPABASE_KEY")
+         key: str = key_from_env or supa_types.SUPABASE_ANON_KEY or ""
+
+         if not url or not key:
+-            raise RuntimeError("Faltam SUPABASE_URL/SUPABASE_ANON_KEY no .env")
++            raise RuntimeError(
++                "Faltam SUPABASE_URL e SUPABASE_ANON_KEY (ou SUPABASE_KEY) no .env"
++            )
+
+         options: ClientOptions = ClientOptions(
+             httpx_client=HTTPX_CLIENT,
+
+================================================================================
+ARQUIVO 4: .env.example
+================================================================================
+
+--- a/.env.example
++++ b/.env.example
+@@ -23,8 +23,9 @@ RC_LOG_LEVEL=INFO
+ APP_DEFAULT_PASSWORD=
+
+ # Supabase
+ SUPABASE_URL=
++# Nota: SUPABASE_KEY e SUPABASE_ANON_KEY são equivalentes (use qualquer uma)
+ SUPABASE_KEY=
+ SUPABASE_ANON_KEY=
+
+ # Bucket padrão do Supabase Storage
+
+================================================================================
+ARQUIVOS NOVOS CRIADOS
+================================================================================
+
+TESTES:
+  ✓ tests/unit/core/test_bootstrap_nonblocking.py (3 testes)
+  ✓ tests/unit/infra/test_supabase_key_compat.py (3 testes)
+
+DOCUMENTAÇÃO:
+  ✓ PATCH_TRAVAMENTOS_v1.md (guia detalhado ~300 linhas)
+  ✓ PATCH_SUMMARY.txt (resumo executivo)
+  ✓ PATCH_VALIDATION_REPORT.txt (relatório de validação)
+  ✓ PATCH_DIFF.txt (este arquivo)
+
+================================================================================
+ESTATÍSTICAS DO PATCH
+================================================================================
+
+Arquivos modificados: 4
+  - src/core/bootstrap.py (+28 linhas, -8 linhas)
+  - pytest.ini (+3 linhas, -7 linhas)
+  - infra/supabase/db_client.py (+5 linhas, -2 linhas)
+  - .env.example (+1 linha)
+
+Arquivos criados: 6
+  - 2 arquivos de teste (133 linhas)
+  - 4 arquivos de documentação (~900 linhas)
+
+Testes adicionados: 6
+  - 3 testes de healthcheck não-bloqueante
+  - 3 testes de compatibilidade SUPABASE_KEY
+
+Total de linhas modificadas: ~37
+Total de linhas documentadas: ~1000+
+
+================================================================================
+APLICAÇÃO DO PATCH
+================================================================================
+
+Este patch JÁ FOI APLICADO no workspace atual.
+
+Para aplicar em outra instalação:
+
+1. Copiar os diffs acima para arquivos .patch
+2. Aplicar com: git apply <arquivo.patch>
+3. Ou aplicar manualmente usando este diff como referência
+
+Para reverter (se necessário):
+
+git checkout src/core/bootstrap.py
+git checkout pytest.ini
+git checkout infra/supabase/db_client.py
+git checkout .env.example
+
+================================================================================
+VALIDAÇÃO
+================================================================================
+
+Para validar que o patch foi aplicado corretamente:
+
+pytest tests/unit/core/test_bootstrap_nonblocking.py -v
+pytest tests/unit/infra/test_supabase_key_compat.py -v
+
+Ambos devem passar (6/6 testes).
+
+================================================================================

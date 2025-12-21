@@ -65,6 +65,7 @@ def download_folder_zip(
     out_dir: Optional[str] = None,
     timeout_s: int = 300,
     cancel_event: Optional[Any] = None,
+    progress_cb: Optional[Any] = None,
 ):
     backend = get_current_backend()
     fn = getattr(backend, "download_folder_zip", None)
@@ -75,6 +76,7 @@ def download_folder_zip(
         "out_dir": out_dir,
         "timeout_s": timeout_s,
         "cancel_event": cancel_event,
+        "progress_cb": progress_cb,
     }
     if bucket is not None:
         kwargs["bucket"] = bucket

@@ -168,7 +168,7 @@ class MainScreenFrame(
     def destroy(self) -> None:
         """Cleanup ao destruir o frame.
 
-        Garante que o botão Conversor PDF seja reabilitado caso o usuário
+        Garante que os menus da topbar sejam reabilitados caso o usuário
         saia do modo seleção navegando para outro módulo (FIX-CLIENTES-007).
         """
         snapshot = self._pick_mode_manager.get_snapshot()
@@ -176,7 +176,7 @@ class MainScreenFrame(
             try:
                 self.app.topbar.set_pick_mode_active(False)
             except Exception as exc:  # noqa: BLE001
-                log.debug("Erro ao reabilitar Conversor PDF no destroy: %s", exc)
+                log.debug("Erro ao reabilitar menus da topbar no destroy: %s", exc)
 
         # Chama o destroy original do ttk.Frame
         super().destroy()

@@ -1050,6 +1050,7 @@ class TestDownloadAndOpenFile:
         mock_download_fn.assert_called_once_with("custom-bucket", "path/file.pdf", "/tmp/file.pdf")
 
     @patch("src.modules.uploads.service.sys.platform", "darwin")
+    @patch("src.modules.uploads.service.shutil.which", return_value="/usr/bin/open")
     @patch("src.modules.uploads.service.subprocess.Popen")
     @patch("src.modules.uploads.service.os.path.getsize")
     @patch("src.modules.uploads.service.download_file")
@@ -1062,6 +1063,7 @@ class TestDownloadAndOpenFile:
         mock_download_fn: Mock,
         mock_getsize: Mock,
         mock_popen: Mock,
+        mock_which: Mock,
     ) -> None:
         """Deve abrir arquivo no macOS usando 'open' command."""
         # Arrange
@@ -1078,9 +1080,10 @@ class TestDownloadAndOpenFile:
         # Assert
         assert result["ok"] is True
         assert result["temp_path"] == "/tmp/file.pdf"
-        mock_popen.assert_called_once_with(["open", "/tmp/file.pdf"])
+        mock_popen.assert_called_once_with(["/usr/bin/open", "/tmp/file.pdf"])
 
     @patch("src.modules.uploads.service.sys.platform", "linux")
+    @patch("src.modules.uploads.service.shutil.which", return_value="/usr/bin/xdg-open")
     @patch("src.modules.uploads.service.subprocess.Popen")
     @patch("src.modules.uploads.service.os.path.getsize")
     @patch("src.modules.uploads.service.download_file")
@@ -1093,6 +1096,7 @@ class TestDownloadAndOpenFile:
         mock_download_fn: Mock,
         mock_getsize: Mock,
         mock_popen: Mock,
+        mock_which: Mock,
     ) -> None:
         """Deve abrir arquivo no Linux usando 'xdg-open' command."""
         # Arrange
@@ -1109,4 +1113,4 @@ class TestDownloadAndOpenFile:
         # Assert
         assert result["ok"] is True
         assert result["temp_path"] == "/tmp/file.pdf"
-        mock_popen.assert_called_once_with(["xdg-open", "/tmp/file.pdf"])
+        mock_popen.assert_called_once_with(["/usr/bin/xdg-open", "/tmp/file.pdf"])

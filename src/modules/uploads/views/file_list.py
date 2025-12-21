@@ -16,6 +16,7 @@ class FileList(ttk.Frame):
         on_delete: Optional[Callable[[], None]] = None,
         on_open_file: Optional[Callable[[str, str, str], None]] = None,
         on_expand_folder: Optional[Callable[[str], list[dict]]] = None,
+        on_download_folder: Optional[Callable[[], None]] = None,
         **kwargs,
     ) -> None:
         super().__init__(master, **kwargs)
@@ -23,6 +24,7 @@ class FileList(ttk.Frame):
         self._on_delete = on_delete
         self._on_open_file = on_open_file
         self._on_expand_folder = on_expand_folder
+        self._on_download_folder = on_download_folder
         self._base_prefix = ""
         self._status_cache: dict[str, str] = {}
         self._item_data: dict[str, dict] = {}  # iid -> dados do item
@@ -30,26 +32,15 @@ class FileList(ttk.Frame):
         self.rowconfigure(0, weight=1)
 
         # Estrutura de colunas para árvore hierárquica
-        self.tree = ttk.Treeview(
-            self, columns=("type", "size", "modified", "status"), show="tree headings", selectmode="browse"
-        )
+        self.tree = ttk.Treeview(self, columns=("type",), show="tree headings", selectmode="browse")
 
         # Configuração dos headings
         self.tree.heading("#0", text="Nome do arquivo/pasta", anchor="w")
         self.tree.heading("type", text="Tipo", anchor="center")
-        self.tree.heading("size", text="Tamanho", anchor="e")
-        self.tree.heading("modified", text="Modificado", anchor="center")
-        self.tree.heading("status", text="Status", anchor="center")
 
         # Configuração das colunas
         self.tree.column("#0", width=400, anchor="w", stretch=True)
         self.tree.column("type", width=100, anchor="center", stretch=False)
-        self.tree.column("size", width=100, anchor="e", stretch=False)
-        self.tree.column("modified", width=160, anchor="center", stretch=False)
-        self.tree.column("status", width=80, anchor="center", stretch=False)
-
-        # Garantir que todas as colunas sejam visíveis
-        self.tree["displaycolumns"] = ("type", "size", "modified", "status")
 
         self.tree.grid(row=0, column=0, sticky="nsew")
 
@@ -67,6 +58,40 @@ class FileList(ttk.Frame):
         self.tree.bind("<Return>", lambda _event: self._handle_download())
         self.tree.bind("<Double-Button-1>", self._on_double_click)
         self.tree.bind("<<TreeviewOpen>>", lambda _event: self._on_tree_open())
+
+        # Travar redimensionamento de colunas
+        self._lock_treeview_columns(self.tree)
+
+        # Menu de contexto (clique direito)
+        self._context_menu = tk.Menu(self, tearoff=0)
+        self.tree.bind("<Button-3>", self._on_right_click)
+
+    @staticmethod
+    def _lock_treeview_columns(tree: ttk.Treeview) -> None:
+        """Trava redimensionamento e arrasto de colunas da Treeview.
+
+        Args:
+            tree: Treeview para travar colunas
+        """
+        from typing import Any
+
+        # Bloquear resize manual via separator
+        def block_separator(event: Any) -> str:
+            if tree.identify_region(event.x, event.y) == "separator":
+                return "break"
+            return ""
+
+        # Bloquear cursor de resize
+        def block_resize_cursor(event: Any) -> str:
+            if tree.identify_region(event.x, event.y) == "separator":
+                tree.config(cursor="arrow")
+                return "break"
+            tree.config(cursor="")
+            return ""
+
+        tree.bind("<Button-1>", block_separator)
+        tree.bind("<B1-Motion>", block_separator)
+        tree.bind("<Motion>", block_resize_cursor)
 
     def populate_tree_hierarchical(self, items: Iterable[dict], base_prefix: str, status_cache: dict[str, str]) -> None:
         """Popula a treeview com primeiro nível (lazy loading).
@@ -93,28 +118,8 @@ class FileList(ttk.Frame):
             # Tipo
             tipo = "Pasta" if is_folder else "Arquivo"
 
-            # Tamanho (apenas para arquivos)
-            size_display = ""
-            if not is_folder:
-                size_raw = entry.get("size") or entry.get("Size") or 0
-                size_display = self._format_size(size_raw)
-
-            # Data de modificação
-            modified = ""
-            if not is_folder:
-                modified = entry.get("updated_at") or entry.get("LastModified") or ""
-
-            # Status (para pastas)
-            status = ""
-            if is_folder:
-                # Construir full path para buscar status
-                full_path = entry.get("full_path") or name
-                status = status_cache.get(full_path, "")
-
             # Inserir o item na raiz
-            iid = self.tree.insert(
-                "", "end", text=display_name, values=(tipo, size_display, modified, status), open=False
-            )
+            iid = self.tree.insert("", "end", text=display_name, values=(tipo,), open=False)
 
             # Guardar dados do item (full path, tipo)
             full_path = entry.get("full_path") or name
@@ -127,7 +132,7 @@ class FileList(ttk.Frame):
 
             # Para pastas, inserir placeholder para mostrar o "+"
             if is_folder:
-                self.tree.insert(iid, "end", text="", values=("", "", "", ""), tags=("placeholder",))
+                self.tree.insert(iid, "end", text="", values=("",), tags=("placeholder",))
 
     def _format_size(self, size_bytes) -> str:
         """Formata o tamanho do arquivo de forma legível."""
@@ -184,24 +189,8 @@ class FileList(ttk.Frame):
 
             tipo = "Pasta" if is_folder else "Arquivo"
 
-            size_display = ""
-            if not is_folder:
-                size_raw = entry.get("size") or entry.get("Size") or 0
-                size_display = self._format_size(size_raw)
-
-            modified = ""
-            if not is_folder:
-                modified = entry.get("updated_at") or entry.get("LastModified") or ""
-
-            status = ""
-            if is_folder:
-                child_full_path = entry.get("full_path") or name
-                status = self._status_cache.get(child_full_path, "")
-
             # Inserir filho
-            child_iid = self.tree.insert(
-                folder_iid, "end", text=display_name, values=(tipo, size_display, modified, status), open=False
-            )
+            child_iid = self.tree.insert(folder_iid, "end", text=display_name, values=(tipo,), open=False)
 
             # Guardar dados
             child_full_path = entry.get("full_path") or name
@@ -214,7 +203,7 @@ class FileList(ttk.Frame):
 
             # Adicionar placeholder em subpastas
             if is_folder:
-                self.tree.insert(child_iid, "end", text="", values=("", "", "", ""), tags=("placeholder",))
+                self.tree.insert(child_iid, "end", text="", values=("",), tags=("placeholder",))
 
         # Marcar como populado
         item_info["populated"] = True
@@ -295,3 +284,52 @@ class FileList(ttk.Frame):
     def _handle_delete(self) -> None:
         if self._on_delete:
             self._on_delete()
+
+    def _on_right_click(self, event) -> None:
+        """Handler para clique direito - mostra menu de contexto."""
+        # Identificar o item sob o cursor
+        iid = self.tree.identify_row(event.y)
+        if not iid:
+            return
+
+        # Selecionar o item clicado
+        self.tree.selection_set(iid)
+
+        # Obter informações do item
+        info = self.get_selected_info()
+        if not info:
+            return
+
+        _, item_type, _ = info
+        is_folder = item_type == "Pasta"
+
+        # Limpar e reconstruir menu dinamicamente
+        self._context_menu.delete(0, "end")
+
+        if is_folder:
+            # Menu para pasta
+            if self._on_download_folder:
+                self._context_menu.add_command(label="Baixar pasta (.zip)", command=self._on_download_folder)
+            if self._on_delete:
+                self._context_menu.add_command(label="Excluir", command=self._on_delete)
+        else:
+            # Menu para arquivo
+            if self._on_open_file:
+                self._context_menu.add_command(label="Visualizar", command=lambda: self._trigger_open_file())
+            if self._on_download:
+                self._context_menu.add_command(label="Baixar", command=self._on_download)
+            if self._on_delete:
+                self._context_menu.add_command(label="Excluir", command=self._on_delete)
+
+        # Mostrar menu
+        try:
+            self._context_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self._context_menu.grab_release()
+
+    def _trigger_open_file(self) -> None:
+        """Dispara o callback de abrir arquivo com os parâmetros corretos."""
+        info = self.get_selected_info()
+        if info and self._on_open_file:
+            name, item_type, full_path = info
+            self._on_open_file(name, item_type, full_path)

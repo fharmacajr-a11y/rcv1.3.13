@@ -91,6 +91,13 @@ class UploadProgressDialog:
         except Exception as exc:  # noqa: BLE001
             log.debug("Failed to destroy progress window: %s", exc)
 
+    def wait_window(self) -> None:
+        """Bloqueia até que o diálogo seja fechado (via close() ou janela destruída)."""
+        try:
+            self._dialog.wait_window()
+        except Exception as exc:  # noqa: BLE001
+            log.debug("wait_window encerrado: %s", exc)
+
     def _detail_text(self) -> str:
         return f"{self._value}/{self._total} arquivo(s)"
 
@@ -248,7 +255,7 @@ def _upload_batch(
     Upload batch with threading support.
 
     PERF-002: Movido I/O de rede para thread background para evitar
-    travamento da GUI durante uploads. A janela de progresso � atualizada
+    travamento da GUI durante uploads. A janela de progresso é atualizada
     via widget.after() chamado da thread de I/O.
     """
     import threading
@@ -287,33 +294,56 @@ def _upload_batch(
             log.error("Upload batch error: %s", exc, exc_info=True)
             result_queue.put(("error", exc))
 
+    # Estado compartilhado para polling não-bloqueante
+    state = {"worker": None, "polling": False}
+
+    def _tick() -> None:
+        """Polling não-bloqueante: verifica se thread worker terminou."""
+        worker = state["worker"]
+        if worker is None:
+            return
+
+        if worker.is_alive():
+            # Thread ainda rodando: agenda próximo tick
+            state["polling"] = True
+            _safe_after(50, _tick)
+        else:
+            # Thread terminou: recupera resultado e fecha progresso
+            state["polling"] = False
+            try:
+                result = result_queue.get_nowait()
+                progress.close()
+
+                if result[0] == "success":
+                    # Armazena resultado no state para wait_window retornar
+                    state["result"] = (result[1], result[2])
+                else:
+                    # Se houve erro, armazena exceção
+                    state["error"] = result[1]
+            except queue.Empty:
+                progress.close()
+                state["error"] = RuntimeError("Upload thread finished without result")
+
     # Inicia upload em background thread
     worker = threading.Thread(target=_upload_worker, daemon=True)
+    state["worker"] = worker
     worker.start()
 
-    # Aguarda resultado bloqueando apenas esta janela, n�o a GUI principal
-    # A janela de progresso continua processando eventos via update_idletasks
-    while worker.is_alive():
-        try:
-            progress.update_idletasks()
-            progress.update()
-        except Exception as exc:  # noqa: BLE001
-            log.debug("Falha ao atualizar janela de progresso: %s", exc)
-        worker.join(timeout=0.05)
+    # Inicia polling não-bloqueante
+    _tick()
 
-    # Recupera resultado
-    try:
-        result = result_queue.get_nowait()
-        progress.close()
+    # Aguarda resultado bloqueando apenas esta janela, não a GUI principal
+    # wait_window() processa eventos Tk normalmente, sem busy-wait
+    progress.wait_window()
 
-        if result[0] == "success":
-            return result[1], result[2]
-        else:
-            # Se houve erro, relan�a
-            raise result[1]
-    except queue.Empty:
-        progress.close()
-        raise RuntimeError("Upload thread finished without result")
+    # Recupera resultado do state
+    if "error" in state:
+        raise state["error"]
+    elif "result" in state:
+        return state["result"]
+    else:
+        # Janela foi fechada antes do término (usuário fechou manualmente)
+        raise RuntimeError("Upload dialog closed before completion")
 
 
 def upload_files_to_supabase(

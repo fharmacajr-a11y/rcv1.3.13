@@ -8,6 +8,8 @@ from typing import Callable
 
 import ttkbootstrap as tb
 
+from src.ui.theme_toggle import is_dark_theme
+from src.ui.win_titlebar import set_immersive_dark_mode
 from src.ui.window_utils import show_centered
 from src.utils.resource_path import resource_path
 
@@ -43,6 +45,14 @@ class BusyDialog(tk.Toplevel):
             show_centered(self)
         except Exception as exc:  # noqa: BLE001
             logger.debug("Falha ao centralizar BusyDialog: %s", exc)
+
+        # Aplicar titlebar dark/light conforme tema
+        try:
+            theme = tb.Style().theme_use()
+            set_immersive_dark_mode(self, enabled=is_dark_theme(theme))
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao aplicar titlebar no BusyDialog: %s", exc)
+
         self._pb.start(12)
         self.lift()
         try:
@@ -161,6 +171,13 @@ class ProgressDialog(tb.Toplevel):
             self.focus_force()
         except Exception as exc:  # noqa: BLE001
             logger.debug("Falha ao exibir ProgressDialog: %s", exc)
+
+        # Aplicar titlebar dark/light conforme tema
+        try:
+            theme = tb.Style().theme_use()
+            set_immersive_dark_mode(self, enabled=is_dark_theme(theme))
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao aplicar titlebar no ProgressDialog: %s", exc)
 
     def set_message(self, text: str) -> None:
         try:

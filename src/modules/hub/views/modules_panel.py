@@ -89,7 +89,6 @@ def _build_quick_actions_by_category(
         frame_category = tb.Labelframe(
             parent_frame,
             text=title,
-            bootstyle="dark",
             padding=(8, 6),
         )
         frame_category.pack(fill="x", pady=pady)

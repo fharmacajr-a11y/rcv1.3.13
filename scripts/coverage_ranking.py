@@ -14,12 +14,20 @@ from pathlib import Path
 
 def load_coverage(coverage_path: Path) -> dict:
     """Carrega o arquivo coverage.json"""
+    # Tentar primeiro em reports/coverage.json
+    if not coverage_path.exists():
+        alternative_path = Path("reports/coverage.json")
+        if alternative_path.exists():
+            coverage_path = alternative_path
+            print(f"📊 Analisando cobertura: {coverage_path}")
+        else:
+            print(f"❌ Arquivo não encontrado: {coverage_path}")
+            print("   Rode: pytest -c pytest_cov.ini")
+            sys.exit(1)
+
     try:
         with open(coverage_path, "r", encoding="utf-8") as f:
             return json.load(f)
-    except FileNotFoundError:
-        print(f"❌ Arquivo não encontrado: {coverage_path}")
-        sys.exit(1)
     except json.JSONDecodeError as e:
         print(f"❌ Erro ao decodificar JSON: {e}")
         sys.exit(1)

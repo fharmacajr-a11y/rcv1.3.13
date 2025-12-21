@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import tkinter as tk
 from tkinter import ttk
 from typing import Optional
@@ -24,11 +25,16 @@ def apply_app_icon(window: tk.Toplevel, parent: tk.Misc | None) -> None:
             window.iconbitmap(icon_path)
             return
         except Exception:  # noqa: BLE001
+            # FIX: Fallback deve usar rc.png (PhotoImage não funciona com .ico no Windows)
             try:
-                img = tk.PhotoImage(file=icon_path)
-                window.iconphoto(True, img)
-                window._rc_icon_img = img  # type: ignore[attr-defined]
-                return
+                from src.utils.resource_path import resource_path as rp
+
+                png_path = rp("rc.png")
+                if os.path.exists(png_path):
+                    img = tk.PhotoImage(file=png_path)
+                    window.iconphoto(True, img)
+                    window._rc_icon_img = img  # type: ignore[attr-defined]
+                    return
             except Exception as inner_exc:  # noqa: BLE001
                 logger.debug("Falha ao aplicar iconphoto no dialogo PDF: %s", inner_exc)
 

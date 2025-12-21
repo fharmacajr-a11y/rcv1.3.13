@@ -94,7 +94,7 @@ def _show_hub(app: Any) -> Any:
     frame = app.show_frame(
         HubFrame,
         open_clientes=lambda: navigate_to(app, "main"),
-        open_anvisa=lambda: navigate_to(app, "placeholder", title="Anvisa"),
+        open_anvisa=lambda: navigate_to(app, "anvisa"),
         open_auditoria=lambda: navigate_to(app, "auditoria"),
         open_farmacia_popular=lambda: navigate_to(app, "placeholder", title="Farmcia Popular"),
         open_sngpc=lambda: navigate_to(app, "placeholder", title="Sngpc"),
@@ -296,6 +296,30 @@ def start_client_pick_mode(
     frame.start_pick(on_pick=on_client_picked, return_to=return_to, banner_text=banner_text)
 
 
+def _show_anvisa(app: Any) -> Any:
+    """Mostra a tela ANVISA, cacheando a instância."""
+    from src.modules.anvisa import AnvisaScreen
+
+    # Cachear instância para preservar estado ao navegar
+    if getattr(app, "_anvisa_screen_instance", None) is None:
+        app._anvisa_screen_instance = AnvisaScreen(
+            app._content_container,
+            main_window=app,
+            on_back=lambda: navigate_to(app, "hub"),
+        )
+        _place_or_pack(app._anvisa_screen_instance)
+    else:
+        app._anvisa_screen_instance.tkraise()
+
+    # Garantir que botão Início esteja ativo no ANVISA
+    try:
+        app._topbar.set_is_hub(False)
+    except Exception as exc:
+        log.warning("Falha ao atualizar estado da topbar: %s", exc, exc_info=True)
+
+    return app._anvisa_screen_instance
+
+
 def navigate_to(app: Any, target: str, **kwargs) -> Any:
     handlers = {
         "hub": _show_hub,
@@ -304,6 +328,7 @@ def navigate_to(app: Any, target: str, **kwargs) -> Any:
         "passwords": _show_passwords,
         "clients_picker": _open_clients_picker,
         "auditoria": _show_auditoria,
+        "anvisa": _show_anvisa,
         "cashflow": _show_cashflow,
         "sites": _show_sites,
     }

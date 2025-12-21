@@ -14,7 +14,7 @@ Este documento descreve como gerar o executável e o instalador do RC Gestor.
                               │                        │
                               ▼                        ▼
                         dist/RC-Gestor-         installer/Output/
-                        Clientes-x.x.x.exe      RC-Gestor-Setup.exe
+                        Clientes-X.Y.Z.exe      RC-Gestor-Setup.exe
 ```
 
 ---
@@ -59,7 +59,7 @@ pyinstaller rcgestor.spec
 
 O executável será gerado em:
 ```
-dist/RC-Gestor-Clientes-1.3.61.exe
+dist/RC-Gestor-Clientes-X.Y.Z.exe
 ```
 
 ### Arquivos incluídos automaticamente
@@ -103,7 +103,7 @@ O script Inno Setup está em `installer/rcgestor.iss`.
    - Build → Compile (ou Ctrl+F9)
 
 5. **Saída**
-   - O instalador será gerado em `installer/Output/RC-Gestor-Setup-1.3.61.exe`
+   - O instalador será gerado em `installer/Output/RC-Gestor-Setup-X.Y.Z.exe`
 
 ### O que o instalador faz
 
@@ -122,23 +122,23 @@ Ao lançar uma nova versão, atualize os seguintes arquivos:
 ### 1. `src/version.py`
 
 ```python
-__version__ = "1.3.52"  # Nova versão
+__version__ = "X.Y.Z"  # Nova versão
 ```
 
 ### 2. `version_file.txt`
 
 ```
-filevers=(1, 3, 52, 0),
-prodvers=(1, 3, 52, 0),
+filevers=(X, Y, Z, 0),
+prodvers=(X, Y, Z, 0),
 ...
-StringStruct(u'FileVersion', u'1.3.52'),
-StringStruct(u'ProductVersion', u'1.3.52')
+StringStruct(u'FileVersion', u'X.Y.Z'),
+StringStruct(u'ProductVersion', u'X.Y.Z')
 ```
 
 ### 3. `installer/rcgestor.iss`
 
 ```pascal
-#define MyAppVersion "1.3.52"
+#define MyAppVersion "X.Y.Z"
 ```
 
 ### 4. `CHANGELOG.md`
@@ -191,8 +191,8 @@ add_file(BASE / "arquivo.ext", "pasta_destino")
 - [ ] Testar executável em máquina limpa
 - [ ] Gerar instalador com Inno Setup
 - [ ] Testar instalador em máquina limpa
-- [ ] Criar tag no Git: `git tag v1.3.52`
-- [ ] Push da tag: `git push origin v1.3.52`
+- [ ] Criar tag no Git: `git tag vX.Y.Z`
+- [ ] Push da tag: `git push origin vX.Y.Z`
 
 ---
 

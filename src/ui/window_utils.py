@@ -306,3 +306,116 @@ def recenter_after_layout(*args: object, **kwargs: object) -> None:
     Nao faz nada.
     """
     return
+
+
+# ============================================================================
+# Helpers anti-flash para janelas Toplevel (usado por ANVISA e outros módulos)
+# ============================================================================
+
+
+def apply_window_icon(window: tk.Toplevel | tk.Tk) -> None:
+    """Aplica ícone do app em janela Toplevel ou Tk.
+
+    Args:
+        window: Janela para aplicar ícone
+    """
+    try:
+        from src.utils.paths import resource_path
+
+        window.iconbitmap(resource_path("rc.ico"))
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def prepare_hidden_window(win: tk.Toplevel) -> None:
+    """Prepara janela Toplevel para ser construída sem flash/splash.
+
+    Deve ser chamado IMEDIATAMENTE após criar o Toplevel.
+
+    Args:
+        win: Janela Toplevel recém criada
+    """
+    win.withdraw()
+    win.attributes("-alpha", 0.0)
+    win.geometry("1x1+10000+10000")
+
+
+def show_centered_no_flash(
+    win: tk.Toplevel,
+    parent: tk.Misc,
+    *,
+    width: int | None = None,
+    height: int | None = None,
+) -> None:
+    """Mostra janela Toplevel já centralizada, sem flash/splash.
+
+    Deve ser chamado DEPOIS de construir todos os widgets.
+
+    Args:
+        win: Janela Toplevel preparada com prepare_hidden_window
+        parent: Widget pai para calcular centro
+        width: Largura desejada (ou None para usar winfo_reqwidth)
+        height: Altura desejada (ou None para usar winfo_reqheight)
+    """
+    # Atualizar para medir tamanho real
+    win.update_idletasks()
+
+    # Medir tamanho
+    w = width if width is not None else win.winfo_reqwidth()
+    h = height if height is not None else win.winfo_reqheight()
+
+    # Calcular centro relativo ao parent
+    parent.update_idletasks()
+    px = parent.winfo_rootx()
+    py = parent.winfo_rooty()
+    pw = parent.winfo_width()
+    ph = parent.winfo_height()
+
+    x = px + (pw - w) // 2
+    y = py + (ph - h) // 2
+
+    # Aplicar geometria final
+    win.geometry(f"{w}x{h}+{x}+{y}")
+
+    # Mostrar janela já no lugar certo
+    win.deiconify()
+    win.lift()
+    win.focus_force()
+
+    # Restaurar alpha após desenhar
+    win.after(0, lambda: win.attributes("-alpha", 1.0))
+
+
+def center_window_simple(window: tk.Toplevel, parent: tk.Misc) -> None:
+    """Centraliza janela Toplevel em relação ao parent (versão simplificada).
+
+    Args:
+        window: Janela a ser centralizada
+        parent: Widget pai para calcular centro
+    """
+    window.update_idletasks()
+
+    px = parent.winfo_rootx()
+    py = parent.winfo_rooty()
+    pw = parent.winfo_width()
+    ph = parent.winfo_height()
+
+    ww = window.winfo_width()
+    wh = window.winfo_height()
+
+    # Se width/height ainda são 1, usar reqwidth/reqheight
+    if ww <= 1:
+        ww = window.winfo_reqwidth()
+    if wh <= 1:
+        wh = window.winfo_reqheight()
+
+    x = px + (pw - ww) // 2
+    y = py + (ph - wh) // 2
+
+    # Garantir que não fica fora da tela
+    if x < 0:
+        x = 0
+    if y < 0:
+        y = 0
+
+    window.geometry(f"+{x}+{y}")

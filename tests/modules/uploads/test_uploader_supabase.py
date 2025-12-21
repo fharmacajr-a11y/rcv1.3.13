@@ -11,9 +11,11 @@ from src.modules.uploads.service import UploadItem
 class DummyProgress:
     def __init__(self, _parent=None, total=0):
         self.calls = []
+        self._scheduled = []
 
     def after(self, _delay, callback):
-        callback()
+        self._scheduled.append(callback)
+        return callback
 
     def advance(self, label):
         self.calls.append(label)
@@ -26,6 +28,18 @@ class DummyProgress:
 
     def close(self):
         pass
+
+    def wait_window(self):
+        # Simula loop de eventos: processa callbacks agendados até não haver mais
+        max_iterations = 100  # Evita loop infinito em testes
+        iterations = 0
+        while self._scheduled and iterations < max_iterations:
+            callback = self._scheduled.pop(0)
+            try:
+                callback()
+            except Exception:  # noqa: BLE001
+                pass
+            iterations += 1
 
 
 class DummyThread:
@@ -46,11 +60,16 @@ class AliveThread:
     def __init__(self, target, daemon):
         self._target = target
         self._alive = True
+        self._checks = 0
 
     def start(self):
         self._target()
 
     def is_alive(self):
+        # Simula thread terminando após algumas verificações
+        self._checks += 1
+        if self._checks > 1:
+            self._alive = False
         return self._alive
 
     def join(self, timeout=None):
@@ -380,6 +399,9 @@ def test_progress_dialog_constructs(monkeypatch):
 
         def close(self):
             calls["closed"] += 1
+
+        def wait_window(self):
+            pass
 
     monkeypatch.setattr("src.modules.uploads.uploader_supabase.ProgressDialog", DummyProgress)
 

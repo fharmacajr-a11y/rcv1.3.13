@@ -92,7 +92,6 @@ class HubQuickActionsView:
         frame_cadastros = tb.Labelframe(
             self.modules_panel,
             text="Cadastros / Acesso",
-            bootstyle="dark",
             padding=(8, 6),
         )
         frame_cadastros.pack(fill="x", pady=(0, 8))
@@ -109,7 +108,6 @@ class HubQuickActionsView:
         frame_gestao = tb.Labelframe(
             self.modules_panel,
             text="Gestão / Auditoria",
-            bootstyle="dark",
             padding=(8, 6),
         )
         frame_gestao.pack(fill="x", pady=(0, 8))
@@ -126,23 +124,16 @@ class HubQuickActionsView:
         frame_regulatorio = tb.Labelframe(
             self.modules_panel,
             text="Regulatório / Programas",
-            bootstyle="dark",
             padding=(8, 6),
         )
         frame_regulatorio.pack(fill="x", pady=(0, 0))
         frame_regulatorio.columnconfigure(0, weight=1)
         frame_regulatorio.columnconfigure(1, weight=1)
 
-        btn_anvisa = mk_btn(frame_regulatorio, "Anvisa", self._on_open_anvisa, "secondary")
+        btn_anvisa = mk_btn(frame_regulatorio, "Anvisa", self._on_open_anvisa, "info")
         btn_anvisa.grid(row=0, column=0, sticky="ew", padx=3, pady=3)
 
-        btn_farmacia_pop = mk_btn(frame_regulatorio, "Farmácia Popular", self._on_open_farmacia_popular, "secondary")
-        btn_farmacia_pop.grid(row=0, column=1, sticky="ew", padx=3, pady=3)
-
         btn_sngpc = mk_btn(frame_regulatorio, "Sngpc", self._on_open_sngpc, "secondary")
-        btn_sngpc.grid(row=1, column=0, sticky="ew", padx=3, pady=3)
-
-        btn_sifap = mk_btn(frame_regulatorio, "Sifap", self._on_open_mod_sifap, "secondary")
-        btn_sifap.grid(row=1, column=1, sticky="ew", padx=3, pady=3)
+        btn_sngpc.grid(row=0, column=1, sticky="ew", padx=3, pady=3)
 
         return self.modules_panel

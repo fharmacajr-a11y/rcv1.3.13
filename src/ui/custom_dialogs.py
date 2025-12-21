@@ -22,9 +22,12 @@ def _apply_icon(window: tk.Toplevel) -> None:
             window.iconbitmap(icon_path)
             return
         except Exception:  # noqa: BLE001
+            # FIX: Fallback deve usar rc.png (PhotoImage não funciona com .ico no Windows)
             try:
-                img = tk.PhotoImage(file=icon_path)
-                window.iconphoto(True, img)
+                png_path = resource_path("rc.png")
+                if os.path.exists(png_path):
+                    img = tk.PhotoImage(file=png_path)
+                    window.iconphoto(True, img)
             except Exception as inner_exc:  # noqa: BLE001
                 logger.debug("Falha ao aplicar iconphoto: %s", inner_exc)
     except Exception as exc:  # noqa: BLE001

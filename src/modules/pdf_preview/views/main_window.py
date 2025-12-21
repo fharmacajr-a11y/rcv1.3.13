@@ -50,14 +50,25 @@ class PdfViewerWin(tk.Toplevel):
         data_bytes: bytes | None = None,
     ) -> None:
         super().__init__(master)
+        # CRÍTICO: Esconde janela IMEDIATAMENTE (antes de qualquer configuração)
+        self.withdraw()
+
+        # Tenta aplicar alpha 0.0 para esconder completamente (anti-flash)
+        self._alpha_hidden = False
+        try:
+            self.attributes("-alpha", 0.0)
+            self._alpha_hidden = True
+            logger.debug("PDF VIEWER: alpha 0.0 aplicado - id=%s", id(self))
+        except tk.TclError:
+            logger.debug("PDF VIEWER: alpha não suportado nesta plataforma - id=%s", id(self))
+
         logger.info(
-            "PDF VIEWER: nova janela criada - pdf_path=%r display_name=%r has_bytes=%s",
+            "PDF VIEWER: nova janela criada (oculta) - pdf_path=%r display_name=%r has_bytes=%s id=%s",
             pdf_path,
             display_name,
             bool(data_bytes),
+            id(self),
         )
-        # Evita piscada no Windows mantendo janela oculta até carregar conteúdo inicial
-        self.withdraw()
         self._display_name: str = display_name or (os.path.basename(pdf_path) if pdf_path else "Documento")
         self.title(f"Visualizar: {self._display_name}")
         self.minsize(1200, 800)
@@ -89,6 +100,9 @@ class PdfViewerWin(tk.Toplevel):
         self._controller: Optional[PdfPreviewController] = None
         self._text_buffer: List[str] = []
         self._empty_state_item: int | None = None
+        # Callback resolver para conversor PDF
+        self._context_master: tk.Misc = master
+        self._converter_cb: Callable[[], None] | None = None
         # ---------------------------------------------------
 
         # Top bar
@@ -101,6 +115,7 @@ class PdfViewerWin(tk.Toplevel):
             on_toggle_text=self._on_toggle_text_toolbar,
             on_download_pdf=self._download_pdf,
             on_download_image=self._download_img,
+            on_open_converter=self._open_pdf_converter,
         )
         self.toolbar.pack(side="top", fill="x")
         self.lbl_page: ttk.Label = self.toolbar.lbl_page
@@ -111,6 +126,9 @@ class PdfViewerWin(tk.Toplevel):
         self.btn_download_pdf = self.toolbar.btn_download_pdf
         self.btn_download_img = self.toolbar.btn_download_img
         self._update_download_buttons(is_pdf=False, is_image=False)
+
+        # Inicializa contexto do conversor PDF
+        self.set_context_master(master)
 
         ttk.Separator(self, orient="horizontal").pack(fill="x", padx=8, pady=(0, 8))
 
@@ -172,34 +190,95 @@ class PdfViewerWin(tk.Toplevel):
         self.bind("<Destroy>", self._on_destroy)
 
         self.update_idletasks()
-        show_centered(self)
 
-        # Carrega conteúdo
-        if data_bytes:
-            # Se veio bytes, detecta o tipo e abre
-            self.open_bytes(data_bytes, self._display_name)
-        elif pdf_path:
-            # Se veio caminho, carrega PDF tradicional
-            self._load_pdf(pdf_path)
-        else:
-            self._show_empty_state()
+        # Centraliza a janela (ainda oculta)
+        logger.debug("PDF VIEWER: antes show_centered - state=%s geometry=%s", self.state(), self.geometry())
+        show_centered(self)
+        logger.debug("PDF VIEWER: após show_centered - state=%s geometry=%s", self.state(), self.geometry())
+
+        # Carrega conteúdo e revela janela apenas após renderização
+        try:
+            if data_bytes:
+                # Se veio bytes, detecta o tipo e abre
+                self.open_bytes(data_bytes, self._display_name)
+            elif pdf_path:
+                # Se veio caminho, carrega PDF tradicional
+                self._load_pdf(pdf_path)
+            else:
+                self._show_empty_state()
+        finally:
+            # Revela janela após conteúdo carregado (usa after_idle para esperar render)
+            self.after_idle(self._reveal_window)
+
+    def _resolve_pdf_converter_callback(self) -> Callable[[], None] | None:
+        """Procura callback 'run_pdf_batch_converter' subindo a hierarquia de masters."""
+        obj = self._context_master
+        while obj is not None:
+            fn = getattr(obj, "run_pdf_batch_converter", None)
+            if callable(fn):
+                return cast(Callable[[], None], fn)
+            obj = getattr(obj, "master", None)
+        return None
+
+    def set_context_master(self, master: tk.Misc) -> None:
+        """Atualiza contexto do master e reconfigura botão conversor."""
+        self._context_master = master
+        self._converter_cb = self._resolve_pdf_converter_callback()
+        # Atualiza estado do botão conversor
+        if hasattr(self, "toolbar") and hasattr(self.toolbar, "btn_converter"):
+            try:
+                if self._converter_cb:
+                    self.toolbar.btn_converter.configure(state="normal")
+                else:
+                    self.toolbar.btn_converter.configure(state="disabled")
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Falha ao atualizar estado do botão conversor: %s", exc)
+
+    def _open_pdf_converter(self) -> None:
+        """Handler para clique no botão Conversor PDF."""
+        cb = self._resolve_pdf_converter_callback()
+        if not cb:
+            return
+        # Libera grab para evitar conflitos com o conversor
+        try:
+            self.grab_release()
+        except Exception:
+            pass
+        try:
+            cb()
+        finally:
+            # Restaura grab se a janela ainda existir
+            try:
+                if self.winfo_exists():
+                    self.grab_set()
+            except Exception:
+                pass
 
     def open_document(
         self, pdf_path: str | None = None, data_bytes: bytes | None = None, display_name: str | None = None
     ) -> None:
         """Reabre/atualiza o viewer com novo documento sem recriar a janela."""
+        # Esconde janela e aplica alpha antes de recarregar (anti-flash)
         try:
+            if self._alpha_hidden:
+                self.attributes("-alpha", 0.0)
             self.withdraw()
         except Exception as exc:  # noqa: BLE001
             logger.debug("Falha ao esconder janela antes de recarregar documento: %s", exc)
+
         self._display_name = display_name or (os.path.basename(pdf_path) if pdf_path else self._display_name)
         self.title(f"Visualizar: {self._display_name}")
-        if data_bytes:
-            self.open_bytes(data_bytes, self._display_name)
-        elif pdf_path:
-            self._load_pdf(pdf_path)
-        else:
-            self._show_empty_state()
+
+        try:
+            if data_bytes:
+                self.open_bytes(data_bytes, self._display_name)
+            elif pdf_path:
+                self._load_pdf(pdf_path)
+            else:
+                self._show_empty_state()
+        finally:
+            # Revela janela após recarregar (usa after_idle)
+            self.after_idle(self._reveal_window)
         try:
             self.deiconify()
             self.lift()
@@ -667,6 +746,31 @@ class PdfViewerWin(tk.Toplevel):
                 messagebox.showerror("Baixar PDF", f"Erro ao salvar: {e}", parent=self)
             except Exception as exc:  # noqa: BLE001
                 logger.debug("Falha ao exibir erro ao salvar PDF: %s", exc)
+
+    def _reveal_window(self) -> None:
+        """Revela a janela após carregamento completo (restaura alpha e deiconify)."""
+        if not self.winfo_exists():
+            return
+
+        logger.debug("PDF VIEWER: revelando janela - id=%s state=%s", id(self), self.state())
+
+        try:
+            self.deiconify()
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha em deiconify: %s", exc)
+
+        try:
+            self.lift()
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha em lift: %s", exc)
+
+        # Restaura alpha se estava escondido via alpha
+        if getattr(self, "_alpha_hidden", False):
+            try:
+                self.attributes("-alpha", 1.0)
+                logger.debug("PDF VIEWER: alpha 1.0 restaurado - id=%s", id(self))
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Falha em restaurar alpha: %s", exc)
 
     def _on_close(self) -> None:
         if self._closing:
