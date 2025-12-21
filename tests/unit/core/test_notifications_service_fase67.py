@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -32,25 +34,25 @@ def mock_repository() -> MagicMock:
 
 
 @pytest.fixture
-def org_id_provider_none() -> callable:
+def org_id_provider_none() -> Callable[[], str | None]:
     """Provider que retorna None (sem org_id)."""
     return lambda: None
 
 
 @pytest.fixture
-def org_id_provider_valid() -> callable:
+def org_id_provider_valid() -> Callable[[], str | None]:
     """Provider que retorna org_id válido."""
     return lambda: "org-123"
 
 
 @pytest.fixture
-def user_provider_none() -> callable:
+def user_provider_none() -> Callable[[], dict[str, Any] | None]:
     """Provider que retorna None (sem usuário)."""
     return lambda: None
 
 
 @pytest.fixture
-def user_provider_valid() -> callable:
+def user_provider_valid() -> Callable[[], dict[str, Any] | None]:
     """Provider que retorna usuário válido."""
     return lambda: {"uid": "user-456", "email": "user@example.com"}
 
@@ -64,7 +66,10 @@ class TestResolveActorInfo:
     """Testes para _resolve_actor_info (helper interno)."""
 
     def test_email_none_retorna_fallback(
-        self, mock_repository: MagicMock, org_id_provider_valid: callable, user_provider_none: callable
+        self,
+        mock_repository: MagicMock,
+        org_id_provider_valid: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
     ) -> None:
         """Email None deve retornar ('?', '')."""
         service = NotificationsService(mock_repository, org_id_provider_valid, user_provider_none)
@@ -73,7 +78,10 @@ class TestResolveActorInfo:
         assert initial == ""
 
     def test_email_vazio_retorna_fallback(
-        self, mock_repository: MagicMock, org_id_provider_valid: callable, user_provider_none: callable
+        self,
+        mock_repository: MagicMock,
+        org_id_provider_valid: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
     ) -> None:
         """Email vazio deve retornar ('?', '')."""
         service = NotificationsService(mock_repository, org_id_provider_valid, user_provider_none)
@@ -82,7 +90,10 @@ class TestResolveActorInfo:
         assert initial == ""
 
     def test_email_espacos_retorna_fallback(
-        self, mock_repository: MagicMock, org_id_provider_valid: callable, user_provider_none: callable
+        self,
+        mock_repository: MagicMock,
+        org_id_provider_valid: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
     ) -> None:
         """Email com apenas espaços deve retornar ('?', '')."""
         service = NotificationsService(mock_repository, org_id_provider_valid, user_provider_none)
@@ -294,7 +305,10 @@ class TestFetchLatest:
         assert any("Sem org_id" in rec.message for rec in caplog.records)
 
     def test_org_id_valido_retorna_lista(
-        self, mock_repository: MagicMock, org_id_provider_valid: callable, user_provider_none: callable
+        self,
+        mock_repository: MagicMock,
+        org_id_provider_valid: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
     ) -> None:
         """Com org_id válido deve chamar repo e retornar lista."""
         mock_repository.list_notifications.return_value = [
@@ -364,7 +378,10 @@ class TestFetchLatestForUI:
         assert notif["actor_initial"] == "A"
 
     def test_trata_created_at_invalido(
-        self, mock_repository: MagicMock, org_id_provider_valid: callable, user_provider_none: callable
+        self,
+        mock_repository: MagicMock,
+        org_id_provider_valid: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
     ) -> None:
         """Deve tratar created_at inválido sem explodir."""
         mock_repository.list_notifications.return_value = [
@@ -387,7 +404,10 @@ class TestFetchLatestForUI:
         assert notif["created_at_local_str"] == "invalid-timestam"
 
     def test_trata_request_id_curto(
-        self, mock_repository: MagicMock, org_id_provider_valid: callable, user_provider_none: callable
+        self,
+        mock_repository: MagicMock,
+        org_id_provider_valid: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
     ) -> None:
         """Deve usar '—' para request_id curto."""
         mock_repository.list_notifications.return_value = [
@@ -415,7 +435,10 @@ class TestFetchUnreadCount:
     """Testes para fetch_unread_count."""
 
     def test_sem_org_id_retorna_zero(
-        self, mock_repository: MagicMock, org_id_provider_none: callable, user_provider_none: callable
+        self,
+        mock_repository: MagicMock,
+        org_id_provider_none: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
     ) -> None:
         """Sem org_id deve retornar 0."""
         service = NotificationsService(mock_repository, org_id_provider_none, user_provider_none)
@@ -423,7 +446,10 @@ class TestFetchUnreadCount:
         assert result == 0
 
     def test_org_id_valido_retorna_count(
-        self, mock_repository: MagicMock, org_id_provider_valid: callable, user_provider_none: callable
+        self,
+        mock_repository: MagicMock,
+        org_id_provider_valid: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
     ) -> None:
         """Com org_id válido deve retornar count do repo."""
         mock_repository.count_unread.return_value = 5
@@ -478,7 +504,10 @@ class TestMarkAllRead:
         assert any("Sem org_id" in rec.message for rec in caplog.records)
 
     def test_org_id_valido_retorna_true(
-        self, mock_repository: MagicMock, org_id_provider_valid: callable, user_provider_none: callable
+        self,
+        mock_repository: MagicMock,
+        org_id_provider_valid: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
     ) -> None:
         """Com org_id válido e repo OK deve retornar True."""
         mock_repository.mark_all_read.return_value = True
@@ -555,7 +584,10 @@ class TestPublish:
         assert call_kwargs["actor_email"] is None
 
     def test_com_user_insere_com_actor(
-        self, mock_repository: MagicMock, org_id_provider_valid: callable, user_provider_valid: callable
+        self,
+        mock_repository: MagicMock,
+        org_id_provider_valid: Callable[[], str | None],
+        user_provider_valid: Callable[[], dict[str, Any] | None],
     ) -> None:
         """Com usuário válido deve inserir com actor."""
         mock_repository.insert_notification.return_value = True
