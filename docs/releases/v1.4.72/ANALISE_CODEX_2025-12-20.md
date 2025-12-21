@@ -510,5 +510,47 @@ self.btn_download: ttk.Button = ttk.Button(left, text="Baixar", command=on_downl
 
 ---
 
+## ✅ TEST-008: Uploads Components Helpers
+
+**Data:** 20 de dezembro de 2025  
+**Alvo:** `src/modules/uploads/components/helpers.py`
+
+### Testes Adicionados
+
+**Arquivo:** `tests/unit/modules/uploads/test_uploads_components_helpers_fase65.py`
+
+**Total:** 34 testes (100% aprovados)
+
+**Cobertura:**
+- `_cnpj_only_digits`: 5 testes (None, vazio, apenas dígitos, formatado, especiais)
+- `format_cnpj_for_display`: 5 testes (14 dígitos, menos/mais dígitos, vazio, não numérico)
+- `strip_cnpj_from_razao`: 13 testes (vazio, None, sem CNPJ, separadores diversos, meio, trim)
+- `get_clients_bucket`: 1 teste (retorno constante)
+- `client_prefix_for_id`: 3 testes (normal, client_id=0, org_id vazio)
+- `get_current_org_id`: 7 testes (mock Supabase, success/fail, exceções)
+
+### Comando Executado
+
+```bash
+pytest -q tests/unit/modules/uploads/test_uploads_components_helpers_fase65.py
+# Output: 34 passed in 0.15s
+```
+
+### Verificação de Sanidade
+
+```bash
+python -m compileall src/modules/uploads/components/helpers.py tests/unit/modules/uploads/test_uploads_components_helpers_fase65.py
+python -m ruff check src/modules/uploads/components/helpers.py tests/unit/modules/uploads/test_uploads_components_helpers_fase65.py
+# All checks passed!
+```
+
+### Commit
+
+```
+a482e8d test: TEST-008 uploads components helpers
+```
+
+---
+
 **Fim do Relatório CODEX - v1.4.72**  
 *Análise realizada em: 20 de dezembro de 2025*
