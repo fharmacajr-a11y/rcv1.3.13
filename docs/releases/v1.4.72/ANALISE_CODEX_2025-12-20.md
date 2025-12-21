@@ -599,5 +599,55 @@ f34383b test: TEST-009 network utils
 
 ---
 
+## ✅ TEST-010: Notifications Service (Fase 67)
+
+**Data:** 21 de dezembro de 2025  
+**Alvo:** `src/core/notifications_service.py`
+
+### Testes Adicionados
+
+**Arquivo:** `tests/unit/core/test_notifications_service_fase67.py`
+
+**Total:** 30 testes (100% aprovados)
+
+**Cobertura:**
+- `_resolve_actor_info`: 8 testes (None, vazio, espaços, email no/fora do mapa, sem @, unicode)
+- `_load_initials_map`: 6 testes (sem env, vazio, válido, inválido JSON, cache)
+- `fetch_latest`: 3 testes (sem org_id, válido, exception)
+- `fetch_latest_for_ui`: 3 testes (campos formatados, created_at inválido, request_id curto)
+- `fetch_unread_count`: 3 testes (sem org_id, válido, exception)
+- `mark_all_read`: 3 testes (sem org_id, válido, exception)
+- `publish`: 4 testes (sem org_id, sem user, com user, repo false/exception)
+
+### Estratégia de Mock
+
+- **Repository:** MagicMock do NotificationsRepository (list_notifications, count_unread, mark_all_read, insert_notification)
+- **Providers:** Fixtures para org_id_provider e user_provider (None/válido)
+- **Variáveis de ambiente:** `monkeypatch.setenv("RC_INITIALS_MAP", ...)` para mapa de iniciais
+- **Logging:** `caplog` para verificar logs debug/warning/error/exception
+
+### Comando Executado
+
+```bash
+pytest -q tests/unit/core/test_notifications_service_fase67.py
+# Output: 30 passed
+```
+
+### Verificação de Sanidade
+
+```bash
+python -m compileall src/core/notifications_service.py tests/unit/core/test_notifications_service_fase67.py
+python -m ruff check src/core/notifications_service.py tests/unit/core/test_notifications_service_fase67.py
+# All checks passed!
+```
+
+### Commit
+
+```
+44bb543 test: TEST-010 notifications service (fase67)
+```
+
+---
+
 **Fim do Relatório CODEX - v1.4.72**  
 *Análise realizada em: 20-21 de dezembro de 2025*

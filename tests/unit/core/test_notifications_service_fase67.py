@@ -107,8 +107,8 @@ class TestResolveActorInfo:
     def test_email_no_mapa_usa_prefixo(
         self,
         mock_repository: MagicMock,
-        org_id_provider_valid: callable,
-        user_provider_none: callable,
+        org_id_provider_valid: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Email não no mapa deve usar prefixo capitalizado."""
@@ -122,8 +122,8 @@ class TestResolveActorInfo:
     def test_email_no_mapa_retorna_email_no_mapa(
         self,
         mock_repository: MagicMock,
-        org_id_provider_valid: callable,
-        user_provider_none: callable,
+        org_id_provider_valid: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Email no mapa deve retornar nome e inicial do mapa."""
@@ -139,8 +139,8 @@ class TestResolveActorInfo:
     def test_email_no_mapa_case_insensitive(
         self,
         mock_repository: MagicMock,
-        org_id_provider_valid: callable,
-        user_provider_none: callable,
+        org_id_provider_valid: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Mapa deve ser case-insensitive."""
@@ -156,8 +156,8 @@ class TestResolveActorInfo:
     def test_email_sem_arroba_usa_fallback(
         self,
         mock_repository: MagicMock,
-        org_id_provider_valid: callable,
-        user_provider_none: callable,
+        org_id_provider_valid: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Email sem @ deve usar fallback seguro."""
@@ -172,8 +172,8 @@ class TestResolveActorInfo:
     def test_email_unicode_nao_explode(
         self,
         mock_repository: MagicMock,
-        org_id_provider_valid: callable,
-        user_provider_none: callable,
+        org_id_provider_valid: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Email com unicode/acentos não deve explodir."""
@@ -196,8 +196,8 @@ class TestLoadInitialsMap:
     def test_sem_env_var_retorna_vazio(
         self,
         mock_repository: MagicMock,
-        org_id_provider_valid: callable,
-        user_provider_none: callable,
+        org_id_provider_valid: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Sem RC_INITIALS_MAP deve retornar dict vazio."""
@@ -210,8 +210,8 @@ class TestLoadInitialsMap:
     def test_env_var_vazia_retorna_vazio(
         self,
         mock_repository: MagicMock,
-        org_id_provider_valid: callable,
-        user_provider_none: callable,
+        org_id_provider_valid: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """RC_INITIALS_MAP vazia deve retornar dict vazio."""
@@ -224,8 +224,8 @@ class TestLoadInitialsMap:
     def test_env_var_valida_retorna_dict(
         self,
         mock_repository: MagicMock,
-        org_id_provider_valid: callable,
-        user_provider_none: callable,
+        org_id_provider_valid: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """RC_INITIALS_MAP válida deve retornar dict normalizado."""
@@ -243,8 +243,8 @@ class TestLoadInitialsMap:
     def test_env_var_invalida_retorna_vazio_e_loga(
         self,
         mock_repository: MagicMock,
-        org_id_provider_valid: callable,
-        user_provider_none: callable,
+        org_id_provider_valid: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
         monkeypatch: pytest.MonkeyPatch,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
@@ -261,8 +261,8 @@ class TestLoadInitialsMap:
     def test_cache_funciona(
         self,
         mock_repository: MagicMock,
-        org_id_provider_valid: callable,
-        user_provider_none: callable,
+        org_id_provider_valid: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Segunda chamada deve usar cache sem re-parsear."""
@@ -291,8 +291,8 @@ class TestFetchLatest:
     def test_sem_org_id_retorna_vazio(
         self,
         mock_repository: MagicMock,
-        org_id_provider_none: callable,
-        user_provider_none: callable,
+        org_id_provider_none: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Sem org_id deve retornar lista vazia e logar debug."""
@@ -325,8 +325,8 @@ class TestFetchLatest:
     def test_repo_exception_retorna_vazio(
         self,
         mock_repository: MagicMock,
-        org_id_provider_valid: callable,
-        user_provider_none: callable,
+        org_id_provider_valid: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Exceção no repo deve retornar [] e logar exception."""
@@ -347,8 +347,8 @@ class TestFetchLatestForUI:
     def test_adiciona_campos_formatados(
         self,
         mock_repository: MagicMock,
-        org_id_provider_valid: callable,
-        user_provider_none: callable,
+        org_id_provider_valid: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Deve adicionar campos formatados para UI."""
@@ -463,8 +463,8 @@ class TestFetchUnreadCount:
     def test_repo_exception_retorna_zero(
         self,
         mock_repository: MagicMock,
-        org_id_provider_valid: callable,
-        user_provider_none: callable,
+        org_id_provider_valid: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Exceção no repo deve retornar 0 e logar exception."""
@@ -490,8 +490,8 @@ class TestMarkAllRead:
     def test_sem_org_id_retorna_false(
         self,
         mock_repository: MagicMock,
-        org_id_provider_none: callable,
-        user_provider_none: callable,
+        org_id_provider_none: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Sem org_id deve retornar False e logar warning."""
@@ -521,8 +521,8 @@ class TestMarkAllRead:
     def test_repo_exception_retorna_false(
         self,
         mock_repository: MagicMock,
-        org_id_provider_valid: callable,
-        user_provider_none: callable,
+        org_id_provider_valid: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Exceção no repo deve retornar False e logar exception."""
@@ -548,8 +548,8 @@ class TestPublish:
     def test_sem_org_id_retorna_false(
         self,
         mock_repository: MagicMock,
-        org_id_provider_none: callable,
-        user_provider_none: callable,
+        org_id_provider_none: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Sem org_id deve retornar False e logar warning."""
@@ -564,8 +564,8 @@ class TestPublish:
     def test_sem_user_continua_sem_actor(
         self,
         mock_repository: MagicMock,
-        org_id_provider_valid: callable,
-        user_provider_none: callable,
+        org_id_provider_valid: Callable[[], str | None],
+        user_provider_none: Callable[[], dict[str, Any] | None],
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Sem usuário deve continuar mas logar warning."""
@@ -609,8 +609,8 @@ class TestPublish:
     def test_repo_retorna_false_loga_error(
         self,
         mock_repository: MagicMock,
-        org_id_provider_valid: callable,
-        user_provider_valid: callable,
+        org_id_provider_valid: Callable[[], str | None],
+        user_provider_valid: Callable[[], dict[str, Any] | None],
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Repo retornando False deve logar error."""
@@ -627,8 +627,8 @@ class TestPublish:
     def test_repo_exception_retorna_false(
         self,
         mock_repository: MagicMock,
-        org_id_provider_valid: callable,
-        user_provider_valid: callable,
+        org_id_provider_valid: Callable[[], str | None],
+        user_provider_valid: Callable[[], dict[str, Any] | None],
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Exceção no repo deve retornar False e logar exception."""
