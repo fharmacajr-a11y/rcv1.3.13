@@ -104,6 +104,49 @@ def pytest_configure(config: pytest.Config) -> None:
     _apply_global_warning_filters()
 
 
+def pytest_ignore_collect(collection_path: Path, config: pytest.Config) -> bool | None:
+    """
+    Evita coleta de testes GUI/Tk que causam crashes durante a importação.
+
+    Retorna True para ignorar a coleta, None para permitir (não retornar False).
+    Isso previne access violations no Python 3.13+ Windows durante `pytest -m "skip or skipif"`.
+    """
+    # Normalizar path para comparação
+    path_str = str(collection_path).replace("\\", "/")
+
+    # Ignorar testes GUI legacy quando RC_RUN_GUI_TESTS != "1"
+    if os.getenv("RC_RUN_GUI_TESTS") != "1":
+        if "/tests/gui_legacy/" in path_str:
+            return True
+
+    # Ignorar testes PDF UI quando RC_RUN_PDF_UI_TESTS != "1"
+    if os.getenv("RC_RUN_PDF_UI_TESTS") != "1":
+        if "/tests/unit/modules/pdf_preview/views/" in path_str:
+            return True
+
+    # Ignorar testes modules/anvisa (contém Tk e pode crashar na coleta de markers)
+    if os.getenv("RC_RUN_GUI_TESTS") != "1":
+        if "/tests/modules/anvisa/" in path_str:
+            return True
+
+    # Windows + Python 3.13+: ignorar testes conhecidos de Tk crash
+    # mesmo durante a coleta (crash ocorre na importação)
+    if sys.platform.startswith("win") and sys.version_info >= (3, 13):
+        crash_patterns = [
+            "/tests/unit/modules/clientes/forms/test_client_form_adapters.py",
+            "/tests/unit/modules/tasks/views/test_task_dialog.py",
+            "/tests/integration/modules/clientes/forms/test_client_form_integration_fase01.py",
+            "/tests/test_login_dialog_focus.py",
+            "/tests/test_login_dialog_style.py",
+            "/tests/test_login_dialog_window_state.py",
+        ]
+        if any(pattern in path_str for pattern in crash_patterns):
+            return True
+
+    # Permitir coleta (retornar None, não False)
+    return None
+
+
 # ============================================================================
 # FILTROS DE WARNINGS GLOBAIS
 # ============================================================================

@@ -82,8 +82,9 @@ class ActionBar(tk_ttk.Frame):
 
         if on_close is not None:
             self.btn_close = ttk.Button(right, text="Fechar", command=on_close, bootstyle="secondary")
-            assert self.btn_close is not None  # type narrowing para Pyright
-            self.btn_close.grid(row=0, column=col_right)
+            # Type narrowing: garantir que btn_close foi criado
+            if self.btn_close is not None:
+                self.btn_close.grid(row=0, column=col_right)
 
         # Coluna elástica para empurrar right para a direita
         self.columnconfigure(0, weight=1)
