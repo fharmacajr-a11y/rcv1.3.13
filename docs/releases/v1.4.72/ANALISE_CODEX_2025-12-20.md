@@ -552,5 +552,52 @@ a482e8d test: TEST-008 uploads components helpers
 
 ---
 
+## ✅ TEST-009: Network Utils (Fase 66)
+
+**Data:** 20 de dezembro de 2025  
+**Alvo:** `src/utils/network.py`
+
+### Testes Adicionados
+
+**Arquivo:** `tests/unit/utils/test_network_fase66.py`
+
+**Total:** 20 testes (100% aprovados)
+
+**Cobertura:**
+- `_socket_check`: 4 testes (sucesso, OSError genérico, WinError 10013, timeout customizado)
+- `_http_check`: 4 testes (sucesso primeira URL, sucesso segunda URL, todas falham, timeout usado)
+- `check_internet_connectivity`: 6 testes (socket ok, fallback HTTP, ambos falham, bypass RC_NO_NET_CHECK, timeout customizado, timeout HTTP mínimo)
+- `require_internet_or_alert`: 6 testes (não cloud-only, cloud-only + internet, GUI suppressed, GUI OK/Cancel, GUI exception)
+
+### Estratégia de Mock
+
+- **Variáveis de ambiente:** `@patch.dict("os.environ", ...)` para RC_NO_NET_CHECK, RC_NO_LOCAL_FS, RC_NO_GUI_ERRORS
+- **Socket:** `@patch("src.utils.network.socket.create_connection")` com sucesso/OSError/WinError 10013
+- **HTTP:** `@patch("src.utils.network.urllib.request.urlopen")` com sucesso/URLError
+- **GUI:** `@patch("tkinter.Tk")` e `@patch("tkinter.messagebox.askokcancel")`
+
+### Comando Executado
+
+```bash
+pytest -q tests/unit/utils/test_network_fase66.py -v
+# Output: 20 passed in 5.53s
+```
+
+### Verificação de Sanidade
+
+```bash
+python -m compileall src/utils/network.py tests/unit/utils/test_network_fase66.py
+python -m ruff check src/utils/network.py tests/unit/utils/test_network_fase66.py
+# All checks passed!
+```
+
+### Commit
+
+```
+f34383b test: TEST-009 network utils
+```
+
+---
+
 **Fim do Relatório CODEX - v1.4.72**  
-*Análise realizada em: 20 de dezembro de 2025*
+*Análise realizada em: 20-21 de dezembro de 2025*
