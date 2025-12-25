@@ -13,9 +13,13 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from infra.db_schemas import RC_NOTES_SELECT_FIELDS, RC_NOTES_SELECT_FIELDS_SAFE, is_schema_drift_error
 from src.core.services import notes_service
 
 log = logging.getLogger(__name__)
+
+# Manter NOTES_SELECT_FIELDS como alias para compatibilidade
+NOTES_SELECT_FIELDS = RC_NOTES_SELECT_FIELDS
 
 
 class NotesServiceAdapter:
@@ -90,22 +94,45 @@ class NotesServiceAdapter:
         if is_done is not None:
             payload["is_done"] = is_done
 
-        # Executar update
+        # Executar update (SEM .select() - PostgREST não suporta isso)
         try:
-            resp = exec_postgrest(
-                supa.table("rc_notes")
-                .update(payload)
-                .eq("id", note_id)
-                .select("id,org_id,author_email,body,created_at,is_pinned,is_done")
-            )
+            resp_update = exec_postgrest(supa.table("rc_notes").update(payload).eq("id", note_id))
 
-            rows = resp.data or []
+            # Tentar extrair dados da resposta do update
+            updated_data = resp_update.data
+
+            # Se retornou lista com item, usar ele
+            if isinstance(updated_data, list) and len(updated_data) > 0:
+                return updated_data[0]
+
+            # Se retornou dict, usar ele
+            if isinstance(updated_data, dict) and updated_data:
+                return updated_data
+
+            # Fallback: fazer SELECT separado para obter a nota atualizada
+            log.debug(f"Update não retornou dados, fazendo SELECT separado para nota {note_id}")
+            resp_get = exec_postgrest(supa.table("rc_notes").select(RC_NOTES_SELECT_FIELDS).eq("id", note_id).limit(1))
+
+            rows = resp_get.data or []
             if not rows:
                 raise ValueError(f"Nota {note_id} não encontrada ou sem permissão")
 
             return rows[0]
 
         except Exception as e:
+            # P1: Retry automático se erro 42703 (schema drift)
+            if is_schema_drift_error(e):
+                log.warning(f"Schema drift detectado (42703) para nota {note_id}, retry com campos SAFE")
+                try:
+                    resp_get = exec_postgrest(
+                        supa.table("rc_notes").select(RC_NOTES_SELECT_FIELDS_SAFE).eq("id", note_id).limit(1)
+                    )
+                    rows = resp_get.data or []
+                    if rows:
+                        return rows[0]
+                except Exception as retry_err:
+                    log.error(f"Erro no retry com campos SAFE: {retry_err}")
+
             log.error(f"Erro ao atualizar nota {note_id}: {e}")
             raise
 

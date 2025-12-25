@@ -16,6 +16,7 @@ import time
 from typing import Any, Callable
 
 
+from infra.db_schemas import RC_NOTES_SELECT_FIELDS_LIST
 from infra.supabase_client import exec_postgrest, get_supabase
 
 
@@ -379,7 +380,7 @@ def _fetch_notes(org_id: str, limit: int) -> list[dict[str, Any]]:
 
     resp = exec_postgrest(
         supa.table(TABLE)
-        .select("id, author_email, body, created_at")
+        .select(RC_NOTES_SELECT_FIELDS_LIST)
         .eq("org_id", org_id)
         .order("created_at", desc=True)
         .limit(limit)
@@ -565,7 +566,7 @@ def list_notes_since(org_id: str, since_iso: str | None) -> list[dict[str, Any]]
 
         resp = exec_postgrest(
             supa.table(TABLE)
-            .select("id,created_at,author_email,author_name,body")
+            .select(RC_NOTES_SELECT_FIELDS_LIST)
             .eq("org_id", org_id)
             .gt("created_at", since_iso)
             .order("created_at", desc=True)

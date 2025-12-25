@@ -159,11 +159,12 @@ def test_encrypt_text_sem_chave_no_env_levanta_runtime_error(mock_env_key_missin
 
 def test_decrypt_text_sem_chave_no_env_levanta_runtime_error(mock_env_key_missing):
     """
-    Testa que sem RC_CLIENT_SECRET_KEY no ambiente,
-    decrypt_text levanta RuntimeError.
+    TEST-001: decrypt_text sem chave retorna string vazia (não lança exceção).
+    RuntimeError só é lançado em encrypt_text quando chave está ausente.
     """
-    with pytest.raises(RuntimeError, match="RC_CLIENT_SECRET_KEY não encontrada"):
-        crypto.decrypt_text("algum-token")
+    # decrypt_text retorna "" quando não consegue descriptografar
+    result = crypto.decrypt_text("algum-token")
+    assert result == ""
 
 
 def test_get_encryption_key_com_chave_invalida_levanta_runtime_error(monkeypatch):
@@ -186,8 +187,8 @@ def test_get_encryption_key_com_chave_invalida_levanta_runtime_error(monkeypatch
 
 def test_decrypt_with_wrong_key_levanta_runtime_error(valid_fernet_key, monkeypatch):
     """
-    Testa que descriptografar com chave diferente da usada
-    para criptografar levanta RuntimeError.
+    TEST-001: decrypt_text com chave errada retorna string vazia.
+    Não lança exceção para evitar quebrar UI.
     """
     # Criptografar com uma chave
     monkeypatch.setenv("RC_CLIENT_SECRET_KEY", valid_fernet_key)
@@ -198,15 +199,14 @@ def test_decrypt_with_wrong_key_levanta_runtime_error(valid_fernet_key, monkeypa
     crypto._reset_fernet_cache()  # IMPORTANTE: limpar cache antes de trocar chave
     monkeypatch.setenv("RC_CLIENT_SECRET_KEY", outra_chave)
 
-    # Tentar descriptografar deve falhar
-    with pytest.raises(RuntimeError, match="Falha na descriptografia"):
-        crypto.decrypt_text(encrypted)
+    # TEST-001: Deve retornar string vazia
+    result = crypto.decrypt_text(encrypted)
+    assert result == ""
 
 
 def test_decrypt_token_corrompido_levanta_runtime_error(mock_env_key):
     """
-    Testa que um token corrompido (base64 inválido ou modificado)
-    levanta RuntimeError ao descriptografar.
+    TEST-001: token corrompido retorna string vazia (não lança exceção).
     """
     original = "texto-original"
     encrypted = crypto.encrypt_text(original)
@@ -214,18 +214,20 @@ def test_decrypt_token_corrompido_levanta_runtime_error(mock_env_key):
     # Corromper o token (modificar caracteres no meio)
     corrupted = encrypted[:10] + "XXXXX" + encrypted[15:]
 
-    with pytest.raises(RuntimeError, match="Falha na descriptografia"):
-        crypto.decrypt_text(corrupted)
+    # TEST-001: Deve retornar string vazia
+    result = crypto.decrypt_text(corrupted)
+    assert result == ""
 
 
 def test_decrypt_token_base64_invalido_levanta_runtime_error(mock_env_key):
     """
-    Testa que um token que não é base64 válido levanta RuntimeError.
+    TEST-001: token base64 inválido retorna string vazia (não lança exceção).
     """
     token_invalido = "isso-não-é-base64-fernet!!!@#$%"
 
-    with pytest.raises(RuntimeError, match="Falha na descriptografia"):
-        crypto.decrypt_text(token_invalido)
+    # TEST-001: Deve retornar string vazia
+    result = crypto.decrypt_text(token_invalido)
+    assert result == ""
 
 
 # ========================================
@@ -310,16 +312,16 @@ def test_encrypt_text_com_exception_no_fernet_e_capturada(monkeypatch, valid_fer
 
 def test_decrypt_text_com_exception_no_fernet_e_capturada(monkeypatch, valid_fernet_key):
     """
-    Testa que se Fernet.decrypt levantar exceção,
-    ela é capturada e re-levantada como RuntimeError.
+    TEST-001: exception em Fernet.decrypt retorna string vazia (não lança RuntimeError).
     """
     monkeypatch.setenv("RC_CLIENT_SECRET_KEY", valid_fernet_key)
 
     with patch("security.crypto.Fernet") as mock_fernet:
         mock_fernet.return_value.decrypt.side_effect = ValueError("Erro simulado")
 
-        with pytest.raises(RuntimeError, match="Falha na descriptografia"):
-            crypto.decrypt_text("algum-token")
+        # TEST-001: Deve retornar string vazia
+        result = crypto.decrypt_text("algum-token")
+        assert result == ""
 
 
 # ========================================
@@ -348,7 +350,7 @@ def test_encrypt_text_loga_exception_em_caso_de_erro(monkeypatch, valid_fernet_k
 
 def test_decrypt_text_loga_exception_em_caso_de_erro(monkeypatch, valid_fernet_key, caplog):
     """
-    Testa que quando decrypt_text falha, a exceção é logada.
+    TEST-001: decrypt_text falha silenciosamente (WARNING log) e retorna ''.
     """
     import logging
 
@@ -357,12 +359,12 @@ def test_decrypt_text_loga_exception_em_caso_de_erro(monkeypatch, valid_fernet_k
     with patch("security.crypto.Fernet") as mock_fernet:
         mock_fernet.return_value.decrypt.side_effect = ValueError("Erro de teste")
 
-        with caplog.at_level(logging.ERROR):
-            with pytest.raises(RuntimeError):
-                crypto.decrypt_text("token-qualquer")
+        with caplog.at_level(logging.WARNING):
+            result = crypto.decrypt_text("token-qualquer")
+            assert result == ""
 
-        # Verifica que houve log de exceção
-        assert any("Erro ao descriptografar token" in record.message for record in caplog.records)
+        # Verifica que houve log de WARNING (não ERROR)
+        assert any("Token inválido ou corrompido" in record.message for record in caplog.records)
 
 
 # ========================================

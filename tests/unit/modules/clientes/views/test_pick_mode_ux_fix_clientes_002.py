@@ -166,7 +166,6 @@ class TestPickModeEnterExitUI:
         frame.footer.btn_novo = Mock()
         frame.footer.btn_editar = Mock()
         frame.footer.btn_subpastas = Mock()
-        frame.footer.btn_enviar = Mock()
         frame.app = None
 
         # Act & Assert (não deve lançar exceção)
@@ -471,8 +470,6 @@ class TestFooterPickModeMethods:
             on_novo=lambda: None,
             on_editar=lambda: None,
             on_subpastas=lambda: None,
-            on_enviar_supabase=lambda: None,
-            on_enviar_pasta=lambda: None,
             on_batch_delete=lambda: None,
             on_batch_restore=lambda: None,
             on_batch_export=lambda: None,
@@ -484,7 +481,6 @@ class TestFooterPickModeMethods:
         footer.btn_novo.configure(state="normal")
         footer.btn_editar.configure(state="disabled")
         footer.btn_subpastas.configure(state="normal")
-        footer.btn_enviar.configure(state="normal")
         tk_root.update_idletasks()
 
         # Act
@@ -495,7 +491,6 @@ class TestFooterPickModeMethods:
         assert str(footer.btn_novo["state"]) == "disabled"
         assert str(footer.btn_editar["state"]) == "disabled"
         assert str(footer.btn_subpastas["state"]) == "disabled"
-        assert str(footer.btn_enviar["state"]) == "disabled"
 
         # Assert - estados foram salvos
         assert footer.btn_novo in footer._pick_prev_states
@@ -511,8 +506,6 @@ class TestFooterPickModeMethods:
             on_novo=lambda: None,
             on_editar=lambda: None,
             on_subpastas=lambda: None,
-            on_enviar_supabase=lambda: None,
-            on_enviar_pasta=lambda: None,
             on_batch_delete=lambda: None,
             on_batch_restore=lambda: None,
             on_batch_export=lambda: None,
@@ -524,7 +517,6 @@ class TestFooterPickModeMethods:
         footer.btn_novo.configure(state="normal")
         footer.btn_editar.configure(state="disabled")
         footer.btn_subpastas.configure(state="normal")
-        footer.btn_enviar.configure(state="disabled")
         tk_root.update_idletasks()
 
         # Entrar em pick mode (vai salvar os estados acima)
@@ -543,7 +535,6 @@ class TestFooterPickModeMethods:
         assert str(footer.btn_novo["state"]) == "normal", "btn_novo deve voltar a 'normal'"
         assert str(footer.btn_editar["state"]) == "disabled", "btn_editar deve continuar 'disabled'"
         assert str(footer.btn_subpastas["state"]) == "normal", "btn_subpastas deve voltar a 'normal'"
-        assert str(footer.btn_enviar["state"]) == "disabled", "btn_enviar deve continuar 'disabled'"
 
         # Assert - dicionário de estados foi limpo
         assert len(footer._pick_prev_states) == 0, "Estados salvos devem ser limpos após restauração"
@@ -557,8 +548,6 @@ class TestFooterPickModeMethods:
             on_novo=lambda: None,
             on_editar=lambda: None,
             on_subpastas=lambda: None,
-            on_enviar_supabase=lambda: None,
-            on_enviar_pasta=lambda: None,
             on_batch_delete=lambda: None,
             on_batch_restore=lambda: None,
             on_batch_export=lambda: None,
@@ -579,8 +568,6 @@ class TestFooterPickModeMethods:
             on_novo=lambda: None,
             on_editar=lambda: None,
             on_subpastas=lambda: None,
-            on_enviar_supabase=lambda: None,
-            on_enviar_pasta=lambda: None,
             on_batch_delete=lambda: None,
             on_batch_restore=lambda: None,
             on_batch_export=lambda: None,
@@ -794,7 +781,6 @@ class TestPickModeButtonStatesInPickMode:
         footer.btn_novo = Mock()
         footer.btn_editar = Mock()
         footer.btn_subpastas = Mock()
-        footer.btn_enviar = Mock()
         frame.footer = footer
         frame.btn_lixeira = Mock()
         frame.btn_lixeira.__getitem__ = Mock(return_value="normal")  # Estado inicial

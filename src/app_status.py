@@ -36,8 +36,8 @@ def _set_env_text(app: Any, text: str) -> None:
             app._merge_status_text(text)
         elif hasattr(app, "status_var_text"):
             app.status_var_text.set(text)
-    except Exception:
-        log.debug("Unable to propagate environment text", exc_info=True)
+    except Exception as exc:
+        log.warning("Falha ao propagar texto de ambiente: %s", exc, exc_info=True)
 
 
 def _apply_status(app: Any, status: Status) -> None:
@@ -45,7 +45,8 @@ def _apply_status(app: Any, status: Status) -> None:
     try:
         if hasattr(app, "winfo_exists") and not app.winfo_exists():
             return
-    except Exception:
+    except Exception as exc:
+        log.warning("Erro ao verificar existência da janela: %s", exc)
         return
 
     # Always show the status dot
@@ -65,15 +66,15 @@ def _apply_status(app: Any, status: Status) -> None:
             _set_env_text(app, env_text)
         else:
             _set_env_text(app, "ONLINE" if status == Status.ONLINE else "OFFLINE")
-    except Exception:
-        log.debug("Failed to update status widgets", exc_info=True)
+    except Exception as exc:
+        log.warning("Falha ao atualizar widgets de status: %s", exc, exc_info=True)
 
     try:
         callback = getattr(app, "on_net_status_change", None)
         if callable(callback):
             callback(status)
-    except Exception:
-        log.debug("on_net_status_change hook failed", exc_info=True)
+    except Exception as exc:
+        log.warning("Hook on_net_status_change falhou: %s", exc, exc_info=True)
 
 
 def _read_cfg_from_disk() -> ConfigValues:
@@ -86,7 +87,8 @@ def _read_cfg_from_disk() -> ConfigValues:
         timeout = float(probe_opts.get("timeout_seconds", DEFAULT_TIMEOUT))
         interval_ms = int(probe_opts.get("interval_ms", DEFAULT_INTERVAL_MS))
         return url, timeout, interval_ms
-    except Exception:
+    except Exception as exc:
+        log.warning("Falha ao ler configuração do disco: %s", exc)
         return "", DEFAULT_TIMEOUT, DEFAULT_INTERVAL_MS
 
 
@@ -95,7 +97,8 @@ def _get_cfg() -> ConfigValues:
     global _cfg_cache
     try:
         mtime = CONFIG_PATH.stat().st_mtime
-    except Exception:
+    except Exception as exc:
+        log.debug("Config file não encontrado ou inacessível: %s", exc)
         mtime = -1.0
 
     if _cfg_cache and _cfg_cache[0] == CONFIG_PATH and _cfg_cache[1] == mtime:
@@ -124,13 +127,14 @@ def update_net_status(app: Any, interval_ms: int | None = None) -> None:
     url, timeout, cfg_interval_ms = _get_cfg()
     try:
         first_status = probe(url, timeout)
-    except Exception:
+    except Exception as exc:
+        log.warning("Primeira tentativa de probe falhou: %s", exc)
         first_status = Status.LOCAL
 
     try:
         app.after(0, lambda s=first_status: _apply_status(app, s))
-    except Exception:
-        log.debug("Unable to schedule initial status update", exc_info=True)
+    except Exception as exc:
+        log.warning("Falha ao agendar atualização inicial de status: %s", exc, exc_info=True)
 
     def worker() -> None:
         log.info("NetStatusWorker started")
@@ -141,7 +145,8 @@ def update_net_status(app: Any, interval_ms: int | None = None) -> None:
 
             try:
                 current_status = probe(url_, timeout_)
-            except Exception:
+            except Exception as exc:
+                log.debug("Probe de rede falhou: %s", exc)
                 current_status = Status.LOCAL
 
             now = time.time()
@@ -155,8 +160,8 @@ def update_net_status(app: Any, interval_ms: int | None = None) -> None:
                         app._net_last_ui = now
                         app._net_last_status = current_status
                         app.after(0, lambda s=current_status: _apply_status(app, s))
-                except Exception:
-                    log.debug("Failed to dispatch status update", exc_info=True)
+                except Exception as exc:
+                    log.warning("Falha ao despachar atualização de status: %s", exc, exc_info=True)
 
             time.sleep(eff_interval_s)
 

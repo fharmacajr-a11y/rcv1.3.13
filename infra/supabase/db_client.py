@@ -108,11 +108,29 @@ def _start_health_checker() -> None:
         Thread é daemon (não bloqueia shutdown do app)
         Atualiza variáveis globais _IS_ONLINE e _LAST_SUCCESS_TIMESTAMP
         Configurável via variáveis de ambiente (HEALTHCHECK_INTERVAL_SECONDS, etc.)
+
+    OFFLINE-SUPABASE-UX-002: Em cloud-only sem internet, não inicia o checker
+        para evitar spam de warnings no console.
     """
     global _HEALTH_CHECKER_STARTED
 
     if _HEALTH_CHECKER_STARTED:
         return
+
+    # OFFLINE-SUPABASE-UX-002: Não iniciar health checker se cloud-only E offline
+    # (para evitar spam de warnings quando sem internet)
+    is_cloud_only = os.getenv("RC_NO_LOCAL_FS") == "1"
+    is_testing = os.getenv("RC_TESTING") == "1" or os.getenv("PYTEST_CURRENT_TEST") is not None
+
+    if is_cloud_only and not is_testing:
+        try:
+            from src.utils.network import check_internet_connectivity
+
+            if not check_internet_connectivity(timeout=1.0):
+                log.info("Cloud-only offline: health checker não iniciado para evitar ruído no console.")
+                return
+        except Exception as exc:
+            log.debug("Erro ao verificar internet para health checker: %s", exc)
 
     _HEALTH_CHECKER_STARTED = True
 

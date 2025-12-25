@@ -45,13 +45,7 @@ class FakeNavigator:
     def open_anvisa(self) -> None:
         pass
 
-    def open_farmacia_popular(self) -> None:
-        pass
-
     def open_sngpc(self) -> None:
-        pass
-
-    def open_sifap(self) -> None:
         pass
 
     def open_sites(self) -> None:
@@ -165,26 +159,25 @@ def test_controller_get_supported_action_ids_nao_inclui_alias(quick_actions_cont
 def test_controller_get_supported_action_ids_contem_todas_actions_principais(
     quick_actions_controller,
 ):
-    """Teste: get_supported_action_ids() contém todas as 9 actions principais."""
+    """Teste: get_supported_action_ids() contém todas as 7 actions principais."""
     # Act
     ids = set(quick_actions_controller.get_supported_action_ids())
 
     # Expected: todas as actions que têm método open_* no Navigator Protocol
+    # Removidos: farmacia_popular, sifap (BUGFIX-HUB-UI-001)
     expected = {
         "clientes",
         "senhas",
         "auditoria",
         "fluxo_caixa",
         "anvisa",
-        "farmacia_popular",
         "sngpc",
-        "sifap",
         "sites",
     }
 
     # Assert
     assert ids == expected, (
-        f"IDs retornados devem incluir todas as 9 actions principais.\n"
+        f"IDs retornados devem incluir todas as 7 actions principais.\n"
         f"Esperado: {sorted(expected)}\n"
         f"Obtido: {sorted(ids)}\n"
         f"Faltando: {sorted(expected - ids)}\n"

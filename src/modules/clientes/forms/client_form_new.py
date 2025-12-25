@@ -124,7 +124,9 @@ def form_cliente(
                     logger.warning(f"Falha no upload: {result.message}")
 
         def on_cartao_cnpj(self) -> None:
-            """Handler para botão Cartão CNPJ."""
+            """Handler para botão Cartão CNPJ com tratamento robusto de erros."""
+            from tkinter import messagebox
+
             if cnpj_busy[0]:
                 return
 
@@ -157,6 +159,15 @@ def form_cliente(
                 # Marca formulário como modificado se houve sucesso
                 if result.ok and controller:
                     controller.mark_dirty()
+
+            except Exception as exc:
+                logger.exception("Erro ao processar Cartão CNPJ")
+                if view and view.window:
+                    messagebox.showerror(
+                        "Erro",
+                        f"Falha ao processar Cartão CNPJ:\n{exc}",
+                        parent=view.window,
+                    )
 
             finally:
                 cnpj_busy[0] = False

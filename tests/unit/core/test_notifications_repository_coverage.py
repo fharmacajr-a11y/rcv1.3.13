@@ -400,11 +400,11 @@ def test_notifications_repository_adapter_methods() -> None:
         # Testar cada método do adapter
         result_list = adapter.list_notifications("org-1", limit=10)
         assert result_list == [{"id": "1"}]
-        mock_list.assert_called_once_with("org-1", 10)
+        mock_list.assert_called_once_with("org-1", 10, exclude_actor_email=None)
 
         result_count = adapter.count_unread("org-2")
         assert result_count == 3
-        mock_count.assert_called_once_with("org-2")
+        mock_count.assert_called_once_with("org-2", exclude_actor_email=None)
 
         result_mark = adapter.mark_all_read("org-3")
         assert result_mark is True

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any, Callable
@@ -41,6 +42,7 @@ class UploadDialogContext:
         self._cancel_event = threading.Event()
         self._total = max(int(total or 0), 0)
         self._completed = 0
+        self._started_at = time.monotonic()
 
     # ---- Cancelamento --------------------------------------------------
     @property
@@ -71,6 +73,7 @@ class UploadDialogContext:
             label=label,
             detail=self._detail_text(),
             fraction=self._fraction(),
+            eta_text=self._eta_text(),
         )
 
     def report(
@@ -96,13 +99,35 @@ class UploadDialogContext:
     # ---- Helpers internos ----------------------------------------------
     def _detail_text(self) -> str:
         if self._total > 0:
-            return f"{self._completed}/{self._total} arquivo(s)"
+            pct = round((self._completed / self._total) * 100)
+            return f"{self._completed}/{self._total} arquivo(s) ({pct}%)"
         return "Preparando upload..."
 
     def _fraction(self) -> float | None:
         if self._total > 0:
             return max(0.0, min(1.0, self._completed / self._total))
         return None
+
+    def _eta_text(self) -> str:
+        """Calcula tempo decorrido e ETA."""
+        elapsed = time.monotonic() - self._started_at
+        elapsed_str = self._format_time(elapsed)
+
+        if self._total > 0 and self._completed > 0:
+            eta_seconds = (elapsed / self._completed) * (self._total - self._completed)
+            eta_str = self._format_time(eta_seconds)
+            return f"Tempo: {elapsed_str} | ETA: {eta_str}"
+        return f"Tempo: {elapsed_str}"
+
+    @staticmethod
+    def _format_time(seconds: float) -> str:
+        """Formata segundos em HH:MM:SS ou MM:SS."""
+        secs = int(max(0, seconds))
+        hours, remainder = divmod(secs, 3600)
+        minutes, secs = divmod(remainder, 60)
+        if hours:
+            return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+        return f"{minutes:02d}:{secs:02d}"
 
     def cancel(self) -> None:
         self._cancel_event.set()
@@ -187,6 +212,7 @@ class UploadDialog:
         label: str | None = None,
         detail: str | None = None,
         fraction: float | None = None,
+        eta_text: str | None = None,
     ) -> None:
         def _apply() -> None:
             try:
@@ -195,6 +221,8 @@ class UploadDialog:
                 if detail is not None:
                     self._dialog.set_detail(detail)
                 self._dialog.set_progress(fraction)
+                if eta_text is not None:
+                    self._dialog.set_eta_text(eta_text)
             except Exception as exc:  # noqa: BLE001
                 logger.debug("Falha ao atualizar ProgressDialog: %s", exc)
 

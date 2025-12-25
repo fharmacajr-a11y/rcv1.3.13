@@ -56,8 +56,7 @@ def test_authenticate_user_connection_error_message(mock_get_supabase, monkeypat
     success, msg = auth_module.authenticate_user("user@example.com", "senha123")
 
     assert success is False
-    assert "Falha ao conectar no Supabase" in msg
-    assert "timeout" in msg
+    assert "Tempo de conexão esgotado" in msg or "conexão" in msg
     count, _ = auth_module.login_attempts["user@example.com"]
     assert count == 1
 

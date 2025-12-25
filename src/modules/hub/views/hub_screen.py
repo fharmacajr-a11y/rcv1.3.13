@@ -55,7 +55,6 @@ from src.modules.hub.views.hub_debug_helpers import (
 from src.modules.hub.views.hub_screen_helpers import (
     is_auth_ready,
 )
-from src.modules.hub.views.hub_notes_view import HubNotesView
 from src.modules.hub.services.hub_auth_helpers import (
     get_app_from_widget,
     get_email_safe_from_widget,
@@ -142,6 +141,16 @@ class HubScreen(tb.Frame):
 
         super().__init__(master, padding=0, **kwargs)
 
+        # BUGFIX-UX-STARTUP-HUB-001 (C3): Instrumentação para medir custo de construção
+        import os
+
+        _debug_ui = os.getenv("RC_DEBUG_STARTUP_UI") == "1"
+        if _debug_ui:
+            from time import perf_counter
+            from src.utils.perf import perf_mark
+
+            _t0_hub = perf_counter()
+
         # Inicialização estruturada em métodos privados
         self._init_state(
             open_clientes=open_clientes,
@@ -154,6 +163,10 @@ class HubScreen(tb.Frame):
             open_cashflow=open_cashflow,
             open_sites=open_sites,
         )
+
+        if _debug_ui:
+            perf_mark("Hub._init_state", _t0_hub, logger)
+            _t0_qa = perf_counter()
 
         # BUILD MODULES PANEL (delegado para HubQuickActionsView - MF-25)
         from src.modules.hub.views.hub_quick_actions_view import HubQuickActionsView
@@ -172,6 +185,10 @@ class HubScreen(tb.Frame):
         self.modules_panel = quick_actions_view.build()
         # END BUILD MODULES PANEL
 
+        if _debug_ui:
+            perf_mark("Hub.quick_actions_view.build", _t0_qa, logger)
+            _t0_dash = perf_counter()
+
         # BUILD DASHBOARD PANEL (delegado para HubDashboardView - MF-26)
         from src.modules.hub.views.hub_dashboard_view import HubDashboardView
 
@@ -182,10 +199,17 @@ class HubScreen(tb.Frame):
         self._dashboard_view.render_loading()
         # END BUILD DASHBOARD PANEL
 
+        if _debug_ui:
+            perf_mark("Hub.dashboard_view.build", _t0_dash, logger)
+            _t0_notes = perf_counter()
+
         self._build_notes_panel()
 
+        if _debug_ui:
+            perf_mark("Hub._build_notes_panel", _t0_notes, logger)
+            _t0_layout = perf_counter()
+
         # SETUP LAYOUT (inline para satisfazer testes)
-        from src.modules.hub.layout import apply_hub_notes_right
 
         widgets = {
             "modules_panel": self.modules_panel,
@@ -195,8 +219,14 @@ class HubScreen(tb.Frame):
         apply_hub_notes_right(self, widgets)
         # END SETUP LAYOUT
 
+        if _debug_ui:
+            perf_mark("Hub.apply_hub_notes_right", _t0_layout, logger)
+
         self._setup_bindings()
         self._start_timers()
+
+        if _debug_ui:
+            perf_mark("Hub.__init__ TOTAL", _t0_hub, logger)
 
     # ============================================================================
     # MÉTODOS DE INICIALIZAÇÃO (Builders Privados)
@@ -273,93 +303,28 @@ class HubScreen(tb.Frame):
     # MF-25, MF-26: Painéis de quick actions e dashboard extraídos para views dedicados
 
     def _build_notes_panel(self) -> None:
-        """Constrói painel de notas (MF-27: delega para HubNotesView)."""
-        # Get initial state from ViewModel
-        org_id = self.get_org_id()
-        if org_id:
-            # Load notes with author names cache
-            state = self._notes_vm.load(org_id, author_names_cache=self.state.author_cache)
-        else:
-            # Empty state if no org_id
-            state = self._notes_vm.state
+        """Constrói painel de notas (MVC-REFAC-001: wrapper para hub_screen_layout)."""
+        from src.modules.hub.views.hub_screen_layout import build_notes_panel
 
-        # Preparar callbacks (wrappers para ignorar retorno tuple do controller)
-        def wrap_edit(note_id: str) -> None:
-            self._notes_controller.handle_edit_note_click(note_id)
-
-        def wrap_delete(note_id: str) -> None:
-            self._notes_controller.handle_delete_note_click(note_id)
-
-        def wrap_pin(note_id: str) -> None:
-            self._notes_controller.handle_toggle_pin(note_id)
-
-        def wrap_done(note_id: str) -> None:
-            self._notes_controller.handle_toggle_done(note_id)
-
-        # Build panel using HubNotesView (MF-27)
-        notes_view = HubNotesView(
-            self,
-            state=state,
-            on_add_note_click=self._on_add_note_clicked,
-            on_edit_note_click=wrap_edit,
-            on_delete_note_click=wrap_delete,
-            on_toggle_pin_click=wrap_pin,
-            on_toggle_done_click=wrap_done,
-        )
-        # MF-34: Guardar referência para usar em render_notes
-        self._notes_view = notes_view
-        self.notes_panel = notes_view.build()
-
-        # Store references to widgets for compatibility with existing code
-        self.notes_history = notes_view.notes_history
-        self.new_note = notes_view.new_note
-        self.btn_add_note = notes_view.btn_add_note
-
-        # Renderizar estado inicial (evita painel em branco)
-        if org_id:
-            notes_view.render_loading()
-        else:
-            notes_view.render_empty("Aguardando autenticação...")
-
-        # MF-15-C: Injetar referência na HubScreenView também
-        if hasattr(self, "_hub_view") and self._hub_view:
-            self._hub_view._notes_view = notes_view
+        build_notes_panel(self)
 
     def _setup_layout(self) -> None:
-        """Configura layout grid de 3 colunas (módulos | dashboard | notas)."""
-        widgets = {
-            "modules_panel": self.modules_panel,
-            "spacer": self.center_spacer,
-            "notes_panel": self.notes_panel,
-        }
-        apply_hub_notes_right(self, widgets)
+        """Configura layout grid de 3 colunas (MVC-REFAC-001: wrapper para hub_screen_layout)."""
+        from src.modules.hub.views.hub_screen_layout import setup_layout
+
+        setup_layout(self)
 
     def _setup_bindings(self) -> None:
-        """Configura atalhos de teclado (Ctrl+D para diagnóstico, Ctrl+L para reload cache)."""
-        # Configurar atalhos (apenas uma vez)
-        self._binds_ready = getattr(self, "_binds_ready", False)
-        if not self._binds_ready:
-            # Ctrl+D para diagnóstico
-            self.bind_all("<Control-d>", self._show_debug_info)
-            self.bind_all("<Control-D>", self._show_debug_info)
+        """Configura atalhos de teclado (MVC-REFAC-001: wrapper para hub_screen_handlers)."""
+        from src.modules.hub.views.hub_screen_handlers import setup_bindings
 
-            # Ctrl+L para recarregar cache de nomes (teste)
-            self.bind_all(
-                "<Control-l>",
-                lambda e: self._refresh_author_names_cache_async(force=True),
-            )
-            self.bind_all(
-                "<Control-L>",
-                lambda e: self._refresh_author_names_cache_async(force=True),
-            )
-            self._binds_ready = True
+        setup_bindings(self)
 
     def _start_timers(self) -> None:
-        """Inicia lifecycle do HUB (MF-28, MF-24: via LifecycleFacade)."""
-        # CRÍTICO: Marcar controller como ativo ANTES de iniciar timers
-        self._hub_controller.start()
-        # Iniciar lifecycle (timers, polling, etc)
-        self._lifecycle_facade.start_timers()
+        """Inicia lifecycle do HUB (MVC-REFAC-001: wrapper para hub_screen_handlers)."""
+        from src.modules.hub.views.hub_screen_handlers import start_timers
+
+        start_timers(self)
 
     # ==============================================================================
     # AUXILIARES E UTILITÁRIOS

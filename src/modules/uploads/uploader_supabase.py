@@ -24,6 +24,7 @@ from src.modules.uploads.file_validator import (
     FileValidationResult,
 )
 from src.ui.components.progress_dialog import ProgressDialog
+from src.ui.files_browser.utils import format_file_size
 from src.ui.window_utils import show_centered
 
 log = logging.getLogger(__name__)
@@ -220,11 +221,11 @@ def ensure_client_saved_or_abort(app: tk.Misc, client_id: int) -> bool:
     return True
 
 
-def ask_storage_subfolder(parent: tk.Misc) -> Optional[str]:
+def ask_storage_subfolder(parent: tk.Misc, *, default: str = "") -> Optional[str]:
     """Abre dialogo para escolher subpasta de storage (pode retornar None se cancelado)."""
     from src.modules.clientes.forms.client_subfolder_prompt import SubpastaDialog
 
-    dialog = SubpastaDialog(parent, default="")
+    dialog = SubpastaDialog(parent, default=default)
     parent.wait_window(dialog)
     return dialog.result
 
@@ -273,8 +274,15 @@ def _upload_batch(
 
     def _progress(item: UploadItem) -> None:
         label = Path(item.relative_path).name
-        # Atualiza progresso via main thread
-        _safe_after(0, lambda: progress.advance(f"Enviando {label}"))
+        try:
+            item_path = Path(item.path)
+            if item_path.exists():
+                size_str = format_file_size(item_path.stat().st_size)
+                _safe_after(0, lambda: progress.advance(f"Enviando {label} ({size_str})"))
+            else:
+                _safe_after(0, lambda: progress.advance(f"Enviando {label}"))
+        except Exception:  # noqa: BLE001
+            _safe_after(0, lambda: progress.advance(f"Enviando {label}"))
 
     def _upload_worker() -> None:
         """Execute upload em thread background."""
@@ -541,12 +549,20 @@ def send_to_supabase_interactive(
         )
         return 0, 0
 
+    # Pedir subpasta em GERAL
+    sub = ask_storage_subfolder(target, default="")
+    if sub is None:
+        messagebox.showinfo("Envio", "Envio cancelado.", parent=target)
+        return 0, 0
+    sub = sub.strip()
+    subpasta = sub or None
+
     cliente = {"cnpj": cnpj_value}
     return upload_files_to_supabase(
         app,
         cliente,
         items,
-        subpasta=None,
+        subpasta=subpasta,
         parent=target,
         bucket=default_bucket,
         client_id=client_id,
@@ -577,11 +593,6 @@ def send_folder_to_supabase(
         messagebox.showinfo("Envio", "Nenhuma pasta selecionada.", parent=target)
         return 0, 0
 
-    # Captura o nome da pasta selecionada para usar como subfolder no Storage
-    from pathlib import Path as _Path
-
-    folder_name = _Path(folder).name
-
     items = collect_pdfs_from_folder(folder)
     if not items:
         messagebox.showinfo(
@@ -591,12 +602,23 @@ def send_folder_to_supabase(
         )
         return 0, 0
 
+    # Pedir subpasta em GERAL (com nome da pasta como default)
+    from pathlib import Path as _Path
+
+    default_name = _Path(folder).name
+    sub = ask_storage_subfolder(target, default=default_name)
+    if sub is None:
+        messagebox.showinfo("Envio", "Envio cancelado.", parent=target)
+        return 0, 0
+    sub = sub.strip()
+    subpasta = sub or None
+
     cliente = {"cnpj": row.get("CNPJ", "")}
     return upload_files_to_supabase(
         app,
         cliente,
         items,
-        subpasta=folder_name,  # Passa o nome da pasta como subfolder
+        subpasta=subpasta,
         parent=target,
         bucket=default_bucket,
         client_id=client_id,

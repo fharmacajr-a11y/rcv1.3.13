@@ -34,43 +34,60 @@ def _ensure_poll_attrs(screen):
 
 
 def schedule_poll(screen, ms: int = 6000) -> None:
-    """Program the next polling cycle."""
+    """Program the next polling cycle.
 
+    BUG-007: Thread-safe scheduling com lock para evitar race condition.
+    """
     hub_state = _ensure_poll_attrs(screen)
 
-    if not screen.state.live_sync_on:
-        return
+    # BUG-007: Lock para operações atômicas
+    if not hasattr(hub_state, "poll_lock"):
+        hub_state.poll_lock = threading.Lock()
 
-    try:
-        if hub_state.poll_job:
-            screen.after_cancel(hub_state.poll_job)
+    with hub_state.poll_lock:
+        if not screen.state.live_sync_on:
+            return
 
-    except Exception as exc:  # noqa: BLE001
-        log.debug("after_cancel failed in schedule_poll: %s", exc)
+        try:
+            if hub_state.poll_job:
+                screen.after_cancel(hub_state.poll_job)
 
-    hub_state.poll_job = screen.after(ms, lambda: poll_notes_if_needed(screen))
+        except Exception as exc:  # noqa: BLE001
+            log.debug("after_cancel failed in schedule_poll: %s", exc)
+
+        hub_state.poll_job = screen.after(ms, lambda: poll_notes_if_needed(screen))
 
 
 def cancel_poll(screen) -> None:
-    """Cancel any pending polling callback."""
+    """Cancel any pending polling callback.
 
+    BUG-007: Thread-safe cancellation com lock.
+    """
     hub_state = _ensure_poll_attrs(screen)
 
-    if hub_state.poll_job:
-        try:
-            screen.after_cancel(hub_state.poll_job)
+    # BUG-007: Lock para operações atômicas
+    if not hasattr(hub_state, "poll_lock"):
+        hub_state.poll_lock = threading.Lock()
 
-        except Exception as exc:  # noqa: BLE001
-            log.debug("after_cancel failed in cancel_poll: %s", exc)
+    with hub_state.poll_lock:
+        if hub_state.poll_job:
+            try:
+                screen.after_cancel(hub_state.poll_job)
 
-        hub_state.poll_job = None
+            except Exception as exc:  # noqa: BLE001
+                log.debug("after_cancel failed in cancel_poll: %s", exc)
+
+            hub_state.poll_job = None
 
 
 def poll_notes_if_needed(screen) -> None:
-    """Fallback polling when realtime does not deliver updates."""
+    """Fallback polling when realtime does not deliver updates.
 
+    BUG-005: Verifica estado antes de reagendar para evitar loop infinito.
+    """
     _ensure_poll_attrs(screen)
 
+    # BUG-005: Verificação early return antes de qualquer processamento
     if not screen.state.live_sync_on:
         return
 
@@ -104,7 +121,11 @@ def poll_notes_if_needed(screen) -> None:
         log.debug("poll_notes_if_needed error: %s", exc)
 
     finally:
-        schedule_poll(screen)
+        # BUG-005: Verificação de estado antes de reagendar
+        if screen.state.live_sync_on:
+            schedule_poll(screen)
+        else:
+            log.debug("Polling interrompido: live_sync_on=False")
 
 
 def on_realtime_note(screen, payload: Dict[str, Any]) -> None:

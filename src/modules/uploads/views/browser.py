@@ -326,8 +326,9 @@ class UploadsBrowserWindow(tk.Toplevel):
             cancel_event.set()
             try:
                 dlg.set_eta_text("Cancelando...")
-            except Exception:  # noqa: BLE001
-                pass
+            except Exception as exc:  # noqa: BLE001
+                # Dialog pode estar destruído - cancelamento continua
+                _log.debug("Falha ao atualizar texto de cancelamento: %s", type(exc).__name__)
 
         dlg = ProgressDialog(
             parent=self,

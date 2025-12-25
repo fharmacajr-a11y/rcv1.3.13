@@ -4,22 +4,29 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Optional, Type
+from typing import TYPE_CHECKING, Any, Callable
 from tkinter import messagebox
 
 from infra.supabase_client import supabase
 from src.modules.passwords.controller import ClientPasswordsSummary, PasswordsController
-from src.modules.passwords.views.client_passwords_dialog import ClientPasswordsDialog
+
+if TYPE_CHECKING:
+    from src.modules.passwords.views.client_passwords_dialog import ClientPasswordsDialog
 
 log = logging.getLogger(__name__)
 
 ControllerFactory = Callable[[], PasswordsController]
-DialogCls = Type[ClientPasswordsDialog]
+DialogCls = type["ClientPasswordsDialog"]
 
 
-def _extract_user_and_org(parent: Any | None) -> tuple[Optional[str], Optional[str], Any]:
-    user_id: Optional[str] = None
-    org_id: Optional[str] = None
+def _extract_user_and_org(parent: Any | None) -> tuple[str | None, str | None, Any]:
+    """Extrai user_id, org_id e app da janela parent.
+
+    Returns:
+        tuple[org_id | None, user_id | None, app widget]
+    """
+    user_id: str | None = None
+    org_id: str | None = None
     app = getattr(parent, "winfo_toplevel", lambda: None)() or parent
 
     try:
@@ -57,11 +64,19 @@ def open_senhas_for_cliente(
     controller_factory: ControllerFactory | None = None,
     dialog_cls: DialogCls | None = None,
 ) -> None:
-    """
-    Abre o diálogo de senhas focado em um cliente específico.
+    """Abre o diálogo de senhas focado em um cliente específico.
 
     Se o cliente não possuir senhas cadastradas, exibe um aviso informativo.
+
+    Args:
+        parent: Widget Tkinter parent ou None
+        cliente_id: ID do cliente (string ou int)
+        razao_social: Nome do cliente (opcional)
+        controller_factory: Factory para criar controller (para testes)
+        dialog_cls: Classe do dialog (para testes)
     """
+    from src.modules.passwords.views.client_passwords_dialog import ClientPasswordsDialog
+
     controller_factory = controller_factory or PasswordsController
     dialog_cls = dialog_cls or ClientPasswordsDialog
 

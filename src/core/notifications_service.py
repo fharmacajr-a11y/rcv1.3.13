@@ -22,12 +22,25 @@ log = logging.getLogger(__name__)
 class NotificationsRepository(Protocol):
     """Protocol para repositório de notificações."""
 
-    def list_notifications(self, org_id: str, limit: int = 20) -> list[dict[str, Any]]:
-        """Lista notificações de uma organização."""
+    def list_notifications(
+        self, org_id: str, limit: int = 20, exclude_actor_email: str | None = None
+    ) -> list[dict[str, Any]]:
+        """Lista notificações de uma organização.
+
+        Args:
+            org_id: ID da organização
+            limit: Número máximo de notificações
+            exclude_actor_email: Email do autor a excluir (não mostrar próprias notificações)
+        """
         ...
 
-    def count_unread(self, org_id: str) -> int:
-        """Conta notificações não lidas."""
+    def count_unread(self, org_id: str, exclude_actor_email: str | None = None) -> int:
+        """Conta notificações não lidas.
+
+        Args:
+            org_id: ID da organização
+            exclude_actor_email: Email do autor a excluir (não contar próprias notificações)
+        """
         ...
 
     def mark_all_read(self, org_id: str) -> bool:
@@ -140,6 +153,32 @@ class NotificationsService:
         # Fallback final: usar email completo
         return (actor_email, actor_email[0].upper() if actor_email else "")
 
+    def resolve_display_name(self, email: str | None) -> str:
+        """Resolve email para nome de exibição usando RC_INITIALS_MAP.
+
+        Método público para uso externo (ex: NotesController).
+
+        Args:
+            email: Email a resolver
+
+        Returns:
+            Nome resolvido (ex: "Junior") ou fallback:
+            - Prefixo do email capitalizado (ex: "Farmacajr")
+            - "?" se email vazio
+
+        Example:
+            >>> service.resolve_display_name("farmacajr@gmail.com")
+            "Junior"
+            >>> service.resolve_display_name("user@example.com")
+            "User"
+        """
+        if not email:
+            return "?"
+
+        # Usar _resolve_actor_info (já implementa a lógica de RC_INITIALS_MAP)
+        display_name, _ = self._resolve_actor_info(email)
+        return display_name
+
     def fetch_latest(self, limit: int = 20) -> list[dict[str, Any]]:
         """Busca notificações mais recentes.
 
@@ -147,15 +186,19 @@ class NotificationsService:
             limit: Número máximo de notificações
 
         Returns:
-            Lista de notificações ordenadas por created_at desc
+            Lista de notificações ordenadas por created_at desc (excluindo notificações do próprio usuário)
         """
         org_id = self._org_id_provider()
         if not org_id:
             self._log.debug("[NotificationsService] Sem org_id, retornando lista vazia")
             return []
 
+        # Obter email do usuário atual para filtrar suas próprias notificações
+        user_data = self._user_provider()
+        current_email = user_data.get("email") if user_data else None
+
         try:
-            return self._repo.list_notifications(org_id, limit)
+            return self._repo.list_notifications(org_id, limit, exclude_actor_email=current_email)
         except Exception:
             self._log.exception("[NotificationsService] Erro ao buscar notificações")
             return []
@@ -220,14 +263,18 @@ class NotificationsService:
         """Conta notificações não lidas.
 
         Returns:
-            Número de notificações não lidas
+            Número de notificações não lidas (excluindo notificações do próprio usuário)
         """
         org_id = self._org_id_provider()
         if not org_id:
             return 0
 
+        # Obter email do usuário atual para filtrar suas próprias notificações
+        user_data = self._user_provider()
+        current_email = user_data.get("email") if user_data else None
+
         try:
-            return self._repo.count_unread(org_id)
+            return self._repo.count_unread(org_id, exclude_actor_email=current_email)
         except Exception:
             self._log.exception("[NotificationsService] Erro ao contar não lidas")
             return 0

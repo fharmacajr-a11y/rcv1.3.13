@@ -28,54 +28,65 @@ class TestSessionCache:
     def test_get_user_caches_result(self, cache: SessionCache):
         """Testa que get_user() cacheia o resultado após primeira consulta."""
         # Mock do supabase.auth.get_user()
-        with patch("infra.supabase_client.supabase") as mock_supa:
-            mock_user = MagicMock()
-            mock_user.id = "user-uuid-123"
-            mock_user.email = "test@example.com"
-            mock_response = MagicMock(user=mock_user)
-            mock_supa.auth.get_user.return_value = mock_response
+        mock_supa = MagicMock()
+        mock_user = MagicMock()
+        mock_user.id = "user-uuid-123"
+        mock_user.email = "test@example.com"
+        mock_response = MagicMock(user=mock_user)
+        mock_supa.auth.get_user.return_value = mock_response
 
-            # Primeira chamada: deve consultar Supabase
-            user1 = cache.get_user()
-            assert user1 == {"id": "user-uuid-123", "email": "test@example.com"}
-            assert mock_supa.auth.get_user.call_count == 1
+        # Criar cache com DI
+        cache_with_di = SessionCache(supabase_client=mock_supa)
 
-            # Segunda chamada: deve retornar do cache (sem nova query)
-            user2 = cache.get_user()
-            assert user2 == user1
-            assert mock_supa.auth.get_user.call_count == 1  # Não chamou novamente
+        # Primeira chamada: deve consultar Supabase
+        user1 = cache_with_di.get_user()
+        assert user1 == {"id": "user-uuid-123", "email": "test@example.com"}
+        assert mock_supa.auth.get_user.call_count == 1
+
+        # Segunda chamada: deve retornar do cache (sem nova query)
+        user2 = cache_with_di.get_user()
+        assert user2 == user1
+        assert mock_supa.auth.get_user.call_count == 1  # Não chamou novamente
 
     def test_get_user_returns_none_on_error(self, cache: SessionCache):
         """Testa que get_user() retorna None quando Supabase falha."""
-        with patch("infra.supabase_client.supabase") as mock_supa:
-            mock_supa.auth.get_user.side_effect = Exception("Supabase error")
+        mock_supa = MagicMock()
+        mock_supa.auth.get_user.side_effect = Exception("Supabase error")
 
-            user = cache.get_user()
-            assert user is None
+        cache_with_di = SessionCache(supabase_client=mock_supa)
+        user = cache_with_di.get_user()
+        assert user is None
 
     def test_get_role_uses_memberships_and_caches(self, cache: SessionCache):
         """Testa que get_role() consulta memberships e cacheia resultado."""
-        with (
-            patch("infra.supabase_client.exec_postgrest") as mock_exec,
-            patch("infra.supabase_client.supabase") as mock_supa,
-        ):
-            # Mock de resposta do exec_postgrest
-            mock_response = MagicMock()
-            mock_response.data = [{"role": "ADMIN"}]
-            mock_exec.return_value = mock_response
+        from unittest.mock import MagicMock
 
-            # Mock do supabase.table() para garantir que não falha
-            mock_supa.table.return_value.select.return_value.eq.return_value.limit.return_value = MagicMock()
+        mock_response = MagicMock()
+        mock_response.data = [{"role": "ADMIN"}]
 
-            # Primeira chamada
-            role1 = cache.get_role("user-uuid")
-            assert role1 == "admin"  # Deve estar em lowercase
-            assert mock_exec.call_count == 1
+        call_count = 0
 
-            # Segunda chamada: deve retornar do cache
-            role2 = cache.get_role("user-uuid")
-            assert role2 == "admin"
-            assert mock_exec.call_count == 1  # Não chamou novamente
+        def counting_exec_postgrest(query):
+            nonlocal call_count
+            call_count += 1
+            return mock_response
+
+        # Mock de supabase.table() para permitir que o código funcione
+        mock_supa = MagicMock()
+        mock_supa.table.return_value.select.return_value.eq.return_value.limit.return_value = MagicMock()
+
+        # Criar cache com DI (injetar AMBOS exec_postgrest_fn E supabase_client)
+        cache_with_di = SessionCache(exec_postgrest_fn=counting_exec_postgrest, supabase_client=mock_supa)
+
+        # Primeira chamada
+        role1 = cache_with_di.get_role("user-uuid")
+        assert role1 == "admin"
+        assert call_count == 1
+
+        # Segunda chamada: cache hit
+        role2 = cache_with_di.get_role("user-uuid")
+        assert role2 == "admin"
+        assert call_count == 1  # Não aumentou
 
     def test_get_role_returns_user_when_no_data(self, cache: SessionCache):
         """Testa que get_role() retorna 'user' (fallback) quando não há dados."""
@@ -98,27 +109,34 @@ class TestSessionCache:
 
     def test_get_org_id_uses_memberships_and_caches(self, cache: SessionCache):
         """Testa que get_org_id() consulta memberships e cacheia resultado."""
-        with (
-            patch("infra.supabase_client.exec_postgrest") as mock_exec,
-            patch("infra.supabase_client.supabase") as mock_supa,
-        ):
-            # Mock de resposta com org_id
-            mock_response = MagicMock()
-            mock_response.data = [{"org_id": "org-uuid-456"}]
-            mock_exec.return_value = mock_response
+        from unittest.mock import MagicMock
 
-            # Mock do supabase.table() para garantir que não falha
-            mock_supa.table.return_value.select.return_value.eq.return_value.limit.return_value = MagicMock()
+        mock_response = MagicMock()
+        mock_response.data = [{"org_id": "org-uuid-456"}]
 
-            # Primeira chamada
-            org_id1 = cache.get_org_id("user-uuid")
-            assert org_id1 == "org-uuid-456"
-            assert mock_exec.call_count == 1
+        call_count = 0
 
-            # Segunda chamada: deve retornar do cache
-            org_id2 = cache.get_org_id("user-uuid")
-            assert org_id2 == "org-uuid-456"
-            assert mock_exec.call_count == 1  # Não chamou novamente
+        def counting_exec_postgrest(query):
+            nonlocal call_count
+            call_count += 1
+            return mock_response
+
+        # Mock de supabase.table()
+        mock_supa = MagicMock()
+        mock_supa.table.return_value.select.return_value.eq.return_value.limit.return_value = MagicMock()
+
+        # Criar cache com DI (injetar AMBOS)
+        cache_with_di = SessionCache(exec_postgrest_fn=counting_exec_postgrest, supabase_client=mock_supa)
+
+        # Primeira chamada
+        org_id1 = cache_with_di.get_org_id("user-uuid")
+        assert org_id1 == "org-uuid-456"
+        assert call_count == 1
+
+        # Segunda chamada: cache hit
+        org_id2 = cache_with_di.get_org_id("user-uuid")
+        assert org_id2 == "org-uuid-456"
+        assert call_count == 1  # Não aumentou
 
     def test_get_org_id_returns_none_when_no_data(self, cache: SessionCache):
         """Testa que get_org_id() retorna None quando não há org_id."""
@@ -156,36 +174,33 @@ class TestSessionCache:
 
     def test_get_user_with_org_combines_all_data(self, cache: SessionCache):
         """Testa que get_user_with_org() combina user + role + org_id."""
-        with (
-            patch("infra.supabase_client.supabase") as mock_supa,
-            patch("infra.supabase_client.exec_postgrest") as mock_exec,
-        ):
-            # Mock de get_user()
-            mock_user = MagicMock()
-            mock_user.id = "user-uuid"
-            mock_user.email = "test@example.com"
-            mock_supa.auth.get_user.return_value = MagicMock(user=mock_user)
+        from unittest.mock import MagicMock
 
-            # Mock de exec_postgrest para role e org_id
-            def mock_exec_side_effect(query):
-                # Detecta qual query está sendo chamada
-                response = MagicMock()
-                if hasattr(query, "_select_params"):
-                    # Simples heurística: role ou org_id
-                    response.data = [{"role": "ADMIN", "org_id": "org-uuid"}]
-                else:
-                    response.data = [{"role": "ADMIN", "org_id": "org-uuid"}]
-                return response
+        # Mock exec_postgrest para retornar role e org_id
+        mock_response = MagicMock()
+        mock_response.data = [{"role": "ADMIN", "org_id": "org-uuid"}]
 
-            mock_exec.side_effect = mock_exec_side_effect
+        def fake_exec_postgrest(query):
+            return mock_response
 
-            user_data = cache.get_user_with_org()
+        # Mock de supabase.auth.get_user() para get_user()
+        mock_supa = MagicMock()
+        mock_user = MagicMock()
+        mock_user.id = "user-uuid"
+        mock_user.email = "test@example.com"
+        mock_supa.auth.get_user.return_value = MagicMock(user=mock_user)
+        mock_supa.table.return_value.select.return_value.eq.return_value.limit.return_value = MagicMock()
 
-            assert user_data is not None
-            assert user_data["id"] == "user-uuid"
-            assert user_data["email"] == "test@example.com"
-            assert user_data["role"] == "admin"  # lowercase
-            assert user_data["org_id"] == "org-uuid"
+        # Criar cache com DI (injetar AMBOS)
+        cache_with_di = SessionCache(exec_postgrest_fn=fake_exec_postgrest, supabase_client=mock_supa)
+
+        user_data = cache_with_di.get_user_with_org()
+
+        assert user_data is not None
+        assert user_data["id"] == "user-uuid"
+        assert user_data["email"] == "test@example.com"
+        assert user_data["role"] == "admin"  # lowercase
+        assert user_data["org_id"] == "org-uuid"
 
     def test_get_user_with_org_returns_none_when_no_user(self, cache: SessionCache):
         """Testa que get_user_with_org() retorna None quando não há usuário."""
@@ -279,26 +294,28 @@ class TestSessionCache:
 
     def test_get_user_with_email_fallback(self, cache: SessionCache):
         """Testa que get_user() usa fallback quando email é None."""
-        with patch("infra.supabase_client.supabase") as mock_supa:
-            # Mock de usuário com email None
-            mock_user = MagicMock()
-            mock_user.id = "user-123"
-            mock_user.email = None
-            mock_response = MagicMock(user=mock_user)
-            mock_supa.auth.get_user.return_value = mock_response
+        mock_supa = MagicMock()
+        # Mock de usuário com email None
+        mock_user = MagicMock()
+        mock_user.id = "user-123"
+        mock_user.email = None
+        mock_response = MagicMock(user=mock_user)
+        mock_supa.auth.get_user.return_value = mock_response
 
-            user = cache.get_user()
-            assert user == {"id": "user-123", "email": ""}
+        cache_with_di = SessionCache(supabase_client=mock_supa)
+        user = cache_with_di.get_user()
+        assert user == {"id": "user-123", "email": ""}
 
     def test_get_user_handles_response_without_user_attribute(self, cache: SessionCache):
         """Testa que get_user() trata resposta sem atributo 'user'."""
-        with patch("infra.supabase_client.supabase") as mock_supa:
-            # Mock de resposta sem atributo 'user' (usa a própria resposta)
-            mock_response = MagicMock()
-            mock_response.user = None
-            mock_response.id = "direct-user-id"
-            mock_response.email = "direct@test.com"
-            mock_supa.auth.get_user.return_value = mock_response
+        mock_supa = MagicMock()
+        # Mock de resposta sem atributo 'user' (usa a própria resposta)
+        mock_response = MagicMock()
+        mock_response.user = None
+        mock_response.id = "direct-user-id"
+        mock_response.email = "direct@test.com"
+        mock_supa.auth.get_user.return_value = mock_response
 
-            user = cache.get_user()
-            assert user == {"id": "direct-user-id", "email": "direct@test.com"}
+        cache_with_di = SessionCache(supabase_client=mock_supa)
+        user = cache_with_di.get_user()
+        assert user == {"id": "direct-user-id", "email": "direct@test.com"}

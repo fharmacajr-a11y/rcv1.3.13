@@ -8,7 +8,8 @@ from typing import TYPE_CHECKING, Callable
 import ttkbootstrap as tb
 
 from src.modules.hub.constants import HUB_TITLE, NEW_NOTE_LABEL, PAD_OUTER
-from src.modules.hub.notes_rendering import get_author_color
+from src.modules.hub.views.notes_text_renderer import render_notes_text
+from src.modules.hub.views.notes_text_interactions import install_notes_context_menu
 
 if TYPE_CHECKING:
     from src.modules.hub.viewmodels import NotesViewState
@@ -22,6 +23,7 @@ def build_notes_panel(
     on_delete_note_click: Callable[[str], None] | None = None,
     on_toggle_pin_click: Callable[[str], None] | None = None,
     on_toggle_done_click: Callable[[str], None] | None = None,
+    current_user_email: str | None = None,
 ) -> tb.Labelframe:
     """Create the shared notes panel consuming NotesViewState.
 
@@ -33,6 +35,7 @@ def build_notes_panel(
         on_delete_note_click: Callback quando usuário deleta nota (recebe note_id).
         on_toggle_pin_click: Callback quando usuário fixa/desfixa nota (recebe note_id).
         on_toggle_done_click: Callback quando usuário marca/desmarca como feita (recebe note_id).
+        current_user_email: Email do usuário atual (para validação de permissão).
 
     Returns:
         O Labelframe do painel de notas.
@@ -60,8 +63,15 @@ def build_notes_panel(
     scrollbar.grid(row=0, column=1, sticky="ns")
     notes_history.configure(yscrollcommand=scrollbar.set)
 
-    # Render notes from state
+    # Render notes from state using new renderer
     _render_notes_to_text_widget(notes_history, state)
+
+    # Install context menu for notes (copiar/apagar)
+    install_notes_context_menu(
+        notes_history,
+        on_delete_note_click=on_delete_note_click,
+        current_user_email=current_user_email,
+    )
 
     # --- New note entry ---
     entry_frame = tb.Frame(notes_panel)
@@ -90,7 +100,7 @@ def build_notes_panel(
 
 
 def _render_notes_to_text_widget(text_widget: tk.Text, state: "NotesViewState") -> None:
-    """Renderiza notas de NotesViewState no widget Text.
+    """Renderiza notas de NotesViewState no widget Text usando o renderer clean.
 
     Args:
         text_widget: Widget Text onde as notas serão renderizadas.
@@ -116,19 +126,53 @@ def _render_notes_to_text_widget(text_widget: tk.Text, state: "NotesViewState") 
         text_widget.configure(state="disabled")
         return
 
-    # Render each note
+    # Usar o novo renderer para layout clean (estilo chat)
+    # Converter NoteItemView objects para dicts para compatibilidade
+    notes_dicts = []
     for note in state.notes:
-        # Use formatted_line from ViewModel
-        line_text = note.formatted_line or f"[{note.created_at}] {note.author_name}: {note.body}"
+        # Usar author_name do state se já estiver resolvido, senão email
+        notes_dicts.append(
+            {
+                "id": note.id,
+                "author_email": note.author_email,
+                "author_name": note.author_name if note.author_name else note.author_email,
+                "created_at": note.created_at,
+                "body": note.body,
+            }
+        )
 
-        # Insert with tag for coloring (author-specific)
-        tag_name = note.tag_name or note.author_email.lower()
-        text_widget.insert("end", line_text + "\n", tag_name)
+    # Callback para resolver nome (fallback caso author_name não venha preenchido)
+    def resolve_name(email: str) -> str:
+        """Resolve email para nome de exibição usando authors_service."""
+        if not email:
+            return "Usuário"
 
-        # Configure tag color if needed (basic approach - could be enhanced)
-        if tag_name and not text_widget.tag_cget(tag_name, "foreground"):
-            # Use helper para obter cor do autor
-            color = get_author_color(tag_name)
-            text_widget.tag_configure(tag_name, foreground=color)
+        # Tentar usar authors_service (with minimal screen mock)
+        try:
+            from src.modules.hub.services.authors_service import _load_env_author_names, AUTHOR_NAMES
 
-    text_widget.configure(state="disabled")
+            email_lower = email.strip().lower()
+
+            # 1) Tentar RC_INITIALS_MAP do .env
+            env_names = _load_env_author_names()
+            if email_lower in env_names:
+                return env_names[email_lower]
+
+            # 2) Tentar AUTHOR_NAMES hardcoded
+            if email_lower in AUTHOR_NAMES:
+                return AUTHOR_NAMES[email_lower]
+
+            # 3) Fallback: prefixo do email
+            return email.split("@")[0].replace(".", " ").title()
+        except Exception:
+            # Fallback seguro
+            return email.split("@")[0].replace(".", " ").title() if email else "Usuário"
+
+    # Renderizar usando o helper
+    render_notes_text(
+        text_widget,
+        notes_dicts,
+        resolve_display_name=resolve_name,
+        author_tags_dict={},  # Sem tags de cor neste contexto (panels.py não tem hub_screen)
+        ensure_author_tag_fn=None,  # Sem ensure_author_tag (fallback usa get_author_color)
+    )

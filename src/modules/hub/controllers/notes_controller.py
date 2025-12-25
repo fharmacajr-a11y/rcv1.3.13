@@ -134,6 +134,7 @@ class NotesController:
         vm: NotesViewModel,
         gateway: NotesGatewayProtocol,
         notes_service: Any = None,  # Service de notas (injetável)
+        notifications_service: Any | None = None,  # Service de notificações (opcional)
         logger: logging.Logger | None = None,
     ) -> None:
         """Inicializa o controller.
@@ -142,11 +143,13 @@ class NotesController:
             vm: NotesViewModel para gerenciar estado.
             gateway: Implementação do protocolo de gateway (UI).
             notes_service: Service de notas (para criar/editar/deletar).
+            notifications_service: Service de notificações (opcional).
             logger: Logger opcional (usa logger do módulo se não fornecido).
         """
         self._vm = vm
         self._gateway = gateway
         self._notes_service = notes_service
+        self._notifications_service = notifications_service
         self._logger = logger or globals()["logger"]
 
     def handle_add_note_click(self, note_text: str) -> tuple[bool, str]:
@@ -211,6 +214,34 @@ class NotesController:
 
                 # CRÍTICO: Dashboard também precisa ser atualizado (notas podem afetar dashboard)
                 self._gateway.reload_dashboard()
+
+                # Publicar notificação (falha não afeta criação da nota)
+                try:
+                    if self._notifications_service:
+                        # Construir preview (máximo 120 chars)
+                        preview = text.replace("\r", " ").replace("\n", " ").strip()
+                        if len(preview) > 120:
+                            preview = preview[:117] + "..."
+
+                        # Resolver nome de exibição do autor usando RC_INITIALS_MAP
+                        actor_name = self._notifications_service.resolve_display_name(user_email)
+
+                        # Construir mensagem com nome (não email)
+                        message = f"Anotações • {actor_name}: {preview}"
+
+                        # Gerar request_id único para dedupe (baseado no ID da nota criada)
+                        note_id = new_note.get("id") if isinstance(new_note, dict) else getattr(new_note, "id", None)
+                        request_id = f"hub_notes_created:{note_id}" if note_id else None
+
+                        # Publicar
+                        self._notifications_service.publish(
+                            module="hub_notes",
+                            event="created",
+                            message=message,
+                            request_id=request_id,
+                        )
+                except Exception:
+                    self._logger.exception("Falha ao publicar notificação de anotação (não fatal)")
 
             return (True, "")
 
@@ -279,6 +310,10 @@ class NotesController:
     def handle_delete_note_click(self, note_id: Any) -> tuple[bool, str]:
         """Handle de clique para deletar nota.
 
+        Implementa soft delete: atualiza o body da nota para "__RC_DELETED__"
+        ao invés de remover permanentemente do banco de dados.
+        Isso permite renderizar "Mensagem apagada" na UI mantendo histórico.
+
         Args:
             note_id: ID da nota a ser deletada.
 
@@ -289,28 +324,47 @@ class NotesController:
             # Encontrar nota no estado
             current_state = self._vm.state
             note_data = None
+            note_author_email = None
             for note in current_state.notes:
                 if note.id == note_id:
                     note_data = {
                         "id": note.id,
                         "body": note.body,
                     }
+                    note_author_email = note.author_email
                     break
 
             if not note_data:
                 self._gateway.show_error("Erro", "Nota não encontrada.")
                 return (False, "Nota não encontrada")
 
+            # Validar permissão: só pode apagar próprias notas
+            current_user_email = self._gateway.get_user_email()
+            if current_user_email and note_author_email:
+                if current_user_email.strip().lower() != note_author_email.strip().lower():
+                    self._gateway.show_info("Permissão negada", "Você só pode apagar mensagens enviadas por você.")
+                    return (False, "Sem permissão")
+
             # Confirmar exclusão
             if not self._gateway.confirm_delete_note(note_data):
                 return (False, "Cancelado")
 
-            # Deletar via service
+            # Soft delete: atualizar body para marcador "__RC_DELETED__"
             if self._notes_service:
-                self._notes_service.delete_note(note_id)
+                # Verificar se service tem update_note (deveria ter)
+                if hasattr(self._notes_service, "update_note"):
+                    updated_note = self._notes_service.update_note(
+                        note_id=note_id,
+                        body="__RC_DELETED__",
+                    )
 
-                # Atualizar estado
-                self._vm.after_note_deleted(note_id)
+                    # Atualizar estado
+                    self._vm.after_note_updated(updated_note)
+                else:
+                    # Fallback: hard delete se update_note não existir
+                    self._log.warning("NotesService não tem update_note, usando delete_note como fallback")
+                    self._notes_service.delete_note(note_id)
+                    self._vm.after_note_deleted(note_id)
 
                 # Forçar reload das notas
                 self._gateway.reload_notes()

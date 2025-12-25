@@ -1,0 +1,337 @@
+﻿bandit : [main]	INFO	profile include tests: None
+No linha:1 caractere:46
++ ... 93 ''ok''"; bandit -r src infra adapters data security -c bandit.yaml
+...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([main]	INFO	profile include tes
+   ts: None:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+[main]	INFO	profile exclude tests: None
+[main]	INFO	cli include tests: None
+[main]	INFO	cli exclude tests: None
+[main]	INFO	using config: bandit.yaml
+[main]	INFO	running on Python 3.13.7
+[manager]	WARNING	Test in comment: invoca is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: es is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: 7 is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: Zip is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: controladas is not a test name or id,
+ignoring
+[manager]	WARNING	Test in comment: sempre is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: shell is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: False is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: comando is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: em is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: lista is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: shell is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: False is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: abre is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: pasta is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: local is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: controlada is not a test name or id,
+ignoring
+[manager]	WARNING	Test in comment: pelo is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: app is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: jitter is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: de is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: backoff is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: n is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: o is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: criptografia is not a test name or id,
+ignoring
+[tester]	WARNING	nosec encountered (B324), but no failed test on line 247
+[tester]	WARNING	nosec encountered (B324), but no failed test on line 247
+[tester]	WARNING	nosec encountered (B324), but no failed test on line 247
+[tester]	WARNING	nosec encountered (B324), but no failed test on line 119
+[tester]	WARNING	nosec encountered (B324), but no failed test on line 119
+[tester]	WARNING	nosec encountered (B324), but no failed test on line 119
+[manager]	WARNING	Test in comment: Safe is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: Fallback is not a test name or id,
+ignoring
+[manager]	WARNING	Test in comment: retornar is not a test name or id,
+ignoring
+[manager]	WARNING	Test in comment: None is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: rein is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: cio is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: local is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: do is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: app is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: com is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: argumentos is not a test name or id,
+ignoring
+[manager]	WARNING	Test in comment: controlados is not a test name or id,
+ignoring
+[manager]	WARNING	Test in comment: caminho is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: local is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: controlado is not a test name or id,
+ignoring
+[manager]	WARNING	Test in comment: pela is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: aplica is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: o is not a test name or id, ignoring
+[tester]	WARNING	nosec encountered (B606), but no failed test on line 47
+[tester]	WARNING	nosec encountered (B606), but no failed test on line 47
+[tester]	WARNING	nosec encountered (B608), but no failed test on line 148
+Working... ---------------------------------------- 100% 0:00:05
+Run started:2025-12-25 04:47:28.052049
+
+Test results:
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: security\crypto.py:54:8
+53	            _secure_delete(key_bytes)
+54	        except Exception:
+55	            pass
+56	    _fernet_instance = None
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src\app_gui.py:127:20
+126	                        app.attributes("-alpha", 1.0)
+127	                    except Exception:
+128	                        pass  # Pode falhar se nÒo foi setado antes
+129
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src\app_gui.py:183:24
+182	                            )
+183	                        except Exception:
+184	                            pass  # Se nem messagebox funcionar, apenas logamos
+185	                        app.destroy()
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src\modules\hub\views\notes_text_interactions.py:143:20
+142	                        messagebox.showinfo("PermissÒo negada", "VocÛ s¾ pode apagar mensagens enviadas por vocÛ.")
+143	                    except Exception:
+144	                        pass
+145	                    return
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src\modules\hub\views\notes_text_renderer.py:191:4
+190	        text_widget.see("end")
+191	    except Exception:
+192	        pass
+193
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src\modules\main_window\controllers\main_window_pollers.py:120:12
+119	                self._scheduler.after_cancel(self._jobs["notifications"])
+120	            except Exception:
+121	                pass
+122
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src\modules\main_window\controllers\main_window_pollers.py:141:12
+140	                self._scheduler.after_cancel(self._jobs["health"])
+141	            except Exception:
+142	                pass
+143
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src\modules\main_window\controllers\main_window_pollers.py:162:12
+161	                self._scheduler.after_cancel(self._jobs["status"])
+162	            except Exception:
+163	                pass
+164
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src\modules\main_window\views\main_window_actions.py:51:12
+50	                app.after_cancel(app._notifications_poll_job_id)
+51	            except Exception:  # noqa: BLE001
+52	                pass
+53	        app._notifications_poll_job_id = app.after(20000, lambda: poll_notifications(app))
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src\modules\main_window\views\main_window_actions.py:85:8
+84	            app.after_cancel(app._notifications_poll_job_id)
+85	        except Exception:  # noqa: BLE001
+86	            pass
+87	    app._notifications_poll_job_id = app.after(20000, lambda: poll_notifications(app))
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src\modules\main_window\views\main_window_actions.py:457:12
+456	                app.after_cancel(app._status_refresh_job_id)
+457	            except Exception:  # noqa: BLE001
+458	                pass
+459	        try:
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src\modules\main_window\views\main_window_handlers.py:222:16
+221	                    app.after_cancel(app._health_poll_job_id)
+222	                except Exception:  # noqa: BLE001
+223	                    pass
+224	            try:
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src\modules\pdf_preview\views\main_window.py:246:8
+245	            self.grab_release()
+246	        except Exception:
+247	            pass
+248	        try:
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src\modules\pdf_preview\views\main_window.py:255:12
+254	                    self.grab_set()
+255	            except Exception:
+256	                pass
+257
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src\modules\pdf_preview\views\pdf_viewer_actions.py:274:4
+273	        viewer.grab_release()
+274	    except Exception:
+275	        pass
+276
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src\modules\pdf_preview\views\pdf_viewer_actions.py:284:8
+283	                viewer.grab_set()
+284	        except Exception:
+285	            pass
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src\modules\pdf_preview\views\pdf_viewer_handlers.py:266:8
+265	                return "break"
+266	        except Exception:
+267	            pass
+268	        return "break"
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src\modules\uploads\views\browser.py:329:12
+328	                dlg.set_eta_text("Cancelando...")
+329	            except Exception:  # noqa: BLE001
+330	                pass
+331
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src\ui\components\notifications\notifications_popup.py:75:16
+74	                    self._popup.focus_force()
+75	                except Exception:
+76	                    pass
+77	            return
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src\ui\components\notifications\notifications_popup.py:86:12
+85	                self._popup.destroy()
+86	            except Exception:
+87	                pass
+88	        self._popup = None
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src\ui\components\notifications\notifications_popup.py:152:12
+151	                    popup._icon_img = icon_img  # type: ignore[attr-defined]
+152	            except Exception:
+153	                pass  # Sem Ýcone, continua sem problemas
+154
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src\ui\window_utils.py:326:4
+325	        window.iconbitmap(resource_path("rc.ico"))
+326	    except Exception:  # noqa: BLE001
+327	        pass
+328
+
+--------------------------------------------------
+
+Code scanned:
+	Total lines of code: 54951
+	Total lines skipped (#nosec): 0
+	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 16
+
+Run metrics:
+	Total issues (by severity):
+		Undefined: 0
+		Low: 22
+		Medium: 0
+		High: 0
+	Total issues (by confidence):
+		Undefined: 0
+		Low: 0
+		Medium: 0
+		High: 22
+Files skipped (0):

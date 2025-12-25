@@ -18,12 +18,12 @@ tkinterweb-tkhtml>=1.1.4  # Renderizador HTML para tkinterweb
 # BACKEND & DATABASE
 # ============================================================================
 # Supabase SDK
-supabase>=2.22.0
-supabase-auth>=2.22.0
-supabase-functions>=2.22.0
-storage3>=2.22.0
-realtime>=2.22.0
-postgrest>=2.22.0
+supabase>=2.27.0
+supabase-auth>=2.27.0
+supabase-functions>=2.27.0
+storage3>=2.27.0
+realtime>=2.27.0
+postgrest>=2.27.0
 websockets>=15.0.1
 
 # PostgreSQL Drivers
@@ -45,7 +45,7 @@ h2>=4.3.0                 # HTTP/2 protocol
 hpack>=4.1.0              # Header compression (HTTP/2)
 hyperframe>=6.1.0         # HTTP/2 framing
 certifi>=2025.11.12       # Certificados CA
-urllib3>=2.5.0            # HTTP client (transitive)
+urllib3>=2.6.2            # HTTP client (transitive)
 
 # ============================================================================
 # IA / LLM
@@ -70,7 +70,7 @@ pycparser>=2.23           # Parser C para CFFI
 pypdf>=6.2.0              # Extracao de texto (fallback)
 PyMuPDF>=1.26.4           # Extracao robusta + preview (primario)
 pytesseract>=0.3.13       # OCR para PDFs escaneados
-pillow>=10.4.0            # Manipulacao de imagens
+pillow>=12.0.0            # Manipulacao de imagens
 
 # Arquivos Compactados
 # rarfile>=4.2            # ? REMOVIDO: N?o usado (usa 7-Zip CLI para .rar via subprocess)

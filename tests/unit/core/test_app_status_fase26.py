@@ -45,7 +45,7 @@ def test_set_env_text_logs_exception(caplog: pytest.LogCaptureFixture) -> None:
 
     caplog.set_level(logging.DEBUG, logger=app_status.log.name)
     app_status._set_env_text(App(), "x")
-    assert any("Unable to propagate environment text" in rec.message for rec in caplog.records)
+    assert any("Falha ao propagar texto de ambiente" in rec.message for rec in caplog.records)
 
 
 def test_set_env_text_uses_status_var_text(monkeypatch: pytest.MonkeyPatch) -> None:

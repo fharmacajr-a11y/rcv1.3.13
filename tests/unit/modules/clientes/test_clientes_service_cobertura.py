@@ -72,41 +72,59 @@ def test_ensure_str_com_nao_string():
     assert clientes_service._ensure_str("text") == "text"
 
 
-def test_extrair_dados_cartao_cnpj_com_classify_sucesso(monkeypatch):
+def test_extrair_dados_cartao_cnpj_com_classify_sucesso(monkeypatch, tmp_path):
     """Testa branch onde list_and_classify_pdfs encontra cnpj_card."""
-    monkeypatch.setattr(clientes_service, "log", types.SimpleNamespace(debug=lambda *a, **k: None))
+    # Mock log com warning e debug
+    monkeypatch.setattr(
+        clientes_service,
+        "log",
+        types.SimpleNamespace(debug=lambda *a, **k: None, warning=lambda *a, **k: None),
+    )
 
     docs = [{"type": "cnpj_card", "meta": {"cnpj": "11.222.333/0001-44", "razao_social": "Empresa Teste"}}]
 
     monkeypatch.setattr("src.utils.file_utils.list_and_classify_pdfs", lambda base_dir: docs)
 
-    result = clientes_service.extrair_dados_cartao_cnpj_em_pasta("/fake/path")
+    # Usa tmp_path que é um diretório real existente
+    result = clientes_service.extrair_dados_cartao_cnpj_em_pasta(str(tmp_path))
 
     assert result["cnpj"] == "11.222.333/0001-44"
     assert result["razao_social"] == "Empresa Teste"
 
 
-def test_extrair_dados_cartao_cnpj_sem_pdf_fallback(monkeypatch):
+def test_extrair_dados_cartao_cnpj_sem_pdf_fallback(monkeypatch, tmp_path):
     """Testa branch onde não encontra PDF no fallback."""
-    monkeypatch.setattr(clientes_service, "log", types.SimpleNamespace(debug=lambda *a, **k: None))
+    monkeypatch.setattr(
+        clientes_service,
+        "log",
+        types.SimpleNamespace(debug=lambda *a, **k: None, warning=lambda *a, **k: None),
+    )
+
     monkeypatch.setattr("src.utils.file_utils.list_and_classify_pdfs", lambda base_dir: [])
     monkeypatch.setattr("src.utils.file_utils.find_cartao_cnpj_pdf", lambda base_dir: None)
 
-    result = clientes_service.extrair_dados_cartao_cnpj_em_pasta("/fake/path")
+    # Usa tmp_path que é um diretório real existente
+    result = clientes_service.extrair_dados_cartao_cnpj_em_pasta(str(tmp_path))
 
     assert result["cnpj"] is None
     assert result["razao_social"] is None
 
 
-def test_extrair_dados_cartao_cnpj_pdf_sem_texto(monkeypatch):
+def test_extrair_dados_cartao_cnpj_pdf_sem_texto(monkeypatch, tmp_path):
     """Testa branch onde PDF existe mas não tem texto."""
-    monkeypatch.setattr(clientes_service, "log", types.SimpleNamespace(debug=lambda *a, **k: None))
+    monkeypatch.setattr(
+        clientes_service,
+        "log",
+        types.SimpleNamespace(debug=lambda *a, **k: None, warning=lambda *a, **k: None),
+    )
+
     monkeypatch.setattr("src.utils.file_utils.list_and_classify_pdfs", lambda base_dir: [])
     monkeypatch.setattr("src.utils.file_utils.find_cartao_cnpj_pdf", lambda base_dir: "/fake/pdf.pdf")
     monkeypatch.setattr("src.utils.paths.ensure_str_path", lambda p: str(p))
     monkeypatch.setattr("src.utils.pdf_reader.read_pdf_text", lambda path: "")
 
-    result = clientes_service.extrair_dados_cartao_cnpj_em_pasta("/fake/path")
+    # Usa tmp_path que é um diretório real existente
+    result = clientes_service.extrair_dados_cartao_cnpj_em_pasta(str(tmp_path))
 
     assert result["cnpj"] is None
     assert result["razao_social"] is None

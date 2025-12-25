@@ -135,7 +135,7 @@ class QuickActionsViewModel:
                     id="anvisa",
                     label="Anvisa",
                     description="Regulatório Anvisa",
-                    bootstyle="info",
+                    bootstyle="secondary",
                     order=50,
                     category="regulatorio",
                 ),
@@ -144,7 +144,7 @@ class QuickActionsViewModel:
                     label="Sngpc",
                     description="Sistema Nacional de Gerenciamento de Produtos Controlados",
                     bootstyle="secondary",
-                    order=70,
+                    order=60,
                     category="regulatorio",
                 ),
                 QuickActionItemView(

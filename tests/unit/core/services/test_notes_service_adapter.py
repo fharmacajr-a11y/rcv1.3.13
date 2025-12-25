@@ -171,12 +171,43 @@ class TestNotesServiceAdapterUpdate:
     def test_update_note_not_found(self, mock_supabase):
         """Deve lançar erro se nota não encontrada."""
         mock_client, mock_exec = mock_supabase
-        mock_exec.return_value = MagicMock(data=[])  # Empty result
+        # Simular update retornando vazio E SELECT também retornando vazio
+        mock_exec.side_effect = [
+            MagicMock(data=[]),  # update retorna vazio
+            MagicMock(data=[]),  # SELECT fallback também retorna vazio
+        ]
 
         adapter = NotesServiceAdapter()
 
         with pytest.raises(ValueError, match="não encontrada ou sem permissão"):
             adapter.update_note(note_id="nonexistent", body="Test")
+
+    def test_update_note_fallback_select(self, mock_supabase):
+        """Deve fazer SELECT fallback quando update retorna data vazio."""
+        mock_client, mock_exec = mock_supabase
+        # Simular update retornando vazio, mas SELECT retornando a nota
+        expected_note = {
+            "id": "note1",
+            "body": "__RC_DELETED__",
+            "org_id": "org123",
+            "author_email": "user@example.com",
+            "created_at": "2024-01-01T10:00:00Z",
+            "is_pinned": False,
+            "is_done": False,
+        }
+        mock_exec.side_effect = [
+            MagicMock(data=[]),  # update retorna vazio
+            MagicMock(data=[expected_note]),  # SELECT fallback retorna nota
+        ]
+
+        adapter = NotesServiceAdapter()
+        result = adapter.update_note(note_id="note1", body="__RC_DELETED__")
+
+        # Deve retornar a nota do SELECT fallback
+        assert result["id"] == "note1"
+        assert result["body"] == "__RC_DELETED__"
+        # Verificar que foram 2 chamadas (update + select)
+        assert mock_exec.call_count == 2
 
     def test_update_note_handles_exception(self, mock_supabase):
         """Deve propagar exceções do Supabase."""

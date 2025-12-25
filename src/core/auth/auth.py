@@ -46,6 +46,8 @@ def _get_auth_pepper() -> str:
     Obtém o 'pepper' a partir de variável de ambiente AUTH_PEPPER ou, se ausente,
     de um arquivo 'config.yml' na raiz do projeto (chave: AUTH_PEPPER).
     Nunca loga o valor do pepper.
+
+    SEC-005: Validação de YAML para prevenir injeção.
     """
     pep = os.getenv("AUTH_PEPPER", "") or os.getenv("RC_AUTH_PEPPER", "")
     if pep:
@@ -55,14 +57,37 @@ def _get_auth_pepper() -> str:
         if yaml is not None:
             for candidate in ("config.yml", "config.yaml"):
                 if os.path.isfile(candidate):
+                    # SEC-005: Validação de tamanho de arquivo antes de carregar
+                    file_size = os.path.getsize(candidate)
+                    if file_size > 1024 * 1024:  # 1MB máximo
+                        log.warning("SEC-005: Arquivo de config muito grande, ignorando: %s", candidate)
+                        continue
+
                     with open(candidate, "r", encoding="utf-8") as fh:
-                        data = yaml.safe_load(fh) or {}
+                        # SEC-005: safe_load já previne execução de código arbitrário
+                        data = yaml.safe_load(fh)
+
+                        # SEC-005: Validação de tipo do resultado
+                        if not isinstance(data, dict):
+                            log.warning("SEC-005: Config YAML não é um dict, ignorando: %s", candidate)
+                            continue
+
                         pep = str(data.get("AUTH_PEPPER") or data.get("auth_pepper") or "") or ""
+
+                        # SEC-005: Validação de formato do pepper
+                        if pep and (len(pep) < 16 or len(pep) > 256):
+                            log.warning("SEC-005: AUTH_PEPPER com tamanho suspeito, ignorando")
+                            pep = ""
+
                         if pep:
                             return pep
     except Exception as exc:  # noqa: BLE001
-        # não revelar detalhes para não vazar path/pepper
-        log.debug("Falha ao obter AUTH_PEPPER via arquivo: %s", exc)
+        # SEC-005: Erro de parsing YAML ou outro erro
+        if yaml is not None and isinstance(exc, yaml.YAMLError):
+            log.warning("SEC-005: Erro ao parsear YAML config: %s", type(exc).__name__)
+        else:
+            # não revelar detalhes para não vazar path/pepper
+            log.debug("Falha ao obter AUTH_PEPPER via arquivo: %s", exc)
     return ""
 
 
@@ -105,22 +130,61 @@ def _get_login_attempts_for_tests(email: str) -> tuple[int, float] | None:
         return login_attempts.get(key)
 
 
-def check_rate_limit(email: str) -> tuple[bool, float]:
-    """Verifica se excedeu limite, retorna (allowed, remaining_seconds)."""
-    key: str = email.strip().lower()
-    now: float = time.time()
+def _check_key_limit(key: str, now: float) -> tuple[bool, float]:
+    """
+    Verifica rate limit para uma chave específica (email ou IP).
+
+    SEC-002: Helper interno para dual-key rate limiting.
+
+    Args:
+        key: Chave de rate limiting (email ou IP)
+        now: Timestamp atual
+
+    Returns:
+        (allowed, remaining_seconds): True se permitido, False se bloqueado
+    """
     if key in login_attempts:
-        count: int
-        last: float
         count, last = login_attempts[key]
-        elapsed: float = now - last
+        elapsed = now - last
         if elapsed > 60:  # Reset após 1 minuto
             del login_attempts[key]
             return True, 0.0
         if count >= 5:
             remaining = max(0.0, 60 - elapsed)
-            log.warning("Tentativas excedidas para %s (aguardar %.1fs)", key, remaining)
             return False, remaining
+    return True, 0.0
+
+
+def check_rate_limit(email: str, ip_address: str | None = None) -> tuple[bool, float]:
+    """
+    Verifica se excedeu limite, retorna (allowed, remaining_seconds).
+
+    SEC-002: Rate limiting por email E por IP para prevenir ataques distribuídos.
+
+    Args:
+        email: Email do usuário
+        ip_address: Endereço IP (opcional, mas recomendado)
+
+    Returns:
+        (allowed, remaining_seconds): True se permitido, senão tempo de espera
+    """
+    now: float = time.time()
+
+    # Verifica rate limit por email
+    email_key: str = email.strip().lower()
+    email_allowed, email_remaining = _check_key_limit(email_key, now)
+    if not email_allowed:
+        log.warning("Tentativas excedidas para email %s (aguardar %.1fs)", email_key, email_remaining)
+        return False, email_remaining
+
+    # SEC-002: Verifica rate limit por IP (se fornecido)
+    if ip_address:
+        ip_key = f"ip:{ip_address}"
+        ip_allowed, ip_remaining = _check_key_limit(ip_key, now)
+        if not ip_allowed:
+            log.warning("Tentativas excedidas para IP %s (aguardar %.1fs)", ip_address, ip_remaining)
+            return False, ip_remaining
+
     return True, 0.0
 
 
@@ -159,6 +223,34 @@ def pbkdf2_hash(
     return f"pbkdf2_sha256${iterations}${binascii.hexlify(salt).decode()}${binascii.hexlify(dk).decode()}"
 
 
+def _validate_username(username: str) -> str | None:
+    """
+    Valida formato de username para prevenir SQL injection.
+
+    SEC-003: Regex whitelist para usernames seguros.
+    Permite apenas caracteres alfanuméricos, ponto, underscore, arroba e hífen.
+
+    Args:
+        username: Nome de usuário a validar
+
+    Returns:
+        None se válido, mensagem de erro caso contrário
+    """
+    if not username or not username.strip():
+        return "Username não pode ser vazio."
+
+    username = username.strip()
+
+    if len(username) > 255:
+        return "Username muito longo (máximo 255 caracteres)."
+
+    # SEC-003: Whitelist de caracteres permitidos
+    if not re.match(r"^[a-zA-Z0-9._@-]+$", username):
+        return "Username contém caracteres inválidos. Use apenas letras, números, ponto, underscore, arroba ou hífen."
+
+    return None
+
+
 # ------------------------- Banco local de usuários ------------------------- #
 def ensure_users_db() -> None:
     """Garante a existência da tabela 'users' no SQLite local (ou /tmp em cloud)."""
@@ -186,9 +278,15 @@ def ensure_users_db() -> None:
 
 
 def create_user(username: str, password: str | None = None) -> int:
-    """Cria usuário local (SQLite). Se já existir, atualiza a senha se fornecida e retorna o ID."""
-    if not (username or "").strip():
-        raise ValueError("username obrigatório")
+    """
+    Cria usuário local (SQLite). Se já existir, atualiza a senha se fornecida e retorna o ID.
+
+    SEC-003: Valida username antes de qualquer query SQL.
+    """
+    # SEC-003: Validação de username
+    validation_error = _validate_username(username)
+    if validation_error:
+        raise ValueError(validation_error)
 
     ensure_users_db()
     now: str = datetime.now(timezone.utc).isoformat()
@@ -238,18 +336,25 @@ def validate_credentials(email: str, password: str) -> str | None:
 
 
 # ------------------------- Autenticação (Supabase) ------------------------- #
-def authenticate_user(email: str, password: str) -> tuple[bool, str]:
+def authenticate_user(email: str, password: str, ip_address: str | None = None) -> tuple[bool, str]:
     """
     Autentica via Supabase Auth (email/senha).
     Retorna (ok, msg). ok=True somente se houver user+session válidos.
     msg contém e-mail do usuário quando ok=True; caso contrário, mensagem de erro.
+
+    SEC-002: Suporta rate limiting por IP.
+
+    Args:
+        email: Email do usuário
+        password: Senha do usuário
+        ip_address: Endereço IP (opcional, para rate limiting)
     """
     key: str = email.strip().lower()
 
     with _login_lock:
         allowed: bool
         remaining: float
-        allowed, remaining = check_rate_limit(key)
+        allowed, remaining = check_rate_limit(key, ip_address)
         if not allowed:
             return False, f"Muitas tentativas recentes. Aguarde {int(remaining)}s."
 
@@ -261,6 +366,11 @@ def authenticate_user(email: str, password: str) -> tuple[bool, str]:
             _: float
             count, _ = login_attempts.get(key, (0, 0.0))
             login_attempts[key] = (count + 1, now)
+            # SEC-002: Registra tentativa por IP também
+            if ip_address:
+                ip_key = f"ip:{ip_address}"
+                ip_count, _ = login_attempts.get(ip_key, (0, 0.0))
+                login_attempts[ip_key] = (ip_count + 1, now)
         return False, err
 
     sb = get_supabase()
@@ -274,6 +384,11 @@ def authenticate_user(email: str, password: str) -> tuple[bool, str]:
             with _login_lock:
                 if key in login_attempts:
                     del login_attempts[key]
+                # SEC-002: Limpa tentativas de IP também
+                if ip_address:
+                    ip_key = f"ip:{ip_address}"
+                    if ip_key in login_attempts:
+                        del login_attempts[ip_key]
             return True, res.user.email or email
 
         raise Exception("Credenciais inválidas.")  # Força falha
@@ -285,7 +400,23 @@ def authenticate_user(email: str, password: str) -> tuple[bool, str]:
             _: float
             count, _ = login_attempts.get(key, (0, 0.0))
             login_attempts[key] = (count + 1, now)
-        # Mensagens mais amigáveis
-        if "invalid" in msg.lower() or "credentials" in msg.lower():
+            # SEC-002: Registra tentativa por IP também
+            if ip_address:
+                ip_key = f"ip:{ip_address}"
+                ip_count, _ = login_attempts.get(ip_key, (0, 0.0))
+                login_attempts[ip_key] = (ip_count + 1, now)
+
+        # OFFLINE-SUPABASE-UX-001 (Parte C): Mensagens mais amigáveis para erros de rede
+        msg_lower = msg.lower()
+        if "getaddrinfo" in msg_lower or "nodename" in msg_lower or "temporary failure" in msg_lower:
+            return False, "Sem conexão com a internet. Verifique sua rede e tente novamente."
+        if "timeout" in msg_lower or "timed out" in msg_lower:
+            return False, "Tempo de conexão esgotado. Verifique sua internet e tente novamente."
+        if "connection" in msg_lower and ("refused" in msg_lower or "reset" in msg_lower):
+            return False, "Não foi possível conectar ao servidor. Tente novamente mais tarde."
+
+        # Mensagens genéricas amigáveis
+        if "invalid" in msg_lower or "credentials" in msg_lower:
             return False, "E-mail ou senha incorretos."
-        return False, f"Falha ao conectar no Supabase: {msg}"
+
+        return False, f"Falha ao conectar: {msg}"

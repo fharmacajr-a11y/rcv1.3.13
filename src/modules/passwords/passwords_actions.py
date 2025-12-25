@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from data.domain_types import ClientRow, PasswordRow
 
@@ -43,7 +44,7 @@ class PasswordFormData:
     password: str
     notes: str
     is_editing: bool
-    password_id: Optional[str] = None
+    password_id: str | None = None
 
 
 class PasswordsActions:
@@ -70,12 +71,21 @@ class PasswordsActions:
 
     def build_summaries(
         self,
-        all_passwords: list[PasswordRow],
+        all_passwords: Sequence[Mapping[str, Any]],
         *,
-        search_text: Optional[str],
-        service_filter: Optional[str],
+        search_text: str | None,
+        service_filter: str | None,
     ) -> PasswordsScreenSummaries:
-        """Retorna listas prontas para alimentar a Treeview."""
+        """Retorna listas prontas para alimentar a Treeview.
+
+        Args:
+            all_passwords: Lista completa de senhas
+            search_text: Filtro de busca textual
+            service_filter: Filtro por serviço
+
+        Returns:
+            PasswordsScreenSummaries com all_summaries, filtered_summaries e summaries_by_id
+        """
         filtered = passwords_service.filter_passwords(all_passwords, search_text, service_filter)
         all_summaries = passwords_service.group_passwords_by_client(all_passwords)
         filtered_summaries = passwords_service.group_passwords_by_client(filtered)
@@ -99,7 +109,17 @@ class PasswordDialogActions:
 
     @staticmethod
     def validate_form(data: PasswordFormData) -> list[str]:
-        """Retorna lista de erros de validação."""
+        """Retorna lista de erros de validação.
+
+        Args:
+            data: Dados do formulário a validar
+
+        Returns:
+            Lista de mensagens de erro (vazia se tudo OK)
+
+        Note:
+            Quando is_editing=True, password vazia é permitida (mantém senha atual)
+        """
         errors: list[str] = []
         if not data.client_id:
             errors.append("Selecione um cliente usando o botão 'Selecionar...'.")
@@ -131,7 +151,14 @@ class PasswordDialogActions:
         )
 
     def update_password(self, data: PasswordFormData) -> None:
-        """Atualiza senha existente."""
+        """Atualiza senha existente.
+
+        Args:
+            data: Dados do formulário com password_id preenchido
+
+        Raises:
+            ValueError: Se password_id não estiver preenchido
+        """
         if not data.password_id:
             raise ValueError("ID da senha não informado para atualização.")
         self.controller.update_password(

@@ -8,11 +8,15 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from typing import Final, cast
 
-from src.modules.anvisa.constants import REQUEST_TYPES
+from src.modules.anvisa.constants import REQUEST_TYPES, RequestTypeStr
+
+# Type alias
+SlugStr = str  # Slug válido (lowercase, a-z0-9, underscores)
 
 
-def slugify_process(process_name: str) -> str:
+def slugify_process(process_name: str) -> SlugStr:
     """Converte nome do processo ANVISA em slug para uso como pasta.
 
     Args:
@@ -48,10 +52,10 @@ def slugify_process(process_name: str) -> str:
 # Mapeamento de processos conhecidos para slugs (cache)
 # Gerado dinamicamente a partir de constants.REQUEST_TYPES
 # Inclui todos os 6 tipos oficiais (incluindo "Cancelamento de AFE")
-PROCESS_SLUGS = {process: slugify_process(process) for process in REQUEST_TYPES}
+PROCESS_SLUGS: Final[dict[RequestTypeStr, SlugStr]] = {process: slugify_process(process) for process in REQUEST_TYPES}
 
 
-def get_process_slug(process_name: str) -> str:
+def get_process_slug(process_name: str) -> SlugStr:
     """Obtém slug do processo, usando cache se disponível.
 
     Args:
@@ -64,4 +68,5 @@ def get_process_slug(process_name: str) -> str:
         >>> get_process_slug("Alteração do Responsável Legal")
         'alteracao_responsavel_legal'
     """
-    return PROCESS_SLUGS.get(process_name, slugify_process(process_name))
+    # cast: process_name em runtime pode ser qualquer str, mas assumimos que é válido
+    return PROCESS_SLUGS.get(cast(RequestTypeStr, process_name), slugify_process(process_name))

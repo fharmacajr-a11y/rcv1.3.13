@@ -102,6 +102,44 @@ def _destroy_splash(splash: SplashLike | None, on_closed: Optional[Callable[[], 
         log.debug("Erro ao destruir splash", exc_info=exc)
 
 
+def _is_network_error(exc: Exception) -> bool:
+    """
+    Verifica se a exceção é um erro de rede.
+
+    OFFLINE-SUPABASE-UX-001 (Parte B): Helper para detectar erros de conectividade.
+
+    Args:
+        exc: Exceção a verificar
+
+    Returns:
+        True se for erro de rede (OSError, URLError, ConnectionError, etc.)
+    """
+    from urllib.error import URLError
+
+    # Verifica tipos de exceção de rede
+    if isinstance(exc, (OSError, ConnectionError, TimeoutError)):
+        return True
+
+    if isinstance(exc, URLError):
+        return True
+
+    # Verifica mensagens comuns de erro de rede
+    msg = str(exc).lower()
+    network_keywords = [
+        "getaddrinfo",
+        "connection",
+        "timeout",
+        "network",
+        "unreachable",
+        "refused",
+        "reset",
+        "nodename",
+        "temporary failure",
+    ]
+
+    return any(keyword in msg for keyword in network_keywords)
+
+
 def _refresh_session_state(client: SupabaseClient, logger: Optional[logging.Logger]) -> None:
     """Sincroniza cache local (org_id, usuário) após restaurar sessão."""
     try:
@@ -176,6 +214,11 @@ def restore_persisted_auth_session_if_any(client: SupabaseClient) -> bool:
         return True
     except Exception as exc:
         log.warning("Erro ao restaurar sessão persistida: %s", exc, exc_info=True)
+        # OFFLINE-SUPABASE-UX-001 (Parte B): Preserva sessão em erros de rede
+        if _is_network_error(exc):
+            log.info("Erro de rede ao restaurar sessão - preservando credenciais")
+            return False
+        # Apenas limpa sessão se for erro de autenticação (não rede)
         try:
             prefs_utils.clear_auth_session()
         except Exception as clear_exc:
@@ -212,6 +255,32 @@ def _ensure_session(app: AppProtocol, logger: Optional[logging.Logger]) -> bool:
         (logger or log).info("Sessão já existente no boot.")
         _refresh_session_state(client, logger)
         return True
+
+    # OFFLINE-SUPABASE-UX-001 (Parte A): Verifica internet antes de abrir login em cloud-only
+    import os
+    from src.utils.network import check_internet_connectivity
+
+    is_cloud_only = os.getenv("RC_NO_LOCAL_FS") == "1"
+    is_testing = os.getenv("RC_TESTING") == "1" or os.getenv("PYTEST_CURRENT_TEST") is not None
+
+    if is_cloud_only and not is_testing:
+        while not check_internet_connectivity(timeout=1.0):
+            (logger or log).warning("Modo cloud-only sem internet. Exibindo aviso ao usuário.")
+            try:
+                from tkinter import messagebox
+
+                retry = messagebox.askretrycancel(
+                    "Sem Conexão",
+                    "O aplicativo está no modo cloud-only e requer conexão com a internet.\n\n"
+                    "Verifique sua conexão e tente novamente.",
+                    icon="warning",
+                )
+                if not retry:
+                    (logger or log).info("Usuário cancelou login offline.")
+                    return False
+            except Exception as exc:
+                (logger or log).debug("Falha ao exibir messagebox de offline: %s", exc)
+                return False
 
     (logger or log).info("Sem sessão inicial - abrindo login...")
     dlg = LoginDialog(app)

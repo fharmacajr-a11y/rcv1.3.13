@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 
+from infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ID
 from infra.supabase_client import exec_postgrest, supabase
 
 logger = logging.getLogger(__name__)
@@ -68,7 +69,9 @@ def resolve_org_id() -> str:
     # Tenta buscar org_id da tabela memberships
     try:
         if uid:
-            res = exec_postgrest(supabase.table("memberships").select("org_id").eq("user_id", uid).limit(1))
+            res = exec_postgrest(
+                supabase.table("memberships").select(MEMBERSHIPS_SELECT_ORG_ID).eq("user_id", uid).limit(1)
+            )
             data = getattr(res, "data", None) or []
             if data:
                 return data[0]["org_id"]

@@ -13,7 +13,8 @@ def test_count_clients_success_updates_cache(monkeypatch):
         return 42
 
     monkeypatch.setattr(clientes_service, "_count_clients_raw", fake_count)
-    monkeypatch.setattr(clientes_service, "_LAST_CLIENTS_COUNT", 0)
+    # Reseta o cache para 0 antes do teste
+    clientes_service._clients_cache.count = 0
 
     assert clientes_service.count_clients() == 42
     assert clientes_service.count_clients() == 42
@@ -28,7 +29,8 @@ def test_count_clients_success_updates_cache(monkeypatch):
 
 
 def test_count_clients_socket_10035_uses_last_known(monkeypatch):
-    monkeypatch.setattr(clientes_service, "_LAST_CLIENTS_COUNT", 10)
+    # Define o cache com valor conhecido antes do teste
+    clientes_service._clients_cache.count = 10
 
     def fake_raise():
         err = OSError("blocked")
@@ -42,7 +44,8 @@ def test_count_clients_socket_10035_uses_last_known(monkeypatch):
 
 
 def test_count_clients_other_oserror_uses_last_known(monkeypatch):
-    monkeypatch.setattr(clientes_service, "_LAST_CLIENTS_COUNT", 7)
+    # Define o cache com valor conhecido antes do teste
+    clientes_service._clients_cache.count = 7
 
     def fake_raise():
         raise OSError("other")
@@ -77,6 +80,7 @@ def test_checar_duplicatas_info_com_razao_conflicts(monkeypatch):
 
     monkeypatch.setattr(clientes_service, "find_cliente_by_cnpj_norm", lambda *a, **k: None)
     monkeypatch.setattr(clientes_service, "list_clientes", lambda: [cliente_ok, cliente_conf, cliente_conf2])
+    monkeypatch.setattr(clientes_service, "CLOUD_ONLY", False)
 
     result = clientes_service.checar_duplicatas_info("", "", "", "Acme")
     assert cliente_conf in result["razao_conflicts"]
@@ -169,7 +173,8 @@ def test_count_clients_retry_success_after_10035(monkeypatch):
         return 50
 
     monkeypatch.setattr(clientes_service, "_count_clients_raw", fake_count)
-    monkeypatch.setattr(clientes_service, "_LAST_CLIENTS_COUNT", 0)
+    # Reseta o cache para 0 antes do teste
+    clientes_service._clients_cache.count = 0
     monkeypatch.setattr(clientes_service.time, "sleep", lambda _: None)
 
     result = clientes_service.count_clients(max_retries=2, base_delay=0.1)
@@ -288,6 +293,7 @@ def test_checar_duplicatas_razao_com_cnpj_norm_diferente(monkeypatch):
     monkeypatch.setattr(clientes_service, "find_cliente_by_cnpj_norm", lambda *a, **k: None)
     monkeypatch.setattr(clientes_service, "list_clientes", lambda: [cliente_com_attr])
     monkeypatch.setattr(clientes_service, "normalize_cnpj_norm", lambda cnpj: f"{cnpj}norm")
+    monkeypatch.setattr(clientes_service, "CLOUD_ONLY", False)
 
     # Buscar com razão igual mas CNPJ diferente
     result = clientes_service.checar_duplicatas_info("", "888", "", "Acme Corp")

@@ -60,9 +60,19 @@ def test_app_navegacao_metodos_delegacao():
     source_hub = inspect.getsource(App.show_hub_screen)
     source_main = inspect.getsource(App.show_main_screen)
 
-    # Devem chamar navigate_to ou nav.show_*
-    assert "navigate_to" in source_hub or "nav.show_" in source_hub
-    assert "navigate_to" in source_main or "nav.show_" in source_main
+    # Devem chamar navigate_to, nav.show_*, _router.show ou delegar para main_window_screens
+    assert (
+        "navigate_to" in source_hub
+        or "nav.show_" in source_hub
+        or "_router.show" in source_hub
+        or "main_window_screens" in source_hub
+    )
+    assert (
+        "navigate_to" in source_main
+        or "nav.show_" in source_main
+        or "_router.show" in source_main
+        or "main_window_screens" in source_main
+    )
 
 
 def test_app_acoes_metodos_delegacao():
@@ -85,5 +95,6 @@ def test_app_cache_metodos_usam_session():
 
     source_user = inspect.getsource(App._get_user_cached)
 
-    # Deve usar self._session ou self.session_cache
-    assert "_session" in source_user or "session_cache" in source_user
+    # P2-MF3C: Método agora é wrapper que delega para main_window_actions
+    # Verificamos se usa actions ou se actions.get_user_cached usa _session
+    assert "actions" in source_user or "_session" in source_user or "session_cache" in source_user

@@ -1,0 +1,6 @@
+﻿src\modules\forms\actions_impl.py:44: unused variable 'string' (100% confidence)
+src\modules\main_window\controllers\main_window_pollers.py:25: unused variable 'after_id' (100% confidence)
+src\modules\main_window\views\main_window_handlers.py:13: unused import 'MainWindow' (90% confidence)
+src\modules\main_window\views\main_window_screens.py:12: unused import 'MainWindow' (90% confidence)
+src\modules\main_window\views\main_window_services.py:9: unused import 'MainWindow' (90% confidence)
+src\ui\components\buttons.py:12: unused import 'ToolTip' (90% confidence)

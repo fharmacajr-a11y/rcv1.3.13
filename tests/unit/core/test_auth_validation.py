@@ -357,16 +357,16 @@ def test_get_auth_pepper_from_config_yml(monkeypatch, tmp_path):
     monkeypatch.delenv("AUTH_PEPPER", raising=False)
     monkeypatch.delenv("RC_AUTH_PEPPER", raising=False)
 
-    # Criar config.yml temporário
+    # Criar config.yml temporário com pepper válido (>= 16 chars)
     config_file = tmp_path / "config.yml"
-    config_file.write_text("AUTH_PEPPER: yaml_pepper_789")
+    config_file.write_text("AUTH_PEPPER: yaml_pepper_789_valid_16chars")
 
     # Mudar diretório atual para tmp_path
     original_cwd = os.getcwd()
     try:
         os.chdir(tmp_path)
         result = _get_auth_pepper()
-        assert result == "yaml_pepper_789"
+        assert result == "yaml_pepper_789_valid_16chars"
     finally:
         os.chdir(original_cwd)
 
@@ -534,14 +534,14 @@ def test_create_user_without_password(isolated_users_db):
 def test_create_user_empty_username_raises(isolated_users_db):
     """create_user deve lançar ValueError para username vazio."""
     # db_path não é usado neste teste, mas fixture é necessária para setup
-    with pytest.raises(ValueError, match="username obrigatório"):
+    with pytest.raises(ValueError, match="(Username não pode ser vazio|username obrigatório)"):
         create_user("")
 
 
 def test_create_user_none_username_raises(isolated_users_db):
     """create_user deve lançar ValueError para username None."""
     # db_path não é usado neste teste, mas fixture é necessária para setup
-    with pytest.raises(ValueError, match="username obrigatório"):
+    with pytest.raises(ValueError, match="(Username não pode ser vazio|username obrigatório)"):
         create_user(None)  # type: ignore
 
 

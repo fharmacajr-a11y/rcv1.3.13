@@ -93,6 +93,7 @@ class HubQuickActionsView:
             self.modules_panel,
             text="Cadastros / Acesso",
             padding=(8, 6),
+            bootstyle="dark",
         )
         frame_cadastros.pack(fill="x", pady=(0, 8))
         frame_cadastros.columnconfigure(0, weight=1)
@@ -109,6 +110,7 @@ class HubQuickActionsView:
             self.modules_panel,
             text="Gestão / Auditoria",
             padding=(8, 6),
+            bootstyle="dark",
         )
         frame_gestao.pack(fill="x", pady=(0, 8))
         frame_gestao.columnconfigure(0, weight=1)
@@ -125,12 +127,13 @@ class HubQuickActionsView:
             self.modules_panel,
             text="Regulatório / Programas",
             padding=(8, 6),
+            bootstyle="dark",
         )
         frame_regulatorio.pack(fill="x", pady=(0, 0))
         frame_regulatorio.columnconfigure(0, weight=1)
         frame_regulatorio.columnconfigure(1, weight=1)
 
-        btn_anvisa = mk_btn(frame_regulatorio, "Anvisa", self._on_open_anvisa, "info")
+        btn_anvisa = mk_btn(frame_regulatorio, "Anvisa", self._on_open_anvisa, "secondary")
         btn_anvisa.grid(row=0, column=0, sticky="ew", padx=3, pady=3)
 
         btn_sngpc = mk_btn(frame_regulatorio, "Sngpc", self._on_open_sngpc, "secondary")

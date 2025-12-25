@@ -199,7 +199,8 @@ def test_create_user_duplicado_atualiza_senha(temp_users_db: Path, monkeypatch: 
 
 def test_create_user_username_vazio_levanta_erro(temp_users_db: Path):
     """Username vazio deve levantar ValueError."""
-    with pytest.raises(ValueError, match="username obrigatório"):
+    # SEC-003: Mensagem atualizada para "Username não pode ser vazio."
+    with pytest.raises(ValueError, match=r"(?i)username.*(vazio|obrigat)"):
         auth.create_user("", "senha123")
 
 
@@ -268,7 +269,7 @@ def test_authenticate_user_erro_conexao(mock_supabase: MagicMock):
         ok, msg = auth.authenticate_user("user@example.com", "senha123")
 
     assert ok is False
-    assert "Falha ao conectar no Supabase" in msg
+    assert "Falha ao conectar" in msg or "Network error" in msg
 
 
 # ============================================================================

@@ -9,6 +9,7 @@ from typing import Any, Callable, Sequence, Tuple, TypeVar, cast
 
 from adapters.storage.api import list_files as _storage_list_files, upload_file as _storage_upload_file
 from adapters.storage.supabase_storage import SupabaseStorageAdapter
+from infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ID
 from infra.supabase_client import exec_postgrest, supabase
 from src.modules.uploads.upload_retry import (
     DEFAULT_MAX_RETRIES,
@@ -43,7 +44,9 @@ def resolve_org_id() -> str:
     if not user_id:
         return fallback
     try:
-        response = exec_postgrest(supabase.table("memberships").select("org_id").eq("user_id", user_id).limit(1))
+        response = exec_postgrest(
+            supabase.table("memberships").select(MEMBERSHIPS_SELECT_ORG_ID).eq("user_id", user_id).limit(1)
+        )
         data = getattr(response, "data", None) or []
         if data:
             return data[0]["org_id"]

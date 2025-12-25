@@ -102,8 +102,6 @@ def _make_headless_frame() -> MainScreenFrame:
     frame.btn_batch_export = DummyButton()
     frame.btn_editar = DummyButton()
     frame.btn_subpastas = DummyButton()
-    frame.btn_enviar = DummySendButton()
-    frame.menu_enviar = DummyMenu()
     frame.btn_novo = DummyButton()
     frame.btn_lixeira = DummyButton()
     frame.btn_select = DummyButton()

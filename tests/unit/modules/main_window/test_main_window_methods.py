@@ -5,7 +5,7 @@ Estratégia: Testar apenas os métodos públicos sem criar a janela Tk.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock
 
 import pytest
 
@@ -19,6 +19,7 @@ def app_mock():
 
     # Atributos necessários
     app.nav = MagicMock()
+    app._router = MagicMock()  # Mock do ScreenRouter
     app._actions = MagicMock()
     app._session = MagicMock()  # SessionCache agora é _session
     app._content_container = MagicMock()  # Container para telas
@@ -54,39 +55,36 @@ def app_mock():
 # ==================== Testes: Navegação ====================
 
 
-@patch("src.modules.main_window.views.main_window.navigate_to")
-def test_app_show_hub_screen_chama_nav(mock_navigate, app_mock):
-    """Testa que show_hub_screen delega para navigate_to."""
+def test_app_show_hub_screen_chama_router(app_mock):
+    """Testa que show_hub_screen usa router."""
     app_mock.show_hub_screen()
-    mock_navigate.assert_called_once_with(app_mock, "hub")
+    app_mock._router.show.assert_called_once_with("hub")
 
 
-@patch("src.modules.main_window.views.main_window.navigate_to")
-def test_app_show_main_screen_chama_nav(mock_navigate, app_mock):
-    """Testa que show_main_screen delega para navigate_to."""
+def test_app_show_main_screen_chama_router(app_mock):
+    """Testa que show_main_screen usa router."""
     app_mock.show_main_screen()
-    mock_navigate.assert_called_once_with(app_mock, "main")
+    app_mock._router.show.assert_called_once_with("main")
 
 
-@patch("src.modules.main_window.views.main_window.navigate_to")
-def test_app_show_passwords_screen_chama_nav(mock_navigate, app_mock):
-    """Testa que show_passwords_screen delega para navigate_to."""
+def test_app_show_passwords_screen_chama_router(app_mock):
+    """Testa que show_passwords_screen usa router."""
     app_mock.show_passwords_screen()
-    mock_navigate.assert_called_once_with(app_mock, "passwords")
+    app_mock._router.show.assert_called_once_with("passwords")
 
 
-@patch("src.modules.main_window.views.main_window.navigate_to")
-def test_app_show_cashflow_screen_chama_nav(mock_navigate, app_mock):
-    """Testa que show_cashflow_screen delega para navigate_to."""
+def test_app_show_cashflow_screen_chama_router(app_mock):
+    """Testa que show_cashflow_screen usa router."""
     app_mock.show_cashflow_screen()
-    mock_navigate.assert_called_once_with(app_mock, "cashflow")
+    app_mock._router.show.assert_called_once_with("cashflow")
 
 
-@patch("src.modules.main_window.views.main_window.navigate_to")
-def test_app_show_placeholder_screen_chama_nav(mock_navigate, app_mock):
-    """Testa que show_placeholder_screen delega para navigate_to."""
+def test_app_show_placeholder_screen_chama_router(app_mock):
+    """Testa que show_placeholder_screen usa router (BUGFIX-HUB-UI-001)."""
     app_mock.show_placeholder_screen("Test")
-    mock_navigate.assert_called_once_with(app_mock, "placeholder", title="Test")
+    app_mock._router.show.assert_called_once_with("placeholder")
+    # Verifica que o título foi armazenado
+    assert app_mock._placeholder_title == "Test"
 
 
 # ==================== Testes: Ações Delegadas ====================

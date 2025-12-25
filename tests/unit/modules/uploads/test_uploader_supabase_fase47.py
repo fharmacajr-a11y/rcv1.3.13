@@ -244,6 +244,9 @@ def test_upload_files_to_supabase_usa_bucket_padrao_no_batch(monkeypatch):
         def update(self):
             pass
 
+        def wait_window(self):
+            pass
+
         def close(self):
             self.closed = True
 

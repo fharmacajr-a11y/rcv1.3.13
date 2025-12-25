@@ -9,18 +9,14 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, cast
 
 try:
     from PIL import Image, ImageTk  # opcional
-except Exception:
+except Exception as exc:  # noqa: BLE001
+    # PIL é opcional - UI degrada gracefully
+    log = logging.getLogger(__name__)
+    log.debug("PIL não disponível: %s", type(exc).__name__)
     Image = ImageTk = None
 
 from src.ui.window_utils import show_centered
-from src.ui.wheel_windows import wheel_steps
 from src.modules.pdf_preview.controller import PdfPreviewController, PageRenderData
-from src.modules.pdf_preview.download_service import (
-    DownloadContext,
-    get_default_download_dir,
-    save_image,
-    save_pdf,
-)
 from src.modules.pdf_preview.utils import LRUCache, pixmap_to_photoimage
 from src.modules.pdf_preview.views.page_view import PdfPageView
 from src.modules.pdf_preview.views.text_panel import PdfTextPanel
@@ -32,7 +28,12 @@ from src.modules.pdf_preview.views.view_helpers import (
     is_pdf_or_image,
 )
 
+# Módulos refatorados
+from src.modules.pdf_preview.controllers import PdfZoomController, PdfRenderController
+from src.modules.pdf_preview.views import pdf_viewer_handlers, pdf_viewer_actions
+
 logger = logging.getLogger(__name__)
+log = logger  # alias para B110 tratados
 
 
 GAP = 16  # espaço entre páginas
@@ -103,6 +104,10 @@ class PdfViewerWin(tk.Toplevel):
         # Callback resolver para conversor PDF
         self._context_master: tk.Misc = master
         self._converter_cb: Callable[[], None] | None = None
+
+        # Controllers refatorados (headless)
+        self._zoom_ctrl = PdfZoomController(min_zoom=0.2, max_zoom=6.0, zoom_step=0.1)
+        self._render_ctrl = PdfRenderController(gap=GAP)
         # ---------------------------------------------------
 
         # Top bar
@@ -242,8 +247,9 @@ class PdfViewerWin(tk.Toplevel):
         # Libera grab para evitar conflitos com o conversor
         try:
             self.grab_release()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            # Janela pode estar destruída
+            log.debug("grab_release falhou: %s", type(exc).__name__)
         try:
             cb()
         finally:
@@ -251,8 +257,9 @@ class PdfViewerWin(tk.Toplevel):
             try:
                 if self.winfo_exists():
                     self.grab_set()
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                # Janela pode estar destruída
+                log.debug("grab_set falhou: %s", type(exc).__name__)
 
     def open_document(
         self, pdf_path: str | None = None, data_bytes: bytes | None = None, display_name: str | None = None
@@ -295,7 +302,9 @@ class PdfViewerWin(tk.Toplevel):
         self._update_download_buttons(source=path, is_pdf=True, is_image=False)
         try:
             self._controller = PdfPreviewController(pdf_path=path)
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            # PDF inválido - UI mostra mensagem de erro
+            log.debug("Falha ao criar controller PDF: %s", type(exc).__name__)
             self._controller = None
 
         if self._controller is not None:
@@ -524,33 +533,12 @@ class PdfViewerWin(tk.Toplevel):
 
     # ======== Wheel / Zoom ========
     def _on_wheel_scroll(self, event: Any) -> TkBindReturn:
-        if not self.canvas.winfo_exists():
-            return "break"
-        # se Ctrl está pressionado, deixa o handler de zoom cuidar
-        if (event.state & 0x0004) != 0:
-            return "break"
-        steps = wheel_steps(event)
-        if steps:
-            if self._is_pdf:
-                self.canvas.yview_scroll(-steps, "units")
-                self._render_visible_pages()
-            else:
-                # scrolling em imagem: re-render se quiser zoom sob roda
-                if self._img_pil is not None:
-                    self._render_image(self._img_pil)
-        return "break"
+        """Wrapper: delega para handler extraído."""
+        return pdf_viewer_handlers.handle_wheel_scroll(self, event)
 
     def _on_wheel_zoom(self, event: Any) -> TkBindReturn:
-        if not self.canvas.winfo_exists():
-            return "break"
-        steps = wheel_steps(event)
-        if steps:
-            if self._is_pdf:
-                self._zoom_by(steps, event)
-            else:
-                # Zoom para imagem
-                self._zoom_image_by(steps)
-        return "break"
+        """Wrapper: delega para handler extraído."""
+        return pdf_viewer_handlers.handle_wheel_zoom(self, event)
 
     def _zoom_by(self, wheel_steps_count: int | float, event: Any | None = None) -> None:
         if self._empty_state_item is not None:
@@ -688,64 +676,12 @@ class PdfViewerWin(tk.Toplevel):
             self.canvas.configure(scrollregion=bbox)
 
     def _download_img(self) -> None:
-        # S? dispon?vel quando estamos em modo imagem
-        pil = getattr(self, "_img_pil", None)
-        if pil is None:
-            return
-        base = getattr(self, "_display_name", "") or "Imagem"
-        base = os.path.splitext(base)[0]
-
-        # Extens?o: tenta manter tipo original; fallback .png
-        ext = ".png"
-        try:
-            fmt = (pil.format or "").upper()  # ex.: "JPEG", "PNG"
-            if fmt in ("JPEG", "JPG"):
-                ext = ".jpg"
-            elif fmt in ("PNG", "WEBP", "BMP", "TIFF"):
-                ext = f".{fmt.lower()}"
-        except Exception as exc:  # noqa: BLE001
-            logger.debug("Falha ao detectar formato da imagem para download: %s", exc)
-
-        ctx = DownloadContext(
-            base_name=base,
-            default_dir=get_default_download_dir(),
-            extension=ext,
-        )
-
-        try:
-            dst = save_image(pil, ctx)
-            from tkinter import messagebox
-
-            messagebox.showinfo("Baixar imagem", f"Salvo em:\\n{dst}", parent=self)
-        except Exception:
-            try:
-                from tkinter import messagebox
-
-                messagebox.showerror("Baixar imagem", "Erro ao salvar a imagem.", parent=self)
-            except Exception as exc:  # noqa: BLE001
-                logger.debug("Falha ao exibir erro ao salvar imagem: %s", exc)
+        """Wrapper: delega para action extraída."""
+        pdf_viewer_actions.download_image(self)
 
     def _download_pdf(self) -> None:
-        from tkinter import messagebox
-
-        try:
-            base = (getattr(self, "_display_name", "") or "arquivo").rsplit(".", 1)[0]
-            ctx = DownloadContext(
-                base_name=base,
-                default_dir=get_default_download_dir(),
-                extension=".pdf",
-            )
-            if not self._pdf_bytes and not (self._pdf_path and os.path.exists(self._pdf_path)):
-                messagebox.showwarning("Baixar PDF", "Nenhum PDF carregado.", parent=self)
-                return
-
-            dst = save_pdf(self._pdf_bytes, self._pdf_path, ctx)
-            messagebox.showinfo("Baixar PDF", f"Salvo em:\\n{dst}", parent=self)
-        except Exception as e:
-            try:
-                messagebox.showerror("Baixar PDF", f"Erro ao salvar: {e}", parent=self)
-            except Exception as exc:  # noqa: BLE001
-                logger.debug("Falha ao exibir erro ao salvar PDF: %s", exc)
+        """Wrapper: delega para action extraída."""
+        pdf_viewer_actions.download_pdf(self)
 
     def _reveal_window(self) -> None:
         """Revela a janela após carregamento completo (restaura alpha e deiconify)."""
@@ -853,7 +789,9 @@ class PdfViewerWin(tk.Toplevel):
         if self._ensure_text_panel():
             try:
                 self.text_panel.focus_text()
-            except Exception:
+            except Exception as exc:  # noqa: BLE001
+                # Fallback para OCR text se text_panel falhar
+                log.debug("focus_text falhou: %s", type(exc).__name__)
                 self.ocr_text.focus_set()
         return "break"
 
@@ -862,60 +800,40 @@ class PdfViewerWin(tk.Toplevel):
         return "break"
 
     def _on_page_up(self, event: Any | None = None) -> TkBindReturn:
-        self.focus_canvas()
-        self.canvas.yview_scroll(-1, "pages")
-        self._render_visible_pages()
-        return "break"
+        """Wrapper: delega para handler extraído."""
+        return pdf_viewer_handlers.handle_page_navigation(self, "up", event)
 
     def _on_page_down(self, event: Any | None = None) -> TkBindReturn:
-        self.focus_canvas()
-        self.canvas.yview_scroll(1, "pages")
-        self._render_visible_pages()
-        return "break"
+        """Wrapper: delega para handler extraído."""
+        return pdf_viewer_handlers.handle_page_navigation(self, "down", event)
 
     def _on_home(self, event: Any | None = None) -> TkBindReturn:
-        self.focus_canvas()
-        self.canvas.yview_moveto(0.0)
-        self._render_visible_pages()
-        return "break"
+        """Wrapper: delega para handler extraído."""
+        return pdf_viewer_handlers.handle_page_navigation(self, "home", event)
 
     def _on_end(self, event: Any | None = None) -> TkBindReturn:
-        self.focus_canvas()
-        self.canvas.yview_moveto(1.0)
-        self._render_visible_pages()
-        return "break"
+        """Wrapper: delega para handler extraído."""
+        return pdf_viewer_handlers.handle_page_navigation(self, "end", event)
 
     def _on_space_press(self, event: Any) -> TkBindReturn:
-        if not self._pan_active:
-            self._pan_active = True
-            self.canvas.configure(cursor="hand2")
-        self.focus_canvas()
-        return "break"
+        """Wrapper: delega para handler extraído."""
+        return pdf_viewer_handlers.handle_pan_events(self, "space_down", event)
 
     def _on_space_release(self, event: Any) -> TkBindReturn:
-        if self._pan_active:
-            self._pan_active = False
-            self.canvas.configure(cursor="")
-        return "break"
+        """Wrapper: delega para handler extraído."""
+        return pdf_viewer_handlers.handle_pan_events(self, "space_up", event)
 
     def _on_pan_button_press(self, event: Any) -> TkBindReturn:
-        if not self._pan_active:
-            return None
-        self.focus_canvas()
-        self.canvas.scan_mark(event.x, event.y)
-        return "break"
+        """Wrapper: delega para handler extraído."""
+        return pdf_viewer_handlers.handle_pan_events(self, "press", event)
 
     def _on_pan_motion(self, event: Any) -> TkBindReturn:
-        if not self._pan_active:
-            return None
-        self.canvas.scan_dragto(event.x, event.y, gain=1)
-        self._render_visible_pages()
-        return "break"
+        """Wrapper: delega para handler extraído."""
+        return pdf_viewer_handlers.handle_pan_events(self, "motion", event)
 
     def _on_pan_button_release(self, event: Any) -> TkBindReturn:
-        if not self._pan_active:
-            return None
-        return "break"
+        """Wrapper: delega para handler extraído."""
+        return pdf_viewer_handlers.handle_pan_events(self, "release", event)
 
     def _ensure_text_panel(self) -> bool:
         if not self._has_text:
@@ -951,7 +869,9 @@ class PdfViewerWin(tk.Toplevel):
     def _show_ocr_menu(self, event):
         try:
             return self.text_panel._show_menu(event)
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            # Menu pode falhar se widget destruído
+            log.debug("OCR menu falhou: %s", type(exc).__name__)
             return "break"
 
     # ======== Unified viewer: PDF + Image ========
@@ -994,7 +914,9 @@ class PdfViewerWin(tk.Toplevel):
                 self._render_image(self._img_pil)
             self._update_download_buttons(source=name, is_pdf=False, is_image=True)
             return True
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            # Imagem inválida - caller trata False
+            log.debug("Falha ao abrir imagem: %s", type(exc).__name__)
             return False
 
     def _open_pdf_bytes(self, data: bytes, filename: str = "") -> bool:
@@ -1025,7 +947,9 @@ class PdfViewerWin(tk.Toplevel):
 
             self.bind("<Destroy>", _cleanup, add="+")
             return True
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            # PDF inválido - caller trata False
+            log.debug("Falha ao abrir PDF bytes: %s", type(exc).__name__)
             return False
 
     def _render_image(self, pil_img: Image.Image) -> None:  # type: ignore[name-defined]

@@ -169,3 +169,116 @@ def test_notifications_service_publish_repo_fails() -> None:
 
     # Deve retornar False
     assert result is False
+
+
+def test_notifications_service_resolve_display_name() -> None:
+    """Testa resolve_display_name com RC_INITIALS_MAP."""
+    import os
+    from src.core.notifications_service import NotificationsService
+
+    # Mock do repositório
+    mock_repo = MagicMock()
+
+    # Mock dos providers
+    def mock_org_id_provider() -> str:
+        return "org-test-123"
+
+    def mock_user_provider() -> dict[str, Any]:
+        return {"uid": "user-123", "email": "test@example.com"}
+
+    # Configurar RC_INITIALS_MAP (mock do .env)
+    original_env = os.getenv("RC_INITIALS_MAP")
+    try:
+        os.environ["RC_INITIALS_MAP"] = '{"farmacajr@gmail.com":"Junior","test@example.com":"Testador"}'
+
+        # Criar service
+        service = NotificationsService(
+            repository=mock_repo,
+            org_id_provider=mock_org_id_provider,
+            user_provider=mock_user_provider,
+        )
+
+        # Testar resolução de nome via RC_INITIALS_MAP
+        assert service.resolve_display_name("farmacajr@gmail.com") == "Junior"
+        assert service.resolve_display_name("test@example.com") == "Testador"
+
+        # Testar fallback (email não mapeado)
+        assert service.resolve_display_name("unknown@example.com") == "Unknown"
+
+        # Testar email vazio
+        assert service.resolve_display_name(None) == "?"
+        assert service.resolve_display_name("") == "?"
+
+    finally:
+        # Restaurar env original
+        if original_env:
+            os.environ["RC_INITIALS_MAP"] = original_env
+        elif "RC_INITIALS_MAP" in os.environ:
+            del os.environ["RC_INITIALS_MAP"]
+
+
+def test_notifications_service_fetch_latest_excludes_own_notifications() -> None:
+    """Testa que fetch_latest exclui notificações do próprio usuário."""
+    from src.core.notifications_service import NotificationsService
+
+    # Mock do repositório
+    mock_repo = MagicMock()
+    mock_repo.list_notifications.return_value = [
+        {"id": "1", "message": "Notif 1"},
+        {"id": "2", "message": "Notif 2"},
+    ]
+
+    # Mock dos providers
+    def mock_org_id_provider() -> str:
+        return "org-test-123"
+
+    def mock_user_provider() -> dict[str, Any]:
+        return {"uid": "user-123", "email": "current_user@example.com"}
+
+    # Criar service
+    service = NotificationsService(
+        repository=mock_repo,
+        org_id_provider=mock_org_id_provider,
+        user_provider=mock_user_provider,
+    )
+
+    # Buscar notificações
+    notifications = service.fetch_latest(limit=10)
+
+    # Verificar que repo foi chamado com exclude_actor_email
+    mock_repo.list_notifications.assert_called_once_with(
+        "org-test-123", 10, exclude_actor_email="current_user@example.com"
+    )
+
+    assert len(notifications) == 2
+
+
+def test_notifications_service_fetch_unread_count_excludes_own_notifications() -> None:
+    """Testa que fetch_unread_count exclui notificações do próprio usuário."""
+    from src.core.notifications_service import NotificationsService
+
+    # Mock do repositório
+    mock_repo = MagicMock()
+    mock_repo.count_unread.return_value = 5
+
+    # Mock dos providers
+    def mock_org_id_provider() -> str:
+        return "org-test-123"
+
+    def mock_user_provider() -> dict[str, Any]:
+        return {"uid": "user-123", "email": "current_user@example.com"}
+
+    # Criar service
+    service = NotificationsService(
+        repository=mock_repo,
+        org_id_provider=mock_org_id_provider,
+        user_provider=mock_user_provider,
+    )
+
+    # Contar não lidas
+    count = service.fetch_unread_count()
+
+    # Verificar que repo foi chamado com exclude_actor_email
+    mock_repo.count_unread.assert_called_once_with("org-test-123", exclude_actor_email="current_user@example.com")
+
+    assert count == 5

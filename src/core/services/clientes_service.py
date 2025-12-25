@@ -1,4 +1,5 @@
-# core/services/clientes_service.py � vers�o Supabase (libera Nome/Whats; mant�m CNPJ/Raz�o)
+# -*- coding: utf-8 -*-
+# core/services/clientes_service.py – versão Supabase (libera Nome/Whats; mantém CNPJ/Razão)
 from __future__ import annotations
 
 import logging
@@ -6,6 +7,7 @@ import os
 import shutil
 import threading
 import time
+from dataclasses import dataclass, field
 from typing import Any, Optional, Tuple
 
 from infra.supabase_client import exec_postgrest, supabase
@@ -26,15 +28,23 @@ from src.core.cnpj_norm import normalize_cnpj as normalize_cnpj_norm
 
 log = logging.getLogger(__name__)
 
-# Valor em mem�ria para exibir se a rede falhar momentaneamente
-_LAST_CLIENTS_COUNT = 0
-_clients_lock = threading.Lock()
+
+# BUG-002: Cache thread-safe com dataclass
+@dataclass
+class ClientsCache:
+    """Cache thread-safe para contagem de clientes."""
+
+    count: int = 0
+    lock: threading.Lock = field(default_factory=threading.Lock)
+
+
+_clients_cache = ClientsCache()
 
 
 def _count_clients_raw() -> int:
     """
     Executa a contagem real de clientes no Supabase.
-    C�digo original extra�do para isolamento de retry.
+    Código original extraído para isolamento de retry.
     """
     resp = exec_postgrest(supabase.table("clients").select("id", count="exact").is_("deleted_at", "null"))
     return resp.count or 0
@@ -46,9 +56,9 @@ def count_clients(*, max_retries: int = 2, base_delay: float = 0.2) -> int:
 
     - Se der WSAEWOULDBLOCK (WinError 10035), faz alguns retries com backoff leve.
     - Se falhar, retorna o último valor conhecido sem quebrar a UI.
-    - Mantém cache em memória (_LAST_CLIENTS_COUNT) para resiliência.
+    - Mantém cache thread-safe em _clients_cache para evitar race conditions.
     """
-    global _LAST_CLIENTS_COUNT
+    global _clients_cache
 
     attempt: int = 0
     while True:
@@ -57,9 +67,9 @@ def count_clients(*, max_retries: int = 2, base_delay: float = 0.2) -> int:
             total: int = _count_clients_raw()
 
             # Atualiza o cache com lock
-            with _clients_lock:
-                _LAST_CLIENTS_COUNT = int(total)
-                return _LAST_CLIENTS_COUNT
+            with _clients_cache.lock:
+                _clients_cache.count = int(total)
+                return _clients_cache.count
 
         except OSError as e:
             # WinError 10035 = WSAEWOULDBLOCK (socket non-blocking)
@@ -72,28 +82,28 @@ def count_clients(*, max_retries: int = 2, base_delay: float = 0.2) -> int:
                     continue
 
                 # Devolve o último valor conhecido com lock
-                with _clients_lock:
-                    log.info("Clientes: usando last-known=%s após 10035", _LAST_CLIENTS_COUNT)
-                    return _LAST_CLIENTS_COUNT
+                with _clients_cache.lock:
+                    log.info("Clientes: usando last-known=%s após 10035", _clients_cache.count)
+                    return _clients_cache.count
 
             # Outros erros de rede -> warning + last-known
             log.warning(
                 "Clientes: erro de rede ao contar; usando last-known=%s (%r)",
-                _LAST_CLIENTS_COUNT,
+                _clients_cache.count,
                 e,
             )
-            with _clients_lock:
-                return _LAST_CLIENTS_COUNT
+            with _clients_cache.lock:
+                return _clients_cache.count
 
         except Exception as e:
             # Último guarda-chuva: não quebrar UI por causa do contador
             log.warning(
                 "Clientes: falha inesperada ao contar; usando last-known=%s (%r)",
-                _LAST_CLIENTS_COUNT,
+                _clients_cache.count,
                 e,
             )
-            with _clients_lock:
-                return _LAST_CLIENTS_COUNT
+            with _clients_cache.lock:
+                return _clients_cache.count
 
 
 def _normalize_payload(valores: dict[str, Any]) -> Tuple[str, str, str, str, str, str]:
@@ -129,8 +139,10 @@ def checar_duplicatas_info(
     *,
     exclude_id: int | None = None,
 ) -> dict[str, object]:
-    """Retorna informações de possíveis duplicatas.
+    """
+    Retorna informações de possíveis duplicatas.
 
+    PERF-001: Otimizado para usar queries diretas no Supabase ao invés de iterar list_clientes().
     - ``cnpj_conflict``: cliente com mesmo ``cnpj_norm`` (None se não houver).
     - ``razao_conflicts``: lista de clientes com mesma razão social mas CNPJ distinto.
     """
@@ -140,7 +152,49 @@ def checar_duplicatas_info(
 
     razao_norm: str = normalize_text(razao or "")
     razao_conflicts: list[Any] = []
-    if razao_norm:
+
+    if razao_norm and CLOUD_ONLY:
+        # PERF-001: Query direta no Supabase usando filtros
+        try:
+            query = supabase.table("clients").select("*").is_("deleted_at", "null")
+
+            if exclude_id:
+                query = query.neq("id", exclude_id)
+
+            if cnpj_norm:
+                # Apenas conflitos com CNPJ diferente
+                query = query.neq("cnpj_norm", cnpj_norm)
+
+            resp = exec_postgrest(query)
+            if resp.data:
+                for cliente_data in resp.data:
+                    cliente_razao = normalize_text(cliente_data.get("razao_social") or "")
+                    if cliente_razao == razao_norm:
+                        # Converte dict para objeto para compatibilidade
+                        from types import SimpleNamespace
+
+                        razao_conflicts.append(SimpleNamespace(**cliente_data))
+        except Exception as exc:
+            log.warning("Falha ao buscar conflitos de razão social no Supabase: %s", exc)
+            # Fallback para método local
+            for cliente in list_clientes():
+                if exclude_id and cliente.id == exclude_id:
+                    continue
+                if normalize_text(cliente.razao_social or "") != razao_norm:
+                    continue
+                cliente_norm: str = (
+                    (cliente.cnpj_norm or "")
+                    if getattr(cliente, "cnpj_norm", None) is not None
+                    else normalize_cnpj_norm(cliente.cnpj or "")
+                )
+                if cnpj_norm:
+                    if cliente_norm == cnpj_norm:
+                        continue
+                elif not cliente_norm:
+                    continue
+                razao_conflicts.append(cliente)
+    elif razao_norm:
+        # Modo local: usa list_clientes()
         for cliente in list_clientes():
             if exclude_id and cliente.id == exclude_id:
                 continue
@@ -155,7 +209,6 @@ def checar_duplicatas_info(
                 if cliente_norm == cnpj_norm:
                     continue
             elif not cliente_norm:
-                # se ambos estão sem CNPJ normalizado, não alerta
                 continue
             razao_conflicts.append(cliente)
 

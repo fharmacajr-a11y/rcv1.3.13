@@ -3,9 +3,23 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any, Callable, Optional
+
+# Import no nível do módulo para permitir DI e evitar lazy imports
+try:
+    from infra.supabase_client import exec_postgrest, supabase
+    from infra.db_schemas import MEMBERSHIPS_SELECT_ROLE, MEMBERSHIPS_SELECT_ORG_ID
+except ImportError:
+    # Fallback para testes sem dependências
+    exec_postgrest = None  # type: ignore
+    supabase = None  # type: ignore
+    MEMBERSHIPS_SELECT_ROLE = "role"  # type: ignore
+    MEMBERSHIPS_SELECT_ORG_ID = "org_id"  # type: ignore
 
 log = logging.getLogger(__name__)
+
+# Type alias para função de exec_postgrest (para DI)
+ExecPostgrestFn = Callable[[Any], Any]
 
 
 class SessionCache:
@@ -14,10 +28,21 @@ class SessionCache:
     # Atributos de classe para rastrear todas as instâncias (para limpeza em testes)
     _all_instances: list[SessionCache] = []
 
-    def __init__(self) -> None:
+    def __init__(self, exec_postgrest_fn: ExecPostgrestFn | None = None, supabase_client: Any = None) -> None:
+        """Inicializa SessionCache com dependency injection opcional.
+
+        Args:
+            exec_postgrest_fn: Função para executar queries PostgreSQL.
+                             Se None, usa exec_postgrest do infra.supabase_client.
+                             Útil para testes com mocks.
+            supabase_client: Cliente supabase para queries. Se None, usa o global.
+        """
         self._user_cache: Optional[dict[str, Any]] = None
         self._role_cache: Optional[str] = None
         self._org_id_cache: Optional[str] = None
+        # DI: usar função/cliente injetados ou padrões do módulo
+        self._exec_postgrest = exec_postgrest_fn or exec_postgrest
+        self._supabase = supabase_client or supabase
         # Registra instância para possível limpeza global
         SessionCache._all_instances.append(self)
 
@@ -49,10 +74,12 @@ class SessionCache:
         if self._user_cache:
             return self._user_cache
 
-        try:
-            from infra.supabase_client import supabase
+        if self._supabase is None:
+            log.warning("Supabase client não disponível")
+            return None
 
-            resp = supabase.auth.get_user()
+        try:
+            resp = self._supabase.auth.get_user()
             u = getattr(resp, "user", None) or resp
             uid = getattr(u, "id", None)
             email = getattr(u, "email", "") or ""
@@ -75,10 +102,13 @@ class SessionCache:
         if self._role_cache:
             return self._role_cache
 
-        try:
-            from infra.supabase_client import exec_postgrest, supabase
+        if self._supabase is None or self._exec_postgrest is None:
+            log.warning("Supabase client ou exec_postgrest não disponível")
+            return "user"
 
-            res = exec_postgrest(supabase.table("memberships").select("role").eq("user_id", uid).limit(1))
+        try:
+            query = self._supabase.table("memberships").select(MEMBERSHIPS_SELECT_ROLE).eq("user_id", uid).limit(1)
+            res = self._exec_postgrest(query)
 
             if getattr(res, "data", None):
                 role_value = res.data[0].get("role")
@@ -101,10 +131,14 @@ class SessionCache:
         if self._org_id_cache:
             return self._org_id_cache
 
-        try:
-            from infra.supabase_client import exec_postgrest, supabase
+        if self._supabase is None or self._exec_postgrest is None:
+            log.warning("Supabase client ou exec_postgrest não disponível")
+            return None
 
-            res = exec_postgrest(supabase.table("memberships").select("org_id").eq("user_id", uid).limit(1))
+        try:
+            res = self._exec_postgrest(
+                self._supabase.table("memberships").select(MEMBERSHIPS_SELECT_ORG_ID).eq("user_id", uid).limit(1)
+            )
 
             if getattr(res, "data", None) and res.data[0].get("org_id"):
                 self._org_id_cache = res.data[0]["org_id"]

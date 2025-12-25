@@ -88,7 +88,8 @@ def test_get_passwords_sem_filtros_retorna_todas(sample_passwords: list[Password
 
         assert len(result) == 3
         assert result == sample_passwords
-        mock_list.assert_called_once_with("org-123")
+        # PERF-003: Atualizado para incluir parâmetros de paginação
+        mock_list.assert_called_once_with("org-123", limit=None, offset=0)
 
 
 def test_get_passwords_com_search_text_filtra_client_name(sample_passwords: list[PasswordRow]) -> None:
@@ -195,6 +196,33 @@ def test_get_passwords_lista_vazia_retorna_vazio() -> None:
         result = get_passwords("org-123")
 
         assert result == []
+
+
+# ============================================================================
+# Test get_passwords com paginação (PERF-003)
+# ============================================================================
+
+
+def test_get_passwords_com_limit_e_offset(sample_passwords: list[PasswordRow]) -> None:
+    """get_passwords deve passar limit e offset para list_passwords."""
+    with patch("data.supabase_repo.list_passwords") as mock_list:
+        mock_list.return_value = sample_passwords[:2]  # Simula que retornou apenas 2
+
+        result = get_passwords("org-123", limit=2, offset=0)
+
+        assert len(result) == 2
+        mock_list.assert_called_once_with("org-123", limit=2, offset=0)
+
+
+def test_get_passwords_com_limit_none_retorna_todas(sample_passwords: list[PasswordRow]) -> None:
+    """get_passwords com limit=None deve retornar todas as senhas."""
+    with patch("data.supabase_repo.list_passwords") as mock_list:
+        mock_list.return_value = sample_passwords
+
+        result = get_passwords("org-123", limit=None, offset=0)
+
+        assert len(result) == 3
+        mock_list.assert_called_once_with("org-123", limit=None, offset=0)
 
 
 # ============================================================================

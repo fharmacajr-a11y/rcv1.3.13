@@ -1,0 +1,16 @@
+src/features/cashflow/dialogs.py
+src/features/cashflow/ui.py
+src/modules/anvisa/views/anvisa_footer.py
+src/modules/auditoria/view.py
+src/modules/cashflow/__init__.py
+src/modules/cashflow/service.py
+src/modules/cashflow/view.py
+src/modules/cashflow/views/__init__.py
+src/modules/cashflow/views/fluxo_caixa_frame.py
+src/modules/clientes/forms/client_form_new.py
+src/modules/clientes/forms/pipeline.py
+src/modules/main_window/views/main_window_bootstrap.py
+src/modules/main_window/views/main_window_layout.py
+src/modules/main_window/views/main_window_services.py
+src/modules/uploads/form_service.py
+src/ui/subpastas/dialog.py

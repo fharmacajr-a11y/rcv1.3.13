@@ -27,6 +27,7 @@ class NotesViewCallbacks:
         on_delete_note_click: Callable[[str], None] | None = None,
         on_toggle_pin_click: Callable[[str], None] | None = None,
         on_toggle_done_click: Callable[[str], None] | None = None,
+        current_user_email: str | None = None,
     ):
         """Inicializa callbacks do painel de notas.
 
@@ -36,12 +37,14 @@ class NotesViewCallbacks:
             on_delete_note_click: Callback quando usuário deleta nota (recebe note_id).
             on_toggle_pin_click: Callback quando usuário fixa/desfixa nota (recebe note_id).
             on_toggle_done_click: Callback quando usuário marca/desmarca como feita (recebe note_id).
+            current_user_email: Email do usuário atual (para validação de permissão).
         """
         self.on_add_note_click = on_add_note_click
         self.on_edit_note_click = on_edit_note_click
         self.on_delete_note_click = on_delete_note_click
         self.on_toggle_pin_click = on_toggle_pin_click
         self.on_toggle_done_click = on_toggle_done_click
+        self.current_user_email = current_user_email
 
 
 def build_notes_side_panel(
@@ -70,6 +73,7 @@ def build_notes_side_panel(
         on_delete_note_click=callbacks.on_delete_note_click,
         on_toggle_pin_click=callbacks.on_toggle_pin_click,
         on_toggle_done_click=callbacks.on_toggle_done_click,
+        current_user_email=callbacks.current_user_email,
     )
 
     return notes_panel

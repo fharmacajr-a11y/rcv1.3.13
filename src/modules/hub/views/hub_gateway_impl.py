@@ -68,7 +68,11 @@ class HubGatewayImpl:
             if session and hasattr(session, "user") and session.user:
                 user_id = session.user.id
                 # Buscar org_id na tabela memberships
-                resp = exec_postgrest(client.table("memberships").select("org_id, role").eq("user_id", user_id))
+                from infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ROLE
+
+                resp = exec_postgrest(
+                    client.table("memberships").select(MEMBERSHIPS_SELECT_ORG_ROLE).eq("user_id", user_id)
+                )
                 rows = resp.data or []
                 if rows:
                     owners = [r for r in rows if (r.get("role") or "").lower() == "owner"]

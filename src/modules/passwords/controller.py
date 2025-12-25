@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from data.domain_types import ClientRow, PasswordRow
 from data.supabase_repo import list_clients_for_picker
@@ -32,8 +31,8 @@ class PasswordsController:
 
     def filter_passwords(
         self,
-        search_text: Optional[str],
-        service_filter: Optional[str],
+        search_text: str | None,
+        service_filter: str | None,
     ) -> list[PasswordRow]:
         """Filtra o cache atual por texto/serviço."""
         return passwords_service.filter_passwords(self._all_passwords, search_text, service_filter)

@@ -106,6 +106,9 @@ class BusyDialog(tk.Toplevel):
 class ProgressDialog(tb.Toplevel):
     """Diálogo canônico de progresso com mensagens, ETA e botão Cancelar opcional."""
 
+    DIALOG_MIN_WIDTH = 460
+    WRAP_LEN = 420
+
     def __init__(
         self,
         parent: tk.Misc,
@@ -138,35 +141,74 @@ class ProgressDialog(tb.Toplevel):
         self.transient(owner)
         self.protocol("WM_DELETE_WINDOW", self._handle_wm_delete)
 
-        body = tb.Frame(self, padding=16)
-        body.pack(fill="both", expand=True)
+        # Grid layout limpo e compacto
+        self.rowconfigure(0, weight=0)
+        self.columnconfigure(0, weight=1)
 
-        wrap_len = 360
+        body = tb.Frame(self, padding=(16, 12, 16, 12))
+        body.grid(row=0, column=0, sticky="nsew")
+        body.columnconfigure(0, weight=1)
+        body.columnconfigure(1, weight=0)
+
         self._message_var = tk.StringVar(value=message)
         self._detail_var = tk.StringVar(value=detail)
         self._eta_var = tk.StringVar(value="")
 
-        tb.Label(body, textvariable=self._message_var, anchor="w", justify="left", wraplength=wrap_len).pack(
-            fill="x", pady=(0, 6)
-        )
-        tb.Label(body, textvariable=self._detail_var, anchor="w", justify="left", wraplength=wrap_len).pack(
-            fill="x", pady=(0, 6)
-        )
+        # Linha 1: Mensagem principal em negrito
+        tb.Label(
+            body,
+            textvariable=self._message_var,
+            anchor="w",
+            justify="left",
+            wraplength=self.WRAP_LEN,
+            font=("Segoe UI", 10),
+        ).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 6))
 
-        self._progress = tb.Progressbar(body, mode="determinate", maximum=100, length=wrap_len)
-        self._progress.pack(fill="x", pady=(0, 4))
+        # Linha 2: Status (esquerda: x/y %) (direita: Tempo/ETA)
+        tb.Label(
+            body,
+            textvariable=self._detail_var,
+            anchor="w",
+            justify="left",
+            foreground="#6c757d",
+            wraplength=280,
+        ).grid(row=1, column=0, sticky="w", pady=(0, 4))
 
-        self._eta_label = tb.Label(body, textvariable=self._eta_var, anchor="w", justify="left", wraplength=wrap_len)
-        self._eta_label.pack(fill="x", pady=(0, 10))
+        tb.Label(
+            body,
+            textvariable=self._eta_var,
+            anchor="e",
+            justify="right",
+            foreground="#6c757d",
+            wraplength=140,
+        ).grid(row=1, column=1, sticky="e", pady=(0, 4))
 
+        # Linha 3: Barra de progresso azul clara com listras
+        self._progress = tb.Progressbar(body, mode="determinate", maximum=100, length=420, bootstyle="info-striped")
+        self._progress.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(0, 8))
+
+        # Botão Cancelar: canto direito, vermelho
         if can_cancel:
-            self._cancel_button = tb.Button(body, text="Cancelar", command=self._handle_cancel)
-            self._cancel_button.pack(pady=(0, 4))
+            self._cancel_button = tb.Button(body, text="Cancelar", command=self._handle_cancel, bootstyle="danger")
+            self._cancel_button.grid(row=3, column=1, sticky="e", pady=(8, 0))
 
+        # Forçar altura exata para evitar espaço branco extra
         try:
             self.update_idletasks()
+            req_w = max(self.DIALOG_MIN_WIDTH, self.winfo_reqwidth())
+            req_h = self.winfo_reqheight()
+            self.geometry(f"{req_w}x{req_h}")
+            self.minsize(req_w, req_h)
             show_centered(self)
-            self.deiconify()
+
+            # Reaplicar tamanho mantendo posição para evitar expansão
+            self.update_idletasks()
+            x, y = self.winfo_x(), self.winfo_y()
+            w = self.winfo_width()
+            h = self.winfo_reqheight()
+            self.geometry(f"{w}x{h}+{x}+{y}")
+            self.minsize(w, h)
+
             self.grab_set()
             self.focus_force()
         except Exception as exc:  # noqa: BLE001

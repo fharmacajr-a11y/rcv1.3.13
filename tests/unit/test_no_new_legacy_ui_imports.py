@@ -38,6 +38,11 @@ ALLOWED_PREFIXES = [
     "src.ui.custom_dialogs",
     "src.ui.utils",  # OkCancelMixin, center_on_parent
     "src.ui.progress.pdf_batch_progress",  # PDF batch progress específico
+    "src.ui.theme_manager",  # Gerenciador de temas
+    "src.ui.themes",  # Definições de temas
+    "src.ui.controllers",  # Controllers de UI (NotificationVM, TopbarNotificationsController)
+    "src.ui.theme_toggle",  # Toggle de tema dark/light
+    "src.ui.win_titlebar",  # Dark mode para titlebar Windows
 ]
 
 # Prefixos de wrappers deprecated (proibidos)

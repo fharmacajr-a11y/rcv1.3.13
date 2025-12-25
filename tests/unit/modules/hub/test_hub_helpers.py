@@ -109,10 +109,11 @@ def test_format_timestamp_none():
 
 
 def test_format_timestamp_invalid_format():
-    """_format_timestamp deve retornar string original para formato inválido."""
+    """_format_timestamp deve retornar '?' para formato inválido."""
     invalid = "not-a-timestamp"
     result = _format_timestamp(invalid)
-    assert result == invalid
+    # BUG-006: Função retorna "?" para formatos inválidos
+    assert result == "?"
 
 
 def test_format_note_line_basic():

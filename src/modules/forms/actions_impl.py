@@ -17,7 +17,8 @@ import logging
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox
-
+from typing import Any, Mapping, Protocol, cast
+from typing_extensions import TypedDict
 from src.modules.clientes.service import extrair_dados_cartao_cnpj_em_pasta
 from src.modules.uploads.external_upload_service import (
     salvar_e_enviar_para_supabase_service,
@@ -31,6 +32,38 @@ from src.ui.components.upload_feedback import show_upload_result_message
 from src.modules.uploads.uploader_supabase import _select_pdfs_dialog
 
 log = logging.getLogger(__name__)
+
+
+# -----------------------------------------------------------------------------
+# Type Contracts
+# -----------------------------------------------------------------------------
+class EntryLike(Protocol):
+    """Protocol para widgets tipo Entry (duck typing)."""
+
+    def delete(self, first: int | str, last: str | None = None) -> None: ...
+    def insert(self, index: int | str, string: str) -> None: ...
+    def get(self) -> str: ...
+
+
+class StorageObjectInfo(TypedDict, total=False):
+    """Shape de um objeto de storage."""
+
+    name: str
+    size: int
+    updated: str
+
+
+class ServiceResult(TypedDict, total=False):
+    """Shape genérico de retorno de services."""
+
+    ok: bool
+    message: str
+    errors: list[str]
+    error_type: str
+    result: Any
+    objects: list[StorageObjectInfo]
+    local_path: str | None
+
 
 # -----------------------------------------------------------------------------
 # Shared helpers
@@ -50,7 +83,7 @@ except Exception:  # pragma: no cover
 # -----------------------------------------------------------------------------
 # Preenchimento via Cartão CNPJ
 # -----------------------------------------------------------------------------
-def preencher_via_pasta(ents: dict) -> None:
+def preencher_via_pasta(ents: Mapping[str, EntryLike]) -> None:
     """
     Preenche campos do formulário a partir de Cartão CNPJ em pasta (UI layer).
 
@@ -90,7 +123,12 @@ def preencher_via_pasta(ents: dict) -> None:
 # -----------------------------------------------------------------------------
 # Upload com telinha (thread) – usado por "Salvar + Enviar para Supabase"
 # -----------------------------------------------------------------------------
-def salvar_e_enviar_para_supabase(self, row, ents, win=None):
+def salvar_e_enviar_para_supabase(
+    self: Any,
+    row: Mapping[str, Any],
+    ents: Mapping[str, EntryLike],
+    win: Any = None,
+) -> Any:
     """
     Orquestra o fluxo de salvar + enviar documentos para armazenamento externo (UI layer).
 
@@ -138,7 +176,7 @@ def salvar_e_enviar_para_supabase(self, row, ents, win=None):
 # -----------------------------------------------------------------------------
 # "Ver Subpastas" – manter compatível com app_gui
 # -----------------------------------------------------------------------------
-def list_storage_objects(bucket_name: str | None, prefix: str = "") -> list:
+def list_storage_objects(bucket_name: str | None, prefix: str = "") -> list[StorageObjectInfo]:
     """
     Lista objetos do Storage (delega ao service, trata UI).
 
@@ -171,7 +209,11 @@ def list_storage_objects(bucket_name: str | None, prefix: str = "") -> list:
     return service_result.get("objects", [])
 
 
-def download_file(bucket_name: str | None, file_path: str, local_path: str | None = None):
+def download_file(
+    bucket_name: str | None,
+    file_path: str,
+    local_path: str | None = None,
+) -> ServiceResult:
     """
     Faz download de arquivo do Storage (delega ao service).
 
@@ -196,10 +238,17 @@ def download_file(bucket_name: str | None, file_path: str, local_path: str | Non
     }
 
     # 3. DELEGAR AO SERVICE E RETORNAR RESULTADO
-    return download_file_service(ctx)
+    return cast(ServiceResult, download_file_service(ctx))
 
 
-def salvar_e_upload_docs(self, row, ents: dict, arquivos_selecionados: list | None, win=None, **kwargs):
+def salvar_e_upload_docs(
+    self: Any,
+    row: Mapping[str, Any],
+    ents: Mapping[str, EntryLike],
+    arquivos_selecionados: list[str] | None,
+    win: Any = None,
+    **kwargs: Any,
+) -> None:
     """
     DEPRECATED (UP-05): Use UploadDialog em vez disso.
 
@@ -235,7 +284,7 @@ __all__ = [
 ]
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
     """Lazy import de SubpastaDialog para evitar ciclos de import."""
     if name == "SubpastaDialog":
         from src.modules.clientes.forms.client_subfolder_prompt import SubpastaDialog

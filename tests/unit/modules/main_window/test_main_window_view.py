@@ -23,6 +23,7 @@ def app_hidden(tk_root_session):
     # Configurar atributos essenciais manualmente
     app._session = MagicMock()
     app.nav = MagicMock()
+    app._router = MagicMock()  # Mock do ScreenRouter
     app._status_monitor = MagicMock()
     app.auth = MagicMock()
     app._actions = MagicMock()
@@ -145,44 +146,46 @@ def test_app_inicializa_flags_estado(app_hidden):
 # ==================== Testes de Navegação ====================
 
 
-@patch("src.modules.main_window.views.main_window.navigate_to")
-def test_app_show_hub_screen_chama_nav(mock_navigate, app_hidden):
-    """Testa que show_hub_screen usa navigate_to."""
-    app_hidden.show_hub_screen()
+def test_app_show_hub_screen_chama_router(app_hidden):
+    """Testa que show_hub_screen usa router."""
+    with patch.object(app_hidden._router, "show", return_value=MagicMock()) as mock_show:
+        app_hidden.show_hub_screen()
 
-    mock_navigate.assert_called_once_with(app_hidden, "hub")
-
-
-@patch("src.modules.main_window.views.main_window.navigate_to")
-def test_app_show_main_screen_chama_nav(mock_navigate, app_hidden):
-    """Testa que show_main_screen usa navigate_to."""
-    app_hidden.show_main_screen()
-
-    mock_navigate.assert_called_once_with(app_hidden, "main")
+        mock_show.assert_called_once_with("hub")
 
 
-@patch("src.modules.main_window.views.main_window.navigate_to")
-def test_app_show_passwords_screen_chama_nav(mock_navigate, app_hidden):
-    """Testa que show_passwords_screen navega corretamente."""
-    app_hidden.show_passwords_screen()
+def test_app_show_main_screen_chama_router(app_hidden):
+    """Testa que show_main_screen usa router."""
+    with patch.object(app_hidden._router, "show", return_value=MagicMock()) as mock_show:
+        app_hidden.show_main_screen()
 
-    mock_navigate.assert_called_once_with(app_hidden, "passwords")
-
-
-@patch("src.modules.main_window.views.main_window.navigate_to")
-def test_app_show_cashflow_screen_chama_nav(mock_navigate, app_hidden):
-    """Testa que show_cashflow_screen navega corretamente."""
-    app_hidden.show_cashflow_screen()
-
-    mock_navigate.assert_called_once_with(app_hidden, "cashflow")
+        mock_show.assert_called_once_with("main")
 
 
-@patch("src.modules.main_window.views.main_window.navigate_to")
-def test_app_show_placeholder_screen_chama_nav(mock_navigate, app_hidden):
-    """Testa que show_placeholder_screen navega corretamente."""
-    app_hidden.show_placeholder_screen("Teste")
+def test_app_show_passwords_screen_chama_router(app_hidden):
+    """Testa que show_passwords_screen usa router."""
+    with patch.object(app_hidden._router, "show", return_value=MagicMock()) as mock_show:
+        app_hidden.show_passwords_screen()
 
-    mock_navigate.assert_called_once_with(app_hidden, "placeholder", title="Teste")
+        mock_show.assert_called_once_with("passwords")
+
+
+def test_app_show_cashflow_screen_chama_router(app_hidden):
+    """Testa que show_cashflow_screen usa router."""
+    with patch.object(app_hidden._router, "show", return_value=MagicMock()) as mock_show:
+        app_hidden.show_cashflow_screen()
+
+        mock_show.assert_called_once_with("cashflow")
+
+
+def test_app_show_placeholder_screen_chama_router(app_hidden):
+    """Testa que show_placeholder_screen usa router (BUGFIX-HUB-UI-001)."""
+    with patch.object(app_hidden._router, "show", return_value=MagicMock()) as mock_show:
+        app_hidden.show_placeholder_screen("Teste")
+
+        mock_show.assert_called_once_with("placeholder")
+        # Verifica que o título foi armazenado
+        assert app_hidden._placeholder_title == "Teste"
 
 
 # ==================== Testes de Ações Delegadas ====================
@@ -375,8 +378,8 @@ def test_app_handle_menu_theme_change_chama_set_theme(app_hidden):
 
 def test_app_on_menu_logout_chama_auth_logout(app_hidden):
     """Testa que _on_menu_logout() chama logout do supabase."""
-    with patch("src.modules.main_window.views.main_window.custom_dialogs.ask_ok_cancel", return_value=True):
-        with patch("src.modules.main_window.views.main_window.supabase_auth.logout") as mock_logout:
+    with patch("src.ui.custom_dialogs.ask_ok_cancel", return_value=True):
+        with patch("infra.supabase_auth.logout") as mock_logout:
             app_hidden._on_menu_logout()
 
             mock_logout.assert_called_once_with(app_hidden._client)
@@ -389,7 +392,7 @@ def test_app_confirm_exit_pergunta_confirmacao(app_hidden):
     em vez de custom_dialogs.ask_ok_cancel, pois a implementação
     atual usa Tkinter messagebox diretamente.
     """
-    with patch("src.modules.main_window.views.main_window.messagebox.askokcancel") as mock_confirm:
+    with patch("src.modules.main_window.views.main_window_actions.messagebox.askokcancel") as mock_confirm:
         mock_confirm.return_value = False  # Usuário cancela
 
         app_hidden._confirm_exit()
@@ -403,7 +406,7 @@ def test_app_confirm_exit_destroi_quando_confirmado(app_hidden):
 
     FIX-TESTS-001: Atualizado para patchar messagebox.askokcancel.
     """
-    with patch("src.modules.main_window.views.main_window.messagebox.askokcancel") as mock_confirm:
+    with patch("src.modules.main_window.views.main_window_actions.messagebox.askokcancel") as mock_confirm:
         mock_confirm.return_value = True  # Usuário confirma
         app_hidden.destroy = Mock()
 
@@ -491,11 +494,13 @@ def test_app_update_topbar_state_marca_hub_quando_hubframe(app_hidden):
     from src.modules.notas import HubFrame
 
     app_hidden._topbar.set_is_hub = Mock()
+    app_hidden._topbar.set_active_screen = Mock()
     app_hidden._menu.set_is_hub = Mock()
 
     app_hidden._update_topbar_state(HubFrame)
 
-    app_hidden._topbar.set_is_hub.assert_called()
+    # Agora chama set_active_screen ao invés de apenas set_is_hub
+    app_hidden._topbar.set_active_screen.assert_called()
     app_hidden._menu.set_is_hub.assert_called()
 
 
@@ -504,11 +509,13 @@ def test_app_update_topbar_state_nao_marca_hub_quando_outros(app_hidden):
     from src.modules.clientes import ClientesFrame
 
     app_hidden._topbar.set_is_hub = Mock()
+    app_hidden._topbar.set_active_screen = Mock()
     app_hidden._menu.set_is_hub = Mock()
 
     app_hidden._update_topbar_state(ClientesFrame)
 
-    app_hidden._topbar.set_is_hub.assert_called()
+    # Agora chama set_active_screen ao invés de apenas set_is_hub
+    app_hidden._topbar.set_active_screen.assert_called()
     app_hidden._menu.set_is_hub.assert_called()
 
 

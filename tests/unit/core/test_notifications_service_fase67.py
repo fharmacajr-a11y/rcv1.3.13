@@ -320,7 +320,7 @@ class TestFetchLatest:
         result = service.fetch_latest(limit=10)
 
         assert len(result) == 2
-        mock_repository.list_notifications.assert_called_once_with("org-123", 10)
+        mock_repository.list_notifications.assert_called_once_with("org-123", 10, exclude_actor_email=None)
 
     def test_repo_exception_retorna_vazio(
         self,
@@ -458,7 +458,7 @@ class TestFetchUnreadCount:
         result = service.fetch_unread_count()
 
         assert result == 5
-        mock_repository.count_unread.assert_called_once_with("org-123")
+        mock_repository.count_unread.assert_called_once_with("org-123", exclude_actor_email=None)
 
     def test_repo_exception_retorna_zero(
         self,

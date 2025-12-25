@@ -10,6 +10,9 @@ from .misc import (
     draw_whatsapp_overlays,
     get_whatsapp_icon,
 )
+from .notifications import NotificationsButton, NotificationsPopup
+from .topbar_actions import TopbarActions
+from .topbar_nav import TopbarNav
 
 __all__ = [
     # buttons
@@ -29,4 +32,10 @@ __all__ = [
     "create_status_bar",
     "get_whatsapp_icon",
     "draw_whatsapp_overlays",
+    # topbar (P2 Microfase 1 e 2)
+    "TopbarNav",
+    "TopbarActions",
+    # notifications (P2 Microfase 2)
+    "NotificationsButton",
+    "NotificationsPopup",
 ]

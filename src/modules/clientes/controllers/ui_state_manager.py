@@ -93,7 +93,6 @@ class UiStateManager:
 
         # Aplicar estados:
         self.btn_editar.configure(state="normal" if button_states.editar else "disabled")
-        self.btn_enviar.configure(text=button_states.enviar_text)
     """
 
     def __init__(self) -> None:

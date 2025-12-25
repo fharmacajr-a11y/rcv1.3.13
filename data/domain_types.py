@@ -41,6 +41,16 @@ class PasswordRow(TypedDict):
     created_at: str  # ISO timestamp of creation
     updated_at: str  # ISO timestamp of last update
 
+    # Coluna nullable/relacionamento (pode aparecer em selects)
+    client_id: NotRequired[str | None]
+
+    # Campos retornados pelo JOIN/flatten do list_passwords (podem não existir em outras operações)
+    client_external_id: NotRequired[str | int]
+    razao_social: NotRequired[str]
+    cnpj: NotRequired[str]
+    nome: NotRequired[str]
+    whatsapp: NotRequired[str]
+
 
 # =============================================================================
 # Clients Table

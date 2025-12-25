@@ -96,7 +96,23 @@ def mock_pasta_helpers(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> dict[s
 @pytest.fixture
 def reset_last_clients_count(monkeypatch: pytest.MonkeyPatch) -> None:
     """Reseta o contador global antes de cada teste."""
-    monkeypatch.setattr("src.core.services.clientes_service._LAST_CLIENTS_COUNT", 0)
+    # BUG-002: Usar _clients_cache ao invés de _LAST_CLIENTS_COUNT
+    import src.core.services.clientes_service as svc
+
+    with svc._clients_cache.lock:
+        svc._clients_cache.count = 0
+
+
+@pytest.fixture(autouse=True)
+def _force_cloud_only_false(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    TESTFIX-DUPLICATAS-001: Force CLOUD_ONLY=False para unit tests.
+
+    Unit tests devem ser determinísticos e offline (sem network real).
+    PERF-001 introduziu branch CLOUD_ONLY que chama Supabase diretamente,
+    mas esses testes mockam list_clientes/find_cliente_by_cnpj_norm.
+    """
+    monkeypatch.setattr("src.core.services.clientes_service.CLOUD_ONLY", False, raising=False)
 
 
 # ==========================================
@@ -110,8 +126,9 @@ def test_count_clients_success(mock_supabase_exec: Mock, reset_last_clients_coun
 
     result = count_clients()
     assert result == 42
-    # Verifica que o cache foi atualizado
-    assert clientes_service._LAST_CLIENTS_COUNT == 42
+    # BUG-002: Verifica que o cache foi atualizado
+    with clientes_service._clients_cache.lock:
+        assert clientes_service._clients_cache.count == 42
 
 
 def test_count_clients_none_count(mock_supabase_exec: Mock, reset_last_clients_count: None) -> None:
@@ -122,7 +139,9 @@ def test_count_clients_none_count(mock_supabase_exec: Mock, reset_last_clients_c
 
     result = count_clients()
     assert result == 0
-    assert clientes_service._LAST_CLIENTS_COUNT == 0
+    # BUG-002: Verifica cache
+    with clientes_service._clients_cache.lock:
+        assert clientes_service._clients_cache.count == 0
 
 
 def test_count_clients_winerror_10035_retry(
@@ -147,7 +166,9 @@ def test_count_clients_winerror_10035_retry(
 
     result = count_clients(max_retries=2, base_delay=0.0)
     assert result == 99
-    assert clientes_service._LAST_CLIENTS_COUNT == 99
+    # BUG-002: Verificar cache atualizado
+    with clientes_service._clients_cache.lock:
+        assert clientes_service._clients_cache.count == 99
     # Verifica que tentou 3 vezes
     assert mock_supabase_exec.call_count == 3
 
@@ -158,8 +179,9 @@ def test_count_clients_winerror_10035_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """count_clients usa last-known se esgotar retries em 10035."""
-    # Primeiro, popular o cache com valor 123
-    monkeypatch.setattr("src.core.services.clientes_service._LAST_CLIENTS_COUNT", 123)
+    # BUG-002: Popular o cache com valor 123
+    with clientes_service._clients_cache.lock:
+        clientes_service._clients_cache.count = 123
 
     # Agora sempre falha com 10035
     err = OSError("WSAEWOULDBLOCK")
@@ -170,8 +192,9 @@ def test_count_clients_winerror_10035_fallback(
 
     result = count_clients(max_retries=2, base_delay=0.0)
     assert result == 123  # Deve usar last-known
-    # cache não mudou
-    assert clientes_service._LAST_CLIENTS_COUNT == 123
+    # BUG-002: cache não mudou
+    with clientes_service._clients_cache.lock:
+        assert clientes_service._clients_cache.count == 123
 
 
 def test_count_clients_other_oserror_fallback(
@@ -180,7 +203,9 @@ def test_count_clients_other_oserror_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """count_clients usa last-known se houver OSError não-10035."""
-    monkeypatch.setattr("src.core.services.clientes_service._LAST_CLIENTS_COUNT", 50)
+    # BUG-002: Popular cache
+    with clientes_service._clients_cache.lock:
+        clientes_service._clients_cache.count = 50
     mock_supabase_exec.side_effect = OSError("Connection refused")
 
     result = count_clients()
@@ -193,7 +218,9 @@ def test_count_clients_generic_exception_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """count_clients usa last-known se houver Exception genérica."""
-    monkeypatch.setattr("src.core.services.clientes_service._LAST_CLIENTS_COUNT", 10)
+    # BUG-002: Popular cache
+    with clientes_service._clients_cache.lock:
+        clientes_service._clients_cache.count = 10
     mock_supabase_exec.side_effect = ValueError("Unexpected error")
 
     result = count_clients()
@@ -219,7 +246,9 @@ def test_count_clients_thread_safety(mock_supabase_exec: Mock, reset_last_client
 
     # Todos devem ter retornado 77
     assert all(r == 77 for r in results)
-    assert clientes_service._LAST_CLIENTS_COUNT == 77
+    # BUG-002: Verificar cache
+    with clientes_service._clients_cache.lock:
+        assert clientes_service._clients_cache.count == 77
 
 
 # ==========================================
@@ -571,6 +600,9 @@ def test_salvar_cliente_update_success(
 
 def test_salvar_cliente_update_cnpj_conflict_exclude_self(
     mock_db_manager: dict[str, Mock],
+    mock_audit_log: Mock,
+    mock_session_user: Mock,
+    mock_pasta_helpers: dict[str, Any],
 ) -> None:
     """salvar_cliente permite update se CNPJ conflitante é o próprio cliente."""
     # Cliente 99 já tem CNPJ 12.345.678/0001-10

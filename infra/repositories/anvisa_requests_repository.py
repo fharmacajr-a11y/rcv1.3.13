@@ -19,6 +19,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ID
+
 log = logging.getLogger(__name__)
 
 
@@ -63,7 +65,9 @@ def _resolve_org_id(user_id: str) -> str:
     from infra.supabase_client import supabase
 
     try:
-        response = supabase.table("memberships").select("org_id").eq("user_id", user_id).limit(1).execute()
+        response = (
+            supabase.table("memberships").select(MEMBERSHIPS_SELECT_ORG_ID).eq("user_id", user_id).limit(1).execute()
+        )
         data = getattr(response, "data", None) or []
 
         if not data:

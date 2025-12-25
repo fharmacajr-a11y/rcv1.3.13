@@ -105,27 +105,41 @@ def read_pdf_text(path: PathLike) -> str | None:
     """
     Extrai texto de PDF usando estratégia de fallback em cascata.
 
-    Ordem de tentativa (otimizada pós-Sprint P1):
-    1. PyMuPDF (fitz) - Mais robusto, rápido e completo
-    2. pypdf - Fallback para PDFs simples
+    Ordem de tentativa (otimizada pós-segfault BATCH 10B):
+    1. pypdf - Pure-Python, seguro, compatível PDF 2.0 (PRIMÁRIO)
+    2. PyMuPDF (fitz) - Fallback (C-bindings, pode segfault)
     3. OCR com PyMuPDF + Tesseract - Para PDFs escaneados
+
+    KILL-SWITCH: RC_DISABLE_PYMUPDF=1 desabilita PyMuPDF completamente (pypdf→OCR apenas)
 
     Nota de Segurança (Sprint P1-SEG/DEP):
     - pdfminer-six REMOVIDO (CVE GHSA-f83h-ghpp-7wcc, CVSS 7.8 HIGH)
     - Eliminação completa do vetor de ataque de desserialização pickle
     """
+    import os
+
     p = Path(path)
     if not p.exists() or not p.is_file():
         return None
 
-    # Ordem otimizada: PyMuPDF (primário) → pypdf (fallback) → OCR
-    for fn in (_read_pdf_text_pymupdf, _read_pdf_text_pypdf):
+    # Kill-switch: desabilita PyMuPDF completamente se env var configurada
+    disable_pymupdf = os.getenv("RC_DISABLE_PYMUPDF") == "1"
+
+    # Ordem: pypdf primeiro (puro Python, mais seguro), depois fitz (pode segfault)
+    strategies = [_read_pdf_text_pypdf]
+    if not disable_pymupdf:
+        strategies.append(_read_pdf_text_pymupdf)
+
+    for fn in strategies:
         txt = fn(p)
         if txt:
             return txt
 
-    # Último recurso: OCR para PDFs escaneados
-    return _ocr_pdf_with_pymupdf(p)
+    # Último recurso: OCR para PDFs escaneados (se PyMuPDF não desabilitado)
+    if not disable_pymupdf:
+        return _ocr_pdf_with_pymupdf(p)
+
+    return None
 
 
 _CNPJ_RX = re.compile(r"\b\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}\b", re.IGNORECASE)

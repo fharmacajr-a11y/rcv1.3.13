@@ -292,9 +292,7 @@ class AnvisaHandlersMixin:
         # Confirmar
         confirm = messagebox.askyesno(
             "Confirmar Finalização",
-            f"Marcar esta demanda como Finalizada?\n\n"
-            f"Tipo: {tipo}\n\n"
-            f"Esta ação irá mudar o status para 'CONCLUIDA'.",
+            f"Marcar esta demanda como Finalizada?\n\nTipo: {tipo}\n\nEsta ação irá mudar o status para 'CONCLUIDA'.",
             icon="question",
         )
 
@@ -327,7 +325,7 @@ class AnvisaHandlersMixin:
                     self.tree_requests.focus(client_id)  # type: ignore[attr-defined]
                     self.tree_requests.see(client_id)  # type: ignore[attr-defined]
                 except Exception:
-                    pass  # Ignorar se cliente não existir mais (todas demandas excluídas)
+                    log.debug(f"Cliente {client_id} não existe mais na árvore (todas demandas foram excluídas)")
 
                 self.last_action.set(f"Demanda finalizada: {tipo}")  # type: ignore[attr-defined]
 
@@ -396,7 +394,7 @@ class AnvisaHandlersMixin:
         # Confirmar
         confirm = messagebox.askyesno(
             "Confirmar Cancelamento",
-            f"Cancelar esta demanda?\n\n" f"Tipo: {tipo}\n\n" f"Esta ação irá mudar o status para 'canceled'.",
+            f"Cancelar esta demanda?\n\nTipo: {tipo}\n\nEsta ação irá mudar o status para 'canceled'.",
             icon="question",
         )
 
@@ -429,7 +427,7 @@ class AnvisaHandlersMixin:
                     self.tree_requests.focus(client_id)  # type: ignore[attr-defined]
                     self.tree_requests.see(client_id)  # type: ignore[attr-defined]
                 except Exception:
-                    pass  # Ignorar se cliente não existir mais
+                    log.debug(f"Cliente {client_id} não existe mais na árvore (todas demandas foram excluídas)")
 
                 self.last_action.set(f"Demanda cancelada: {tipo}")  # type: ignore[attr-defined]
 
@@ -489,7 +487,7 @@ class AnvisaHandlersMixin:
         # Confirmar exclusão
         confirm = messagebox.askyesno(
             "Confirmar Exclusão",
-            f"Tem certeza que deseja excluir a demanda?\n\n" f"Tipo: {tipo}\n\n" f"Esta ação não pode ser desfeita.",
+            f"Tem certeza que deseja excluir a demanda?\n\nTipo: {tipo}\n\nEsta ação não pode ser desfeita.",
             icon="warning",
         )
 
@@ -521,7 +519,7 @@ class AnvisaHandlersMixin:
                     self.tree_requests.selection_set(client_id)  # type: ignore[attr-defined]
                     self.tree_requests.focus(client_id)  # type: ignore[attr-defined]
                 except Exception:
-                    pass  # Cliente foi removido (todas demandas excluídas)
+                    log.debug(f"Cliente {client_id} foi removido da árvore (todas demandas excluídas)")
 
                 self.last_action.set(f"Demanda excluída: {tipo}")  # type: ignore[attr-defined]
 

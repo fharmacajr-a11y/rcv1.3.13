@@ -1,0 +1,18 @@
+﻿deptry : Scanning 473 files...
+No linha:1 caractere:46
++ cd "c:\Users\Pichau\Desktop\v1.4.93 ''ok''"; deptry . 2>&1 | Out-File ...
++                                              ~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Scanning 473 files...:String) [
+   ], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+
+[1msrc\modules\main_window\views\main_window_handlers.py[m[36m:[m206[36m
+:[m9[36m:[m [1m[31mDEP001[m 'config' imported but missing from the
+dependency definitions
+[1msrc\modules\main_window\views\main_window_services.py[m[36m:[m52[36m:
+[m9[36m:[m [1m[31mDEP001[m 'config' imported but missing from the
+dependency definitions
+[1m[31mFound 2 dependency issues.[m
+
+For more information, see the documentation: https://deptry.com/

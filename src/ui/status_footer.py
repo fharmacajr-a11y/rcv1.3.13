@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tkinter as tk
 from tkinter import ttk
+from typing import Optional
 
 CLOUD_COLORS = {
     "ONLINE": "#22c55e",
@@ -77,7 +78,7 @@ class StatusFooter(ttk.Frame):
         self._user_email = email or "-"
         self._lbl_user.config(text=f"Usuário: {self._user_email}")
 
-    def set_cloud(self, state: str):
+    def set_cloud(self, state: Optional[str]) -> None:
         state = (state or "UNKNOWN").upper()
         if state not in CLOUD_COLORS:
             state = "UNKNOWN"

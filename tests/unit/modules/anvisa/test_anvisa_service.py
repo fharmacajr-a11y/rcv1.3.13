@@ -842,72 +842,10 @@ def test_normalize_status_already_canonical(service: AnvisaService) -> None:
     assert service.normalize_status("canceled") == "canceled"
 
 
-def test_normalize_status_case_insensitive(service: AnvisaService) -> None:
-    """Deve funcionar com case diferente."""
-    assert service.normalize_status("ABERTA") == "draft"
-    assert service.normalize_status("Finalizada") == "done"
-
-
 def test_normalize_status_with_whitespace(service: AnvisaService) -> None:
     """Deve ignorar espaços extras."""
     assert service.normalize_status("  aberta  ") == "draft"
     assert service.normalize_status("  em andamento  ") == "in_progress"
-
-
-# ===== Testes de can_close =====
-
-
-def test_can_close_open_statuses(service: AnvisaService) -> None:
-    """Deve permitir fechar demandas abertas."""
-    assert service.can_close("draft") is True
-    assert service.can_close("submitted") is True
-    assert service.can_close("in_progress") is True
-
-
-def test_can_close_closed_statuses(service: AnvisaService) -> None:
-    """Não deve permitir fechar demandas já fechadas."""
-    assert service.can_close("done") is False
-    assert service.can_close("canceled") is False
-
-
-# ===== Testes de can_cancel =====
-
-
-def test_can_cancel_open_statuses(service: AnvisaService) -> None:
-    """Deve permitir cancelar demandas abertas."""
-    assert service.can_cancel("draft") is True
-    assert service.can_cancel("submitted") is True
-    assert service.can_cancel("in_progress") is True
-
-
-def test_can_cancel_closed_statuses(service: AnvisaService) -> None:
-    """Não deve permitir cancelar demandas já fechadas."""
-    assert service.can_cancel("done") is False
-    assert service.can_cancel("canceled") is False
-
-
-# ===== Testes de allowed_actions =====
-
-
-def test_allowed_actions_open_status(service: AnvisaService) -> None:
-    """Deve permitir todas ações para demandas abertas."""
-    actions = service.allowed_actions("draft")
-    assert actions["close"] is True
-    assert actions["cancel"] is True
-    assert actions["delete"] is True
-
-
-def test_allowed_actions_closed_status(service: AnvisaService) -> None:
-    """Deve permitir apenas delete para demandas fechadas."""
-    actions = service.allowed_actions("done")
-    assert actions["close"] is False
-    assert actions["cancel"] is False
-    assert actions["delete"] is True
-
-    actions = service.allowed_actions("canceled")
-    assert actions["close"] is False
-    assert actions["cancel"] is False
-    assert actions["delete"] is True
 
 
 def test_allowed_actions_with_legacy_status(service: AnvisaService) -> None:
@@ -1165,3 +1103,242 @@ def test_build_history_rows_includes_actions_for_closed_status(service: AnvisaSe
         assert actions["close"] is False
         assert actions["cancel"] is False
         assert actions["delete"] is True
+
+
+# ===== Testes adicionais de cobertura =====
+
+
+def test_normalize_request_type_valid_types(service: AnvisaService) -> None:
+    """Testa normalização de tipos válidos (case-insensitive)."""
+    # Uppercase
+    assert service.normalize_request_type("ALTERAÇÃO DO RESPONSÁVEL LEGAL") == "Alteração do Responsável Legal"
+    # Lowercase
+    assert service.normalize_request_type("alteração do responsável legal") == "Alteração do Responsável Legal"
+    # Mixed case com espaços extras
+    assert service.normalize_request_type("  Alteração do Responsável Legal  ") == "Alteração do Responsável Legal"
+    # Todos os tipos oficiais
+    from src.modules.anvisa.constants import REQUEST_TYPES
+
+    for official in REQUEST_TYPES:
+        assert service.normalize_request_type(official) == official
+        assert service.normalize_request_type(official.upper()) == official
+        assert service.normalize_request_type(official.lower()) == official
+
+
+def test_normalize_request_type_invalid_type(service: AnvisaService) -> None:
+    """Testa normalização de tipo inválido (retorna vazio)."""
+    assert service.normalize_request_type("Tipo Inventado") == ""
+    assert service.normalize_request_type("") == ""
+    assert service.normalize_request_type("   ") == ""
+
+
+def test_validate_new_request_in_memory_valid(service: AnvisaService) -> None:
+    """Testa validação bem-sucedida de nova demanda."""
+    demandas = []  # Nenhuma demanda aberta
+
+    ok, dup, msg = service.validate_new_request_in_memory(demandas, "Alteração de Porte")
+
+    assert ok is True
+    assert dup is None
+    assert msg == ""
+
+
+def test_validate_new_request_in_memory_invalid_type(service: AnvisaService) -> None:
+    """Testa validação com tipo inválido."""
+    demandas = []
+
+    ok, dup, msg = service.validate_new_request_in_memory(demandas, "Tipo Errado")
+
+    assert ok is False
+    assert dup is None
+    assert "inválido" in msg
+    assert "Tipo Errado" in msg
+
+
+def test_validate_new_request_in_memory_duplicate_blocked(service: AnvisaService) -> None:
+    """Testa validação bloqueando duplicado aberto."""
+    demandas = [
+        {
+            "id": "req-1",
+            "request_type": "Alteração de Porte",
+            "status": "draft",
+        }
+    ]
+
+    ok, dup, msg = service.validate_new_request_in_memory(demandas, "Alteração de Porte")
+
+    assert ok is False
+    assert dup is not None
+    assert dup["id"] == "req-1"
+    assert "Já existe" in msg
+    assert "ABERTA" in msg
+    assert "Alteração de Porte" in msg
+
+
+def test_validate_new_request_in_memory_duplicate_closed_ok(service: AnvisaService) -> None:
+    """Testa validação permitindo se duplicado está fechado."""
+    demandas = [
+        {
+            "id": "req-1",
+            "request_type": "Alteração de Porte",
+            "status": "done",
+        }
+    ]
+
+    ok, dup, msg = service.validate_new_request_in_memory(demandas, "Alteração de Porte")
+
+    assert ok is True
+    assert dup is None
+    assert msg == ""
+
+
+def test_parse_iso_datetime_valid(service: AnvisaService) -> None:
+    """Testa parse de datetime ISO válido."""
+    from datetime import timezone
+
+    # ISO com timezone
+    dt = service._parse_iso_datetime("2024-01-15T10:30:00+00:00")
+    assert dt is not None
+    assert dt.year == 2024
+    assert dt.month == 1
+    assert dt.day == 15
+    assert dt.hour == 10
+    assert dt.minute == 30
+    assert dt.tzinfo == timezone.utc
+
+    # ISO com Z (deve converter para +00:00)
+    dt_z = service._parse_iso_datetime("2024-01-15T10:30:00Z")
+    assert dt_z is not None
+    assert dt_z == dt
+
+
+def test_parse_iso_datetime_naive(service: AnvisaService) -> None:
+    """Testa parse de datetime sem timezone (deve assumir UTC)."""
+    from datetime import timezone
+
+    dt = service._parse_iso_datetime("2024-01-15T10:30:00")
+    assert dt is not None
+    assert dt.tzinfo == timezone.utc
+
+
+def test_parse_iso_datetime_empty(service: AnvisaService) -> None:
+    """Testa parse de string vazia."""
+    assert service._parse_iso_datetime("") is None
+    assert service._parse_iso_datetime(None) is None  # type: ignore
+
+
+def test_parse_iso_datetime_invalid(service: AnvisaService) -> None:
+    """Testa parse de string inválida."""
+    assert service._parse_iso_datetime("invalid-date") is None
+    assert service._parse_iso_datetime("2024-99-99") is None
+
+
+def test_format_dt_local_valid(service: AnvisaService) -> None:
+    """Testa formatação de datetime para timezone local."""
+    from datetime import datetime, timezone
+
+    dt_utc = datetime(2024, 1, 15, 13, 30, 0, tzinfo=timezone.utc)
+
+    # São Paulo = UTC-3
+    result = service.format_dt_local(dt_utc, tz_name="America/Sao_Paulo")
+
+    # 13:30 UTC = 10:30 BRT
+    assert "15/01/2024" in result
+    assert "10:30" in result
+
+
+def test_format_dt_local_none(service: AnvisaService) -> None:
+    """Testa formatação de None."""
+    assert service.format_dt_local(None) == ""
+
+
+def test_format_dt_local_fallback_on_invalid_tz(service: AnvisaService) -> None:
+    """Testa fallback quando timezone inválido."""
+    from datetime import datetime, timezone
+
+    dt_utc = datetime(2024, 1, 15, 13, 0, 0, tzinfo=timezone.utc)
+
+    # Timezone inválido deve usar fallback UTC-3
+    result = service.format_dt_local(dt_utc, tz_name="Invalid/Timezone")
+
+    # Deve retornar algo (fallback)
+    assert "15/01/2024" in result
+
+
+def test_human_status_open(service: AnvisaService) -> None:
+    """Testa human_status para status abertos."""
+    assert service.human_status("draft") == "Em aberto"
+    assert service.human_status("submitted") == "Em aberto"
+    assert service.human_status("in_progress") == "Em aberto"
+
+
+def test_human_status_closed(service: AnvisaService) -> None:
+    """Testa human_status para status fechados."""
+    assert service.human_status("done") == "Finalizado"
+    assert service.human_status("canceled") == "Finalizado"
+
+
+def test_normalize_status_with_aliases(service: AnvisaService) -> None:
+    """Testa normalização de status com aliases."""
+    assert service.normalize_status("aberta") == "draft"
+    assert service.normalize_status("finalizada") == "done"
+    assert service.normalize_status("cancelada") == "canceled"
+    assert service.normalize_status("em andamento") == "in_progress"
+
+
+def test_normalize_status_already_normalized(service: AnvisaService) -> None:
+    """Testa normalização de status já normalizado."""
+    assert service.normalize_status("draft") == "draft"
+    assert service.normalize_status("done") == "done"
+    assert service.normalize_status("canceled") == "canceled"
+
+
+def test_normalize_status_case_insensitive(service: AnvisaService) -> None:
+    """Testa que normalização é case-insensitive."""
+    assert service.normalize_status("ABERTA") == "draft"
+    assert service.normalize_status("Finalizada") == "done"
+    assert service.normalize_status("  CaNcElAdA  ") == "canceled"
+
+
+def test_can_close_open_statuses(service: AnvisaService) -> None:
+    """Testa can_close para status abertos."""
+    assert service.can_close("draft") is True
+    assert service.can_close("submitted") is True
+    assert service.can_close("in_progress") is True
+
+
+def test_can_close_closed_statuses(service: AnvisaService) -> None:
+    """Testa can_close para status fechados."""
+    assert service.can_close("done") is False
+    assert service.can_close("canceled") is False
+
+
+def test_can_cancel_open_statuses(service: AnvisaService) -> None:
+    """Testa can_cancel para status abertos."""
+    assert service.can_cancel("draft") is True
+    assert service.can_cancel("submitted") is True
+    assert service.can_cancel("in_progress") is True
+
+
+def test_can_cancel_closed_statuses(service: AnvisaService) -> None:
+    """Testa can_cancel para status fechados."""
+    assert service.can_cancel("done") is False
+    assert service.can_cancel("canceled") is False
+
+
+def test_allowed_actions_open_status(service: AnvisaService) -> None:
+    """Testa allowed_actions para status aberto."""
+    actions = service.allowed_actions("draft")
+    assert actions == {"close": True, "cancel": True, "delete": True}
+
+    actions = service.allowed_actions("in_progress")
+    assert actions == {"close": True, "cancel": True, "delete": True}
+
+
+def test_allowed_actions_closed_status(service: AnvisaService) -> None:
+    """Testa allowed_actions para status fechado."""
+    actions = service.allowed_actions("done")
+    assert actions == {"close": False, "cancel": False, "delete": True}
+
+    actions = service.allowed_actions("canceled")
+    assert actions == {"close": False, "cancel": False, "delete": True}

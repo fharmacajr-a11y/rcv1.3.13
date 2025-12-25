@@ -357,22 +357,6 @@ class MainScreenDataflowMixin:
         try:
             self._update_main_buttons_state()  # pyright: ignore[reportAttributeAccessIssue]
 
-            # MS-32: Atualizar texto do botão Enviar usando controller headless
-            if hasattr(self, "btn_enviar") and not self._uploading_busy:  # pyright: ignore[reportAttributeAccessIssue]
-                # Obter estados necessários
-                selection_snapshot = self._build_selection_snapshot()  # pyright: ignore[reportAttributeAccessIssue]
-                pick_snapshot = self._pick_mode_manager.get_snapshot()  # pyright: ignore[reportAttributeAccessIssue]
-
-                # Computar button states via controller
-                button_states = compute_button_states(
-                    has_selection=selection_snapshot.has_selection,
-                    is_online=snapshot.is_online,
-                    is_uploading=self._uploading_busy,  # pyright: ignore[reportAttributeAccessIssue]
-                    is_pick_mode=pick_snapshot.is_pick_mode_active,
-                    connectivity_state=snapshot.state,  # pyright: ignore[reportArgumentType]
-                )
-                self.btn_enviar.configure(text=button_states.enviar_text)  # pyright: ignore[reportAttributeAccessIssue]
-
         except Exception as exc:  # noqa: BLE001
             log.debug("Falha ao atualizar UI de conectividade: %s", exc)
 
@@ -425,21 +409,6 @@ class MainScreenDataflowMixin:
             # Botões que dependem de conexão E seleção
             self.btn_editar.configure(state=("normal" if button_states.editar else "disabled"))  # pyright: ignore[reportAttributeAccessIssue]
             self.btn_subpastas.configure(state=("normal" if button_states.subpastas else "disabled"))  # pyright: ignore[reportAttributeAccessIssue]
-
-            if button_states.enviar:
-                self.btn_enviar.state(["!disabled"])  # pyright: ignore[reportAttributeAccessIssue]
-            else:
-                self.btn_enviar.state(["disabled"])  # pyright: ignore[reportAttributeAccessIssue]
-
-            if hasattr(self, "menu_enviar") and self.menu_enviar is not None:  # pyright: ignore[reportAttributeAccessIssue]
-                try:
-                    last_index = self.menu_enviar.index("end")  # pyright: ignore[reportAttributeAccessIssue]
-                    if last_index is not None:
-                        entry_state = "normal" if button_states.enviar else "disabled"
-                        for idx in range(last_index + 1):
-                            self.menu_enviar.entryconfigure(idx, state=entry_state)  # pyright: ignore[reportAttributeAccessIssue]
-                except Exception as exc:  # noqa: BLE001
-                    log.debug("Falha ao atualizar menu de envio: %s", exc)
 
             # Botões que dependem apenas de conexão
             self.btn_novo.configure(state=("normal" if button_states.novo else "disabled"))  # pyright: ignore[reportAttributeAccessIssue]

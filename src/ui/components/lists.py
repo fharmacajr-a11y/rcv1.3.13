@@ -82,7 +82,7 @@ def create_clients_treeview(
     def _on_motion_hand_cursor(event: Any) -> None:
         try:
             col = tree.identify_column(event.x)
-            tree.configure(cursor="hand2" if col in ("#5", "#7") else "")
+            tree.configure(cursor="hand2" if col in ("#5",) else "")
         except Exception:
             tree.configure(cursor="")
 

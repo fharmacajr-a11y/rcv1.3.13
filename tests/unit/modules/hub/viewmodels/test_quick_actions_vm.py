@@ -88,20 +88,16 @@ class TestQuickActionsViewModel:
         state = vm.build_state()
 
         assert isinstance(state, QuickActionsViewState)
-        # MF-39: aceitar número variável de ações (atualmente 9)
-        assert len(state.actions) >= 8  # Mínimo de 8 ações essenciais
+        # BUGFIX-HUB-UI-001: Removidos farmacia_popular e sifap (7 actions restantes)
+        assert len(state.actions) == 7
         assert state.is_loading is False
         assert state.error_message is None
 
         # Verificar IDs dos atalhos essenciais
         action_ids = {a.id for a in state.actions}
-        # Garantir que ações principais existem
-        for expected_id in {"clientes", "senhas", "auditoria", "fluxo_caixa", "sifap"}:
+        # Garantir que ações principais existem (sem farmacia_popular e sifap)
+        for expected_id in {"clientes", "senhas", "auditoria", "fluxo_caixa", "anvisa", "sngpc", "sites"}:
             assert expected_id in action_ids
-        assert "anvisa" in action_ids
-        assert "farmacia_popular" in action_ids
-        assert "sngpc" in action_ids
-        assert "sifap" in action_ids
 
     def test_build_state_correct_labels(self, vm):
         """Deve ter labels corretos para cada atalho."""
@@ -109,18 +105,15 @@ class TestQuickActionsViewModel:
 
         actions_map = {a.id: a for a in state.actions}
 
-        # Verificar labels das ações essenciais
+        # Verificar labels das ações essenciais (sem farmacia_popular e sifap)
         assert actions_map["clientes"].label == "Clientes"
         assert actions_map["senhas"].label == "Senhas"
         assert actions_map["auditoria"].label == "Auditoria"
         assert actions_map["fluxo_caixa"].label == "Fluxo de Caixa"
         assert actions_map["anvisa"].label == "Anvisa"
-        assert actions_map["farmacia_popular"].label == "Farmácia Popular"
         assert actions_map["sngpc"].label == "Sngpc"
-        assert actions_map["sifap"].label == "Sifap"
-        # MF-39: sites agora incluído
-        if "sites" in actions_map:
-            assert actions_map["sites"].label == "Sites"
+        # MF-39: sites incluído
+        assert actions_map["sites"].label == "Sites"
 
     def test_build_state_correct_categories(self, vm):
         """Deve agrupar atalhos nas categorias corretas."""
@@ -133,18 +126,15 @@ class TestQuickActionsViewModel:
                 by_category[action.category] = []
             by_category[action.category].append(action.id)
 
-        # Verificar categorias principais (MF-39: sites agora em "utilidades")
+        # Verificar categorias principais (BUGFIX-HUB-UI-001: sem farmacia_popular e sifap)
         assert set(by_category["cadastros"]) == {"clientes", "senhas"}
         assert set(by_category["gestao"]) == {"auditoria", "fluxo_caixa"}
         assert set(by_category["regulatorio"]) == {
             "anvisa",
-            "farmacia_popular",
             "sngpc",
-            "sifap",
         }
         # MF-39: sites em categoria "utilidades"
-        if "utilidades" in by_category:
-            assert "sites" in by_category["utilidades"]
+        assert "sites" in by_category["utilidades"]
 
     def test_build_state_sorted_by_order(self, vm):
         """Deve ordenar atalhos por campo order."""

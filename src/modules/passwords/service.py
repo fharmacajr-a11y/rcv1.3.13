@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Iterable, Optional
+from typing import Any, cast
 
 from data.domain_types import PasswordRow
 from infra.repositories import passwords_repository
@@ -51,7 +52,7 @@ def _coerce_client_external_id(raw_id: Any, fallback: str) -> int:
             return 0
 
 
-def _build_summary_from_group(client_id: str, passwords: list[PasswordRow]) -> ClientPasswordsSummary:
+def _build_summary_from_group(client_id: str, passwords: Sequence[Mapping[str, Any]]) -> ClientPasswordsSummary:
     first = passwords[0]
     razao_social = first.get("razao_social", first.get("client_name", ""))
     cnpj = first.get("cnpj", "")
@@ -71,28 +72,48 @@ def _build_summary_from_group(client_id: str, passwords: list[PasswordRow]) -> C
     )
 
 
-def group_passwords_by_client(passwords: Iterable[PasswordRow]) -> list[ClientPasswordsSummary]:
-    """Agrupa senhas por client_id e retorna resumos ordenados pelo nome."""
+def group_passwords_by_client(passwords: Sequence[Mapping[str, Any]]) -> list[ClientPasswordsSummary]:
+    """Agrupa senhas por client_id e retorna resumos ordenados pelo nome.
+
+    PERF-004: Usa índice por client_id para evitar reprocessamento.
+
+    Args:
+        passwords: Lista de senhas a agrupar
+
+    Returns:
+        Lista de ClientPasswordsSummary ordenada por razao_social (case-insensitive)
+    """
     from collections import defaultdict
 
-    grouped: dict[str, list[PasswordRow]] = defaultdict(list)
+    # PERF-004: Construção de índice mais eficiente
+    grouped: dict[str, list[Mapping[str, Any]]] = defaultdict(list)
     for pwd in passwords:
         client_id = pwd.get("client_id")
         if not client_id:
             continue
         grouped[str(client_id)].append(pwd)
 
+    # PERF-004: Constrói summaries uma única vez
     summaries = [_build_summary_from_group(client_id, rows) for client_id, rows in grouped.items()]
     summaries.sort(key=lambda summary: summary.razao_social.lower())
     return summaries
 
 
 def filter_passwords(
-    passwords: Iterable[PasswordRow],
-    search_text: Optional[str],
-    service_filter: Optional[str],
+    passwords: Sequence[Mapping[str, Any]],
+    search_text: str | None,
+    service_filter: str | None,
 ) -> list[PasswordRow]:
-    """Aplica filtros textuais/por serviço sobre a lista informada."""
+    """Aplica filtros textuais/por serviço sobre a lista informada.
+
+    Args:
+        passwords: Lista de senhas a filtrar
+        search_text: Texto para buscar em client_name, service, username (case-insensitive)
+        service_filter: Filtro por serviço específico ("Todos" = sem filtro)
+
+    Returns:
+        Lista filtrada de PasswordRow
+    """
     filtered = list(passwords)
 
     if search_text:
@@ -109,14 +130,46 @@ def filter_passwords(
     if service_filter and service_filter != "Todos":
         filtered = [pwd for pwd in filtered if pwd.get("service") == service_filter]
 
-    return filtered
+    return cast(list[PasswordRow], filtered)
+
+
+def _extract_user_id(user_response: Any) -> str | None:
+    """Extrai user_id de diferentes formatos de resposta do Supabase.
+
+    BUG-003: Helper function para extração segura de user_id.
+    Suporta: dict, objeto com atributo 'id', objeto aninhado 'user'.
+
+    Args:
+        user_response: Resposta do supabase.auth.get_user()
+
+    Returns:
+        user_id como string, ou None se não encontrado
+    """
+    if not user_response:
+        return None
+
+    # Tenta acessar user_response.user primeiro
+    user_obj = getattr(user_response, "user", None) or user_response
+
+    # Se for dict
+    if isinstance(user_obj, dict):
+        return user_obj.get("id") or user_obj.get("uid")
+
+    # Se for objeto com atributo id
+    return getattr(user_obj, "id", None)
 
 
 def resolve_user_context(main_window: Any) -> PasswordsUserContext:
-    """
-    Resolve (org_id, user_id) a partir da sessão Supabase e da janela principal.
+    """Resolve (org_id, user_id) a partir da sessão Supabase e da janela principal.
 
-    Levanta RuntimeError se não conseguir determinar o contexto.
+    Args:
+        main_window: Janela principal da aplicação (para cache de org_id)
+
+    Returns:
+        PasswordsUserContext com org_id e user_id válidos
+
+    Raises:
+        RuntimeError: Se não conseguir determinar usuário ou organização
     """
     try:
         from infra.supabase_client import supabase
@@ -124,16 +177,12 @@ def resolve_user_context(main_window: Any) -> PasswordsUserContext:
         raise RuntimeError("Cliente Supabase indisponível para senhas.") from exc
 
     user = supabase.auth.get_user()
-    user_obj = getattr(user, "user", None) or user
-    if isinstance(user_obj, dict):
-        user_id = user_obj.get("id") or user_obj.get("uid")
-    else:
-        user_id = getattr(user_obj, "id", None)
+    user_id = _extract_user_id(user)
 
     if not user_id:
         raise RuntimeError("Usuário não autenticado para acessar senhas.")
 
-    org_id: Optional[str] = None
+    org_id: str | None = None
     if main_window and hasattr(main_window, "_get_org_id_cached"):
         try:
             org_id = main_window._get_org_id_cached(user_id)  # type: ignore[attr-defined]

@@ -1,6 +1,7 @@
 # src/ui/window_policy.py
 from __future__ import annotations
 import ctypes
+import os
 import platform
 import tkinter as tk
 import logging
@@ -69,7 +70,11 @@ def fit_geometry_for_device(root: tk.Misc) -> str:
 
 
 def apply_fit_policy(win: tk.Misc) -> None:
-    """Aplica a política Fit-to-WorkArea e garante foco/elevação."""
+    """Aplica a política Fit-to-WorkArea e garante foco/elevação.
+
+    BUGFIX-UX-STARTUP-HUB-001 (B2): Evita lift/focus quando janela está oculta
+    para prevenir flash/pulos visuais.
+    """
     geo = fit_geometry_for_device(win)
     # Define geometria antes do primeiro draw para evitar flicker
     # Cast para tk.Tk para acessar métodos de window manager
@@ -79,11 +84,19 @@ def apply_fit_policy(win: tk.Misc) -> None:
         window.minsize(900, 580)  # mínimos gerais defensivos
     except Exception as e:
         log.debug("Failed to set minsize: %s", e)
-    # traz para frente e foca sem topmost permanente
+
+    # BUGFIX-UX-STARTUP-HUB-001 (B2): Só aplicar lift/focus se janela visível
+    # Evita flash e "pulos" visuais quando janela ainda está withdrawn
     try:
-        window.lift()
-        window.focus_force()
-        window.wm_attributes("-topmost", True)
-        window.after(10, lambda: window.wm_attributes("-topmost", False))
+        is_visible = window.winfo_viewable() or window.state() not in ("withdrawn", "iconic")
+        if is_visible:
+            # traz para frente e foca sem topmost permanente
+            window.lift()
+            window.focus_force()
+            window.wm_attributes("-topmost", True)
+            window.after(10, lambda: window.wm_attributes("-topmost", False))
+        else:
+            if os.getenv("RC_DEBUG_STARTUP_UI") == "1":
+                log.info("[UI] Pulando lift/focus (janela não visível): state=%s", window.state())
     except Exception as e:
         log.debug("Failed to set window focus/topmost: %s", e)

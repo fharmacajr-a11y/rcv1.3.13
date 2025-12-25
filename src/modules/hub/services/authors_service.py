@@ -16,8 +16,11 @@ Migrado de:
 
 from __future__ import annotations
 
+import ast
 import functools
+import json
 import logging
+import os
 import time
 from typing import TYPE_CHECKING, Any, Dict
 
@@ -48,6 +51,67 @@ AUTHOR_NAMES = {
     "farmacajr@gmail.com": "Junior",
     "fharmaca2013@hotmail.com": "Elisabete",
 }
+
+
+def load_env_author_names() -> Dict[str, str]:
+    """Carrega o mapa de nomes de autores do .env (RC_INITIALS_MAP).
+
+    Função pública e robusta para carregar RC_INITIALS_MAP com tolerância
+    a diferentes formatos (aspas duplas, aspas simples, aspas externas).
+
+    Lê a variável de ambiente RC_INITIALS_MAP (JSON/dict Python) e retorna
+    um dicionário com emails normalizados (lowercase) mapeados para nomes.
+
+    Returns:
+        Dict[str, str]: Mapa {email: nome} normalizado (emails em lowercase).
+                        Retorna dict vazio em caso de erro ou JSON inválido.
+
+    Examples:
+        >>> # No .env: RC_INITIALS_MAP={"user@example.com":"John"}
+        >>> load_env_author_names()
+        {'user@example.com': 'John'}
+    """
+    try:
+        rc_initials_map = os.getenv("RC_INITIALS_MAP", "").strip()
+
+        if not rc_initials_map:
+            return {}
+
+        # Tolerância a aspas externas (alguns .env escapam com '...' ou "...")
+        if (rc_initials_map.startswith("'") and rc_initials_map.endswith("'")) or (
+            rc_initials_map.startswith('"') and rc_initials_map.endswith('"')
+        ):
+            rc_initials_map = rc_initials_map[1:-1]
+
+        # Tentar json.loads primeiro (formato padrão)
+        try:
+            raw_map = json.loads(rc_initials_map)
+        except (json.JSONDecodeError, ValueError) as exc:
+            # Fallback: ast.literal_eval (suporta aspas simples no dict)
+            logger.debug("[authors_service] json.loads falhou, tentando ast.literal_eval", exc_info=exc)
+            try:
+                raw_map = ast.literal_eval(rc_initials_map)
+            except (SyntaxError, ValueError) as e:
+                logger.debug(f"[authors_service] Falha ao parsear RC_INITIALS_MAP: {e}")
+                return {}
+
+        # Normalizar: emails lowercase, nomes stripped, ignorar vazios
+        normalized = {}
+        for email, name in raw_map.items():
+            email_norm = str(email).strip().lower()
+            name_norm = str(name).strip()
+            if email_norm and name_norm:
+                normalized[email_norm] = name_norm
+
+        return normalized
+
+    except Exception as exc:
+        logger.debug(f"[authors_service] Erro ao carregar RC_INITIALS_MAP: {exc}")
+        return {}
+
+
+# Alias privado para compatibilidade com código existente
+_load_env_author_names = load_env_author_names
 
 
 # Cache TTL de 60s para nomes provisórios (fallback), usando tick por minuto
@@ -116,15 +180,20 @@ def get_author_display_name(
         author_cache[key] = (cached, expiry)
         return cached
 
-    # 2) Mapa local AUTHOR_NAMES
+    # 2) Mapa do .env (RC_INITIALS_MAP) - PRIORIDADE MÁXIMA
+    env_names = _load_env_author_names()
+    if key in env_names:
+        return env_names[key]
+
+    # 3) Mapa local AUTHOR_NAMES (fallback)
     if key in AUTHOR_NAMES:
         return AUTHOR_NAMES[key]
 
-    # 3) Fetch on-demand (apenas UMA thread por e-mail)
+    # 4) Fetch on-demand (apenas UMA thread por e-mail)
     if start_async_fetch and "@" in key:
         _start_author_fetch_async(screen, key, author_cache)
 
-    # 4) Placeholder (último recurso) — com TTL de 60s
+    # 5) Placeholder (último recurso) — com TTL de 60s
     return _author_display_name_ttl(key, int(time.time()) // 60)
 
 
@@ -153,7 +222,7 @@ def _start_author_fetch_async(screen: ScreenProtocol, email: str, author_cache: 
 
             resolved = get_display_name_by_email(email)
         except Exception as exc:
-            logger.debug(f"Falha ao buscar nome para {email}: {exc}")
+            logger.debug(f"Falha ao buscar nome para {email}: {exc}", exc_info=exc)
         finally:
 
             def _ui():
@@ -177,7 +246,7 @@ def _start_author_fetch_async(screen: ScreenProtocol, email: str, author_cache: 
             try:
                 screen.after(0, _ui)
             except Exception as exc:
-                logger.debug(f"Falha ao agendar atualização de autor: {exc}")
+                logger.debug(f"Falha ao agendar atualização de autor: {exc}", exc_info=exc)
 
     import threading
 
@@ -221,7 +290,8 @@ def debug_resolve_author(screen: ScreenProtocol, email: str) -> Dict[str, Any]:
         from src.core.services.profiles_service import EMAIL_PREFIX_ALIASES
 
         email_prefix_aliases = EMAIL_PREFIX_ALIASES  # noqa: N806
-    except Exception:
+    except Exception as exc:
+        logger.debug("[authors_service] Falha ao carregar EMAIL_PREFIX_ALIASES, usando dict vazio", exc_info=exc)
         email_prefix_aliases = {}
 
     # Se veio só o prefixo, tenta corrigir alias e resolver no mapa de prefixos
@@ -248,12 +318,18 @@ def debug_resolve_author(screen: ScreenProtocol, email: str) -> Dict[str, Any]:
         name = cached
         source = "names_cache"
 
-    # 2) Mapa local AUTHOR_NAMES
+    # 2) Mapa do .env (RC_INITIALS_MAP)
+    env_names = _load_env_author_names()
+    if name is None and resolved_email in env_names:
+        name = env_names[resolved_email]
+        source = "RC_INITIALS_MAP"
+
+    # 3) Mapa local AUTHOR_NAMES (fallback)
     if name is None and resolved_email in AUTHOR_NAMES:
         name = AUTHOR_NAMES[resolved_email]
         source = "AUTHOR_NAMES"
 
-    # 3) Fetch direto por e-mail (SÍNCRONO para debug)
+    # 4) Fetch direto por e-mail (SÍNCRONO para debug)
     fetched = None
     if name is None and "@" in resolved_email:
         try:
@@ -264,9 +340,9 @@ def debug_resolve_author(screen: ScreenProtocol, email: str) -> Dict[str, Any]:
                 name = fetched
                 source = "fetch_by_email"
         except Exception as e:
-            logger.debug(f"Erro ao buscar nome para debug: {e}")
+            logger.debug(f"Erro ao buscar nome para debug: {e}", exc_info=e)
 
-    # 4) Fallback: prefixo formatado
+    # 5) Fallback: prefixo formatado
     if name is None:
         name = resolved_email.split("@", 1)[0].replace(".", " ").title()
 

@@ -277,9 +277,9 @@ class TestCryptoIntegrationErrors:
         crypto._reset_fernet_cache()  # IMPORTANTE: limpar cache antes de trocar chave
         monkeypatch.setenv("RC_CLIENT_SECRET_KEY", new_key)
 
-        # Descriptografar deve falhar
-        with pytest.raises(RuntimeError, match="Falha na descriptografia"):
-            repo.decrypt_password(created["password_enc"])
+        # TEST-001: Descriptografar deve retornar string vazia (não lança exceção)
+        result = repo.decrypt_password(created["password_enc"])
+        assert result == ""
 
     def test_decrypt_corrupted_token_fails(
         self,
@@ -301,8 +301,9 @@ class TestCryptoIntegrationErrors:
         # Corromper o token
         corrupted = created["password_enc"][:10] + "CORRUPTED" + created["password_enc"][20:]
 
-        with pytest.raises(RuntimeError, match="Falha na descriptografia"):
-            repo.decrypt_password(corrupted)
+        # TEST-001: Descriptografar token corrompido retorna string vazia (não lança exceção)
+        result = repo.decrypt_password(corrupted)
+        assert result == ""
 
     def test_create_without_key_fails(self, monkeypatch) -> None:
         """Criar senha sem chave no ambiente deve falhar."""

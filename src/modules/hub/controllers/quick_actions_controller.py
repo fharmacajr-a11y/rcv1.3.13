@@ -55,16 +55,8 @@ class HubQuickActionsNavigatorProtocol(Protocol):
         """Abre o módulo de Anvisa."""
         ...
 
-    def open_farmacia_popular(self) -> None:
-        """Abre o módulo de Farmácia Popular."""
-        ...
-
     def open_sngpc(self) -> None:
         """Abre o módulo de Sngpc."""
-        ...
-
-    def open_sifap(self) -> None:
-        """Abre o módulo de Sifap."""
         ...
 
     def open_sites(self) -> None:
@@ -97,9 +89,7 @@ class QuickActionsController:
             "auditoria",
             "fluxo_caixa",
             "anvisa",
-            "farmacia_popular",
             "sngpc",
-            "sifap",
             "sites",
         )
 
@@ -126,12 +116,8 @@ class QuickActionsController:
                 self.navigator.open_fluxo_caixa()
             elif action_id == "anvisa":
                 self.navigator.open_anvisa()
-            elif action_id == "farmacia_popular":
-                self.navigator.open_farmacia_popular()
             elif action_id == "sngpc":
                 self.navigator.open_sngpc()
-            elif action_id == "sifap":
-                self.navigator.open_sifap()
             elif action_id == "sites":
                 self.navigator.open_sites()
             else:

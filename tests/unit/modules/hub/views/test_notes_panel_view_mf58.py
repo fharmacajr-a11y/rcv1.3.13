@@ -318,6 +318,7 @@ class TestBuildNotesSidePanel:
                 on_delete_note_click=mock_callbacks.on_delete_note_click,
                 on_toggle_pin_click=mock_callbacks.on_toggle_pin_click,
                 on_toggle_done_click=mock_callbacks.on_toggle_done_click,
+                current_user_email=None,  # Parâmetro adicionado ao build_notes_panel
             )
 
             # Verificar que retornou o painel
@@ -349,6 +350,7 @@ class TestBuildNotesSidePanel:
                 on_delete_note_click=None,
                 on_toggle_pin_click=None,
                 on_toggle_done_click=None,
+                current_user_email=None,  # Parâmetro adicionado ao build_notes_panel
             )
 
             assert result is mock_panel

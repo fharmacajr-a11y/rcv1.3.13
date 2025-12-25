@@ -7,17 +7,71 @@ e configure corretamente os caminhos para importar modulos do projeto.
 
 from __future__ import annotations
 
+import functools
 import gc
 import os
 import sqlite3
 import sys
 import warnings
 from pathlib import Path
-from typing import Any, Generator
+from typing import TYPE_CHECKING, Any, Generator
 from unittest.mock import MagicMock
 
 import pytest
-import tkinter as tk
+
+# ============================================================================
+# DETECÇÃO DE TKINTER - Import condicional para ambientes sem Tk/Tcl
+# ============================================================================
+try:
+    import tkinter as tk
+
+    TK_AVAILABLE = True
+except (ImportError, ModuleNotFoundError):
+    tk = None  # type: ignore
+    TK_AVAILABLE = False
+
+
+@functools.lru_cache(maxsize=1)
+def _check_tk_usable() -> bool:
+    """
+    Verifica se Tk/Tcl é realmente utilizável (não apenas importável).
+
+    Tenta criar e destruir um Tk root de forma segura para detectar se
+    tk.tcl/auto.tcl estão presentes. Em alguns ambientes, tkinter importa
+    mas falha com TclError ao criar janelas.
+
+    Usa lru_cache para garantir que o teste seja feito apenas uma vez
+    durante toda a execução do pytest.
+
+    Returns:
+        True se Tk pode criar janelas, False caso contrário.
+    """
+    if not TK_AVAILABLE:
+        return False
+
+    try:
+        import tkinter as _tk
+
+        root = _tk.Tk()
+        root.withdraw()  # Nunca mostrar janela
+        root.update_idletasks()
+        root.destroy()
+        return True
+    except Exception:
+        # TclError: "Can't find a usable tk.tcl" ou similar
+        return False
+
+
+# Aliases de tipos para type checkers (evita reportInvalidTypeForm do Pylance)
+if TYPE_CHECKING:
+    from tkinter import Misc as TkMisc
+    from tkinter import Tcl as TkTcl
+    from tkinter import Tk as TkTk
+else:
+    # Fallback runtime para evitar NameError quando tk=None
+    TkMisc = object
+    TkTcl = object
+    TkTk = object
 
 
 # ============================================================================
@@ -30,7 +84,13 @@ def _disable_tk_messageboxes():
     """
     Desabilita messageboxes do tkinter durante toda a sessão de testes.
     Isso evita que janelas modais travem a execução do pytest.
+
+    Se Tkinter não estiver disponível, não faz nada (yielda com segurança).
     """
+    if not TK_AVAILABLE:
+        yield
+        return
+
     mp = pytest.MonkeyPatch()
     try:
         import tkinter.messagebox as mb
@@ -104,29 +164,70 @@ def pytest_configure(config: pytest.Config) -> None:
     _apply_global_warning_filters()
 
 
+def pytest_report_header(config: pytest.Config) -> list[str]:
+    """Adiciona informações de ambiente no header do pytest."""
+    headers = []
+
+    # Informar status do Tk quando RC_RUN_GUI_TESTS=1
+    if os.getenv("RC_RUN_GUI_TESTS") == "1":
+        if not TK_AVAILABLE:
+            headers.append("⚠️  Tkinter: não disponível (ImportError) - testes GUI serão ignorados")
+        elif not has_working_tk():
+            headers.append(
+                "⚠️  Tkinter: importável mas não funcional (tk.tcl não encontrado) - testes GUI serão ignorados"
+            )
+        else:
+            headers.append("✓ Tkinter: funcional - testes GUI habilitados")
+
+    return headers
+
+
 def pytest_ignore_collect(collection_path: Path, config: pytest.Config) -> bool | None:
     """
     Evita coleta de testes GUI/Tk que causam crashes durante a importação.
 
     Retorna True para ignorar a coleta, None para permitir (não retornar False).
     Isso previne access violations no Python 3.13+ Windows durante `pytest -m "skip or skipif"`.
+
+    Verifica tanto TK_AVAILABLE (import funciona) quanto has_working_tk()
+    (Tk realmente utilizável) para detectar casos onde tkinter importa mas
+    tk.tcl está faltando ou quebrado.
     """
     # Normalizar path para comparação
     path_str = str(collection_path).replace("\\", "/")
+
+    # Padrões de testes GUI que dependem de Tk
+    gui_patterns = [
+        "/tests/gui_legacy/",
+        "/tests/integration/modules/",
+        "/tests/unit/modules/pdf_preview/views/",
+        "/tests/modules/anvisa/",
+        "/tests/test_login_dialog",
+    ]
+
+    # Detectar se o arquivo atual é GUI
+    is_gui_test = any(pattern in path_str for pattern in gui_patterns)
+
+    # Se é teste GUI, verificar se Tk está utilizável
+    if is_gui_test:
+        # Primeiro verificar ImportError (TK_AVAILABLE)
+        if not TK_AVAILABLE:
+            return True
+        # Depois verificar se Tk realmente funciona (has_working_tk com cache)
+        if not has_working_tk():
+            return True
 
     # Ignorar testes GUI legacy quando RC_RUN_GUI_TESTS != "1"
     if os.getenv("RC_RUN_GUI_TESTS") != "1":
         if "/tests/gui_legacy/" in path_str:
             return True
+        # Ignorar testes modules/anvisa (contém Tk e pode crashar na coleta de markers)
+        if "/tests/modules/anvisa/" in path_str:
+            return True
 
     # Ignorar testes PDF UI quando RC_RUN_PDF_UI_TESTS != "1"
     if os.getenv("RC_RUN_PDF_UI_TESTS") != "1":
         if "/tests/unit/modules/pdf_preview/views/" in path_str:
-            return True
-
-    # Ignorar testes modules/anvisa (contém Tk e pode crashar na coleta de markers)
-    if os.getenv("RC_RUN_GUI_TESTS") != "1":
-        if "/tests/modules/anvisa/" in path_str:
             return True
 
     # Windows + Python 3.13+: ignorar testes conhecidos de Tk crash
@@ -207,17 +308,10 @@ def has_working_tk() -> bool:
     Retorna False se Tcl/Tk não estiver instalado ou tiver arquivos faltando
     (ex.: auto.tcl, init.tcl). Útil para skip de testes GUI em ambientes
     sem instalação completa do Python/Tcl.
-    """
-    try:
-        import tkinter as tk
 
-        root = tk.Tk()
-        root.withdraw()
-        root.update_idletasks()
-        root.destroy()
-        return True
-    except Exception:
-        return False
+    Usa lru_cache via _check_tk_usable() para evitar criar Tk root múltiplas vezes.
+    """
+    return _check_tk_usable()
 
 
 try:
@@ -381,7 +475,7 @@ def fake_env_vars(fake_supabase_url: str, fake_supabase_key: str) -> dict[str, s
 
 
 @pytest.fixture
-def tk_root(tk_root_session) -> Generator[tk.Misc, None, None]:
+def tk_root(tk_root_session) -> Generator[TkMisc, None, None]:
     """
     Cria uma janela Toplevel segura e invisível para testes de UI.
 
@@ -394,19 +488,26 @@ def tk_root(tk_root_session) -> Generator[tk.Misc, None, None]:
 
     Garante cleanup automático via teardown.
 
+    TEST-003: Cleanup aprimorado para evitar vazamento entre testes.
+
     Examples:
         >>> def test_frame_creation(tk_root):
         ...     frame = Frame(tk_root)
         ...     assert frame.master is tk_root
     """
-    # Forçar garbage collection antes de criar novo Toplevel
+    if not TK_AVAILABLE:
+        pytest.skip("Tkinter não está disponível neste ambiente")
+
+    # TEST-003: Forçar garbage collection antes de criar novo Toplevel
     gc.collect()
 
     try:
+        import tkinter as tk
+
         win = tk.Toplevel(tk_root_session)
         win.withdraw()
 
-        # Limpar cache do ttkbootstrap Style para evitar referências a Tk destruídos
+        # TEST-003: Limpar cache do ttkbootstrap Style para evitar referências a Tk destruídos
         try:
             import ttkbootstrap.style
 
@@ -427,6 +528,7 @@ def tk_root(tk_root_session) -> Generator[tk.Misc, None, None]:
 
     yield win
 
+    # TEST-003: Cleanup robusto com tratamento de exceções
     try:
         if win.winfo_exists():
             # Destruir todos os filhos primeiro (de trás para frente para evitar problemas de ordem)
@@ -436,11 +538,23 @@ def tk_root(tk_root_session) -> Generator[tk.Misc, None, None]:
                     child.destroy()
                 except tk.TclError:
                     pass
+
+            # TEST-003: Limpar variáveis Tkinter associadas
+            try:
+                for var_name in win.tk.call("info", "vars"):
+                    try:
+                        win.tk.unsetvar(str(var_name))
+                    except tk.TclError:
+                        pass
+            except tk.TclError:
+                pass
+
             win.destroy()
     except tk.TclError:
         pass
 
-    # Forçar garbage collection após destruir
+    # TEST-003: Forçar garbage collection duplo após destruir
+    gc.collect()
     gc.collect()
 
 
@@ -621,7 +735,7 @@ def isolated_prefs_dir(tmp_path, monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def tcl_session() -> Generator[tk.Tcl, None, None]:
+def tcl_session() -> Generator[TkTcl, None, None]:
     """
     Cria um único interpreter Tcl leve para a sessão de testes (AUTOUSE).
 
@@ -636,7 +750,14 @@ def tcl_session() -> Generator[tk.Tcl, None, None]:
 
     Benefício de performance: ~0.5-1.0s mais rápido que tk_root_session.
     """
+    if not TK_AVAILABLE:
+        # Em ambientes sem Tkinter, não criar Tcl e yieldar com segurança
+        yield None  # type: ignore
+        return
+
     try:
+        import tkinter as tk
+
         interp = tk.Tcl()
     except tk.TclError as exc:
         pytest.skip(f"Tcl nao esta disponivel neste ambiente de testes (TclError: {exc})")
@@ -651,7 +772,7 @@ def tcl_session() -> Generator[tk.Tcl, None, None]:
 
 
 @pytest.fixture(scope="session")
-def tk_root_session() -> Generator[tk.Tk, None, None]:
+def tk_root_session() -> Generator[TkTk, None, None]:
     """
     Cria um único interpreter Tk completo para a sessão de testes de UI.
 
@@ -667,7 +788,12 @@ def tk_root_session() -> Generator[tk.Tk, None, None]:
     Isso evita o erro "_tkinter.TclError: can't invoke 'tk' command:
     application has been destroyed" quando múltiplos testes precisam de Tk.
     """
+    if not TK_AVAILABLE:
+        pytest.skip("Tkinter não está disponível neste ambiente")
+
     try:
+        import tkinter as tk
+
         root = tk.Tk()
     except tk.TclError as exc:
         # Em ambientes sem Tk (CI/headless), skip com mensagem detalhada

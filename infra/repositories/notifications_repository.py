@@ -20,17 +20,58 @@ NOTA IMPORTANTE - Schema da Tabela org_notifications:
 from __future__ import annotations
 
 import logging
+import uuid
 from typing import Any
+
+from infra.db_schemas import (
+    ORG_NOTIFICATIONS_SELECT_FIELDS_COUNT,
+    ORG_NOTIFICATIONS_SELECT_FIELDS_LIST,
+)
 
 log = logging.getLogger(__name__)
 
 
-def list_notifications(org_id: str, limit: int = 20) -> list[dict[str, Any]]:
+def _extract_uuid_from_request_id(value: str) -> str | None:
+    """Extrai UUID de request_id que pode ter formato 'prefixo:<uuid>' ou '<uuid>'.
+
+    Args:
+        value: String com UUID ou prefixo:<uuid>
+
+    Returns:
+        UUID canonicalizado como string, ou None se inválido
+
+    Example:
+        >>> _extract_uuid_from_request_id("550e8400-e29b-41d4-a716-446655440000")
+        '550e8400-e29b-41d4-a716-446655440000'
+        >>> _extract_uuid_from_request_id("hub_notes_created:550e8400-e29b-41d4-a716-446655440000")
+        '550e8400-e29b-41d4-a716-446655440000'
+        >>> _extract_uuid_from_request_id("invalid") is None
+        True
+    """
+    if not value:
+        return None
+
+    # Se contém ":", pegar parte após o último ":"
+    if ":" in value:
+        uuid_part = value.split(":")[-1]
+    else:
+        uuid_part = value
+
+    # Validar e canonicalizar UUID
+    try:
+        uuid_obj = uuid.UUID(uuid_part)
+        return str(uuid_obj)
+    except (ValueError, AttributeError):
+        return None
+
+
+def list_notifications(org_id: str, limit: int = 20, exclude_actor_email: str | None = None) -> list[dict[str, Any]]:
     """Lista notificações de uma organização.
 
     Args:
         org_id: ID da organização
         limit: Número máximo de notificações a retornar (default: 20)
+        exclude_actor_email: Email do autor a excluir (não mostrar próprias notificações)
 
     Returns:
         Lista de notificações ordenadas por created_at desc
@@ -43,17 +84,21 @@ def list_notifications(org_id: str, limit: int = 20) -> list[dict[str, Any]]:
     from infra.supabase_client import supabase
 
     try:
-        response = (
-            supabase.table("org_notifications")
-            .select("id, created_at, message, is_read, module, event, client_id, request_id, actor_email")
-            .eq("org_id", org_id)
-            .order("created_at", desc=True)
-            .limit(limit)
-            .execute()
-        )
+        query = supabase.table("org_notifications").select(ORG_NOTIFICATIONS_SELECT_FIELDS_LIST).eq("org_id", org_id)
+
+        # Filtrar notificações do próprio autor
+        if exclude_actor_email:
+            query = query.neq("actor_email", exclude_actor_email)
+
+        response = query.order("created_at", desc=True).limit(limit).execute()
 
         data = getattr(response, "data", None) or []
-        log.debug("[Notifications] Listadas %d notificação(ões) (org_id=%s)", len(data), org_id)
+        log.debug(
+            "[Notifications] Listadas %d notificação(ões) (org_id=%s, exclude_actor=%s)",
+            len(data),
+            org_id,
+            exclude_actor_email,
+        )
 
         return data
 
@@ -62,11 +107,12 @@ def list_notifications(org_id: str, limit: int = 20) -> list[dict[str, Any]]:
         return []
 
 
-def count_unread(org_id: str) -> int:
+def count_unread(org_id: str, exclude_actor_email: str | None = None) -> int:
     """Conta notificações não lidas de uma organização.
 
     Args:
         org_id: ID da organização
+        exclude_actor_email: Email do autor a excluir (não contar próprias notificações)
 
     Returns:
         Número de notificações não lidas
@@ -78,16 +124,21 @@ def count_unread(org_id: str) -> int:
     from infra.supabase_client import supabase
 
     try:
-        response = (
+        query = (
             supabase.table("org_notifications")
-            .select("id", count="exact")
+            .select(ORG_NOTIFICATIONS_SELECT_FIELDS_COUNT, count="exact")
             .eq("org_id", org_id)
             .eq("is_read", False)
-            .execute()
         )
 
+        # Filtrar notificações do próprio autor
+        if exclude_actor_email:
+            query = query.neq("actor_email", exclude_actor_email)
+
+        response = query.execute()
+
         count = getattr(response, "count", 0) or 0
-        log.debug("[Notifications] %d não lida(s) (org_id=%s)", count, org_id)
+        log.debug("[Notifications] %d não lida(s) (org_id=%s, exclude_actor=%s)", count, org_id, exclude_actor_email)
 
         return count
 
@@ -177,7 +228,62 @@ def insert_notification(
     from infra.supabase_client import supabase
     from postgrest.exceptions import APIError
 
+    # Normalizar request_id (extrair UUID se formato prefixo:<uuid>)
+    request_id_original = request_id
+    request_id_db = None
+    if request_id_original:
+        uuid_part = _extract_uuid_from_request_id(request_id_original)
+        request_id_db = uuid_part if uuid_part else request_id_original
+
+        # Log se normalizou
+        if uuid_part and uuid_part != request_id_original:
+            log.info(
+                "[NOTIF] request_id normalizado: original=%s db=%s",
+                request_id_original,
+                request_id_db,
+            )
+
     try:
+        # Dedupe: se request_id presente, verificar se já existe notificação com mesmos parâmetros
+        if request_id_db:
+            log.debug(
+                "[NOTIF] Verificando duplicação: org=%s module=%s event=%s request_id=%s",
+                org_id,
+                module,
+                event,
+                request_id_db,
+            )
+            try:
+                existing_check = (
+                    supabase.table("org_notifications")
+                    .select(ORG_NOTIFICATIONS_SELECT_FIELDS_COUNT)
+                    .eq("org_id", org_id)
+                    .eq("module", module)
+                    .eq("event", event)
+                    .eq("request_id", request_id_db)
+                    .limit(1)
+                    .execute()
+                )
+
+                existing_data = getattr(existing_check, "data", None) or []
+                if existing_data:
+                    existing_id = existing_data[0].get("id")
+                    log.info(
+                        "[NOTIF] Notificação já existe (dedupe): id=%s org=%s module=%s event=%s request_id=%s",
+                        existing_id,
+                        org_id,
+                        module,
+                        event,
+                        request_id_db,
+                    )
+                    return True  # Não duplicar, retornar sucesso
+            except Exception as check_exc:
+                # Se falhar check, continuar com insert (fail-safe)
+                log.warning(
+                    "[NOTIF] Falha no pre-check de duplicação (continuando com insert): %s",
+                    check_exc,
+                )
+
         row = {
             "org_id": org_id,
             "module": module,
@@ -192,8 +298,8 @@ def insert_notification(
             row["actor_email"] = actor_email
         if client_id:
             row["client_id"] = client_id
-        if request_id:
-            row["request_id"] = request_id
+        if request_id_db:
+            row["request_id"] = request_id_db
         # NOTA: metadata removido - tabela org_notifications pode não ter esta coluna
         # Se necessário, pode ser incluído na mensagem JSON-encoded
 
@@ -203,7 +309,7 @@ def insert_notification(
             module,
             event,
             client_id,
-            request_id,
+            request_id_db,
             actor_user_id,
             actor_email,
         )
@@ -241,8 +347,43 @@ def insert_notification(
         error_details = error_data.get("details", "")
         error_hint = error_data.get("hint", "")
 
+        # Fallback para erro 22P02 (invalid UUID): tentar sem request_id
+        if (
+            error_code == "22P02"
+            and "invalid input syntax for type uuid" in error_message.lower()
+            and "request_id" in row
+        ):
+            log.warning(
+                "[NOTIF] Erro UUID em request_id (code=22P02), tentando retry sem request_id: org=%s module=%s",
+                org_id,
+                module,
+            )
+            try:
+                # Remover request_id e tentar novamente (1 retry apenas)
+                row_retry = {k: v for k, v in row.items() if k != "request_id"}
+                response_retry = supabase.table("org_notifications").insert(row_retry).execute()
+                data_retry = getattr(response_retry, "data", None) or []
+
+                if data_retry:
+                    notif_id_retry = data_retry[0].get("id")
+                    log.info(
+                        "[NOTIF] insert ok (retry sem request_id): id=%s module=%s event=%s org=%s",
+                        notif_id_retry,
+                        module,
+                        event,
+                        org_id,
+                    )
+                    return True
+            except Exception as retry_exc:
+                log.exception(
+                    "[NOTIF] Retry sem request_id também falhou: org=%s module=%s | exc=%s",
+                    org_id,
+                    module,
+                    retry_exc,
+                )
+
         log.exception(
-            "[NOTIF] Erro PostgREST ao inserir: org=%s module=%s event=%s | " "code=%s message=%s details=%s hint=%s",
+            "[NOTIF] Erro PostgREST ao inserir: org=%s module=%s event=%s | code=%s message=%s details=%s hint=%s",
             org_id,
             module,
             event,
@@ -263,13 +404,15 @@ def insert_notification(
 class NotificationsRepositoryAdapter:
     """Adapter para usar funções do repository como métodos de instância."""
 
-    def list_notifications(self, org_id: str, limit: int = 20) -> list[dict[str, Any]]:
+    def list_notifications(
+        self, org_id: str, limit: int = 20, exclude_actor_email: str | None = None
+    ) -> list[dict[str, Any]]:
         """Lista notificações de uma organização."""
-        return list_notifications(org_id, limit)
+        return list_notifications(org_id, limit, exclude_actor_email=exclude_actor_email)
 
-    def count_unread(self, org_id: str) -> int:
+    def count_unread(self, org_id: str, exclude_actor_email: str | None = None) -> int:
         """Conta notificações não lidas."""
-        return count_unread(org_id)
+        return count_unread(org_id, exclude_actor_email=exclude_actor_email)
 
     def mark_all_read(self, org_id: str) -> bool:
         """Marca todas como lidas."""

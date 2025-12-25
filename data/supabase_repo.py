@@ -33,7 +33,7 @@ import random
 import time
 from collections.abc import Sequence
 from datetime import datetime, timezone
-from typing import Any, Callable, TypedDict, TypeVar
+from typing import Any, Callable, TypedDict, TypeVar, cast
 
 import httpx
 from data.domain_types import ClientRow, PasswordRow
@@ -308,7 +308,7 @@ def _now_iso() -> str:
 # -----------------------------------------------------------------------------
 
 
-def list_passwords(org_id: str) -> list[PasswordRow]:
+def list_passwords(org_id: str, limit: int | None = None, offset: int = 0) -> list[PasswordRow]:
     """
     Lista todas as senhas da organização com dados do cliente via JOIN.
     Retorna lista de dicts com campos: id, org_id, client_name, service,
@@ -316,6 +316,11 @@ def list_passwords(org_id: str) -> list[PasswordRow]:
     client_id, razao_social, cnpj, nome (contato), whatsapp (mapeado de numero), client_external_id.
 
     A senha vem criptografada (password_enc); use decrypt_for_view() para exibir.
+
+    Args:
+        org_id: ID da organização
+        limit: Número máximo de registros (None = sem limite) - PERF-003
+        offset: Número de registros a pular - PERF-003
     """
     if not org_id:
         raise ValueError("org_id é obrigatório")
@@ -328,12 +333,18 @@ def list_passwords(org_id: str) -> list[PasswordRow]:
             # Campos do client_passwords: *,
             # Campos de clients: id (renomeado), razao_social, cnpj, nome, numero (WhatsApp)
             select_query = "*,clients!client_id(id,razao_social,cnpj,nome,numero)"
-            return exec_postgrest(
+            query = (
                 supabase.table("client_passwords")
                 .select(select_query)
                 .eq("org_id", org_id)
                 .order("updated_at", desc=True)
             )
+
+            # PERF-003: Aplica paginação se especificado
+            if limit is not None:
+                query = query.range(offset, offset + limit - 1)
+
+            return exec_postgrest(query)
 
         res: Any = with_retries(_do)
         raw_data = getattr(res, "data", None)
@@ -363,7 +374,7 @@ def list_passwords(org_id: str) -> list[PasswordRow]:
                     password_dict["nome"] = ""
                     password_dict["whatsapp"] = ""
 
-                flattened_data.append(password_dict)  # type: ignore
+                flattened_data.append(cast(PasswordRow, password_dict))
 
         log.info("list_passwords: %d registro(s) encontrado(s) para org_id=%s", len(flattened_data), org_id)
         return flattened_data

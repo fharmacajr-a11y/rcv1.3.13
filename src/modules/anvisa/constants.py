@@ -5,8 +5,10 @@ Centraliza tipos de demandas, status e aliases para evitar duplicação.
 
 from __future__ import annotations
 
-# Tipos de demandas ANVISA
-REQUEST_TYPES = [
+from typing import Final, Literal
+
+# Type aliases para clareza
+RequestTypeStr = Literal[
     "Alteração do Responsável Legal",
     "Alteração do Responsável Técnico",
     "Alteração da Razão Social",
@@ -15,16 +17,30 @@ REQUEST_TYPES = [
     "Cancelamento de AFE",
 ]
 
+StatusOpen = Literal["draft", "submitted", "in_progress"]
+StatusClosed = Literal["done", "canceled"]
+StatusType = Literal["draft", "submitted", "in_progress", "done", "canceled"]
+
+# Tipos de demandas ANVISA (imutável)
+REQUEST_TYPES: Final[tuple[RequestTypeStr, ...]] = (
+    "Alteração do Responsável Legal",
+    "Alteração do Responsável Técnico",
+    "Alteração da Razão Social",
+    "Associação ao SNGPC",
+    "Alteração de Porte",
+    "Cancelamento de AFE",
+)
+
 # Status permitidos pelo CHECK constraint do banco de dados
-STATUS_OPEN = {"draft", "submitted", "in_progress"}
-STATUS_CLOSED = {"done", "canceled"}
-STATUS_ALL = STATUS_OPEN | STATUS_CLOSED
+STATUS_OPEN: Final[frozenset[StatusOpen]] = frozenset({"draft", "submitted", "in_progress"})
+STATUS_CLOSED: Final[frozenset[StatusClosed]] = frozenset({"done", "canceled"})
+STATUS_ALL: Final[frozenset[StatusType]] = STATUS_OPEN | STATUS_CLOSED
 
 # Status padrão para finalizar demanda
-DEFAULT_CLOSE_STATUS = "done"
+DEFAULT_CLOSE_STATUS: Final[StatusClosed] = "done"
 
 # Aliases para normalizar status legíveis → status do banco
-STATUS_ALIASES = {
+STATUS_ALIASES: Final[dict[str, StatusType]] = {
     # Status finalizados
     "finalizada": "done",
     "finalizado": "done",
@@ -47,7 +63,4 @@ STATUS_ALIASES = {
 }
 
 # Status padrão ao criar uma nova demanda
-DEFAULT_CREATE_STATUS = "draft"
-
-# Status padrão ao finalizar uma demanda
-DEFAULT_CLOSE_STATUS = "done"
+DEFAULT_CREATE_STATUS: Final[StatusOpen] = "draft"

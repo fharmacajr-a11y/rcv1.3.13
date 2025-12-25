@@ -5,10 +5,19 @@ gerar mensagens amigáveis para o usuário.
 """
 
 import logging
-from typing import Any
+from typing import Any, TypedDict
 
 
-def extract_postgrest_error(exc: Exception) -> dict[str, Any]:
+class PostgrestErrorDict(TypedDict, total=False):
+    """Estrutura de erro PostgREST/Supabase."""
+
+    code: str | None
+    message: str | None
+    details: str | None
+    hint: str | None
+
+
+def extract_postgrest_error(exc: Exception) -> PostgrestErrorDict:
     """Extrai informações estruturadas de um erro PostgREST/Supabase.
 
     Args:
@@ -26,7 +35,7 @@ def extract_postgrest_error(exc: Exception) -> dict[str, Any]:
         >>> extract_postgrest_error(exc)
         {'code': '23514', 'message': 'Check constraint', 'details': None, 'hint': None}
     """
-    error_dict: dict[str, Any] = {
+    error_dict: PostgrestErrorDict = {
         "code": None,
         "message": str(exc),
         "details": None,
@@ -55,7 +64,7 @@ def extract_postgrest_error(exc: Exception) -> dict[str, Any]:
 
 
 def user_message_from_error(
-    err: dict[str, Any],
+    err: PostgrestErrorDict,
     *,
     default: str = "Erro ao processar operação. Verifique os logs para mais detalhes.",
 ) -> str:

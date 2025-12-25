@@ -21,9 +21,7 @@ class FakeNavigator:
         self.auditoria_opened = False
         self.fluxo_caixa_opened = False
         self.anvisa_opened = False
-        self.farmacia_popular_opened = False
         self.sngpc_opened = False
-        self.sifap_opened = False
         self.sites_opened = False  # MF-39: adicionar sites
 
     def open_clientes(self) -> None:
@@ -46,17 +44,9 @@ class FakeNavigator:
         """Marca que Anvisa foi aberto."""
         self.anvisa_opened = True
 
-    def open_farmacia_popular(self) -> None:
-        """Marca que Farmácia Popular foi aberto."""
-        self.farmacia_popular_opened = True
-
     def open_sngpc(self) -> None:
         """Marca que Sngpc foi aberto."""
         self.sngpc_opened = True
-
-    def open_sifap(self) -> None:
-        """Marca que Sifap foi aberto."""
-        self.sifap_opened = True
 
     def open_sites(self) -> None:
         """Marca que Sites foi aberto."""
@@ -69,9 +59,7 @@ class FakeNavigator:
         self.auditoria_opened = False
         self.fluxo_caixa_opened = False
         self.anvisa_opened = False
-        self.farmacia_popular_opened = False
         self.sngpc_opened = False
-        self.sifap_opened = False
         self.sites_opened = False  # MF-39: adicionar sites
 
 
@@ -124,28 +112,14 @@ class TestQuickActionsController:
         controller.handle_action_click("anvisa")
 
         assert fake_navigator.anvisa_opened is True
-        assert fake_navigator.farmacia_popular_opened is False
-
-    def test_handle_farmacia_popular_click(self, controller, fake_navigator):
-        """Deve chamar open_farmacia_popular ao clicar em 'farmacia_popular'."""
-        controller.handle_action_click("farmacia_popular")
-
-        assert fake_navigator.farmacia_popular_opened is True
-        assert fake_navigator.anvisa_opened is False
+        assert fake_navigator.sngpc_opened is False
 
     def test_handle_sngpc_click(self, controller, fake_navigator):
         """Deve chamar open_sngpc ao clicar em 'sngpc'."""
         controller.handle_action_click("sngpc")
 
         assert fake_navigator.sngpc_opened is True
-        assert fake_navigator.sifap_opened is False
-
-    def test_handle_sifap_click(self, controller, fake_navigator):
-        """Deve chamar open_sifap ao clicar em 'sifap'."""
-        controller.handle_action_click("sifap")
-
-        assert fake_navigator.sifap_opened is True
-        assert fake_navigator.sngpc_opened is False
+        assert fake_navigator.anvisa_opened is False
 
     def test_handle_unknown_action(self, controller, fake_navigator):
         """Deve ignorar ação desconhecida sem crash."""
@@ -158,9 +132,7 @@ class TestQuickActionsController:
         assert fake_navigator.auditoria_opened is False
         assert fake_navigator.fluxo_caixa_opened is False
         assert fake_navigator.anvisa_opened is False
-        assert fake_navigator.farmacia_popular_opened is False
         assert fake_navigator.sngpc_opened is False
-        assert fake_navigator.sifap_opened is False
 
     def test_handle_multiple_clicks(self, controller, fake_navigator):
         """Deve permitir múltiplos cliques em sequência."""

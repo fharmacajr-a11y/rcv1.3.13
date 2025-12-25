@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from typing import Any, Sequence
 
+# Constante para select de org_id
+MEMBERSHIPS_SELECT_ORG_ID = "org_id"
+
 
 def fetch_clients(sb: Any) -> list[dict[str, Any]]:
     """Return ordered list of clients from Supabase (dict rows only)."""
@@ -61,7 +64,7 @@ def fetch_current_user_id(sb: Any) -> str:
 def fetch_org_id_for_user(sb: Any, user_id: str) -> str:
     """Return the organization id linked to the given Supabase user."""
 
-    res = sb.table("memberships").select("org_id").eq("user_id", user_id).limit(1).execute()
+    res = sb.table("memberships").select(MEMBERSHIPS_SELECT_ORG_ID).eq("user_id", user_id).limit(1).execute()
     data = getattr(res, "data", None) or []
     org_id = data[0].get("org_id") if data else ""
     if not org_id:

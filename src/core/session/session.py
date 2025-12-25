@@ -6,6 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ROLE
 from infra.supabase_client import exec_postgrest, supabase
 
 
@@ -60,7 +61,7 @@ def refresh_current_user_from_supabase() -> None:
     email = getattr(user, "email", None)
 
     # Busca memberships do usuario
-    resp = exec_postgrest(supabase.table("memberships").select("org_id, role").eq("user_id", uid))
+    resp = exec_postgrest(supabase.table("memberships").select(MEMBERSHIPS_SELECT_ORG_ROLE).eq("user_id", uid))
     rows: list[MembershipRow] = resp.data or []
 
     org_id: str | None = None

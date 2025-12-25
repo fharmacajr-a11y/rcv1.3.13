@@ -109,16 +109,16 @@ def suggest_headless(candidates: list[dict]) -> list[dict]:
 
 def print_ranking(candidates: list[dict], top_n: int = 30):
     """Imprime ranking dos candidatos"""
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print(f"TOP {top_n} ARQUIVOS PARA AUMENTAR COBERTURA")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
     print(f"{'#':<4} {'Arquivo':<55} {'Stmts':<7} {'Cov%':<7}")
-    print(f"{'-'*80}")
+    print(f"{'-' * 80}")
 
     for i, candidate in enumerate(candidates[:top_n], 1):
         print(f"{i:<4} {candidate['file']:<55} {candidate['stmts']:<7} {candidate['percent']:<7.1f}")
 
-    print(f"{'-'*80}\n")
+    print(f"{'-' * 80}\n")
 
 
 def print_headless_suggestions(headless: list[dict]):
@@ -127,15 +127,15 @@ def print_headless_suggestions(headless: list[dict]):
         print("⚠️  Nenhum candidato headless identificado nos top 30.\n")
         return
 
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("🎯 TOP 3 SUGESTÕES HEADLESS (sem Tk, sem rede)")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
 
     for i, candidate in enumerate(headless, 1):
         print(f"\n{i}. {candidate['file']}")
         print(f"   Statements: {candidate['stmts']} | Cobertura: {candidate['percent']:.1f}%")
 
-    print(f"\n{'='*80}\n")
+    print(f"\n{'=' * 80}\n")
 
 
 def main():

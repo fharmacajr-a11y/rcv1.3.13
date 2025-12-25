@@ -19,11 +19,11 @@ from src.modules.hub.services.authors_service import get_author_display_name
 from src.modules.hub.utils import _normalize_note
 from src.modules.hub.views.hub_screen_helpers import (
     calculate_notes_content_hash,
-    format_note_line,
-    format_timestamp,
     should_skip_render_empty_notes,
 )
 from src.modules.hub.views.notes_panel_view import NotesViewCallbacks, build_notes_side_panel
+from src.modules.hub.views.notes_text_renderer import render_notes_text
+from src.modules.hub.views.notes_text_interactions import install_notes_context_menu
 
 if TYPE_CHECKING:
     from src.modules.hub.viewmodels import NotesViewState
@@ -55,6 +55,7 @@ class HubNotesView:
         on_delete_note_click: Optional[Callable[[str], None]] = None,
         on_toggle_pin_click: Optional[Callable[[str], None]] = None,
         on_toggle_done_click: Optional[Callable[[str], None]] = None,
+        current_user_email: Optional[str] = None,
     ):
         """Inicializa a view do painel de notas.
 
@@ -66,6 +67,7 @@ class HubNotesView:
             on_delete_note_click: Callback para deletar nota (recebe note_id)
             on_toggle_pin_click: Callback para fixar/desafixar nota (recebe note_id)
             on_toggle_done_click: Callback para marcar/desmarcar como feita (recebe note_id)
+            current_user_email: Email do usuário atual (para validação de permissão)
         """
         self._parent = parent
         self._state = state
@@ -74,6 +76,7 @@ class HubNotesView:
         self._on_delete_note_click = on_delete_note_click
         self._on_toggle_pin_click = on_toggle_pin_click
         self._on_toggle_done_click = on_toggle_done_click
+        self._current_user_email = current_user_email
 
         self.notes_panel: tb.Labelframe | None = None
         self.notes_history: Any = None
@@ -101,6 +104,7 @@ class HubNotesView:
             on_delete_note_click=self._on_delete_note_click,
             on_toggle_pin_click=self._on_toggle_pin_click,
             on_toggle_done_click=self._on_toggle_done_click,
+            current_user_email=self._current_user_email,
         )
 
         # Build panel using helper (extrai lógica de UI)
@@ -114,6 +118,14 @@ class HubNotesView:
         self.notes_history = self.notes_panel.notes_history  # type: ignore[attr-defined]
         self.new_note = self.notes_panel.new_note  # type: ignore[attr-defined]
         self.btn_add_note = self.notes_panel.btn_add_note  # type: ignore[attr-defined]
+
+        # Install context menu for notes (copiar/apagar)
+        if self.notes_history:
+            install_notes_context_menu(
+                self.notes_history,
+                on_delete_note_click=self._on_delete_note_click,
+                current_user_email=self._current_user_email,
+            )
 
         return self.notes_panel
 
@@ -214,9 +226,10 @@ class HubNotesView:
         hub_screen: Any = None,
         debug_logger: Optional[Callable[[str], None]] = None,
     ) -> None:
-        """Renderiza lista de notas no histórico com cores, timestamps e tooltips.
+        """Renderiza lista de notas no histórico usando o renderer clean (estilo chat).
 
         MF-34: Implementação completa movida de HubScreen.render_notes.
+        Atualizada para usar notes_text_renderer para layout limpo.
 
         Args:
             notes: Lista de dicionários com dados das notas
@@ -229,8 +242,7 @@ class HubNotesView:
         Notas:
             - Normaliza entrada (tuplas/listas → dicts)
             - Skip se lista vazia ou hash igual (otimização)
-            - Usa helpers de formatação (format_timestamp, format_note_line)
-            - Aplica tags de cor por autor (_ensure_author_tag)
+            - Usa novo renderer para layout clean (blocos separados)
             - Scrollar para o fim após renderização
         """
         # Normalizar entrada: converter tuplas/listas para dicts
@@ -265,64 +277,21 @@ class HubNotesView:
                 logger.warning("Hub: notes_history destruído (frame/aba fechada?); pulando atualização de notas.")
                 return
 
-            # A partir daqui, é seguro usar o widget
-            self.notes_history.configure(state="normal")
-            self.notes_history.delete("1.0", "end")
+            # Callback para resolver nomes de autores usando hub_screen
+            def resolve_name(email: str) -> str:
+                if hub_screen and email:
+                    return get_author_display_name(hub_screen, email, start_async_fetch=True)
+                return email.split("@")[0].title() if email else "Usuário"
 
-            for n in notes:
-                # Suportar tanto dicts quanto NoteItemView objects
-                if hasattr(n, "author_email"):  # É NoteItemView
-                    email = (n.author_email or "").strip().lower()
-                    name = (n.author_name or "").strip()
-                    created_at = n.created_at
-                    body = (n.body or "").rstrip("\n")
-                    # Usar formatted_line se disponível
-                    if hasattr(n, "formatted_line") and n.formatted_line:
-                        # Inserir linha já formatada
-                        tag = _ensure_author_tag(self.notes_history, email, author_tags) if email else None
-                        if tag:
-                            self.notes_history.insert("end", n.formatted_line + "\n", (tag,))
-                        else:
-                            self.notes_history.insert("end", n.formatted_line + "\n")
-                        continue
-                else:  # É dict (legado)
-                    email = (n.get("author_email") or "").strip().lower()
-                    name = (n.get("author_name") or "").strip()
-                    created_at = n.get("created_at")
-                    body = (n.get("body") or "").rstrip("\n")
+            # Usar o novo renderer para layout clean (estilo chat/WhatsApp)
+            render_notes_text(
+                self.notes_history,
+                notes,
+                resolve_display_name=resolve_name,
+                author_tags_dict=author_tags,
+                ensure_author_tag_fn=_ensure_author_tag,
+            )
 
-                if not name and hub_screen:
-                    # usar cache → mapa local → fetch → placeholder
-                    name = get_author_display_name(hub_screen, email, start_async_fetch=True)
-
-                # Aplicar tag de cor com fallback defensivo
-                tag = None
-                try:
-                    tag = _ensure_author_tag(self.notes_history, email, author_tags)
-                except Exception:
-                    logger.exception("Hub: falha ao aplicar estilo/tag do autor; renderizando sem cor.")
-                    tag = None  # segue sem tag
-
-                created_at_str = str(created_at) if created_at is not None else ""
-                ts = format_timestamp(created_at_str) if created_at_str else "??"
-
-                # Inserir: [data] <nome colorido>: corpo
-                if tag:
-                    self.notes_history.insert("end", f"[{ts}] ")
-                    self.notes_history.insert("end", name, (tag,))
-                    self.notes_history.insert("end", f": {body}\n")
-                else:
-                    line = (
-                        format_note_line(created_at_str, name or email, body)
-                        if created_at_str
-                        else f"?? {name or email}: {body}"
-                    )
-                    self.notes_history.insert("end", f"{line}\n")
-
-            self.notes_history.configure(state="disabled")
-            # Scrollar para o fim (mais recente)
-            self.notes_history.see("end")
-            self.notes_history.see("end")
         except TclError:
             logger.exception("Hub: erro crítico ao renderizar lista de notas.")
         except Exception:

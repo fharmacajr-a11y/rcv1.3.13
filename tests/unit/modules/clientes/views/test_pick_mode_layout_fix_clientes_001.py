@@ -147,7 +147,6 @@ class TestPickModeStartWithDifferentLayouts:
         frame.btn_novo = None
         frame.btn_editar = None
         frame.btn_subpastas = None
-        frame.btn_enviar = None
         frame.btn_lixeira = None
 
         controller = PickModeController(frame=frame)
@@ -242,7 +241,6 @@ class TestPickModeIntegrationWithPasswordsFlow:
         frame.btn_novo = None
         frame.btn_editar = None
         frame.btn_subpastas = None
-        frame.btn_enviar = None
         frame.btn_lixeira = None
 
         controller = PickModeController(frame=frame)

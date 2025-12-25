@@ -81,9 +81,9 @@ class TestExecuteUploadFlow:
 
     @patch("src.modules.clientes.forms.client_form_upload_helpers.filedialog")
     @patch("src.modules.clientes.forms.client_form_upload_helpers.messagebox")
-    def test_shows_info_when_no_files_selected(self, mock_messagebox, mock_filedialog):
+    def test_shows_info_when_no_folder_selected(self, mock_messagebox, mock_filedialog):
         """Deve exibir info quando usuário cancela seleção."""
-        mock_filedialog.askopenfilenames.return_value = []
+        mock_filedialog.askdirectory.return_value = ""
         parent = Mock()
         ents = {"CNPJ": Mock()}
         host = Mock()
@@ -92,17 +92,47 @@ class TestExecuteUploadFlow:
 
         mock_messagebox.showinfo.assert_called_once_with(
             "Envio",
-            "Nenhum arquivo selecionado.",
+            "Nenhuma pasta selecionada.",
             parent=parent,
         )
 
     @patch("src.modules.clientes.forms.client_form_upload_helpers.filedialog")
     @patch("src.modules.clientes.forms.client_form_upload_helpers.messagebox")
+    @patch("src.modules.clientes.forms.client_form_upload_helpers.collect_pdfs_from_folder")
+    def test_shows_info_when_no_pdfs_found(self, mock_collect, mock_messagebox, mock_filedialog):
+        """Deve exibir info quando pasta não contém PDFs."""
+        mock_filedialog.askdirectory.return_value = "/pasta"
+        mock_collect.return_value = []
+
+        parent = Mock()
+        ents = {"CNPJ": Mock()}
+        host = Mock()
+
+        execute_upload_flow(parent, ents, client_id=1, host=host)
+
+        mock_messagebox.showinfo.assert_called_once_with(
+            "Envio",
+            "Nenhum PDF encontrado nessa pasta.",
+            parent=parent,
+        )
+
+    @patch("src.modules.clientes.forms.client_form_upload_helpers.filedialog")
+    @patch("src.modules.clientes.forms.client_form_upload_helpers.messagebox")
+    @patch("src.modules.clientes.forms.client_form_upload_helpers.collect_pdfs_from_folder")
     @patch("src.modules.clientes.forms.client_form_upload_helpers.validate_upload_files")
-    def test_shows_warning_when_no_valid_files(self, mock_validate, mock_messagebox, mock_filedialog):
+    @patch("src.modules.clientes.forms.client_form_upload_helpers.SubpastaDialog")
+    def test_shows_warning_when_no_valid_files(
+        self, mock_dialog_class, mock_validate, mock_collect, mock_messagebox, mock_filedialog
+    ):
         """Deve exibir aviso quando não há arquivos válidos."""
-        mock_filedialog.askopenfilenames.return_value = ["/path/file.pdf"]
+        mock_filedialog.askdirectory.return_value = "/pasta"
+        mock_collect.return_value = [Mock(path="/path/file.pdf", relative_path="file.pdf")]
         mock_validate.return_value = ([], [Mock(path="/path/file.pdf", error="corrompido")])
+
+        # Mock dialog de subpasta
+        mock_dialog = Mock()
+        mock_dialog.result = "SIFAP"
+        mock_dialog_class.return_value = mock_dialog
 
         parent = Mock()
         ents = {"CNPJ": Mock()}
@@ -117,13 +147,19 @@ class TestExecuteUploadFlow:
 
     @patch("src.modules.clientes.forms.client_form_upload_helpers.filedialog")
     @patch("src.modules.clientes.forms.client_form_upload_helpers.messagebox")
-    @patch("src.modules.clientes.forms.client_form_upload_helpers.validate_upload_files")
-    @patch("src.modules.clientes.forms.client_form_upload_helpers.build_items_from_files")
-    def test_shows_warning_when_no_items_built(self, mock_build, mock_validate, mock_messagebox, mock_filedialog):
-        """Deve exibir aviso quando build_items_from_files retorna vazio."""
-        mock_filedialog.askopenfilenames.return_value = ["/path/file.pdf"]
-        mock_validate.return_value = ([Mock(path="/path/file.pdf")], [])
-        mock_build.return_value = []
+    @patch("src.modules.clientes.forms.client_form_upload_helpers.collect_pdfs_from_folder")
+    @patch("src.modules.clientes.forms.client_form_upload_helpers.SubpastaDialog")
+    def test_cancels_when_subfolder_dialog_cancelled(
+        self, mock_dialog_class, mock_collect, mock_messagebox, mock_filedialog
+    ):
+        """Deve cancelar quando usuário cancela dialog de subpasta."""
+        mock_filedialog.askdirectory.return_value = "/pasta"
+        mock_collect.return_value = [Mock(path="/path/file.pdf", relative_path="file.pdf")]
+
+        # Mock dialog de subpasta retornando None (cancelado)
+        mock_dialog = Mock()
+        mock_dialog.result = None
+        mock_dialog_class.return_value = mock_dialog
 
         parent = Mock()
         ents = {"CNPJ": Mock()}
@@ -131,21 +167,29 @@ class TestExecuteUploadFlow:
 
         execute_upload_flow(parent, ents, client_id=1, host=host)
 
-        mock_messagebox.showwarning.assert_called_once_with(
+        mock_messagebox.showinfo.assert_called_once_with(
             "Envio",
-            "Nenhum PDF valido foi selecionado.",
+            "Envio cancelado.",
             parent=parent,
         )
 
     @patch("src.modules.clientes.forms.client_form_upload_helpers.filedialog")
     @patch("src.modules.clientes.forms.client_form_upload_helpers.messagebox")
+    @patch("src.modules.clientes.forms.client_form_upload_helpers.collect_pdfs_from_folder")
     @patch("src.modules.clientes.forms.client_form_upload_helpers.validate_upload_files")
-    @patch("src.modules.clientes.forms.client_form_upload_helpers.build_items_from_files")
-    def test_shows_warning_when_cnpj_missing(self, mock_build, mock_validate, mock_messagebox, mock_filedialog):
+    @patch("src.modules.clientes.forms.client_form_upload_helpers.SubpastaDialog")
+    def test_shows_warning_when_cnpj_missing(
+        self, mock_dialog_class, mock_validate, mock_collect, mock_messagebox, mock_filedialog
+    ):
         """Deve exibir aviso quando CNPJ está vazio."""
-        mock_filedialog.askopenfilenames.return_value = ["/path/file.pdf"]
+        mock_filedialog.askdirectory.return_value = "/pasta"
+        mock_collect.return_value = [Mock(path="/path/file.pdf", relative_path="file.pdf")]
         mock_validate.return_value = ([Mock(path="/path/file.pdf")], [])
-        mock_build.return_value = [Mock()]
+
+        # Mock dialog de subpasta
+        mock_dialog = Mock()
+        mock_dialog.result = "SIFAP"
+        mock_dialog_class.return_value = mock_dialog
 
         parent = Mock()
         cnpj_entry = Mock()
@@ -163,24 +207,31 @@ class TestExecuteUploadFlow:
 
     @patch("src.modules.clientes.forms.client_form_upload_helpers.filedialog")
     @patch("src.modules.clientes.forms.client_form_upload_helpers.messagebox")
+    @patch("src.modules.clientes.forms.client_form_upload_helpers.collect_pdfs_from_folder")
     @patch("src.modules.clientes.forms.client_form_upload_helpers.validate_upload_files")
-    @patch("src.modules.clientes.forms.client_form_upload_helpers.build_items_from_files")
+    @patch("src.modules.clientes.forms.client_form_upload_helpers.SubpastaDialog")
     @patch("src.modules.clientes.forms.client_form_upload_helpers.UploadDialog")
     @patch("src.modules.clientes.forms.client_form_upload_helpers.get_current_org_id")
     def test_executes_upload_dialog_with_valid_input(
         self,
         mock_get_org_id,
         mock_dialog_class,
-        mock_build,
+        mock_subfolder_dialog_class,
         mock_validate,
+        mock_collect,
         mock_messagebox,
         mock_filedialog,
     ):
         """Deve executar dialog de upload quando tudo está OK."""
-        mock_filedialog.askopenfilenames.return_value = ["/path/file.pdf"]
+        mock_filedialog.askdirectory.return_value = "/pasta"
+        mock_collect.return_value = [Mock(path="/path/file.pdf", relative_path="file.pdf")]
         mock_validate.return_value = ([Mock(path="/path/file.pdf")], [])
-        mock_build.return_value = [Mock(path="/path/file.pdf", relative_path="file.pdf")]
         mock_get_org_id.return_value = "org123"
+
+        # Mock dialog de subpasta
+        mock_subfolder_dialog = Mock()
+        mock_subfolder_dialog.result = "SIFAP"
+        mock_subfolder_dialog_class.return_value = mock_subfolder_dialog
 
         parent = Mock()
         cnpj_entry = Mock()
@@ -197,22 +248,29 @@ class TestExecuteUploadFlow:
 
     @patch("src.modules.clientes.forms.client_form_upload_helpers.filedialog")
     @patch("src.modules.clientes.forms.client_form_upload_helpers.messagebox")
+    @patch("src.modules.clientes.forms.client_form_upload_helpers.collect_pdfs_from_folder")
     @patch("src.modules.clientes.forms.client_form_upload_helpers.validate_upload_files")
-    @patch("src.modules.clientes.forms.client_form_upload_helpers.build_items_from_files")
+    @patch("src.modules.clientes.forms.client_form_upload_helpers.SubpastaDialog")
     @patch("src.modules.clientes.forms.client_form_upload_helpers.get_current_org_id")
     def test_handles_exception_getting_org_id_gracefully(
         self,
         mock_get_org_id,
-        mock_build,
+        mock_subfolder_dialog_class,
         mock_validate,
+        mock_collect,
         mock_messagebox,
         mock_filedialog,
     ):
         """Deve continuar mesmo se get_current_org_id lançar exceção."""
-        mock_filedialog.askopenfilenames.return_value = ["/path/file.pdf"]
+        mock_filedialog.askdirectory.return_value = "/pasta"
+        mock_collect.return_value = [Mock(path="/path/file.pdf", relative_path="file.pdf")]
         mock_validate.return_value = ([Mock(path="/path/file.pdf")], [])
-        mock_build.return_value = [Mock(path="/path/file.pdf", relative_path="file.pdf")]
         mock_get_org_id.side_effect = Exception("Org ID error")
+
+        # Mock dialog de subpasta
+        mock_subfolder_dialog = Mock()
+        mock_subfolder_dialog.result = ""
+        mock_subfolder_dialog_class.return_value = mock_subfolder_dialog
 
         parent = Mock()
         cnpj_entry = Mock()

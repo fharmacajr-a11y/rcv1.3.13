@@ -187,11 +187,17 @@ class HubComponentFactory:
 
         # Notes Controller
         from src.modules.hub.controllers.notes_controller import NotesController
+        from src.modules.hub.services.hub_auth_helpers import get_app_from_widget
+
+        # Obter notifications_service do MainWindow (seguindo padrão ANVISA)
+        app = get_app_from_widget(screen)
+        notifications_service = getattr(app, "notifications_service", None) if app else None
 
         notes_controller = NotesController(
             vm=notes_vm,
             gateway=screen,
             notes_service=notes_service,
+            notifications_service=notifications_service,
             logger=self._logger,
         )
         self._logger.debug("NotesController criado")

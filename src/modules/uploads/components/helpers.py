@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 import re
 
+from infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ID
 from src.core.string_utils import only_digits
 from src.shared.storage_ui_bridge import build_client_prefix
 
@@ -71,7 +72,7 @@ def get_current_org_id(sb) -> str:  # type: ignore[no-untyped-def]
         uid = user.user.id
 
         # Busca org_id na tabela memberships
-        res = sb.table("memberships").select("org_id").eq("user_id", uid).limit(1).execute()
+        res = sb.table("memberships").select(MEMBERSHIPS_SELECT_ORG_ID).eq("user_id", uid).limit(1).execute()
         if getattr(res, "data", None) and res.data and res.data[0].get("org_id"):
             return res.data[0]["org_id"]
     except Exception as exc:  # noqa: BLE001

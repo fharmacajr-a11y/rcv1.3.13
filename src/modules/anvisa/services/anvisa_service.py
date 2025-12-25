@@ -14,17 +14,49 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, Optional, Protocol
+from typing import Any, Protocol, TypedDict, cast
 
-from ..constants import STATUS_ALIASES, STATUS_CLOSED, STATUS_OPEN
+from ..constants import (
+    REQUEST_TYPES,
+    STATUS_ALIASES,
+    STATUS_CLOSED,
+    STATUS_OPEN,
+    StatusType,
+)
 
 log = logging.getLogger(__name__)
+
+# Type aliases
+DemandaDict = dict[str, Any]  # Estrutura de demanda do banco (flexível)
+
+
+class ClientRowDict(TypedDict, total=False):
+    """Estrutura de row para tabela principal (UI)."""
+
+    client_id: str
+    razao_social: str
+    cnpj: str
+    demanda_label: str
+    last_update_dt: datetime | None
+
+
+class HistoryRowDict(TypedDict):
+    """Estrutura de row para histórico de demandas (UI)."""
+
+    request_id: str
+    tipo: str
+    status_humano: str
+    status_raw: StatusType
+    actions: dict[str, bool]
+    criada_em: str
+    atualizada_em: str
+    updated_dt_utc: datetime | None
 
 
 class AnvisaRequestsRepository(Protocol):
     """Protocol para repositório de demandas ANVISA (duck typing)."""
 
-    def list_requests(self, org_id: str) -> list[dict[str, Any]]:
+    def list_requests(self, org_id: str) -> list[DemandaDict]:
         """Lista todas as demandas de uma organização.
 
         Args:
@@ -56,7 +88,7 @@ class AnvisaService:
         """
         self.repository = repository
 
-    def list_requests_for_client(self, org_id: str, client_id: str) -> list[dict[str, Any]]:
+    def list_requests_for_client(self, org_id: str, client_id: str) -> list[DemandaDict]:
         """Lista demandas de um cliente específico.
 
         Args:
@@ -81,7 +113,7 @@ class AnvisaService:
             log.error(f"[ANVISA Service] Erro ao listar demandas: {e}", exc_info=True)
             return []
 
-    def check_duplicate_open_request(self, org_id: str, client_id: str, request_type: str) -> Optional[dict[str, Any]]:
+    def check_duplicate_open_request(self, org_id: str, client_id: str, request_type: str) -> DemandaDict | None:
         """Verifica se existe demanda aberta duplicada do mesmo tipo.
 
         Regra de negócio:
@@ -164,7 +196,7 @@ class AnvisaService:
         # Verificar se está nos status abertos
         return normalized in STATUS_OPEN
 
-    def group_by_client(self, requests: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    def group_by_client(self, requests: list[DemandaDict]) -> dict[str, list[DemandaDict]]:
         """Agrupa demandas por client_id.
 
         Args:
@@ -173,7 +205,7 @@ class AnvisaService:
         Returns:
             Dicionário {client_id: [demandas]}
         """
-        grouped: dict[str, list[dict[str, Any]]] = {}
+        grouped: dict[str, list[DemandaDict]] = {}
 
         for req in requests:
             client_id = str(req.get("client_id", ""))
@@ -183,9 +215,7 @@ class AnvisaService:
 
         return grouped
 
-    def check_duplicate_open_in_memory(
-        self, demandas: list[dict[str, Any]], request_type: str
-    ) -> Optional[dict[str, Any]]:
+    def check_duplicate_open_in_memory(self, demandas: list[DemandaDict], request_type: str) -> DemandaDict | None:
         """Verifica duplicado em lista já carregada (sem consultar repository).
 
         Útil quando a View já tem as demandas em cache/memória.
@@ -209,12 +239,12 @@ class AnvisaService:
 
             # Verificar se status é aberto
             if self._is_open_status(demanda_status):
-                log.debug(f"[ANVISA Service] Duplicado in-memory: " f"tipo={request_type}, status={demanda_status}")
+                log.debug(f"[ANVISA Service] Duplicado in-memory: tipo={request_type}, status={demanda_status}")
                 return demanda
 
         return None
 
-    def summarize_demands(self, demandas: list[dict[str, Any]]) -> tuple[str, Optional[datetime]]:
+    def summarize_demands(self, demandas: list[DemandaDict]) -> tuple[str, datetime | None]:
         """Resume demandas de um cliente para exibição.
 
         Regras:
@@ -237,7 +267,7 @@ class AnvisaService:
             return "", None
 
         # Encontrar data mais recente
-        last_update_dt: Optional[datetime] = None
+        last_update_dt: datetime | None = None
 
         for dem in demandas:
             updated = dem.get("updated_at") or dem.get("created_at", "")
@@ -262,7 +292,7 @@ class AnvisaService:
 
         return label, last_update_dt
 
-    def _parse_iso_datetime(self, dt_str: str) -> Optional[datetime]:
+    def _parse_iso_datetime(self, dt_str: str) -> datetime | None:
         """Parse ISO datetime string para datetime object (UTC).
 
         Args:
@@ -294,9 +324,7 @@ class AnvisaService:
             log.debug(f"[ANVISA Service] Erro ao parsear datetime: {dt_str} - {e}")
             return None
 
-    def build_main_rows(
-        self, requests: list[dict[str, Any]]
-    ) -> tuple[dict[str, list[dict[str, Any]]], list[dict[str, Any]]]:
+    def build_main_rows(self, requests: list[DemandaDict]) -> tuple[dict[str, list[DemandaDict]], list[ClientRowDict]]:
         """Constrói dados prontos para renderização na tabela principal.
 
         Agrupa demandas por cliente, calcula resumo e prepara rows para a View.
@@ -323,7 +351,7 @@ class AnvisaService:
         requests_by_client = self.group_by_client(requests)
 
         # Construir rows
-        rows: list[dict[str, Any]] = []
+        rows: list[ClientRowDict] = []
 
         for client_id, demandas in requests_by_client.items():
             # Extrair info do cliente da primeira demanda
@@ -341,7 +369,7 @@ class AnvisaService:
             demanda_label, last_update_dt = self.summarize_demands(demandas)
 
             # Montar row
-            row = {
+            row: ClientRowDict = {
                 "client_id": client_id,
                 "razao_social": razao,
                 "cnpj": cnpj,
@@ -351,12 +379,12 @@ class AnvisaService:
             rows.append(row)
 
         # Ordenar por razão social (A→Z)
-        rows.sort(key=lambda r: r["razao_social"].upper())
+        rows.sort(key=lambda r: r.get("razao_social", "").upper())
 
         log.debug(f"[ANVISA Service] Construídos {len(rows)} rows para {len(requests)} demandas")
         return requests_by_client, rows
 
-    def format_dt_local(self, dt_utc: Optional[datetime], tz_name: str = "America/Sao_Paulo") -> str:
+    def format_dt_local(self, dt_utc: datetime | None, tz_name: str = "America/Sao_Paulo") -> str:
         """Formata datetime UTC para string no timezone local.
 
         Args:
@@ -409,7 +437,6 @@ class AnvisaService:
             >>> service.normalize_request_type("tipo_invalido")
             ""
         """
-        from ..constants import REQUEST_TYPES
 
         # Normalizar: trim + casefold (case-insensitive)
         normalized_input = request_type.strip().casefold()
@@ -425,9 +452,9 @@ class AnvisaService:
 
     def validate_new_request_in_memory(
         self,
-        demandas_cliente: list[dict[str, Any]],
+        demandas_cliente: list[DemandaDict],
         request_type: str,
-    ) -> tuple[bool, dict[str, Any] | None, str]:
+    ) -> tuple[bool, DemandaDict | None, str]:
         """Valida criação de nova demanda usando cache em memória.
 
         Verifica:
@@ -455,7 +482,7 @@ class AnvisaService:
             return (
                 False,
                 None,
-                f"Tipo de demanda inválido: '{request_type}'.\n\n" f"Escolha um tipo válido.",
+                f"Tipo de demanda inválido: '{request_type}'.\n\nEscolha um tipo válido.",
             )
 
         # 2) Verificar duplicado aberto
@@ -494,7 +521,7 @@ class AnvisaService:
             return "Em aberto"
         return "Finalizado"
 
-    def normalize_status(self, status: str) -> str:
+    def normalize_status(self, status: str) -> StatusType:
         """Normaliza status usando aliases para formato canônico.
 
         Converte status legado ou variações para status oficial do banco.
@@ -515,7 +542,8 @@ class AnvisaService:
         """
         status_norm = status.strip().lower()
         # Usar aliases ou retornar o próprio status normalizado
-        return STATUS_ALIASES.get(status_norm, status_norm)
+        # cast: em runtime assumimos que o status é válido (StatusType)
+        return cast(StatusType, STATUS_ALIASES.get(status_norm, status_norm))
 
     def can_close(self, status: str) -> bool:
         """Verifica se demanda pode ser finalizada.
@@ -582,7 +610,7 @@ class AnvisaService:
             "delete": True,  # Sempre pode excluir
         }
 
-    def build_history_rows(self, demandas: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def build_history_rows(self, demandas: list[DemandaDict]) -> list[HistoryRowDict]:
         """Prepara dados do histórico de demandas para renderização.
 
         Extrai e formata informações de cada demanda para exibição no popup.
@@ -611,7 +639,7 @@ class AnvisaService:
         if not demandas:
             return []
 
-        rows = []
+        rows: list[HistoryRowDict] = []
 
         for dem in demandas:
             # Extrair campos básicos
@@ -620,7 +648,7 @@ class AnvisaService:
             status_original = dem.get("status", "")
 
             # Normalizar status para canônico
-            status_raw = self.normalize_status(status_original)
+            status_raw: StatusType = self.normalize_status(status_original)
 
             # Status legível
             status_humano = self.human_status(status_raw)
@@ -641,7 +669,7 @@ class AnvisaService:
             atualizada_em = self.format_dt_local(updated_dt_utc) if updated_dt_utc else ""
 
             # Montar row
-            row = {
+            row: HistoryRowDict = {
                 "request_id": request_id,
                 "tipo": tipo,
                 "status_humano": status_humano,

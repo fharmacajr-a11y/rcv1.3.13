@@ -8,6 +8,9 @@ import time
 from pathlib import Path
 from typing import Iterable, Optional, Any
 
+# PERF-006: Import em nível de módulo
+from src.core.text_normalization import normalize_ascii
+
 # Garante MIME de .docx em qualquer SO
 mimetypes.add_type(
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -31,10 +34,8 @@ def _normalize_bucket(bucket: Optional[str]) -> str:
 def normalize_key_for_storage(key: str) -> str:
     """Normaliza key do Storage removendo acentos APENAS do nome do arquivo (ultimo segmento).
 
-    Delega para src.core.text_normalization.normalize_ascii.
+    PERF-006: Import movido para nível de módulo.
     """
-    from src.core.text_normalization import normalize_ascii
-
     key = key.strip("/").replace("\\", "/")
     parts = key.split("/")
     if parts:

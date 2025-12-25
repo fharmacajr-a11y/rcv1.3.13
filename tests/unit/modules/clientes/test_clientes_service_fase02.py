@@ -211,7 +211,7 @@ def test_extrair_dados_cartao_cnpj_em_pasta_sem_arquivos_validos(tmp_path):
 
 
 @patch("src.utils.file_utils.list_and_classify_pdfs")
-def test_extrair_dados_cartao_cnpj_em_pasta_encontra_cnpj_card(mock_list):
+def test_extrair_dados_cartao_cnpj_em_pasta_encontra_cnpj_card(mock_list, tmp_path):
     """Extrai dados quando encontra documento tipo cnpj_card."""
     mock_list.return_value = [
         {
@@ -220,7 +220,8 @@ def test_extrair_dados_cartao_cnpj_em_pasta_encontra_cnpj_card(mock_list):
         }
     ]
 
-    result = extrair_dados_cartao_cnpj_em_pasta("/fake/path")
+    # Usa tmp_path que é um diretório real existente
+    result = extrair_dados_cartao_cnpj_em_pasta(str(tmp_path))
 
     assert result["cnpj"] == "12345678000190"
     assert result["razao_social"] == "Empresa Teste LTDA"
@@ -230,14 +231,17 @@ def test_extrair_dados_cartao_cnpj_em_pasta_encontra_cnpj_card(mock_list):
 @patch("src.utils.pdf_reader.read_pdf_text")
 @patch("src.utils.file_utils.find_cartao_cnpj_pdf")
 @patch("src.utils.file_utils.list_and_classify_pdfs")
-def test_extrair_dados_cartao_cnpj_em_pasta_fallback_extrai_de_pdf(mock_list, mock_find, mock_read, mock_extract):
+def test_extrair_dados_cartao_cnpj_em_pasta_fallback_extrai_de_pdf(
+    mock_list, mock_find, mock_read, mock_extract, tmp_path
+):
     """Usa fallback para extrair dados de PDF quando não encontra via classify."""
     mock_list.return_value = []  # nada via classify
     mock_find.return_value = "/path/to/CNPJ_card.pdf"
     mock_read.return_value = "CNPJ: 11.222.333/0001-44\\nEmpresa XYZ LTDA"
     mock_extract.return_value = {"cnpj": "11222333000144", "razao_social": "Empresa XYZ LTDA"}
 
-    result = extrair_dados_cartao_cnpj_em_pasta("/fake/path")
+    # Usa tmp_path que é um diretório real existente
+    result = extrair_dados_cartao_cnpj_em_pasta(str(tmp_path))
 
     assert result["cnpj"] == "11222333000144"
     assert result["razao_social"] == "Empresa XYZ LTDA"

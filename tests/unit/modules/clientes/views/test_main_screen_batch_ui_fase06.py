@@ -39,8 +39,6 @@ class TestCreateFooterButtonsSignature:
         assert sig.parameters["on_novo"].default == inspect.Parameter.empty
         assert sig.parameters["on_editar"].default == inspect.Parameter.empty
         assert sig.parameters["on_subpastas"].default == inspect.Parameter.empty
-        assert sig.parameters["on_enviar"].default == inspect.Parameter.empty
-        assert sig.parameters["on_enviar_pasta"].default == inspect.Parameter.empty
 
 
 class TestFooterButtonsDataclass:

@@ -64,30 +64,13 @@ class MainScreenEventsMixin:
                     log.debug("Falha ao confirmar pick via duplo clique: %s", exc)
 
     def _on_click(self, event: Any) -> None:
-        """Abre WhatsApp na col #5 e menu de Status na col #7."""
+        """Abre WhatsApp na col #5."""
 
         item = self.client_list.identify_row(event.y)  # pyright: ignore[reportAttributeAccessIssue]
 
         col = self.client_list.identify_column(event.x)  # pyright: ignore[reportAttributeAccessIssue]
 
         if not item:
-            return
-
-        # Menu de Status ao clicar na coluna #7
-
-        if col == "#7":
-            try:
-                vals = self.client_list.item(item, "values")  # pyright: ignore[reportAttributeAccessIssue]
-
-                id_index = self._col_order.index("ID") if "ID" in self._col_order else 0  # pyright: ignore[reportAttributeAccessIssue]
-
-                cliente_id = int(vals[id_index])
-
-            except Exception:
-                return
-
-            self._show_status_menu(item, cliente_id, event)  # pyright: ignore[reportAttributeAccessIssue]
-
             return
 
         # WhatsApp permanece na coluna #5
@@ -264,3 +247,77 @@ class MainScreenEventsMixin:
 
             if self._status_menu_cliente == cliente_id:  # pyright: ignore[reportAttributeAccessIssue]
                 self._status_menu_cliente = None  # pyright: ignore[reportAttributeAccessIssue]
+
+    def _on_right_click(self, event: Any) -> None:
+        """Handler do botão direito para mostrar menu de ações."""
+        # Se pick mode estiver ativo, não mostrar menu
+        pick_snapshot = self._pick_mode_manager.get_snapshot()  # pyright: ignore[reportAttributeAccessIssue]
+        if pick_snapshot.is_pick_mode_active:
+            return
+
+        # Identificar linha clicada
+        iid = self.client_list.identify_row(event.y)  # pyright: ignore[reportAttributeAccessIssue]
+        if not iid:
+            return
+
+        # Selecionar linha
+        self.client_list.selection_set(iid)  # pyright: ignore[reportAttributeAccessIssue]
+        self.client_list.focus(iid)  # pyright: ignore[reportAttributeAccessIssue]
+
+        # Obter cliente_id
+        try:
+            vals = self.client_list.item(iid, "values")  # pyright: ignore[reportAttributeAccessIssue]
+            id_index = self._col_order.index("ID") if "ID" in self._col_order else 0  # pyright: ignore[reportAttributeAccessIssue]
+            cliente_id = int(vals[id_index])
+        except Exception:
+            return
+
+        # Mostrar menu de ações
+        self._show_actions_menu(iid, cliente_id, event)  # pyright: ignore[reportAttributeAccessIssue]
+
+    def _show_actions_menu(self, row_id: str, cliente_id: int, event: Any) -> None:
+        """Mostra menu de ações no botão direito."""
+        # Criar ou reutilizar menu
+        if not hasattr(self, "_actions_menu") or self._actions_menu is None:  # pyright: ignore[reportAttributeAccessIssue]
+            self._actions_menu = tk.Menu(self, tearoff=0)  # pyright: ignore[reportArgumentType,reportAttributeAccessIssue]
+
+        menu = self._actions_menu  # pyright: ignore[reportAttributeAccessIssue]
+        menu.delete(0, "end")
+
+        # Adicionar comandos
+        def _editar() -> None:
+            result = self._actions.handle_edit()  # pyright: ignore[reportAttributeAccessIssue]
+            self._handle_action_result(result, "editar")  # pyright: ignore[reportAttributeAccessIssue]
+            self._update_main_buttons_state()  # pyright: ignore[reportAttributeAccessIssue]
+
+        def _arquivos() -> None:
+            result = self._actions.handle_open_subfolders()  # pyright: ignore[reportAttributeAccessIssue]
+            self._handle_action_result(result, "abrir arquivos")  # pyright: ignore[reportAttributeAccessIssue]
+            self._update_main_buttons_state()  # pyright: ignore[reportAttributeAccessIssue]
+
+        def _enviar_supabase() -> None:
+            result = self._actions.handle_send_supabase()  # pyright: ignore[reportAttributeAccessIssue]
+            self._handle_action_result(result, "enviar para supabase")  # pyright: ignore[reportAttributeAccessIssue]
+            self._update_main_buttons_state()  # pyright: ignore[reportAttributeAccessIssue]
+
+        def _enviar_pasta() -> None:
+            result = self._actions.handle_send_folder()  # pyright: ignore[reportAttributeAccessIssue]
+            self._handle_action_result(result, "enviar pasta")  # pyright: ignore[reportAttributeAccessIssue]
+            self._update_main_buttons_state()  # pyright: ignore[reportAttributeAccessIssue]
+
+        def _excluir() -> None:
+            self.on_delete_selected_clients()  # pyright: ignore[reportAttributeAccessIssue]
+
+        menu.add_command(label="Editar", command=_editar)
+        menu.add_command(label="Arquivos", command=_arquivos)
+        menu.add_separator()
+        menu.add_command(label="Enviar PDFs...", command=_enviar_supabase)
+        menu.add_command(label="Enviar pasta...", command=_enviar_pasta)
+        menu.add_separator()
+        menu.add_command(label="Excluir (Lixeira)", command=_excluir)
+
+        # Mostrar menu
+        try:
+            menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            menu.grab_release()

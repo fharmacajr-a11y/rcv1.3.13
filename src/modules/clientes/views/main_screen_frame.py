@@ -191,12 +191,6 @@ class MainScreenFrame(
 
         self._uploading_busy = busy
 
-        try:
-            if hasattr(self, "footer"):
-                self.footer.set_uploading(busy)  # pyright: ignore[reportAttributeAccessIssue]
-        except Exception as exc:  # noqa: BLE001
-            log.debug("Falha ao atualizar footer em estado de upload: %s", exc)
-
         self._update_main_buttons_state()
 
     def _enter_pick_mode_ui(self) -> None:

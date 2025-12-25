@@ -165,7 +165,25 @@ class NotesViewModel:
                 else:
                     # Formato: nome direto
                     normalized_cache[email] = str(value)
+
+            # CRITICAL: Aplicar RC_INITIALS_MAP do .env com prioridade máxima
+            from src.modules.hub.services.authors_service import load_env_author_names
+
+            env_map = load_env_author_names()
+            if env_map:
+                # Merge com prioridade do .env (sobrescreve cache)
+                normalized_cache.update(env_map)
+                logger.debug(f"[NotesViewModel] Aplicado RC_INITIALS_MAP: {len(env_map)} entradas")
+
             self._author_names_cache = normalized_cache
+        else:
+            # Mesmo sem author_names_cache, carregar RC_INITIALS_MAP
+            from src.modules.hub.services.authors_service import load_env_author_names
+
+            env_map = load_env_author_names()
+            if env_map:
+                self._author_names_cache = env_map
+                logger.debug(f"[NotesViewModel] Carregado RC_INITIALS_MAP (sem cache): {len(env_map)} entradas")
 
         # Marca como loading
         self._state = replace(
@@ -393,11 +411,16 @@ class NotesViewModel:
         body = (note_data.get("body") or "").strip()
         created_at = note_data.get("created_at") or ""
         author_email = (note_data.get("author_email") or "").strip().lower()
-        author_name = note_data.get("author_name") or ""
 
-        # Usar cache de nomes se disponível
-        if not author_name and author_email in self._author_names_cache:
-            author_name = self._author_names_cache[author_email]
+        # Obter author_name com tratamento especial
+        raw_author_name = (note_data.get("author_name") or "").strip()
+        author_name = raw_author_name
+
+        # Se vier vazio OU vier igual ao email (alguns fluxos gravam email no campo),
+        # considerar como "sem nome" e buscar no cache
+        if (not author_name) or (author_email and author_name.lower() == author_email):
+            if author_email in self._author_names_cache:
+                author_name = self._author_names_cache[author_email]
 
         # Fallback para email se não tiver nome
         display_name = author_name or author_email or "Desconhecido"

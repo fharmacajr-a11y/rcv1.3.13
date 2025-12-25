@@ -2,6 +2,7 @@
 """Entry-point fino que reexporta a janela principal."""
 
 import logging
+import os
 import tkinter as tk
 from typing import Optional, cast
 
@@ -64,28 +65,28 @@ if __name__ == "__main__":
         from src.utils.errors import install_global_exception_hook
 
         install_global_exception_hook()
-    except Exception as exc:  # noqa: BLE001
-        logger.debug("Falha ao instalar global exception hook: %s", exc)
+    except Exception as exc:
+        logger.debug("Falha ao instalar global exception hook: %s", exc, exc_info=True)
 
     # Cleanup de arquivos temporários antigos no startup
     try:
         from src.modules.uploads.temp_files import cleanup_on_startup
 
         cleanup_on_startup()
-    except Exception as exc:  # noqa: BLE001
-        logger.debug("Falha ao executar cleanup de temporários: %s", exc)
+    except Exception as exc:
+        logger.debug("Falha ao executar cleanup de temporários: %s", exc, exc_info=True)
 
     # Parse CLI arguments
     try:
         from src.cli import get_args
 
         app_args = get_args()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         # Fallback if CLI parsing fails
         from src.cli import AppArgs
 
         app_args = AppArgs()
-        logger.warning("Falha ao processar argumentos de linha de comando: %s", exc)
+        logger.warning("Falha ao processar argumentos de linha de comando: %s", exc, exc_info=True)
 
     from src.modules.login.view import show_splash  # Novo diálogo simplificado
 
@@ -118,6 +119,26 @@ if __name__ == "__main__":
                 logger=log,
             )
             if login_ok:
+                # BUGFIX-UX-STARTUP-HUB-001 (B3): Restaurar alpha/geometry antes de mostrar
+                try:
+                    # Restaurar alpha se estava em 0.0
+                    try:
+                        app.attributes("-alpha", 1.0)
+                    except Exception as alpha_exc:  # noqa: BLE001
+                        # Não crítico: alpha pode não ter sido setado
+                        if log:
+                            log.debug("Alpha não restaurado (esperado se não foi setado): %s", alpha_exc)
+
+                    # Remover geometry off-screen temporária (será recalculada por _maximize_window)
+                    app.geometry("")  # Reset para deixar WM gerenciar
+
+                    if os.getenv("RC_DEBUG_STARTUP_UI") == "1":
+                        if log:
+                            log.info("[UI] Alpha/geometry restaurados antes de deiconify")
+                except Exception as exc:
+                    if log:
+                        log.debug("Falha ao restaurar alpha/geometry: %s", exc)
+
                 # Só mostrar a janela principal APÓS login bem-sucedido
                 try:
                     app.deiconify()  # Torna a janela principal visível
@@ -128,6 +149,14 @@ if __name__ == "__main__":
                     if log:
                         log.debug("Falha ao exibir/maximizar MainWindow: %s", exc)
 
+                # BUGFIX-UX-STARTUP-HUB-001 (C1): update_idletasks + after_idle antes do Hub
+                # Isso permite que a janela pinte ANTES de construir o Hub (evita tela preta)
+                try:
+                    app.update_idletasks()
+                except Exception as exc:
+                    if log:
+                        log.debug("Falha em update_idletasks pré-Hub: %s", exc)
+
                 # PERF-001: Agendar health check em background APÓS login bem-sucedido
                 try:
                     bootstrap.schedule_healthcheck_after_gui(app, logger=log, delay_ms=500)
@@ -135,13 +164,37 @@ if __name__ == "__main__":
                     if log:
                         log.warning("Falha ao agendar healthcheck após login: %s", exc)
 
-                # Agora sim criar/mostrar o Hub
+                # BUGFIX-UX-STARTUP-HUB-001 (C1): after_idle para show_hub_screen
+                # Yield para event loop, permitindo UI pintar antes de construir Hub
+                def _show_hub_deferred():
+                    # BUG-004: Tratamento de exceção se show_hub_screen() falhar
+                    try:
+                        app.show_hub_screen()
+                    except Exception as exc:
+                        if log:
+                            log.error("Erro crítico ao carregar Hub UI: %s", exc, exc_info=True)
+                        # Tenta mostrar mensagem amigável antes de fechar
+                        try:
+                            from tkinter import messagebox
+
+                            messagebox.showerror(
+                                "Erro de Inicialização",
+                                "Não foi possível carregar a interface principal.\n"
+                                "Por favor, contate o suporte técnico.",
+                            )
+                        except Exception as msg_exc:  # noqa: BLE001
+                            # Fallback mínimo: log se nem messagebox funcionar
+                            if log:
+                                log.debug("MessageBox também falhou: %s", msg_exc)
+                        app.destroy()
+
                 try:
-                    app.show_hub_screen()
+                    app.after_idle(_show_hub_deferred)
                 except Exception as exc:
                     if log:
-                        log.error("Erro ao carregar UI: %s", exc)
-                    app.destroy()
+                        log.error("Falha ao agendar show_hub_screen: %s", exc)
+                    # Fallback: chamar direto
+                    _show_hub_deferred()
             else:
                 # Login cancelado ou falhou (usuário já foi informado via messagebox se foi erro técnico)
                 if log:

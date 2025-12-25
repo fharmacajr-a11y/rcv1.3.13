@@ -323,8 +323,9 @@ def apply_window_icon(window: tk.Toplevel | tk.Tk) -> None:
         from src.utils.paths import resource_path
 
         window.iconbitmap(resource_path("rc.ico"))
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as exc:  # noqa: BLE001
+        # Ícone pode não estar disponível
+        log.debug("iconbitmap falhou: %s", type(exc).__name__)
 
 
 def prepare_hidden_window(win: tk.Toplevel) -> None:

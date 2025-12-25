@@ -173,6 +173,8 @@ def build_tree_and_column_controls(frame: MainScreenFrame) -> None:
     frame.tree = frame.client_list
 
     frame.client_list.bind("<Button-1>", frame._on_click, add="+")
+    frame.client_list.bind("<Button-3>", frame._on_right_click, add="+")  # botão direito
+    frame.client_list.bind("<Button-2>", frame._on_right_click, add="+")  # botão direito (mac)
 
     frame.client_list.configure(displaycolumns=frame._col_order)
 
@@ -323,27 +325,11 @@ def build_footer(frame: MainScreenFrame) -> None:
         frame._handle_action_result(result, "abrir subpastas")
         frame._update_main_buttons_state()
 
-    def _handle_send_supabase():
-        if frame._pick_mode_manager.get_snapshot().is_pick_mode_active:
-            return
-        result = frame._actions.handle_send_supabase()
-        frame._handle_action_result(result, "enviar para Supabase")
-        frame._update_main_buttons_state()
-
-    def _handle_send_folder():
-        if frame._pick_mode_manager.get_snapshot().is_pick_mode_active:
-            return
-        result = frame._actions.handle_send_folder()
-        frame._handle_action_result(result, "enviar para pasta")
-        frame._update_main_buttons_state()
-
     frame.footer = ClientesFooter(
         frame,
         on_novo=_handle_new,
         on_editar=_handle_edit,
         on_subpastas=_handle_subpastas,
-        on_enviar_supabase=_handle_send_supabase,
-        on_enviar_pasta=_handle_send_folder,
         on_excluir=frame.on_delete_selected_clients,
         on_batch_delete=frame._on_batch_delete_clicked,
         on_batch_restore=frame._on_batch_restore_clicked,
@@ -355,27 +341,14 @@ def build_footer(frame: MainScreenFrame) -> None:
     frame.btn_novo = frame.footer.btn_novo
     frame.btn_editar = frame.footer.btn_editar
     frame.btn_subpastas = frame.footer.btn_subpastas
-    frame.btn_enviar = frame.footer.btn_enviar
     frame.btn_excluir = frame.footer.btn_excluir
-    frame.menu_enviar = frame.footer.enviar_menu
 
     frame.btn_batch_delete = frame.footer.btn_batch_delete
     frame.btn_batch_restore = frame.footer.btn_batch_restore
     frame.btn_batch_export = frame.footer.btn_batch_export
 
     frame._uploading_busy = False
-    frame._send_button_prev_text = None
     frame._last_cloud_state = None  # type: ignore[assignment]
-
-    frame.btn_enviar.state(["disabled"])
-
-    try:
-        last_index = frame.menu_enviar.index("end")
-        if last_index is not None:
-            for idx in range(last_index + 1):
-                frame.menu_enviar.entryconfigure(idx, state="disabled")
-    except Exception as exc:  # noqa: BLE001
-        log.debug("Falha ao desabilitar menu de envio inicial: %s", exc)
 
 
 def build_pick_mode_banner(frame: MainScreenFrame) -> None:
@@ -412,23 +385,8 @@ def build_pick_mode_banner(frame: MainScreenFrame) -> None:
 
 def bind_main_events(frame: MainScreenFrame) -> None:
     """Configura bindings de eventos principais."""
-
-    def _refresh_send_state() -> None:
-        has_sel = bool(frame.tree.selection())
-
-        if has_sel:
-            frame.btn_enviar.state(["!disabled"])
-            frame.menu_enviar.entryconfig(0, state="normal")
-            frame.menu_enviar.entryconfig(1, state="normal")
-        else:
-            frame.btn_enviar.state(["disabled"])
-            frame.menu_enviar.entryconfig(0, state="disabled")
-            frame.menu_enviar.entryconfig(1, state="disabled")
-
-        frame._update_main_buttons_state()
-
-    _refresh_send_state()
-    frame.tree.bind("<<TreeviewSelect>>", lambda _event: _refresh_send_state(), add="+")  # type: ignore[misc]
+    # Atualizar estado dos botões na seleção
+    frame.tree.bind("<<TreeviewSelect>>", lambda _event: frame._update_main_buttons_state(), add="+")  # type: ignore[misc]
 
 
 def setup_app_references(frame: MainScreenFrame) -> None:

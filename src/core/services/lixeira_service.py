@@ -14,6 +14,7 @@ from adapters.storage.api import upload_file as storage_upload_file
 from adapters.storage.api import using_storage_backend
 from adapters.storage.supabase_storage import SupabaseStorageAdapter
 from data.supabase_repo import delete_passwords_by_client
+from infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ID
 from infra.supabase_client import exec_postgrest
 from src.utils.subpastas_config import get_mandatory_subpastas, join_prefix
 
@@ -35,7 +36,9 @@ def _get_supabase_and_org() -> tuple[object, str]:
         uid = getattr(u, "id", None)
         if not uid:
             raise RuntimeError("Usuário não autenticado no Supabase.")
-        res = exec_postgrest(supabase.table("memberships").select("org_id").eq("user_id", uid).limit(1))
+        res = exec_postgrest(
+            supabase.table("memberships").select(MEMBERSHIPS_SELECT_ORG_ID).eq("user_id", uid).limit(1)
+        )
         org_id = res.data[0]["org_id"] if getattr(res, "data", None) else None
         if not org_id:
             raise RuntimeError("Organização não encontrada para o usuário atual.")

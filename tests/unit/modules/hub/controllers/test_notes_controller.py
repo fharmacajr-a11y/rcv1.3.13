@@ -80,6 +80,33 @@ class FakeNotesGateway:
         pass
 
 
+class FakeNotificationsService:
+    """Fake implementation of NotificationsService for testing."""
+
+    def __init__(self):
+        self.published_notifications = []
+        # Mapa de nomes para teste (simular RC_INITIALS_MAP)
+        self._names_map = {
+            "test@example.com": "Testador",
+            "farmacajr@gmail.com": "Junior",
+        }
+
+    def publish(self, module, event, message, **kwargs):
+        """Mock publish method."""
+        self.published_notifications.append({"module": module, "event": event, "message": message, **kwargs})
+        return True
+
+    def resolve_display_name(self, email):
+        """Mock resolve_display_name method."""
+        if not email:
+            return "?"
+        email_lower = email.lower()
+        if email_lower in self._names_map:
+            return self._names_map[email_lower]
+        # Fallback: capitalizar prefixo do email
+        return email.split("@")[0].capitalize()
+
+
 @pytest.fixture
 def fake_gateway():
     """Fake gateway for testing."""
@@ -96,13 +123,13 @@ def mock_notes_service():
             "id": "note1",
             "body": "First note",
             "created_at": "2024-01-01T10:00:00Z",
-            "author_email": "user@example.com",
+            "author_email": "test@example.com",  # Mesmo email do gateway
         },
         {
             "id": "note2",
             "body": "Second note",
             "created_at": "2024-01-02T11:00:00Z",
-            "author_email": "user@example.com",
+            "author_email": "test@example.com",  # Mesmo email do gateway
         },
     ]
     # Mock create_note para retornar nova nota
@@ -155,6 +182,88 @@ class TestNotesControllerAddNote:
             author_email="test@example.com",
             body="Nova anotação",
         )
+
+    def test_add_note_with_notification(self, notes_vm_with_data, fake_gateway, mock_notes_service):
+        """Deve adicionar nota e publicar notificação com nome resolvido e request_id."""
+        # Criar fake notifications service
+        fake_notifications = FakeNotificationsService()
+
+        # Criar controller com notifications_service
+        controller = NotesController(
+            vm=notes_vm_with_data,
+            gateway=fake_gateway,
+            notes_service=mock_notes_service,
+            notifications_service=fake_notifications,
+        )
+
+        # Adicionar nota
+        success, message = controller.handle_add_note_click("Nova anotação compartilhada")
+
+        # Validar criação da nota
+        assert success is True
+        assert message == ""
+
+        # Validar notificação
+        assert len(fake_notifications.published_notifications) == 1
+        notification = fake_notifications.published_notifications[0]
+        assert notification["module"] == "hub_notes"
+        assert notification["event"] == "created"
+        assert "Anotações" in notification["message"]
+        # Deve usar nome resolvido ("Testador") e não email
+        assert "Testador" in notification["message"]
+        assert "test@example.com" not in notification["message"]
+        assert "Nova anotação compartilhada" in notification["message"]
+
+        # Validar request_id para dedupe
+        assert "request_id" in notification
+        assert notification["request_id"] == "hub_notes_created:new_note_id"
+
+    def test_add_note_notification_failure_does_not_break_creation(
+        self, notes_vm_with_data, fake_gateway, mock_notes_service
+    ):
+        """Deve criar nota mesmo se notificação falhar."""
+        # Criar fake notifications service que falha
+        fake_notifications = FakeNotificationsService()
+        fake_notifications.publish = lambda *args, **kwargs: (_ for _ in ()).throw(Exception("Notification failed"))
+
+        # Criar controller com notifications_service
+        controller = NotesController(
+            vm=notes_vm_with_data,
+            gateway=fake_gateway,
+            notes_service=mock_notes_service,
+            notifications_service=fake_notifications,
+        )
+
+        # Adicionar nota (não deve falhar)
+        success, message = controller.handle_add_note_click("Nota com notificação falhando")
+
+        # Validar que nota foi criada com sucesso
+        assert success is True
+        assert message == ""
+        mock_notes_service.create_note.assert_called_once()
+
+    def test_add_note_long_text_preview(self, notes_vm_with_data, fake_gateway, mock_notes_service):
+        """Deve truncar preview em notificação se texto for muito longo."""
+        fake_notifications = FakeNotificationsService()
+
+        controller = NotesController(
+            vm=notes_vm_with_data,
+            gateway=fake_gateway,
+            notes_service=mock_notes_service,
+            notifications_service=fake_notifications,
+        )
+
+        # Texto muito longo
+        long_text = "A" * 150
+
+        success, message = controller.handle_add_note_click(long_text)
+
+        assert success is True
+        notification = fake_notifications.published_notifications[0]
+        # Mensagem deve conter preview truncado (117 chars + "...")
+        preview_in_message = notification["message"].split(": ", 1)[1]
+        assert len(preview_in_message) <= 120
+        assert preview_in_message.endswith("...")
 
     def test_add_note_empty_text(self, controller, fake_gateway):
         """Deve rejeitar texto vazio."""
@@ -250,15 +359,20 @@ class TestNotesControllerDeleteNote:
     """Testes para handle_delete_note_click."""
 
     def test_delete_note_success(self, controller, fake_gateway, mock_notes_service):
-        """Deve deletar nota com sucesso."""
+        """Deve fazer soft delete da nota (update body para __RC_DELETED__)."""
         success, message = controller.handle_delete_note_click("note1")
 
         assert success is True
         assert message == ""
         # Verificar que confirmação foi solicitada
         assert len(fake_gateway.delete_confirmations) == 1
-        # Verificar que service.delete_note foi chamado
-        mock_notes_service.delete_note.assert_called_once_with("note1")
+        # Verificar que service.update_note foi chamado com body="__RC_DELETED__"
+        mock_notes_service.update_note.assert_called_once_with(
+            note_id="note1",
+            body="__RC_DELETED__",
+        )
+        # Verificar que delete_note NÃO foi chamado
+        mock_notes_service.delete_note.assert_not_called()
 
     def test_delete_note_not_found(self, controller, fake_gateway):
         """Deve rejeitar se nota não encontrada."""
@@ -283,6 +397,7 @@ class TestNotesControllerDeleteNote:
         assert success is False
         assert message == "Cancelado"
         # Service não deve ser chamado
+        mock_notes_service.update_note.assert_not_called()
         mock_notes_service.delete_note.assert_not_called()
 
 

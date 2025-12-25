@@ -8,11 +8,6 @@ from typing import Any, Callable, Optional
 
 import ttkbootstrap as tb
 
-try:
-    from ttkbootstrap.tooltip import ToolTip  # type: ignore
-except Exception:  # pragma: no cover
-    ToolTip = None  # type: ignore
-
 
 @dataclass(slots=True)
 class FooterButtons:
@@ -20,8 +15,6 @@ class FooterButtons:
     novo: tb.Button
     editar: tb.Button
     subpastas: tb.Button
-    enviar: ttk.Menubutton
-    enviar_menu: tk.Menu
     excluir: Optional[tb.Button] = None
     obrigacoes: Optional[tb.Button] = None
     batch_delete: Optional[tb.Button] = None
@@ -43,8 +36,6 @@ def create_footer_buttons(
     on_novo: Callable[[], Any],
     on_editar: Callable[[], Any],
     on_subpastas: Callable[[], Any],
-    on_enviar: Callable[[], Any],
-    on_enviar_pasta: Callable[[], Any],
     on_excluir: Optional[Callable[[], Any]] = None,
     on_obrigacoes: Optional[Callable[[], Any]] = None,
     on_batch_delete: Optional[Callable[[], Any]] = None,
@@ -56,25 +47,18 @@ def create_footer_buttons(
 
     btn_novo = tb.Button(frame, text="Novo Cliente", command=on_novo, bootstyle="success")
     btn_editar = tb.Button(frame, text="Editar", command=on_editar, bootstyle="secondary")
-    btn_subpastas = tb.Button(frame, text="Subpastas (Supabase)", command=on_subpastas, bootstyle="info")
-    menubutton_cls = getattr(tb, "Menubutton", ttk.Menubutton)
-    btn_enviar = menubutton_cls(frame, text="Enviar Para SupaBase", style="info.TMenubutton")
-    menu_enviar = tk.Menu(btn_enviar, tearoff=0)
-    menu_enviar.add_command(label="Selecionar PDFs...", command=on_enviar)
-    menu_enviar.add_command(label="Selecionar Pasta...", command=on_enviar_pasta)
-    btn_enviar["menu"] = menu_enviar
+    btn_subpastas = tb.Button(frame, text="Arquivos", command=on_subpastas, bootstyle="info")
 
     # Layout dos botões principais
     btn_novo.grid(row=0, column=0, padx=5, pady=5, sticky="w")
     btn_editar.grid(row=0, column=1, padx=5, pady=5, sticky="w")
     btn_subpastas.grid(row=0, column=2, padx=5, pady=5, sticky="w")
-    btn_enviar.grid(row=0, column=3, padx=5, pady=5, sticky="w")
 
-    # Botão Excluir (vermelho) ao lado de Enviar Para SupaBase
+    # Botão Excluir (vermelho)
     btn_excluir: Optional[tb.Button] = None
     if on_excluir is not None:
         btn_excluir = tb.Button(frame, text="Excluir", command=on_excluir, bootstyle="danger")
-        btn_excluir.grid(row=0, column=4, padx=5, pady=5, sticky="w")
+        btn_excluir.grid(row=0, column=3, padx=5, pady=5, sticky="w")
 
     # Botão Obrigações (REMOVIDO - funcionalidade movida para Hub)
     # HISTÓRICO: Anteriormente havia um botão "Obrigações" no módulo Clientes.
@@ -88,7 +72,7 @@ def create_footer_buttons(
     btn_batch_delete: Optional[tb.Button] = None
     btn_batch_restore: Optional[tb.Button] = None
     btn_batch_export: Optional[tb.Button] = None
-    next_column = 6
+    next_column = 5
 
     if on_batch_delete is not None or on_batch_restore is not None or on_batch_export is not None:
         # Separador visual entre ações unitárias e batch
@@ -114,16 +98,11 @@ def create_footer_buttons(
     # Configurar pesos (última coluna expansível)
     frame.columnconfigure(next_column - 1, weight=1)
 
-    if ToolTip:
-        ToolTip(btn_enviar, text="Enviar arquivos ou pastas para o Supabase")
-
     return FooterButtons(
         frame=frame,
         novo=btn_novo,
         editar=btn_editar,
         subpastas=btn_subpastas,
-        enviar=btn_enviar,
-        enviar_menu=menu_enviar,
         excluir=btn_excluir,
         obrigacoes=btn_obrigacoes,
         batch_delete=btn_batch_delete,

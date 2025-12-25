@@ -24,6 +24,8 @@ def get_passwords(
     org_id: str,
     search_text: str | None = None,
     client_filter: str | None = None,
+    limit: int | None = None,
+    offset: int = 0,
 ) -> list[PasswordRow]:
     """Lista senhas com filtros opcionais.
 
@@ -31,6 +33,8 @@ def get_passwords(
         org_id: ID da organização proprietária das senhas
         search_text: Texto para buscar em client_name, service ou username (case-insensitive)
         client_filter: Filtro por nome do cliente (None ou "Todos" = sem filtro)
+        limit: Número máximo de registros a retornar (None = sem limite) - PERF-003
+        offset: Número de registros a pular (para paginação) - PERF-003
 
     Returns:
         Lista de senhas que atendem aos critérios de filtro
@@ -38,10 +42,14 @@ def get_passwords(
     Example:
         >>> senhas = get_passwords("org-123", search_text="gmail")
         >>> senhas_cliente = get_passwords("org-123", client_filter="Empresa XYZ")
+        >>> # PERF-003: Paginação
+        >>> primeira_pagina = get_passwords("org-123", limit=50, offset=0)
+        >>> segunda_pagina = get_passwords("org-123", limit=50, offset=50)
     """
     from data.supabase_repo import list_passwords
 
-    passwords: list[PasswordRow] = list_passwords(org_id)
+    # PERF-003: Passa limit e offset para repositório Supabase
+    passwords: list[PasswordRow] = list_passwords(org_id, limit=limit, offset=offset)
 
     if search_text:
         search_lower: str = search_text.lower()

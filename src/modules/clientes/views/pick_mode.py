@@ -150,7 +150,6 @@ class PickModeController:
                         getattr(footer, "btn_novo", None),
                         getattr(footer, "btn_editar", None),
                         getattr(footer, "btn_subpastas", None),
-                        getattr(footer, "btn_enviar", None),
                     ]
                 )
 

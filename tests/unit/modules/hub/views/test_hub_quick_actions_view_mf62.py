@@ -280,7 +280,7 @@ class TestButtons:
     """Testes dos botões criados."""
 
     def test_build_creates_eight_buttons(self, fake_parent: FakeWidget, mock_callbacks: dict[str, MagicMock]) -> None:
-        """build() cria exatamente 8 botões."""
+        """build() cria exatamente 6 botões (BUGFIX-HUB-UI-001: removidos Farmácia Popular e Sifap)."""
         from src.modules.hub.views import hub_quick_actions_view
 
         with (
@@ -299,7 +299,7 @@ class TestButtons:
             view.build()
 
             buttons = find_buttons(cast(Any, view.modules_panel))
-            assert len(buttons) == 8
+            assert len(buttons) == 6
 
     def test_button_texts_are_correct(self, fake_parent: FakeWidget, mock_callbacks: dict[str, MagicMock]) -> None:
         """build() cria botões com textos corretos."""
@@ -322,6 +322,7 @@ class TestButtons:
 
             buttons = find_buttons(cast(Any, view.modules_panel))
             button_texts = sorted([btn.text for btn in buttons])
+            # BUGFIX-HUB-UI-001: Removidos Farmácia Popular e Sifap
             expected_texts = sorted(
                 [
                     "Clientes",
@@ -329,9 +330,7 @@ class TestButtons:
                     "Auditoria",
                     "Fluxo de Caixa",
                     "Anvisa",
-                    "Farmácia Popular",
                     "Sngpc",
-                    "Sifap",
                 ]
             )
             assert button_texts == expected_texts
@@ -360,15 +359,13 @@ class TestButtons:
             # Criar dicionário text -> bootstyle
             btn_styles = {btn.text: btn.kwargs.get("bootstyle") for btn in buttons}
 
-            # Verificar bootstyles
+            # Verificar bootstyles (BUGFIX-HUB-UI-001: sem Farmácia Popular e Sifap)
             assert btn_styles["Clientes"] == "STYLE_CLIENTES"
             assert btn_styles["Senhas"] == "STYLE_SENHAS"
             assert btn_styles["Auditoria"] == "STYLE_AUD"
             assert btn_styles["Fluxo de Caixa"] == "STYLE_FLUXO"
             assert btn_styles["Anvisa"] == "secondary"
-            assert btn_styles["Farmácia Popular"] == "secondary"
             assert btn_styles["Sngpc"] == "secondary"
-            assert btn_styles["Sifap"] == "secondary"
 
     def test_button_invoke_calls_correct_callback(
         self, fake_parent: FakeWidget, mock_callbacks: dict[str, MagicMock]
@@ -393,16 +390,14 @@ class TestButtons:
 
             buttons = find_buttons(cast(Any, view.modules_panel))
 
-            # Mapeamento text -> callback esperado
+            # Mapeamento text -> callback esperado (BUGFIX-HUB-UI-001: sem Farmácia Popular e Sifap)
             text_to_callback = {
                 "Clientes": mock_callbacks["on_open_clientes"],
                 "Senhas": mock_callbacks["on_open_senhas"],
                 "Auditoria": mock_callbacks["on_open_auditoria"],
                 "Fluxo de Caixa": mock_callbacks["on_open_cashflow"],
                 "Anvisa": mock_callbacks["on_open_anvisa"],
-                "Farmácia Popular": mock_callbacks["on_open_farmacia_popular"],
                 "Sngpc": mock_callbacks["on_open_sngpc"],
-                "Sifap": mock_callbacks["on_open_mod_sifap"],
             }
 
             # Testar cada botão
@@ -440,7 +435,8 @@ class TestCallbacksNone:
             view.build()
 
             buttons = find_buttons(cast(Any, view.modules_panel))
-            assert len(buttons) == 8
+            # BUGFIX-HUB-UI-001: 6 botões (sem Farmácia Popular e Sifap)
+            assert len(buttons) == 6
 
             # Verificar que todos têm command None
             for btn in buttons:

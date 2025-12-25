@@ -35,6 +35,7 @@ __all__ = [
 
 def __getattr__(name: str):
     """Lazy import de SubpastaDialog para evitar ciclos de import."""
+
     if name == "SubpastaDialog":
         from .actions_impl import SubpastaDialog
 

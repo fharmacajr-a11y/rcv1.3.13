@@ -16,6 +16,7 @@ from adapters.storage.api import (
     using_storage_backend,
 )
 from adapters.storage.supabase_storage import SupabaseStorageAdapter
+from infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ID
 from infra.supabase_client import exec_postgrest, supabase
 from src.core.cnpj_norm import normalize_cnpj as normalize_cnpj_norm
 from src.core.db_manager import (
@@ -136,25 +137,57 @@ def extrair_dados_cartao_cnpj_em_pasta(base_dir: str) -> dict[str, str | None]:
                 "cnpj": str | None,
                 "razao_social": str | None,
             }
+
+    BUG-008: Valida se base_dir existe e é um diretório válido.
     """
+    from pathlib import Path
     from src.utils.file_utils import find_cartao_cnpj_pdf, list_and_classify_pdfs
     from src.utils.paths import ensure_str_path
     from src.utils.pdf_reader import read_pdf_text
     from src.utils.text_utils import extract_company_fields
 
-    # 1) Primeiro tenta via list_and_classify_pdfs (type == "cnpj_card")
+    # BUG-008: Validação de diretório
+    base_path = Path(base_dir)
+    if not base_path.exists():
+        log.warning("extrair_dados_cartao_cnpj_em_pasta: diretório não existe: %s", base_dir)
+        return {"cnpj": None, "razao_social": None}
+
+    if not base_path.is_dir():
+        log.warning("extrair_dados_cartao_cnpj_em_pasta: caminho não é um diretório: %s", base_dir)
+        return {"cnpj": None, "razao_social": None}
+
+    # 1) Primeiro tenta via list_and_classify_pdfs (aceita "cnpj_card" e "cartao_cnpj")
     docs = list_and_classify_pdfs(base_dir)
     cnpj: str | None = None
     razao: str | None = None
+    candidate_pdf: str | None = None
 
     for d in docs:
-        if d.get("type") == "cnpj_card":
+        # Aceita tanto "type" quanto "kind" para compatibilidade com classificadores
+        doc_type = d.get("type") or d.get("kind")
+        if doc_type in ("cnpj_card", "cartao_cnpj"):
+            # Se já tem meta com cnpj/razao (caso legado), usa direto
             meta = d.get("meta") or {}
             cnpj = meta.get("cnpj")
             razao = meta.get("razao_social")
-            break
 
-    # 2) Fallback: se não achou, tenta localizar um PDF de cartão de CNPJ e extrair texto
+            # Se achou meta completo, retorna sem ler PDF
+            if cnpj and razao:
+                break
+
+            # Se não tem meta completo, guarda caminho do PDF candidato
+            if not candidate_pdf and d.get("path"):
+                candidate_pdf = d.get("path")
+
+    # 2) Se achou candidato mas não tem meta, extrai texto desse PDF primeiro
+    if not (cnpj and razao) and candidate_pdf:
+        text = read_pdf_text(ensure_str_path(candidate_pdf)) or ""
+        if text:
+            fields = extract_company_fields(text)
+            cnpj = cnpj or fields.get("cnpj")
+            razao = razao or fields.get("razao_social")
+
+    # 3) Fallback: se ainda não achou, varre a pasta inteira
     if not (cnpj or razao):
         pdf = find_cartao_cnpj_pdf(base_dir)
         if pdf:
@@ -272,7 +305,9 @@ def _resolve_current_org_id() -> str:
             uid = u_dict.get("id") or u_dict.get("uid")
         if not uid:
             raise RuntimeError("Usuǭrio nǜo autenticado no Supabase.")
-        res = exec_postgrest(supabase.table("memberships").select("org_id").eq("user_id", uid).limit(1))
+        res = exec_postgrest(
+            supabase.table("memberships").select(MEMBERSHIPS_SELECT_ORG_ID).eq("user_id", uid).limit(1)
+        )
         org_id = res.data[0]["org_id"] if getattr(res, "data", None) else None
         if not org_id:
             raise RuntimeError("Organiza��ǜo nǜo encontrada para o usuǭrio atual.")

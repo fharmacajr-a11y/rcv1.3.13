@@ -325,6 +325,12 @@ def test_send_to_supabase_interactive_missing_files(monkeypatch, stub_messagebox
     assert uploader.send_to_supabase_interactive(app=None) == (0, 0)
     assert stub_messagebox["warn"][-1][0] == "Envio"
 
+    # Testar cancelamento no diálogo de subpasta
+    monkeypatch.setattr(uploader, "build_items_from_files", lambda files: [UploadItem(Path("a.pdf"), "a.pdf")])
+    monkeypatch.setattr(uploader, "ask_storage_subfolder", lambda parent, default="": None)
+    assert uploader.send_to_supabase_interactive(app=None) == (0, 0)
+    assert stub_messagebox["info"][-1][1] == "Envio cancelado."
+
 
 def test_send_to_supabase_interactive_success(monkeypatch):
     monkeypatch.setattr(uploader, "_resolve_selected_cliente", lambda _app: (1, {"CNPJ": "123"}))
@@ -332,6 +338,7 @@ def test_send_to_supabase_interactive_success(monkeypatch):
     monkeypatch.setattr(uploader, "_select_pdfs_dialog", lambda parent=None: ["a.pdf"])
     item = UploadItem(path=Path("a.pdf"), relative_path="a.pdf")
     monkeypatch.setattr(uploader, "build_items_from_files", lambda files: [item])
+    monkeypatch.setattr(uploader, "ask_storage_subfolder", lambda parent, default="": "")  # Retorna vazio
     monkeypatch.setattr(uploader, "upload_files_to_supabase", lambda *args, **kwargs: (1, 0))
     assert uploader.send_to_supabase_interactive(app=None) == (1, 0)
 
@@ -360,6 +367,7 @@ def test_ask_storage_subfolder(monkeypatch):
     class FakeDialog:
         def __init__(self, parent, default=""):
             self.result = "sub"
+            self.default = default  # Captura o default para validar
 
     class Parent:
         def wait_window(self, dialog):
@@ -368,7 +376,14 @@ def test_ask_storage_subfolder(monkeypatch):
     # Patch no lugar correto onde uploader_supabase importa SubpastaDialog
     monkeypatch.setattr("src.modules.clientes.forms.client_subfolder_prompt.SubpastaDialog", FakeDialog)
     parent = Parent()
-    assert uploader.ask_storage_subfolder(parent) == "sub"
+    # Testa sem default
+    result = uploader.ask_storage_subfolder(parent)
+    assert result == "sub"
+    assert parent.dialog.default == ""
+    # Testa com default
+    result = uploader.ask_storage_subfolder(parent, default="test_folder")
+    assert result == "sub"
+    assert parent.dialog.default == "test_folder"
 
 
 def test_progress_dialog_constructs(monkeypatch):
@@ -435,7 +450,14 @@ def test_send_folder_to_supabase_paths(monkeypatch, stub_messagebox):
     monkeypatch.setattr(uploader, "collect_pdfs_from_folder", lambda folder: [])
     assert uploader.send_folder_to_supabase(app=None) == (0, 0)
 
+    # Testar cancelamento no diálogo de subpasta
     monkeypatch.setattr(uploader, "collect_pdfs_from_folder", lambda folder: [UploadItem(Path("a.pdf"), "a.pdf")])
+    monkeypatch.setattr(uploader, "ask_storage_subfolder", lambda parent, default="": None)
+    assert uploader.send_folder_to_supabase(app=None) == (0, 0)
+    assert stub_messagebox["info"][-1][1] == "Envio cancelado."
+
+    # Testar sucesso
+    monkeypatch.setattr(uploader, "ask_storage_subfolder", lambda parent, default="": "teste")
     monkeypatch.setattr(uploader, "upload_files_to_supabase", lambda *args, **kwargs: ("ok", "fail"))
     result = uploader.send_folder_to_supabase(app=None)
     assert result == ("ok", "fail")

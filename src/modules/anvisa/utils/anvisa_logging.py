@@ -4,7 +4,7 @@ Fornece helpers para logging estruturado com contexto (org_id, client_id, reques
 """
 
 import logging
-from typing import Any
+from typing import Any, Literal
 
 
 def get_anvisa_logger(name: str = __name__) -> logging.Logger:
@@ -31,16 +31,16 @@ class AnvisaContextFilter(logging.Filter):
     Valores ausentes são preenchidos com "-".
     """
 
-    def filter(self, record: logging.LogRecord) -> bool:
+    def filter(self, record: logging.LogRecord) -> Literal[True]:
         """Adiciona atributos de contexto ao record."""
         if not hasattr(record, "org_id"):
-            record.org_id = "-"
+            record.org_id = "-"  # type: ignore[attr-defined]
         if not hasattr(record, "client_id"):
-            record.client_id = "-"
+            record.client_id = "-"  # type: ignore[attr-defined]
         if not hasattr(record, "request_id"):
-            record.request_id = "-"
+            record.request_id = "-"  # type: ignore[attr-defined]
         if not hasattr(record, "action"):
-            record.action = "-"
+            record.action = "-"  # type: ignore[attr-defined]
         return True
 
 

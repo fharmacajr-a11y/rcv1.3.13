@@ -24,8 +24,6 @@ class ClientesFooter(tb.Frame):  # type: ignore[misc]
         on_novo: Callable[[], None],
         on_editar: Callable[[], None],
         on_subpastas: Callable[[], None],
-        on_enviar_supabase: Callable[[], None],
-        on_enviar_pasta: Callable[[], None],
         on_excluir: Optional[Callable[[], None]] = None,
         # on_obrigacoes removido - funcionalidade movida para Hub
         on_batch_delete: Callable[[], None],
@@ -39,8 +37,6 @@ class ClientesFooter(tb.Frame):  # type: ignore[misc]
             on_novo=on_novo,
             on_editar=on_editar,
             on_subpastas=on_subpastas,
-            on_enviar=on_enviar_supabase,
-            on_enviar_pasta=on_enviar_pasta,
             on_excluir=on_excluir,
             on_obrigacoes=None,  # Sempre None - funcionalidade removida
             # Batch desabilitado na UI principal de clientes
@@ -53,50 +49,24 @@ class ClientesFooter(tb.Frame):  # type: ignore[misc]
         self.btn_novo = buttons.novo
         self.btn_editar = buttons.editar
         self.btn_subpastas = buttons.subpastas
-        self.btn_enviar = buttons.enviar
         self.btn_excluir = buttons.excluir
         self.btn_obrigacoes = buttons.obrigacoes
-        self.enviar_menu = buttons.enviar_menu
         self.btn_batch_delete = buttons.batch_delete
         self.btn_batch_restore = buttons.batch_restore
         self.btn_batch_export = buttons.batch_export
 
         self._uploading_busy = False
-        self._send_button_prev_text: Optional[str] = None
         self._pick_prev_states: dict[tk.Widget, str] = {}  # Estado dos botões antes do pick mode
 
         # Alias para compatibilidade
         self.frame = buttons.frame
-
-    def set_uploading(self, uploading: bool) -> None:
-        """Desabilita/ajusta textos durante upload em andamento."""
-        uploading = bool(uploading)
-        if uploading == self._uploading_busy:
-            return
-
-        self._uploading_busy = uploading
-
-        if uploading:
-            try:
-                if self.btn_enviar:
-                    self._send_button_prev_text = self.btn_enviar.cget("text")
-                    self.btn_enviar.configure(text="Enviando…")
-            except Exception as exc:  # noqa: BLE001
-                logger.debug("Falha ao ajustar texto de envio durante upload: %s", exc)
-        else:
-            try:
-                if self.btn_enviar and self._send_button_prev_text is not None:
-                    self.btn_enviar.configure(text=self._send_button_prev_text)
-            except Exception as exc:  # noqa: BLE001
-                logger.debug("Falha ao restaurar texto do botao de envio: %s", exc)
-            self._send_button_prev_text = None
 
     def _iter_pick_buttons(self) -> list[tk.Widget]:
         """Lista exatamente os botões do rodapé que devem ser controlados em pick mode."""
         buttons = []
         # Adiciona apenas os botões que existem e não são None
         # Nota: btn_obrigacoes removido - funcionalidade movida para toolbar superior
-        for btn in [self.btn_novo, self.btn_editar, self.btn_subpastas, self.btn_enviar]:
+        for btn in [self.btn_novo, self.btn_editar, self.btn_subpastas]:
             if btn is not None:
                 buttons.append(btn)
         return buttons

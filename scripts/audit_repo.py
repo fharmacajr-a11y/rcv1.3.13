@@ -197,7 +197,7 @@ def scan_legacy_markers(file_path: Path) -> Optional[Dict]:
     contexts = []
     for i, line in enumerate(lines[:100]):  # limita a primeiras 100 linhas
         if LEGACY_PATTERNS.search(line):
-            contexts.append(f"L{i+1}: {line.strip()[:80]}")
+            contexts.append(f"L{i + 1}: {line.strip()[:80]}")
             if len(contexts) >= 3:
                 break
 
@@ -263,7 +263,7 @@ def detect_shim(file_path: Path) -> Optional[Dict]:
     if ratio >= 0.8:
         return {
             "file": normalize_path(str(file_path)),
-            "reason": f"{relevant_lines} linhas relevantes; {int(ratio*100)}% imports/reexports; sem lógica",
+            "reason": f"{relevant_lines} linhas relevantes; {int(ratio * 100)}% imports/reexports; sem lógica",
             "lines_relevant": relevant_lines,
             "import_ratio": round(ratio, 2),
         }

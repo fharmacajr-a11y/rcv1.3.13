@@ -54,14 +54,8 @@ class FakeNavigator:
     def open_anvisa(self) -> None:
         self.calls.append("open_anvisa")
 
-    def open_farmacia_popular(self) -> None:
-        self.calls.append("open_farmacia_popular")
-
     def open_sngpc(self) -> None:
         self.calls.append("open_sngpc")
-
-    def open_sifap(self) -> None:
-        self.calls.append("open_sifap")
 
     def open_sites(self) -> None:
         self.calls.append("open_sites")
@@ -152,17 +146,6 @@ def test_quick_actions_controller_chama_navigator_para_anvisa(quick_actions_cont
     assert len(fake_navigator.calls) == 1
 
 
-def test_quick_actions_controller_chama_navigator_para_farmacia_popular(quick_actions_controller, fake_navigator):
-    """Teste: handle_action_click('farmacia_popular') chama navigator.open_farmacia_popular()."""
-    # Act
-    result = quick_actions_controller.handle_action_click("farmacia_popular")
-
-    # Assert
-    assert result is True
-    assert "open_farmacia_popular" in fake_navigator.calls
-    assert len(fake_navigator.calls) == 1
-
-
 def test_quick_actions_controller_chama_navigator_para_sngpc(quick_actions_controller, fake_navigator):
     """Teste: handle_action_click('sngpc') chama navigator.open_sngpc()."""
     # Act
@@ -171,17 +154,6 @@ def test_quick_actions_controller_chama_navigator_para_sngpc(quick_actions_contr
     # Assert
     assert result is True
     assert "open_sngpc" in fake_navigator.calls
-    assert len(fake_navigator.calls) == 1
-
-
-def test_quick_actions_controller_chama_navigator_para_sifap(quick_actions_controller, fake_navigator):
-    """Teste: handle_action_click('sifap') chama navigator.open_sifap()."""
-    # Act
-    result = quick_actions_controller.handle_action_click("sifap")
-
-    # Assert
-    assert result is True
-    assert "open_sifap" in fake_navigator.calls
     assert len(fake_navigator.calls) == 1
 
 
@@ -270,6 +242,7 @@ def test_quick_actions_controller_multiplas_actions_sequenciais(quick_actions_co
 
 def test_quick_actions_controller_todas_actions_principais_funcionam(quick_actions_controller, fake_navigator):
     """Teste: Todas as actions principais navegam corretamente."""
+    # BUGFIX-HUB-UI-001: Removidos farmacia_popular e sifap
     actions = [
         ("clientes", "open_clientes"),
         ("senhas", "open_senhas"),
@@ -277,9 +250,7 @@ def test_quick_actions_controller_todas_actions_principais_funcionam(quick_actio
         ("fluxo_caixa", "open_fluxo_caixa"),
         ("cashflow", "open_fluxo_caixa"),  # alias
         ("anvisa", "open_anvisa"),
-        ("farmacia_popular", "open_farmacia_popular"),
         ("sngpc", "open_sngpc"),
-        ("sifap", "open_sifap"),
         ("sites", "open_sites"),
     ]
 
@@ -458,15 +429,14 @@ def test_hub_controller_alias_cashflow_fluxo_completo(hub_screen_controller_with
 
 def test_hub_controller_todas_quick_actions_chegam_ao_navigator(hub_screen_controller_with_integration, fake_navigator):
     """Teste: Todas as quick actions principais chegam ao navigator corretamente."""
+    # BUGFIX-HUB-UI-001: Removidos farmacia_popular e sifap
     actions = [
         ("clientes", "open_clientes"),
         ("senhas", "open_senhas"),
         ("auditoria", "open_auditoria"),
         ("fluxo_caixa", "open_fluxo_caixa"),
         ("anvisa", "open_anvisa"),
-        ("farmacia_popular", "open_farmacia_popular"),
         ("sngpc", "open_sngpc"),
-        ("sifap", "open_sifap"),
         ("sites", "open_sites"),
     ]
 
@@ -484,15 +454,14 @@ def test_hub_controller_todas_quick_actions_chegam_ao_navigator(hub_screen_contr
 
 def test_hub_controller_todos_modules_chegam_ao_navigator(hub_screen_controller_with_integration, fake_navigator):
     """Teste: Todos os modules principais chegam ao navigator corretamente."""
+    # BUGFIX-HUB-UI-001: Removidos farmacia_popular e sifap
     modules = [
         ("clientes", "open_clientes"),
         ("senhas", "open_senhas"),
         ("auditoria", "open_auditoria"),
         ("cashflow", "open_fluxo_caixa"),  # alias via module
         ("anvisa", "open_anvisa"),
-        ("farmacia_popular", "open_farmacia_popular"),
         ("sngpc", "open_sngpc"),
-        ("sifap", "open_sifap"),
         ("sites", "open_sites"),
     ]
 

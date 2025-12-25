@@ -85,9 +85,26 @@ coverage.json
 htmlcov/
 reports/coverage/
 reports/_qa/
+reports/baseline/
+reports/*.txt
+reports/coverage.json
+reports/coverage.xml
+reports/*_pytest*.txt
+reports/nodes_*.txt
 bandit_*.txt
 bandit_*.csv
 bandit_*.json
 ruff_*.json
 pyright_*.json
 pyright_final.json
+
+# QA Codex reports (auditoria automatizada)
+reports/_qa_codex_quick/
+reports/_qa_codex_followup/
+reports/_qa_codex_b110/
+reports/_qa_codex_b110_p2/
+reports/_qa_codex_b110_p3/
+reports/_qa_codex_git_001/
+
+# Workspaces temporários de ferramentas
+_codex_workspace/
