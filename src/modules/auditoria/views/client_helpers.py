@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from helpers.formatters import format_cnpj
+from src.helpers.formatters import format_cnpj
 
 
 def cliente_display_id_first(cliente_id, razao, cnpj) -> str:

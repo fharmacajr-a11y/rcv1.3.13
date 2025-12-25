@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterable, Optional, TypedDict
 
-from helpers.formatters import format_cnpj, fmt_datetime_br
+from src.helpers.formatters import format_cnpj, fmt_datetime_br
 
 from . import service as auditoria_service
 

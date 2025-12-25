@@ -19,8 +19,6 @@ def test_excluir_button_calls_delete_handler(tk_root_session):
         on_novo=lambda: None,
         on_editar=lambda: None,
         on_subpastas=lambda: None,
-        on_enviar_supabase=lambda: None,
-        on_enviar_pasta=lambda: None,
         on_excluir=fake_delete,
         on_batch_delete=lambda: None,
         on_batch_restore=lambda: None,
