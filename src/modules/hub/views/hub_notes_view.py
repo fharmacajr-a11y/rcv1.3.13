@@ -17,6 +17,11 @@ import ttkbootstrap as tb
 from src.modules.hub.colors import _ensure_author_tag
 from src.modules.hub.services.authors_service import get_author_display_name
 from src.modules.hub.utils import _normalize_note
+from src.modules.hub.views.hub_notes_view_constants import (
+    MSG_EMPTY_DEFAULT,
+    MSG_ERROR_PREFIX,
+    MSG_LOADING,
+)
 from src.modules.hub.views.hub_screen_helpers import (
     calculate_notes_content_hash,
     should_skip_render_empty_notes,
@@ -152,7 +157,7 @@ class HubNotesView:
 
             self.notes_history.configure(state="normal")
             self.notes_history.delete("1.0", "end")
-            self.notes_history.insert("1.0", "Carregando notas...")
+            self.notes_history.insert("1.0", MSG_LOADING)
             self.notes_history.configure(state="disabled")
 
             # Desabilitar botão de adicionar durante loading
@@ -162,13 +167,13 @@ class HubNotesView:
             logger.debug("Erro ao renderizar loading de notas (widget pode não existir)", exc_info=True)
             pass  # Fail silently se widget não existir
 
-    def render_empty(self, message: str = "Nenhuma nota compartilhada ainda.") -> None:
+    def render_empty(self, message: str = MSG_EMPTY_DEFAULT) -> None:
         """Renderiza estado vazio (sem notas).
 
         MF-33: Centraliza renderização de estado vazio na view.
 
         Args:
-            message: Mensagem a ser exibida (padrão: "Nenhuma nota compartilhada ainda.")
+            message: Mensagem a ser exibida (padrão: MSG_EMPTY_DEFAULT)
         """
         if not self.notes_history:
             return
@@ -206,7 +211,7 @@ class HubNotesView:
 
             self.notes_history.configure(state="normal")
             self.notes_history.delete("1.0", "end")
-            self.notes_history.insert("1.0", f"❌ {message}")
+            self.notes_history.insert("1.0", f"{MSG_ERROR_PREFIX}{message}")
             self.notes_history.configure(state="disabled")
 
             # Habilitar botão de adicionar mesmo em erro (pode tentar adicionar)

@@ -37,7 +37,28 @@ except Exception:
 
 
 from src.modules.hub.services.authors_service import debug_resolve_author
-from src.modules.hub.views.hub_debug_helpers import collect_full_notes_debug
+
+# ORG-003: Helpers consolidados em hub/helpers/
+from src.modules.hub.helpers.debug import collect_full_notes_debug
+
+# ORG-008: Constantes de log extraídas
+from src.modules.hub.views.hub_notes_facade_constants import (
+    LOG_ADD_NOTE,
+    LOG_COLLECT_DEBUG,
+    LOG_POLL_IF_NEEDED,
+    LOG_RETRY_AFTER_MISSING,
+    LOG_START_POLLING,
+    LOG_UPDATE_UI_STATE,
+    log_append_incremental,
+    log_delete_note,
+    log_edit_note,
+    log_poll_impl,
+    log_realtime_note,
+    log_refresh_async,
+    log_render_notes,
+    log_toggle_done,
+    log_toggle_pin,
+)
 
 logger = get_logger(__name__)
 
@@ -112,7 +133,7 @@ class HubNotesFacade:
             Tuple (success, message)
         """
         if self._debug_logger:
-            self._debug_logger("NotesFacade: on_add_note")
+            self._debug_logger(LOG_ADD_NOTE)
 
         try:
             # Delegar ao controller
@@ -139,7 +160,7 @@ class HubNotesFacade:
             Tuple (success, message opcional)
         """
         if self._debug_logger:
-            self._debug_logger(f"NotesFacade: on_edit_note({note_id})")
+            self._debug_logger(log_edit_note(note_id))
 
         return self._notes_controller.handle_edit_note_click(note_id)
 
@@ -153,7 +174,7 @@ class HubNotesFacade:
             Tuple (success, message opcional)
         """
         if self._debug_logger:
-            self._debug_logger(f"NotesFacade: on_delete_note({note_id})")
+            self._debug_logger(log_delete_note(note_id))
 
         return self._notes_controller.handle_delete_note_click(note_id)
 
@@ -167,7 +188,7 @@ class HubNotesFacade:
             Tuple (success, message opcional)
         """
         if self._debug_logger:
-            self._debug_logger(f"NotesFacade: on_toggle_pin({note_id})")
+            self._debug_logger(log_toggle_pin(note_id))
 
         return self._notes_controller.handle_toggle_pin(note_id)
 
@@ -181,7 +202,7 @@ class HubNotesFacade:
             Tuple (success, message opcional)
         """
         if self._debug_logger:
-            self._debug_logger(f"NotesFacade: on_toggle_done({note_id})")
+            self._debug_logger(log_toggle_done(note_id))
 
         return self._notes_controller.handle_toggle_done(note_id)
 
@@ -197,7 +218,7 @@ class HubNotesFacade:
             force: Se True, ignora cache de hash e força re-renderização
         """
         if self._debug_logger:
-            self._debug_logger(f"NotesFacade: render_notes({len(notes)} notas, force={force})")
+            self._debug_logger(log_render_notes(len(notes), force))
 
         # Delegar para HubNotesRenderer
         self._notes_renderer.render_notes(
@@ -209,7 +230,7 @@ class HubNotesFacade:
     def update_notes_ui_state(self) -> None:
         """Atualiza estado do botão/placeholder baseado em org_id (MF-23)."""
         if self._debug_logger:
-            self._debug_logger("NotesFacade: update_notes_ui_state")
+            self._debug_logger(LOG_UPDATE_UI_STATE)
 
         org_id = self._get_org_id()
         self._notes_renderer.update_notes_ui_state(
@@ -225,14 +246,14 @@ class HubNotesFacade:
     def start_notes_polling(self) -> None:
         """Inicia polling de notas e refresh de cache de autores (MF-23)."""
         if self._debug_logger:
-            self._debug_logger("NotesFacade: start_notes_polling")
+            self._debug_logger(LOG_START_POLLING)
 
         self._polling_service.start_notes_polling()
 
     def poll_notes_if_needed(self) -> None:
         """Polling de notas se necessário (MF-23)."""
         if self._debug_logger:
-            self._debug_logger("NotesFacade: poll_notes_if_needed")
+            self._debug_logger(LOG_POLL_IF_NEEDED)
 
         self._hub_controller.refresh_notes(force=False)
 
@@ -243,7 +264,7 @@ class HubNotesFacade:
             force: Se True, força refresh mesmo que recente
         """
         if self._debug_logger:
-            self._debug_logger(f"NotesFacade: poll_notes_impl(force={force})")
+            self._debug_logger(log_poll_impl(force))
 
         self._polling_service.poll_notes(force=force)
 
@@ -254,14 +275,14 @@ class HubNotesFacade:
             force: Se True, força refresh mesmo que recente
         """
         if self._debug_logger:
-            self._debug_logger(f"NotesFacade: refresh_notes_async(force={force})")
+            self._debug_logger(log_refresh_async(force))
 
         self._hub_controller.refresh_notes(force=force)
 
     def retry_after_table_missing(self) -> None:
         """Retry após erro de tabela ausente (MF-23)."""
         if self._debug_logger:
-            self._debug_logger("NotesFacade: retry_after_table_missing")
+            self._debug_logger(LOG_RETRY_AFTER_MISSING)
 
         self._hub_controller.refresh_notes(force=True)
 
@@ -276,7 +297,7 @@ class HubNotesFacade:
             row: Dados da nota do evento realtime
         """
         if self._debug_logger:
-            self._debug_logger(f"NotesFacade: on_realtime_note({row.get('id', 'unknown')})")
+            self._debug_logger(log_realtime_note(row.get("id", "unknown")))
 
         self._hub_controller.on_realtime_note(row)
 
@@ -287,7 +308,7 @@ class HubNotesFacade:
             row: Dados da nota a ser adicionada incrementalmente
         """
         if self._debug_logger:
-            self._debug_logger(f"NotesFacade: append_note_incremental({row.get('id', 'unknown')})")
+            self._debug_logger(log_append_incremental(row.get("id", "unknown")))
 
         self._hub_controller._append_note_incremental(row)
 
@@ -302,7 +323,7 @@ class HubNotesFacade:
             Dicionário com informações de debug
         """
         if self._debug_logger:
-            self._debug_logger("NotesFacade: collect_notes_debug")
+            self._debug_logger(LOG_COLLECT_DEBUG)
 
         state = self._state.state
 

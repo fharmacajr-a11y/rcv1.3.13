@@ -187,7 +187,9 @@ class HubComponentFactory:
 
         # Notes Controller
         from src.modules.hub.controllers.notes_controller import NotesController
-        from src.modules.hub.services.hub_auth_helpers import get_app_from_widget
+
+        # ORG-003: Helper movido para hub/helpers/
+        from src.modules.hub.helpers.session import get_app_from_widget
 
         # Obter notifications_service do MainWindow (seguindo padrão ANVISA)
         app = get_app_from_widget(screen)

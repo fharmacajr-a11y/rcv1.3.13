@@ -10,6 +10,22 @@ from __future__ import annotations
 from tkinter import messagebox
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
+from src.modules.hub.views.hub_dashboard_callbacks_constants import (
+    BANNER_CLIENT_PICK_OBLIGATIONS,
+    MSG_APP_NOT_FOUND,
+    MSG_ACTIVITY_VIEW_COMING_SOON,
+    MSG_ERROR_OPEN_DIALOG,
+    MSG_ERROR_OPEN_VIEW,
+    MSG_ERROR_PROCESS_ACTION,
+    MSG_ERROR_PROCESS_SELECTION,
+    MSG_ERROR_START_FLOW,
+    MSG_LOGIN_REQUIRED_OBLIGATIONS,
+    MSG_LOGIN_REQUIRED_TASKS,
+    TITLE_AUTH_REQUIRED,
+    TITLE_ERROR,
+    TITLE_IN_DEVELOPMENT,
+)
+
 if TYPE_CHECKING:
     from src.modules.hub.viewmodels import DashboardViewState
 
@@ -46,8 +62,8 @@ def handle_new_task_click(
 
         if not org_id or not user_id:
             messagebox.showwarning(
-                "Autenticação Necessária",
-                "Por favor, faça login para criar tarefas.",
+                TITLE_AUTH_REQUIRED,
+                MSG_LOGIN_REQUIRED_TASKS,
                 parent=parent,
             )
             return
@@ -76,8 +92,8 @@ def handle_new_task_click(
     except Exception as e:  # noqa: BLE001
         logger.exception("Erro ao abrir diálogo de nova tarefa")
         messagebox.showerror(
-            "Erro",
-            f"Erro ao abrir diálogo: {e}",
+            TITLE_ERROR,
+            MSG_ERROR_OPEN_DIALOG.format(error=e),
             parent=parent,
         )
 
@@ -105,8 +121,8 @@ def handle_new_obligation_click(
 
         if not org_id or not user_id:
             messagebox.showwarning(
-                "Autenticação Necessária",
-                "Por favor, faça login para criar obrigações.",
+                TITLE_AUTH_REQUIRED,
+                MSG_LOGIN_REQUIRED_OBLIGATIONS,
                 parent=parent,
             )
             return
@@ -115,8 +131,8 @@ def handle_new_obligation_click(
         app = get_main_app()
         if not app:
             messagebox.showwarning(
-                "Erro",
-                "Aplicação principal não encontrada.",
+                TITLE_ERROR,
+                MSG_APP_NOT_FOUND,
                 parent=parent,
             )
             return
@@ -127,15 +143,15 @@ def handle_new_obligation_click(
         start_client_pick_mode(
             app,
             on_client_picked=on_client_picked,
-            banner_text="🔍 Modo seleção: escolha um cliente para gerenciar obrigações",
+            banner_text=BANNER_CLIENT_PICK_OBLIGATIONS,
             return_to=lambda: navigate_to(app, "hub"),
         )
 
     except Exception as e:  # noqa: BLE001
         logger.exception("Erro ao iniciar fluxo de nova obrigação")
         messagebox.showerror(
-            "Erro",
-            f"Erro ao iniciar fluxo: {e}",
+            TITLE_ERROR,
+            MSG_ERROR_START_FLOW.format(error=e),
             parent=parent,
         )
 
@@ -148,16 +164,15 @@ def handle_view_all_activity_click(parent: Any) -> None:
     """
     try:
         messagebox.showinfo(
-            "Em Desenvolvimento",
-            "A visualização completa da atividade estará disponível em breve.\n\n"
-            "No momento, você pode ver as últimas atividades diretamente no Hub.",
+            TITLE_IN_DEVELOPMENT,
+            MSG_ACTIVITY_VIEW_COMING_SOON,
             parent=parent,
         )
     except Exception as e:  # noqa: BLE001
         logger.exception("Erro ao abrir visualização de atividades")
         messagebox.showerror(
-            "Erro",
-            f"Erro ao abrir visualização: {e}",
+            TITLE_ERROR,
+            MSG_ERROR_OPEN_VIEW.format(error=e),
             parent=parent,
         )
 
@@ -228,8 +243,8 @@ def handle_client_picked_for_obligation(
     except Exception as e:  # noqa: BLE001
         logger.exception("Erro ao processar cliente selecionado para obrigações")
         messagebox.showerror(
-            "Erro",
-            f"Erro ao processar seleção: {e}",
+            TITLE_ERROR,
+            MSG_ERROR_PROCESS_SELECTION.format(error=e),
             parent=parent,
         )
 
@@ -260,7 +275,7 @@ def handle_card_click(
     except Exception as e:  # noqa: BLE001
         logger.exception(f"Erro ao navegar a partir do card {card_type}")
         messagebox.showerror(
-            "Erro",
-            f"Erro ao processar ação: {e}",
+            TITLE_ERROR,
+            MSG_ERROR_PROCESS_ACTION.format(error=e),
             parent=parent,
         )

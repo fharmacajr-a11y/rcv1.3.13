@@ -241,9 +241,9 @@ class TestShowDebugInfo:
             }
         )
 
-    @patch("src.modules.hub.views.hub_debug_helpers.messagebox")
+    @patch("src.modules.hub.helpers.debug.messagebox")
     @patch("builtins.open", new_callable=mock_open)
-    @patch("src.modules.hub.views.hub_debug_helpers.os.path.abspath")
+    @patch("src.modules.hub.helpers.debug.os.path.abspath")
     def test_saves_debug_report_to_file(
         self,
         mock_abspath,
@@ -270,9 +270,9 @@ class TestShowDebugInfo:
         call_args = mock_messagebox.showinfo.call_args
         assert "/path/to/debug_report.json" in call_args[0][1]
 
-    @patch("src.modules.hub.views.hub_debug_helpers.messagebox")
+    @patch("src.modules.hub.helpers.debug.messagebox")
     @patch("builtins.open", new_callable=mock_open)
-    @patch("src.modules.hub.views.hub_debug_helpers.os.path.abspath")
+    @patch("src.modules.hub.helpers.debug.os.path.abspath")
     def test_shows_success_message_with_filepath(
         self,
         mock_abspath,
@@ -297,7 +297,7 @@ class TestShowDebugInfo:
         assert "Relatório de Debug Gerado" in call_args[0][0]
         assert expected_path in call_args[0][1]
 
-    @patch("src.modules.hub.views.hub_debug_helpers.messagebox")
+    @patch("src.modules.hub.helpers.debug.messagebox")
     @patch("builtins.open", new_callable=mock_open)
     def test_writes_valid_json_to_file(
         self,
@@ -324,7 +324,7 @@ class TestShowDebugInfo:
         assert "timestamp" in parsed
         assert "org_id" in parsed
 
-    @patch("src.modules.hub.views.hub_debug_helpers.messagebox")
+    @patch("src.modules.hub.helpers.debug.messagebox")
     @patch("builtins.open", side_effect=IOError("Disk full"))
     def test_shows_error_on_file_write_failure(
         self,
@@ -344,9 +344,9 @@ class TestShowDebugInfo:
         call_args = mock_messagebox.showerror.call_args
         assert "Erro" in call_args[0][0]
 
-    @patch("src.modules.hub.views.hub_debug_helpers.messagebox")
+    @patch("src.modules.hub.helpers.debug.messagebox")
     @patch("builtins.open", new_callable=mock_open)
-    @patch("src.modules.hub.views.hub_debug_helpers.logger")
+    @patch("src.modules.hub.helpers.debug.logger")
     def test_logs_debug_info_to_console(
         self,
         mock_logger,
@@ -370,7 +370,7 @@ class TestShowDebugInfo:
 
         assert "DEBUG NOTES REPORT" in log_output
 
-    @patch("src.modules.hub.views.hub_debug_helpers.messagebox")
+    @patch("src.modules.hub.helpers.debug.messagebox")
     @patch("builtins.open", new_callable=mock_open)
     def test_filename_includes_timestamp(
         self,
@@ -397,7 +397,7 @@ class TestShowDebugInfo:
         # Deve ter pelo menos data e hora
         assert len(parts) >= 4
 
-    @patch("src.modules.hub.views.hub_debug_helpers.messagebox")
+    @patch("src.modules.hub.helpers.debug.messagebox")
     def test_handles_exception_in_collect_debug_data(
         self,
         mock_messagebox,
@@ -414,7 +414,7 @@ class TestShowDebugInfo:
         # Deve ter mostrado erro
         mock_messagebox.showerror.assert_called_once()
 
-    @patch("src.modules.hub.views.hub_debug_helpers.messagebox")
+    @patch("src.modules.hub.helpers.debug.messagebox")
     @patch("builtins.open", new_callable=mock_open)
     def test_json_is_formatted_with_indent(
         self,

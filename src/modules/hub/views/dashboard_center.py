@@ -8,38 +8,36 @@ hot items, and upcoming deadlines.
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date, timedelta
+from datetime import date
 from typing import TYPE_CHECKING, Any, Callable
 
 import ttkbootstrap as tb
 from ttkbootstrap.constants import BOTH, LEFT, W, X
+
+# ORG-005: Constantes e funções puras extraídas
+from src.modules.hub.views.dashboard_center_constants import (
+    CARD_LABEL_FONT,
+    CARD_PAD_X,
+    CARD_PAD_Y,
+    CARD_VALUE_FONT,
+    MAX_ACTIVITY_ITEMS_DASHBOARD,
+    MSG_NO_HOT_ITEMS,
+    MSG_NO_UPCOMING,
+    SECTION_DAY_HEADER_FONT,
+    SECTION_ITEM_FONT,
+)
+from src.modules.hub.views.dashboard_center_pure import (
+    format_day_label,
+    format_deadline_line,
+    format_task_line,
+)
 
 if TYPE_CHECKING:
     from src.modules.hub.viewmodels import DashboardViewState
 
 
 # ============================================================================
-# CONSTANTES
-# ============================================================================
-
-CARD_PAD_X = 10
-CARD_PAD_Y = 8
-CARD_VALUE_FONT: Any = ("Segoe UI", 24, "bold")
-CARD_LABEL_FONT: tuple[str, int] = ("Segoe UI", 10)
-SECTION_TITLE_FONT: Any = ("Segoe UI", 11, "bold")
-SECTION_ITEM_FONT: tuple[str, int] = ("Segoe UI", 10)
-SECTION_DAY_HEADER_FONT: Any = ("Segoe UI", 9, "bold")
-
-# Limite de atividades exibidas no dashboard
-MAX_ACTIVITY_ITEMS_DASHBOARD = 5
-
-# Mensagens padrão
-MSG_NO_HOT_ITEMS = "Nenhum alerta crítico por enquanto 😀"
-MSG_NO_UPCOMING = "Nenhuma obrigação pendente nos próximos dias."
-
-
-# ============================================================================
-# FUNÇÕES AUXILIARES
+# FUNÇÕES AUXILIARES (UI)
 # ============================================================================
 
 
@@ -131,46 +129,8 @@ def _build_section_frame(
     return section, content
 
 
-def _format_deadline_line(deadline: dict) -> str:
-    """Formata uma linha de vencimento.
-
-    Args:
-        deadline: Dict com due_date, client_name, kind, title, status.
-
-    Returns:
-        String formatada com os dados do vencimento.
-    """
-    due_date = deadline.get("due_date", "—")
-    client_name = deadline.get("client_name", "—")
-    kind = deadline.get("kind", "—")
-    title = deadline.get("title", "—")
-    status = deadline.get("status", "—")
-
-    return f"{due_date} – {client_name} – {kind} – {title} – {status}"
-
-
-def _format_task_line(task: dict) -> str:
-    """Formata uma linha de tarefa pendente.
-
-    Args:
-        task: Dict com due_date, client_name, title, priority.
-
-    Returns:
-        String formatada com os dados da tarefa.
-    """
-    due_date = task.get("due_date", "—")
-    client_name = task.get("client_name", "—")
-    title = task.get("title", "—")
-    priority = task.get("priority", "normal")
-
-    # Adiciona emoji de prioridade
-    priority_emoji = ""
-    if priority == "urgent":
-        priority_emoji = "🔴 "
-    elif priority == "high":
-        priority_emoji = "🟡 "
-
-    return f"{priority_emoji}{due_date} – {client_name} – {title}"
+# ORG-005: Funções de formatação movidas para dashboard_center_pure.py
+# _format_deadline_line, _format_task_line, _format_day_label
 
 
 def _build_risk_radar_section(
@@ -289,7 +249,7 @@ def _build_recent_activity_section(
             day_activities = grouped[day]
 
             # Cabeçalho do dia
-            day_label_text = _format_day_label(day, today)
+            day_label_text = format_day_label(day, today)
             day_label = tb.Label(
                 content,
                 text=day_label_text,
@@ -338,22 +298,7 @@ def _build_recent_activity_section(
             btn_ver_todos.pack(anchor="e", pady=(4, 0))
 
 
-def _format_day_label(day: date, today: date) -> str:
-    """Formata o label do dia para exibição.
-
-    Args:
-        day: Data a ser formatada.
-        today: Data de hoje para comparação.
-
-    Returns:
-        String formatada: "Hoje", "Ontem" ou "dd/MM".
-    """
-    if day == today:
-        return "Hoje"
-    elif day == today - timedelta(days=1):
-        return "Ontem"
-    else:
-        return day.strftime("%d/%m")
+# ORG-005: Função _format_day_label movida para dashboard_center_pure.py
 
 
 # ============================================================================
@@ -534,7 +479,7 @@ def build_dashboard_center(
     else:
         # Exibir cada tarefa (até 5)
         for task in snapshot.pending_tasks[:5]:
-            line = _format_task_line(task)
+            line = format_task_line(task)
             lbl_task = tb.Label(
                 tasks_content,
                 text=line,
@@ -602,7 +547,7 @@ def build_dashboard_center(
     else:
         # Exibir cada deadline (até 5)
         for deadline in snapshot.upcoming_deadlines[:5]:
-            line = _format_deadline_line(deadline)
+            line = format_deadline_line(deadline)
             lbl_deadline = tb.Label(
                 deadlines_content,
                 text=line,

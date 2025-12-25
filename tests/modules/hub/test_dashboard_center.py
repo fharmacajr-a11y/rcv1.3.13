@@ -14,22 +14,23 @@ from datetime import date, datetime, timedelta
 
 import pytest
 
+# ORG-005: Função movida para dashboard_center_pure
+from src.modules.hub.views.dashboard_center_pure import (
+    format_day_label as _format_day_label,
+)
+
 
 class TestFormatDayLabel:
     """Testes para a função _format_day_label."""
 
     def test_format_today(self):
         """Verifica que a data de hoje retorna 'Hoje'."""
-        from src.modules.hub.views.dashboard_center import _format_day_label
-
         today = date(2025, 12, 15)
         result = _format_day_label(today, today)
         assert result == "Hoje"
 
     def test_format_yesterday(self):
         """Verifica que ontem retorna 'Ontem'."""
-        from src.modules.hub.views.dashboard_center import _format_day_label
-
         today = date(2025, 12, 15)
         yesterday = today - timedelta(days=1)
         result = _format_day_label(yesterday, today)
@@ -37,8 +38,6 @@ class TestFormatDayLabel:
 
     def test_format_older_date(self):
         """Verifica que datas antigas retornam formato dd/MM."""
-        from src.modules.hub.views.dashboard_center import _format_day_label
-
         today = date(2025, 12, 15)
         older = date(2025, 12, 10)
         result = _format_day_label(older, today)
@@ -46,8 +45,6 @@ class TestFormatDayLabel:
 
     def test_format_different_month(self):
         """Verifica formatação de data de mês diferente."""
-        from src.modules.hub.views.dashboard_center import _format_day_label
-
         today = date(2025, 12, 15)
         older = date(2025, 11, 25)
         result = _format_day_label(older, today)

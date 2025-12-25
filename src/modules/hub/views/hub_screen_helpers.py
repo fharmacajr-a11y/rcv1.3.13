@@ -1,27 +1,27 @@
 # -*- coding: utf-8 -*-
 """
-MF-18: Façade para helpers do HubScreen - Re-exports de módulos temáticos.
+Façade para helpers do HubScreen - Re-exports de módulos organizados.
 
-Este módulo serve como ponto único de importação para todos os helpers
-do HubScreen, mantendo compatibilidade com código existente enquanto
-organiza a implementação em módulos temáticos.
+ORG-003: Helpers foram consolidados em hub/helpers/ (organização temática).
+Este arquivo serve como ponto único de importação para compatibilidade.
 
-ORGANIZAÇÃO PÓS-MF-18:
-- hub_helpers_modules.py: Navegação e botões de módulos
-- hub_helpers_notes.py: Formatação e manipulação de notas
-- hub_helpers_session.py: Autenticação e utilitários gerais
+ORGANIZAÇÃO PÓS-ORG-003:
+- hub/helpers/modules.py: Navegação e botões de módulos
+- hub/helpers/notes.py: Formatação e manipulação de notas
+- hub/helpers/session.py: Autenticação e utilitários gerais
+- hub/helpers/debug.py: Debug e diagnóstico
 
 Importações externas continuam funcionando normalmente:
     from src.modules.hub.views.hub_screen_helpers import build_module_buttons
 """
 
-# Re-exports de módulos (MF-18)
-from .hub_helpers_modules import (
+# Re-exports do novo local (ORG-003)
+from ..helpers.modules import (
     ModuleButton,
     build_module_buttons,
     calculate_module_button_style,
 )
-from .hub_helpers_notes import (
+from ..helpers.notes import (
     calculate_notes_content_hash,
     calculate_notes_ui_state,
     format_note_line,
@@ -32,7 +32,7 @@ from .hub_helpers_notes import (
     should_show_notes_section,
     should_skip_render_empty_notes,
 )
-from .hub_helpers_session import (
+from ..helpers.session import (
     calculate_retry_delay_ms,
     extract_email_prefix,
     format_author_fallback,

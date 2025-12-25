@@ -17,6 +17,20 @@ from src.modules.hub.viewmodels import DashboardViewState
 from src.modules.hub.views.dashboard_center import build_dashboard_center, build_dashboard_error
 from src.modules.hub.views.notes_panel_view import NotesViewCallbacks, build_notes_side_panel
 
+# ORG-006: Constantes e funções puras extraídas
+from src.modules.hub.views.hub_screen_view_constants import (
+    BTN_GRID_PADX,
+    BTN_GRID_PADY,
+    FRAME_INNER_PADDING,
+    FRAME_PACK_PADY,
+    MSG_LOADING_NOTES,
+    MSG_NO_NOTES_YET,
+    SECTION_CADASTROS_LABEL,
+    SECTION_GESTAO_LABEL,
+    SECTION_REGULATORIO_LABEL,
+)
+from src.modules.hub.views.hub_screen_view_pure import format_note_line, make_module_button
+
 logger = logging.getLogger(__name__)
 
 
@@ -180,9 +194,8 @@ class HubScreenView:
             PAD_OUTER,
         )
 
-        # Helper para criar botão com bootstyle
-        def mk_btn(parent, text, command=None, bootstyle="secondary"):
-            return tb.Button(parent, text=text, command=command, bootstyle=bootstyle)
+        # ORG-006: Helper movido para hub_screen_view_pure.py
+        # Helper inline `mk_btn` agora é `make_module_button`
 
         # Painel principal
         self.modules_panel = tb.Labelframe(self.parent, text=MODULES_TITLE, padding=PAD_OUTER)
@@ -190,50 +203,52 @@ class HubScreenView:
         # BLOCO 1: Cadastros / Acesso
         frame_cadastros = tb.Labelframe(
             self.modules_panel,
-            text="Cadastros / Acesso",
-            padding=(8, 6),
+            text=SECTION_CADASTROS_LABEL,
+            padding=FRAME_INNER_PADDING,
         )
-        frame_cadastros.pack(fill="x", pady=(0, 8))
+        frame_cadastros.pack(fill="x", pady=FRAME_PACK_PADY)
         frame_cadastros.columnconfigure(0, weight=1)
         frame_cadastros.columnconfigure(1, weight=1)
 
-        btn_clientes = mk_btn(frame_cadastros, "Clientes", self.open_clientes, HUB_BTN_STYLE_CLIENTES)
-        btn_clientes.grid(row=0, column=0, sticky="ew", padx=3, pady=3)
+        btn_clientes = make_module_button(frame_cadastros, "Clientes", self.open_clientes, HUB_BTN_STYLE_CLIENTES)
+        btn_clientes.grid(row=0, column=0, sticky="ew", padx=BTN_GRID_PADX, pady=BTN_GRID_PADY)
 
-        btn_senhas = mk_btn(frame_cadastros, "Senhas", self.open_senhas, HUB_BTN_STYLE_SENHAS)
-        btn_senhas.grid(row=0, column=1, sticky="ew", padx=3, pady=3)
+        btn_senhas = make_module_button(frame_cadastros, "Senhas", self.open_senhas, HUB_BTN_STYLE_SENHAS)
+        btn_senhas.grid(row=0, column=1, sticky="ew", padx=BTN_GRID_PADX, pady=BTN_GRID_PADY)
 
         # BLOCO 2: Gestão / Auditoria
         frame_gestao = tb.Labelframe(
             self.modules_panel,
-            text="Gestão / Auditoria",
-            padding=(8, 6),
+            text=SECTION_GESTAO_LABEL,
+            padding=FRAME_INNER_PADDING,
         )
-        frame_gestao.pack(fill="x", pady=(0, 8))
+        frame_gestao.pack(fill="x", pady=FRAME_PACK_PADY)
         frame_gestao.columnconfigure(0, weight=1)
         frame_gestao.columnconfigure(1, weight=1)
 
-        btn_auditoria = mk_btn(frame_gestao, "Auditoria", self.open_auditoria, HUB_BTN_STYLE_AUDITORIA)
-        btn_auditoria.grid(row=0, column=0, sticky="ew", padx=3, pady=3)
+        btn_auditoria = make_module_button(frame_gestao, "Auditoria", self.open_auditoria, HUB_BTN_STYLE_AUDITORIA)
+        btn_auditoria.grid(row=0, column=0, sticky="ew", padx=BTN_GRID_PADX, pady=BTN_GRID_PADY)
 
-        btn_fluxo_caixa = mk_btn(frame_gestao, "Fluxo de Caixa", self.open_cashflow, HUB_BTN_STYLE_FLUXO_CAIXA)
-        btn_fluxo_caixa.grid(row=0, column=1, sticky="ew", padx=3, pady=3)
+        btn_fluxo_caixa = make_module_button(
+            frame_gestao, "Fluxo de Caixa", self.open_cashflow, HUB_BTN_STYLE_FLUXO_CAIXA
+        )
+        btn_fluxo_caixa.grid(row=0, column=1, sticky="ew", padx=BTN_GRID_PADX, pady=BTN_GRID_PADY)
 
         # BLOCO 3: Regulatório / Programas
         frame_regulatorio = tb.Labelframe(
             self.modules_panel,
-            text="Regulatório / Programas",
-            padding=(8, 6),
+            text=SECTION_REGULATORIO_LABEL,
+            padding=FRAME_INNER_PADDING,
         )
         frame_regulatorio.pack(fill="x", pady=(0, 0))
         frame_regulatorio.columnconfigure(0, weight=1)
         frame_regulatorio.columnconfigure(1, weight=1)
 
-        btn_anvisa = mk_btn(frame_regulatorio, "Anvisa", self.open_anvisa, "info")
-        btn_anvisa.grid(row=0, column=0, sticky="ew", padx=3, pady=3)
+        btn_anvisa = make_module_button(frame_regulatorio, "Anvisa", self.open_anvisa, "info")
+        btn_anvisa.grid(row=0, column=0, sticky="ew", padx=BTN_GRID_PADX, pady=BTN_GRID_PADY)
 
-        btn_sngpc = mk_btn(frame_regulatorio, "Sngpc", self.open_sngpc, "secondary")
-        btn_sngpc.grid(row=0, column=1, sticky="ew", padx=3, pady=3)
+        btn_sngpc = make_module_button(frame_regulatorio, "Sngpc", self.open_sngpc, "secondary")
+        btn_sngpc.grid(row=0, column=1, sticky="ew", padx=BTN_GRID_PADX, pady=BTN_GRID_PADY)
 
     def _build_dashboard_panel(self) -> None:
         """Constrói o painel central com ScrollableFrame para o dashboard."""
@@ -377,30 +392,13 @@ class HubScreenView:
         self.notes_history.configure(state="normal")
         self.notes_history.delete("1.0", "end")
 
+        # ORG-006: Renderização de notas usando função pura
         # Renderizar notas
         if not notes:
-            self.notes_history.insert("end", "Nenhuma anotação ainda.\n")
+            self.notes_history.insert("end", MSG_NO_NOTES_YET)
         else:
             for note in notes:
-                # Formato básico: [hora] autor: texto
-                created_at = note.get("created_at", "")
-                author_email = note.get("author_email", "")
-                body = note.get("body", "")
-
-                # Extrair hora do timestamp
-                try:
-                    from datetime import datetime
-
-                    if "T" in created_at:
-                        dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-                        time_str = dt.strftime("%H:%M")
-                    else:
-                        time_str = created_at[:5] if len(created_at) >= 5 else ""
-                except Exception:
-                    time_str = ""
-
-                # Montar linha
-                line = f"[{time_str}] {author_email}: {body}\n"
+                line = format_note_line(note)
                 self.notes_history.insert("end", line)
 
         # Desabilitar edição novamente
@@ -422,12 +420,13 @@ class HubScreenView:
         if self.new_note:
             self.new_note.configure(state="disabled")
 
+        # ORG-006: Mensagem de loading extraída para constante
         # Opcional: Poderia criar um overlay de loading
         # ou atualizar o painel de notas com mensagem
         if self.notes_history:
             self.notes_history.configure(state="normal")
             self.notes_history.delete("1.0", "end")
-            self.notes_history.insert("end", "⏳ Carregando notas...\n")
+            self.notes_history.insert("end", MSG_LOADING_NOTES)
             self.notes_history.configure(state="disabled")
 
     def hide_loading(self) -> None:

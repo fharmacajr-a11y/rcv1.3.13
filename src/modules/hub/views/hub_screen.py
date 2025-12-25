@@ -23,7 +23,6 @@ Histórico: HUB-REFACTOR-01..08, HUB-SPLIT-01..04, MF-10..MF-22
 from __future__ import annotations
 
 import tkinter as tk
-from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import ttkbootstrap as tb
@@ -49,18 +48,19 @@ from src.modules.hub.viewmodels import (
 # MF-13: hub_dashboard_callbacks não é mais importado diretamente aqui
 # MF-22: Dashboard e Navigation handlers movidos para facades
 # MF-23: Notes operations movidos para HubNotesFacade
-from src.modules.hub.views.hub_debug_helpers import (
-    show_debug_info,
-)
-from src.modules.hub.views.hub_screen_helpers import (
-    is_auth_ready,
-)
-from src.modules.hub.services.hub_auth_helpers import (
+# ORG-003: Helpers consolidados em hub/helpers/
+from src.modules.hub.helpers.debug import show_debug_info
+from src.modules.hub.helpers.session import (
     get_app_from_widget,
     get_email_safe_from_widget,
     get_org_id_safe_from_widget,
     get_user_id_safe_from_widget,
+    is_auth_ready,
 )
+
+# ORG-004: Helpers puros extraídos
+from src.modules.hub.views.hub_screen_pure import get_local_timezone
+
 # MF-10: Módulos extraídos para reduzir complexidade
 # MF-13: Handlers de dashboard extraídos (agora em facades - MF-22)
 # MF-22: Dashboard e Navigation handlers movidos para facades
@@ -70,27 +70,10 @@ from src.modules.hub.services.hub_auth_helpers import (
 logger = get_logger(__name__)
 log = logger
 
-# Import do erro transitório
-# Timezone handling com fallback (mantido para compatibilidade)
-try:
-    import tzlocal  # type: ignore[import-not-found]
-
-    LOCAL_TZ = tzlocal.get_localzone()
-except Exception:
-    # Fallback: usa tzinfo do sistema
-    try:
-        LOCAL_TZ = datetime.now().astimezone().tzinfo
-    except Exception:
-        LOCAL_TZ = timezone.utc
+# ORG-004: Timezone handling movido para hub_screen_pure.py
+LOCAL_TZ = get_local_timezone()
 
 # logger disponível desde o topo do módulo
-
-# Constantes para retry de autenticação
-AUTH_RETRY_MS = 2000  # 2 segundos
-
-# Mapa de e-mail -> nome curto preferido (sempre em minúsculas)
-# Cooldown para refresh de nomes (evitar chamadas duplicadas)
-_NAMES_REFRESH_COOLDOWN_S = 30
 
 
 class HubScreen(tb.Frame):

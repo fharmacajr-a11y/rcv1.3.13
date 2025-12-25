@@ -23,7 +23,8 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any
 
-from src.modules.hub.services.hub_notes_helpers import (
+# ORG-003: Helpers consolidados em hub/helpers/
+from src.modules.hub.helpers.notes import (
     bulk_update_author_cache,
     should_refresh_author_cache,
 )
@@ -254,7 +255,8 @@ def refresh_author_names_cache_async(controller: "HubScreenController", *, force
 
         # MF-33: Usar helper bulk_update_author_cache
         # Converter cached_authors para formato AuthorCache (dict[str, tuple[str, float]])
-        from src.modules.hub.services.hub_notes_helpers import AuthorCache
+        # ORG-003: Helper movido para hub/helpers/
+        from src.modules.hub.helpers.notes import AuthorCache
 
         # Se cached_authors for dict[str, str], converter para AuthorCache
         cache: AuthorCache = {}

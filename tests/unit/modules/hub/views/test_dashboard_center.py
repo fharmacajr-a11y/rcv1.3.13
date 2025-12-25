@@ -23,10 +23,14 @@ from src.modules.hub.views.dashboard_center import (
     _build_indicator_card,
     _build_section_frame,
     _clear_children,
-    _format_deadline_line,
-    _format_task_line,
     build_dashboard_center,
     build_dashboard_error,
+)
+
+# ORG-005: Funções movidas para dashboard_center_pure
+from src.modules.hub.views.dashboard_center_pure import (
+    format_deadline_line as _format_deadline_line,
+    format_task_line as _format_task_line,
 )
 
 # ============================================================================
