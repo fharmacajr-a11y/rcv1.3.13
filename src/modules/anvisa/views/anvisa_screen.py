@@ -19,6 +19,7 @@ from ._anvisa_handlers_mixin import AnvisaHandlersMixin
 from ..controllers.anvisa_controller import AnvisaController
 from ..services.anvisa_service import AnvisaService
 from infra.repositories.anvisa_requests_repository import AnvisaRequestsRepositoryAdapter
+from src.helpers.auth_utils import current_user_id
 from src.ui.window_utils import (
     apply_window_icon,
     prepare_hidden_window,
@@ -411,12 +412,15 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
             # Normalizar tipo (Service já validou, mas é bom garantir formato oficial)
             tipo_normalizado = self._service.normalize_request_type(request_type)
 
+            # Obter user_id se disponível (para auditoria)
+            user_id = current_user_id()
+
             # Criar demanda via Controller
             request_id = self._controller.create_request(
                 org_id=org_id,
                 client_id=str(client_id),
                 request_type=tipo_normalizado,
-                created_by=None,  # TODO: passar user_id se disponível
+                created_by=user_id,  # Preenche com user_id quando disponível
                 payload={},
             )
 
