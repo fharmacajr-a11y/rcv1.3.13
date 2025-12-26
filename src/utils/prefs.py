@@ -56,6 +56,93 @@ def _auth_session_path() -> str:
     return os.path.join(base, AUTH_SESSION_FILENAME)
 
 
+# =============================================================================
+# KEYRING HELPERS - P1-001: Armazenamento seguro de tokens Supabase
+# =============================================================================
+# Implementa armazenamento via keyring (DPAPI no Windows) com fallback para arquivo.
+# Durante testes (pytest), keyring é desabilitado automaticamente.
+
+KEYRING_SERVICE_NAME: str = "RC-Gestor-Clientes"
+KEYRING_USERNAME: str = "supabase_auth_session"
+
+
+def _keyring_is_available() -> bool:
+    """
+    Verifica se keyring está disponível e pode ser usado.
+
+    Retorna False automaticamente em ambientes de teste (pytest) para não
+    depender do keyring real do SO durante testes automatizados.
+    """
+    # Detectar ambiente de teste
+    if os.getenv("PYTEST_CURRENT_TEST") or os.getenv("RC_TESTING") == "1":
+        return False
+
+    try:
+        import keyring  # Lazy import
+
+        # Tenta obter o backend para validar disponibilidade
+        backend = keyring.get_keyring()
+        if backend is None:
+            return False
+        # Verifica se não é o backend "fail" (fallback quando nenhum backend real existe)
+        backend_name = type(backend).__name__
+        if "fail" in backend_name.lower() or "null" in backend_name.lower():
+            return False
+        return True
+    except Exception as exc:
+        log.debug("Keyring não disponível: %s", exc)
+        return False
+
+
+def _keyring_get_session_json() -> str | None:
+    """
+    Obtém sessão JSON do keyring.
+    Retorna None se não existir ou houver erro.
+    """
+    if not _keyring_is_available():
+        return None
+
+    try:
+        import keyring
+
+        value = keyring.get_password(KEYRING_SERVICE_NAME, KEYRING_USERNAME)
+        return value if value else None
+    except Exception as exc:
+        log.debug("Erro ao ler sessão do keyring: %s", exc)
+        return None
+
+
+def _keyring_set_session_json(payload: str) -> bool:
+    """
+    Salva sessão JSON no keyring.
+    Retorna True se sucesso, False caso contrário.
+    """
+    if not _keyring_is_available():
+        return False
+
+    try:
+        import keyring
+
+        keyring.set_password(KEYRING_SERVICE_NAME, KEYRING_USERNAME, payload)
+        return True
+    except Exception as exc:
+        log.warning("Erro ao salvar sessão no keyring: %s", exc)
+        return False
+
+
+def _keyring_clear_session() -> None:
+    """Remove sessão do keyring (best-effort)."""
+    if not _keyring_is_available():
+        return
+
+    try:
+        import keyring
+
+        keyring.delete_password(KEYRING_SERVICE_NAME, KEYRING_USERNAME)
+    except Exception as exc:
+        log.debug("Erro ao limpar sessão do keyring: %s", exc)
+
+
 def load_columns_visibility(user_key: str) -> dict[str, bool]:
     """
     Lê visibilidade das colunas para o user_key (ex.: email).
@@ -170,27 +257,88 @@ def save_login_prefs(email: str, remember_email: bool) -> None:
 
 
 def load_auth_session() -> dict[str, Any]:
-    """Carrega sessão persistida (tokens) do Supabase."""
+    """
+    Carrega sessão persistida (tokens) do Supabase.
+
+    P1-001: Migração para keyring (DPAPI no Windows):
+    1. Tenta carregar do keyring (armazenamento seguro)
+    2. Se não houver no keyring, tenta carregar do arquivo auth_session.json
+    3. Se carregar do arquivo com sucesso, migra para keyring e remove arquivo
+    """
+    # 1. Tentar carregar do keyring primeiro (armazenamento seguro)
+    keyring_json = _keyring_get_session_json()
+    if keyring_json:
+        try:
+            data: Any = json.loads(keyring_json)
+            if not isinstance(data, dict):
+                log.warning("Sessão no keyring tem formato inválido")
+                _keyring_clear_session()
+                return {}
+
+            access_token: Any = data.get("access_token") or ""
+            refresh_token: Any = data.get("refresh_token") or ""
+            created_at: Any = data.get("created_at") or ""
+            keep_logged: bool = bool(data.get("keep_logged", False))
+
+            if not access_token or not refresh_token or not created_at:
+                log.warning("Sessão no keyring incompleta")
+                _keyring_clear_session()
+                return {}
+
+            return {
+                "access_token": str(access_token),
+                "refresh_token": str(refresh_token),
+                "created_at": str(created_at),
+                "keep_logged": keep_logged,
+            }
+        except Exception as exc:
+            log.warning("Erro ao parsear sessão do keyring: %s", exc)
+            _keyring_clear_session()
+            return {}
+
+    # 2. Fallback: tentar carregar do arquivo (legado)
     path: str = _auth_session_path()
     if not os.path.exists(path):
         return {}
+
     try:
         with open(path, "r", encoding="utf-8") as f:
             data: Any = json.load(f) or {}
         if not isinstance(data, dict):
             return {}
+
         access_token: Any = data.get("access_token") or ""
         refresh_token: Any = data.get("refresh_token") or ""
         created_at: Any = data.get("created_at") or ""
         keep_logged: bool = bool(data.get("keep_logged", False))
+
         if not access_token or not refresh_token or not created_at:
             return {}
-        return {
+
+        session_data = {
             "access_token": str(access_token),
             "refresh_token": str(refresh_token),
             "created_at": str(created_at),
             "keep_logged": keep_logged,
         }
+
+        # 3. Migração automática: se carregou do arquivo, tentar migrar para keyring
+        if _keyring_is_available():
+            try:
+                session_json = json.dumps(session_data, ensure_ascii=False)
+                if _keyring_set_session_json(session_json):
+                    log.info("Sessão migrada de arquivo para keyring (armazenamento seguro)")
+                    # Remover arquivo após migração bem-sucedida
+                    try:
+                        os.remove(path)
+                        log.info("Arquivo auth_session.json removido após migração")
+                    except Exception as rm_exc:
+                        log.debug("Não foi possível remover arquivo após migração: %s", rm_exc)
+            except Exception as mig_exc:
+                log.debug("Não foi possível migrar sessão para keyring: %s", mig_exc)
+
+        return session_data
+
     except Exception as exc:
         log.warning("Erro ao ler sessão persistida: %s", exc, exc_info=True)
         try:
@@ -201,15 +349,21 @@ def load_auth_session() -> dict[str, Any]:
 
 
 def save_auth_session(access_token: str, refresh_token: str, keep_logged: bool) -> None:
-    """Persiste tokens de sessão quando 'continuar conectado' estiver ativo."""
+    """
+    Persiste tokens de sessão quando 'continuar conectado' estiver ativo.
+
+    P1-001: Prioriza keyring (DPAPI no Windows), fallback para arquivo se necessário.
+    """
     path: str = _auth_session_path()
 
+    # Se não deve manter logado, limpar tudo
     if not keep_logged:
+        _keyring_clear_session()
         if os.path.exists(path):
             try:
                 os.remove(path)
             except Exception as exc:
-                log.warning("Erro ao limpar sess?o persistida: %s", exc, exc_info=True)
+                log.warning("Erro ao limpar sessão persistida: %s", exc, exc_info=True)
         return
 
     from datetime import datetime, timezone
@@ -221,6 +375,22 @@ def save_auth_session(access_token: str, refresh_token: str, keep_logged: bool) 
         "created_at": created_at,
         "keep_logged": True,
     }
+
+    # Tentar salvar no keyring (armazenamento seguro)
+    session_json = json.dumps(data, ensure_ascii=False)
+    if _keyring_set_session_json(session_json):
+        log.debug("Sessão salva no keyring (armazenamento seguro)")
+        # Se salvou no keyring, garantir que não há arquivo com tokens em texto plano
+        if os.path.exists(path):
+            try:
+                os.remove(path)
+                log.debug("Arquivo auth_session.json removido (tokens agora no keyring)")
+            except Exception as rm_exc:
+                log.debug("Não foi possível remover arquivo legado: %s", rm_exc)
+        return
+
+    # Fallback: salvar em arquivo (comportamento legado)
+    log.debug("Keyring não disponível, usando fallback para arquivo")
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         lock_path: Optional[str] = path + ".lock" if HAS_FILELOCK else None
@@ -237,7 +407,15 @@ def save_auth_session(access_token: str, refresh_token: str, keep_logged: bool) 
 
 
 def clear_auth_session() -> None:
-    """Remove sessão persistida em disco (best-effort)."""
+    """
+    Remove sessão persistida (best-effort).
+
+    P1-001: Limpa tanto keyring quanto arquivo legado.
+    """
+    # Limpar keyring
+    _keyring_clear_session()
+
+    # Limpar arquivo legado
     path: str = _auth_session_path()
     try:
         if os.path.exists(path):

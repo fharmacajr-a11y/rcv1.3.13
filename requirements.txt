@@ -62,6 +62,7 @@ PyJWT>=2.10.1             # JSON Web Tokens
 passlib>=1.7.4            # Framework de hashing de senhas
 cffi>=2.0.0               # FFI para cryptography
 pycparser>=2.23           # Parser C para CFFI
+keyring>=25.0.0           # Armazenamento seguro de credenciais (DPAPI no Windows)
 
 # ============================================================================
 # PROCESSAMENTO DE ARQUIVOS

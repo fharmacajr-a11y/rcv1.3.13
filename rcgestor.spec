@@ -92,7 +92,12 @@ a = Analysis(
     datas=datas,
 
     # Imports ocultos não detectados automaticamente
-    hiddenimports=["tzdata", "tzlocal"],
+    hiddenimports=[
+        "tzdata",
+        "tzlocal",
+        # P1-001: Keyring backends para armazenamento seguro de tokens
+        "keyring.backends.Windows",  # DPAPI no Windows
+    ],
 
     # Configurações adicionais
     hookspath=[],
