@@ -101,7 +101,7 @@ def export_clients_to_xlsx(rows: List[ClienteRow], output_path: Path) -> None:
         from openpyxl.styles import Font
     except ImportError as exc:
         logger.error("openpyxl não está instalado")
-        raise ImportError("Exportação XLSX requer openpyxl. " "Instale com: pip install openpyxl") from exc
+        raise ImportError("Exportação XLSX requer openpyxl. Instale com: pip install openpyxl") from exc
 
     logger.info("Exportando %d cliente(s) para XLSX: %s", len(rows), output_path)
 
