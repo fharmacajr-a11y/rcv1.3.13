@@ -22,6 +22,14 @@ def configure_environment() -> None:
     except Exception as exc:
         log.debug("Falha ao carregar .env (opcional)", exc_info=exc)
 
+    # P2-003: Criar diretórios necessários (apenas em modo local)
+    try:
+        from src.config.paths import ensure_directories
+
+        ensure_directories()
+    except Exception as exc:
+        log.debug("Falha ao criar diretórios (opcional em cloud-only)", exc_info=exc)
+
 
 def configure_logging(*, preload: bool = False) -> Optional[logging.Logger]:
     """Inicializa o sistema de logging e, se não estiver em preload, devolve o logger de startup."""

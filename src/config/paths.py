@@ -6,7 +6,8 @@ Caminhos centrais do app RC.
   Os paths são redirecionados para uma área temporária do sistema (apenas se
   algum módulo insistir em fazer .parent.mkdir() ou abrir SQLite).
 - Em modo local (RC_NO_LOCAL_FS != 1), as pastas db/ e clientes_docs/
-  são criadas (se necessário) dentro do diretório base do app (ou RC_APP_DATA).
+  são criadas quando ensure_directories() é chamada explicitamente
+  (geralmente no bootstrap).
 """
 
 from __future__ import annotations
@@ -43,15 +44,26 @@ if CLOUD_ONLY:
     # .parent.mkdir(...), a criação acontecerá apenas dentro do /tmp,
     # não na pasta do aplicativo.
 else:
-    # Operação local: mantém comportamento antigo com criação de pastas.
+    # Operação local: mantém comportamento antigo, mas sem criação automática.
     DB_DIR: Path = APP_DATA / "db"
-    DB_DIR.mkdir(parents=True, exist_ok=True)
-
     DB_PATH: Path = DB_DIR / "clientes.db"
     USERS_DB_PATH: Path = DB_DIR / "users.db"
 
     DOCS_DIR: Path = APP_DATA / "clientes_docs"
+
+
+def ensure_directories() -> None:
+    """
+    Cria diretórios necessários para modo local.
+
+    No-op em cloud-only. Deve ser chamada explicitamente no bootstrap
+    para garantir que DB_DIR e DOCS_DIR existam antes do uso.
+    """
+    if CLOUD_ONLY:
+        return
+    DB_DIR.mkdir(parents=True, exist_ok=True)
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
+
 
 # Exposição explícita dos símbolos principais
 __all__ = [

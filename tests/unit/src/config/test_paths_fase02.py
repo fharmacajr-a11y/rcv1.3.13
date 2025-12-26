@@ -65,7 +65,7 @@ def test_paths_modo_local_cria_diretorios(monkeypatch, tmp_path):
     Testa branch local (linhas 47-54).
 
     Quando RC_NO_LOCAL_FS != 1, paths devem criar diretórios db/ e clientes_docs/
-    dentro do APP_DATA.
+    dentro do APP_DATA quando ensure_directories() é chamada.
     """
     # Define RC_NO_LOCAL_FS=0 (ou qualquer valor != "1")
     monkeypatch.setenv("RC_NO_LOCAL_FS", "0")
@@ -88,7 +88,14 @@ def test_paths_modo_local_cria_diretorios(monkeypatch, tmp_path):
     assert paths.USERS_DB_PATH == tmp_path / "db" / "users.db"
     assert paths.DOCS_DIR == tmp_path / "clientes_docs"
 
-    # Verifica que os diretórios foram criados automaticamente
+    # P2-003: Verifica que os diretórios NÃO foram criados automaticamente no import
+    assert not paths.DB_DIR.exists()
+    assert not paths.DOCS_DIR.exists()
+
+    # Chama ensure_directories() explicitamente
+    paths.ensure_directories()
+
+    # Agora os diretórios devem existir
     assert paths.DB_DIR.exists()
     assert paths.DOCS_DIR.exists()
 
