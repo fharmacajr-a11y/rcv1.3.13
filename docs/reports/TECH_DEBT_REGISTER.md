@@ -100,7 +100,7 @@ Testes: 204 passed
 | **Comentário** | ~~`TODO: Implementar exportação real (CSV/Excel) em fase futura`~~ |
 | **Status** | ✅ **IMPLEMENTADO** |
 | **Data Conclusão** | 26/12/2025 |
-| **Commit** | `[pendente]` |
+| **Commit** | `e35a0ab` |
 | **Tipo** | Feature / Melhoria UX |
 | **Prioridade Original** | **Backlog** |
 | **Esforço Real** | ~6 horas (módulo export + integração + 11 testes + validações) |
@@ -133,7 +133,7 @@ Testes: 204 passed
 ```
 feat(clientes): exportar clientes para CSV (e XLSX opcional)
 
-SHA: [pendente]
+SHA: e35a0ab
 Data: 26/12/2025
 Testes: 1392 passed, 32 skipped
 ```
@@ -267,7 +267,7 @@ Testes: 1902 passed
 4. ✅ ~~**Exportação CSV/Excel**~~ **[IMPLEMENTADO 26/12/2025]**
    - ~~Nice to have~~
    - ~~Esforço maior (1-2 dias)~~
-   - **Commit:** `[pendente]`
+   - **Commit:** `e35a0ab`
 
 ---
 
