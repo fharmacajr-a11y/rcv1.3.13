@@ -1,1 +1,0 @@
-COMPILEALL: OK - Sem erros de sintaxe
