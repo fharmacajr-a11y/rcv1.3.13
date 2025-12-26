@@ -4,18 +4,9 @@ Esta pasta contém configurações para integração com a API da OpenAI.
 
 ## Como configurar a chave da API OpenAI
 
-O módulo ChatGPT do RC suporta duas formas de configuração da chave:
+⚠️ **IMPORTANTE - SEGURANÇA**: Por razões de segurança, a chave OpenAI deve ser configurada APENAS via variável de ambiente. Não armazene chaves em arquivos que possam ser distribuídos com o aplicativo.
 
-### Opção 1: Arquivo de configuração (Recomendado para Windows)
-
-1. Copie o arquivo `openai_key.example.txt` e renomeie para `openai_key.txt`
-2. Abra `openai_key.txt` em um editor de texto
-3. Cole sua chave da API OpenAI (formato `sk-proj-...` ou `sk-...`)
-4. Salve o arquivo
-
-**Importante:** O arquivo `openai_key.txt` está no `.gitignore` e não será versionado.
-
-### Opção 2: Variável de ambiente
+### Configuração via Variável de Ambiente (OBRIGATÓRIA)
 
 Configure a variável de ambiente `OPENAI_API_KEY` antes de iniciar o aplicativo:
 
@@ -25,9 +16,17 @@ $env:OPENAI_API_KEY = "sk-proj-XXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 python -m src.app_gui
 ```
 
-### Prioridade
+```bash
+# Linux/macOS
+export OPENAI_API_KEY="sk-proj-XXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+python -m src.app_gui
+```
 
-Se ambas as configurações existirem, a **variável de ambiente** tem prioridade sobre o arquivo.
+### ⛔ Opção DESCONTINUADA: Arquivo de configuração
+
+**NÃO use mais** `config/openai_key.txt` para armazenar chaves. Esta opção foi removida por questões de segurança (risco de distribuição acidental da chave no executável).
+
+O arquivo `openai_key.example.txt` é mantido apenas como referência de formato.
 
 ## Obtendo uma chave da API
 

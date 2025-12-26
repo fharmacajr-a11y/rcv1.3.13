@@ -89,9 +89,15 @@ Crie um arquivo `.env` na raiz do projeto com as credenciais do Supabase:
 SUPABASE_URL=https://seu-projeto.supabase.co
 SUPABASE_KEY=sua-chave-anon
 RC_STORAGE_BUCKET_CLIENTS=rc-docs
+RC_CLIENT_SECRET_KEY=<gere-uma-chave-fernet-unica>
 ```
 
-> ⚠️ **Importante**: Nunca commite o arquivo `.env` com credenciais reais.
+> ⚠️ **IMPORTANTE - SEGURANÇA**:
+> - Nunca commite o arquivo `.env` com credenciais reais (já está no `.gitignore`)
+> - O `.env` é usado APENAS em desenvolvimento local
+> - O build PyInstaller **NÃO inclui** o `.env` (corrigido em P0-002)
+> - Para produção, configure variáveis de ambiente no sistema operacional
+> - Para chave OpenAI (módulo ChatGPT), use `OPENAI_API_KEY` via variável de ambiente (veja `config/README.md`)
 
 ### 5. Executar o aplicativo
 
