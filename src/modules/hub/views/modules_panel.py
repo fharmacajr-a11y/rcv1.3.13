@@ -12,6 +12,12 @@ from typing import TYPE_CHECKING, Callable
 
 import ttkbootstrap as tb
 
+# Import de ToolTip com fallback para compatibilidade
+try:
+    from ttkbootstrap.widgets.tooltip import ToolTip
+except ImportError:
+    from ttkbootstrap.tooltip import ToolTip  # type: ignore[no-redef]
+
 from src.modules.hub.constants import (
     MODULES_TITLE,
     PAD_OUTER,
@@ -110,8 +116,8 @@ def _build_quick_actions_by_category(
             if not action.is_enabled:
                 btn.configure(state="disabled")
 
+            # Adicionar tooltip se descrição disponível
             if action.description:
-                # TODO: Adicionar tooltip quando disponível
-                pass
+                ToolTip(btn, text=action.description, wraplength=260)
 
             btn.grid(row=row, column=col, sticky="ew", padx=3, pady=3)
