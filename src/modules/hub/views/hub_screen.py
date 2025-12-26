@@ -372,10 +372,13 @@ class HubScreen(tb.Frame):
         """Atualiza UI do dashboard (MF-17: delega para HubDashboardRenderer)."""
         try:
             logger.debug(
-                f"[HubScreen._update_dashboard_ui] INICIANDO - error_message: {bool(state.error_message)}, snapshot: {bool(state.snapshot)}"
+                "[HubScreen._update_dashboard_ui] INICIANDO - error_message: %s, snapshot: %s",
+                bool(state.error_message),
+                bool(state.snapshot),
             )
             logger.debug(
-                f"[HubScreen._update_dashboard_ui] Renderer disponível: {self._dashboard_renderer is not None}"
+                "[HubScreen._update_dashboard_ui] Renderer disponível: %s",
+                self._dashboard_renderer is not None,
             )
 
             # MF-17: Delegar TODA a renderização para o renderer (sem lógica aqui)

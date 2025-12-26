@@ -605,21 +605,9 @@ def compute_button_states(
     Returns:
         ButtonStates com todos os campos de estado de botões.
 
-    Examples:
-        >>> compute_button_states(has_selection=True, is_online=True, is_uploading=False)
-        ButtonStates(editar=True, subpastas=True, enviar=True, novo=True, lixeira=True, select=False, enviar_text='Enviar Para SupaBase')
-
-        >>> compute_button_states(has_selection=False, is_online=True, is_uploading=False)
-        ButtonStates(editar=False, subpastas=False, enviar=False, novo=True, lixeira=True, select=False, enviar_text='Enviar Para SupaBase')
-
-        >>> compute_button_states(has_selection=True, is_online=True, is_uploading=False, is_pick_mode=True)
-        ButtonStates(editar=False, subpastas=False, enviar=False, novo=False, lixeira=False, select=True, enviar_text='Enviar Para SupaBase')
-
-        >>> compute_button_states(has_selection=True, is_online=True, is_uploading=True)
-        ButtonStates(editar=True, subpastas=True, enviar=False, novo=True, lixeira=True, select=False, enviar_text='Enviando...')
-
-        >>> compute_button_states(has_selection=True, is_online=True, is_uploading=False, connectivity_state="unstable")
-        ButtonStates(editar=True, subpastas=True, enviar=True, novo=True, lixeira=True, select=False, enviar_text='Envio suspenso - Conexao instavel')
+    Note:
+        Ver testes em test_main_screen_controller.py para exemplos de uso
+        e validação de comportamento com diferentes combinações de estados.
     """
     # Delegar cálculo de estados booleanos ao helper puro (reutilização)
     raw_states = calculate_button_states(

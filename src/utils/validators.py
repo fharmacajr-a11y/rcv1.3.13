@@ -135,7 +135,8 @@ def check_duplicates(
 
             if razao_n:
                 union_sql.append(
-                    "SELECT 'RAZAO_SOCIAL' AS K, ID FROM clientes WHERE DELETED_AT IS NULL AND RAZAO_SOCIAL = ? COLLATE NOCASE"
+                    "SELECT 'RAZAO_SOCIAL' AS K, ID FROM clientes "
+                    "WHERE DELETED_AT IS NULL AND RAZAO_SOCIAL = ? COLLATE NOCASE"
                 )
                 params.append(razao_n)
 

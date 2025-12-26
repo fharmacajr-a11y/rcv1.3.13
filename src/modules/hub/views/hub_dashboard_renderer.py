@@ -105,7 +105,9 @@ class HubDashboardRenderer:
         try:
             self._logger.debug("[HubDashboardRenderer] render_dashboard INICIANDO")
             self._logger.debug(
-                f"[HubDashboardRenderer] Estado - error_message: {bool(state.error_message)}, snapshot: {bool(state.snapshot)}"
+                "[HubDashboardRenderer] Estado - error_message: %s, snapshot: %s",
+                bool(state.error_message),
+                bool(state.snapshot),
             )
 
             # Obter view do dashboard

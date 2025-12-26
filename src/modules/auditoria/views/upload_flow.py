@@ -58,7 +58,10 @@ class AuditoriaUploadFlow:
             messagebox.showinfo("Cancelado", "Upload cancelado. Nenhum arquivo foi enviado.")
             return
 
-        msg = f"Upload cancelado.\n\n{len(uploaded_paths)} arquivo(s) já foram enviados.\n\nDeseja remover esses arquivos?"
+        msg = (
+            f"Upload cancelado.\n\n{len(uploaded_paths)} arquivo(s) já foram enviados.\n\n"
+            "Deseja remover esses arquivos?"
+        )
         if messagebox.askyesno("Cancelar e Reverter", msg):
             # Lançar thread para remover arquivos
             def _do_rollback() -> None:

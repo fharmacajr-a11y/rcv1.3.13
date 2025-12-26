@@ -377,7 +377,8 @@ def prepare_payload(*args, skip_duplicate_prompt: bool = False, **kwargs) -> tup
     src = filedialog.askdirectory(
         parent=parent_win,
         title=(
-            f"Escolha a PASTA para importar (irá para '{DEFAULT_IMPORT_SUBFOLDER}{'/' + ctx.subpasta if ctx.subpasta else ''}')"
+            f"Escolha a PASTA para importar (irá para "
+            f"'{DEFAULT_IMPORT_SUBFOLDER}{'/' + ctx.subpasta if ctx.subpasta else ''}')"
         ),
     )
     ctx.src_dir = src or ""

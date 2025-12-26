@@ -236,7 +236,10 @@ def abrir_pasta(app: Any, pk: int) -> None:
         _safe_messagebox(
             "showinfo",
             "Somente Nuvem",
-            "Este app está em modo somente nuvem.\nUse o botão 'Subpastas (Supabase)' para navegar e baixar arquivos do Supabase.",
+            (
+                "Este app está em modo somente nuvem.\n"
+                "Use o botão 'Subpastas (Supabase)' para navegar e baixar arquivos do Supabase."
+            ),
         )
         return
 

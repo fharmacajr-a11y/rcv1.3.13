@@ -13,7 +13,10 @@ def check_cloud_only_block(operation_name: str = "Esta função") -> bool:
     if CLOUD_ONLY:
         messagebox.showinfo(
             "Atenção",
-            f"{operation_name} indisponível no modo Cloud-Only.\n\nUse as funcionalidades baseadas em nuvem (Supabase) disponíveis na interface.",
+            (
+                f"{operation_name} indisponível no modo Cloud-Only.\n\n"
+                "Use as funcionalidades baseadas em nuvem (Supabase) disponíveis na interface."
+            ),
         )
         return True
     return False

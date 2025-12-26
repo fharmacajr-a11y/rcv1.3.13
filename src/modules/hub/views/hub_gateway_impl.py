@@ -140,7 +140,9 @@ class HubGatewayImpl:
                 logger.debug(f"HubGatewayImpl.is_authenticated: TRUE (uid={user_id}, email={user_email})")
             else:
                 logger.warning(
-                    f"HubGatewayImpl.is_authenticated: FALSE (session={session is not None}, has_user_attr={hasattr(session, 'user') if session else False})"
+                    "HubGatewayImpl.is_authenticated: FALSE (session=%s, has_user_attr=%s)",
+                    session is not None,
+                    hasattr(session, "user") if session else False,
                 )
 
             return has_user

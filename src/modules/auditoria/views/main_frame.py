@@ -458,7 +458,10 @@ class AuditoriaFrame(ttk.Frame):
             return
 
         if self._has_open_auditoria_for(cliente_id):
-            msg = "Já existe uma auditoria em andamento para este cliente.\n\nDeseja iniciar outra auditoria para a mesma farmácia?"
+            msg = (
+                "Já existe uma auditoria em andamento para este cliente.\n\n"
+                "Deseja iniciar outra auditoria para a mesma farmácia?"
+            )
             if not messagebox.askyesno("Confirmar", msg):
                 return
 
