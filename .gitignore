@@ -113,3 +113,8 @@ reports/_qa_codex_git_001/
 
 # Workspaces temporários de ferramentas
 _codex_workspace/
+
+# Exports temporários (ZIPs grandes de sanitização/backup)
+exports/*.zip
+exports/*.tar.gz
+exports/*.7z
