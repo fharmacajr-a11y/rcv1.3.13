@@ -159,8 +159,8 @@ class AuditoriaUploadFlow:
                         modal=True,
                         delete_folder_handler=delete_handler,
                     )
-            except Exception as e:
-                print(f"[AUDITORIA][UPLOAD] Não foi possível abrir browser: {e}")
+            except Exception:
+                logger.exception("Falha ao abrir browser de arquivos após upload")
 
         self.frame.after(50, _refresh_browser)
 
