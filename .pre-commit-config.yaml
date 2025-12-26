@@ -99,4 +99,4 @@ default_language_version:
 fail_fast: false
 
 # Executar em paralelo para melhor performance
-default_stages: [commit, push]
+default_stages: [pre-commit, pre-push]
