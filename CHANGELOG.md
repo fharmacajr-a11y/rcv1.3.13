@@ -5,6 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.93] - 2025-12-26
+
+### Security
+- **[P0-001]**: OpenAI key exposta - Documentação atualizada para proibir uso de arquivo
+  - Removida recomendação de `config/openai_key.txt`
+  - Configuração via `OPENAI_API_KEY` agora é obrigatória
+  - Adicionados avisos de segurança em README e config/README.md
+
+- **[P0-002]**: PyInstaller inclui .env no build - Corrigido
+  - Removida linha `add_file(BASE / ".env", ".")` do rcgestor.spec
+  - Build PyInstaller não distribui mais credenciais
+  - Adicionado comentário de segurança no spec file
+
+- **[P1-001]**: Tokens Supabase em texto plano - Migração para keyring
+  - Tokens agora armazenados via Windows Credential Manager (DPAPI)
+  - Migração automática de `auth_session.json` para keyring
+  - Dependência `keyring>=25.0.0` adicionada
+  - Novos helpers em `src/utils/prefs.py` para gestão segura de sessão
+  - PyInstaller: hiddenimports para keyring.backends.Windows
+
+- **[P1-002]**: Modelo de segurança para chave Fernet
+  - Criado documento técnico `docs/SECURITY_MODEL.md`
+  - Implementados dois modelos de gestão de chave:
+    - Modelo 1 (Padrão): Chave única por instalação via keyring
+    - Modelo 2 (Avançado): Chave gerenciada via variável de ambiente
+  - Integração com keyring no `security/crypto.py`
+  - Ordem de precedência documentada: env var > keyring > geração automática
+  - Trade-offs de segurança e portabilidade documentados
+
+### Changed
+- **[BUMP-VERSION]**: Atualização de versão 1.4.79 → 1.4.93
+  - Atualização de `src/version.py` com nova versão
+  - Atualização de metadados do executável em `version_file.txt`
+  - Atualização de `installer/rcgestor.iss` com nova versão
+  - Atualização de badge e referências no `README.md`
+  - Correção de link BUILD.md: docs/BUILD.md → docs/reports/BUILD.md
+
+### Documentation
+- Documentação completa de segurança em `docs/SECURITY_MODEL.md`
+- Atualização de `config/README.md` com práticas de segurança
+- Relatórios de auditoria em `reports/_qa_codex_tests_smoke_001/`:
+  - P0_FIXES_COMPLETED.md
+  - P1-001_IMPLEMENTED.md
+  - P1-002_IMPLEMENTED.md
+
 ## [1.4.72] - 2025-12-20
 
 ### Changed
@@ -17,45 +62,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **[ANVISA-UPLOAD]**: Sistema completo de upload de PDFs por processo ANVISA
-  - Footer condicional no browser de arquivos para upload ANVISA
-  - Seleção de múltiplos PDFs com dialog nativo
-  - Organização automática em pastas: `GERAL/anvisa/{process_slug}/`
-  - Slugificação de nomes de processos (helper `process_slug.py`)
-  - Componente `AnvisaFooter` com interface completa (240 linhas)
-  - Upload com feedback visual e tratamento de erros
-  - Callback automático para refresh após upload
-  - Documentação completa em `docs/ANVISA_UPLOAD_FEATURE.md`
-  - Testes unitários (6 testes) e integração (2 testes)
-  - Arquivos criados:
-    - `src/modules/anvisa/views/anvisa_footer.py`
-    - `src/modules/anvisa/helpers/process_slug.py`
-    - `tests/modules/anvisa/test_anvisa_footer.py`
-    - `tests/modules/uploads/test_browser_anvisa_integration.py`
-    - `docs/ANVISA_UPLOAD_FEATURE.md`
-  - Arquivos modificados:
-    - `src/modules/uploads/views/browser.py` (+20 linhas)
-    - `src/modules/anvisa/views/anvisa_screen.py` (+152 linhas)
+<!-- Novas features a serem lançadas -->
+
+### Changed
+<!-- Mudanças em features existentes -->
 
 ### Fixed
-- **[FIX-ANVISA-PATH]**: Path de upload ANVISA corrigido para dentro de GERAL (18/12/2025)
-  - Path alterado de `org/client/anvisa/...` para `org/client/GERAL/anvisa/...`
-  - Mantém organização consistente com estrutura de pastas do cliente
-  - Mensagem de sucesso atualizada para refletir caminho correto
-  - Arquivos modificados:
-    - `src/modules/anvisa/views/anvisa_footer.py`
-    - `docs/ANVISA_UPLOAD_FEATURE.md`
+<!-- Correções de bugs -->
 
-- **[FIX-ANVISA-UPLOAD]**: Correção de TypeError no upload de arquivos ANVISA (18/12/2025)
-  - Corrigida chamada de `upload_file()` para usar assinatura correta: `(local_path, remote_key, content_type)`
-  - Removido parâmetro `bucket` desnecessário do `AnvisaFooter.__init__()`
-  - Bucket agora é gerenciado automaticamente pelo adapter (padrão: 'rc-docs')
-  - Testes atualizados para refletir nova assinatura
-  - Arquivos modificados:
-    - `src/modules/anvisa/views/anvisa_footer.py`
-    - `src/modules/uploads/views/browser.py`
-    - `tests/modules/anvisa/test_anvisa_footer.py`
-    - `docs/ANVISA_UPLOAD_FEATURE.md`
+### Security
+<!-- Correções de segurança -->
 
 ## [1.4.52] - 2025-12-17
 

@@ -1,6 +1,6 @@
 # RC – Gestor de Clientes
 
-![Versão](https://img.shields.io/badge/versão-1.4.52-blue)
+![Versão](https://img.shields.io/badge/versão-1.4.93-blue)
 ![Python](https://img.shields.io/badge/python-3.10+-green)
 ![Plataforma](https://img.shields.io/badge/plataforma-Windows-lightgrey)
 
@@ -187,7 +187,7 @@ O projeto usa **PyInstaller** para gerar o executável e **Inno Setup** para cri
 pyinstaller rcgestor.spec
 ```
 
-O executável será gerado em `dist/RC-Gestor-Clientes-1.4.52.exe`.
+O executável será gerado em `dist/RC-Gestor-Clientes-1.4.93.exe`.
 
 ### Gerar instalador (Inno Setup)
 
@@ -196,7 +196,7 @@ O executável será gerado em `dist/RC-Gestor-Clientes-1.4.52.exe`.
 3. Compile (Ctrl+F9)
 4. O instalador será gerado em `installer/Output/`
 
-> 📚 Para instruções detalhadas, consulte [docs/BUILD.md](docs/BUILD.md).
+> 📚 Para instruções detalhadas, consulte [docs/reports/BUILD.md](docs/reports/BUILD.md).
 
 ---
 
@@ -256,14 +256,20 @@ Ao reportar um bug, inclua:
 
 Veja o histórico completo de alterações em [CHANGELOG.md](CHANGELOG.md).
 
-### Última versão: v1.4.52 (2025-12-17)
+### Última versão: v1.4.93 (2025-12-26)
 
-- Bump de versão para 1.4.52
-- Correção de dependência: pluggy (era plugggy)
-- Limpeza de artefatos e varredura de qualidade
-- Confirmação do módulo ANVISA funcional
+- Correções de segurança críticas (P0-001, P0-002)
+- Migração para keyring/DPAPI (P1-001)
+- Modelo de segurança para chave Fernet (P1-002)
+- Documentação de segurança completa
 
-### Versão anterior: v1.4.26 (2025-12-11)
+### Versão anterior: v1.4.72 (2025-12-20)
+
+- Notificações: timezone local, marcar tudo como lido, toast winotify
+- Upload ANVISA: sistema completo de upload de PDFs
+- Alta cobertura de testes em módulos críticos
+
+### Versão anterior: v1.4.52 (2025-12-17)
 
 - Correção do Hub: Dashboard e Notas agora sempre mostram conteúdo (loading/erro/dados/vazio)
 - Melhoria de UX: mensagens amigáveis em caso de erro ou ausencia de dados
