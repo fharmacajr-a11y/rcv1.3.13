@@ -268,13 +268,106 @@ class ClientesViewModel:
         restaurar_clientes_da_lixeira(ids_int)
 
     def export_clientes_batch(self, ids: Collection[str]) -> None:
-        """Exporta dados dos clientes selecionados.
+        """Exporta dados dos clientes selecionados para CSV ou Excel.
 
-        Fase 07: Implementação placeholder - apenas loga os IDs.
-        Fase futura pode implementar export real (CSV/Excel).
+        Abre diálogo para escolher destino e formato de exportação.
+        Suporta CSV (padrão) e XLSX (se openpyxl disponível).
+
+        Args:
+            ids: Coleção de IDs dos clientes a exportar.
+
+        Note:
+            - Em modo cloud-only (RC_NO_LOCAL_FS=1), exportação é bloqueada.
+            - Se nenhum cliente selecionado, mostra aviso.
+            - CSV usa encoding utf-8-sig para compatibilidade com Excel PT-BR.
         """
+        from pathlib import Path
+        from tkinter import filedialog, messagebox
+
+        from src.utils.helpers.cloud_guardrails import check_cloud_only_block
+
+        from .export import export_clients_to_csv, export_clients_to_xlsx, is_xlsx_available
+
+        # Verificar cloud-only
+        if check_cloud_only_block("Exportação de clientes"):
+            return
+
+        # Validar seleção
+        if not ids:
+            messagebox.showwarning("Exportar Clientes", "Nenhum cliente selecionado para exportação.")
+            return
+
         logger.info("Export batch solicitado para %d cliente(s): %s", len(ids), ids)
-        # TODO: Implementar exportação real (CSV/Excel) em fase futura
+
+        # Filtrar rows dos clientes selecionados
+        ids_set = set(ids)
+        selected_rows = [row for row in self._rows if row.id in ids_set]
+
+        if not selected_rows:
+            messagebox.showwarning("Exportar Clientes", "Clientes selecionados não encontrados.")
+            return
+
+        # Determinar tipos de arquivo suportados
+        xlsx_available = is_xlsx_available()
+        if xlsx_available:
+            filetypes = [
+                ("Arquivos CSV", "*.csv"),
+                ("Arquivos Excel", "*.xlsx"),
+                ("Todos os arquivos", "*.*"),
+            ]
+            default_ext = ".csv"
+        else:
+            filetypes = [
+                ("Arquivos CSV", "*.csv"),
+                ("Todos os arquivos", "*.*"),
+            ]
+            default_ext = ".csv"
+
+        # Abrir diálogo de salvamento
+        output_path = filedialog.asksaveasfilename(
+            title="Exportar Clientes",
+            defaultextension=default_ext,
+            filetypes=filetypes,
+            initialfile=f"clientes_export_{len(selected_rows)}",
+        )
+
+        if not output_path:
+            logger.info("Exportação cancelada pelo usuário")
+            return
+
+        # Determinar formato baseado na extensão
+        output_path_obj = Path(output_path)
+        extension = output_path_obj.suffix.lower()
+
+        try:
+            if extension == ".xlsx":
+                if not xlsx_available:
+                    messagebox.showerror(
+                        "Erro de Exportação",
+                        "Exportação XLSX não disponível.\n\n"
+                        "Instale openpyxl com: pip install openpyxl\n"
+                        "Ou use formato CSV.",
+                    )
+                    return
+                export_clients_to_xlsx(selected_rows, output_path_obj)
+                messagebox.showinfo(
+                    "Exportação Concluída",
+                    f"{len(selected_rows)} cliente(s) exportado(s) para:\n{output_path}",
+                )
+            else:
+                # Default para CSV
+                export_clients_to_csv(selected_rows, output_path_obj)
+                messagebox.showinfo(
+                    "Exportação Concluída",
+                    f"{len(selected_rows)} cliente(s) exportado(s) para:\n{output_path}",
+                )
+
+        except Exception as exc:
+            logger.error("Erro ao exportar clientes: %s", exc)
+            messagebox.showerror(
+                "Erro de Exportação",
+                f"Falha ao exportar clientes:\n{exc}",
+            )
 
     # ------------------------------------------------------------------ #
     # Ordenação (Round 15)

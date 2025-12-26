@@ -566,15 +566,28 @@ class TestBatchOperations:
 
             mock_restaurar.assert_called_once_with([10, 20, 30])
 
-    def test_export_clientes_batch_logs(self, vm: ClientesViewModel):
-        """Testa que export loga os IDs."""
-        with patch("src.modules.clientes.viewmodel.logger") as mock_logger:
-            vm.export_clientes_batch(["5", "6"])
+    def test_export_clientes_batch_logs(self, vm: ClientesViewModel, monkeypatch):
+        """Testa que export valida seleção vazia e exibe warning."""
+        # Mock cloud_guardrails para permitir operação
+        monkeypatch.setattr(
+            "src.utils.helpers.cloud_guardrails.check_cloud_only_block",
+            lambda operation_name: False,
+        )
 
-            mock_logger.info.assert_called_once()
-            # Verifica que logger.info foi chamado (template tem %d que será substituído)
-            call_args = mock_logger.info.call_args
-            assert call_args is not None
+        # Mock messagebox para capturar warnings
+        warning_called = []
+
+        def mock_showwarning(title, message):
+            warning_called.append((title, message))
+
+        monkeypatch.setattr("tkinter.messagebox.showwarning", mock_showwarning)
+
+        # Chamar com seleção vazia para testar validação
+        vm.export_clientes_batch([])
+
+        # Verifica que mostrou warning de seleção vazia
+        assert len(warning_called) == 1
+        assert "Nenhum cliente selecionado" in warning_called[0][1]
 
 
 # ========================================================================
