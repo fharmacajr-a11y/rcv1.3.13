@@ -202,7 +202,8 @@ def test_read_pdf_text_handles_missing_and_fallback(monkeypatch, tmp_path):
     monkeypatch.setattr(bytes_utils, "_ocr_pdf_with_pymupdf", fake_ocr)
 
     assert bytes_utils.read_pdf_text(pdf_path) == "ocr result"
-    assert calls == ["pymupdf", "pypdf", "ocr"]
+    # Ordem correta: pypdf primeiro, depois pymupdf, depois ocr
+    assert calls == ["pypdf", "pymupdf", "ocr"]
 
 
 def test_read_pdf_text_stops_on_first_success(monkeypatch, tmp_path):
@@ -210,11 +211,11 @@ def test_read_pdf_text_stops_on_first_success(monkeypatch, tmp_path):
 
     def fake_pymupdf(path: Path):
         calls.append("pymupdf")
-        return "first"
+        return "second"
 
     def fake_pypdf(path: Path):
         calls.append("pypdf")
-        return "second"
+        return "first"
 
     def fake_ocr(path: Path):
         calls.append("ocr")
@@ -227,8 +228,9 @@ def test_read_pdf_text_stops_on_first_success(monkeypatch, tmp_path):
     monkeypatch.setattr(bytes_utils, "_read_pdf_text_pypdf", fake_pypdf)
     monkeypatch.setattr(bytes_utils, "_ocr_pdf_with_pymupdf", fake_ocr)
 
+    # pypdf é chamado primeiro e retorna "first", então pymupdf não é chamado
     assert bytes_utils.read_pdf_text(pdf_path) == "first"
-    assert calls == ["pymupdf"]
+    assert calls == ["pypdf"]
 
 
 def test_looks_like_cartao_cnpj():

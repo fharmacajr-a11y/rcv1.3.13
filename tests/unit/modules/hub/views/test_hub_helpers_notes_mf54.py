@@ -22,7 +22,6 @@ import importlib
 from datetime import timezone
 from unittest.mock import patch
 
-from src.modules.hub.views import hub_helpers_notes
 from src.modules.hub.views.hub_helpers_notes import (
     calculate_notes_content_hash,
     calculate_notes_ui_state,
@@ -336,13 +335,13 @@ class TestFormatTimestamp:
     def test_iso_with_z_formats_correctly(self) -> None:
         """ISO com Z é formatado corretamente (determinístico com UTC)."""
         # Patch _LOCAL_TZ para garantir determinismo
-        with patch.object(hub_helpers_notes, "_LOCAL_TZ", timezone.utc):
+        with patch("src.modules.hub.helpers.notes._LOCAL_TZ", timezone.utc):
             result = format_timestamp("2025-01-15T14:30:00Z")
             assert result == "15/01/2025 - 14:30"
 
     def test_iso_without_timezone_assumes_utc(self) -> None:
         """ISO sem timezone assume UTC."""
-        with patch.object(hub_helpers_notes, "_LOCAL_TZ", timezone.utc):
+        with patch("src.modules.hub.helpers.notes._LOCAL_TZ", timezone.utc):
             result = format_timestamp("2025-01-15T14:30:00")
             # dt.tzinfo is None, então assume UTC
             assert result == "15/01/2025 - 14:30"
@@ -354,7 +353,7 @@ class TestFormatTimestamp:
 
     def test_iso_with_offset_formats_correctly(self) -> None:
         """ISO com offset é formatado corretamente."""
-        with patch.object(hub_helpers_notes, "_LOCAL_TZ", timezone.utc):
+        with patch("src.modules.hub.helpers.notes._LOCAL_TZ", timezone.utc):
             # "2025-01-15T14:30:00+02:00" → UTC seria 12:30
             result = format_timestamp("2025-01-15T14:30:00+02:00")
             assert result == "15/01/2025 - 12:30"
@@ -369,15 +368,17 @@ class TestLocalTimezoneImportFallback:
     def test_timezone_fallback_on_import_error(self) -> None:
         """Quando datetime.now() falha no import, _LOCAL_TZ vira timezone.utc."""
         # Patch datetime.datetime.now para levantar exceção
+        import src.modules.hub.helpers.notes as hub_notes_impl
+
         with patch("datetime.datetime") as mock_datetime:
             mock_datetime.now.side_effect = Exception("Mock error")
             # Reload do módulo para executar o bloco try/except no import
-            importlib.reload(hub_helpers_notes)
+            importlib.reload(hub_notes_impl)
             # Verificar que _LOCAL_TZ foi setado como timezone.utc
-            assert hub_helpers_notes._LOCAL_TZ == timezone.utc
+            assert hub_notes_impl._LOCAL_TZ == timezone.utc
 
         # Restaurar estado original do módulo
-        importlib.reload(hub_helpers_notes)
+        importlib.reload(hub_notes_impl)
 
 
 # ==============================================================================
@@ -389,7 +390,7 @@ class TestFormatNoteLine:
     def test_formats_note_line_correctly(self) -> None:
         """Linha de nota é formatada: [timestamp] autor: texto."""
         # Patch format_timestamp para retorno fixo
-        with patch.object(hub_helpers_notes, "format_timestamp", return_value="TS"):
+        with patch("src.modules.hub.helpers.notes.format_timestamp", return_value="TS"):
             result = format_note_line("2025-01-15T14:30:00Z", "João Silva", "Reunião às 15h")
             assert result == "[TS] João Silva: Reunião às 15h"
 

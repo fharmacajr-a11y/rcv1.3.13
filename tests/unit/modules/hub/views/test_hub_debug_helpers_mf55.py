@@ -42,7 +42,7 @@ class TestHubDlog:
     def test_hub_dlog_enabled_logs_json_payload(self) -> None:
         """hub_dlog com enabled=True deve logar payload JSON."""
         with patch.object(hub_debug_helpers, "logger") as mock_logger:
-            with patch.object(hub_debug_helpers, "time") as mock_time:
+            with patch("src.modules.hub.helpers.debug.time") as mock_time:
                 mock_time.time.return_value = 1234567890.123
 
                 hub_dlog("test_event", enabled=True, extra={"key": "value"})
@@ -66,7 +66,7 @@ class TestHubDlog:
     def test_hub_dlog_no_extra_logs_minimal_payload(self) -> None:
         """hub_dlog sem extra deve logar apenas t e tag."""
         with patch.object(hub_debug_helpers, "logger") as mock_logger:
-            with patch.object(hub_debug_helpers, "time") as mock_time:
+            with patch("src.modules.hub.helpers.debug.time") as mock_time:
                 mock_time.time.return_value = 9999999999.999
 
                 hub_dlog("minimal", enabled=True)
@@ -206,9 +206,9 @@ class TestShowDebugInfo:
         collect_debug_data = MagicMock(return_value={"test": "data", "count": 42})
 
         with patch("builtins.open", mock_open()) as mock_file:
-            with patch.object(hub_debug_helpers, "messagebox") as mock_messagebox:
+            with patch("src.modules.hub.helpers.debug.messagebox") as mock_messagebox:
                 with patch.object(hub_debug_helpers, "logger") as mock_logger:
-                    with patch.object(hub_debug_helpers, "datetime") as mock_datetime:
+                    with patch("src.modules.hub.helpers.debug.datetime") as mock_datetime:
                         mock_now_instance = MagicMock()
                         mock_now_instance.strftime.return_value = "20250101_120000"
                         mock_datetime.now.return_value = mock_now_instance
@@ -236,7 +236,7 @@ class TestShowDebugInfo:
         parent = MagicMock()
         collect_debug_data = MagicMock(side_effect=RuntimeError("Collection failed"))
 
-        with patch.object(hub_debug_helpers, "messagebox") as mock_messagebox:
+        with patch("src.modules.hub.helpers.debug.messagebox") as mock_messagebox:
             with patch.object(hub_debug_helpers, "logger") as mock_logger:
                 show_debug_info(parent, collect_debug_data)
 
@@ -256,7 +256,7 @@ class TestShowDebugInfo:
         collect_debug_data = MagicMock(return_value={"data": "ok"})
 
         with patch("builtins.open", side_effect=IOError("Disk full")):
-            with patch.object(hub_debug_helpers, "messagebox") as mock_messagebox:
+            with patch("src.modules.hub.helpers.debug.messagebox") as mock_messagebox:
                 with patch.object(hub_debug_helpers, "logger"):
                     show_debug_info(parent, collect_debug_data)
 
@@ -490,11 +490,16 @@ class TestLoggerFallback:
             return original_import(name, *args, **kwargs)
 
         with patch("builtins.__import__", side_effect=mock_import):
-            importlib.reload(hub_debug_helpers)
+            # Recarregar o módulo de implementação real
+            import src.modules.hub.helpers.debug as hub_debug_impl
+
+            importlib.reload(hub_debug_impl)
 
             # Após reload, get_logger deve ser o fallback
-            logger_instance = hub_debug_helpers.get_logger("test_fallback")
+            logger_instance = hub_debug_impl.get_logger("test_fallback")
             assert logger_instance.name == "test_fallback"
 
         # Restaurar módulo
-        importlib.reload(hub_debug_helpers)
+        import src.modules.hub.helpers.debug as hub_debug_impl
+
+        importlib.reload(hub_debug_impl)

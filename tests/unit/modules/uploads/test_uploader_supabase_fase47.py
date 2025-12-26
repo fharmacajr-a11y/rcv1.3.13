@@ -132,6 +132,8 @@ def test_send_to_supabase_interactive_caminho_feliz_chama_upload(monkeypatch):
     _stub_filedialog(monkeypatch, files=["a.pdf", "b.pdf"])
     monkeypatch.setattr(uploader_supabase, "_resolve_selected_cliente", lambda app: (10, {"CNPJ": "789"}))
     monkeypatch.setattr(uploader_supabase, "ensure_client_saved_or_abort", lambda app, cid: True)
+    # Mockar ask_storage_subfolder para evitar abrir dialog Tkinter
+    monkeypatch.setattr(uploader_supabase, "ask_storage_subfolder", lambda parent, default: "sub-test")
     items = _make_upload_items("a.pdf", "b.pdf")
     monkeypatch.setattr(uploader_supabase, "build_items_from_files", lambda paths: items)
     called = {}
@@ -147,6 +149,7 @@ def test_send_to_supabase_interactive_caminho_feliz_chama_upload(monkeypatch):
     assert result == (3, 1)
     assert called["params"][0]["cnpj"] == "789"
     assert called["params"][1] == items
+    assert called["params"][2] == "sub-test"  # subpasta mockada
     assert called["params"][3] is not None  # parent/target
     assert called["params"][4] == "bucket-x"
     assert called["params"][5] == 10
@@ -317,6 +320,8 @@ def test_send_folder_to_supabase_caminho_feliz(monkeypatch):
     _stub_filedialog(monkeypatch, folder="/tmp/dircliente")
     monkeypatch.setattr(uploader_supabase, "_resolve_selected_cliente", lambda app: (9, {"CNPJ": "999"}))
     monkeypatch.setattr(uploader_supabase, "ensure_client_saved_or_abort", lambda app, cid: True)
+    # Mockar ask_storage_subfolder para evitar abrir dialog Tkinter
+    monkeypatch.setattr(uploader_supabase, "ask_storage_subfolder", lambda parent, default: default)
     items = _make_upload_items("dircliente/a.pdf")
     monkeypatch.setattr(uploader_supabase, "collect_pdfs_from_folder", lambda folder: items)
     captured = {}

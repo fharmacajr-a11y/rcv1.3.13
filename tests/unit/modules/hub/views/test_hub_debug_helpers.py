@@ -346,7 +346,7 @@ class TestShowDebugInfo:
 
     @patch("src.modules.hub.helpers.debug.messagebox")
     @patch("builtins.open", new_callable=mock_open)
-    @patch("src.modules.hub.helpers.debug.logger")
+    @patch("src.modules.hub.views.hub_debug_helpers.logger")
     def test_logs_debug_info_to_console(
         self,
         mock_logger,
