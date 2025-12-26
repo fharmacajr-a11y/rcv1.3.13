@@ -1,20 +1,17 @@
-"""Utilities for resolving resource paths in both dev and PyInstaller builds."""
+"""Utilities for resolving resource paths in both dev and PyInstaller builds.
+
+BACKWARD COMPATIBILITY MODULE
+This module re-exports resource_path() from src.utils.paths for backward
+compatibility. New code should import directly from src.utils.paths.
+
+P1-003: Removed duplicate implementation to avoid code duplication.
+"""
 
 from __future__ import annotations
 
-import os
-import sys
 from typing import Final
 
-
-def resource_path(relative_path: str) -> str:
-    """Return an absolute path to the given resource, handling PyInstaller."""
-    try:
-        base_path: str = getattr(sys, "_MEIPASS")  # type: ignore[attr-defined]
-    except AttributeError:
-        # Not running in PyInstaller bundle
-        base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative_path)
-
+# Re-export from canonical source (src.utils.paths)
+from src.utils.paths import resource_path
 
 __all__: Final = ["resource_path"]
