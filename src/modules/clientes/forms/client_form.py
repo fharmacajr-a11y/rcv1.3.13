@@ -185,9 +185,14 @@ def form_cliente(
 
         def on_cancel(self) -> None:
             """Handler para botão Cancelar (e fechar janela)."""
+            controller = controller_ref[0]
             view = view_ref[0]
-            if view and view.window:
-                # Unregister do host
+
+            # Se controller disponível, delegar a ele (dirty check)
+            if controller:
+                controller.handle_cancel()
+            # Fallback: fechar direto se controller não disponível
+            elif view and view.window:
                 try:
                     if hasattr(self, "unregister_edit_form"):
                         self.unregister_edit_form(view.window)
@@ -427,6 +432,10 @@ def form_cliente(
 
     # Habilitar botão de upload
     controller.set_upload_button_enabled(True)
+
+    # Capturar snapshot dos dados iniciais antes de finalizar inicialização
+    # (necessário para detectar mudanças ao cancelar)
+    controller.capture_initial_snapshot()
 
     # Finalizar inicialização (habilita dirty tracking)
     state.finish_initialization()

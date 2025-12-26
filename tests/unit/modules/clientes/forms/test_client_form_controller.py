@@ -699,3 +699,140 @@ def test_integration_new_client_save_and_upload(
 
     # Verificar que título foi atualizado
     mock_view.update_title.assert_called_once()
+
+
+# =============================================================================
+# Testes de Dirty Check e Confirmação ao Cancelar (P3)
+# =============================================================================
+
+
+def test_cancel_without_changes_closes_directly(
+    controller_new_client: ClientFormController,
+    mock_view: Mock,
+) -> None:
+    """Testa que cancelar sem mudanças fecha direto (sem perguntar)."""
+    # Capturar snapshot inicial
+    controller_new_client.capture_initial_snapshot()
+
+    # Cancelar sem fazer mudanças
+    controller_new_client.handle_cancel()
+
+    # Verificar que view.close() foi chamado diretamente
+    mock_view.close.assert_called_once()
+
+
+def test_cancel_with_changes_asks_confirmation_and_accepts(
+    controller_new_client: ClientFormController,
+    mock_view: Mock,
+    monkeypatch,
+) -> None:
+    """Testa que cancelar com mudanças pergunta confirmação; se SIM, fecha."""
+    # Capturar snapshot inicial
+    controller_new_client.capture_initial_snapshot()
+
+    # Modificar dados
+    controller_new_client.state.data.razao_social = "Empresa Modificada LTDA"
+
+    # Mock messagebox.askyesno para retornar True (SIM)
+    mock_askyesno = Mock(return_value=True)
+    monkeypatch.setattr(
+        "src.modules.clientes.forms.client_form_controller.messagebox.askyesno",
+        mock_askyesno,
+    )
+
+    # Cancelar com mudanças
+    controller_new_client.handle_cancel()
+
+    # Verificar que confirmação foi solicitada
+    mock_askyesno.assert_called_once()
+    call_args = mock_askyesno.call_args[0]
+    assert "Alterações não salvas" in call_args[0]
+    assert "Deseja descartar" in call_args[1]
+
+    # Verificar que view.close() foi chamado (usuário aceitou)
+    mock_view.close.assert_called_once()
+
+
+def test_cancel_with_changes_asks_confirmation_and_rejects(
+    controller_new_client: ClientFormController,
+    mock_view: Mock,
+    monkeypatch,
+) -> None:
+    """Testa que cancelar com mudanças pergunta confirmação; se NÃO, não fecha."""
+    # Capturar snapshot inicial
+    controller_new_client.capture_initial_snapshot()
+
+    # Modificar dados
+    controller_new_client.state.data.nome = "Contato Modificado"
+
+    # Mock messagebox.askyesno para retornar False (NÃO)
+    mock_askyesno = Mock(return_value=False)
+    monkeypatch.setattr(
+        "src.modules.clientes.forms.client_form_controller.messagebox.askyesno",
+        mock_askyesno,
+    )
+
+    # Cancelar com mudanças
+    controller_new_client.handle_cancel()
+
+    # Verificar que confirmação foi solicitada
+    mock_askyesno.assert_called_once()
+
+    # Verificar que view.close() NÃO foi chamado (usuário rejeitou)
+    mock_view.close.assert_not_called()
+
+
+def test_dirty_detection_by_snapshot_normalizes_whitespace(
+    controller_new_client: ClientFormController,
+) -> None:
+    """Testa que dirty check normaliza whitespace (strip)."""
+    # Capturar snapshot inicial (razao_social = "Empresa Teste LTDA")
+    controller_new_client.capture_initial_snapshot()
+
+    # Modificar apenas adicionando espaços (não deve ser dirty)
+    controller_new_client.state.data.razao_social = "  Empresa Teste LTDA  "
+
+    # Verificar que não é considerado dirty
+    assert controller_new_client._is_dirty_by_snapshot() is False
+
+
+def test_dirty_detection_by_snapshot_detects_real_change(
+    controller_new_client: ClientFormController,
+) -> None:
+    """Testa que dirty check detecta mudanças reais."""
+    # Capturar snapshot inicial
+    controller_new_client.capture_initial_snapshot()
+
+    # Fazer mudança real
+    controller_new_client.state.data.cnpj = "98.765.432/0001-00"
+
+    # Verificar que é considerado dirty
+    assert controller_new_client._is_dirty_by_snapshot() is True
+
+
+def test_cancel_without_snapshot_never_asks(
+    controller_new_client: ClientFormController,
+    mock_view: Mock,
+    monkeypatch,
+) -> None:
+    """Testa que sem snapshot, nunca pergunta (comportamento conservador)."""
+    # NÃO capturar snapshot
+
+    # Modificar dados
+    controller_new_client.state.data.razao_social = "Empresa Modificada"
+
+    # Mock messagebox.askyesno (não deve ser chamado)
+    mock_askyesno = Mock()
+    monkeypatch.setattr(
+        "src.modules.clientes.forms.client_form_controller.messagebox.askyesno",
+        mock_askyesno,
+    )
+
+    # Cancelar
+    controller_new_client.handle_cancel()
+
+    # Verificar que confirmação NÃO foi solicitada
+    mock_askyesno.assert_not_called()
+
+    # Verificar que view.close() foi chamado diretamente
+    mock_view.close.assert_called_once()

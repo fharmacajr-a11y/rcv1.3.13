@@ -18,6 +18,12 @@ from .client_form_state import ClientFormState, build_window_title
 
 logger = logging.getLogger(__name__)
 
+# Importação condicional para evitar dependência circular com UI
+try:
+    from tkinter import messagebox
+except ImportError:
+    messagebox = None  # type: ignore[assignment]
+
 
 # =============================================================================
 # Estado do Formulário
@@ -170,6 +176,7 @@ class ClientFormController:
         self._save_service = save_service
         self._upload_flow_service = upload_flow_service
         self._view = view
+        self._initial_snapshot: dict[str, str] | None = None
 
     @property
     def state(self) -> ClientFormState:
@@ -258,11 +265,19 @@ class ClientFormController:
         )
 
     def handle_cancel(self) -> None:
-        """Orquestra o cancelamento do formulário."""
+        """Orquestra o cancelamento do formulário.
+
+        Verifica se há alterações não salvas e solicita confirmação antes de fechar.
+        """
         logger.debug(f"[ClientFormController] handle_cancel (client_id={self._state.client_id})")
 
-        # TODO: Verificar dirty state e perguntar confirmação
-        # Por ora, apenas fecha a view
+        # Verificar se há alterações não salvas
+        if self._is_dirty_by_snapshot():
+            if not self._confirm_discard_changes():
+                logger.debug("[ClientFormController] Cancelamento abortado pelo usuário")
+                return
+
+        # Fechar view
         if self._view:
             self._view.close()
 
@@ -316,3 +331,66 @@ class ClientFormController:
                 self._view.set_cartao_cnpj_button_enabled(enabled)
             except Exception as exc:  # noqa: BLE001
                 logger.debug(f"Falha ao atualizar botão Cartão CNPJ: {exc}")
+
+    def capture_initial_snapshot(self) -> None:
+        """Captura snapshot dos dados iniciais do formulário.
+
+        Deve ser chamado após o preenchimento inicial dos campos,
+        para detectar mudanças futuras.
+        """
+        self._initial_snapshot = self._current_form_data()
+        logger.debug("[ClientFormController] Snapshot inicial capturado")
+
+    def _current_form_data(self) -> dict[str, str]:
+        """Obtém dados atuais do formulário normalizados.
+
+        Returns:
+            Dicionário com dados atuais (campos vazios como string vazia).
+        """
+        data = self._state.data.to_dict()
+        # Normalizar: strip whitespace e garantir strings vazias (não None)
+        return {k: (v or "").strip() for k, v in data.items()}
+
+    def _is_dirty_by_snapshot(self) -> bool:
+        """Verifica se há alterações comparando com snapshot inicial.
+
+        Returns:
+            True se há mudanças não salvas, False caso contrário.
+        """
+        if self._initial_snapshot is None:
+            # Sem snapshot, não verificar dirty (comportamento conservador)
+            return False
+
+        current = self._current_form_data()
+
+        # Comparar chave por chave
+        for key in self._initial_snapshot:
+            initial_val = self._initial_snapshot.get(key, "").strip()
+            current_val = current.get(key, "").strip()
+            if initial_val != current_val:
+                logger.debug(f"[ClientFormController] Campo '{key}' alterado: '{initial_val}' → '{current_val}'")
+                return True
+
+        return False
+
+    def _confirm_discard_changes(self) -> bool:
+        """Pergunta ao usuário se deseja descartar alterações.
+
+        Returns:
+            True se usuário confirma descarte, False caso contrário.
+        """
+        if messagebox is None:
+            logger.warning("messagebox não disponível, permitindo fechamento sem confirmação")
+            return True
+
+        try:
+            parent = self._view.window if self._view else None
+            response = messagebox.askyesno(
+                "Alterações não salvas",
+                "Há alterações não salvas no formulário.\n\nDeseja descartar as alterações e fechar?",
+                parent=parent,
+            )
+            return bool(response)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug(f"Falha ao exibir confirmação: {exc}")
+            return True
