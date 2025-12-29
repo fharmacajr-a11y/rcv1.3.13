@@ -111,6 +111,7 @@ DEP002 = [
 ]
 
 [tool.vulture]
-paths = ["app_gui.py", "application", "gui", "ui", "core", "infra", "utils", "adapters", "shared"]
+paths = ["src", "infra", "adapters", "data", "security", "helpers", "vulture_whitelist.py"]
+exclude = ["tests", "docs", "reports", "build", "dist", ".venv", "venv", ".pytest_cache", ".ruff_cache", "__pycache__"]
 ignore_decorators = ["@overload"]
-min_confidence = 80
+min_confidence = 100
