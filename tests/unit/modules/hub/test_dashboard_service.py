@@ -1010,24 +1010,24 @@ class TestGetDashboardSnapshot:
         texts = [item["text"] for item in result.recent_activity]
 
         # Task with client should include client_id
-        assert any("Nova tarefa: enviar SNGPC para cliente #123" in text for text in texts), (
-            f"Expected task with client text not found in: {texts}"
-        )
+        assert any(
+            "Nova tarefa: enviar SNGPC para cliente #123" in text for text in texts
+        ), f"Expected task with client text not found in: {texts}"
 
         # Task without client should not include client_id
-        assert any("Nova tarefa: uhubguy" == text for text in texts), (
-            f"Expected task without client text not found in: {texts}"
-        )
+        assert any(
+            "Nova tarefa: uhubguy" == text for text in texts
+        ), f"Expected task without client text not found in: {texts}"
 
         # SNGPC obligation should use friendly label
-        assert any("Nova obrigação SNGPC para cliente #456" in text for text in texts), (
-            f"Expected SNGPC obligation text not found in: {texts}"
-        )
+        assert any(
+            "Nova obrigação SNGPC para cliente #456" in text for text in texts
+        ), f"Expected SNGPC obligation text not found in: {texts}"
 
         # Farmácia Popular should use friendly label
-        assert any("Nova obrigação Farmácia Popular para cliente #789" in text for text in texts), (
-            f"Expected Farmácia Popular obligation text not found in: {texts}"
-        )
+        assert any(
+            "Nova obrigação Farmácia Popular para cliente #789" in text for text in texts
+        ), f"Expected Farmácia Popular obligation text not found in: {texts}"
 
     @pytest.mark.skip(reason="Disabled in ANVISA-only mode - recent_activity is empty")
     def test_recent_activity_accepts_datetime_and_string_timestamps(self):
@@ -1216,12 +1216,12 @@ class TestGetDashboardSnapshot:
 
         # Check that text includes user names
         texts = [item["text"] for item in result.recent_activity]
-        assert any("Ana: Nova tarefa: enviar SNGPC para cliente #123" in text for text in texts), (
-            f"Expected Ana task text not found in: {texts}"
-        )
-        assert any("Junior: Nova obrigação SNGPC para cliente #456" in text for text in texts), (
-            f"Expected Junior obligation text not found in: {texts}"
-        )
+        assert any(
+            "Ana: Nova tarefa: enviar SNGPC para cliente #123" in text for text in texts
+        ), f"Expected Ana task text not found in: {texts}"
+        assert any(
+            "Junior: Nova obrigação SNGPC para cliente #456" in text for text in texts
+        ), f"Expected Junior obligation text not found in: {texts}"
 
         # Check that user_id and user_name fields are present
         for item in result.recent_activity:

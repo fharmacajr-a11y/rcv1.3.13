@@ -660,9 +660,9 @@ class TestBuildDashboardCenter:
         _collect_label_texts(parent_frame, texts)
 
         # Deve ter atividades exibidas (verificar por timestamp formatado)
-        assert any("04/12" in t for t in texts) or any("03/12" in t for t in texts), (
-            f"Timestamps não encontrados em: {texts}"
-        )
+        assert any("04/12" in t for t in texts) or any(
+            "03/12" in t for t in texts
+        ), f"Timestamps não encontrados em: {texts}"
 
     def test_recent_activity_shows_activities(self, parent_frame, populated_snapshot):
         """Atividade recente mostra atividades do snapshot."""
@@ -723,9 +723,9 @@ class TestBuildDashboardCenter:
 
         # Novo formato 2 linhas: Linha 2 tem "NOVA — enviar SNGPC..."
         # Validar que o tipo (após extração) aparece
-        assert any("enviar SNGPC para cliente #123" in t for t in texts), (
-            f"Expected activity text not found in: {texts}"
-        )
+        assert any(
+            "enviar SNGPC para cliente #123" in t for t in texts
+        ), f"Expected activity text not found in: {texts}"
         assert any("uhubguy" in t for t in texts), f"Expected activity text not found in: {texts}"
 
     def test_recent_activity_handles_legacy_title_field(self, parent_frame):
@@ -752,9 +752,9 @@ class TestBuildDashboardCenter:
         _collect_label_texts(parent_frame, texts)
 
         # Deve exibir o texto do campo 'title' como fallback
-        assert any("Tarefa antiga (campo title)" in t for t in texts), (
-            f"Expected fallback to 'title' field not found in: {texts}"
-        )
+        assert any(
+            "Tarefa antiga (campo title)" in t for t in texts
+        ), f"Expected fallback to 'title' field not found in: {texts}"
 
     def test_recent_activity_handles_missing_text(self, parent_frame):
         """Atividade recente mostra mensagem padrão quando texto está ausente."""
@@ -817,12 +817,12 @@ class TestBuildDashboardCenter:
 
         # Novo formato 2 linhas: Linha 2 tem "NOVA — ... — por: Ana"
         # Deve exibir linhas com nomes de usuários
-        assert any("por: Ana" in t and "enviar SNGPC para cliente #123" in t for t in texts), (
-            f"Expected Ana activity not found in: {texts}"
-        )
-        assert any("por: Júnior" in t and "Nova obrigação SNGPC para cliente #456" in t for t in texts), (
-            f"Expected Júnior activity not found in: {texts}"
-        )
+        assert any(
+            "por: Ana" in t and "enviar SNGPC para cliente #123" in t for t in texts
+        ), f"Expected Ana activity not found in: {texts}"
+        assert any(
+            "por: Júnior" in t and "Nova obrigação SNGPC para cliente #456" in t for t in texts
+        ), f"Expected Júnior activity not found in: {texts}"
 
     def test_recent_activity_fallback_to_user_name_when_no_text(self, parent_frame):
         """Atividade recente exibe user_name mesmo quando mensagem está vazia."""

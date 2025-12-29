@@ -595,9 +595,9 @@ class TestFooterPickModeMethods:
         tk_root.update_idletasks()
 
         # Assert - deve preservar o PRIMEIRO estado salvo
-        assert footer._pick_prev_states[footer.btn_novo] == "normal", (
-            "Deve manter o estado original (normal), não o intermediário (active)"
-        )
+        assert (
+            footer._pick_prev_states[footer.btn_novo] == "normal"
+        ), "Deve manter o estado original (normal), não o intermediário (active)"
 
         # Sair do pick mode
         footer.leave_pick_mode()
@@ -646,9 +646,9 @@ class TestPickModeBannerTextUsage:
         source = inspect.getsource(build_pick_mode_banner)
 
         # Verificar que PICK_MODE_BANNER_TEXT é usado (não hardcoded)
-        assert "text=PICK_MODE_BANNER_TEXT" in source, (
-            "Código-fonte deve usar 'text=PICK_MODE_BANNER_TEXT' para o banner label"
-        )
+        assert (
+            "text=PICK_MODE_BANNER_TEXT" in source
+        ), "Código-fonte deve usar 'text=PICK_MODE_BANNER_TEXT' para o banner label"
 
         # Verificar que NÃO há mojibake no código
         mojibake_patterns = [
@@ -668,9 +668,9 @@ class TestPickModeBannerTextUsage:
         source = inspect.getsource(build_pick_mode_banner)
 
         # Verificar que PICK_MODE_SELECT_TEXT é usado (não hardcoded)
-        assert "text=PICK_MODE_SELECT_TEXT" in source, (
-            "Código-fonte deve usar 'text=PICK_MODE_SELECT_TEXT' para o botão Selecionar"
-        )
+        assert (
+            "text=PICK_MODE_SELECT_TEXT" in source
+        ), "Código-fonte deve usar 'text=PICK_MODE_SELECT_TEXT' para o botão Selecionar"
 
     def test_cancel_button_source_code_uses_cancel_text_constant(self) -> None:
         """Código-fonte do botão Cancelar deve usar PICK_MODE_CANCEL_TEXT (FIX-CLIENTES-006)."""
@@ -681,9 +681,9 @@ class TestPickModeBannerTextUsage:
         source = inspect.getsource(build_pick_mode_banner)
 
         # Verificar que PICK_MODE_CANCEL_TEXT é usado
-        assert "text=PICK_MODE_CANCEL_TEXT" in source, (
-            "Código-fonte deve usar 'text=PICK_MODE_CANCEL_TEXT' para o botão Cancelar"
-        )
+        assert (
+            "text=PICK_MODE_CANCEL_TEXT" in source
+        ), "Código-fonte deve usar 'text=PICK_MODE_CANCEL_TEXT' para o botão Cancelar"
 
     def test_banner_text_is_valid_utf8_no_mojibake(self) -> None:
         """Banner text não deve conter mojibake (FIX-CLIENTES-006)."""
@@ -692,9 +692,9 @@ class TestPickModeBannerTextUsage:
         # Validar que não contém caracteres mojibake comuns
         mojibake_indicators = ["Ã", "Â", "Ã§", "Ã£", "Ãª", "ðŸ", "âœ"]
         for indicator in mojibake_indicators:
-            assert indicator not in PICK_MODE_BANNER_TEXT, (
-                f"Texto do banner contém mojibake: {indicator!r} em {PICK_MODE_BANNER_TEXT!r}"
-            )
+            assert (
+                indicator not in PICK_MODE_BANNER_TEXT
+            ), f"Texto do banner contém mojibake: {indicator!r} em {PICK_MODE_BANNER_TEXT!r}"
 
         # Validar que contém caracteres UTF-8 corretos
         assert "🔍" in PICK_MODE_BANNER_TEXT, "Deve conter emoji de lupa corretamente"

@@ -200,9 +200,9 @@ def test_create_task_priority_normalization(mock_supabase_client):
 
         call_args = mock_client.table().insert.call_args
         insert_data = call_args[0][0]
-        assert insert_data["priority"] == expected_priority, (
-            f"Failed for input '{input_priority}', expected '{expected_priority}'"
-        )
+        assert (
+            insert_data["priority"] == expected_priority
+        ), f"Failed for input '{input_priority}', expected '{expected_priority}'"
 
 
 def test_create_task_invalid_priority_raises_error():
