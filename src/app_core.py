@@ -6,7 +6,7 @@ from __future__ import annotations
 import importlib
 import logging
 import os
-from tkinter import messagebox
+from tkinter import TclError, messagebox
 from typing import Any, Sequence, Tuple
 
 from src.config.paths import CLOUD_ONLY
@@ -14,7 +14,7 @@ from src.modules.clientes.service import get_cliente_by_id, mover_cliente_para_l
 
 try:
     from src.modules.lixeira import abrir_lixeira as _module_abrir_lixeira, refresh_if_open as _module_refresh_if_open
-except Exception:
+except ImportError:
     _module_abrir_lixeira = None
     _module_refresh_if_open = None
 
@@ -29,7 +29,7 @@ try:
     from src.config.paths import DOCS_DIR
 
     from .app_utils import safe_base_from_fields
-except Exception:  # best-effort para manter compatibilidade
+except ImportError:  # best-effort para manter compatibilidade
     safe_base_from_fields = None  # type: ignore[assignment]
     DOCS_DIR = os.getcwd()  # type: ignore[assignment]
 
@@ -49,7 +49,7 @@ def _safe_messagebox(method: str, *args: Any, **kwargs: Any) -> Any:
     if callable(func):
         try:
             return func(*args, **kwargs)
-        except Exception:
+        except (TclError, RuntimeError):
             log.debug("messagebox.%s failed", method, exc_info=True)
     return None
 
@@ -58,7 +58,7 @@ def _resolve_cliente_row(pk: int) -> Tuple[Any, ...] | None:
     """Carrega do Supabase os dados necessários para popular o formulário de cliente."""
     try:
         cliente = get_cliente_by_id(pk)
-    except Exception:
+    except (TimeoutError, ConnectionError, OSError):
         log.exception("Failed to resolve client %s from Supabase", pk)
         return None
 
@@ -117,7 +117,7 @@ def excluir_cliente(app: Any, selected_values: Sequence[Any]) -> None:
     if len(selected_values) > 1:
         try:
             razao = (selected_values[1] or "").strip()
-        except Exception:
+        except (AttributeError, TypeError):
             razao = ""
     label_cli = f"{razao} (ID {client_id})" if razao else f"ID {client_id}"
 
@@ -131,20 +131,20 @@ def excluir_cliente(app: Any, selected_values: Sequence[Any]) -> None:
 
     try:
         mover_cliente_para_lixeira(client_id)
-    except Exception as exc:
+    except (TimeoutError, ConnectionError, OSError) as exc:
         _safe_messagebox("showerror", "Erro ao excluir", f"Falha ao enviar para a Lixeira: {exc}")
         log.exception("Failed to soft-delete client %s", label_cli)
         return
 
     try:
         app.carregar()
-    except Exception:
+    except (AttributeError, RuntimeError):
         log.exception("Failed to refresh client list after soft delete")
 
     if _module_refresh_if_open is not None:
         try:
             _module_refresh_if_open()
-        except Exception:
+        except (AttributeError, RuntimeError):
             log.debug("Lixeira refresh skipped", exc_info=True)
 
     _safe_messagebox("showinfo", "Lixeira", f"Cliente {label_cli} enviado para a Lixeira.")
@@ -170,14 +170,14 @@ def dir_base_cliente_from_pk(pk: int) -> str:
                 location,
             )
             return path
-    except Exception:
+    except ImportError:
         log.debug("resolve_unique_path not available or failed", exc_info=True)
 
     try:
         from src.core.db_manager import get_cliente_by_id
 
         c = get_cliente_by_id(pk)
-    except Exception:
+    except ImportError:
         c = None
 
     numero = getattr(c, "numero", "") or ""
@@ -203,7 +203,7 @@ def _ensure_live_folder_ready(pk: int) -> str:
 
             try:
                 subpastas, _extras = load_subpastas_config()
-            except Exception:
+            except (ImportError, OSError):
                 subpastas = []
             ensure_subpastas(path, subpastas=subpastas)
 
@@ -212,14 +212,14 @@ def _ensure_live_folder_ready(pk: int) -> str:
             if marker_path.is_file():
                 try:
                     content_ok = marker_path.read_text(encoding="utf-8").strip() == str(pk)
-                except Exception:
+                except (OSError, UnicodeDecodeError):
                     content_ok = False
             if not content_ok:
                 if not CLOUD_ONLY:
                     write_marker(path, pk)
-        except Exception:
+        except (ImportError, OSError):
             log.debug("ensure_subpastas/write_marker skipped", exc_info=True)
-    except Exception:
+    except OSError:
         log.exception("Failed to prepare folder for client %s", pk)
     return path
 
@@ -252,7 +252,7 @@ def abrir_pasta(app: Any, pk: int) -> None:
         if check_cloud_only_block("Abrir pasta do cliente"):
             return
         os.startfile(path)  # type: ignore[attr-defined]  # nosec B606 - abre pasta local controlada pelo app
-    except Exception:
+    except (AttributeError, OSError):
         log.exception("Failed to open file explorer for %s", path)
 
 
@@ -272,7 +272,7 @@ def open_client_local_subfolders(app: Any, pk: int) -> None:
         from src.utils.subpastas_config import load_subpastas_config
 
         subpastas, extras = load_subpastas_config()
-    except Exception:
+    except (ImportError, OSError):
         log.exception("Failed to load subfolders configuration; using empty lists")
         subpastas, extras = [], []
 
@@ -297,7 +297,7 @@ def abrir_lixeira_ui(app: Any, *args: Any, **kwargs: Any) -> None:
             from src.modules.lixeira.views.lixeira import abrir_lixeira as _abrir
 
             abrir_fn = _abrir
-        except Exception:
+        except ImportError:
             log.debug("Primary lixeira package import failed", exc_info=True)
 
     if abrir_fn is None:
@@ -308,7 +308,7 @@ def abrir_lixeira_ui(app: Any, *args: Any, **kwargs: Any) -> None:
                 if callable(candidate):
                     abrir_fn = candidate
                     break
-            except Exception:
+            except ImportError:
                 log.debug("Lixeira import fallback failed (%s)", module_name, exc_info=True)
 
     if abrir_fn is None:
@@ -321,7 +321,7 @@ def abrir_lixeira_ui(app: Any, *args: Any, **kwargs: Any) -> None:
 
     try:
         setattr(app, "lixeira_win", window)
-    except Exception:
+    except (AttributeError, TypeError):
         log.debug("Unable to attach lixeira_win attribute", exc_info=True)
 
 
