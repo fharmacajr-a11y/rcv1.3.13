@@ -118,3 +118,8 @@ _codex_workspace/
 exports/*.zip
 exports/*.tar.gz
 exports/*.7z
+
+# Assets temporários/auto-gerados (manter apenas os necessários versionados)
+# Note: assets/modulos/hub/ e assets/notificacoes/ são versionados pois necessários
+assets/temp/
+assets/*.tmp
