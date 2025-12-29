@@ -923,7 +923,7 @@ def build_dashboard_center(
     _build_recent_activity_section(
         main_container,
         snapshot.recent_activity,
-        on_view_all=on_view_all_activity,
+        _on_view_all=on_view_all_activity,
         tk_root=tk_root,
     )
 

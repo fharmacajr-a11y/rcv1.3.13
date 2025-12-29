@@ -265,8 +265,16 @@ class NotificationsService:
 
         if org_id and user_id:
             try:
-                hidden_before = self._repo.get_user_hidden_before(org_id, user_id)
-                hidden_ids = set(self._repo.list_hidden_notification_ids(org_id, user_id))
+                raw_hidden_before = self._repo.get_user_hidden_before(org_id, user_id)
+                # Validar tipo: deve ser str ou None (protege contra MagicMock/objetos)
+                hidden_before = raw_hidden_before if isinstance(raw_hidden_before, str) else None
+
+                raw_ids = self._repo.list_hidden_notification_ids(org_id, user_id)
+                # Validar tipo: deve ser lista de strings (protege contra MagicMock/objetos)
+                if isinstance(raw_ids, (list, set, tuple)):
+                    hidden_ids = {x for x in raw_ids if isinstance(x, str) and x}
+                else:
+                    hidden_ids = set()
             except Exception as exc:
                 self._log.debug("[NotificationsService] Erro ao carregar hidden data: %s", exc)
 
