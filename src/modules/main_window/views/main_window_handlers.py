@@ -38,7 +38,7 @@ def show_notification_toast(app: "MainWindow", count: int) -> None:
         return
 
     try:
-        from src.utils.helpers import resource_path
+        from src.utils.resource_path import resource_path
 
         # Título e mensagem
         title = "RCGestor"
@@ -110,12 +110,18 @@ def poll_notifications_impl(app: "MainWindow") -> None:
         return
 
     try:
-        # Buscar contador de não lidas
-        unread_count = app._notifications_service.fetch_unread_count()
+        # Buscar contador de não lidas (incluindo próprias)
+        unread_count = app._notifications_service.fetch_unread_count(include_self=True)
 
         # Atualizar badge no TopBar
         if hasattr(app, "_topbar") and app._topbar:
             app._topbar.set_notifications_count(unread_count)
+
+        # Criar baseline na primeira execução (evitar "chuva de toast" ao abrir)
+        if not getattr(app, "_notifications_baselined", False):
+            app._last_unread_count = unread_count
+            app._notifications_baselined = True
+            return
 
         # Detectar NOVAS notificações (contador aumentou)
         if unread_count > app._last_unread_count:
@@ -148,8 +154,8 @@ def on_notifications_clicked(app: "MainWindow") -> None:
         # Buscar últimas notificações (já formatadas para UI)
         notifications = app._notifications_service.fetch_latest_for_ui(limit=20)
 
-        # Buscar contador de não lidas e atualizar badge
-        unread_count = app._notifications_service.fetch_unread_count()
+        # Buscar contador de não lidas e atualizar badge (incluindo próprias)
+        unread_count = app._notifications_service.fetch_unread_count(include_self=True)
         if hasattr(app, "_topbar") and app._topbar:
             app._topbar.set_notifications_count(unread_count)
 
@@ -193,6 +199,78 @@ def mark_all_notifications_read(app: "MainWindow") -> bool:
 
     except Exception:
         log.exception("[Notifications] Erro ao marcar notificações como lidas")
+        return False
+
+
+def delete_notification_for_me(app: "MainWindow", notification_id: str) -> bool:
+    """Exclui uma notificação apenas para o usuário atual (soft delete).
+
+    A notificação fica oculta apenas para este usuário, outros membros
+    da organização ainda podem vê-la.
+
+    Args:
+        app: Instância do MainWindow
+        notification_id: ID da notificação a excluir
+
+    Returns:
+        True se sucesso, False caso contrário
+    """
+    if not app._notifications_service:
+        log.warning("[Notifications] Serviço de notificações não disponível")
+        return False
+
+    try:
+        success = app._notifications_service.hide_notification_for_me(notification_id)
+
+        if success:
+            log.info("[Notifications] Notificação %s excluída para o usuário", notification_id)
+            # Recarregar notificações para atualizar a view
+            on_notifications_clicked(app)
+            return True
+        else:
+            log.warning("[Notifications] Falha ao excluir notificação %s", notification_id)
+            return False
+
+    except Exception:
+        log.exception("[Notifications] Erro ao excluir notificação %s", notification_id)
+        return False
+
+
+def delete_all_notifications_for_me(app: "MainWindow") -> bool:
+    """Exclui todas notificações apenas para o usuário atual (soft delete).
+
+    Todas as notificações ficam ocultas apenas para este usuário,
+    outros membros da organização ainda podem vê-las.
+
+    Args:
+        app: Instância do MainWindow
+
+    Returns:
+        True se sucesso, False caso contrário
+    """
+    if not app._notifications_service:
+        log.warning("[Notifications] Serviço de notificações não disponível")
+        return False
+
+    try:
+        success = app._notifications_service.hide_all_for_me()
+
+        if success:
+            log.info("[Notifications] Todas notificações excluídas para o usuário")
+            # Atualizar badge para 0
+            if hasattr(app, "_topbar") and app._topbar:
+                app._topbar.set_notifications_count(0)
+            # Atualizar contador anterior
+            app._last_unread_count = 0
+            # Recarregar notificações para atualizar a view
+            on_notifications_clicked(app)
+            return True
+        else:
+            log.warning("[Notifications] Falha ao excluir todas notificações")
+            return False
+
+    except Exception:
+        log.exception("[Notifications] Erro ao excluir todas notificações")
         return False
 
 

@@ -134,7 +134,8 @@ def test_get_supabase_cria_singleton(monkeypatch):
     second = db_client.get_supabase()
 
     assert first == "CLIENT" and second == "CLIENT"
-    assert created.url == "http://example.com"
+    # URL é normalizada com trailing slash
+    assert created.url == "http://example.com/"
     assert isinstance(created.options, db_client.ClientOptions)
     assert created.options.httpx_client is db_client.HTTPX_CLIENT
     assert created.options.postgrest_client_timeout == db_client.HTTPX_TIMEOUT_LIGHT

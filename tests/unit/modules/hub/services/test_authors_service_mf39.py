@@ -26,6 +26,7 @@ from src.modules.hub.services.authors_service import (
     _author_display_name_ttl,
     debug_resolve_author,
     get_author_display_name,
+    load_env_author_names,
 )
 
 
@@ -127,16 +128,16 @@ def test_get_author_display_name_empty_email_returns_question_mark():
 def test_get_author_display_name_from_author_names_map():
     """get_author_display_name retorna nome do AUTHOR_NAMES quando email está no mapa local."""
     screen = FakeScreen()
-    # AUTHOR_NAMES tem "farmacajr@gmail.com": "Junior"
+    # AUTHOR_NAMES tem "farmacajr@gmail.com": "Júnior"
     result = get_author_display_name(screen, "farmacajr@gmail.com")
-    assert result == "Junior"
+    assert result == "Júnior"
 
 
 def test_get_author_display_name_normalizes_email():
     """get_author_display_name normaliza email (lowercase, strip) antes de lookup."""
     screen = FakeScreen()
     result = get_author_display_name(screen, "  FARMACAJR@GMAIL.COM  ")
-    assert result == "Junior"
+    assert result == "Júnior"
 
 
 def test_get_author_display_name_cache_hit_tuple_format():
@@ -586,7 +587,7 @@ def test_debug_resolve_author_from_author_names():
     """debug_resolve_author retorna nome do AUTHOR_NAMES."""
     screen = FakeScreen()
     result = debug_resolve_author(screen, "farmacajr@gmail.com")
-    assert result["name"] == "Junior"
+    assert result["name"] == "Júnior"
     assert result["source"] == "AUTHOR_NAMES"
 
 
@@ -789,3 +790,70 @@ def test_smoke_debug_resolve_author_with_all_sources(monkeypatch):
     fake_profile_module.get_display_name_by_email = MagicMock(return_value=None)
     r4 = debug_resolve_author(screen, email4)
     assert r4["source"] == "placeholder"
+
+
+# =============================================================================
+# TESTES load_env_author_names (LINHAS 89-96, 108-110) - COV-TOCADOS
+# =============================================================================
+
+
+def test_load_env_author_names_empty_env(monkeypatch):
+    """Testa RC_INITIALS_MAP vazio retorna dict vazio."""
+    monkeypatch.setenv("RC_INITIALS_MAP", "")
+    result = load_env_author_names()
+    assert result == {}
+
+
+def test_load_env_author_names_valid_json(monkeypatch):
+    """Testa RC_INITIALS_MAP com JSON válido."""
+    monkeypatch.setenv("RC_INITIALS_MAP", '{"user@test.com": "John Doe"}')
+    result = load_env_author_names()
+    assert result == {"user@test.com": "John Doe"}
+
+
+def test_load_env_author_names_wrapped_quotes(monkeypatch):
+    """Testa RC_INITIALS_MAP com aspas externas (tolerância)."""
+    monkeypatch.setenv("RC_INITIALS_MAP", '\'{"user@test.com": "Jane"}\'')
+    result = load_env_author_names()
+    assert result == {"user@test.com": "Jane"}
+
+
+def test_load_env_author_names_ast_literal_eval_fallback(monkeypatch):
+    """Testa fallback para ast.literal_eval quando JSON falha."""
+    # Aspas simples no dict (inválido JSON, válido Python)
+    monkeypatch.setenv("RC_INITIALS_MAP", "{'user@test.com': 'Bob'}")
+    result = load_env_author_names()
+    assert result == {"user@test.com": "Bob"}
+
+
+def test_load_env_author_names_invalid_format(monkeypatch):
+    """Testa RC_INITIALS_MAP com formato inválido retorna vazio."""
+    monkeypatch.setenv("RC_INITIALS_MAP", "not valid json or python")
+    result = load_env_author_names()
+    assert result == {}
+
+
+def test_load_env_author_names_normalizes_emails(monkeypatch):
+    """Testa que emails são normalizados para lowercase."""
+    monkeypatch.setenv("RC_INITIALS_MAP", '{"USER@Test.COM": "Name"}')
+    result = load_env_author_names()
+    assert "user@test.com" in result
+
+
+def test_load_env_author_names_ignores_empty_values(monkeypatch):
+    """Testa que valores vazios são ignorados."""
+    monkeypatch.setenv("RC_INITIALS_MAP", '{"user@test.com": "", "other@test.com": "Valid"}')
+    result = load_env_author_names()
+    assert "user@test.com" not in result
+    assert result.get("other@test.com") == "Valid"
+
+
+# ========== MF46: Additional branch coverage ==========
+
+
+def test_load_env_author_names_exception_returns_empty_dict_mf46(monkeypatch):
+    """Testa que exceção durante parse retorna dict vazio (linhas 108-110)."""
+    # Força exceção no json.loads E ast.literal_eval usando formato inválido
+    monkeypatch.setenv("RC_INITIALS_MAP", "{invalid")
+    result = load_env_author_names()
+    assert result == {}

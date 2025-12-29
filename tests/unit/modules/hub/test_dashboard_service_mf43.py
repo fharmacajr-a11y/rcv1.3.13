@@ -847,6 +847,53 @@ def test_load_recent_activity_limit_20(monkeypatch: pytest.MonkeyPatch) -> None:
 # ========================================
 
 
+def _fake_anvisa_requests() -> list[dict[str, Any]]:
+    """Helper para gerar demandas ANVISA fake para testes."""
+    return [
+        {
+            "id": "req-1",
+            "client_id": 1,
+            "request_type": "AFE ANVISA",
+            "status": "draft",
+            "payload": {"due_date": "2023-05-10", "check_daily": True},
+            "clients": {"razao_social": "Cliente A", "cnpj": "00.000.000/0001-00"},
+        },
+        {
+            "id": "req-2",
+            "client_id": 2,
+            "request_type": "Alteração de Endereço",
+            "status": "submitted",
+            "payload": {"due_date": "2023-05-15", "check_daily": True},
+            "clients": {"razao_social": "Cliente B", "cnpj": "11.111.111/0001-11"},
+        },
+        {
+            "id": "req-3",
+            "client_id": 3,
+            "request_type": "Alteração de Porte",
+            "status": "in_progress",
+            "payload": {"due_date": "2023-05-20", "check_daily": False},
+            "clients": {"razao_social": "Cliente C", "cnpj": "22.222.222/0001-22"},
+        },
+        {
+            "id": "req-4",
+            "client_id": 2,
+            "request_type": "Alteração do Responsável Legal",
+            "status": "draft",
+            "payload": {"due_date": "2023-05-14", "check_daily": True},
+            "clients": {"razao_social": "Cliente B", "cnpj": "11.111.111/0001-11"},
+        },
+        # closed -> ignorada
+        {
+            "id": "req-5",
+            "client_id": 9,
+            "request_type": "Redução de Atividades",
+            "status": "done",
+            "payload": {"due_date": "2023-05-01", "check_daily": True},
+            "clients": {"razao_social": "Cliente Z", "cnpj": "99.999.999/0001-99"},
+        },
+    ]
+
+
 def test_get_dashboard_snapshot_success(monkeypatch: pytest.MonkeyPatch) -> None:
     """Testa get_dashboard_snapshot com sucesso (todos os campos preenchidos)."""
     today = date(2023, 5, 15)
@@ -855,44 +902,32 @@ def test_get_dashboard_snapshot_success(monkeypatch: pytest.MonkeyPatch) -> None
     mock_count_clients = MagicMock(return_value=10)
     monkeypatch.setattr("src.core.services.clientes_service.count_clients", mock_count_clients)
 
-    # Mock count_pending_obligations
-    mock_count_pending = MagicMock(return_value=5)
-    monkeypatch.setattr("src.features.regulations.repository.count_pending_obligations", mock_count_pending)
-
-    # Mock list_tasks_for_org
-    mock_list_tasks = MagicMock(
-        return_value=[
-            {"due_date": "2023-05-10", "title": "Task 1"},
-            {"due_date": "2023-05-15", "title": "Task 2"},
-            {"due_date": "2023-05-20", "title": "Task 3"},
-        ]
-    )
-    monkeypatch.setattr("src.features.tasks.repository.list_tasks_for_org", mock_list_tasks)
+    # Mock list_requests (ANVISA-only)
+    mock_list_requests = MagicMock(return_value=_fake_anvisa_requests())
+    monkeypatch.setattr("infra.repositories.anvisa_requests_repository.list_requests", mock_list_requests)
 
     # Mock cashflow_totals
     mock_cashflow = MagicMock(return_value={"in": 1000.0, "out": 500.0})
     monkeypatch.setattr("src.features.cashflow.repository.totals", mock_cashflow)
 
-    # Mock list_obligations_for_org
-    mock_list_obligations = MagicMock(return_value=[])
-    monkeypatch.setattr("src.features.regulations.repository.list_obligations_for_org", mock_list_obligations)
-
     snapshot = get_dashboard_snapshot("org-123", today)
 
     assert snapshot.active_clients == 10
-    assert snapshot.pending_obligations == 5
-    assert snapshot.tasks_today == 2  # Duas tarefas com due_date <= today
+    assert snapshot.pending_obligations == 4  # draft/submitted/in_progress (req-1,2,3,4 abertas; req-5 done)
+    assert snapshot.tasks_today == 3  # check_daily=True + due_date<=today (req-1,2,4)
     assert snapshot.cash_in_month == 1000.0
+    assert snapshot.anvisa_only is True
+    assert len(snapshot.pending_tasks) == 3
+    assert snapshot.risk_radar["ANVISA"]["overdue"] == 2  # req-1,req-4 atrasadas (due_date < today)
+    assert snapshot.risk_radar["ANVISA"]["pending"] == 2  # req-2,req-3 abertas não-atrasadas
 
 
 def test_get_dashboard_snapshot_today_default(monkeypatch: pytest.MonkeyPatch) -> None:
     """Testa get_dashboard_snapshot com today=None (usa date.today())."""
     mock_count_clients = MagicMock(return_value=10)
     monkeypatch.setattr("src.core.services.clientes_service.count_clients", mock_count_clients)
-    monkeypatch.setattr("src.features.regulations.repository.count_pending_obligations", MagicMock(return_value=0))
-    monkeypatch.setattr("src.features.tasks.repository.list_tasks_for_org", MagicMock(return_value=[]))
+    monkeypatch.setattr("infra.repositories.anvisa_requests_repository.list_requests", MagicMock(return_value=[]))
     monkeypatch.setattr("src.features.cashflow.repository.totals", MagicMock(return_value={"in": 0.0}))
-    monkeypatch.setattr("src.features.regulations.repository.list_obligations_for_org", MagicMock(return_value=[]))
 
     snapshot = get_dashboard_snapshot("org-123", today=None)
     assert snapshot.active_clients == 10
@@ -904,10 +939,8 @@ def test_get_dashboard_snapshot_exception_count_clients(
     """Testa get_dashboard_snapshot com exception em count_clients (fallback 0)."""
     mock_count_clients = MagicMock(side_effect=Exception("Database error"))
     monkeypatch.setattr("src.core.services.clientes_service.count_clients", mock_count_clients)
-    monkeypatch.setattr("src.features.regulations.repository.count_pending_obligations", MagicMock(return_value=0))
-    monkeypatch.setattr("src.features.tasks.repository.list_tasks_for_org", MagicMock(return_value=[]))
+    monkeypatch.setattr("infra.repositories.anvisa_requests_repository.list_requests", MagicMock(return_value=[]))
     monkeypatch.setattr("src.features.cashflow.repository.totals", MagicMock(return_value={"in": 0.0}))
-    monkeypatch.setattr("src.features.regulations.repository.list_obligations_for_org", MagicMock(return_value=[]))
 
     with caplog.at_level(logging.WARNING):
         snapshot = get_dashboard_snapshot("org-123", date(2023, 5, 15))
@@ -919,41 +952,56 @@ def test_get_dashboard_snapshot_exception_count_clients(
 def test_get_dashboard_snapshot_exception_count_pending_obligations(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Testa get_dashboard_snapshot com exception em count_pending_obligations (fallback 0)."""
+    """Testa get_dashboard_snapshot com exception em list_requests (fallback 0)."""
     monkeypatch.setattr("src.core.services.clientes_service.count_clients", MagicMock(return_value=10))
 
-    mock_count_pending = MagicMock(side_effect=Exception("Database error"))
-    monkeypatch.setattr("src.features.regulations.repository.count_pending_obligations", mock_count_pending)
+    mock_list_requests = MagicMock(side_effect=RuntimeError("boom"))
+    monkeypatch.setattr("infra.repositories.anvisa_requests_repository.list_requests", mock_list_requests)
 
-    monkeypatch.setattr("src.features.tasks.repository.list_tasks_for_org", MagicMock(return_value=[]))
     monkeypatch.setattr("src.features.cashflow.repository.totals", MagicMock(return_value={"in": 0.0}))
-    monkeypatch.setattr("src.features.regulations.repository.list_obligations_for_org", MagicMock(return_value=[]))
 
     with caplog.at_level(logging.WARNING):
         snapshot = get_dashboard_snapshot("org-123", date(2023, 5, 15))
 
     assert snapshot.pending_obligations == 0
-    assert "Failed to count pending obligations" in caplog.text
+    assert snapshot.tasks_today == 0
+    assert snapshot.upcoming_deadlines == []
+    assert snapshot.pending_tasks == []
+    assert "Failed to fetch ANVISA requests" in caplog.text
 
 
 def test_get_dashboard_snapshot_exception_tasks_today(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Testa get_dashboard_snapshot com exception em list_tasks_for_org (fallback 0)."""
+    """Testa get_dashboard_snapshot com exception em _count_anvisa_open_and_due (fallback 0)."""
     monkeypatch.setattr("src.core.services.clientes_service.count_clients", MagicMock(return_value=10))
-    monkeypatch.setattr("src.features.regulations.repository.count_pending_obligations", MagicMock(return_value=5))
 
-    mock_list_tasks = MagicMock(side_effect=Exception("Database error"))
-    monkeypatch.setattr("src.features.tasks.repository.list_tasks_for_org", mock_list_tasks)
+    # Uma demanda aberta mas sem check_daily
+    mock_list_requests = MagicMock(
+        return_value=[
+            {
+                "id": "req-1",
+                "client_id": 1,
+                "status": "draft",
+                "payload": {"due_date": "2023-05-20", "check_daily": False},
+                "clients": {"razao_social": "Cliente A"},
+            }
+        ]
+    )
+    monkeypatch.setattr("infra.repositories.anvisa_requests_repository.list_requests", mock_list_requests)
+
+    # Mock _count_anvisa_open_and_due para lançar exception
+    mock_count_anvisa = MagicMock(side_effect=RuntimeError("count boom"))
+    monkeypatch.setattr("src.modules.hub.dashboard_service._count_anvisa_open_and_due", mock_count_anvisa)
 
     monkeypatch.setattr("src.features.cashflow.repository.totals", MagicMock(return_value={"in": 0.0}))
-    monkeypatch.setattr("src.features.regulations.repository.list_obligations_for_org", MagicMock(return_value=[]))
 
     with caplog.at_level(logging.WARNING):
         snapshot = get_dashboard_snapshot("org-123", date(2023, 5, 15))
 
+    assert snapshot.pending_obligations == 0
     assert snapshot.tasks_today == 0
-    assert "Failed to count tasks for today" in caplog.text
+    assert "Failed to count ANVISA open/due" in caplog.text
 
 
 def test_get_dashboard_snapshot_exception_cashflow(
@@ -961,13 +1009,10 @@ def test_get_dashboard_snapshot_exception_cashflow(
 ) -> None:
     """Testa get_dashboard_snapshot com exception em cashflow_totals (fallback 0.0)."""
     monkeypatch.setattr("src.core.services.clientes_service.count_clients", MagicMock(return_value=10))
-    monkeypatch.setattr("src.features.regulations.repository.count_pending_obligations", MagicMock(return_value=5))
-    monkeypatch.setattr("src.features.tasks.repository.list_tasks_for_org", MagicMock(return_value=[]))
+    monkeypatch.setattr("infra.repositories.anvisa_requests_repository.list_requests", MagicMock(return_value=[]))
 
     mock_cashflow = MagicMock(side_effect=Exception("Database error"))
     monkeypatch.setattr("src.features.cashflow.repository.totals", mock_cashflow)
-
-    monkeypatch.setattr("src.features.regulations.repository.list_obligations_for_org", MagicMock(return_value=[]))
 
     with caplog.at_level(logging.WARNING):
         snapshot = get_dashboard_snapshot("org-123", date(2023, 5, 15))
@@ -979,52 +1024,49 @@ def test_get_dashboard_snapshot_exception_cashflow(
 def test_get_dashboard_snapshot_exception_upcoming_deadlines(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Testa get_dashboard_snapshot com exception em upcoming_deadlines (fallback [])."""
+    """Testa get_dashboard_snapshot com limit/sort de upcoming_deadlines ANVISA (até 5)."""
     monkeypatch.setattr("src.core.services.clientes_service.count_clients", MagicMock(return_value=10))
-    monkeypatch.setattr("src.features.regulations.repository.count_pending_obligations", MagicMock(return_value=5))
-    monkeypatch.setattr("src.features.tasks.repository.list_tasks_for_org", MagicMock(return_value=[]))
+
+    # Gerar 6 demandas abertas com due_date variados
+    mock_list_requests = MagicMock(
+        return_value=[
+            {
+                "id": f"req-{i}",
+                "client_id": i,
+                "status": "draft",
+                "payload": {"due_date": f"2023-05-{16 + i}", "check_daily": True},
+                "clients": {"razao_social": f"Cliente {i}"},
+                "request_type": "AFE ANVISA",
+            }
+            for i in range(6)
+        ]
+    )
+    monkeypatch.setattr("infra.repositories.anvisa_requests_repository.list_requests", mock_list_requests)
     monkeypatch.setattr("src.features.cashflow.repository.totals", MagicMock(return_value={"in": 0.0}))
 
-    mock_list_obligations = MagicMock(side_effect=Exception("Database error"))
-    monkeypatch.setattr("src.features.regulations.repository.list_obligations_for_org", mock_list_obligations)
+    snapshot = get_dashboard_snapshot("org-123", date(2023, 5, 15))
 
-    with caplog.at_level(logging.WARNING):
-        snapshot = get_dashboard_snapshot("org-123", date(2023, 5, 15))
-
-    assert snapshot.upcoming_deadlines == []
-    assert snapshot.hot_items == []
-    assert "Failed to get upcoming deadlines" in caplog.text
+    assert len(snapshot.upcoming_deadlines) == 5  # Limitado a 5
+    assert snapshot.hot_items == []  # ANVISA-only não popula hot_items
 
 
 def test_get_dashboard_snapshot_exception_risk_radar(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Testa get_dashboard_snapshot com exception em risk_radar (fallback {})."""
+    """Testa get_dashboard_snapshot com exception em _build_anvisa_radar_from_requests (fallback ANVISA verde)."""
     monkeypatch.setattr("src.core.services.clientes_service.count_clients", MagicMock(return_value=10))
-    monkeypatch.setattr("src.features.regulations.repository.count_pending_obligations", MagicMock(return_value=5))
-    monkeypatch.setattr("src.features.tasks.repository.list_tasks_for_org", MagicMock(return_value=[]))
+    monkeypatch.setattr("infra.repositories.anvisa_requests_repository.list_requests", MagicMock(return_value=[]))
     monkeypatch.setattr("src.features.cashflow.repository.totals", MagicMock(return_value={"in": 0.0}))
 
-    # list_obligations_for_org é chamado várias vezes, então vamos fazer um mock que
-    # funciona nas primeiras chamadas e falha na última (risk_radar)
-    call_count = 0
-
-    def mock_list_obligations_side_effect(*args: Any, **kwargs: Any) -> list[dict[str, Any]]:
-        nonlocal call_count
-        call_count += 1
-        if call_count <= 2:  # Primeiras 2 chamadas (upcoming_deadlines)
-            return []
-        else:  # Terceira chamada (risk_radar)
-            raise Exception("Database error")
-
-    mock_list_obligations = MagicMock(side_effect=mock_list_obligations_side_effect)
-    monkeypatch.setattr("src.features.regulations.repository.list_obligations_for_org", mock_list_obligations)
+    # Mock _build_anvisa_radar_from_requests para lançar exception
+    mock_radar = MagicMock(side_effect=RuntimeError("radar boom"))
+    monkeypatch.setattr("src.modules.hub.dashboard_service._build_anvisa_radar_from_requests", mock_radar)
 
     with caplog.at_level(logging.WARNING):
         snapshot = get_dashboard_snapshot("org-123", date(2023, 5, 15))
 
-    assert snapshot.risk_radar == {}
-    assert "Failed to build risk radar" in caplog.text
+    assert snapshot.risk_radar["ANVISA"] == {"pending": 0, "overdue": 0, "status": "green", "enabled": True}
+    assert "Failed to build ANVISA radar from demands" in caplog.text
 
 
 def test_dashboard_snapshot_dataclass_defaults() -> None:
@@ -1243,12 +1285,12 @@ def test_get_dashboard_snapshot_count_clients_exception(monkeypatch, caplog):
     assert "Failed to count active clients" in caplog.text
 
 
-# 4.8) get_dashboard_snapshot: count_pending_obligations exception
+# 4.8) get_dashboard_snapshot: list_requests exception
 def test_get_dashboard_snapshot_count_obligations_exception(monkeypatch, caplog):
-    """get_dashboard_snapshot deve usar fallback 0 quando count_pending_obligations falhar."""
+    """get_dashboard_snapshot deve usar fallback 0 quando list_requests falhar."""
 
-    def fake_count_obligations(org_id):
-        raise RuntimeError("Obligations count error")
+    def fake_list_requests(org_id):
+        raise RuntimeError("ANVISA requests error")
 
     _install_fake_module(
         monkeypatch,
@@ -1257,14 +1299,8 @@ def test_get_dashboard_snapshot_count_obligations_exception(monkeypatch, caplog)
     )
     _install_fake_module(
         monkeypatch,
-        "src.features.regulations.repository",
-        count_pending_obligations=fake_count_obligations,
-        list_obligations_for_org=lambda *args, **kwargs: [],
-    )
-    _install_fake_module(
-        monkeypatch,
-        "src.features.tasks.repository",
-        list_tasks_for_org=lambda org_id, status=None: [],
+        "infra.repositories.anvisa_requests_repository",
+        list_requests=fake_list_requests,
     )
     _install_fake_module(
         monkeypatch,
@@ -1277,15 +1313,16 @@ def test_get_dashboard_snapshot_count_obligations_exception(monkeypatch, caplog)
     snapshot = get_dashboard_snapshot("org-123", date(2023, 5, 15))
 
     assert snapshot.pending_obligations == 0
-    assert "Failed to count pending obligations" in caplog.text
+    assert snapshot.tasks_today == 0
+    assert "Failed to fetch ANVISA requests" in caplog.text
 
 
-# 4.9) get_dashboard_snapshot: list_tasks_for_org exception (tasks_today)
+# 4.9) get_dashboard_snapshot: _count_anvisa_open_and_due exception
 def test_get_dashboard_snapshot_tasks_today_exception(monkeypatch, caplog):
-    """get_dashboard_snapshot deve usar fallback 0 quando list_tasks_for_org falhar."""
+    """get_dashboard_snapshot deve usar fallback 0 quando _count_anvisa_open_and_due falhar."""
 
-    def fake_list_tasks(org_id, status=None):
-        raise RuntimeError("Tasks repository error")
+    def fake_count_anvisa(*args, **kwargs):
+        raise RuntimeError("Count ANVISA error")
 
     _install_fake_module(
         monkeypatch,
@@ -1294,14 +1331,8 @@ def test_get_dashboard_snapshot_tasks_today_exception(monkeypatch, caplog):
     )
     _install_fake_module(
         monkeypatch,
-        "src.features.regulations.repository",
-        count_pending_obligations=lambda org_id: 10,
-        list_obligations_for_org=lambda *args, **kwargs: [],
-    )
-    _install_fake_module(
-        monkeypatch,
-        "src.features.tasks.repository",
-        list_tasks_for_org=fake_list_tasks,
+        "infra.repositories.anvisa_requests_repository",
+        list_requests=lambda org_id: [],
     )
     _install_fake_module(
         monkeypatch,
@@ -1309,12 +1340,16 @@ def test_get_dashboard_snapshot_tasks_today_exception(monkeypatch, caplog):
         totals=lambda first_day, last_day, org_id: {"in": 0.0},
     )
 
+    # Mock _count_anvisa_open_and_due para lançar exception
+    monkeypatch.setattr("src.modules.hub.dashboard_service._count_anvisa_open_and_due", fake_count_anvisa)
+
     from src.modules.hub.dashboard_service import get_dashboard_snapshot
 
     snapshot = get_dashboard_snapshot("org-123", date(2023, 5, 15))
 
     assert snapshot.tasks_today == 0
-    assert "Failed to count tasks for today" in caplog.text
+    assert snapshot.pending_obligations == 0
+    assert "Failed to count ANVISA open/due" in caplog.text
 
 
 # 4.10) get_dashboard_snapshot: cashflow totals exception
@@ -1354,12 +1389,22 @@ def test_get_dashboard_snapshot_cashflow_exception(monkeypatch, caplog):
     assert "Failed to get cash inflow" in caplog.text
 
 
-# 4.11) get_dashboard_snapshot: upcoming deadlines exception
+# 4.11) get_dashboard_snapshot: limit/sort upcoming deadlines ANVISA
 def test_get_dashboard_snapshot_upcoming_deadlines_exception(monkeypatch, caplog):
-    """get_dashboard_snapshot deve usar fallback [] quando list_obligations_for_org falhar."""
+    """get_dashboard_snapshot deve limitar upcoming_deadlines a 5 itens."""
 
-    def fake_list_obligations(*args, **kwargs):
-        raise RuntimeError("Obligations repository error")
+    # Gerar 6 demandas abertas com due_date variados
+    fake_requests = [
+        {
+            "id": f"req-{i}",
+            "client_id": i,
+            "status": "draft",
+            "payload": {"due_date": f"2023-05-{16 + i}", "check_daily": True},
+            "clients": {"razao_social": f"Cliente {i}"},
+            "request_type": "AFE ANVISA",
+        }
+        for i in range(6)
+    ]
 
     _install_fake_module(
         monkeypatch,
@@ -1368,14 +1413,8 @@ def test_get_dashboard_snapshot_upcoming_deadlines_exception(monkeypatch, caplog
     )
     _install_fake_module(
         monkeypatch,
-        "src.features.regulations.repository",
-        count_pending_obligations=lambda org_id: 10,
-        list_obligations_for_org=fake_list_obligations,
-    )
-    _install_fake_module(
-        monkeypatch,
-        "src.features.tasks.repository",
-        list_tasks_for_org=lambda org_id, status=None: [],
+        "infra.repositories.anvisa_requests_repository",
+        list_requests=lambda org_id: fake_requests,
     )
     _install_fake_module(
         monkeypatch,
@@ -1387,25 +1426,16 @@ def test_get_dashboard_snapshot_upcoming_deadlines_exception(monkeypatch, caplog
 
     snapshot = get_dashboard_snapshot("org-123", date(2023, 5, 15))
 
-    assert snapshot.upcoming_deadlines == []
-    assert snapshot.hot_items == []
-    assert "Failed to get upcoming deadlines" in caplog.text
+    assert len(snapshot.upcoming_deadlines) == 5  # Limitado a 5
+    assert snapshot.hot_items == []  # ANVISA-only não popula hot_items
 
 
-# 4.12) get_dashboard_snapshot: risk_radar exception
+# 4.12) get_dashboard_snapshot: _build_anvisa_radar_from_requests exception
 def test_get_dashboard_snapshot_risk_radar_exception(monkeypatch, caplog):
-    """get_dashboard_snapshot deve usar fallback {} quando risk_radar falhar."""
+    """get_dashboard_snapshot deve usar fallback ANVISA verde quando _build_anvisa_radar_from_requests falhar."""
 
-    call_count = {"count": 0}
-
-    def fake_list_obligations(*args, **kwargs):
-        call_count["count"] += 1
-        # Primeira chamada (count_pending_obligations) -> ok
-        # Segunda chamada (upcoming_deadlines) -> ok
-        # Terceira chamada (risk_radar) -> falha
-        if call_count["count"] >= 3:
-            raise RuntimeError("Risk radar error")
-        return []
+    def fake_build_radar(*args, **kwargs):
+        raise RuntimeError("Risk radar error")
 
     _install_fake_module(
         monkeypatch,
@@ -1414,14 +1444,8 @@ def test_get_dashboard_snapshot_risk_radar_exception(monkeypatch, caplog):
     )
     _install_fake_module(
         monkeypatch,
-        "src.features.regulations.repository",
-        count_pending_obligations=lambda org_id: 10,
-        list_obligations_for_org=fake_list_obligations,
-    )
-    _install_fake_module(
-        monkeypatch,
-        "src.features.tasks.repository",
-        list_tasks_for_org=lambda org_id, status=None: [],
+        "infra.repositories.anvisa_requests_repository",
+        list_requests=lambda org_id: [],
     )
     _install_fake_module(
         monkeypatch,
@@ -1429,12 +1453,15 @@ def test_get_dashboard_snapshot_risk_radar_exception(monkeypatch, caplog):
         totals=lambda first_day, last_day, org_id: {"in": 0.0},
     )
 
+    # Mock _build_anvisa_radar_from_requests para lançar exception
+    monkeypatch.setattr("src.modules.hub.dashboard_service._build_anvisa_radar_from_requests", fake_build_radar)
+
     from src.modules.hub.dashboard_service import get_dashboard_snapshot
 
     snapshot = get_dashboard_snapshot("org-123", date(2023, 5, 15))
 
-    assert snapshot.risk_radar == {}
-    assert "Failed to build risk radar" in caplog.text
+    assert snapshot.risk_radar["ANVISA"] == {"pending": 0, "overdue": 0, "status": "green", "enabled": True}
+    assert "Failed to build ANVISA radar from demands" in caplog.text
 
 
 # 4.13) _build_hot_items: branches de ValueError e min_days None (SNGPC)
@@ -1772,19 +1799,29 @@ def test_load_recent_activity_empty_user_name(monkeypatch):
     assert "Nova tarefa: Task" in result[0]["text"]
 
 
-# 4.31) get_dashboard_snapshot: Exception no bloco de hot_items (linha 751-752)
+# 4.31) get_dashboard_snapshot: hot_items deve estar vazio no ANVISA-only
 def test_get_dashboard_snapshot_hot_items_in_upcoming_block(monkeypatch, caplog):
-    """get_dashboard_snapshot deve capturar exception no bloco de upcoming_deadlines que também inclui hot_items."""
+    """get_dashboard_snapshot deve garantir hot_items == [] mesmo com deadlines preenchidas."""
 
-    call_count = {"count": 0}
-
-    def fake_list_obligations(*args, **kwargs):
-        call_count["count"] += 1
-        # Primeira chamada -> ok (count_pending)
-        # Segunda chamada -> falha (upcoming deadlines)
-        if call_count["count"] >= 2:
-            raise RuntimeError("Upcoming deadlines error")
-        return []
+    # Gerar demandas com due_date futuras
+    fake_requests = [
+        {
+            "id": "req-1",
+            "client_id": 1,
+            "status": "draft",
+            "payload": {"due_date": "2023-05-20", "check_daily": True},
+            "clients": {"razao_social": "Cliente A"},
+            "request_type": "AFE ANVISA",
+        },
+        {
+            "id": "req-2",
+            "client_id": 2,
+            "status": "submitted",
+            "payload": {"due_date": "2023-05-25", "check_daily": False},
+            "clients": {"razao_social": "Cliente B"},
+            "request_type": "Alteração de Endereço",
+        },
+    ]
 
     _install_fake_module(
         monkeypatch,
@@ -1793,14 +1830,8 @@ def test_get_dashboard_snapshot_hot_items_in_upcoming_block(monkeypatch, caplog)
     )
     _install_fake_module(
         monkeypatch,
-        "src.features.regulations.repository",
-        count_pending_obligations=lambda org_id: 10,
-        list_obligations_for_org=fake_list_obligations,
-    )
-    _install_fake_module(
-        monkeypatch,
-        "src.features.tasks.repository",
-        list_tasks_for_org=lambda org_id, status=None: [],
+        "infra.repositories.anvisa_requests_repository",
+        list_requests=lambda org_id: fake_requests,
     )
     _install_fake_module(
         monkeypatch,
@@ -1812,10 +1843,9 @@ def test_get_dashboard_snapshot_hot_items_in_upcoming_block(monkeypatch, caplog)
 
     snapshot = get_dashboard_snapshot("org-123", date(2023, 5, 15))
 
-    # Upcoming deadlines e hot_items devem estar vazios devido ao erro
-    assert snapshot.upcoming_deadlines == []
+    # hot_items deve estar vazio no ANVISA-only (não usa obligations antigas)
     assert snapshot.hot_items == []
-    assert "Failed to get upcoming deadlines" in caplog.text
+    assert len(snapshot.upcoming_deadlines) == 2
 
 
 # 4.32) _load_pending_tasks: processar client_ids com None (linhas 449, 453-456, 460, 470)

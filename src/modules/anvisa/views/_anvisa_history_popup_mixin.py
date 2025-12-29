@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import tkinter as tk
 from tkinter import ttk as tkttk
+from typing import Any
 
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import BOTH, LEFT
@@ -50,7 +51,7 @@ class AnvisaHistoryPopupMixin:
         # IMEDIATAMENTE preparar como hidden/offscreen para evitar flash
         prepare_hidden_window(self._history_popup)
 
-        self._history_popup.title("Histórico de demandas")  # type: ignore[attr-defined]
+        self._history_popup.title("Histórico de regularizações")  # type: ignore[attr-defined]
         self._history_popup.resizable(True, True)  # type: ignore[attr-defined]
         self._history_popup.transient(self.winfo_toplevel())  # type: ignore[attr-defined]
         self._history_popup.grab_set()  # type: ignore[attr-defined]
@@ -97,12 +98,12 @@ class AnvisaHistoryPopupMixin:
             selectmode="browse",
         )
 
-        self._history_tree_popup.heading("tipo", text="Tipo", anchor="center")  # type: ignore[attr-defined]
+        self._history_tree_popup.heading("tipo", text="Tipo", anchor="w")  # type: ignore[attr-defined]
         self._history_tree_popup.heading("status", text="Status", anchor="center")  # type: ignore[attr-defined]
         self._history_tree_popup.heading("criada_em", text="Criada em", anchor="center")  # type: ignore[attr-defined]
         self._history_tree_popup.heading("atualizada_em", text="Atualizada em", anchor="center")  # type: ignore[attr-defined]
 
-        self._history_tree_popup.column("tipo", width=250, anchor="center")  # type: ignore[attr-defined]
+        self._history_tree_popup.column("tipo", width=250, anchor="w")  # type: ignore[attr-defined]
         self._history_tree_popup.column("status", width=120, anchor="center", stretch=False)  # type: ignore[attr-defined]
         self._history_tree_popup.column("criada_em", width=120, anchor="center", stretch=False)  # type: ignore[attr-defined]
         self._history_tree_popup.column("atualizada_em", width=140, anchor="center", stretch=False)  # type: ignore[attr-defined]
@@ -113,13 +114,40 @@ class AnvisaHistoryPopupMixin:
         self._history_tree_popup.pack(side="left", fill=BOTH, expand=True)  # type: ignore[attr-defined]
         scrollbar.pack(side="right", fill="y")
 
-        # Travar redimensionamento de colunas (importar da classe base)
-        from . import anvisa_screen
+        # Travar redimensionamento de colunas (permite override via _lock_history_tree_columns)
+        lock_cols = getattr(self, "_lock_history_tree_columns", None)
+        if lock_cols is None:
+            from .anvisa_screen import AnvisaScreen
 
-        anvisa_screen.AnvisaScreen._lock_treeview_columns(self._history_tree_popup)  # type: ignore[attr-defined]
+            lock_cols = AnvisaScreen._lock_treeview_columns
+        lock_cols(self._history_tree_popup)  # type: ignore[arg-type]
 
         # Bind seleção para habilitar botões
         self._history_tree_popup.bind("<<TreeviewSelect>>", lambda e: self._on_history_select())  # type: ignore[attr-defined]
+
+        # Bind Delete para excluir demanda selecionada no popup (intercepta antes do bind global)
+        def _handle_delete_key_popup(event: Any) -> str:
+            self._excluir_demanda_popup(client_id)  # type: ignore[attr-defined]
+            return "break"
+
+        self._history_tree_popup.unbind("<Delete>")  # type: ignore[attr-defined]
+        self._history_tree_popup.bind("<Delete>", _handle_delete_key_popup)  # type: ignore[attr-defined]
+
+        # Painel de detalhes (Prazo + Observações)
+        details_frame = ttk.Labelframe(main_frame, text="Detalhes", padding=10)
+        details_frame.pack(fill="x", pady=(0, 10))
+        details_frame.columnconfigure(1, weight=1)
+
+        self._history_due_var = tk.StringVar(value="-")  # type: ignore[attr-defined]
+        self._history_notes_var = tk.StringVar(value="-")  # type: ignore[attr-defined]
+
+        ttk.Label(details_frame, text="Prazo:").grid(row=0, column=0, sticky="w")
+        ttk.Label(details_frame, textvariable=self._history_due_var).grid(row=0, column=1, sticky="w", padx=(8, 0))
+
+        ttk.Label(details_frame, text="Observações:").grid(row=1, column=0, sticky="nw", pady=(6, 0))
+        lbl_notes = ttk.Label(details_frame, textvariable=self._history_notes_var, justify="left")
+        lbl_notes.grid(row=1, column=1, sticky="w", padx=(8, 0), pady=(6, 0))
+        lbl_notes.configure(wraplength=650)
 
         # Barra inferior com botões
         buttons_frame = ttk.Frame(main_frame)
@@ -155,13 +183,14 @@ class AnvisaHistoryPopupMixin:
         )
         self._btn_excluir_popup.pack(side=LEFT, padx=(0, 5))  # type: ignore[attr-defined]
 
+        # Botão Fechar à direita
         ttk.Button(
             buttons_frame,
             text="Fechar",
             bootstyle="secondary",
             command=on_close,
             width=12,
-        ).pack(side=LEFT)
+        ).pack(side="right")
 
         # Carregar demandas
         self._update_history_popup(client_id, razao, cnpj)
@@ -172,10 +201,10 @@ class AnvisaHistoryPopupMixin:
                 self._history_popup,  # type: ignore[attr-defined]
                 self.winfo_toplevel(),  # type: ignore[attr-defined]
                 width=750,
-                height=400,
+                height=480,
             )
         else:
-            self._history_popup.geometry(f"750x400+{x}+{y}")  # type: ignore[attr-defined]
+            self._history_popup.geometry(f"750x480+{x}+{y}")  # type: ignore[attr-defined]
             self._history_popup.deiconify()  # type: ignore[attr-defined]
             self._history_popup.lift()  # type: ignore[attr-defined]
             self._history_popup.focus_force()  # type: ignore[attr-defined]
@@ -240,10 +269,19 @@ class AnvisaHistoryPopupMixin:
             # Mapear iid -> demanda_id
             self._history_iid_map[iid] = dem_id  # type: ignore[attr-defined]
 
+        # Auto-selecionar primeira linha (se houver demandas)
+        if rows:
+            first_iid = rows[0]["request_id"]
+            self._history_tree_popup.focus(first_iid)  # type: ignore[attr-defined]
+            self._history_tree_popup.selection_set(first_iid)  # type: ignore[attr-defined]
+            # Chamar handler de seleção para atualizar prazo e botões
+            self._on_history_select()  # type: ignore[attr-defined]
+
     def _on_history_select(self) -> None:
         """Handler de seleção no histórico do popup.
 
         Habilita/desabilita botões usando actions pré-calculadas pelo Service.
+        Atualiza painel de detalhes com prazo e observações.
         """
         if not self._history_tree_popup:  # type: ignore[attr-defined]
             return
@@ -257,6 +295,11 @@ class AnvisaHistoryPopupMixin:
                 self._btn_cancelar.configure(state="disabled")  # type: ignore[attr-defined]
             if hasattr(self, "_btn_excluir_popup"):
                 self._btn_excluir_popup.configure(state="disabled")  # type: ignore[attr-defined]
+            # Limpar detalhes
+            if hasattr(self, "_history_due_var"):
+                self._history_due_var.set("-")  # type: ignore[attr-defined]
+            if hasattr(self, "_history_notes_var"):
+                self._history_notes_var.set("-")  # type: ignore[attr-defined]
             return
 
         # Verificar se item selecionado é "Sem demandas"
@@ -270,6 +313,11 @@ class AnvisaHistoryPopupMixin:
                 self._btn_cancelar.configure(state="disabled")  # type: ignore[attr-defined]
             if hasattr(self, "_btn_excluir_popup"):
                 self._btn_excluir_popup.configure(state="disabled")  # type: ignore[attr-defined]
+            # Limpar detalhes
+            if hasattr(self, "_history_due_var"):
+                self._history_due_var.set("-")  # type: ignore[attr-defined]
+            if hasattr(self, "_history_notes_var"):
+                self._history_notes_var.set("-")  # type: ignore[attr-defined]
             return
 
         # Obter row com actions pré-calculadas
@@ -284,6 +332,11 @@ class AnvisaHistoryPopupMixin:
                 self._btn_cancelar.configure(state="disabled")  # type: ignore[attr-defined]
             if hasattr(self, "_btn_excluir_popup"):
                 self._btn_excluir_popup.configure(state="normal")  # type: ignore[attr-defined]
+            # Limpar detalhes
+            if hasattr(self, "_history_due_var"):
+                self._history_due_var.set("-")  # type: ignore[attr-defined]
+            if hasattr(self, "_history_notes_var"):
+                self._history_notes_var.set("-")  # type: ignore[attr-defined]
             return
 
         # Usar actions pré-calculadas pelo Service
@@ -301,6 +354,14 @@ class AnvisaHistoryPopupMixin:
         if hasattr(self, "_btn_excluir_popup"):
             state = "normal" if actions.get("delete", True) else "disabled"
             self._btn_excluir_popup.configure(state=state)  # type: ignore[attr-defined]
+
+        # Atualizar painel de detalhes
+        if hasattr(self, "_history_due_var"):
+            prazo = row.get("prazo") or "-"
+            self._history_due_var.set(prazo if prazo else "-")  # type: ignore[attr-defined]
+        if hasattr(self, "_history_notes_var"):
+            obs = row.get("observacoes") or "-"
+            self._history_notes_var.set(obs if obs else "-")  # type: ignore[attr-defined]
 
     def _focus_history_item(self, demanda_id: str) -> None:
         """Foca/seleciona item no histórico por demanda_id.

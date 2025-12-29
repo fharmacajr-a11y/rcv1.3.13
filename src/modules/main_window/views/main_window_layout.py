@@ -110,6 +110,8 @@ def build_main_window_layout(
         on_sites=app.show_sites_screen,
         on_notifications_clicked=app._on_notifications_clicked,
         on_mark_all_read=app._mark_all_notifications_read,
+        on_delete_notification_for_me=app._delete_notification_for_me,
+        on_delete_all_notifications_for_me=app._delete_all_notifications_for_me,
     )
     topbar.pack(side="top", fill="x")
 
@@ -223,6 +225,14 @@ def _apply_window_icon(app: App, icon_path_relative: str) -> None:
             try:
                 app.iconbitmap(icon_path)
                 log.info("iconbitmap aplicado com sucesso: %s", icon_path)
+
+                # Tentar definir como ícone default para novos Toplevels
+                try:
+                    app.iconbitmap(default=icon_path)
+                    log.info("iconbitmap default aplicado com sucesso para Toplevels")
+                except Exception:
+                    log.debug("iconbitmap default não suportado neste ambiente", exc_info=True)
+
             except Exception:
                 log.warning("iconbitmap falhou, tentando iconphoto com PNG", exc_info=True)
                 # Fallback: usar rc.png

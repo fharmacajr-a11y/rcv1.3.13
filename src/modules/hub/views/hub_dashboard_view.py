@@ -46,7 +46,7 @@ class HubDashboardView:
 
         Este método cria:
         - Frame container (center_spacer)
-        - ScrollableFrame dentro do container
+        - Frame normal dentro do container (sem scrollbar)
 
         O conteúdo do dashboard (cards) será renderizado posteriormente
         via outros métodos que acessam `dashboard_scroll.content`.
@@ -54,14 +54,15 @@ class HubDashboardView:
         Returns:
             O frame container do painel de dashboard (center_spacer)
         """
-        from src.ui.widgets.scrollable_frame import ScrollableFrame
-
         # Container da coluna central
         self.center_spacer = tb.Frame(self._parent)
 
-        # ScrollableFrame dentro do container para permitir scroll do dashboard
-        self.dashboard_scroll = ScrollableFrame(self.center_spacer)
+        # Frame normal dentro do container (sem scrollbar)
+        self.dashboard_scroll = tb.Frame(self.center_spacer)
         self.dashboard_scroll.pack(fill="both", expand=True)
+
+        # Compatibilidade: quem chama espera .content
+        self.dashboard_scroll.content = self.dashboard_scroll  # type: ignore[attr-defined]
 
         return self.center_spacer
 
@@ -181,7 +182,11 @@ class HubDashboardView:
 
             logger.debug("[HubDashboardView] Chamando build_dashboard_center...")
 
+            # Obter tk_root para carregar histórico do Supabase
+            tk_root = self.dashboard_scroll.content.winfo_toplevel()
+
             # Delegar para helper de renderização
+            # No modo ANVISA-only, callbacks são sempre passados (controller decide ação)
             build_dashboard_center(
                 self.dashboard_scroll.content,
                 state,
@@ -191,6 +196,7 @@ class HubDashboardView:
                 on_card_clients_click=on_card_clients_click or (lambda s: None),
                 on_card_pendencias_click=on_card_pendencias_click or (lambda s: None),
                 on_card_tarefas_click=on_card_tarefas_click or (lambda s: None),
+                tk_root=tk_root,
             )
 
             logger.debug("[HubDashboardView] render_data CONCLUÍDO com sucesso")

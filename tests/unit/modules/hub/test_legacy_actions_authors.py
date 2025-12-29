@@ -184,14 +184,14 @@ class TestAuthorsDisplayName:
 
     def test_author_display_name_uses_author_names_map_if_present(self, mock_screen):
         """_author_display_name deve usar AUTHOR_NAMES se email estiver lá."""
-        # AUTHOR_NAMES tem: "farmacajr@gmail.com": "Junior"
+        # AUTHOR_NAMES tem: "farmacajr@gmail.com": "Júnior"
         result = get_author_display_name(mock_screen, "farmacajr@gmail.com")
-        assert result == "Junior"
+        assert result == "Júnior"
 
     def test_author_display_name_uses_author_names_map_case_insensitive(self, mock_screen):
         """_author_display_name deve usar AUTHOR_NAMES case-insensitive."""
         result = get_author_display_name(mock_screen, "FARMACAJR@GMAIL.COM")
-        assert result == "Junior"
+        assert result == "Júnior"
 
     def test_author_display_name_returns_cache_if_valid(self, mock_screen):
         """_author_display_name deve retornar valor do cache se ainda válido."""
@@ -233,7 +233,7 @@ class TestAuthorsDisplayName:
         result = get_author_display_name(mock_screen, "junior")  # sem @
 
         # Deve resolver para o email completo e buscar no AUTHOR_NAMES
-        assert result == "Junior"
+        assert result == "Júnior"
 
     @patch("threading.Thread")
     def test_author_display_name_starts_fetch_thread_for_unknown_email(self, mock_thread, mock_screen):
@@ -323,7 +323,7 @@ class TestAuthorsDebugResolveAuthor:
         """_debug_resolve_author deve usar AUTHOR_NAMES se disponível."""
         result = debug_resolve_author(mock_screen, "farmacajr@gmail.com")
 
-        assert result["name"] == "Junior"
+        assert result["name"] == "Júnior"
         assert result["source"] == "AUTHOR_NAMES"
 
     @patch("src.core.services.profiles_service.get_display_name_by_email")

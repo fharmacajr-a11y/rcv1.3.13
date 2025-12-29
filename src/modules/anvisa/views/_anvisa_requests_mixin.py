@@ -68,10 +68,9 @@ class AnvisaRequestsMixin:
                 razao = row["razao_social"]
                 cnpj = row["cnpj"]
                 demanda_label = row["demanda_label"]
-                last_update_dt = row["last_update_dt"]
 
-                # Formatar datetime para exibição (via service)
-                last_update_fmt = self._service.format_dt_local(last_update_dt)  # type: ignore[attr-defined]
+                # Usar last_update_display pronto do service (com tracinho e inicial)
+                last_update_fmt = row.get("last_update_display", "")
 
                 # Formatar CNPJ com máscara
                 cnpj_fmt = self._format_cnpj(cnpj)

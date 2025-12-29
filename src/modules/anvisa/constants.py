@@ -9,12 +9,20 @@ from typing import Final, Literal
 
 # Type aliases para clareza
 RequestTypeStr = Literal[
+    "AFE ANVISA",
+    "Alteração da Razão Social",
+    "Alteração de Endereço",
+    "Alteração de Nome Fantasia",
+    "Alteração de Porte",
     "Alteração do Responsável Legal",
     "Alteração do Responsável Técnico",
-    "Alteração da Razão Social",
+    "Ampliação de Atividades",
     "Associação ao SNGPC",
-    "Alteração de Porte",
     "Cancelamento de AFE",
+    "Concessão de AE Manipulação",
+    "Concessão de AFE (Inicial)",
+    "Importação de Cannabidiol",
+    "Redução de Atividades",
 ]
 
 StatusOpen = Literal["draft", "submitted", "in_progress"]
@@ -23,12 +31,20 @@ StatusType = Literal["draft", "submitted", "in_progress", "done", "canceled"]
 
 # Tipos de demandas ANVISA (imutável)
 REQUEST_TYPES: Final[tuple[RequestTypeStr, ...]] = (
+    "AFE ANVISA",
+    "Alteração da Razão Social",
+    "Alteração de Endereço",
+    "Alteração de Nome Fantasia",
+    "Alteração de Porte",
     "Alteração do Responsável Legal",
     "Alteração do Responsável Técnico",
-    "Alteração da Razão Social",
+    "Ampliação de Atividades",
     "Associação ao SNGPC",
-    "Alteração de Porte",
     "Cancelamento de AFE",
+    "Concessão de AE Manipulação",
+    "Concessão de AFE (Inicial)",
+    "Importação de Cannabidiol",
+    "Redução de Atividades",
 )
 
 # Status permitidos pelo CHECK constraint do banco de dados

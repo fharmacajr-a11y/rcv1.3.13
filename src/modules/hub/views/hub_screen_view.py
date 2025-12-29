@@ -251,15 +251,16 @@ class HubScreenView:
         btn_sngpc.grid(row=0, column=1, sticky="ew", padx=BTN_GRID_PADX, pady=BTN_GRID_PADY)
 
     def _build_dashboard_panel(self) -> None:
-        """Constrói o painel central com ScrollableFrame para o dashboard."""
-        from src.ui.widgets.scrollable_frame import ScrollableFrame
-
+        """Constrói o painel central para o dashboard (sem scrollbar)."""
         # Container da coluna central
         self.center_spacer = tb.Frame(self.parent)
 
-        # ScrollableFrame dentro do container para permitir scroll do dashboard
-        self.dashboard_scroll = ScrollableFrame(self.center_spacer)
+        # Frame normal dentro do container (sem scrollbar)
+        self.dashboard_scroll = tb.Frame(self.center_spacer)
         self.dashboard_scroll.pack(fill="both", expand=True)
+
+        # Compatibilidade: quem chama espera .content
+        self.dashboard_scroll.content = self.dashboard_scroll  # type: ignore[attr-defined]
 
     def _build_notes_panel(self) -> None:
         """Constrói o painel de notas compartilhadas (lateral direita).
@@ -367,6 +368,22 @@ class HubScreenView:
         if not state.snapshot:
             return
 
+        # No modo ANVISA-only, desabilitar cliques em Pendências/Tarefas
+        # (dados vêm de anvisa_requests, não de obligations/tasks)
+        anvisa_only = state.snapshot.anvisa_only if state.snapshot else False
+
+        # Callbacks para cards - desabilitados em modo ANVISA-only
+        card_pendencias_cb = (
+            None if anvisa_only else (on_card_pendencias_click or (lambda _s: self.callbacks.on_card_click("pending")))
+        )
+        card_tarefas_cb = (
+            None if anvisa_only else (on_card_tarefas_click or (lambda _s: self.callbacks.on_card_click("tasks")))
+        )
+
+        # TODO ANVISA-only: no futuro, pode-se implementar:
+        # card_pendencias_cb = (lambda _s: self.callbacks.open_module("anvisa")) if anvisa_only else ...
+        # card_tarefas_cb = (lambda _s: self.callbacks.open_module("anvisa")) if anvisa_only else ...
+
         # Renderizar dashboard com state completo
         build_dashboard_center(
             self.dashboard_scroll.content,
@@ -375,8 +392,8 @@ class HubScreenView:
             on_new_obligation=on_new_obligation or self.callbacks.on_new_obligation_click,
             on_view_all_activity=on_view_all_activity or self.callbacks.on_view_all_activity_click,
             on_card_clients_click=on_card_clients_click or (lambda _s: self.callbacks.on_card_click("clients")),
-            on_card_pendencias_click=on_card_pendencias_click or (lambda _s: self.callbacks.on_card_click("pending")),
-            on_card_tarefas_click=on_card_tarefas_click or (lambda _s: self.callbacks.on_card_click("tasks")),
+            on_card_pendencias_click=card_pendencias_cb,
+            on_card_tarefas_click=card_tarefas_cb,
         )
 
     def update_notes_panel(self, notes: list[dict[str, Any]]) -> None:

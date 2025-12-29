@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 
 from src.modules.anvisa.views._anvisa_requests_mixin import AnvisaRequestsMixin
-from tests.unit.fakes.tk_fakes import FakeVar, FakeTreeview
+from tests.unit.fakes.test_tk_fakes import FakeVar, FakeTreeview
 
 
 class DummyRequestsMixin(AnvisaRequestsMixin):
@@ -538,7 +538,7 @@ def test_persist_request_cloud_exception_shows_error_and_returns_none(monkeypatc
 
 def test_append_request_row_inserts_and_selects():
     """_append_request_row deve inserir no tree e selecionar a linha."""
-    from tests.unit.fakes.tk_fakes import FakeTreeview
+    from tests.unit.fakes.test_tk_fakes import FakeTreeview
 
     dummy = DummyRequestsMixin()
 

@@ -35,6 +35,25 @@ class TopbarActionsCallbacks(Protocol):
         """
         ...
 
+    def on_delete_notification_for_me(self, notification_id: str) -> bool:
+        """Callback para excluir uma notificação (apenas para o usuário atual).
+
+        Args:
+            notification_id: ID da notificação a excluir
+
+        Returns:
+            True se sucesso, False caso contrário
+        """
+        ...
+
+    def on_delete_all_notifications_for_me(self) -> bool:
+        """Callback para excluir todas notificações (apenas para o usuário atual).
+
+        Returns:
+            True se sucesso, False caso contrário
+        """
+        ...
+
 
 class TopbarActions(ttk.Frame):
     """Componente compositor de ações da TopBar (lado direito).
@@ -74,6 +93,8 @@ class TopbarActions(ttk.Frame):
             on_mark_all_read=self._handle_mark_all_read,
             on_reload_notifications=self._handle_reload_notifications,
             on_update_count=self._handle_update_count,
+            on_delete_selected=self._handle_delete_selected,
+            on_delete_all=self._handle_delete_all,
         )
 
         # Expor botão para compatibilidade
@@ -108,6 +129,33 @@ class TopbarActions(ttk.Frame):
     def _handle_update_count(self, count: int) -> None:
         """Handler para atualizar contador no badge."""
         self._button.set_count(count)
+
+    def _handle_delete_selected(self, notification_id: str) -> bool:
+        """Handler para excluir notificação selecionada (apenas para o usuário).
+
+        Args:
+            notification_id: ID da notificação a excluir
+
+        Returns:
+            True se sucesso, False caso contrário
+        """
+        try:
+            return self._callbacks.on_delete_notification_for_me(notification_id)
+        except Exception as exc:  # noqa: BLE001
+            _log.exception("Falha ao executar on_delete_notification_for_me: %s", exc)
+            return False
+
+    def _handle_delete_all(self) -> bool:
+        """Handler para excluir todas notificações (apenas para o usuário).
+
+        Returns:
+            True se sucesso, False caso contrário
+        """
+        try:
+            return self._callbacks.on_delete_all_notifications_for_me()
+        except Exception as exc:  # noqa: BLE001
+            _log.exception("Falha ao executar on_delete_all_notifications_for_me: %s", exc)
+            return False
 
     # ===== Métodos públicos (delegam para subcomponentes) =====
 

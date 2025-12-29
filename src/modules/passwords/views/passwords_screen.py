@@ -112,7 +112,7 @@ class PasswordsScreen(tb.Frame):
             filters_frame.columnconfigure(col, weight=0)
 
         # ===== Lista única de Clientes com Senhas (FIX-SENHAS-002) =====
-        clients_frame = tb.LabelFrame(self, text="Clientes com Senhas", padding=5)
+        clients_frame = tb.Labelframe(self, text="Clientes com Senhas", padding=5)
         clients_frame.pack(fill="both", expand=True, pady=(0, 10))
 
         clients_table_frame = tb.Frame(clients_frame)

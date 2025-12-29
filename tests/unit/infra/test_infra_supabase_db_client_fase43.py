@@ -333,7 +333,8 @@ def test_get_supabase_creates_singleton(db_client, monkeypatch):
 
     supa = db_client.get_supabase()
 
-    assert supa.url == db_client.supa_types.SUPABASE_URL
+    # URL é normalizada com trailing slash
+    assert supa.url == db_client.supa_types.SUPABASE_URL + "/"
     assert supa.key == db_client.supa_types.SUPABASE_ANON_KEY
     assert created["args"][2].httpx_client == db_client.HTTPX_CLIENT
     assert db_client._SUPABASE_SINGLETON is supa

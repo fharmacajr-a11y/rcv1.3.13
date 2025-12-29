@@ -97,8 +97,8 @@ def export_clients_to_xlsx(rows: List[ClienteRow], output_path: Path) -> None:
         Requer openpyxl instalado. Se não disponível, use export_clients_to_csv.
     """
     try:
-        from openpyxl import Workbook
-        from openpyxl.styles import Font
+        from openpyxl import Workbook  # pyright: ignore[reportMissingModuleSource]
+        from openpyxl.styles import Font  # pyright: ignore[reportMissingModuleSource]
     except ImportError as exc:
         logger.error("openpyxl não está instalado")
         raise ImportError("Exportação XLSX requer openpyxl. Instale com: pip install openpyxl") from exc
@@ -170,7 +170,7 @@ def is_xlsx_available() -> bool:
         True se openpyxl pode ser importado, False caso contrário.
     """
     try:
-        import openpyxl  # noqa: F401
+        import openpyxl  # noqa: F401  # pyright: ignore[reportMissingModuleSource]
 
         return True
     except ImportError:

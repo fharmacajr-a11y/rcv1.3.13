@@ -16,16 +16,57 @@ LEGACY_PICK_MODE_BANNER_TEXT = "Modo seleção: escolha um cliente para continua
 
 
 def _forget_widget(widget: Optional[Any]) -> None:
+    """Remove widget do layout usando o geometry manager correto.
+
+    Detecta automaticamente se widget usa pack, place ou grid
+    e chama o método _forget() apropriado.
+    """
     if widget is None:
         return
+
     try:
-        widget.pack_forget()
+        mgr = widget.winfo_manager()
     except Exception as exc:  # noqa: BLE001
-        log.debug("pack_forget failed, trying place_forget: %s", exc)
+        log.debug("winfo_manager() failed: %s", exc)
+        mgr = ""
+
+    # Usar o método correto baseado no manager detectado
+    if mgr == "pack":
+        try:
+            widget.pack_forget()
+            log.debug("pack_forget() succeeded")
+            return
+        except Exception as exc:  # noqa: BLE001
+            log.debug("pack_forget() failed: %s", exc)
+    elif mgr == "place":
         try:
             widget.place_forget()
+            log.debug("place_forget() succeeded")
+            return
+        except Exception as exc:  # noqa: BLE001
+            log.debug("place_forget() failed: %s", exc)
+    elif mgr == "grid":
+        try:
+            widget.grid_forget()
+            log.debug("grid_forget() succeeded")
+            return
+        except Exception as exc:  # noqa: BLE001
+            log.debug("grid_forget() failed: %s", exc)
+    elif mgr == "":
+        log.debug("widget already forgotten (no manager)")
+        return
+
+    # Fallback: tentar pack_forget e place_forget (segurança)
+    try:
+        widget.pack_forget()
+        log.debug("fallback pack_forget() succeeded")
+    except Exception as exc:  # noqa: BLE001
+        log.debug("fallback pack_forget() failed: %s", exc)
+        try:
+            widget.place_forget()
+            log.debug("fallback place_forget() succeeded")
         except Exception as exc2:  # noqa: BLE001
-            log.debug("place_forget also failed: %s", exc2)
+            log.debug("fallback place_forget() also failed: %s", exc2)
 
 
 def _lift_widget(widget: Any) -> None:
@@ -297,10 +338,14 @@ def start_client_pick_mode(
 
 
 def _show_anvisa(app: Any) -> Any:
-    """Mostra a tela ANVISA, cacheando a instância."""
+    """Mostra a tela ANVISA, cacheando a instância.
+
+    Segue o mesmo padrão de _show_passwords: esconde frame anterior,
+    garante que frame está mapeado, atualiza nav._current.
+    """
     from src.modules.anvisa import AnvisaScreen
 
-    # Cachear instância para preservar estado ao navegar
+    # 1. Obter/criar frame ANVISA (cachear instância)
     if getattr(app, "_anvisa_screen_instance", None) is None:
         app._anvisa_screen_instance = AnvisaScreen(
             app._content_container,
@@ -308,16 +353,41 @@ def _show_anvisa(app: Any) -> Any:
             on_back=lambda: navigate_to(app, "hub"),
         )
         _place_or_pack(app._anvisa_screen_instance)
-    else:
-        app._anvisa_screen_instance.tkraise()
 
-    # Garantir que botão Início esteja ativo no ANVISA
+    frame = app._anvisa_screen_instance
+
+    # 2. Esconder frame atual se diferente
+    current = app.nav.current()
+    if current is not None and current is not frame:
+        _forget_widget(current)
+
+    # 3. Garantir que frame ANVISA está mapeado
+    try:
+        mgr = frame.winfo_manager()
+        if mgr == "":
+            _place_or_pack(frame)
+    except Exception as exc:  # noqa: BLE001
+        log.debug("Falha ao verificar winfo_manager em ANVISA: %s", exc)
+
+    # 4. Dar lift/tkraise no frame
+    try:
+        frame.lift()
+    except Exception as exc:  # noqa: BLE001
+        log.debug("anvisa frame.lift() failed: %s", exc)
+
+    # 5. Atualizar nav._current
+    try:
+        app.nav._current = frame
+    except Exception as exc:  # noqa: BLE001
+        log.debug("set app.nav._current failed: %s", exc)
+
+    # 6. Garantir que botão Início esteja ativo no ANVISA
     try:
         app._topbar.set_is_hub(False)
     except Exception as exc:
         log.warning("Falha ao atualizar estado da topbar: %s", exc, exc_info=True)
 
-    return app._anvisa_screen_instance
+    return frame
 
 
 def navigate_to(app: Any, target: str, **kwargs) -> Any:

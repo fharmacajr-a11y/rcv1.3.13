@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from tests.unit.fakes.tk_fakes import FakeMenu, FakeTextWidget
+from tests.unit.fakes.test_tk_fakes import FakeMenu, FakeTextWidget
 
 
 @pytest.fixture

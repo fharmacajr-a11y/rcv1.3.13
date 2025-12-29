@@ -48,7 +48,7 @@ CACHE_TTL_SECONDS = 60
 
 # Mapa de e-mail -> nome curto preferido (sempre em minúsculas)
 AUTHOR_NAMES = {
-    "farmacajr@gmail.com": "Junior",
+    "farmacajr@gmail.com": "Júnior",
     "fharmaca2013@hotmail.com": "Elisabete",
 }
 

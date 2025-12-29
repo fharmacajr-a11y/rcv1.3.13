@@ -50,6 +50,23 @@ def _get_supabase_and_user() -> tuple[Any, str]:
         raise RuntimeError(f"Falha na autenticação: {exc}") from exc
 
 
+def _get_current_user_email() -> str:
+    """Obtém email do usuário atualmente logado.
+
+    Returns:
+        Email do usuário ou string vazia se não disponível
+    """
+    from infra.supabase_client import supabase
+
+    try:
+        resp = supabase.auth.get_user()
+        user = getattr(resp, "user", None) or resp
+        email = getattr(user, "email", None) or ""
+        return str(email or "").strip()
+    except Exception:
+        return ""
+
+
 def _resolve_org_id(user_id: str) -> str:
     """Resolve o org_id do usuário logado via tabela memberships.
 
@@ -105,7 +122,7 @@ def list_requests(org_id: str) -> list[dict[str, Any]]:
     try:
         response = (
             supabase.table("client_anvisa_requests")
-            .select("id,client_id,request_type,status,created_at,updated_at,clients(razao_social,cnpj)")
+            .select("id,client_id,request_type,status,created_at,updated_at,payload,clients(razao_social,cnpj)")
             .eq("org_id", org_id)
             .order("updated_at", desc=True)
             .execute()
@@ -158,6 +175,13 @@ def create_request(
         # Garantir que client_id é int (BIGINT no DB)
         client_id_int = int(client_id)
 
+        # Preparar payload com created_by/updated_by
+        email = _get_current_user_email()
+        payload2 = dict(payload or {})
+        if email:
+            payload2.setdefault("created_by", email)
+            payload2["updated_by"] = email
+
         row = {
             "org_id": org_id,
             "client_id": client_id_int,
@@ -165,8 +189,8 @@ def create_request(
             "status": status,
         }
 
-        if payload:
-            row["payload"] = payload
+        if payload2:
+            row["payload"] = payload2
 
         response = supabase.table("client_anvisa_requests").insert(row).execute()
 
@@ -196,6 +220,19 @@ def create_request(
         return created
 
     except Exception as exc:
+        # Detectar erro de constraint 23514 (CHECK constraint violation)
+        exc_str = str(exc)
+        if "23514" in exc_str or "request_type_chk" in exc_str:
+            log.error(
+                "[ANVISA] Tipo de demanda bloqueado por constraint: org_id=%s, tipo=%s",
+                org_id,
+                request_type,
+            )
+            raise RuntimeError(
+                "Tipo de demanda não permitido pelo banco. "
+                "Atualize a constraint no Supabase (migration 2025-12-27_anvisa_request_type_chk.sql)."
+            ) from exc
+
         log.exception("Erro ao criar demanda ANVISA: org_id=%s, client_id=%s, tipo=%s", org_id, client_id, request_type)
         raise RuntimeError(f"Falha ao inserir demanda: {exc}") from exc
 
@@ -234,15 +271,42 @@ def update_request_status(request_id: str, new_status: str) -> bool:
             "[ANVISA] Atualizando status: id=%s, status=%s (normalizado=%s)", request_id, new_status, status_normalized
         )
 
+        # Obter email do usuário para updated_by
+        email = _get_current_user_email()
+
         # Tentar obter org_id para garantir update com RLS
         try:
             _, user_id = _get_supabase_and_user()
             org_id = _resolve_org_id(user_id)
 
+            # Buscar payload atual para merge
+            existing_payload: dict[str, Any] = {}
+            try:
+                fetch_resp = (
+                    supabase.table("client_anvisa_requests")
+                    .select("payload")
+                    .eq("id", request_id)
+                    .eq("org_id", org_id)
+                    .limit(1)
+                    .execute()
+                )
+                fetch_data = getattr(fetch_resp, "data", None) or []
+                if fetch_data:
+                    raw_payload = fetch_data[0].get("payload")
+                    if isinstance(raw_payload, dict):
+                        existing_payload = raw_payload
+            except Exception:
+                log.debug("[ANVISA] Falha ao buscar payload existente")
+
+            # Merge payload com updated_by
+            merged_payload = dict(existing_payload)
+            if email:
+                merged_payload["updated_by"] = email
+
             # Update filtrando por id e org_id
             response = (
                 supabase.table("client_anvisa_requests")
-                .update({"status": status_normalized})
+                .update({"status": status_normalized, "payload": merged_payload})
                 .eq("id", request_id)
                 .eq("org_id", org_id)
                 .execute()
@@ -250,9 +314,29 @@ def update_request_status(request_id: str, new_status: str) -> bool:
         except Exception:
             # Fallback: tentar update sem org_id (RLS vai validar)
             log.debug("[ANVISA] Fallback: tentando update sem filtro org_id")
+
+            # Tentar buscar payload sem org_id
+            existing_payload = {}
+            try:
+                fetch_resp = (
+                    supabase.table("client_anvisa_requests").select("payload").eq("id", request_id).limit(1).execute()
+                )
+                fetch_data = getattr(fetch_resp, "data", None) or []
+                if fetch_data:
+                    raw_payload = fetch_data[0].get("payload")
+                    if isinstance(raw_payload, dict):
+                        existing_payload = raw_payload
+            except Exception:
+                log.debug("[ANVISA] Falha ao buscar payload existente (fallback)")
+
+            # Merge payload com updated_by
+            merged_payload = dict(existing_payload)
+            if email:
+                merged_payload["updated_by"] = email
+
             response = (
                 supabase.table("client_anvisa_requests")
-                .update({"status": status_normalized})
+                .update({"status": status_normalized, "payload": merged_payload})
                 .eq("id", request_id)
                 .execute()
             )

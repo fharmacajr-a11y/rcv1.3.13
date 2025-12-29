@@ -15,6 +15,63 @@ log = logging.getLogger(__name__)
 class AnvisaHandlersMixin:
     """Mixin com handlers, menu de contexto e ações de exclusão/finalização."""
 
+    def _get_client_info_for_event(
+        self,
+        client_id: str,
+        demanda_id: str,
+        org_id: str,
+    ) -> tuple[str | None, str]:
+        """Obtém CNPJ e razão social do cliente para evento de atividade.
+
+        Args:
+            client_id: ID do cliente
+            demanda_id: ID da demanda
+            org_id: ID da organização
+
+        Returns:
+            Tupla (cnpj, razao_social)
+        """
+        cnpj = None
+        razao = ""
+
+        # Prioridade 1: Tentar obter do embed da demanda em cache
+        demandas = self._requests_by_client.get(client_id, [])  # type: ignore[attr-defined]
+        for d in demandas:
+            if str(d.get("id")) == demanda_id:
+                clients_embed = d.get("clients") or {}
+                cnpj = clients_embed.get("cnpj")
+                razao = clients_embed.get("razao_social") or ""
+                if cnpj and razao:
+                    log.debug(f"[ANVISA][event] Dados obtidos do embed: cnpj={cnpj}, razao={razao}")
+                    return cnpj, razao
+                break
+
+        # Prioridade 2: Fazer lookup na tabela clients
+        try:
+            from infra.supabase_client import get_supabase
+
+            sb = get_supabase()
+            resp = (
+                sb.table("clients")
+                .select("cnpj,razao_social")
+                .eq("org_id", org_id)
+                .eq("id", client_id)
+                .limit(1)
+                .execute()
+            )
+
+            if resp.data and len(resp.data) > 0:
+                client_data = resp.data[0]
+                cnpj = client_data.get("cnpj")
+                razao = client_data.get("razao_social") or ""
+                log.debug(f"[ANVISA][event] Dados obtidos via lookup: cnpj={cnpj}, razao={razao}")
+            else:
+                log.warning(f"[ANVISA][event] Cliente {client_id} não encontrado na tabela clients")
+        except Exception as exc:
+            log.warning(f"[ANVISA][event] Erro ao fazer lookup de cliente: {exc}")
+
+        return cnpj, razao
+
     def _on_tree_select(self, event: Any) -> None:
         """Handler do evento de seleção na Treeview principal.
 
@@ -117,7 +174,11 @@ class AnvisaHandlersMixin:
                 log.debug(f"[ANVISA View] Excluindo demanda [{fmt_ctx(**ctx)}]")
 
                 # Excluir via controller
-                success = self._controller.delete_request(request_id)  # type: ignore[attr-defined]
+                success = self._controller.delete_request(  # type: ignore[attr-defined]
+                    request_id,
+                    client_id=str(client_id),
+                    request_type=str(request_type) if request_type else None,
+                )
 
                 if success:
                     # Invalidar cache
@@ -126,6 +187,9 @@ class AnvisaHandlersMixin:
 
                     # Recarregar lista principal
                     self._load_requests_from_cloud()  # type: ignore[attr-defined]
+
+                    # Refresh Hub dashboard para atualizar listas e contadores
+                    self._refresh_hub_dashboard_if_present()  # type: ignore[attr-defined]
 
                     self.last_action.set(f"Demanda excluída: {request_type}")  # type: ignore[attr-defined]
 
@@ -211,7 +275,11 @@ class AnvisaHandlersMixin:
                 log.debug(f"[ANVISA View] Excluindo demanda [{fmt_ctx(**ctx)}]")
 
                 # Excluir via controller (UUID string)
-                success = self._controller.delete_request(request_id)  # type: ignore[attr-defined]
+                success = self._controller.delete_request(  # type: ignore[attr-defined]
+                    request_id,
+                    client_id=str(client_id),
+                    request_type=str(request_type) if request_type else None,
+                )
 
                 if success:
                     # Invalidar cache
@@ -220,6 +288,9 @@ class AnvisaHandlersMixin:
 
                     # Recarregar lista principal
                     self._load_requests_from_cloud()  # type: ignore[attr-defined]
+
+                    # Refresh Hub dashboard para atualizar Pendências/Radar
+                    self._refresh_hub_dashboard_if_present()  # type: ignore[attr-defined]
 
                     self.last_action.set(f"Demanda excluída: {request_type}")  # type: ignore[attr-defined]
 
@@ -304,9 +375,72 @@ class AnvisaHandlersMixin:
             log.debug(f"[ANVISA View] Finalizando demanda [{fmt_ctx(**ctx)}]")
 
             # Finalizar via controller (status -> CONCLUIDA)
-            success = self._controller.close_request(demanda_id)  # type: ignore[attr-defined]
+            success = self._controller.close_request(  # type: ignore[attr-defined]
+                demanda_id,
+                client_id=str(client_id),
+                request_type=str(tipo) if tipo else None,
+            )
 
             if success:
+                # Registrar evento no histórico de atividades
+                try:
+                    from src.modules.hub.recent_activity_store import (
+                        ActivityEvent,
+                        get_recent_activity_store,
+                    )
+                    from src.modules.hub.async_runner import HubAsyncRunner
+                    from src.core.session import get_current_user
+
+                    # Obter informações do usuário
+                    current_user = get_current_user()
+                    user_email = current_user.email if current_user and current_user.email else None
+                    user_id = current_user.uid if current_user else None
+
+                    # Obter org_id
+                    org_id = self._resolve_org_id()  # type: ignore[attr-defined]
+
+                    # Obter dados do cliente (CORRETO: do client_id, não do ctx)
+                    cnpj, razao = self._get_client_info_for_event(client_id, demanda_id, org_id)
+
+                    # Obter due_date se disponível
+                    due_date = None
+                    demandas = self._requests_by_client.get(client_id, [])  # type: ignore[attr-defined]
+                    for d in demandas:
+                        if str(d.get("id")) == demanda_id:
+                            due_date = d.get("due_date")
+                            break
+
+                    # Log de consistência
+                    log.info(
+                        f"[ANVISA][event] Concluída - request={demanda_id} client_id={client_id} "
+                        f"cnpj={cnpj} razao={razao}"
+                    )
+
+                    # Criar evento estruturado
+                    event = ActivityEvent(
+                        org_id=org_id,
+                        module="ANVISA",
+                        action="Concluída",
+                        message=f"Demanda concluída: {tipo}",
+                        client_id=int(client_id) if client_id else None,
+                        cnpj=cnpj,
+                        request_id=demanda_id,
+                        request_type=tipo,
+                        due_date=due_date,
+                        actor_email=user_email,
+                        actor_user_id=user_id,
+                        metadata={"razao_social": razao},
+                    )
+
+                    # Criar runner para persistência assíncrona
+                    tk_root = self.winfo_toplevel()  # type: ignore[attr-defined]
+                    runner = HubAsyncRunner(tk_root=tk_root, logger=log)
+
+                    # Adicionar evento (persiste automaticamente)
+                    get_recent_activity_store().add_event(event, persist=True, runner=runner)
+                except Exception as exc:
+                    log.warning(f"[ANVISA View] Erro ao registrar evento no histórico: {exc}")
+
                 # Invalidar caches
                 self._demandas_cache.pop(client_id, None)  # type: ignore[attr-defined]
                 self._requests_by_client.pop(client_id, None)  # type: ignore[attr-defined]
@@ -318,6 +452,9 @@ class AnvisaHandlersMixin:
 
                 # Recarregar lista principal (para atualizar "Ultima Alteração")
                 self._load_requests_from_cloud()  # type: ignore[attr-defined]
+
+                # Refresh Hub dashboard para atualizar listas e contadores
+                self._refresh_hub_dashboard_if_present()  # type: ignore[attr-defined]
 
                 # Manter seleção no cliente
                 try:
@@ -406,9 +543,72 @@ class AnvisaHandlersMixin:
             log.debug(f"[ANVISA View] Cancelando demanda [{fmt_ctx(**ctx)}]")
 
             # Cancelar via controller (status -> canceled)
-            success = self._controller.cancel_request(demanda_id)  # type: ignore[attr-defined]
+            success = self._controller.cancel_request(  # type: ignore[attr-defined]
+                demanda_id,
+                client_id=str(client_id),
+                request_type=str(tipo) if tipo else None,
+            )
 
             if success:
+                # Registrar evento no histórico de atividades
+                try:
+                    from src.modules.hub.recent_activity_store import (
+                        ActivityEvent,
+                        get_recent_activity_store,
+                    )
+                    from src.modules.hub.async_runner import HubAsyncRunner
+                    from src.core.session import get_current_user
+
+                    # Obter informações do usuário
+                    current_user = get_current_user()
+                    user_email = current_user.email if current_user and current_user.email else None
+                    user_id = current_user.uid if current_user else None
+
+                    # Obter org_id
+                    org_id = self._resolve_org_id()  # type: ignore[attr-defined]
+
+                    # Obter dados do cliente (CORRETO: do client_id, não do ctx)
+                    cnpj, razao = self._get_client_info_for_event(client_id, demanda_id, org_id)
+
+                    # Obter due_date se disponível
+                    due_date = None
+                    demandas = self._requests_by_client.get(client_id, [])  # type: ignore[attr-defined]
+                    for d in demandas:
+                        if str(d.get("id")) == demanda_id:
+                            due_date = d.get("due_date")
+                            break
+
+                    # Log de consistência
+                    log.info(
+                        f"[ANVISA][event] Cancelada - request={demanda_id} client_id={client_id} "
+                        f"cnpj={cnpj} razao={razao}"
+                    )
+
+                    # Criar evento estruturado
+                    event = ActivityEvent(
+                        org_id=org_id,
+                        module="ANVISA",
+                        action="Cancelada",
+                        message=f"Demanda cancelada: {tipo}",
+                        client_id=int(client_id) if client_id else None,
+                        cnpj=cnpj,
+                        request_id=demanda_id,
+                        request_type=tipo,
+                        due_date=due_date,
+                        actor_email=user_email,
+                        actor_user_id=user_id,
+                        metadata={"razao_social": razao},
+                    )
+
+                    # Criar runner para persistência assíncrona
+                    tk_root = self.winfo_toplevel()  # type: ignore[attr-defined]
+                    runner = HubAsyncRunner(tk_root=tk_root, logger=log)
+
+                    # Adicionar evento (persiste automaticamente)
+                    get_recent_activity_store().add_event(event, persist=True, runner=runner)
+                except Exception as exc:
+                    log.warning(f"[ANVISA View] Erro ao registrar evento no histórico: {exc}")
+
                 # Invalidar caches
                 self._demandas_cache.pop(client_id, None)  # type: ignore[attr-defined]
                 self._requests_by_client.pop(client_id, None)  # type: ignore[attr-defined]
@@ -420,6 +620,9 @@ class AnvisaHandlersMixin:
 
                 # Recarregar lista principal (para atualizar "Ultima Alteração")
                 self._load_requests_from_cloud()  # type: ignore[attr-defined]
+
+                # Refresh Hub dashboard para atualizar listas e contadores
+                self._refresh_hub_dashboard_if_present()  # type: ignore[attr-defined]
 
                 # Manter seleção no cliente
                 try:
@@ -499,9 +702,72 @@ class AnvisaHandlersMixin:
             log.debug(f"[ANVISA View] Excluindo demanda [{fmt_ctx(**ctx)}]")
 
             # Excluir via controller (UUID string)
-            success = self._controller.delete_request(demanda_id)  # type: ignore[attr-defined]
+            success = self._controller.delete_request(  # type: ignore[attr-defined]
+                demanda_id,
+                client_id=str(client_id),
+                request_type=str(tipo) if tipo else None,
+            )
 
             if success:
+                # Registrar evento no histórico de atividades
+                try:
+                    from src.modules.hub.recent_activity_store import (
+                        ActivityEvent,
+                        get_recent_activity_store,
+                    )
+                    from src.modules.hub.async_runner import HubAsyncRunner
+                    from src.core.session import get_current_user
+
+                    # Obter informações do usuário
+                    current_user = get_current_user()
+                    user_email = current_user.email if current_user and current_user.email else None
+                    user_id = current_user.uid if current_user else None
+
+                    # Obter org_id
+                    org_id = self._resolve_org_id()  # type: ignore[attr-defined]
+
+                    # Obter dados do cliente (CORRETO: do client_id, não do ctx)
+                    cnpj, razao = self._get_client_info_for_event(client_id, demanda_id, org_id)
+
+                    # Obter due_date se disponível
+                    due_date = None
+                    demandas = self._requests_by_client.get(client_id, [])  # type: ignore[attr-defined]
+                    for d in demandas:
+                        if str(d.get("id")) == demanda_id:
+                            due_date = d.get("due_date")
+                            break
+
+                    # Log de consistência
+                    log.info(
+                        f"[ANVISA][event] Excluída - request={demanda_id} client_id={client_id} "
+                        f"cnpj={cnpj} razao={razao}"
+                    )
+
+                    # Criar evento estruturado
+                    event = ActivityEvent(
+                        org_id=org_id,
+                        module="ANVISA",
+                        action="Excluída",
+                        message=f"Demanda excluída: {tipo}",
+                        client_id=int(client_id) if client_id else None,
+                        cnpj=cnpj,
+                        request_id=demanda_id,
+                        request_type=tipo,
+                        due_date=due_date,
+                        actor_email=user_email,
+                        actor_user_id=user_id,
+                        metadata={"razao_social": razao},
+                    )
+
+                    # Criar runner para persistência assíncrona
+                    tk_root = self.winfo_toplevel()  # type: ignore[attr-defined]
+                    runner = HubAsyncRunner(tk_root=tk_root, logger=log)
+
+                    # Adicionar evento (persiste automaticamente)
+                    get_recent_activity_store().add_event(event, persist=True, runner=runner)
+                except Exception as exc:
+                    log.warning(f"[ANVISA View] Erro ao registrar evento no histórico: {exc}")
+
                 # Invalidar caches
                 self._demandas_cache.pop(client_id, None)  # type: ignore[attr-defined]
                 self._requests_by_client.pop(client_id, None)  # type: ignore[attr-defined]
@@ -513,6 +779,9 @@ class AnvisaHandlersMixin:
 
                 # Recarregar tabela principal (para atualizar contadores ou remover cliente)
                 self._load_requests_from_cloud()  # type: ignore[attr-defined]
+
+                # Refresh Hub dashboard para atualizar listas e contadores
+                self._refresh_hub_dashboard_if_present()  # type: ignore[attr-defined]
 
                 # Tentar manter seleção no cliente (se ainda existir)
                 try:

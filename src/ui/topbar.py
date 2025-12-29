@@ -61,6 +61,24 @@ class _ActionsCallbacks:
                 return False
         return False
 
+    def on_delete_notification_for_me(self, notification_id: str) -> bool:
+        if callable(self._topbar._on_delete_notification_for_me):
+            try:
+                return self._topbar._on_delete_notification_for_me(notification_id)
+            except Exception as exc:  # noqa: BLE001
+                _log.exception("Falha ao executar on_delete_notification_for_me: %s", exc)
+                return False
+        return False
+
+    def on_delete_all_notifications_for_me(self) -> bool:
+        if callable(self._topbar._on_delete_all_notifications_for_me):
+            try:
+                return self._topbar._on_delete_all_notifications_for_me()
+            except Exception as exc:  # noqa: BLE001
+                _log.exception("Falha ao executar on_delete_all_notifications_for_me: %s", exc)
+                return False
+        return False
+
 
 class TopBar(tb.Frame):
     """Barra superior compositor - monta TopbarNav e TopbarActions.
@@ -78,6 +96,8 @@ class TopBar(tb.Frame):
         on_sites: Optional[Callable[[], None]] = None,
         on_notifications_clicked: Optional[Callable[[], None]] = None,
         on_mark_all_read: Optional[Callable[[], bool]] = None,
+        on_delete_notification_for_me: Optional[Callable[[str], bool]] = None,
+        on_delete_all_notifications_for_me: Optional[Callable[[], bool]] = None,
         **kwargs,
     ):
         """Inicializa TopBar compositor.
@@ -91,6 +111,8 @@ class TopBar(tb.Frame):
             on_sites: Callback para Sites
             on_notifications_clicked: Callback para clique em notificações
             on_mark_all_read: Callback para marcar todas notificações como lidas
+            on_delete_notification_for_me: Callback para excluir notificação (só para o usuário)
+            on_delete_all_notifications_for_me: Callback para excluir todas notificações (só para o usuário)
         """
         super().__init__(master, **kwargs)
 
@@ -102,6 +124,8 @@ class TopBar(tb.Frame):
         self._on_sites = on_sites
         self._on_notifications_clicked = on_notifications_clicked
         self._on_mark_all_read = on_mark_all_read
+        self._on_delete_notification_for_me = on_delete_notification_for_me
+        self._on_delete_all_notifications_for_me = on_delete_all_notifications_for_me
 
         # Container principal
         container = tb.Frame(self)

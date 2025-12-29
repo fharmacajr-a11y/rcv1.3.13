@@ -55,8 +55,8 @@ def poll_notifications(app: App) -> None:
         return
 
     try:
-        # Buscar contador de não lidas
-        unread_count = app._notifications_service.fetch_unread_count()
+        # Buscar contador de não lidas (incluindo próprias)
+        unread_count = app._notifications_service.fetch_unread_count(include_self=True)
 
         # Atualizar badge no TopBar
         if hasattr(app, "_topbar") and app._topbar:

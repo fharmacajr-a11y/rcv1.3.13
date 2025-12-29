@@ -7,11 +7,13 @@ from __future__ import annotations
 
 import logging
 import tkinter as tk
+from datetime import date, datetime
 from tkinter import messagebox
 from typing import Any, Callable, Optional
 
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import BOTH, LEFT, YES, HORIZONTAL, NSEW
+from ttkbootstrap.widgets import DateEntry
 
 from ._anvisa_requests_mixin import AnvisaRequestsMixin
 from ._anvisa_history_popup_mixin import AnvisaHistoryPopupMixin
@@ -32,7 +34,7 @@ log = logging.getLogger(__name__)
 class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersMixin, ttk.Frame):
     """Tela ANVISA - Layout dividido com ações e conteúdo.
 
-    Layout em duas colunas usando PanedWindow:
+    Layout em duas colunas usando Panedwindow:
     - Esquerda: ações (botão selecionar cliente + info do cliente)
     - Direita: conteúdo atual (Em desenvolvimento + testes + feedback)
 
@@ -154,8 +156,8 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
         container = ttk.Frame(self, padding=20)
         container.pack(fill=BOTH, expand=YES)
 
-        # PanedWindow para dividir a tela em duas colunas (50/50)
-        self.paned = ttk.PanedWindow(container, orient=HORIZONTAL)
+        # Panedwindow para dividir a tela em duas colunas (50/50)
+        self.paned = ttk.Panedwindow(container, orient=HORIZONTAL)
         self.paned.pack(fill=BOTH, expand=YES)
 
         # COLUNA ESQUERDA: Tabela de demandas + botão no rodapé
@@ -207,12 +209,20 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
         self.tree_requests.unbind("<Button-3>")
         self.tree_requests.bind("<Button-3>", self._on_tree_right_click)
 
+        # Bind Delete para excluir demanda (intercepta antes do bind global do root)
+        def _handle_delete_key(event: Any) -> str:
+            self._on_delete_request_clicked()
+            return "break"
+
+        self.tree_requests.unbind("<Delete>")
+        self.tree_requests.bind("<Delete>", _handle_delete_key)
+
         # Travar redimensionamento de colunas
         self._lock_treeview_columns(self.tree_requests)
 
         # Menu de contexto
         self._main_ctx_menu = tk.Menu(self, tearoff=0)
-        self._main_ctx_menu.add_command(label="Histórico de demandas", command=self._ctx_open_history)
+        self._main_ctx_menu.add_command(label="Histórico de regularizações", command=self._ctx_open_history)
         self._main_ctx_menu.add_separator()
         self._main_ctx_menu.add_command(label="Excluir", command=self._ctx_delete_request)
 
@@ -267,6 +277,43 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
             bootstyle="secondary",
         )
         placeholder.place(relx=0.5, rely=0.2, anchor="center")
+
+    def open_history_for_client(self, client_id: str) -> None:
+        """Abre popup de histórico de regularizações para um cliente específico.
+
+        Método público chamado por HubScreen.open_anvisa_history().
+
+        Args:
+            client_id: ID do cliente para abrir histórico.
+        """
+        try:
+            # Garantir que tree está populada
+            if not self.tree_requests.get_children():
+                self._load_requests_from_cloud()
+
+            # Buscar cliente na tree
+            client_iid = str(client_id)
+            if client_iid not in self.tree_requests.get_children():
+                # Tentar recarregar e buscar novamente
+                self._load_requests_from_cloud()
+                if client_iid not in self.tree_requests.get_children():
+                    messagebox.showwarning("Histórico", "Cliente não encontrado na lista da ANVISA.")
+                    return
+
+            # Obter dados do cliente da tree
+            item = self.tree_requests.item(client_iid)
+            values = item["values"]
+            if len(values) >= 3:
+                razao = str(values[1])
+                cnpj = str(values[2])
+
+                # Abrir popup de histórico
+                self._open_history_popup(client_id, razao, cnpj, center=True)
+            else:
+                messagebox.showwarning("Histórico", "Dados do cliente incompletos.")
+        except Exception as e:
+            log.exception(f"Erro ao abrir histórico para cliente {client_id}")
+            messagebox.showerror("Erro", f"Não foi possível abrir o histórico: {e}")
 
     def _show_subpage(self, page_name: str, title: str) -> None:
         """Exibe uma subpágina genérica."""
@@ -341,8 +388,18 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
             # Return: volta para ANVISA e agenda processamento do pending
             def _return_to_anvisa() -> None:
                 navigate_to(app, "anvisa")
-                # Aguardar 50ms para garantir que a tela trocou antes de abrir modal
-                app.after(50, self._consume_pending_pick)
+
+                # Garantir layout pronto antes de abrir modal (evita "sumir/descer")
+                def _deferred():
+                    try:
+                        app.update_idletasks()
+                    except Exception as e:
+                        log.warning(f"Erro ao atualizar idletasks: {e}")
+                    self._consume_pending_pick()
+
+                # after_idle garante que Tk finalize layout/geometry primeiro
+                # 150ms é conservador e evita parent com width/height == 1
+                app.after_idle(lambda: app.after(150, _deferred))
 
             start_client_pick_mode(
                 app,
@@ -381,11 +438,14 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
             cnpj = client_data.get("cnpj", "")
 
             # Abrir dialog para escolher tipo de demanda
-            request_type = self._open_new_anvisa_request_dialog(client_data)
-            if not request_type:
+            dlg_result = self._open_new_anvisa_request_dialog(client_data)
+            if not dlg_result:
                 # Usuário cancelou
                 self.last_action.set("Seleção cancelada")
                 return
+
+            request_type = str(dlg_result.get("request_type") or "")
+            payload = dlg_result.get("payload") or {}
 
             # VALIDAÇÃO: usar Service para validar (tipo + duplicado)
             demandas_cliente = self._requests_by_client.get(str(client_id), [])
@@ -421,7 +481,7 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
                 client_id=str(client_id),
                 request_type=tipo_normalizado,
                 created_by=user_id,  # Preenche com user_id quando disponível
-                payload={},
+                payload=payload,
             )
 
             if request_id:
@@ -444,6 +504,9 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
                     # Verificar se é do mesmo cliente (via dados no popup)
                     self._update_history_popup(client_id, razao, cnpj)
 
+                # Refresh Hub dashboard para atualizar Pendências/Radar
+                self._refresh_hub_dashboard_if_present()
+
                 self.last_action.set(f"Demanda ANVISA criada: {tipo_normalizado}")
                 log.info(f"[ANVISA] Demanda criada para cliente {client_id}: {tipo_normalizado}")
             else:
@@ -458,14 +521,24 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
             log.exception("Erro ao processar cliente selecionado")
             self.last_action.set(f"Erro ao processar cliente: {e}")
 
-    def _open_new_anvisa_request_dialog(self, client_data: dict[str, Any]) -> Optional[str]:
-        """Abre janela modal para escolher tipo de demanda ANVISA.
+            # Verificar se é erro de constraint de tipo de demanda
+            err_str = str(e)
+            if "23514" in err_str or "request_type_chk" in err_str:
+                messagebox.showerror(
+                    "Tipo de Demanda Não Permitido",
+                    "Seu banco ainda não permite esse tipo de demanda.\n\n"
+                    "Atualize a constraint no Supabase executando a migration:\n"
+                    "migrations/2025-12-27_anvisa_request_type_chk.sql",
+                )
+
+    def _open_new_anvisa_request_dialog(self, client_data: dict[str, Any]) -> Optional[dict[str, Any]]:
+        """Abre janela modal para escolher tipo de regularização ANVISA.
 
         Args:
             client_data: Dict com dados do cliente
 
         Returns:
-            String com tipo de demanda escolhido, ou None se cancelou
+            Dict com {"request_type": str, "payload": dict} ou None se cancelou
         """
         # Criar janela modal fixa
         dlg = tk.Toplevel(self)
@@ -473,7 +546,7 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
         # IMEDIATAMENTE preparar como hidden/offscreen para evitar flash
         prepare_hidden_window(dlg)
 
-        dlg.title("Nova Demanda ANVISA")
+        dlg.title("Regularização ANVISA")
         dlg.resizable(False, False)
         dlg.transient(self.winfo_toplevel())
         dlg.grab_set()
@@ -488,7 +561,7 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
         # A) Título (menos espaço embaixo)
         ttk.Label(
             main_frame,
-            text="Nova Demanda ANVISA",
+            text="Regularização ANVISA",
             font=("Segoe UI", 16, "bold"),  # type: ignore[arg-type]
             bootstyle="primary",
         ).pack(pady=(0, 12))
@@ -524,35 +597,130 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
         # C) Separator
         ttk.Separator(main_frame, orient="horizontal").pack(fill="x", pady=(0, 10))
 
-        # D) Caixinha "Tipo de Demanda"
-        lf_tipo = ttk.Labelframe(main_frame, text="Tipo de Demanda", padding=(12, 10))
-        lf_tipo.pack(fill="both", expand=True, pady=(0, 10))
+        # D) Caixinha "Tipo de Regularização"
+        lf_tipo = ttk.Labelframe(main_frame, text="Tipo de Regularização", padding=(12, 10))
+        lf_tipo.pack(fill="x", expand=False, pady=(0, 10))
 
         from ..constants import REQUEST_TYPES
 
         selected_type = tk.StringVar(value=REQUEST_TYPES[0])
 
-        for req_type in REQUEST_TYPES:
+        # Configurar estilo para radiobutton em negrito (tipo especial)
+        special_type = "Concessão de AE Manipulação"
+        from tkinter import font as tkfont
+
+        style = ttk.Style()
+        base_font = tkfont.nametofont("TkDefaultFont")
+        bold_font = base_font.copy()
+        bold_font.configure(weight="bold")
+
+        # Manter referência viva (evita GC)
+        dlg._anvisa_bold_font = bold_font  # type: ignore[attr-defined]
+
+        style.configure("AnvisaBold.primary.TRadiobutton", font=bold_font)
+
+        # Layout em 2 colunas para reduzir altura
+        types_frame = ttk.Frame(lf_tipo)
+        types_frame.pack(fill="x")
+        types_frame.columnconfigure(0, weight=1)
+        types_frame.columnconfigure(1, weight=1)
+
+        for i, req_type in enumerate(REQUEST_TYPES):
+            r = i // 2
+            c = i % 2
+            # Usar estilo em negrito para o tipo especial
+            rb_style = "AnvisaBold.primary.TRadiobutton" if req_type == special_type else "primary.TRadiobutton"
             ttk.Radiobutton(
-                lf_tipo,
+                types_frame,
                 text=req_type,
                 variable=selected_type,
                 value=req_type,
-                bootstyle="primary",
-            ).pack(anchor="w", pady=3)
+                style=rb_style,
+            ).grid(row=r, column=c, sticky="w", padx=(0, 18), pady=3)
 
-        # E) Botões (mesmo padrão Nova/Excluir: width=10)
+        # E) Caixinha "Detalhes" (prazo OBRIGATÓRIO)
+        lf_details = ttk.Labelframe(main_frame, text="Detalhes", padding=(12, 10))
+        lf_details.pack(fill="x", pady=(0, 10))
+
+        # Prazo obrigatório com DateEntry (calendário)
+        ttk.Label(lf_details, text="Prazo *:").grid(row=0, column=0, sticky="w", pady=(0, 6))
+
+        # Calcular data default baseado no tipo selecionado
+        today = date.today()
+        default_iso = self._service.default_due_date_iso_for_type(selected_type.get(), today)
+        default_date = datetime.strptime(default_iso, "%Y-%m-%d").date()
+
+        due_entry = DateEntry(lf_details, dateformat="%d/%m/%Y", startdate=default_date, popup_title="Selecione a data")
+        due_entry.grid(row=0, column=1, sticky="w", padx=(8, 0), pady=(0, 6))
+
+        # Flag para detectar se usuário já editou manualmente o prazo
+        user_edited_date = {"value": False}
+
+        def on_date_selected(event=None):
+            user_edited_date["value"] = True
+
+        due_entry.bind("<<DateEntrySelected>>", on_date_selected)
+
+        # Atualizar default ao mudar tipo (se usuário não editou manualmente)
+        def on_type_changed(*args):
+            if not user_edited_date["value"]:
+                new_default_iso = self._service.default_due_date_iso_for_type(selected_type.get(), today)
+                new_default_date = datetime.strptime(new_default_iso, "%Y-%m-%d").date()
+
+                # Fallback para versões sem set_date
+                if hasattr(due_entry, "set_date"):
+                    due_entry.set_date(new_default_date)
+                else:
+                    due_entry.entry.delete(0, "end")
+                    due_entry.entry.insert(0, new_default_date.strftime("%d/%m/%Y"))
+
+        selected_type.trace_add("write", on_type_changed)
+
+        # Observações (multi-linha, opcional)
+        ttk.Label(lf_details, text="Observações:").grid(row=1, column=0, sticky="nw", pady=(6, 0))
+        notes_text = tk.Text(lf_details, height=3, width=46, wrap="word")
+        notes_text.grid(row=1, column=1, sticky="w", padx=(8, 0), pady=(6, 0))
+
+        # F) Botões (mesmo padrão Nova/Excluir: width=10)
         btn_frame = ttk.Frame(main_frame)
-        btn_frame.pack(fill="x")
+        btn_frame.pack(fill="x", pady=(10, 0))
 
-        result = {"value": None}
+        result: dict[str, Any] = {"value": None}
 
         def on_create():
             # Desabilitar botão para evitar double-submit
             btn_create.configure(state="disabled")
             btn_cancel.configure(state="disabled")
 
-            result["value"] = selected_type.get()
+            tipo = selected_type.get()
+            notes = notes_text.get("1.0", "end").strip()
+
+            # Obter prazo do DateEntry (obrigatório)
+            try:
+                dt = due_entry.get_date()
+                # Se retornar datetime, pegar apenas date
+                if hasattr(dt, "date"):
+                    dt = dt.date()
+                due_iso = dt.isoformat()
+            except Exception as e:
+                log.warning(f"Erro ao obter prazo: {e}")
+                messagebox.showwarning(
+                    "Prazo obrigatório",
+                    "Por favor, informe o prazo utilizando o calendário.",
+                    parent=dlg,
+                )
+                # Re-habilitar botões
+                btn_create.configure(state="normal")
+                btn_cancel.configure(state="normal")
+                return
+
+            payload = self._service.build_payload_for_new_request(
+                request_type=tipo,
+                due_date_iso=due_iso,
+                notes=notes,
+            )
+
+            result["value"] = {"request_type": tipo, "payload": payload}
             dlg.destroy()
 
         def on_cancel():
@@ -563,22 +731,24 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
             btn_frame,
             text="Criar",
             bootstyle="success",
-            width=10,
+            width=12,
+            padding=(10, 6),
             command=on_create,
         )
-        btn_create.pack(side="left", padx=(0, 6), ipady=2)
+        btn_create.pack(side="left", padx=(0, 6))
 
         btn_cancel = ttk.Button(
             btn_frame,
             text="Cancelar",
             bootstyle="secondary",
-            width=10,
+            width=12,
+            padding=(10, 6),
             command=on_cancel,
         )
-        btn_cancel.pack(side="left", padx=(6, 0), ipady=2)
+        btn_cancel.pack(side="left", padx=(6, 0))
 
-        # Centralizar janela SEM FLASH
-        show_centered_no_flash(dlg, self.winfo_toplevel(), width=680, height=420)
+        # Centralizar janela SEM FLASH (altura calculada automaticamente)
+        show_centered_no_flash(dlg, self.winfo_toplevel(), width=740, height=None)
 
         # Aguardar fechamento da janela (modal)
         self.wait_window(dlg)
@@ -586,7 +756,7 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
         return result["value"]
 
     def _center_paned_sash(self) -> None:
-        """Centraliza o divisor do PanedWindow (50/50)."""
+        """Centraliza o divisor do Panedwindow (50/50)."""
         if self._sash_centered:
             return
 
@@ -594,7 +764,7 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
             # Forçar atualização do layout
             self.paned.update_idletasks()
 
-            # Obter largura total do PanedWindow
+            # Obter largura total do Panedwindow
             width = self.paned.winfo_width()
 
             if width > 1:
@@ -608,3 +778,35 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
     def _get_main_app(self) -> Optional[Any]:
         """Retorna referência à aplicação principal."""
         return self.main_window
+
+    def _refresh_hub_dashboard_if_present(self) -> None:
+        """Força refresh do Hub dashboard após mudanças em demandas ANVISA.
+
+        Tenta acessar a instância do Hub via múltiplos caminhos (legado + router cache)
+        e chama reload_dashboard() se disponível.
+        """
+        app = self._get_main_app()
+        if not app:
+            return
+
+        # Caso legado (MainWindow/controller.py usa _hub_screen_instance)
+        hub = getattr(app, "_hub_screen_instance", None)
+        if hub and hasattr(hub, "reload_dashboard"):
+            try:
+                hub.reload_dashboard()
+                log.debug("[ANVISA] Hub dashboard refreshed (via _hub_screen_instance)")
+                return
+            except Exception as e:
+                log.warning(f"[ANVISA] Erro ao refresh hub via _hub_screen_instance: {e}")
+
+        # Fallback: se existir router/cache no app
+        router = getattr(app, "_router", None)
+        cache = getattr(router, "_cache", None) if router else None
+        if isinstance(cache, dict):
+            hub2 = cache.get("hub")
+            if hub2 and hasattr(hub2, "reload_dashboard"):
+                try:
+                    hub2.reload_dashboard()
+                    log.debug("[ANVISA] Hub dashboard refreshed (via router cache)")
+                except Exception as e:
+                    log.warning(f"[ANVISA] Erro ao refresh hub via router cache: {e}")

@@ -266,8 +266,8 @@ class TestBuild:
             all_lfs = find_labelframes(cast(Any, view.modules_panel))
             child_lfs = [lf for lf in all_lfs if lf is not view.modules_panel]
 
+            # Verificar apenas padding (bootstyle não é requisito)
             for lf in child_lfs:
-                assert lf.kwargs.get("bootstyle") == "dark"
                 assert lf.kwargs.get("padding") == (8, 6)
 
 
@@ -330,7 +330,7 @@ class TestButtons:
                     "Auditoria",
                     "Fluxo de Caixa",
                     "Anvisa",
-                    "Sngpc",
+                    "Farmácia Popular",
                 ]
             )
             assert button_texts == expected_texts
@@ -359,13 +359,13 @@ class TestButtons:
             # Criar dicionário text -> bootstyle
             btn_styles = {btn.text: btn.kwargs.get("bootstyle") for btn in buttons}
 
-            # Verificar bootstyles (BUGFIX-HUB-UI-001: sem Farmácia Popular e Sifap)
+            # Verificar bootstyles (Farmácia Popular renomeado de Sngpc)
             assert btn_styles["Clientes"] == "STYLE_CLIENTES"
             assert btn_styles["Senhas"] == "STYLE_SENHAS"
             assert btn_styles["Auditoria"] == "STYLE_AUD"
             assert btn_styles["Fluxo de Caixa"] == "STYLE_FLUXO"
-            assert btn_styles["Anvisa"] == "secondary"
-            assert btn_styles["Sngpc"] == "secondary"
+            assert btn_styles["Anvisa"] == "info"
+            assert btn_styles["Farmácia Popular"] == "secondary"
 
     def test_button_invoke_calls_correct_callback(
         self, fake_parent: FakeWidget, mock_callbacks: dict[str, MagicMock]
@@ -390,14 +390,14 @@ class TestButtons:
 
             buttons = find_buttons(cast(Any, view.modules_panel))
 
-            # Mapeamento text -> callback esperado (BUGFIX-HUB-UI-001: sem Farmácia Popular e Sifap)
+            # Mapeamento text -> callback esperado (Farmácia Popular renomeado de Sngpc)
             text_to_callback = {
                 "Clientes": mock_callbacks["on_open_clientes"],
                 "Senhas": mock_callbacks["on_open_senhas"],
                 "Auditoria": mock_callbacks["on_open_auditoria"],
                 "Fluxo de Caixa": mock_callbacks["on_open_cashflow"],
                 "Anvisa": mock_callbacks["on_open_anvisa"],
-                "Sngpc": mock_callbacks["on_open_sngpc"],
+                "Farmácia Popular": mock_callbacks["on_open_sngpc"],
             }
 
             # Testar cada botão

@@ -63,6 +63,35 @@ class NotificationsRepository(Protocol):
         """Insere nova notificação."""
         ...
 
+    # Métodos para "Excluir pra mim"
+    def get_user_hidden_before(self, org_id: str, user_id: str) -> str | None:
+        """Obtém timestamp hidden_before para um usuário."""
+        ...
+
+    def set_user_hidden_before(self, org_id: str, user_id: str, hidden_before_iso: str) -> bool:
+        """Define timestamp hidden_before para um usuário (upsert)."""
+        ...
+
+    def list_hidden_notification_ids(self, org_id: str, user_id: str, limit: int = 5000) -> list[str]:
+        """Lista IDs de notificações ocultadas pelo usuário."""
+        ...
+
+    def hide_notification_for_user(self, org_id: str, user_id: str, notification_id: str) -> bool:
+        """Oculta uma notificação específica para o usuário."""
+        ...
+
+    def clear_hidden_ids_for_user(self, org_id: str, user_id: str) -> bool:
+        """Limpa todos os IDs ocultados pelo usuário."""
+        ...
+
+    def count_unread_before(self, org_id: str, before_iso: str, exclude_actor_email: str | None = None) -> int:
+        """Conta notificações não lidas antes de um timestamp."""
+        ...
+
+    def count_unread_by_ids(self, org_id: str, ids: list[str], exclude_actor_email: str | None = None) -> int:
+        """Conta notificações não lidas por IDs."""
+        ...
+
 
 class NotificationsService:
     """Serviço de notificações (headless)."""
@@ -179,14 +208,15 @@ class NotificationsService:
         display_name, _ = self._resolve_actor_info(email)
         return display_name
 
-    def fetch_latest(self, limit: int = 20) -> list[dict[str, Any]]:
+    def fetch_latest(self, limit: int = 20, *, include_self: bool = False) -> list[dict[str, Any]]:
         """Busca notificações mais recentes.
 
         Args:
             limit: Número máximo de notificações
+            include_self: Se True, inclui notificações do próprio usuário. Default False.
 
         Returns:
-            Lista de notificações ordenadas por created_at desc (excluindo notificações do próprio usuário)
+            Lista de notificações ordenadas por created_at desc
         """
         org_id = self._org_id_provider()
         if not org_id:
@@ -197,8 +227,11 @@ class NotificationsService:
         user_data = self._user_provider()
         current_email = user_data.get("email") if user_data else None
 
+        # Se include_self=True, não filtrar por email (passar None para exclude_actor_email)
+        exclude_email = None if include_self else current_email
+
         try:
-            return self._repo.list_notifications(org_id, limit, exclude_actor_email=current_email)
+            return self._repo.list_notifications(org_id, limit, exclude_actor_email=exclude_email)
         except Exception:
             self._log.exception("[NotificationsService] Erro ao buscar notificações")
             return []
@@ -209,6 +242,8 @@ class NotificationsService:
         Converte created_at para timezone local (America/Sao_Paulo) e adiciona
         campos formatados para exibição na interface.
 
+        Filtra notificações ocultas pelo usuário (hide for me).
+
         Args:
             limit: Número máximo de notificações
 
@@ -217,7 +252,43 @@ class NotificationsService:
             - created_at_local_str: Data/hora formatada em timezone local (DD/MM/YYYY HH:MM)
             - request_id_short: Primeiros 8 caracteres do request_id (ou "—")
         """
-        notifications = self.fetch_latest(limit)
+        # Buscar mais itens para compensar os filtrados
+        raw_notifications = self.fetch_latest(limit * 3, include_self=True)
+
+        # Carregar dados de ocultação do usuário
+        org_id = self._org_id_provider()
+        user_data = self._user_provider()
+        user_id = user_data.get("uid") if user_data else None
+
+        hidden_before: str | None = None
+        hidden_ids: set[str] = set()
+
+        if org_id and user_id:
+            try:
+                hidden_before = self._repo.get_user_hidden_before(org_id, user_id)
+                hidden_ids = set(self._repo.list_hidden_notification_ids(org_id, user_id))
+            except Exception as exc:
+                self._log.debug("[NotificationsService] Erro ao carregar hidden data: %s", exc)
+
+        # Filtrar notificações ocultas
+        notifications: list[dict[str, Any]] = []
+        for notif in raw_notifications:
+            notif_id = notif.get("id", "")
+            created_at = notif.get("created_at", "")
+
+            # Pular se está na lista de IDs ocultos
+            if notif_id and notif_id in hidden_ids:
+                continue
+
+            # Pular se created_at <= hidden_before
+            if hidden_before and created_at and created_at <= hidden_before:
+                continue
+
+            notifications.append(notif)
+
+            # Limitar ao máximo pedido
+            if len(notifications) >= limit:
+                break
 
         # Timezone local
         try:
@@ -259,22 +330,50 @@ class NotificationsService:
 
         return notifications
 
-    def fetch_unread_count(self) -> int:
-        """Conta notificações não lidas.
+    def fetch_unread_count(self, *, include_self: bool = False) -> int:
+        """Conta notificações não lidas (excluindo ocultas pelo usuário).
+
+        Args:
+            include_self: Se True, inclui notificações do próprio usuário. Default False.
 
         Returns:
-            Número de notificações não lidas (excluindo notificações do próprio usuário)
+            Número de notificações não lidas (descontando as ocultas)
         """
         org_id = self._org_id_provider()
         if not org_id:
             return 0
 
-        # Obter email do usuário atual para filtrar suas próprias notificações
+        # Obter dados do usuário
         user_data = self._user_provider()
         current_email = user_data.get("email") if user_data else None
+        user_id = user_data.get("uid") if user_data else None
+
+        # Se include_self=True, não filtrar por email (passar None para exclude_actor_email)
+        exclude_email = None if include_self else current_email
 
         try:
-            return self._repo.count_unread(org_id, exclude_actor_email=current_email)
+            # Total de não lidas
+            total = self._repo.count_unread(org_id, exclude_actor_email=exclude_email)
+
+            if not user_id:
+                return max(0, total)
+
+            # Subtrair notificações ocultas via hidden_before
+            hidden_before = self._repo.get_user_hidden_before(org_id, user_id)
+            if hidden_before:
+                hidden_before_count = self._repo.count_unread_before(
+                    org_id, hidden_before, exclude_actor_email=exclude_email
+                )
+                total -= hidden_before_count
+
+            # Subtrair notificações ocultas via IDs
+            hidden_ids = self._repo.list_hidden_notification_ids(org_id, user_id)
+            if hidden_ids:
+                hidden_ids_count = self._repo.count_unread_by_ids(org_id, hidden_ids, exclude_actor_email=exclude_email)
+                total -= hidden_ids_count
+
+            return max(0, total)
+
         except Exception:
             self._log.exception("[NotificationsService] Erro ao contar não lidas")
             return 0
@@ -294,6 +393,68 @@ class NotificationsService:
             return self._repo.mark_all_read(org_id)
         except Exception:
             self._log.exception("[NotificationsService] Erro ao marcar como lidas")
+            return False
+
+    def hide_notification_for_me(self, notification_id: str) -> bool:
+        """Oculta uma notificação específica para o usuário atual.
+
+        Args:
+            notification_id: ID da notificação a ocultar
+
+        Returns:
+            True se sucesso, False caso contrário
+        """
+        org_id = self._org_id_provider()
+        user_data = self._user_provider()
+        user_id = user_data.get("uid") if user_data else None
+
+        if not org_id or not user_id:
+            self._log.warning("[NotificationsService] Sem org_id ou user_id para hide_notification_for_me")
+            return False
+
+        try:
+            return self._repo.hide_notification_for_user(org_id, user_id, notification_id)
+        except Exception:
+            self._log.exception("[NotificationsService] Erro ao ocultar notificação %s", notification_id)
+            return False
+
+    def hide_all_for_me(self) -> bool:
+        """Oculta todas as notificações para o usuário atual (via timestamp).
+
+        Isso NÃO deleta as notificações do feed global, apenas as oculta para este usuário.
+
+        Returns:
+            True se sucesso, False caso contrário
+        """
+        org_id = self._org_id_provider()
+        user_data = self._user_provider()
+        user_id = user_data.get("uid") if user_data else None
+
+        if not org_id or not user_id:
+            self._log.warning("[NotificationsService] Sem org_id ou user_id para hide_all_for_me")
+            return False
+
+        try:
+            # Definir hidden_before como agora (UTC ISO)
+            now_utc = datetime.now(ZoneInfo("UTC")).isoformat()
+
+            # 1) Definir timestamp hidden_before
+            ok1 = self._repo.set_user_hidden_before(org_id, user_id, now_utc)
+
+            # 2) Limpar IDs individuais (para evitar contagens duplicadas)
+            ok2 = self._repo.clear_hidden_ids_for_user(org_id, user_id)
+
+            if ok1:
+                self._log.info("[NotificationsService] hide_all_for_me success: user=%s ts=%s", user_id, now_utc)
+            else:
+                self._log.warning(
+                    "[NotificationsService] hide_all_for_me parcial: set_hidden_before=%s clear_ids=%s", ok1, ok2
+                )
+
+            return ok1
+
+        except Exception:
+            self._log.exception("[NotificationsService] Erro ao ocultar todas notificações")
             return False
 
     def publish(

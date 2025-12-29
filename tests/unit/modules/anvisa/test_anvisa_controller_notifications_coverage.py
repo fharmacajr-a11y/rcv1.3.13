@@ -107,6 +107,8 @@ def test_create_request_with_notifications_service_success(mock_repo, mock_notif
     call_kwargs = mock_notifications_service_success.publish.call_args[1]
     assert call_kwargs["module"] == "anvisa"
     assert call_kwargs["event"] == "created"
+    # Verifica formato padronizado: "ANVISA • Nova demanda criada: <TIPO> (Cliente <ID>)"
+    assert call_kwargs["message"] == "ANVISA • Nova demanda criada: ALTERACAO_RAZAO_SOCIAL (Cliente 456)"
     assert "request_type" in call_kwargs.get("metadata", {})
 
 
@@ -207,8 +209,13 @@ def test_set_status_with_notifications_service_success(mock_repo, mock_notificat
         repository=mock_repo, logger=logger, notifications_service=mock_notifications_service_success
     )
 
-    # Executar set_status
-    result = controller.set_status("req-789", "done")
+    # Executar set_status com finalização (done/CONCLUIDA)
+    result = controller.set_status(
+        "req-789",
+        "done",
+        client_id="123",
+        request_type="Alteração de Porte",
+    )
 
     # Deve retornar True
     assert result is True
@@ -218,7 +225,38 @@ def test_set_status_with_notifications_service_success(mock_repo, mock_notificat
     call_kwargs = mock_notifications_service_success.publish.call_args[1]
     assert call_kwargs["module"] == "anvisa"
     assert call_kwargs["event"] == "status_changed"
+    # Verifica formato padronizado: "ANVISA • Demanda finalizada: <TIPO> (Cliente <ID>)"
+    assert call_kwargs["message"] == "ANVISA • Demanda finalizada: Alteração de Porte (Cliente 123)"
     assert call_kwargs["metadata"]["new_status"] == "done"
+
+
+def test_set_status_canceled_message_format(mock_repo, mock_notifications_service_success):
+    """Testa set_status com status 'canceled' - verifica mensagem correta."""
+    from src.modules.anvisa.controllers.anvisa_controller import AnvisaController
+
+    # Criar logger real para o controller
+    logger = logging.getLogger("test_anvisa_controller")
+
+    controller = AnvisaController(
+        repository=mock_repo, logger=logger, notifications_service=mock_notifications_service_success
+    )
+
+    # Executar set_status com cancelamento
+    result = controller.set_status(
+        "req-789",
+        "canceled",
+        client_id="999",
+        request_type="Inclusão de Atividade",
+    )
+
+    # Deve retornar True
+    assert result is True
+
+    # Notifications service deve ter sido chamado
+    mock_notifications_service_success.publish.assert_called_once()
+    call_kwargs = mock_notifications_service_success.publish.call_args[1]
+    # Verifica formato padronizado: "ANVISA • Demanda cancelada: <TIPO> (Cliente <ID>)"
+    assert call_kwargs["message"] == "ANVISA • Demanda cancelada: Inclusão de Atividade (Cliente 999)"
 
 
 def test_set_status_with_notifications_service_returns_false(mock_repo, mock_notifications_service_false, caplog):
@@ -310,8 +348,12 @@ def test_delete_request_with_notifications_service_success(mock_repo, mock_notif
         repository=mock_repo, logger=logger, notifications_service=mock_notifications_service_success
     )
 
-    # Executar delete
-    result = controller.delete_request("req-xyz")
+    # Executar delete com client_id e request_type
+    result = controller.delete_request(
+        "req-xyz",
+        client_id="123",
+        request_type="Alteração de Porte",
+    )
 
     # Deve retornar True
     assert result is True
@@ -321,6 +363,8 @@ def test_delete_request_with_notifications_service_success(mock_repo, mock_notif
     call_kwargs = mock_notifications_service_success.publish.call_args[1]
     assert call_kwargs["module"] == "anvisa"
     assert call_kwargs["event"] == "deleted"
+    # Verifica formato padronizado: "ANVISA • Demanda excluída: <TIPO> (Cliente <ID>)"
+    assert call_kwargs["message"] == "ANVISA • Demanda excluída: Alteração de Porte (Cliente 123)"
 
 
 def test_delete_request_with_notifications_service_returns_false(mock_repo, mock_notifications_service_false, caplog):
@@ -456,3 +500,180 @@ def test_delete_request_repo_returns_false(mock_repo, mock_notifications_service
 
     # Notifications service NÃO deve ser chamado (falhou antes)
     mock_notifications_service_success.publish.assert_not_called()
+
+
+# ========== MF46: Exception handling coverage (lines 179-181, 241-249) ==========
+
+
+def test_delete_request_publish_exception_does_not_break_operation(mock_repo):
+    """Testa que exceção no publish não quebra o delete_request (linhas 179-181)."""
+    from src.modules.anvisa.controllers.anvisa_controller import AnvisaController
+
+    # Mock notifications_service que lança exceção
+    mock_notif = MagicMock()
+    mock_notif.publish.side_effect = RuntimeError("Notification service crashed")
+
+    logger = logging.getLogger("test_anvisa_controller")
+    controller = AnvisaController(repository=mock_repo, logger=logger, notifications_service=mock_notif)
+
+    # Executar delete - deve retornar True mesmo com exceção no publish
+    result = controller.delete_request("req-123", client_id="456", request_type="AFE")
+
+    # A operação deve ter sucesso (repo retornou True)
+    assert result is True
+
+    # Repo deve ter sido chamado
+    mock_repo.delete_request.assert_called_once_with("req-123")
+
+    # Publish foi chamado (e falhou)
+    mock_notif.publish.assert_called_once()
+
+
+def test_set_status_in_progress_uses_status_other_message(mock_repo, mock_notifications_service_success):
+    """Testa set_status com 'in_progress' usa mensagem status_other (linhas 241-249)."""
+    from src.modules.anvisa.controllers.anvisa_controller import AnvisaController
+
+    logger = logging.getLogger("test_anvisa_controller")
+    controller = AnvisaController(
+        repository=mock_repo, logger=logger, notifications_service=mock_notifications_service_success
+    )
+
+    # Executar set_status com status que não é done/canceled
+    result = controller.set_status("req-123", "in_progress", client_id="456", request_type="AFE")
+
+    assert result is True
+
+    # Verificar que publish foi chamado com mensagem formatada corretamente
+    mock_notifications_service_success.publish.assert_called_once()
+    call_kwargs = mock_notifications_service_success.publish.call_args.kwargs
+    assert "em andamento" in call_kwargs["message"]
+    assert "AFE" in call_kwargs["message"]
+    assert "456" in call_kwargs["message"]
+
+
+def test_set_status_submitted_uses_status_other_message(mock_repo, mock_notifications_service_success):
+    """Testa set_status com 'submitted' usa mensagem status_other (linhas 241-249)."""
+    from src.modules.anvisa.controllers.anvisa_controller import AnvisaController
+
+    logger = logging.getLogger("test_anvisa_controller")
+    controller = AnvisaController(
+        repository=mock_repo, logger=logger, notifications_service=mock_notifications_service_success
+    )
+
+    # Executar set_status com status 'submitted'
+    result = controller.set_status("req-123", "submitted", request_type="CBPF")
+
+    assert result is True
+
+    # Verificar que publish foi chamado
+    mock_notifications_service_success.publish.assert_called_once()
+    call_kwargs = mock_notifications_service_success.publish.call_args.kwargs
+    assert "submetida" in call_kwargs["message"]
+    assert "CBPF" in call_kwargs["message"]
+
+
+def test_set_status_unknown_status_uses_status_text_directly(mock_repo, mock_notifications_service_success):
+    """Testa set_status com status desconhecido usa o próprio status como texto."""
+    from src.modules.anvisa.controllers.anvisa_controller import AnvisaController
+
+    logger = logging.getLogger("test_anvisa_controller")
+    controller = AnvisaController(
+        repository=mock_repo, logger=logger, notifications_service=mock_notifications_service_success
+    )
+
+    # Executar set_status com status desconhecido
+    result = controller.set_status("req-123", "custom_status", client_id="789")
+
+    assert result is True
+
+    # Verificar que publish foi chamado
+    mock_notifications_service_success.publish.assert_called_once()
+    call_kwargs = mock_notifications_service_success.publish.call_args.kwargs
+    # Status desconhecido deve aparecer no texto
+    assert "custom_status" in call_kwargs["message"]
+    assert "789" in call_kwargs["message"]
+
+
+def test_set_status_only_client_id_formats_correctly(mock_repo, mock_notifications_service_success):
+    """Testa set_status com apenas client_id (sem request_type) formata corretamente."""
+    from src.modules.anvisa.controllers.anvisa_controller import AnvisaController
+
+    logger = logging.getLogger("test_anvisa_controller")
+    controller = AnvisaController(
+        repository=mock_repo, logger=logger, notifications_service=mock_notifications_service_success
+    )
+
+    # Executar set_status apenas com client_id
+    result = controller.set_status("req-123", "in_progress", client_id="456")
+
+    assert result is True
+
+    # Verificar formatação
+    call_kwargs = mock_notifications_service_success.publish.call_args.kwargs
+    assert "456" in call_kwargs["message"]
+    assert "(Cliente 456)" in call_kwargs["message"]
+
+
+def test_set_status_no_client_no_type_formats_minimal(mock_repo, mock_notifications_service_success):
+    """Testa set_status sem client_id nem request_type formata mensagem mínima."""
+    from src.modules.anvisa.controllers.anvisa_controller import AnvisaController
+
+    logger = logging.getLogger("test_anvisa_controller")
+    controller = AnvisaController(
+        repository=mock_repo, logger=logger, notifications_service=mock_notifications_service_success
+    )
+
+    # Executar set_status sem extras
+    result = controller.set_status("req-123", "in_progress")
+
+    assert result is True
+
+    # Verificar formatação mínima
+    call_kwargs = mock_notifications_service_success.publish.call_args.kwargs
+    assert "ANVISA" in call_kwargs["message"]
+    assert "em andamento" in call_kwargs["message"]
+
+
+def test_set_status_only_request_type_formats_correctly_mf46(mock_repo, mock_notifications_service_success):
+    """Testa set_status com apenas request_type (sem client_id) formata corretamente (linha 119)."""
+    from src.modules.anvisa.controllers.anvisa_controller import AnvisaController
+
+    logger = logging.getLogger("test_anvisa_controller")
+    controller = AnvisaController(
+        repository=mock_repo, logger=logger, notifications_service=mock_notifications_service_success
+    )
+
+    # Executar set_status apenas com request_type (sem client_id)
+    result = controller.set_status("req-123", "done", request_type="AFE")
+
+    assert result is True
+
+    # Verificar formatação: "ANVISA • Demanda finalizada: AFE"
+    call_kwargs = mock_notifications_service_success.publish.call_args.kwargs
+    assert "AFE" in call_kwargs["message"]
+    # Não deve ter "(Cliente ...)" porque não passou client_id
+    assert "(Cliente" not in call_kwargs["message"]
+
+
+# ========== MF47: Branch L121 - client_id sem request_type ==========
+
+
+def test_set_status_only_client_id_formats_correctly_mf47(mock_repo, mock_notifications_service_success):
+    """Testa set_status com apenas client_id (sem request_type) formata corretamente (linha 121)."""
+    from src.modules.anvisa.controllers.anvisa_controller import AnvisaController
+
+    logger = logging.getLogger("test_anvisa_controller")
+    controller = AnvisaController(
+        repository=mock_repo, logger=logger, notifications_service=mock_notifications_service_success
+    )
+
+    # Executar set_status apenas com client_id (sem request_type)
+    result = controller.set_status("req-123", "done", client_id="789")
+
+    assert result is True
+
+    # Verificar formatação: "ANVISA • Demanda finalizada (Cliente 789)"
+    call_kwargs = mock_notifications_service_success.publish.call_args.kwargs
+    assert "(Cliente 789)" in call_kwargs["message"]
+    # Não deve ter tipo da demanda porque não passou request_type
+    assert ": " not in call_kwargs["message"] or ":" not in call_kwargs["message"].split("(Cliente")[0]

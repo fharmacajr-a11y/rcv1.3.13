@@ -401,6 +401,278 @@ def insert_notification(
         return False
 
 
+# ============================================================================
+# FUNÇÕES PARA "EXCLUIR PRA MIM" (hide notifications per user)
+# ============================================================================
+
+
+def get_user_hidden_before(org_id: str, user_id: str) -> str | None:
+    """Obtém timestamp hidden_before para um usuário.
+
+    Args:
+        org_id: ID da organização
+        user_id: UUID do usuário
+
+    Returns:
+        ISO timestamp string ou None se não existir
+    """
+    from infra.supabase_client import supabase
+
+    try:
+        response = (
+            supabase.table("org_notifications_user_state")
+            .select("hidden_before")
+            .eq("org_id", org_id)
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+
+        data = getattr(response, "data", None) or []
+        if data:
+            return data[0].get("hidden_before")
+        return None
+
+    except Exception:
+        log.exception("[NOTIF] Erro ao buscar hidden_before (org=%s, user=%s)", org_id, user_id)
+        return None
+
+
+def set_user_hidden_before(org_id: str, user_id: str, hidden_before_iso: str) -> bool:
+    """Define timestamp hidden_before para um usuário (upsert).
+
+    Args:
+        org_id: ID da organização
+        user_id: UUID do usuário
+        hidden_before_iso: Timestamp ISO (notificações antes disso ficam ocultas)
+
+    Returns:
+        True se sucesso, False caso contrário
+    """
+    from infra.supabase_client import supabase
+
+    try:
+        # Tentar UPDATE primeiro
+        response = (
+            supabase.table("org_notifications_user_state")
+            .update({"hidden_before": hidden_before_iso, "updated_at": "now()"})
+            .eq("org_id", org_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+
+        data = getattr(response, "data", None) or []
+        if data:
+            log.info("[NOTIF] hidden_before atualizado: org=%s user=%s ts=%s", org_id, user_id, hidden_before_iso)
+            return True
+
+        # Se não atualizou nada, INSERT
+        response = (
+            supabase.table("org_notifications_user_state")
+            .insert(
+                {
+                    "org_id": org_id,
+                    "user_id": user_id,
+                    "hidden_before": hidden_before_iso,
+                }
+            )
+            .execute()
+        )
+
+        data = getattr(response, "data", None) or []
+        if data:
+            log.info("[NOTIF] hidden_before inserido: org=%s user=%s ts=%s", org_id, user_id, hidden_before_iso)
+            return True
+
+        log.warning("[NOTIF] hidden_before upsert falhou (sem data): org=%s user=%s", org_id, user_id)
+        return False
+
+    except Exception:
+        log.exception("[NOTIF] Erro ao definir hidden_before (org=%s, user=%s)", org_id, user_id)
+        return False
+
+
+def list_hidden_notification_ids(org_id: str, user_id: str, limit: int = 5000) -> list[str]:
+    """Lista IDs de notificações ocultadas pelo usuário.
+
+    Args:
+        org_id: ID da organização
+        user_id: UUID do usuário
+        limit: Máximo de IDs a retornar
+
+    Returns:
+        Lista de notification_ids ocultados
+    """
+    from infra.supabase_client import supabase
+
+    try:
+        response = (
+            supabase.table("org_notifications_hidden")
+            .select("notification_id")
+            .eq("org_id", org_id)
+            .eq("user_id", user_id)
+            .limit(limit)
+            .execute()
+        )
+
+        data = getattr(response, "data", None) or []
+        return [row["notification_id"] for row in data if row.get("notification_id")]
+
+    except Exception:
+        log.exception("[NOTIF] Erro ao listar hidden_ids (org=%s, user=%s)", org_id, user_id)
+        return []
+
+
+def hide_notification_for_user(org_id: str, user_id: str, notification_id: str) -> bool:
+    """Oculta uma notificação específica para o usuário.
+
+    Args:
+        org_id: ID da organização
+        user_id: UUID do usuário
+        notification_id: ID da notificação a ocultar
+
+    Returns:
+        True se sucesso, False caso contrário
+    """
+    from infra.supabase_client import supabase
+
+    try:
+        response = (
+            supabase.table("org_notifications_hidden")
+            .insert(
+                {
+                    "org_id": org_id,
+                    "user_id": user_id,
+                    "notification_id": notification_id,
+                }
+            )
+            .execute()
+        )
+
+        data = getattr(response, "data", None) or []
+        if data:
+            log.info("[NOTIF] Notificação ocultada: org=%s user=%s notif=%s", org_id, user_id, notification_id)
+            return True
+
+        log.warning("[NOTIF] hide_notification falhou (sem data): org=%s notif=%s", org_id, notification_id)
+        return False
+
+    except Exception as exc:
+        # Ignorar erro de duplicata (já ocultada)
+        if "duplicate key" in str(exc).lower() or "23505" in str(exc):
+            log.debug("[NOTIF] Notificação já ocultada (duplicata): notif=%s", notification_id)
+            return True
+        log.exception("[NOTIF] Erro ao ocultar notificação (org=%s, notif=%s)", org_id, notification_id)
+        return False
+
+
+def clear_hidden_ids_for_user(org_id: str, user_id: str) -> bool:
+    """Limpa todos os IDs ocultados pelo usuário.
+
+    Args:
+        org_id: ID da organização
+        user_id: UUID do usuário
+
+    Returns:
+        True se sucesso, False caso contrário
+    """
+    from infra.supabase_client import supabase
+
+    try:
+        (supabase.table("org_notifications_hidden").delete().eq("org_id", org_id).eq("user_id", user_id).execute())
+
+        # DELETE retorna os rows deletados ou []
+        log.info("[NOTIF] Hidden IDs limpos: org=%s user=%s", org_id, user_id)
+        return True
+
+    except Exception:
+        log.exception("[NOTIF] Erro ao limpar hidden_ids (org=%s, user=%s)", org_id, user_id)
+        return False
+
+
+def count_unread_before(org_id: str, before_iso: str, exclude_actor_email: str | None = None) -> int:
+    """Conta notificações não lidas antes de um timestamp.
+
+    Args:
+        org_id: ID da organização
+        before_iso: Timestamp ISO (contar apenas notificações criadas antes)
+        exclude_actor_email: Email do autor a excluir
+
+    Returns:
+        Contagem de não lidas antes do timestamp
+    """
+    from infra.supabase_client import supabase
+
+    try:
+        query = (
+            supabase.table("org_notifications")
+            .select(ORG_NOTIFICATIONS_SELECT_FIELDS_COUNT, count="exact")
+            .eq("org_id", org_id)
+            .eq("is_read", False)
+            .lte("created_at", before_iso)
+        )
+
+        if exclude_actor_email:
+            query = query.neq("actor_email", exclude_actor_email)
+
+        response = query.execute()
+        count = getattr(response, "count", 0) or 0
+
+        log.debug("[NOTIF] count_unread_before=%d (org=%s, before=%s)", count, org_id, before_iso)
+        return count
+
+    except Exception:
+        log.exception("[NOTIF] Erro ao contar unread_before (org=%s)", org_id)
+        return 0
+
+
+def count_unread_by_ids(org_id: str, ids: list[str], exclude_actor_email: str | None = None) -> int:
+    """Conta notificações não lidas por IDs (com chunking para evitar query gigante).
+
+    Args:
+        org_id: ID da organização
+        ids: Lista de notification_ids
+        exclude_actor_email: Email do autor a excluir
+
+    Returns:
+        Contagem de não lidas entre os IDs fornecidos
+    """
+    from infra.supabase_client import supabase
+
+    if not ids:
+        return 0
+
+    chunk_size = 200
+    total = 0
+
+    try:
+        # Processar em chunks
+        for i in range(0, len(ids), chunk_size):
+            chunk = ids[i : i + chunk_size]
+
+            query = (
+                supabase.table("org_notifications")
+                .select(ORG_NOTIFICATIONS_SELECT_FIELDS_COUNT, count="exact")
+                .eq("org_id", org_id)
+                .eq("is_read", False)
+                .in_("id", chunk)
+            )
+
+            if exclude_actor_email:
+                query = query.neq("actor_email", exclude_actor_email)
+
+            response = query.execute()
+            chunk_count = getattr(response, "count", 0) or 0
+            total += chunk_count
+
+        log.debug("[NOTIF] count_unread_by_ids=%d (org=%s, ids_count=%d)", total, org_id, len(ids))
+        return total
+
+    except Exception:
+        log.exception("[NOTIF] Erro ao contar unread_by_ids (org=%s)", org_id)
+        return 0
+
+
 class NotificationsRepositoryAdapter:
     """Adapter para usar funções do repository como métodos de instância."""
 
@@ -443,3 +715,31 @@ class NotificationsRepositoryAdapter:
             request_id=request_id,
             metadata=metadata,
         )
+
+    def get_user_hidden_before(self, org_id: str, user_id: str) -> str | None:
+        """Obtém timestamp hidden_before para um usuário."""
+        return get_user_hidden_before(org_id, user_id)
+
+    def set_user_hidden_before(self, org_id: str, user_id: str, hidden_before_iso: str) -> bool:
+        """Define timestamp hidden_before para um usuário (upsert)."""
+        return set_user_hidden_before(org_id, user_id, hidden_before_iso)
+
+    def list_hidden_notification_ids(self, org_id: str, user_id: str, limit: int = 5000) -> list[str]:
+        """Lista IDs de notificações ocultadas pelo usuário."""
+        return list_hidden_notification_ids(org_id, user_id, limit)
+
+    def hide_notification_for_user(self, org_id: str, user_id: str, notification_id: str) -> bool:
+        """Oculta uma notificação específica para o usuário."""
+        return hide_notification_for_user(org_id, user_id, notification_id)
+
+    def clear_hidden_ids_for_user(self, org_id: str, user_id: str) -> bool:
+        """Limpa todos os IDs ocultados pelo usuário."""
+        return clear_hidden_ids_for_user(org_id, user_id)
+
+    def count_unread_before(self, org_id: str, before_iso: str, exclude_actor_email: str | None = None) -> int:
+        """Conta notificações não lidas antes de um timestamp."""
+        return count_unread_before(org_id, before_iso, exclude_actor_email)
+
+    def count_unread_by_ids(self, org_id: str, ids: list[str], exclude_actor_email: str | None = None) -> int:
+        """Conta notificações não lidas por IDs (com chunking)."""
+        return count_unread_by_ids(org_id, ids, exclude_actor_email)

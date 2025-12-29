@@ -13,7 +13,7 @@ Segue padrão Strangler Fig: extrai lógica gradualmente das Views.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Protocol, TypedDict, cast
 
 from ..constants import (
@@ -38,6 +38,7 @@ class ClientRowDict(TypedDict, total=False):
     cnpj: str
     demanda_label: str
     last_update_dt: datetime | None
+    last_update_display: str
 
 
 class HistoryRowDict(TypedDict):
@@ -51,6 +52,8 @@ class HistoryRowDict(TypedDict):
     criada_em: str
     atualizada_em: str
     updated_dt_utc: datetime | None
+    prazo: str
+    observacoes: str
 
 
 class AnvisaRequestsRepository(Protocol):
@@ -345,6 +348,7 @@ class AnvisaService:
                 "cnpj": "12345678000190",
                 "demanda_label": "2 demandas (1 em aberto)",
                 "last_update_dt": datetime(2024, 1, 16, 13, 0, 0, tzinfo=UTC),
+                "last_update_display": "16/01/2024 - 10:00 (J)",
             }
         """
         # Agrupar por cliente
@@ -368,6 +372,31 @@ class AnvisaService:
             # Resumir demandas
             demanda_label, last_update_dt = self.summarize_demands(demandas)
 
+            # Calcular last_update_display com tracinho e inicial do autor
+            last_update_display = ""
+            last_update_by_email = ""
+
+            # Encontrar demanda mais recente e seu autor
+            most_recent_dt: datetime | None = None
+            for dem in demandas:
+                updated = dem.get("updated_at") or dem.get("created_at") or ""
+                dt = self._parse_iso_datetime(updated) if updated else None
+                if dt and (most_recent_dt is None or dt > most_recent_dt):
+                    most_recent_dt = dt
+                    # Capturar email do autor da demanda mais recente
+                    payload_raw = dem.get("payload") or {}
+                    payload = payload_raw if isinstance(payload_raw, dict) else {}
+                    last_update_by_email = str(payload.get("updated_by") or payload.get("created_by") or "").strip()
+
+            # Formatar display com tracinho e inicial
+            if most_recent_dt:
+                base = self.format_dt_local_dash(most_recent_dt)
+                if base and last_update_by_email:
+                    initial = self.resolve_initial_from_email(last_update_by_email)
+                    if initial:
+                        base = f"{base} ({initial})"
+                last_update_display = base
+
             # Montar row
             row: ClientRowDict = {
                 "client_id": client_id,
@@ -375,6 +404,7 @@ class AnvisaService:
                 "cnpj": cnpj,
                 "demanda_label": demanda_label,
                 "last_update_dt": last_update_dt,
+                "last_update_display": last_update_display,
             }
             rows.append(row)
 
@@ -505,20 +535,36 @@ class AnvisaService:
     def human_status(self, status: str) -> str:
         """Converte status técnico para texto legível.
 
+        Diferencia status finalizados: done → "Concluída", canceled → "Cancelada"
+
         Args:
             status: Status da demanda (banco ou legado)
 
         Returns:
-            "Em aberto" para status abertos, "Finalizado" para fechados
+            "Em aberto" para status abertos, "Concluída"/"Cancelada" para fechados
 
         Example:
             >>> service.human_status("draft")
             "Em aberto"
             >>> service.human_status("done")
-            "Finalizado"
+            "Concluída"
+            >>> service.human_status("canceled")
+            "Cancelada"
         """
-        if self._is_open_status(status):
+        # Normalizar para status canônico
+        norm = self.normalize_status(status)
+
+        # Status abertos
+        if norm in STATUS_OPEN:
             return "Em aberto"
+
+        # Status fechados específicos
+        if norm == "done":
+            return "Concluída"
+        if norm == "canceled":
+            return "Cancelada"
+
+        # Fallback genérico
         return "Finalizado"
 
     def normalize_status(self, status: str) -> StatusType:
@@ -664,9 +710,34 @@ class AnvisaService:
             updated_dt_utc = self._parse_iso_datetime(updated_at)
             created_dt_utc = self._parse_iso_datetime(created_at)
 
-            # Formatar datas
-            criada_em = self.format_dt_local(created_dt_utc) if created_dt_utc else ""
-            atualizada_em = self.format_dt_local(updated_dt_utc) if updated_dt_utc else ""
+            # Formatar datas com tracinho
+            criada_em = self.format_dt_local_dash(created_dt_utc) if created_dt_utc else ""
+            atualizada_em = self.format_dt_local_dash(updated_dt_utc) if updated_dt_utc else ""
+
+            # Extrair payload (prazo, observações e autores)
+            payload_raw = dem.get("payload") or {}
+            payload = payload_raw if isinstance(payload_raw, dict) else {}
+
+            due_iso = str(payload.get("due_date") or "").strip()
+            notes = str(payload.get("notes") or "").strip()
+
+            prazo = self.format_due_date_iso_to_br(due_iso)
+            observacoes = notes
+
+            # Adicionar inicial do usuário em criada_em (se disponível)
+            created_by = str(payload.get("created_by") or "").strip()
+            if criada_em and created_by:
+                initial = self.resolve_initial_from_email(created_by)
+                if initial:
+                    criada_em = f"{criada_em} ({initial})"
+
+            # Adicionar inicial do usuário em atualizada_em (com fallback para created_by)
+            updated_by = str(payload.get("updated_by") or "").strip()
+            author = updated_by or created_by
+            if atualizada_em and author:
+                initial = self.resolve_initial_from_email(author)
+                if initial:
+                    atualizada_em = f"{atualizada_em} ({initial})"
 
             # Montar row
             row: HistoryRowDict = {
@@ -678,6 +749,8 @@ class AnvisaService:
                 "criada_em": criada_em,
                 "atualizada_em": atualizada_em,
                 "updated_dt_utc": updated_dt_utc,
+                "prazo": prazo,
+                "observacoes": observacoes,
             }
 
             rows.append(row)
@@ -686,3 +759,176 @@ class AnvisaService:
         rows.sort(key=lambda r: r["updated_dt_utc"] or datetime.min, reverse=True)
 
         return rows
+
+    # ========== HELPERS PARA PAYLOAD DE NOVA DEMANDA ==========
+
+    def format_due_date_iso_to_br(self, iso: str) -> str:
+        """Converte data ISO para formato brasileiro.
+
+        Aceita:
+        - "" -> ""
+        - "aaaa-mm-dd" -> "dd/mm/aaaa"
+
+        Se formato inválido, retorna "".
+
+        Args:
+            iso: String de data no formato ISO (aaaa-mm-dd)
+
+        Returns:
+            String brasileira (dd/mm/aaaa) ou "" se vazio/inválido
+        """
+        s = (iso or "").strip()
+        if not s:
+            return ""
+        try:
+            dt = datetime.strptime(s[:10], "%Y-%m-%d")
+            return dt.strftime("%d/%m/%Y")
+        except Exception:
+            return ""
+
+    def format_dt_local_dash(self, dt_utc: datetime | None) -> str:
+        """Formata datetime UTC para string local com tracinho.
+
+        Formato: "DD/MM/AAAA - HH:MM"
+
+        Args:
+            dt_utc: datetime em UTC ou None
+
+        Returns:
+            String formatada "DD/MM/AAAA - HH:MM" ou "" se None
+        """
+        base = self.format_dt_local(dt_utc)
+        if " " in base:
+            return base.replace(" ", " - ", 1)
+        return base
+
+    def resolve_initial_from_email(self, email: str) -> str:
+        """Resolve inicial do usuário a partir do email.
+
+        Usa RC_INITIALS_MAP do .env se disponível, senão
+        retorna a primeira letra do email (uppercase).
+
+        Args:
+            email: Email do usuário
+
+        Returns:
+            Inicial do usuário (1 caractere) ou "" se email vazio
+        """
+        email_clean = (email or "").strip().lower()
+        if not email_clean:
+            return ""
+
+        # Tentar carregar do RC_INITIALS_MAP
+        try:
+            from src.modules.hub.services.authors_service import load_env_author_names
+
+            env_map = load_env_author_names()
+            if email_clean in env_map:
+                name = env_map[email_clean]
+                if name:
+                    return name[0].upper()
+        except Exception:  # noqa: BLE001  # nosec B110 - Safe fallback para inicial
+            pass
+
+        # Fallback: primeira letra do email
+        return email_clean[0].upper() if email_clean else ""
+
+    def parse_due_date_br(self, value: str) -> str | None:
+        """Converte data no formato brasileiro para ISO.
+
+        Aceita:
+        - "" -> None
+        - "dd/mm/aaaa" -> "aaaa-mm-dd"
+
+        Se formato inválido, retorna None.
+
+        Args:
+            value: String de data no formato brasileiro (dd/mm/aaaa)
+
+        Returns:
+            String ISO (aaaa-mm-dd) ou None se vazio/inválido
+        """
+        s = (value or "").strip()
+        if not s:
+            return None
+        try:
+            dt = datetime.strptime(s, "%d/%m/%Y")
+            return dt.strftime("%Y-%m-%d")
+        except Exception:
+            return None
+
+    def request_type_check_daily(self, request_type: str) -> bool:
+        """Verifica se o tipo de demanda precisa de acompanhamento diário no Solicita.
+
+        Regras:
+        - Tipos "instantâneos" (não precisam acompanhamento): retorna False
+          * Alteração do Responsável Legal
+          * Alteração do Responsável Técnico
+          * Associação ao SNGPC
+          * Importação de Cannabidiol
+
+        - Todos os outros tipos precisam: retorna True
+          (Ex: AFE, AE Manipulação, Alteração de Nome Fantasia, etc.)
+
+        Args:
+            request_type: Tipo de demanda ANVISA
+
+        Returns:
+            True se precisa acompanhar diariamente, False caso contrário
+        """
+        instant_types = {
+            "Alteração do Responsável Legal",
+            "Alteração do Responsável Técnico",
+            "Associação ao SNGPC",
+            "Importação de Cannabidiol",
+        }
+        return request_type not in instant_types
+
+    def default_due_date_iso_for_type(self, request_type: str, today: date) -> str:
+        """Calcula data de prazo padrão conforme tipo de demanda.
+
+        Regras:
+        - Tipos que precisam acompanhamento (check_daily=True):
+          prazo = hoje + 1 dia (protocolo costuma sair ~24h após pagamento)
+
+        - Tipos instantâneos (check_daily=False):
+          prazo = hoje (não há protocolo a consultar)
+
+        Args:
+            request_type: Tipo de demanda ANVISA
+            today: Data de referência (normalmente date.today())
+
+        Returns:
+            String ISO (YYYY-MM-DD) com prazo sugerido
+        """
+        if self.request_type_check_daily(request_type):
+            return (today + timedelta(days=1)).isoformat()
+        return today.isoformat()
+
+    def build_payload_for_new_request(
+        self,
+        *,
+        request_type: str,
+        due_date_iso: str,
+        notes: str,
+    ) -> dict[str, object]:
+        """Constrói payload JSON para nova demanda ANVISA.
+
+        Args:
+            request_type: Tipo de demanda (para determinar check_daily)
+            due_date_iso: Data de prazo ISO obrigatória (YYYY-MM-DD)
+            notes: Observações (texto livre), ou vazio
+
+        Returns:
+            Dict com due_date (sempre), check_daily (sempre), notes (opcional)
+        """
+        payload: dict[str, object] = {
+            "due_date": due_date_iso,
+            "check_daily": self.request_type_check_daily(request_type),
+        }
+
+        clean_notes = (notes or "").strip()
+        if clean_notes:
+            payload["notes"] = clean_notes[:500]
+
+        return payload

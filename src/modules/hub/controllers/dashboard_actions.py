@@ -92,13 +92,23 @@ class DashboardActionController:
     def handle_pending_card_click(self, state: DashboardViewState) -> None:
         """Handle de clique no card 'Pendências Regulatórias'.
 
-        Navega para a tela de Auditoria (Pendências), independente da contagem.
+        Em modo ANVISA-only: redireciona para open_anvisa (se disponível).
+        Caso contrário, navega para a tela de Auditoria (Pendências).
 
         Args:
             state: Estado atual do dashboard com dados dos cards.
         """
         try:
             self._logger.debug("DashboardActionController: Clique no card de Pendências")
+
+            # Se modo ANVISA-only, redirecionar para open_anvisa
+            if state.snapshot and state.snapshot.anvisa_only:
+                if hasattr(self._navigator, "open_anvisa"):
+                    self._logger.debug("Modo ANVISA-only: redirecionando para open_anvisa")
+                    getattr(self._navigator, "open_anvisa")()
+                    return
+
+            # Fluxo normal: abrir Auditoria
             self._navigator.go_to_pending()
         except Exception as e:
             self._logger.exception("Erro ao navegar para Pendências a partir do card")
@@ -107,14 +117,59 @@ class DashboardActionController:
     def handle_tasks_today_card_click(self, state: DashboardViewState) -> None:
         """Handle de clique no card 'Tarefas Hoje'.
 
-        Abre a interface de tarefas (por enquanto, abre diálogo de nova tarefa).
-        No futuro pode abrir visualização filtrada de tarefas pendentes.
+        Em modo ANVISA-only:
+        - Se houver 1 cliente: redireciona para histórico direto
+        - Se houver 2+ clientes: abre picker modal
+        - Caso contrário: redireciona para open_anvisa (se disponível)
+
+        Fora do modo ANVISA-only: abre interface de tarefas (diálogo de nova tarefa).
 
         Args:
             state: Estado atual do dashboard com dados dos cards.
         """
         try:
             self._logger.debug("DashboardActionController: Clique no card de Tarefas")
+
+            # Se modo ANVISA-only, determinar ação baseado em clientes únicos
+            if state.snapshot and state.snapshot.anvisa_only:
+                # Preferir clients_of_the_day (clientes únicos)
+                raw_items: list[dict[str, object]] = []
+                if state.snapshot.clients_of_the_day:
+                    raw_items = list(state.snapshot.clients_of_the_day)
+                elif state.snapshot.pending_tasks:
+                    raw_items = list(state.snapshot.pending_tasks)
+
+                # Extrair clientes únicos preservando ordem
+                unique_client_ids: list[str] = []
+                for item in raw_items:
+                    try:
+                        cid = str(item.get("client_id", "")).strip()
+                    except Exception:
+                        cid = ""
+                    if cid and cid not in unique_client_ids:
+                        unique_client_ids.append(cid)
+
+                # Se houver exatamente 1 cliente, abrir histórico direto
+                if len(unique_client_ids) == 1:
+                    client_id = unique_client_ids[0]
+                    if client_id and hasattr(self._navigator, "open_anvisa_history"):
+                        self._logger.debug(f"Modo ANVISA-only com 1 cliente: abrindo histórico do cliente {client_id}")
+                        getattr(self._navigator, "open_anvisa_history")(client_id)
+                        return
+
+                # Se houver múltiplos clientes, abrir picker
+                if len(unique_client_ids) > 1 and hasattr(self._navigator, "open_anvisa_history_picker"):
+                    self._logger.debug(f"Modo ANVISA-only com {len(unique_client_ids)} clientes: abrindo picker")
+                    getattr(self._navigator, "open_anvisa_history_picker")(raw_items)
+                    return
+
+                # Fallback: abrir ANVISA normal
+                if hasattr(self._navigator, "open_anvisa"):
+                    self._logger.debug("Modo ANVISA-only: redirecionando para open_anvisa (fallback)")
+                    getattr(self._navigator, "open_anvisa")()
+                    return
+
+            # Fluxo normal: abrir interface de tarefas
             self._navigator.go_to_tasks_today()
         except Exception as e:
             self._logger.exception("Erro ao abrir tarefas a partir do card")

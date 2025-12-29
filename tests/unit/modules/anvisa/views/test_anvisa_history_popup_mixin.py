@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from src.modules.anvisa.views._anvisa_history_popup_mixin import AnvisaHistoryPopupMixin
-from tests.unit.fakes.tk_fakes import (
+from tests.unit.fakes.test_tk_fakes import (
     FakeButton,
     FakeFrame,
     FakeLabel,

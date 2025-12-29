@@ -459,6 +459,67 @@ class HubScreen(tb.Frame):
         """Abre módulo de Anvisa (MF-10, MF-22: via NavigationFacade)."""
         self._navigation_facade.open_anvisa()
 
+    def open_anvisa_history(self, client_id: str) -> None:
+        """Abre histórico de regularizações ANVISA para um cliente específico.
+
+        Primeiro abre a tela ANVISA, depois agenda abertura do histórico.
+
+        Args:
+            client_id: ID do cliente para abrir histórico.
+        """
+        # Abrir tela ANVISA primeiro
+        self.open_anvisa()
+
+        # Agendar abertura do histórico após tela renderizar
+        def _deferred_open_history():
+            try:
+                app = get_app_from_widget(self)
+                if not app:
+                    logger.warning("open_anvisa_history: app não disponível")
+                    return
+
+                # Obter instância da tela ANVISA
+                anvisa_screen = getattr(app, "_anvisa_screen_instance", None)
+                if anvisa_screen and hasattr(anvisa_screen, "open_history_for_client"):
+                    anvisa_screen.open_history_for_client(client_id)
+                else:
+                    logger.warning("open_anvisa_history: anvisa_screen sem método open_history_for_client")
+            except Exception as e:
+                logger.exception(f"Erro ao abrir histórico ANVISA: {e}")
+
+        # after_idle + after(150ms) garante layout/geometry prontos
+        self.after_idle(lambda: self.after(150, _deferred_open_history))
+
+    def open_anvisa_history_picker(self, items: list[dict[str, Any]]) -> None:
+        """Abre um seletor (modal) para escolher qual histórico ANVISA abrir.
+
+        Usado quando há múltiplos clientes com tarefas ANVISA hoje.
+
+        Args:
+            items: Lista de items (clients_of_the_day ou pending_tasks).
+        """
+        try:
+            from src.modules.hub.views.hub_dialogs import pick_anvisa_history_target
+
+            choice = pick_anvisa_history_target(self, items)
+            if not choice:
+                return
+
+            action, client_id = choice
+            if action == "anvisa":
+                self.open_anvisa()
+                return
+            if action == "history" and client_id:
+                self.open_anvisa_history(client_id)
+                return
+
+            # Fallback seguro
+            self.open_anvisa()
+        except Exception as e:
+            logger.exception(f"Erro ao abrir picker de histórico ANVISA: {e}")
+            # Fallback seguro
+            self.open_anvisa()
+
     def open_farmacia_popular(self) -> None:
         """Abre módulo de Farmácia Popular (MF-10, MF-22: via NavigationFacade)."""
         self._navigation_facade.open_farmacia_popular()

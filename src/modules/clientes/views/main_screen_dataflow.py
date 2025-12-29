@@ -9,6 +9,8 @@ Responsável por carregamento, filtros, dataflow e integração com o controller
 from __future__ import annotations
 
 import logging
+import time
+from concurrent.futures import ThreadPoolExecutor
 from tkinter import messagebox
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -56,11 +58,18 @@ __all__ = ["MainScreenDataflowMixin"]
 class MainScreenDataflowMixin:
     """Mixin para carregamento, filtros e dataflow da main screen."""
 
-    def carregar(self) -> None:
-        """Preenche a tabela de clientes.
+    # Thread pool compartilhado para carregamento assíncrono (1 worker apenas)
+    _load_executor: ThreadPoolExecutor | None = None
+    _load_seq: int = 0
+    _load_inflight: bool = False
 
-        Delega filtros/ordenação para o controller headless.
+    def carregar(self) -> None:
+        """Preenche a tabela de clientes (versão síncrona - legado).
+
+        NOTA: Preferir carregar_async() para evitar travamento da UI.
         """
+        t0 = time.perf_counter()
+
         order_label_raw = self.var_ordem.get()  # pyright: ignore[reportAttributeAccessIssue]
         order_label = normalize_order_label(order_label_raw)
         if order_label != order_label_raw:
@@ -71,21 +80,177 @@ class MainScreenDataflowMixin:
         log.info("Atualizando lista (busca='%s', ordem='%s')", search_term, order_label)
 
         # ViewModel apenas carrega dados brutos do backend
+        t_fetch = time.perf_counter()
         try:
             self._vm.refresh_from_service()  # pyright: ignore[reportAttributeAccessIssue]
-
         except ClientesViewModelError as exc:
             log.warning("Falha ao carregar lista: %s", exc)
-
             messagebox.showerror("Erro", f"Falha ao carregar lista: {exc}", parent=self)  # pyright: ignore[reportArgumentType]
-
             return
+        fetch_time = time.perf_counter() - t_fetch
 
         # Atualizar opções de filtro de status (dinâmico baseado nos dados)
         self._populate_status_filter_options()
 
         # Usar controller para aplicar filtros/ordenação
+        t_render = time.perf_counter()
         self._refresh_with_controller()
+        render_time = time.perf_counter() - t_render
+
+        total_time = time.perf_counter() - t0
+        raw_count = len(self._vm._clientes_raw)  # pyright: ignore[reportPrivateUsage,reportAttributeAccessIssue]
+        rows_count = len(self._current_rows)  # pyright: ignore[reportAttributeAccessIssue]
+
+        log.info(
+            "Clientes: perf fetch=%.3fs render=%.3fs total=%.3fs raw=%d rows=%d",
+            fetch_time,
+            render_time,
+            total_time,
+            raw_count,
+            rows_count,
+        )
+
+    def carregar_async(self, force: bool = False) -> None:
+        """Carrega lista de clientes de forma assíncrona (sem travar UI).
+
+        Args:
+            force: Se True, força recarga mesmo se já houver uma em andamento
+        """
+        # Prevenir múltiplas cargas simultâneas
+        if self._load_inflight and not force:  # pyright: ignore[reportAttributeAccessIssue]
+            log.debug("Carregar_async: carga já em andamento, ignorando")
+            return
+
+        # Incrementar sequência para invalidar cargas anteriores
+        self._load_seq += 1  # pyright: ignore[reportAttributeAccessIssue]
+        current_seq = self._load_seq  # pyright: ignore[reportAttributeAccessIssue]
+        self._load_inflight = True  # pyright: ignore[reportAttributeAccessIssue]
+
+        # Capturar parâmetros de UI no main thread
+        order_label_raw = self.var_ordem.get()  # pyright: ignore[reportAttributeAccessIssue]
+        order_label = normalize_order_label(order_label_raw)
+        if order_label != order_label_raw:
+            self.var_ordem.set(order_label)  # pyright: ignore[reportAttributeAccessIssue]
+
+        search_term = self.var_busca.get().strip()  # pyright: ignore[reportAttributeAccessIssue]
+
+        log.info("Iniciando carga assíncrona (seq=%d, busca='%s', ordem='%s')", current_seq, search_term, order_label)
+
+        # Opcional: Desabilitar botões durante carga
+        self._set_loading_state(True)
+
+        # Criar executor se não existir
+        if MainScreenDataflowMixin._load_executor is None:
+            MainScreenDataflowMixin._load_executor = ThreadPoolExecutor(
+                max_workers=1, thread_name_prefix="clientes_load"
+            )
+
+        # Função que roda em background (NÃO toca em Tk)
+        def _fetch_data() -> tuple[list[Any], float] | tuple[None, float]:
+            """Busca dados em background - SEM tocar em widgets Tk."""
+            t0 = time.perf_counter()
+            try:
+                # Importar service aqui para evitar circular imports
+                from src.core.search import search_clientes
+
+                # Buscar dados do serviço (materialize list para não depender de cursor)
+                clientes_raw = list(search_clientes("", None))
+                fetch_time = time.perf_counter() - t0
+                return clientes_raw, fetch_time
+            except Exception:
+                log.exception("Erro ao buscar clientes em background (seq=%d)", current_seq)
+                fetch_time = time.perf_counter() - t0
+                return None, fetch_time
+
+        # Função que roda no main thread após o fetch
+        def _apply_loaded(clientes_result: tuple[list[Any], float] | tuple[None, float]) -> None:
+            """Aplica dados carregados na UI (main thread)."""
+            clientes_raw, fetch_time = clientes_result
+
+            # Verificar se ainda é válido
+            if not self.winfo_exists():  # pyright: ignore[reportAttributeAccessIssue]
+                log.debug("Frame destruído, ignorando resultado de carga (seq=%d)", current_seq)
+                self._load_inflight = False  # pyright: ignore[reportAttributeAccessIssue]
+                return
+
+            if current_seq != self._load_seq:  # pyright: ignore[reportAttributeAccessIssue]
+                log.debug("Carga obsoleta (seq=%d != atual %d), ignorando", current_seq, self._load_seq)  # pyright: ignore[reportAttributeAccessIssue]
+                self._load_inflight = False  # pyright: ignore[reportAttributeAccessIssue]
+                return
+
+            t_render = time.perf_counter()
+
+            # Erro no fetch
+            if clientes_raw is None:
+                self._load_inflight = False  # pyright: ignore[reportAttributeAccessIssue]
+                self._set_loading_state(False)
+                messagebox.showerror("Erro", "Falha ao carregar lista de clientes", parent=self)  # pyright: ignore[reportArgumentType]
+                return
+
+            # Aplicar dados no ViewModel (sem buscar rede)
+            try:
+                self._vm.load_from_iterable(clientes_raw)  # pyright: ignore[reportAttributeAccessIssue]
+            except Exception as exc:
+                log.exception("Erro ao aplicar dados no ViewModel")
+                self._load_inflight = False  # pyright: ignore[reportAttributeAccessIssue]
+                self._set_loading_state(False)
+                messagebox.showerror("Erro", f"Erro ao processar clientes: {exc}", parent=self)  # pyright: ignore[reportArgumentType]
+                return
+
+            # Atualizar filtros de status
+            try:
+                self._populate_status_filter_options()
+            except Exception as exc:
+                log.warning("Erro ao popular opções de status: %s", exc)
+
+            # Aplicar filtros/ordenação via controller
+            try:
+                self._refresh_with_controller()
+            except Exception:
+                log.exception("Erro ao aplicar filtros/ordenação")
+
+            render_time = time.perf_counter() - t_render
+            total_time = fetch_time + render_time
+            raw_count = len(clientes_raw)
+            rows_count = len(self._current_rows)  # pyright: ignore[reportAttributeAccessIssue]
+
+            log.info(
+                "Clientes: carregar_async (seq=%d) perf fetch=%.3fs render=%.3fs total=%.3fs raw=%d rows=%d",
+                current_seq,
+                fetch_time,
+                render_time,
+                total_time,
+                raw_count,
+                rows_count,
+            )
+
+            self._load_inflight = False  # pyright: ignore[reportAttributeAccessIssue]
+            self._set_loading_state(False)
+
+        # Submeter ao executor e agendar callback no main thread
+        future = MainScreenDataflowMixin._load_executor.submit(_fetch_data)
+
+        def _on_done() -> None:
+            try:
+                result = future.result(timeout=0.001)  # Non-blocking check
+                self.after(0, lambda: _apply_loaded(result))  # pyright: ignore[reportAttributeAccessIssue]
+            except Exception:
+                # Future ainda não completou, reagendar
+                self.after(10, _on_done)  # pyright: ignore[reportAttributeAccessIssue]
+
+        self.after(10, _on_done)  # pyright: ignore[reportAttributeAccessIssue]
+
+    def _set_loading_state(self, loading: bool) -> None:
+        """Define estado de carregamento (opcional: desabilitar botões, mostrar status)."""
+        try:
+            # Opcional: desabilitar botões principais durante carga
+            # Por enquanto apenas log
+            if loading:
+                log.debug("UI em modo carregamento")
+            else:
+                log.debug("UI saiu do modo carregamento")
+        except Exception as exc:
+            log.debug("Erro ao setar loading state: %s", exc)
 
     def _sort_by(self, column: str) -> None:
         current = normalize_order_label(self.var_ordem.get())  # pyright: ignore[reportAttributeAccessIssue]

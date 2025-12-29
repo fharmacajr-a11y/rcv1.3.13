@@ -3,7 +3,7 @@
 
 from src.modules.anvisa.services.anvisa_service import AnvisaService, DemandaDict
 from src.modules.anvisa.views._anvisa_requests_mixin import AnvisaRequestsMixin
-from tests.unit.fakes.tk_fakes import FakeVar
+from tests.unit.fakes.test_tk_fakes import FakeVar
 
 
 class FakeAnvisaRepository:

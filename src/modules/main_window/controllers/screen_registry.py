@@ -80,10 +80,36 @@ def register_main_window_screens(router: ScreenRouter, app: App) -> None:
             on_upload_folder=app.enviar_pasta_supabase,
         )
         app._main_frame_ref = frame  # Manter referência legacy
+
+        # FIX: Carregamento assíncrono para evitar travamento da UI
+        # Agenda com after(1) para garantir que o primeiro paint aconteça
+        def _safe_load_async() -> None:
+            try:
+                if not frame.winfo_exists():
+                    return
+                # Usar carregar_async() que não trava a UI
+                frame.carregar_async()
+            except AttributeError:
+                # Fallback se carregar_async não existir (backwards compatibility)
+                _log.warning("carregar_async não disponível, usando carregar() síncrono")
+                try:
+                    frame.carregar()
+                except Exception:
+                    _log.exception("Clientes: erro em carregar() (fallback).")
+            except Exception:
+                _log.exception("Clientes: erro em carregar_async().")
+
+        # Agendar para após o primeiro paint (after(1) garante que UI seja mostrada primeiro)
         try:
-            frame.carregar()
+            frame.after(1, _safe_load_async)
         except Exception:
-            _log.exception("Erro ao carregar lista na tela principal.")
+            # Fallback ultra seguro (se after falhar)
+            _log.exception("Clientes: falha ao agendar carregamento; usando fallback síncrono.")
+            try:
+                frame.carregar()
+            except Exception:
+                _log.exception("Clientes: erro ao carregar lista (fallback).")
+
         return frame
 
     router.register("main", _create_main, cache=False)

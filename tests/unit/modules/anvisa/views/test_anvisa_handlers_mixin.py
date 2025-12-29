@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 
 from src.modules.anvisa.views._anvisa_handlers_mixin import AnvisaHandlersMixin
-from tests.unit.fakes.tk_fakes import FakeButton, FakeMenu, FakeTreeview, FakeVar
+from tests.unit.fakes.test_tk_fakes import FakeButton, FakeMenu, FakeTreeview, FakeVar
 
 
 class DummyHandlersMixin(AnvisaHandlersMixin):
@@ -259,7 +259,7 @@ def test_finalizar_demanda_already_finalized_shows_info_no_controller_call(monke
     dummy = DummyHandlersMixin()
 
     # Criar popup tree fake
-    from tests.unit.fakes.tk_fakes import FakeTreeview
+    from tests.unit.fakes.test_tk_fakes import FakeTreeview
 
     popup_tree = FakeTreeview()
     dummy._history_tree_popup = popup_tree
@@ -287,7 +287,7 @@ def test_finalizar_demanda_confirm_false_no_controller_call(monkeypatch):
     """_finalizar_demanda não deve chamar controller se usuário cancela confirmação."""
     dummy = DummyHandlersMixin()
 
-    from tests.unit.fakes.tk_fakes import FakeTreeview
+    from tests.unit.fakes.test_tk_fakes import FakeTreeview
 
     popup_tree = FakeTreeview()
     dummy._history_tree_popup = popup_tree
@@ -310,7 +310,7 @@ def test_finalizar_demanda_controller_returns_false_shows_warning(monkeypatch):
     """_finalizar_demanda deve mostrar showwarning se controller retorna False."""
     dummy = DummyHandlersMixin()
 
-    from tests.unit.fakes.tk_fakes import FakeTreeview
+    from tests.unit.fakes.test_tk_fakes import FakeTreeview
 
     popup_tree = FakeTreeview()
     dummy._history_tree_popup = popup_tree
@@ -343,7 +343,7 @@ def test_finalizar_demanda_controller_raises_exception_shows_error(monkeypatch):
     """_finalizar_demanda deve mostrar showerror se controller lança exceção."""
     dummy = DummyHandlersMixin()
 
-    from tests.unit.fakes.tk_fakes import FakeTreeview
+    from tests.unit.fakes.test_tk_fakes import FakeTreeview
 
     popup_tree = FakeTreeview()
     dummy._history_tree_popup = popup_tree
@@ -377,7 +377,7 @@ def test_cancelar_demanda_confirm_false_no_controller_call(monkeypatch):
     """_cancelar_demanda não deve chamar controller se usuário cancela confirmação."""
     dummy = DummyHandlersMixin()
 
-    from tests.unit.fakes.tk_fakes import FakeTreeview
+    from tests.unit.fakes.test_tk_fakes import FakeTreeview
 
     popup_tree = FakeTreeview()
     dummy._history_tree_popup = popup_tree
@@ -398,7 +398,7 @@ def test_cancelar_demanda_controller_returns_false_shows_warning(monkeypatch):
     """_cancelar_demanda deve mostrar showwarning se controller retorna False."""
     dummy = DummyHandlersMixin()
 
-    from tests.unit.fakes.tk_fakes import FakeTreeview
+    from tests.unit.fakes.test_tk_fakes import FakeTreeview
 
     popup_tree = FakeTreeview()
     dummy._history_tree_popup = popup_tree
@@ -428,7 +428,7 @@ def test_cancelar_demanda_controller_raises_exception_shows_error(monkeypatch):
     """_cancelar_demanda deve mostrar showerror se controller lança exceção."""
     dummy = DummyHandlersMixin()
 
-    from tests.unit.fakes.tk_fakes import FakeTreeview
+    from tests.unit.fakes.test_tk_fakes import FakeTreeview
 
     popup_tree = FakeTreeview()
     dummy._history_tree_popup = popup_tree

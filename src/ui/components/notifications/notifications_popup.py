@@ -32,6 +32,8 @@ class NotificationsPopup:
         on_mark_all_read: Optional[Callable[[], bool]] = None,
         on_reload_notifications: Optional[Callable[[], None]] = None,
         on_update_count: Optional[Callable[[int], None]] = None,
+        on_delete_selected: Optional[Callable[[str], bool]] = None,
+        on_delete_all: Optional[Callable[[], bool]] = None,
     ):
         """Inicializa o gerenciador de popup.
 
@@ -40,11 +42,15 @@ class NotificationsPopup:
             on_mark_all_read: Callback para marcar tudo como lido (retorna bool)
             on_reload_notifications: Callback para recarregar notificações
             on_update_count: Callback para atualizar contador (zerar badge)
+            on_delete_selected: Callback para excluir notificação selecionada (pra mim)
+            on_delete_all: Callback para excluir todas notificações (pra mim)
         """
         self._parent = parent_widget
         self._on_mark_all_read = on_mark_all_read
         self._on_reload_notifications = on_reload_notifications
         self._on_update_count = on_update_count
+        self._on_delete_selected = on_delete_selected
+        self._on_delete_all = on_delete_all
 
         # Estado interno
         self._popup: tk.Toplevel | None = None
@@ -134,7 +140,8 @@ class NotificationsPopup:
         # Criar popup
         popup = tk.Toplevel(self._parent)
         popup.title("Notificações")
-        popup.geometry("600x400")
+        popup.geometry("520x330")
+        popup.minsize(480, 300)
         popup.transient(self._parent.winfo_toplevel())
 
         # Aplicar ícone do app
@@ -221,6 +228,24 @@ class NotificationsPopup:
             bootstyle="success",
         )
         btn_mark_read.pack(side="left", padx=(0, 10))
+
+        # Botão Excluir Selecionada (pra mim)
+        btn_delete_selected = tb.Button(
+            buttons_frame,
+            text="Excluir Selecionada",
+            command=self._handle_delete_selected,
+            bootstyle="danger-outline",
+        )
+        btn_delete_selected.pack(side="left", padx=(0, 10))
+
+        # Botão Excluir Todas (pra mim)
+        btn_delete_all = tb.Button(
+            buttons_frame,
+            text="Excluir Todas (pra mim)",
+            command=self._handle_delete_all,
+            bootstyle="danger",
+        )
+        btn_delete_all.pack(side="left", padx=(0, 10))
 
         # Checkbutton para silenciar notificações
         self._mute_var = tk.BooleanVar(value=False)
@@ -374,6 +399,105 @@ class NotificationsPopup:
                 _log.debug("Falha ao atualizar contador: %s", exc)
 
         # Recarregar lista
+        if callable(self._on_reload_notifications):
+            try:
+                self._on_reload_notifications()
+            except Exception as exc:  # noqa: BLE001
+                _log.debug("Falha ao recarregar notificações: %s", exc)
+
+    def _handle_delete_selected(self) -> None:
+        """Exclui a notificação selecionada (apenas para o usuário atual)."""
+        if not self._tree:
+            return
+
+        # Obter item selecionado
+        selection = self._tree.selection()
+        if not selection:
+            messagebox.showwarning(
+                "Aviso",
+                "Selecione uma notificação para excluir.",
+                parent=self._popup,
+            )
+            return
+
+        iid = selection[0]
+
+        # Verificar se é placeholder
+        values = self._tree.item(iid, "values")
+        if values and "Nenhuma notificação recente" in str(values):
+            return
+
+        # Confirmar exclusão
+        confirm = messagebox.askyesno(
+            "Confirmar Exclusão",
+            "Excluir esta notificação da SUA lista?\n\n(Outros usuários ainda verão esta notificação)",
+            parent=self._popup,
+        )
+        if not confirm:
+            return
+
+        # Chamar callback para excluir
+        if callable(self._on_delete_selected):
+            try:
+                success = self._on_delete_selected(iid)
+                if not success:
+                    messagebox.showerror(
+                        "Erro",
+                        "Falha ao excluir notificação. Tente novamente.",
+                        parent=self._popup,
+                    )
+                    return
+            except Exception as exc:  # noqa: BLE001
+                _log.exception("Falha ao executar on_delete_selected: %s", exc)
+                messagebox.showerror(
+                    "Erro",
+                    f"Erro ao excluir notificação: {exc}",
+                    parent=self._popup,
+                )
+                return
+
+        # Sucesso: recarregar lista
+        if callable(self._on_reload_notifications):
+            try:
+                self._on_reload_notifications()
+            except Exception as exc:  # noqa: BLE001
+                _log.debug("Falha ao recarregar notificações: %s", exc)
+
+    def _handle_delete_all(self) -> None:
+        """Exclui todas as notificações (apenas para o usuário atual)."""
+        # Confirmar exclusão
+        confirm = messagebox.askyesno(
+            "Confirmar Exclusão",
+            "Excluir TODAS as notificações da SUA lista?\n\n"
+            "⚠️ Isso limpa apenas a SUA lista de notificações.\n"
+            "Outros usuários não serão afetados.\n\n"
+            "Novas notificações continuarão aparecendo normalmente.",
+            parent=self._popup,
+        )
+        if not confirm:
+            return
+
+        # Chamar callback para excluir todas
+        if callable(self._on_delete_all):
+            try:
+                success = self._on_delete_all()
+                if not success:
+                    messagebox.showerror(
+                        "Erro",
+                        "Falha ao excluir notificações. Tente novamente.",
+                        parent=self._popup,
+                    )
+                    return
+            except Exception as exc:  # noqa: BLE001
+                _log.exception("Falha ao executar on_delete_all: %s", exc)
+                messagebox.showerror(
+                    "Erro",
+                    f"Erro ao excluir notificações: {exc}",
+                    parent=self._popup,
+                )
+                return
+
+        # Sucesso: recarregar lista
         if callable(self._on_reload_notifications):
             try:
                 self._on_reload_notifications()

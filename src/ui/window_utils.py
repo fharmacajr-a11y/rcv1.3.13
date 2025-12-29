@@ -372,8 +372,21 @@ def show_centered_no_flash(
     pw = parent.winfo_width()
     ph = parent.winfo_height()
 
+    # Fallback: se parent ainda está "cru" (geometry incompleto), usar tela
+    if pw < 50 or ph < 50:
+        px = 0
+        py = 0
+        pw = win.winfo_screenwidth()
+        ph = win.winfo_screenheight()
+
     x = px + (pw - w) // 2
     y = py + (ph - h) // 2
+
+    # Clamp para não ficar fora da tela
+    if x < 0:
+        x = 0
+    if y < 0:
+        y = 0
 
     # Aplicar geometria final
     win.geometry(f"{w}x{h}+{x}+{y}")

@@ -104,6 +104,12 @@ RC_CLIENT_SECRET_KEY=<gere-uma-chave-fernet-unica>
 
 ### 5. Executar o aplicativo
 
+**Opção 1: Atalho Windows (recomendado)**
+```cmd
+start_app.bat
+```
+
+**Opção 2: Comando manual**
 ```bash
 python -m src.app_gui
 ```

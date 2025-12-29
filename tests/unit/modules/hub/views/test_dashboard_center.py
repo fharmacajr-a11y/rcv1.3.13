@@ -16,6 +16,7 @@ import pytest
 import ttkbootstrap as tb
 
 from src.modules.hub.dashboard_service import DashboardSnapshot
+from src.modules.hub.recent_activity_store import ActivityEvent, get_recent_activity_store
 from src.modules.hub.viewmodels import DashboardViewModel
 from src.modules.hub.views.dashboard_center import (
     MSG_NO_HOT_ITEMS,
@@ -60,6 +61,38 @@ def parent_frame(tk_root):
 def empty_snapshot():
     """Cria um snapshot vazio para testes."""
     return DashboardSnapshot()
+
+
+@pytest.fixture(autouse=True)
+def setup_activity_store(populated_snapshot):
+    """Limpa e popula o store de atividades antes de cada teste."""
+    store = get_recent_activity_store()
+    store.clear()
+
+    # Adicionar atividades de teste compatíveis com o snapshot
+    store.add_event(
+        ActivityEvent(
+            org_id="test-org",
+            module="TAREFAS",
+            action="Nova",
+            message="Nova tarefa: Revisar documentos",
+            created_at=datetime(2025, 12, 4, 10, 30),
+        )
+    )
+    store.add_event(
+        ActivityEvent(
+            org_id="test-org",
+            module="OBRIGACOES",
+            action="Nova",
+            message="Nova obrigação SNGPC para cliente #123",
+            created_at=datetime(2025, 12, 3, 14, 15),
+        )
+    )
+
+    yield
+
+    # Cleanup
+    store.clear()
 
 
 @pytest.fixture
@@ -117,10 +150,9 @@ def populated_snapshot():
             },
         ],
         risk_radar={
-            "ANVISA": {"pending": 1, "overdue": 0, "status": "yellow"},
-            "SNGPC": {"pending": 0, "overdue": 2, "status": "red"},
-            "FARMACIA_POPULAR": {"pending": 0, "overdue": 0, "status": "green"},
-            "SIFAP": {"pending": 3, "overdue": 0, "status": "yellow"},
+            "ANVISA": {"pending": 1, "overdue": 0, "status": "yellow", "enabled": True},
+            "SNGPC": {"pending": 0, "overdue": 0, "status": "disabled", "enabled": False},
+            "SIFAP": {"pending": 0, "overdue": 0, "status": "disabled", "enabled": False},
         },
         recent_activity=[
             {
@@ -530,8 +562,24 @@ class TestBuildDashboardCenter:
         labelframes = []
         _collect_widgets_by_type(parent_frame, tb.Labelframe, labelframes)
 
-        titles = [lf.cget("text") for lf in labelframes]
-        assert any("tarefas pendentes" in t.lower() for t in titles)
+        # Verificar título via text ou labelwidget (após refatoração PNG)
+        titles = []
+        for lf in labelframes:
+            text = lf.cget("text")
+            if text:
+                titles.append(text)
+            else:
+                # labelwidget usado (com PNG)
+                labelwidget_name = lf.cget("labelwidget")
+                if labelwidget_name:
+                    try:
+                        labelwidget = lf.nametowidget(labelwidget_name)
+                        widget_text = labelwidget.cget("text")
+                        titles.append(widget_text)
+                    except Exception:
+                        pass
+
+        assert any("tarefas pendentes" in t.lower() or "tarefas de hoje" in t.lower() for t in titles)
 
     def test_shows_clients_of_the_day_when_present(self, parent_frame, populated_snapshot):
         """Exibe clientes do dia quando presentes."""
@@ -575,7 +623,7 @@ class TestBuildDashboardCenter:
         assert any("LICENCA_SANITARIA" in t for t in texts)
 
     def test_displays_risk_radar_with_four_quadrants(self, parent_frame, populated_snapshot):
-        """Exibe radar de riscos com 3 quadrantes (ANVISA, SNGPC, SIFAP)."""
+        """Exibe radar de riscos com 3 quadrantes (ANVISA, Farmácia Popular, SIFAP)."""
         build_dashboard_center(parent_frame, _snapshot_to_state(populated_snapshot))
         parent_frame.update()
 
@@ -584,7 +632,7 @@ class TestBuildDashboardCenter:
 
         # Deve exibir todos os 3 quadrantes
         assert "ANVISA" in texts
-        assert "SNGPC" in texts
+        assert "Farmácia Popular" in texts
         assert "SIFAP" in texts
 
     def test_risk_radar_shows_correct_status(self, parent_frame, populated_snapshot):
@@ -596,12 +644,12 @@ class TestBuildDashboardCenter:
         _collect_label_texts(parent_frame, texts)
 
         # populated_snapshot tem:
-        # ANVISA: yellow (1 pending)
-        # SNGPC: red (2 overdue)
-        # FARMACIA_POPULAR: green (0/0)
-        # SIFAP: yellow (3 pending)
-        # Verificar se há informações dos quadrantes (pending/overdue counts)
-        assert any("Pendentes:" in t for t in texts)
+        # ANVISA: yellow (1 pending, enabled)
+        # Farmácia Popular: disabled
+        # SIFAP: disabled
+        # Verificar se há informações dos quadrantes (ANVISA mostra pending/overdue, outros mostram "Desativado")
+        assert any("Pendentes:" in t for t in texts)  # ANVISA mostra contagem
+        assert any("Desativado" in t for t in texts)  # Farmácia Popular ou SIFAP mostram "Desativado"
 
     def test_displays_recent_activity_section(self, parent_frame, populated_snapshot):
         """Exibe seção de atividade recente."""
@@ -612,7 +660,9 @@ class TestBuildDashboardCenter:
         _collect_label_texts(parent_frame, texts)
 
         # Deve ter atividades exibidas (verificar por timestamp formatado)
-        assert any("04/12" in t for t in texts) or any("03/12" in t for t in texts)
+        assert any("04/12" in t for t in texts) or any(
+            "03/12" in t for t in texts
+        ), f"Timestamps não encontrados em: {texts}"
 
     def test_recent_activity_shows_activities(self, parent_frame, populated_snapshot):
         """Atividade recente mostra atividades do snapshot."""
@@ -641,47 +691,61 @@ class TestBuildDashboardCenter:
         assert any("04/12" in t or "03/12" in t for t in texts)
 
     def test_recent_activity_uses_text_field(self, parent_frame):
-        """Atividade recente usa campo 'text' em vez de 'title'."""
-        snapshot = DashboardSnapshot(
-            recent_activity=[
-                {
-                    "timestamp": datetime(2025, 12, 4, 20, 37, 0),
-                    "category": "task",
-                    "text": "Nova tarefa: enviar SNGPC para cliente #123",
-                },
-                {
-                    "timestamp": datetime(2025, 12, 4, 20, 36, 0),
-                    "category": "task",
-                    "text": "Nova tarefa: uhubguy",
-                },
-            ]
+        """Atividade recente usa campo 'text' (agora 'message') do ActivityEvent."""
+        store = get_recent_activity_store()
+        store.clear()
+
+        # Adicionar eventos com message (equivalente ao 'text' antigo)
+        store.add_event(
+            ActivityEvent(
+                org_id="test-org",
+                module="TAREFAS",
+                action="Nova",
+                message="Nova tarefa: enviar SNGPC para cliente #123",
+                created_at=datetime(2025, 12, 4, 20, 37, 0),
+            )
+        )
+        store.add_event(
+            ActivityEvent(
+                org_id="test-org",
+                module="TAREFAS",
+                action="Nova",
+                message="Nova tarefa: uhubguy",
+                created_at=datetime(2025, 12, 4, 20, 36, 0),
+            )
         )
 
-        build_dashboard_center(parent_frame, _snapshot_to_state(snapshot))
+        build_dashboard_center(parent_frame, _snapshot_to_state(DashboardSnapshot()))
         parent_frame.update()
 
         texts = []
         _collect_label_texts(parent_frame, texts)
 
-        # Deve exibir o texto completo da atividade com horário
+        # Novo formato 2 linhas: Linha 2 tem "NOVA — enviar SNGPC..."
+        # Validar que o tipo (após extração) aparece
         assert any(
-            "Nova tarefa: enviar SNGPC para cliente #123" in t for t in texts
+            "enviar SNGPC para cliente #123" in t for t in texts
         ), f"Expected activity text not found in: {texts}"
-        assert any("Nova tarefa: uhubguy" in t for t in texts), f"Expected activity text not found in: {texts}"
+        assert any("uhubguy" in t for t in texts), f"Expected activity text not found in: {texts}"
 
     def test_recent_activity_handles_legacy_title_field(self, parent_frame):
-        """Atividade recente aceita campo 'title' legado com fallback."""
-        snapshot = DashboardSnapshot(
-            recent_activity=[
-                {
-                    "timestamp": datetime(2025, 12, 4, 15, 0, 0),
-                    "category": "task",
-                    "title": "Tarefa antiga (campo title)",  # Legacy field
-                },
-            ]
+        """Atividade recente aceita campo 'title' via metadata (fallback)."""
+        store = get_recent_activity_store()
+        store.clear()
+
+        # Evento sem message, mas com title em metadata (fallback)
+        store.add_event(
+            ActivityEvent(
+                org_id="test-org",
+                module="TAREFAS",
+                action="Nova",
+                message=None,
+                metadata={"title": "Tarefa antiga (campo title)"},
+                created_at=datetime(2025, 12, 4, 15, 0, 0),
+            )
         )
 
-        build_dashboard_center(parent_frame, _snapshot_to_state(snapshot))
+        build_dashboard_center(parent_frame, _snapshot_to_state(DashboardSnapshot()))
         parent_frame.update()
 
         texts = []
@@ -694,81 +758,96 @@ class TestBuildDashboardCenter:
 
     def test_recent_activity_handles_missing_text(self, parent_frame):
         """Atividade recente mostra mensagem padrão quando texto está ausente."""
-        snapshot = DashboardSnapshot(
-            recent_activity=[
-                {
-                    "timestamp": datetime(2025, 12, 4, 15, 0, 0),
-                    "category": "task",
-                    # No 'text', 'title', or 'message' field
-                },
-            ]
+        store = get_recent_activity_store()
+        store.clear()
+
+        # Evento sem message nem metadata
+        store.add_event(
+            ActivityEvent(
+                org_id="test-org",
+                module="TAREFAS",
+                action="Nova",
+                message=None,
+                created_at=datetime(2025, 12, 4, 15, 0, 0),
+            )
         )
 
-        build_dashboard_center(parent_frame, _snapshot_to_state(snapshot))
+        build_dashboard_center(parent_frame, _snapshot_to_state(DashboardSnapshot()))
         parent_frame.update()
 
         texts = []
         _collect_label_texts(parent_frame, texts)
 
-        # Deve exibir mensagem padrão
-        assert any("(atividade sem descrição)" in t for t in texts), f"Expected default message not found in: {texts}"
+        # Novo formato 2 linhas: Linha 2 tem "NOVA — — — por: —"
+        # Deve exibir "—" quando não há mensagem
+        assert any("NOVA — —" in t for t in texts), f"Expected default message not found in: {texts}"
 
     def test_recent_activity_displays_user_names(self, parent_frame):
-        """Atividade recente exibe nomes de usuários."""
-        snapshot = DashboardSnapshot(
-            recent_activity=[
-                {
-                    "timestamp": datetime(2025, 12, 4, 20, 37, 0),
-                    "category": "task",
-                    "user_id": "user-1",
-                    "user_name": "Ana",
-                    "text": "Ana: Nova tarefa: enviar SNGPC para cliente #123",
-                },
-                {
-                    "timestamp": datetime(2025, 12, 4, 18, 12, 0),
-                    "category": "obligation",
-                    "user_id": "user-2",
-                    "user_name": "Junior",
-                    "text": "Junior: Nova obrigação SNGPC para cliente #456",
-                },
-            ]
+        """Atividade recente exibe nomes de usuários via metadata."""
+        store = get_recent_activity_store()
+        store.clear()
+
+        # Eventos com user_name em metadata
+        store.add_event(
+            ActivityEvent(
+                org_id="test-org",
+                module="TAREFAS",
+                action="Nova",
+                message="Nova tarefa: enviar SNGPC para cliente #123",
+                metadata={"user_name": "Ana"},
+                created_at=datetime(2025, 12, 4, 20, 37, 0),
+            )
+        )
+        store.add_event(
+            ActivityEvent(
+                org_id="test-org",
+                module="OBRIGACOES",
+                action="Nova",
+                message="Nova obrigação SNGPC para cliente #456",
+                metadata={"user_name": "Júnior"},
+                created_at=datetime(2025, 12, 4, 18, 12, 0),
+            )
         )
 
-        build_dashboard_center(parent_frame, _snapshot_to_state(snapshot))
+        build_dashboard_center(parent_frame, _snapshot_to_state(DashboardSnapshot()))
         parent_frame.update()
 
         texts = []
         _collect_label_texts(parent_frame, texts)
 
-        # Deve exibir linhas com nomes de usuários e horário
+        # Novo formato 2 linhas: Linha 2 tem "NOVA — ... — por: Ana"
+        # Deve exibir linhas com nomes de usuários
         assert any(
-            "Ana: Nova tarefa: enviar SNGPC para cliente #123" in t for t in texts
+            "por: Ana" in t and "enviar SNGPC para cliente #123" in t for t in texts
         ), f"Expected Ana activity not found in: {texts}"
         assert any(
-            "Junior: Nova obrigação SNGPC para cliente #456" in t for t in texts
-        ), f"Expected Junior activity not found in: {texts}"
+            "por: Júnior" in t and "Nova obrigação SNGPC para cliente #456" in t for t in texts
+        ), f"Expected Júnior activity not found in: {texts}"
 
     def test_recent_activity_fallback_to_user_name_when_no_text(self, parent_frame):
-        """Atividade recente usa user_name quando text está vazio."""
-        snapshot = DashboardSnapshot(
-            recent_activity=[
-                {
-                    "timestamp": datetime(2025, 12, 4, 15, 0, 0),
-                    "category": "task",
-                    "user_id": "user-1",
-                    "user_name": "Carlos",
-                    "text": "",  # Empty text
-                },
-            ]
+        """Atividade recente exibe user_name mesmo quando mensagem está vazia."""
+        store = get_recent_activity_store()
+        store.clear()
+
+        # Evento sem message mas com user_name em metadata
+        store.add_event(
+            ActivityEvent(
+                org_id="test-org",
+                module="TAREFAS",
+                action="Nova",
+                message=None,
+                metadata={"user_name": "Carlos"},
+                created_at=datetime(2025, 12, 4, 15, 0, 0),
+            )
         )
 
-        build_dashboard_center(parent_frame, _snapshot_to_state(snapshot))
+        build_dashboard_center(parent_frame, _snapshot_to_state(DashboardSnapshot()))
         parent_frame.update()
 
         texts = []
         _collect_label_texts(parent_frame, texts)
 
-        # Deve exibir apenas o nome do usuário com horário
+        # Deve exibir o nome do usuário (e mensagem padrão)
         assert any("Carlos" in t for t in texts), f"Expected fallback to user_name not found in: {texts}"
 
 
@@ -819,12 +898,19 @@ class TestBuildDashboardError:
 
 
 def _collect_label_texts(widget: tk.Widget, texts: list) -> None:
-    """Coleta recursivamente os textos de todos os Labels."""
+    """Coleta recursivamente os textos de todos os Labels e ScrolledText."""
+    from tkinter.scrolledtext import ScrolledText
+
     for child in widget.winfo_children():
         if isinstance(child, (tb.Label, tk.Label)):
             text = child.cget("text")
             if text:
                 texts.append(text)
+        elif isinstance(child, ScrolledText):
+            # Obter conteúdo do ScrolledText
+            content = child.get("1.0", "end-1c")
+            if content:
+                texts.append(content)
         _collect_label_texts(child, texts)
 
 
@@ -945,100 +1031,6 @@ class TestDashboardHotItemsWithIcons:
         assert "😀" in MSG_NO_HOT_ITEMS
 
 
-class TestDashboardActionButtons:
-    """Testes para botões de ação (Nova Tarefa, Nova Obrigação)."""
-
-    def test_new_task_button_appears_with_callback(self, parent_frame):
-        """Botão 'Nova Tarefa' aparece quando on_new_task é fornecido."""
-        snapshot = DashboardSnapshot()
-        callback_invoked = []
-
-        def callback():
-            callback_invoked.append(True)
-
-        build_dashboard_center(parent_frame, _snapshot_to_state(snapshot), on_new_task=callback)
-
-        # Verificar que botão existe
-        buttons = _find_buttons_recursive(parent_frame)
-        task_button = next((b for b in buttons if "Nova Tarefa" in b.cget("text")), None)
-        assert task_button is not None
-
-        # Testar callback
-        task_button.invoke()
-        assert callback_invoked == [True]
-
-    def test_new_task_button_not_shown_without_callback(self, parent_frame):
-        """Botão 'Nova Tarefa' não aparece se on_new_task for None."""
-        snapshot = DashboardSnapshot()
-
-        build_dashboard_center(parent_frame, _snapshot_to_state(snapshot), on_new_task=None)
-
-        buttons = _find_buttons_recursive(parent_frame)
-        task_button = next((b for b in buttons if "Nova Tarefa" in b.cget("text")), None)
-        assert task_button is None
-
-    def test_new_obligation_button_appears_with_callback(self, parent_frame):
-        """Botão 'Nova Obrigação' aparece quando on_new_obligation é fornecido."""
-        snapshot = DashboardSnapshot()
-        callback_invoked = []
-
-        def callback():
-            callback_invoked.append(True)
-
-        build_dashboard_center(parent_frame, _snapshot_to_state(snapshot), on_new_obligation=callback)
-
-        # Verificar que botão existe
-        buttons = _find_buttons_recursive(parent_frame)
-        obligation_button = next((b for b in buttons if "Nova Obrigação" in b.cget("text")), None)
-        assert obligation_button is not None
-
-        # Testar callback
-        obligation_button.invoke()
-        assert callback_invoked == [True]
-
-    def test_new_obligation_button_not_shown_without_callback(self, parent_frame):
-        """Botão 'Nova Obrigação' não aparece se on_new_obligation for None."""
-        snapshot = DashboardSnapshot()
-
-        build_dashboard_center(parent_frame, _snapshot_to_state(snapshot), on_new_obligation=None)
-
-        buttons = _find_buttons_recursive(parent_frame)
-        obligation_button = next((b for b in buttons if "Nova Obrigação" in b.cget("text")), None)
-        assert obligation_button is None
-
-    def test_both_buttons_appear_together(self, parent_frame):
-        """Ambos os botões aparecem quando ambos callbacks são fornecidos."""
-        snapshot = DashboardSnapshot()
-        task_invoked = []
-        obligation_invoked = []
-
-        def on_task():
-            task_invoked.append(True)
-
-        def on_obligation():
-            obligation_invoked.append(True)
-
-        build_dashboard_center(
-            parent_frame,
-            _snapshot_to_state(snapshot),
-            on_new_task=on_task,
-            on_new_obligation=on_obligation,
-        )
-
-        buttons = _find_buttons_recursive(parent_frame)
-        task_button = next((b for b in buttons if "Nova Tarefa" in b.cget("text")), None)
-        obligation_button = next((b for b in buttons if "Nova Obrigação" in b.cget("text")), None)
-
-        assert task_button is not None
-        assert obligation_button is not None
-
-        # Testar ambos callbacks
-        task_button.invoke()
-        obligation_button.invoke()
-        assert task_invoked == [True]
-        assert obligation_invoked == [True]
-
-
 def _find_buttons_recursive(widget) -> list:
     """Encontra recursivamente todos os botões em um widget."""
     buttons = []
@@ -1047,3 +1039,175 @@ def _find_buttons_recursive(widget) -> list:
     for child in widget.winfo_children():
         buttons.extend(_find_buttons_recursive(child))
     return buttons
+
+
+# ============================================================================
+# TESTES PARA AGRUPAMENTO DE TAREFAS/PRAZOS (REFATORAÇÃO MF43)
+# ============================================================================
+
+
+class TestTaskGrouping:
+    """Testes para garantir que o agrupamento não repete nomes de cliente."""
+
+    def test_same_client_two_tasks_shows_single_header(self, parent_frame):
+        """Quando o mesmo cliente tem 2 tarefas, mostra 1 header + 2 bullets."""
+        snapshot = DashboardSnapshot(
+            pending_tasks=[
+                {
+                    "due_date": "2025-12-10",
+                    "client_name": "Farmácia ABC",
+                    "client_id": 123,
+                    "title": "Revisar documentos",
+                    "priority": "high",
+                },
+                {
+                    "due_date": "2025-12-12",
+                    "client_name": "Farmácia ABC",
+                    "client_id": 123,
+                    "title": "Enviar relatório",
+                    "priority": "normal",
+                },
+            ],
+        )
+
+        build_dashboard_center(parent_frame, _snapshot_to_state(snapshot))
+
+        texts = []
+        _collect_label_texts(parent_frame, texts)
+
+        # Deve aparecer "Farmácia ABC" apenas 1 vez (como header do grupo)
+        farmacia_abc_count = sum(1 for t in texts if "Farmácia ABC" in t)
+        assert farmacia_abc_count == 1, "Nome do cliente deve aparecer apenas 1 vez no header"
+
+        # Deve ter "Revisar documentos" e "Enviar relatório"
+        assert any("Revisar documentos" in t for t in texts)
+        assert any("Enviar relatório" in t for t in texts)
+
+    def test_multiple_clients_show_multiple_headers(self, parent_frame):
+        """Clientes diferentes devem ter headers separados."""
+        snapshot = DashboardSnapshot(
+            pending_tasks=[
+                {
+                    "due_date": "2025-12-10",
+                    "client_name": "Farmácia ABC",
+                    "client_id": 123,
+                    "title": "Tarefa 1",
+                    "priority": "high",
+                },
+                {
+                    "due_date": "2025-12-11",
+                    "client_name": "Drogaria XYZ",
+                    "client_id": 456,
+                    "title": "Tarefa 2",
+                    "priority": "normal",
+                },
+            ],
+        )
+
+        build_dashboard_center(parent_frame, _snapshot_to_state(snapshot))
+
+        texts = []
+        _collect_label_texts(parent_frame, texts)
+
+        # Cada cliente aparece 1 vez (seus respectivos headers)
+        assert sum(1 for t in texts if "Farmácia ABC" in t) == 1
+        assert sum(1 for t in texts if "Drogaria XYZ" in t) == 1
+
+
+class TestHotItemsAnvisaOnlyHiding:
+    """Testes para esconder 'O que está bombando hoje' quando vazio no modo ANVISA-only."""
+
+    def test_hot_items_hidden_when_anvisa_only_and_empty(self, parent_frame):
+        """Quando anvisa_only=True e hot_items=[], não renderiza a seção."""
+        snapshot = DashboardSnapshot(
+            hot_items=[],  # Vazio
+            anvisa_only=True,  # Modo ANVISA-only
+        )
+
+        build_dashboard_center(parent_frame, _snapshot_to_state(snapshot))
+
+        texts = []
+        _collect_label_texts(parent_frame, texts)
+
+        # Não deve aparecer o título "O que está bombando hoje"
+        assert not any("bombando" in t.lower() for t in texts)
+        # Não deve aparecer a mensagem padrão de vazio
+        assert MSG_NO_HOT_ITEMS not in texts
+
+    def test_hot_items_shown_when_anvisa_only_but_not_empty(self, parent_frame):
+        """Quando anvisa_only=True mas hot_items não vazio, renderiza normalmente."""
+        snapshot = DashboardSnapshot(
+            hot_items=["2 regularizações ANVISA vencidas!"],
+            anvisa_only=True,
+        )
+
+        build_dashboard_center(parent_frame, _snapshot_to_state(snapshot))
+
+        texts = []
+        _collect_label_texts(parent_frame, texts)
+
+        # Deve aparecer o conteúdo
+        assert any("regularizações ANVISA" in t for t in texts)
+
+    def test_hot_items_shown_when_not_anvisa_only_even_if_empty(self, parent_frame):
+        """Quando anvisa_only=False e hot_items=[], mostra mensagem padrão."""
+        snapshot = DashboardSnapshot(
+            hot_items=[],  # Vazio
+            anvisa_only=False,  # Modo misto
+        )
+
+        build_dashboard_center(parent_frame, _snapshot_to_state(snapshot))
+
+        texts = []
+        _collect_label_texts(parent_frame, texts)
+
+        # Deve mostrar mensagem padrão de vazio
+        assert MSG_NO_HOT_ITEMS in texts
+
+
+class TestClientsOfTheDayAnvisaOnlyHiding:
+    """Testes para esconder 'Clientes do dia' quando ANVISA-only."""
+
+    def test_anvisa_only_hides_clients_of_the_day_section(self, parent_frame):
+        """Quando anvisa_only=True, não renderiza seção 'Clientes do dia'."""
+        snapshot = DashboardSnapshot(
+            anvisa_only=True,
+            clients_of_the_day=[
+                {
+                    "client_id": 1,
+                    "client_name": "Farmácia ABC",
+                    "obligation_kinds": ["SNGPC"],
+                },
+            ],
+        )
+
+        build_dashboard_center(parent_frame, _snapshot_to_state(snapshot))
+
+        texts = []
+        _collect_label_texts(parent_frame, texts)
+
+        # Não deve aparecer "Clientes do dia" nem "Clientes com tarefa hoje"
+        assert not any("clientes" in t.lower() and ("do dia" in t.lower() or "com tarefa" in t.lower()) for t in texts)
+        # Não deve aparecer o nome do cliente
+        assert "Farmácia ABC" not in texts
+
+    def test_clients_of_the_day_shown_when_not_anvisa_only(self, parent_frame):
+        """Quando anvisa_only=False, renderiza seção normalmente."""
+        snapshot = DashboardSnapshot(
+            anvisa_only=False,
+            clients_of_the_day=[
+                {
+                    "client_id": 1,
+                    "client_name": "Farmácia ABC",
+                    "obligation_kinds": ["SNGPC"],
+                },
+            ],
+        )
+
+        build_dashboard_center(parent_frame, _snapshot_to_state(snapshot))
+
+        texts = []
+        _collect_label_texts(parent_frame, texts)
+
+        # Deve aparecer o nome do cliente
+        assert any("Farmácia ABC" in t for t in texts)

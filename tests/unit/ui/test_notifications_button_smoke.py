@@ -93,12 +93,14 @@ def test_notifications_button_badge_visibility(tk_root: tk.Tk) -> None:
 
     btn = NotificationsButton(tk_root)
 
-    # Com count > 0, badge deve estar visível (usando pack)
+    # Com count > 0, badge deve estar visível (usando place)
     btn.set_count(5)
-    # winfo_manager retorna 'pack' se posicionado via pack, '' se não
-    assert btn._lbl_badge.winfo_manager() == "pack", "Badge deveria estar visível com count=5"
+    # place_info retorna dict se posicionado, {} se não
+    badge_info = btn._lbl_badge.place_info()
+    assert badge_info, "Badge deveria estar visível com count=5"
     assert btn._lbl_badge.cget("text") == "5", "Badge deveria mostrar '5'"
 
     # Com count = 0, badge deve sumir
     btn.set_count(0)
-    assert btn._lbl_badge.winfo_manager() == "", "Badge deveria estar oculto com count=0"
+    badge_info = btn._lbl_badge.place_info()
+    assert not badge_info, "Badge deveria estar oculto com count=0"

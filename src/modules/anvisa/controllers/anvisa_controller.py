@@ -87,11 +87,53 @@ class AnvisaController:
         self._log = logger
         self._notifications_service = notifications_service
 
-    def delete_request(self, request_id: str) -> bool:
+    def _fmt_notif(
+        self,
+        *,
+        action: str,
+        request_type: str | None,
+        client_id: str | None,
+    ) -> str:
+        """Formata mensagem de notificação ANVISA padronizada.
+
+        Args:
+            action: Tipo da ação ("created", "deleted", "finalized", "canceled", "status_other")
+            request_type: Tipo da demanda (ex: "ALTERACAO_RAZAO_SOCIAL")
+            client_id: ID numérico do cliente
+
+        Returns:
+            Mensagem formatada no padrão "ANVISA • <ação>: <tipo> (Cliente <id>)"
+        """
+        base_map = {
+            "created": "Nova demanda criada",
+            "deleted": "Demanda excluída",
+            "finalized": "Demanda finalizada",
+            "canceled": "Demanda cancelada",
+            "status_other": "Demanda atualizada",
+        }
+        base = base_map.get(action, "Demanda atualizada")
+
+        if request_type and client_id:
+            return f"ANVISA • {base}: {request_type} (Cliente {client_id})"
+        if request_type:
+            return f"ANVISA • {base}: {request_type}"
+        if client_id:
+            return f"ANVISA • {base} (Cliente {client_id})"
+        return f"ANVISA • {base}"
+
+    def delete_request(
+        self,
+        request_id: str,
+        *,
+        client_id: str | None = None,
+        request_type: str | None = None,
+    ) -> bool:
         """Exclui demanda por ID.
 
         Args:
             request_id: UUID da demanda (string)
+            client_id: ID numérico do cliente (para notificação)
+            request_type: Tipo da demanda (para notificação)
 
         Returns:
             True se excluído com sucesso, False caso contrário
@@ -109,11 +151,19 @@ class AnvisaController:
                 if self._notifications_service:
                     self._log.info("[Controller] Publicando notificação de exclusão")
                     try:
+                        message = self._fmt_notif(
+                            action="deleted",
+                            request_type=request_type,
+                            client_id=client_id,
+                        )
+                        metadata = {"request_type": request_type} if request_type else None
                         notif_success = self._notifications_service.publish(
                             module="anvisa",
                             event="deleted",
-                            message=f"ANVISA • Demanda excluída (ID: {request_id[:8]}...)",
+                            message=message,
                             request_id=request_id,
+                            client_id=client_id,
+                            metadata=metadata,
                         )
                         if not notif_success:
                             self._log.warning("[Controller] Publish de exclusão retornou False")
@@ -130,12 +180,21 @@ class AnvisaController:
             log_exception(self._log, "[Controller] Erro ao excluir demanda", exc, **ctx)
             return False
 
-    def set_status(self, request_id: str, status: str) -> bool:
+    def set_status(
+        self,
+        request_id: str,
+        status: str,
+        *,
+        client_id: str | None = None,
+        request_type: str | None = None,
+    ) -> bool:
         """Atualiza status da demanda (método genérico).
 
         Args:
             request_id: UUID da demanda (string)
             status: Novo status
+            client_id: ID numérico do cliente (para notificação)
+            request_type: Tipo da demanda (para notificação)
 
         Returns:
             True se atualizado com sucesso, False caso contrário
@@ -162,12 +221,45 @@ class AnvisaController:
                         }
                         status_text = status_map.get(status, status)
 
+                        # Determinar action para formatação
+                        if status == "done":
+                            action = "finalized"
+                        elif status == "canceled":
+                            action = "canceled"
+                        else:
+                            action = "status_other"
+
+                        # Montar mensagem
+                        if action in ("finalized", "canceled"):
+                            message = self._fmt_notif(
+                                action=action,
+                                request_type=request_type,
+                                client_id=client_id,
+                            )
+                        else:
+                            # Manter o status_text no texto quando não for done/canceled
+                            base = f"Demanda {status_text}"
+                            if request_type and client_id:
+                                message = f"ANVISA • {base}: {request_type} (Cliente {client_id})"
+                            elif request_type:
+                                message = f"ANVISA • {base}: {request_type}"
+                            elif client_id:
+                                message = f"ANVISA • {base} (Cliente {client_id})"
+                            else:
+                                message = f"ANVISA • {base}"
+
+                        # Montar metadata
+                        metadata: dict[str, str] = {"new_status": status}
+                        if request_type:
+                            metadata["request_type"] = request_type
+
                         notif_success = self._notifications_service.publish(
                             module="anvisa",
                             event="status_changed",
-                            message=f"ANVISA • Demanda {status_text} (ID: {request_id[:8]}...)",
+                            message=message,
                             request_id=request_id,
-                            metadata={"new_status": status},
+                            client_id=client_id,
+                            metadata=metadata,
                         )
                         if not notif_success:
                             self._log.warning("[Controller] Publish de status retornou False")
@@ -186,29 +278,45 @@ class AnvisaController:
             log_exception(self._log, "[Controller] Erro ao atualizar status", exc, **ctx)
             return False
 
-    def close_request(self, request_id: str) -> bool:
+    def close_request(
+        self,
+        request_id: str,
+        *,
+        client_id: str | None = None,
+        request_type: str | None = None,
+    ) -> bool:
         """Finaliza demanda (status -> FINALIZADA).
 
         Args:
             request_id: UUID da demanda (string)
+            client_id: ID numérico do cliente (para notificação)
+            request_type: Tipo da demanda (para notificação)
 
         Returns:
             True se finalizado com sucesso, False caso contrário
         """
         from ..constants import DEFAULT_CLOSE_STATUS
 
-        return self.set_status(request_id, DEFAULT_CLOSE_STATUS)
+        return self.set_status(request_id, DEFAULT_CLOSE_STATUS, client_id=client_id, request_type=request_type)
 
-    def cancel_request(self, request_id: str) -> bool:
+    def cancel_request(
+        self,
+        request_id: str,
+        *,
+        client_id: str | None = None,
+        request_type: str | None = None,
+    ) -> bool:
         """Cancela demanda (status -> canceled).
 
         Args:
             request_id: UUID da demanda (string)
+            client_id: ID numérico do cliente (para notificação)
+            request_type: Tipo da demanda (para notificação)
 
         Returns:
             True se cancelado com sucesso, False caso contrário
         """
-        return self.set_status(request_id, "canceled")
+        return self.set_status(request_id, "canceled", client_id=client_id, request_type=request_type)
 
     def create_request(
         self,
@@ -267,10 +375,15 @@ class AnvisaController:
                 if self._notifications_service:
                     self._log.info("[Controller] Publicando notificação de criação")
                     try:
+                        message = self._fmt_notif(
+                            action="created",
+                            request_type=request_type,
+                            client_id=client_id,
+                        )
                         notif_success = self._notifications_service.publish(
                             module="anvisa",
                             event="created",
-                            message=f"ANVISA • Nova demanda criada: {request_type}",
+                            message=message,
                             client_id=client_id,
                             request_id=request_id,
                             metadata={"request_type": request_type},

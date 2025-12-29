@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 from typing import Any
 
-from src.modules.anvisa.services.anvisa_service import AnvisaService
+from src.modules.anvisa.services.anvisa_service import AnvisaService, DemandaDict
 
 
 class FakeAnvisaRepository:
@@ -19,7 +19,7 @@ class FakeAnvisaRepository:
 
     def __init__(self) -> None:
         """Inicializa com dados de teste."""
-        self.requests: list[dict[str, Any]] = [
+        self.requests: list[DemandaDict] = [
             # Cliente 123: 3 demandas (2 abertas, 1 fechada)
             {
                 "id": "req-1",
@@ -54,7 +54,7 @@ class FakeAnvisaRepository:
             },
         ]
 
-    def list_requests(self, org_id: str) -> list[dict[str, Any]]:
+    def list_requests(self, org_id: str) -> list[DemandaDict]:
         """Lista todas as demandas (mock)."""
         return self.requests
 
@@ -625,6 +625,41 @@ def test_build_main_rows_handles_missing_clients_data(service: AnvisaService) ->
     assert row["cnpj"] == ""
 
 
+def test_build_main_rows_includes_author_initial_in_display(
+    service: AnvisaService, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Deve incluir inicial do autor no last_update_display (tracinho + inicial)."""
+    # Configurar mapa de iniciais via environment
+    monkeypatch.setenv("RC_INITIALS_MAP", '{"farmacajr@gmail.com":"Junior"}')
+
+    # Criar request com payload contendo updated_by
+    requests = [
+        {
+            "client_id": "123",
+            "request_type": "Alteração de RT",
+            "status": "draft",
+            "created_at": "2024-01-15T10:00:00Z",
+            "updated_at": "2024-01-15T10:00:00Z",
+            "payload": {"updated_by": "farmacajr@gmail.com"},
+            "clients": {
+                "razao_social": "Farmácia Teste",
+                "cnpj": "12345678000190",
+            },
+        }
+    ]
+
+    requests_by_client, rows = service.build_main_rows(requests)
+
+    assert len(rows) == 1
+    row = rows[0]
+
+    # Verificar que last_update_display contém tracinho e inicial
+    assert " - " in row["last_update_display"]
+    assert row["last_update_display"].endswith("(J)")
+    # Formato esperado: "15/01/2024 - 07:00 (J)" (UTC-3)
+    assert row["last_update_display"].startswith("15/01/2024 - ")
+
+
 # ===== Testes de format_dt_local =====
 
 
@@ -802,9 +837,9 @@ def test_human_status_open_statuses(service: AnvisaService) -> None:
 
 
 def test_human_status_closed_statuses(service: AnvisaService) -> None:
-    """Deve retornar 'Finalizado' para status fechados."""
-    assert service.human_status("done") == "Finalizado"
-    assert service.human_status("canceled") == "Finalizado"
+    """Deve diferenciar 'done' (Concluída) de 'canceled' (Cancelada)."""
+    assert service.human_status("done") == "Concluída"
+    assert service.human_status("canceled") == "Cancelada"
 
 
 def test_human_status_legacy_aliases(service: AnvisaService) -> None:
@@ -813,15 +848,16 @@ def test_human_status_legacy_aliases(service: AnvisaService) -> None:
     assert service.human_status("aberta") == "Em aberto"
     assert service.human_status("em andamento") == "Em aberto"
 
-    # "finalizada" -> normalizado para status fechado
-    assert service.human_status("finalizada") == "Finalizado"
-    assert service.human_status("cancelada") == "Finalizado"
+    # "finalizada" -> normalizado para "done" -> "Concluída"
+    assert service.human_status("finalizada") == "Concluída"
+    # "cancelada" -> normalizado para "canceled" -> "Cancelada"
+    assert service.human_status("cancelada") == "Cancelada"
 
 
 def test_human_status_case_insensitive(service: AnvisaService) -> None:
     """Deve funcionar com case diferente."""
     assert service.human_status("DRAFT") == "Em aberto"
-    assert service.human_status("Done") == "Finalizado"
+    assert service.human_status("Done") == "Concluída"
 
 
 # ===== Testes de normalize_status =====
@@ -991,7 +1027,7 @@ def test_build_history_rows_multiple_statuses(service: AnvisaService) -> None:
     rows = service.build_history_rows(demandas)
 
     # Ordem: uuid-2 (mais recente), uuid-1
-    assert rows[0]["status_humano"] == "Finalizado"  # done
+    assert rows[0]["status_humano"] == "Concluída"  # done
     assert rows[1]["status_humano"] == "Em aberto"  # draft
 
 
@@ -1044,7 +1080,9 @@ def test_build_history_rows_normalizes_legacy_status(service: AnvisaService) -> 
 
     # Status legado deve ser normalizado para canônico
     assert rows[0]["status_raw"] == "canceled"  # cancelada -> canceled
+    assert rows[0]["status_humano"] == "Cancelada"
     assert rows[1]["status_raw"] == "draft"  # aberta -> draft
+    assert rows[1]["status_humano"] == "Em aberto"
 
 
 def test_build_history_rows_includes_actions_for_open_status(service: AnvisaService) -> None:
@@ -1273,9 +1311,9 @@ def test_human_status_open(service: AnvisaService) -> None:
 
 
 def test_human_status_closed(service: AnvisaService) -> None:
-    """Testa human_status para status fechados."""
-    assert service.human_status("done") == "Finalizado"
-    assert service.human_status("canceled") == "Finalizado"
+    """Testa human_status para status fechados (diferenciando done e canceled)."""
+    assert service.human_status("done") == "Concluída"
+    assert service.human_status("canceled") == "Cancelada"
 
 
 def test_normalize_status_with_aliases(service: AnvisaService) -> None:
@@ -1342,3 +1380,344 @@ def test_allowed_actions_closed_status(service: AnvisaService) -> None:
 
     actions = service.allowed_actions("canceled")
     assert actions == {"close": False, "cancel": False, "delete": True}
+
+
+# ========== MF46: Exception handling coverage (lines 163-165) ==========
+
+
+class ExceptionThrowingRepositoryMF46:
+    """Repository fake que lança exceções para testes de error handling (MF46)."""
+
+    def __init__(self, exception: Exception):
+        self._exception = exception
+
+    def list_requests(self, org_id: str) -> list[dict[str, Any]]:
+        """Sempre lança exceção."""
+        raise self._exception
+
+
+def test_check_duplicate_handles_connection_error_mf46() -> None:
+    """Testa que check_duplicate_open_request captura ConnectionError (linhas 163-165)."""
+    failing_repo = ExceptionThrowingRepositoryMF46(ConnectionError("Database connection failed"))
+    service = AnvisaService(repository=failing_repo)  # type: ignore[arg-type]
+
+    # Deve retornar None sem propagar exceção
+    result = service.check_duplicate_open_request("org-1", "123", "AFE")
+    assert result is None
+
+
+def test_check_duplicate_handles_value_error_mf46() -> None:
+    """Testa que check_duplicate captura ValueError."""
+    failing_repo = ExceptionThrowingRepositoryMF46(ValueError("Invalid data"))
+    service = AnvisaService(repository=failing_repo)  # type: ignore[arg-type]
+
+    # Não deve propagar exceção
+    result = service.check_duplicate_open_request("org-1", "456", "CBPF")
+    assert result is None
+
+
+def test_list_requests_for_client_handles_network_error_mf46() -> None:
+    """Testa que list_requests_for_client captura exceção de rede."""
+    failing_repo = ExceptionThrowingRepositoryMF46(OSError("Network error"))
+    service = AnvisaService(repository=failing_repo)  # type: ignore[arg-type]
+
+    # Deve retornar lista vazia sem propagar exceção
+    result = service.list_requests_for_client("org-1", "123")
+    assert result == []
+
+
+# ========== MF46: Additional branch coverage ==========
+
+
+def test_human_status_returns_finalizado_fallback_mf46() -> None:
+    """Testa que human_status retorna 'Finalizado' para status fechado genérico (linha 568).
+
+    Quando o status normalizado não é em STATUS_OPEN, nem "done", nem "canceled",
+    deve retornar "Finalizado" como fallback.
+    """
+    service = AnvisaService(repository=FakeAnvisaRepository())  # type: ignore[arg-type]
+
+    # Status que não é "done" nem "canceled" mas também não está em STATUS_OPEN
+    # normalize_status retorna o próprio status se não estiver em aliases
+    result = service.human_status("closed")
+    assert result == "Finalizado"
+
+    # Outro status inventado também deve cair no fallback
+    result2 = service.human_status("archived")
+    assert result2 == "Finalizado"
+
+
+def test_resolve_initial_from_email_returns_first_letter_on_exception_mf46(monkeypatch) -> None:
+    """Testa que resolve_initial_from_email retorna primeira letra quando load_env_author_names falha (linhas 830-831)."""
+    service = AnvisaService(repository=FakeAnvisaRepository())  # type: ignore[arg-type]
+
+    # Forçar exceção no load_env_author_names
+    def failing_load():
+        raise RuntimeError("Simulated failure")
+
+    monkeypatch.setattr("src.modules.hub.services.authors_service.load_env_author_names", failing_load)
+
+    # Deve retornar primeira letra do email como fallback
+    result = service.resolve_initial_from_email("test@example.com")
+    assert result == "T"
+
+
+def test_resolve_initial_from_email_returns_empty_for_empty_email_mf46() -> None:
+    """Testa que resolve_initial_from_email retorna string vazia para email vazio."""
+    service = AnvisaService(repository=FakeAnvisaRepository())  # type: ignore[arg-type]
+
+    result = service.resolve_initial_from_email("")
+    assert result == ""
+
+
+def test_resolve_initial_from_email_returns_from_env_map_mf46(monkeypatch) -> None:
+    """Testa que resolve_initial_from_email usa o mapa do env quando disponível."""
+    service = AnvisaService(repository=FakeAnvisaRepository())  # type: ignore[arg-type]
+
+    # Mock do load_env_author_names para retornar um nome
+    monkeypatch.setattr(
+        "src.modules.hub.services.authors_service.load_env_author_names", lambda: {"user@company.com": "Alice Smith"}
+    )
+
+    result = service.resolve_initial_from_email("user@company.com")
+    # Deve retornar "A" (primeira letra do nome "Alice Smith")
+    assert result == "A"
+
+
+# ========== MF47: Timezone fallback coverage (linhas 449-450) ==========
+
+
+def test_format_dt_local_timezone_fallback_mf47(monkeypatch) -> None:
+    """Testa que format_dt_local usa fallback UTC-3 quando ZoneInfo falha (linhas 449-450)."""
+    from datetime import datetime, timezone as dt_timezone
+
+    service = AnvisaService(repository=FakeAnvisaRepository())  # type: ignore[arg-type]
+
+    # Criar datetime em UTC
+    dt_utc = datetime(2025, 1, 15, 15, 30, 0, tzinfo=dt_timezone.utc)
+
+    # Monkeypatch no módulo zoneinfo para forçar erro no ZoneInfo
+    class FailingZoneInfo:
+        def __init__(self, tz_name):
+            raise Exception("ZoneInfo not available")
+
+    monkeypatch.setattr("zoneinfo.ZoneInfo", FailingZoneInfo)
+
+    # Chamar format_dt_local - deve cair no fallback UTC-3
+    result = service.format_dt_local(dt_utc, "America/Sao_Paulo")
+
+    # Esperado: 15:30 UTC - 3 = 12:30 BRT
+    assert result == "15/01/2025 12:30"
+
+
+def test_format_dt_local_complete_fallback_returns_empty_mf47(monkeypatch) -> None:
+    """Testa que format_dt_local retorna string vazia quando ambos fallbacks falham."""
+    from datetime import datetime, timezone as dt_timezone
+
+    service = AnvisaService(repository=FakeAnvisaRepository())  # type: ignore[arg-type]
+
+    # Criar datetime problemático que vai falhar no astimezone
+    class ProblematicDatetime(datetime):
+        def astimezone(self, tz=None):
+            raise Exception("Complete failure")
+
+    # Criar instância problemática
+    dt_utc = ProblematicDatetime(2025, 1, 15, 15, 30, 0, tzinfo=dt_timezone.utc)
+
+    # Monkeypatch no módulo zoneinfo para forçar erro no ZoneInfo
+    class FailingZoneInfo:
+        def __init__(self, tz_name):
+            raise Exception("ZoneInfo not available")
+
+    monkeypatch.setattr("zoneinfo.ZoneInfo", FailingZoneInfo)
+
+    # Chamar format_dt_local - deve retornar string vazia
+    result = service.format_dt_local(dt_utc, "America/Sao_Paulo")
+    assert result == ""
+
+
+# ============================================================================
+# TEST GROUP: MF52 - Coverage for missing lines in anvisa_service
+# ============================================================================
+
+
+class TestAnvisaServiceMF52:
+    """Testes MF52 para cobrir linhas faltantes em anvisa_service.py."""
+
+    def test_find_duplicate_repo_exception(self, monkeypatch):
+        """Testa find_duplicate com exceção no repo (linhas 163-165)."""
+        fake_repo = FakeAnvisaRepository()
+        service = AnvisaService(fake_repo)
+
+        # Mock repo que falha
+        def failing_repo(org_id):
+            raise RuntimeError("DB connection failed")
+
+        monkeypatch.setattr("infra.repositories.anvisa_requests_repository.list_requests", failing_repo)
+
+        result = service.check_duplicate_open_request("org123", "456", "AFE")
+        assert result is None
+
+    def test_format_history_rows_missing_initial(self, monkeypatch):
+        """Testa build_history_rows sem resolve_initial (linhas 730-732, 738-740)."""
+        fake_repo = FakeAnvisaRepository()
+        service = AnvisaService(fake_repo)
+
+        # Mock resolve_initial que retorna vazio
+        monkeypatch.setattr(service, "resolve_initial_from_email", lambda email: "")
+
+        fake_requests = [
+            {
+                "id": "req-1",
+                "client_id": "123",
+                "request_type": "AFE",
+                "status": "draft",
+                "created_at": "2025-01-15T10:00:00Z",
+                "updated_at": "2025-01-16T11:00:00Z",
+                "payload": {"created_by": "user@example.com", "updated_by": "admin@example.com"},
+            }
+        ]
+
+        result = service.build_history_rows(fake_requests)
+
+        # Deve retornar rows sem iniciais (sem parênteses)
+        assert len(result) == 1
+        row = result[0]
+        assert "(" not in row["criada_em"]  # Sem inicial
+        assert "(" not in row["atualizada_em"]  # Sem inicial
+
+    def test_format_history_rows_missing_updated_by(self, monkeypatch):
+        """Testa build_history_rows com fallback para created_by (linha 737)."""
+        fake_repo = FakeAnvisaRepository()
+        service = AnvisaService(fake_repo)
+
+        monkeypatch.setattr(service, "resolve_initial_from_email", lambda email: "A" if "admin" in email else "")
+
+        fake_requests = [
+            {
+                "id": "req-1",
+                "client_id": "123",
+                "request_type": "AFE",
+                "status": "draft",
+                "created_at": "2025-01-15T10:00:00Z",
+                "updated_at": "2025-01-16T11:00:00Z",
+                "payload": {
+                    "created_by": "admin@example.com",
+                    # updated_by ausente - deve usar created_by
+                },
+            }
+        ]
+
+        result = service.build_history_rows(fake_requests)
+        row = result[0]
+
+        # atualizada_em deve usar created_by como fallback
+        assert "(A)" in row["atualizada_em"]
+
+    def test_parse_br_date_invalid_format(self):
+        """Testa parse_due_date_br com formato inválido (linhas 851-858)."""
+        fake_repo = FakeAnvisaRepository()
+        service = AnvisaService(fake_repo)
+
+        # Invalid format should trigger exception path
+        result = service.parse_due_date_br("invalid-date")
+        assert result is None
+
+        # Empty string
+        result = service.parse_due_date_br("")
+        assert result is None
+
+        # None
+        result = service.parse_due_date_br(None)
+        assert result is None
+
+    def test_request_type_check_daily_edge_cases(self):
+        """Testa request_type_check_daily com casos extremos (linhas 879-885)."""
+        fake_repo = FakeAnvisaRepository()
+        service = AnvisaService(fake_repo)
+
+        # Casos que devem retornar False (não precisam acompanhamento)
+        assert service.request_type_check_daily("Alteração do Responsável Legal") is False
+        # Case sensitive - minúsculo deve retornar True (não está na lista)
+        assert service.request_type_check_daily("alteracao do responsavel legal") is True
+        assert service.request_type_check_daily("ALTERAÇÃO DO RESPONSÁVEL LEGAL") is True
+
+        # Casos que devem retornar True (precisam acompanhamento)
+        assert service.request_type_check_daily("AFE") is True
+        assert service.request_type_check_daily("Renovação") is True
+        assert service.request_type_check_daily("") is True  # Default True
+        assert service.request_type_check_daily("Tipo Desconhecido") is True
+
+    def test_build_main_rows_complex_grouping(self):
+        """Testa build_main_rows com agrupamento complexo (linhas 925-934)."""
+        fake_repo = FakeAnvisaRepository()
+        service = AnvisaService(fake_repo)
+
+        # Requests com vários tipos por cliente
+        fake_requests = [
+            # Cliente 123: 3 tipos diferentes (2 AFE, 1 Renovação)
+            {
+                "id": "r1",
+                "client_id": "123",
+                "request_type": "AFE",
+                "status": "draft",
+                "clients": {"razao_social": "ACME Corp", "cnpj": "12345678000190"},
+            },
+            {
+                "id": "r2",
+                "client_id": "123",
+                "request_type": "AFE",
+                "status": "submitted",
+                "clients": {"razao_social": "ACME Corp", "cnpj": "12345678000190"},
+            },
+            {
+                "id": "r3",
+                "client_id": "123",
+                "request_type": "Renovação",
+                "status": "done",
+                "clients": {"razao_social": "ACME Corp", "cnpj": "12345678000190"},
+            },
+            # Cliente 456: 1 tipo
+            {
+                "id": "r4",
+                "client_id": "456",
+                "request_type": "AFE",
+                "status": "draft",
+                "clients": {"razao_social": "Beta Corp", "cnpj": "98765432000111"},
+            },
+        ]
+
+        requests_by_client, rows = service.build_main_rows(fake_requests)
+
+        # Deve agrupar corretamente
+        assert len(rows) == 2  # 2 clientes
+
+        # Cliente 123: deve mostrar "3 demandas (2 em aberto)"
+        row_123 = next(r for r in rows if r["client_id"] == "123")
+        assert "3 demandas" in row_123["demanda_label"]
+        assert "2 em aberto" in row_123["demanda_label"]
+
+        # Cliente 456: deve mostrar "AFE" (tipo único)
+        row_456 = next(r for r in rows if r["client_id"] == "456")
+        assert row_456["demanda_label"] == "AFE"
+
+    def test_normalize_status_edge_cases(self):
+        """Testa normalize_status com casos extremos (potencial linha 904-906)."""
+        fake_repo = FakeAnvisaRepository()
+        service = AnvisaService(fake_repo)
+
+        # Testa aliases e case sensitivity
+        assert service.normalize_status("Finalizado") == "done"
+        assert service.normalize_status("FINALIZADO") == "done"
+        assert service.normalize_status("finalizado") == "done"
+
+        assert service.normalize_status("Cancelada") == "canceled"  # No aliases
+        assert service.normalize_status("cancelada") == "canceled"  # In aliases
+
+        # Status normais
+        assert service.normalize_status("draft") == "draft"
+        assert service.normalize_status("DRAFT") == "draft"
+
+        # Empty/None (defensivo)
+        assert service.normalize_status("") == ""
+        assert service.normalize_status("   ") == ""

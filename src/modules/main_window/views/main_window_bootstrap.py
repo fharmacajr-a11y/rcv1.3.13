@@ -88,6 +88,7 @@ def bootstrap_main_window(app: App) -> None:
     app.notifications_service = app._notifications_service
     app._mute_notifications = False
     app._last_unread_count = 0
+    app._notifications_baselined = False
 
     # Supabase client
     app.supabase = init_supabase_client()

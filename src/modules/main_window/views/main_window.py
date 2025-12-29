@@ -588,6 +588,29 @@ class App(tb.Window):
 
         return mark_all_notifications_read(self)
 
+    def _delete_notification_for_me(self, notification_id: str) -> bool:
+        """Exclui uma notificação apenas para o usuário atual (soft delete).
+
+        Args:
+            notification_id: ID da notificação a excluir
+
+        Returns:
+            True se sucesso, False caso contrário
+        """
+        from src.modules.main_window.views.main_window_handlers import delete_notification_for_me
+
+        return delete_notification_for_me(self, notification_id)
+
+    def _delete_all_notifications_for_me(self) -> bool:
+        """Exclui todas notificações apenas para o usuário atual (soft delete).
+
+        Returns:
+            True se sucesso, False caso contrário
+        """
+        from src.modules.main_window.views.main_window_handlers import delete_all_notifications_for_me
+
+        return delete_all_notifications_for_me(self)
+
     def _toggle_mute_notifications(self, muted: bool) -> None:
         """Toggle do estado de silenciar notificações.
 

@@ -364,6 +364,9 @@ def get_supabase() -> Client:
         if not url or not key:
             raise RuntimeError("Faltam SUPABASE_URL e SUPABASE_ANON_KEY (ou SUPABASE_KEY) no .env")
 
+        # Normalizar URL para sempre ter trailing slash (evita warning do storage client)
+        url = url.strip().rstrip("/") + "/"
+
         options: ClientOptions = ClientOptions(
             httpx_client=HTTPX_CLIENT,
             postgrest_client_timeout=HTTPX_TIMEOUT_LIGHT,
