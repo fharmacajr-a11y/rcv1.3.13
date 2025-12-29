@@ -23,6 +23,7 @@ except Exception:  # pragma: no cover - defensive fallback
     _ArchiveErrorType = _FallbackArchiveError
 
     def _infra_extract_archive(src: str | Path, out_dir: str | Path, *, password: str | None = None) -> Path:
+        del src, out_dir, password  # Parâmetros mantidos por compatibilidade de assinatura
         raise _ArchiveErrorType("Archive utilities are not available.")
 
     def _infra_is_supported_archive(path: str | Path) -> bool:

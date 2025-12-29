@@ -13,7 +13,8 @@
     ".venv",
     "venv",
     "build",
-    "dist"
+    "dist",
+    "vulture_whitelist.py"
   ],
   "stubPath": "./typings",
   "strict": [
