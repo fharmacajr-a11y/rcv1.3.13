@@ -80,9 +80,9 @@ def test_actionbar_inside_file_frame_below_list(make_window: Callable) -> None:
     assert action_bar is not None, "ActionBar não encontrado dentro do file_frame"
 
     action_bar_info = action_bar.grid_info()
-    assert (
-        action_bar_info["row"] == 1
-    ), f"ActionBar deveria estar em row=1 (embaixo), mas está em row={action_bar_info['row']}"
+    assert action_bar_info["row"] == 1, (
+        f"ActionBar deveria estar em row=1 (embaixo), mas está em row={action_bar_info['row']}"
+    )
 
     win.destroy()
 
@@ -102,9 +102,9 @@ def test_prefix_truncation_for_long_prefix(make_window: Callable, monkeypatch: p
 
     # Verificar que prefix_var contém "Código do cliente no Supabase:" e está abreviado
     displayed_prefix = win.prefix_var.get()
-    assert displayed_prefix.startswith(
-        "Código do cliente no Supabase:"
-    ), f"Esperado que começasse com 'Código do cliente no Supabase:', mas obteve: {displayed_prefix}"
+    assert displayed_prefix.startswith("Código do cliente no Supabase:"), (
+        f"Esperado que começasse com 'Código do cliente no Supabase:', mas obteve: {displayed_prefix}"
+    )
     assert "…" in displayed_prefix, f"Esperado '…' no prefixo abreviado, mas obteve: {displayed_prefix}"
 
     win.destroy()
@@ -446,9 +446,9 @@ def test_prefix_entry_contains_client_code_label(make_window: Callable) -> None:
     win = make_window()
 
     displayed = win.prefix_var.get()
-    assert displayed.startswith(
-        "Código do cliente no Supabase:"
-    ), f"Entry deveria começar com 'Código do cliente no Supabase:', mas contém: {displayed}"
+    assert displayed.startswith("Código do cliente no Supabase:"), (
+        f"Entry deveria começar com 'Código do cliente no Supabase:', mas contém: {displayed}"
+    )
 
     win.destroy()
 

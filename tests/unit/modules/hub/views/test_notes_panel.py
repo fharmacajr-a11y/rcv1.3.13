@@ -182,9 +182,9 @@ class TestNotesRendering:
         # Deve ter tags noteid_ para cada nota (renderer atual usa noteid_<ID> como tag)
         # Verificar que há pelo menos 2 tags noteid_ (uma por nota)
         noteid_tags = [tag for tag in tags if tag.startswith("noteid_")]
-        assert (
-            len(noteid_tags) >= 2
-        ), f"Esperado pelo menos 2 tags noteid_, encontrado {len(noteid_tags)}: {noteid_tags}"
+        assert len(noteid_tags) >= 2, (
+            f"Esperado pelo menos 2 tags noteid_, encontrado {len(noteid_tags)}: {noteid_tags}"
+        )
 
     def test_formatted_lines_are_used(self, parent_frame):
         """Deve renderizar notas com formato de 2 linhas (timestamp - autor: corpo)."""

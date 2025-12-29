@@ -237,9 +237,9 @@ def test_controller_handle_action_click_reconhece_todos_ids_suportados(
     # Act & Assert
     for action_id in supported_ids:
         result = quick_actions_controller.handle_action_click(action_id)
-        assert (
-            result is True
-        ), f"handle_action_click('{action_id}') deve retornar True (action está em get_supported_action_ids())"
+        assert result is True, (
+            f"handle_action_click('{action_id}') deve retornar True (action está em get_supported_action_ids())"
+        )
 
 
 def test_controller_handle_action_click_reconhece_alias_cashflow(quick_actions_controller):
@@ -270,9 +270,9 @@ def test_integracao_viewmodel_fornece_ui_para_todas_actions_do_controller(
 
     # Assert - todas as actions do controller têm representação no viewmodel
     for action_id in controller_ids:
-        assert (
-            action_id in viewmodel_actions
-        ), f"Action '{action_id}' suportada pelo Controller deve ter representação no ViewModel"
+        assert action_id in viewmodel_actions, (
+            f"Action '{action_id}' suportada pelo Controller deve ter representação no ViewModel"
+        )
 
         # Verificar que tem dados de UI válidos
         vm_action = viewmodel_actions[action_id]
