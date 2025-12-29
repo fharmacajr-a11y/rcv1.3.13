@@ -15,6 +15,7 @@ __pycache__/
 
 # Backups
 backup_*/
+*.bak
 
 # Arquivos de ambiente e segredos
 .env
