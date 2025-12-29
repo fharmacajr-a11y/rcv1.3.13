@@ -9,7 +9,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from src.modules.main_window.views.main_window import MainWindow
+    from src.modules.main_window.views.main_window import MainWindow  # noqa: F401
 
 log = logging.getLogger(__name__)
 

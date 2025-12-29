@@ -22,7 +22,7 @@ class Scheduler(Protocol):
         """Agenda execução após ms milissegundos."""
         ...
 
-    def after_cancel(self, after_id: str) -> None:
+    def after_cancel(self, _after_id: str) -> None:
         """Cancela job agendado."""
         ...
 

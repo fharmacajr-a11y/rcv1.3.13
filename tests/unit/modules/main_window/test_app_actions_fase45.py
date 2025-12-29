@@ -30,6 +30,68 @@ def _stub_tk_modules(monkeypatch):
 
         return _inner
 
+    class _FakeToplevel:
+        """Fake Toplevel que implementa métodos no-op para evitar AttributeError."""
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def withdraw(self):
+            pass
+
+        def title(self, text=""):
+            pass
+
+        def resizable(self, width=True, height=True):
+            pass
+
+        def transient(self, parent=None):
+            pass
+
+        def protocol(self, name, func):
+            pass
+
+        def iconbitmap(self, path=""):
+            pass
+
+        def geometry(self, geometry=""):
+            pass
+
+        def configure(self, **kwargs):
+            pass
+
+        def destroy(self):
+            pass
+
+        def deiconify(self):
+            pass
+
+    class _FakeTclError(Exception):
+        """Fake TclError para compatibilidade com imports de tkinter."""
+
+        pass
+
+    class _FakeWidget:
+        """Classe base fake para widgets tkinter/ttk."""
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def configure(self, **kwargs):
+            pass
+
+        def pack(self, **kwargs):
+            pass
+
+        def grid(self, **kwargs):
+            pass
+
+        def place(self, **kwargs):
+            pass
+
+        def bind(self, *args, **kwargs):
+            pass
+
     messagebox_stub = types.SimpleNamespace(
         showwarning=record("showwarning"),
         showerror=record("showerror"),
@@ -37,11 +99,34 @@ def _stub_tk_modules(monkeypatch):
         askyesno=record("askyesno"),
     )
     filedialog_stub = types.SimpleNamespace(askdirectory=record("askdirectory"))
-    tk_stub = types.SimpleNamespace(messagebox=messagebox_stub, filedialog=filedialog_stub)
 
-    monkeypatch.setitem(sys.modules, "tkinter", tk_stub)
+    # TTK stub com componentes necessários
+    ttk_stub = types.SimpleNamespace(
+        Frame=_FakeWidget,
+        Label=_FakeWidget,
+        Button=_FakeWidget,
+        Entry=_FakeWidget,
+        Progressbar=_FakeWidget,
+    )
+
+    # ScrolledText stub
+    scrolledtext_stub = types.SimpleNamespace(ScrolledText=_FakeWidget)
+
+    # Usar ModuleType para se parecer mais com módulo real
+    tk_module = types.ModuleType("tkinter")
+    tk_module.messagebox = messagebox_stub
+    tk_module.filedialog = filedialog_stub
+    tk_module.Toplevel = _FakeToplevel
+    tk_module.Misc = object  # Interface base do tkinter
+    tk_module.TclError = _FakeTclError
+    tk_module.ttk = ttk_stub
+    tk_module.scrolledtext = scrolledtext_stub
+
+    monkeypatch.setitem(sys.modules, "tkinter", tk_module)
     monkeypatch.setitem(sys.modules, "tkinter.messagebox", messagebox_stub)
     monkeypatch.setitem(sys.modules, "tkinter.filedialog", filedialog_stub)
+    monkeypatch.setitem(sys.modules, "tkinter.ttk", ttk_stub)
+    monkeypatch.setitem(sys.modules, "tkinter.scrolledtext", scrolledtext_stub)
     return calls, responses
 
 
