@@ -1,3 +1,0 @@
-src.ui.theme
-src.ui.status_footer
-src.ui.placeholders
