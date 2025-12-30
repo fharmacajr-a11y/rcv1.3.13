@@ -1808,7 +1808,7 @@ class TestLoadPendingTasksIO:
 
     def test_returns_empty_on_exception(self, monkeypatch):
         """Test _load_pending_tasks returns empty list on exception (line 591-592)."""
-        import src.modules.hub.dashboard_service as ds
+        import src.modules.hub.dashboard.service as ds
 
         # Mock list_tasks_for_org to raise
         def raise_error(*args, **kwargs):
@@ -1824,7 +1824,7 @@ class TestLoadPendingTasksIO:
 
     def test_returns_tasks_with_client_names(self, monkeypatch):
         """Test _load_pending_tasks returns tasks with resolved client names (line 561-589)."""
-        import src.modules.hub.dashboard_service as ds
+        import src.modules.hub.dashboard.service as ds
 
         fake_tasks = [
             {"client_id": 1, "due_date": "2025-01-15", "title": "Tarefa 1", "priority": "high"},
@@ -1849,7 +1849,7 @@ class TestLoadPendingTasksIO:
 
     def test_limits_to_5_tasks(self, monkeypatch):
         """Test _load_pending_tasks limits output to 5 tasks."""
-        import src.modules.hub.dashboard_service as ds
+        import src.modules.hub.dashboard.service as ds
 
         fake_tasks = [
             {"client_id": i, "due_date": "2025-01-15", "title": f"Tarefa {i}", "priority": "normal"} for i in range(10)
@@ -1866,7 +1866,7 @@ class TestLoadPendingTasksIO:
 
     def test_handles_task_without_client_id(self, monkeypatch):
         """Test _load_pending_tasks handles tasks without client_id."""
-        import src.modules.hub.dashboard_service as ds
+        import src.modules.hub.dashboard.service as ds
 
         fake_tasks = [
             {"client_id": None, "due_date": "2025-01-15", "title": "Tarefa sem cliente", "priority": "normal"},
@@ -1888,7 +1888,7 @@ class TestLoadClientsOfTheDayIO:
 
     def test_returns_empty_on_exception(self, monkeypatch):
         """Test _load_clients_of_the_day returns empty list on exception (line 683-684)."""
-        import src.modules.hub.dashboard_service as ds
+        import src.modules.hub.dashboard.service as ds
 
         def raise_error(*args, **kwargs):
             raise RuntimeError("DB connection failed")
@@ -1903,7 +1903,7 @@ class TestLoadClientsOfTheDayIO:
 
     def test_returns_clients_grouped_by_kind(self, monkeypatch):
         """Test _load_clients_of_the_day groups obligations by client (line 611-680)."""
-        import src.modules.hub.dashboard_service as ds
+        import src.modules.hub.dashboard.service as ds
 
         today = date(2025, 1, 15)
         fake_obligations = [
@@ -1932,7 +1932,7 @@ class TestLoadClientsOfTheDayIO:
 
     def test_filters_non_pending_status(self, monkeypatch):
         """Test _load_clients_of_the_day filters out completed obligations."""
-        import src.modules.hub.dashboard_service as ds
+        import src.modules.hub.dashboard.service as ds
 
         today = date(2025, 1, 15)
         fake_obligations = [
@@ -1952,7 +1952,7 @@ class TestLoadClientsOfTheDayIO:
 
     def test_filters_different_due_date(self, monkeypatch):
         """Test _load_clients_of_the_day filters out obligations with different due_date."""
-        import src.modules.hub.dashboard_service as ds
+        import src.modules.hub.dashboard.service as ds
 
         today = date(2025, 1, 15)
         fake_obligations = [
@@ -1972,7 +1972,7 @@ class TestLoadClientsOfTheDayIO:
 
     def test_handles_date_object_due_date(self, monkeypatch):
         """Test _load_clients_of_the_day handles date objects."""
-        import src.modules.hub.dashboard_service as ds
+        import src.modules.hub.dashboard.service as ds
 
         today = date(2025, 1, 15)
         fake_obligations = [
@@ -1994,7 +1994,7 @@ class TestLoadRecentActivityIO:
 
     def test_returns_empty_on_exception(self, monkeypatch):
         """Test _load_recent_activity returns empty list on top-level exception (line 830-832)."""
-        import src.modules.hub.dashboard_service as ds
+        import src.modules.hub.dashboard.service as ds
 
         # Force exception at cutoff calculation (unlikely but possible)
         def raise_error(*args, **kwargs):
@@ -2016,7 +2016,7 @@ class TestLoadRecentActivityIO:
 
     def test_handles_task_exception_gracefully(self, monkeypatch):
         """Test _load_recent_activity continues on task exception (line 747-748)."""
-        import src.modules.hub.dashboard_service as ds
+        import src.modules.hub.dashboard.service as ds
 
         def raise_error(*args, **kwargs):
             raise RuntimeError("Task repo failed")
@@ -2037,7 +2037,7 @@ class TestLoadRecentActivityIO:
 
     def test_handles_obligation_exception_gracefully(self, monkeypatch):
         """Test _load_recent_activity continues on obligation exception (line 796-797)."""
-        import src.modules.hub.dashboard_service as ds
+        import src.modules.hub.dashboard.service as ds
 
         # Tasks work
         monkeypatch.setattr(
@@ -2059,7 +2059,7 @@ class TestLoadRecentActivityIO:
 
     def test_returns_combined_tasks_and_obligations(self, monkeypatch):
         """Test _load_recent_activity combines tasks and obligations (line 705-826)."""
-        import src.modules.hub.dashboard_service as ds
+        import src.modules.hub.dashboard.service as ds
 
         today = date(2025, 1, 15)
         recent = datetime(2025, 1, 14, 10, 0, 0, tzinfo=timezone.utc)
@@ -2092,7 +2092,7 @@ class TestLoadRecentActivityIO:
 
     def test_filters_old_events(self, monkeypatch):
         """Test _load_recent_activity filters events older than 7 days."""
-        import src.modules.hub.dashboard_service as ds
+        import src.modules.hub.dashboard.service as ds
 
         today = date(2025, 1, 15)
         old_date = datetime(2025, 1, 1, 10, 0, 0, tzinfo=timezone.utc)  # 14 days ago
@@ -2122,7 +2122,7 @@ class TestLoadRecentActivityIO:
 
     def test_handles_user_names_exception(self, monkeypatch):
         """Test _load_recent_activity handles user names exception (line 809-810)."""
-        import src.modules.hub.dashboard_service as ds
+        import src.modules.hub.dashboard.service as ds
 
         today = date(2025, 1, 15)
         recent = datetime(2025, 1, 14, 10, 0, 0, tzinfo=timezone.utc)
@@ -2159,7 +2159,7 @@ class TestFetchClientNamesIO:
 
     def test_returns_fallback_on_import_error(self, monkeypatch):
         """Test _fetch_client_names returns fallback on ImportError (line 540-542)."""
-        import src.modules.hub.dashboard_service as ds
+        import src.modules.hub.dashboard.service as ds
 
         # Force ImportError by removing the module from cache
 
@@ -2182,7 +2182,7 @@ class TestFetchClientNamesIO:
 
     def test_handles_fetch_exception(self, monkeypatch):
         """Test _fetch_client_names handles exception in fetch_cliente_by_id (line 537-538)."""
-        import src.modules.hub.dashboard_service as ds
+        import src.modules.hub.dashboard.service as ds
 
         def raise_error(cid):
             raise RuntimeError("DB error")
@@ -2200,7 +2200,7 @@ class TestFetchClientNamesIO:
 
     def test_handles_empty_client_response(self, monkeypatch):
         """Test _fetch_client_names handles None response from fetch."""
-        import src.modules.hub.dashboard_service as ds
+        import src.modules.hub.dashboard.service as ds
 
         monkeypatch.setattr(
             "src.modules.clientes.service.fetch_cliente_by_id",
@@ -2217,7 +2217,7 @@ class TestGetDashboardSnapshotIO:
 
     def test_handles_anvisa_requests_exception(self, monkeypatch):
         """Test get_dashboard_snapshot handles ANVISA requests exception (line 864-866)."""
-        import src.modules.hub.dashboard_service as ds
+        import src.modules.hub.dashboard.service as ds
 
         def raise_error(*args, **kwargs):
             raise RuntimeError("ANVISA repo failed")
@@ -2245,7 +2245,7 @@ class TestGetDashboardSnapshotIO:
 
     def test_handles_count_clients_exception(self, monkeypatch):
         """Test get_dashboard_snapshot handles count_clients exception (line 873-875)."""
-        import src.modules.hub.dashboard_service as ds
+        import src.modules.hub.dashboard.service as ds
 
         monkeypatch.setattr(
             "infra.repositories.anvisa_requests_repository.list_requests",
@@ -2270,7 +2270,7 @@ class TestGetDashboardSnapshotIO:
 
     def test_handles_cashflow_exception(self, monkeypatch):
         """Test get_dashboard_snapshot handles cashflow exception (line 896-898)."""
-        import src.modules.hub.dashboard_service as ds
+        import src.modules.hub.dashboard.service as ds
 
         monkeypatch.setattr(
             "infra.repositories.anvisa_requests_repository.list_requests",
@@ -2295,7 +2295,7 @@ class TestGetDashboardSnapshotIO:
 
     def test_handles_anvisa_open_due_exception(self, monkeypatch):
         """Test get_dashboard_snapshot handles _count_anvisa_open_and_due exception (line 883-886)."""
-        import src.modules.hub.dashboard_service as ds
+        import src.modules.hub.dashboard.service as ds
 
         monkeypatch.setattr(
             "infra.repositories.anvisa_requests_repository.list_requests",
@@ -2322,7 +2322,7 @@ class TestGetDashboardSnapshotIO:
 
     def test_handles_anvisa_radar_exception(self, monkeypatch):
         """Test get_dashboard_snapshot handles _build_anvisa_radar_from_requests exception (line 1042-1044)."""
-        import src.modules.hub.dashboard_service as ds
+        import src.modules.hub.dashboard.service as ds
 
         monkeypatch.setattr(
             "infra.repositories.anvisa_requests_repository.list_requests",
@@ -2349,7 +2349,7 @@ class TestGetDashboardSnapshotIO:
 
     def test_builds_upcoming_deadlines_from_requests(self, monkeypatch):
         """Test get_dashboard_snapshot builds upcoming_deadlines from ANVISA requests (line 906-947)."""
-        import src.modules.hub.dashboard_service as ds
+        import src.modules.hub.dashboard.service as ds
 
         fake_requests = [
             {
@@ -2392,7 +2392,7 @@ class TestGetDashboardSnapshotIO:
 
     def test_builds_pending_tasks_with_check_daily(self, monkeypatch):
         """Test get_dashboard_snapshot builds pending_tasks for check_daily=True (line 955-1012)."""
-        import src.modules.hub.dashboard_service as ds
+        import src.modules.hub.dashboard.service as ds
 
         today = date(2025, 1, 15)
         fake_requests = [
@@ -2448,7 +2448,7 @@ class TestGetDashboardSnapshotIO:
 
     def test_builds_clients_of_the_day(self, monkeypatch):
         """Test get_dashboard_snapshot builds clients_of_the_day (line 1017-1035)."""
-        import src.modules.hub.dashboard_service as ds
+        import src.modules.hub.dashboard.service as ds
 
         today = date(2025, 1, 15)
         fake_requests = [
