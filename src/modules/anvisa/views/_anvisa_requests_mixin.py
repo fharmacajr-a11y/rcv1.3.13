@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from tkinter import messagebox
 
@@ -12,11 +12,29 @@ from src.modules.anvisa.constants import (
     DEFAULT_CREATE_STATUS,
 )
 
+if TYPE_CHECKING:
+    from ..controllers.anvisa_requests_controller import AnvisaRequestsController
+
 log = logging.getLogger(__name__)
 
 
 class AnvisaRequestsMixin:
     """Mixin com métodos de cache, helpers e load de requests."""
+
+    def _get_requests_controller(self) -> AnvisaRequestsController:
+        """Retorna (ou cria) o controller de requests ANVISA.
+
+        Returns:
+            Instância de AnvisaRequestsController
+        """
+        from ..controllers.anvisa_requests_controller import AnvisaRequestsController
+
+        ctrl = getattr(self, "_requests_controller", None)
+        if isinstance(ctrl, AnvisaRequestsController):
+            return ctrl
+        ctrl = AnvisaRequestsController(logger=log)
+        setattr(self, "_requests_controller", ctrl)
+        return ctrl
 
     def _resolve_org_id(self) -> Optional[str]:
         """Resolve o org_id do usuário logado.
@@ -25,10 +43,7 @@ class AnvisaRequestsMixin:
             org_id se encontrado, None caso contrário
         """
         try:
-            from infra.repositories.anvisa_requests_repository import _get_supabase_and_user, _resolve_org_id
-
-            _, user_id = _get_supabase_and_user()
-            org_id = _resolve_org_id(user_id)
+            org_id = self._get_requests_controller().resolve_org_id()
             return org_id
         except Exception as e:
             log.exception("Erro ao resolver org_id")
@@ -50,10 +65,8 @@ class AnvisaRequestsMixin:
             return
 
         try:
-            from infra.repositories.anvisa_requests_repository import list_requests
-
             log.info("[ANVISA] Carregando demandas do Supabase...")
-            requests = list_requests(org_id)
+            requests = self._get_requests_controller().list_requests(org_id)
 
             # Limpar Treeview antes de popular
             for item in self.tree_requests.get_children():  # type: ignore[attr-defined]
@@ -161,10 +174,8 @@ class AnvisaRequestsMixin:
             return []
 
         try:
-            from infra.repositories.anvisa_requests_repository import list_requests
-
-            # Carregar todas as demandas da org
-            all_requests = list_requests(org_id)
+            # Carregar todas as demandas da org via controller
+            all_requests = self._get_requests_controller().list_requests(org_id)
 
             # Filtrar por client_id
             client_requests = [req for req in all_requests if str(req.get("client_id", "")) == client_id]
@@ -353,8 +364,6 @@ class AnvisaRequestsMixin:
             return None
 
         try:
-            from infra.repositories.anvisa_requests_repository import create_request
-
             # Converter client_id para int (BIGINT no DB)
             client_id_int = int(request["client_id"])
             request_type = request["request_type"]
@@ -362,7 +371,7 @@ class AnvisaRequestsMixin:
 
             log.info(f"[ANVISA] Inserindo no Supabase: client_id={client_id_int}, tipo={request_type}")
 
-            created = create_request(
+            created = self._get_requests_controller().create_request(
                 org_id=org_id,
                 client_id=client_id_int,
                 request_type=request_type,
