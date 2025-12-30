@@ -16,8 +16,9 @@ except Exception as exc:  # noqa: BLE001
     Image = ImageTk = None
 
 from src.ui.window_utils import show_centered
-from src.modules.pdf_preview.controller import PdfPreviewController, PageRenderData
-from src.modules.pdf_preview.utils import LRUCache, pixmap_to_photoimage
+from src.modules.pdf_preview.controller import PdfPreviewController
+from src.modules.pdf_preview.utils import LRUCache
+from src.modules.pdf_preview.render_service import PdfRenderService
 from src.modules.pdf_preview.views.page_view import PdfPageView
 from src.modules.pdf_preview.views.text_panel import PdfTextPanel
 from src.modules.pdf_preview.views.toolbar import PdfToolbar
@@ -79,6 +80,7 @@ class PdfViewerWin(tk.Toplevel):
         self._page_tops: List[int] = []  # y de cada página
         self._page_sizes: List[Tuple[int, int]] = []  # (w,h) em 1.0
         self.cache: LRUCache = LRUCache(12)
+        self._render_service: PdfRenderService = PdfRenderService(cache=self.cache)
         self._pan_active: bool = False
         self._closing: bool = False
         self._fit_mode: bool = False
@@ -475,37 +477,29 @@ class PdfViewerWin(tk.Toplevel):
         self._update_scrollregion()
 
     def _ensure_page_rendered(self, i: int) -> None:
-        key = (i, round(self.zoom, 2))
-        img = self.cache.get(key)
-        if img is None:
-            img = self._render_page_image(i, self.zoom)
-            if img is None:
-                return
-            self.cache.put(key, img)
+        """Ensure page is rendered and displayed on canvas."""
+        img = self._render_service.get_page_photoimage(
+            page_index=i,
+            zoom=self.zoom,
+            page_sizes=self._page_sizes,
+            pdf_controller=self._controller,
+        )
         it = self._items[i]
         # posiciona pela esquerda com GAP
         self.canvas.itemconfig(it, image=img)
         self._img_refs[it] = img  # manter referência viva
 
     def _render_page_image(self, index: int, zoom: float) -> tk.PhotoImage:
-        """Renderiza uma página do PDF como PhotoImage."""
-        w1, h1 = self._page_sizes[index]
+        """Renderiza uma página do PDF como PhotoImage.
 
-        # Obtém pixmap do controller
-        if self._controller is not None:
-            render: Optional[PageRenderData] = self._controller.get_page_pixmap(page_index=index, zoom=zoom)
-            pix = render.pixmap if render is not None else None
-        else:
-            pix = None
-
-        # Fallback: imagem vazia se não houver pixmap
-        if pix is None:
-            ph = tk.PhotoImage(width=max(200, int(w1 * zoom)), height=max(200, int(h1 * zoom)))
-            return ph
-
-        # Converte pixmap para PhotoImage usando helper
-        photo = pixmap_to_photoimage(pix)
-        return photo if photo is not None else tk.PhotoImage(width=200, height=200)
+        Note: This is now a wrapper around PdfRenderService for backward compatibility.
+        """
+        return self._render_service.get_page_photoimage(
+            page_index=index,
+            zoom=zoom,
+            page_sizes=self._page_sizes,
+            pdf_controller=self._controller,
+        )
 
     def _update_page_label(self, index: int) -> None:
         total = max(1, getattr(self, "page_count", 1))
