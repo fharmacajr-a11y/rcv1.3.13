@@ -904,7 +904,7 @@ proteção fraca.
 | T06 | Média | Extrair PdfRenderService | 4h | Atual | ✅ Concluído | 207b8f8 |
 | T07 | Média | Converter mixin ANVISA em Controller | 6h | Atual | ✅ Concluído | d55f9a2, 72d1e37 |
 | T08 | Média | Protocolo UI feedback | 4h | Atual | ✅ Concluído | 0d8cd5b |
-| T09 | Baixa | Remover shims deprecated | 8h | +3 | ⏳ Pendente | — |
+| T09 | Baixa | Remover shims deprecated | 8h | Atual | ✅ Concluído | 47f2fa0, 0138a0d |
 | T10 | Baixa | Dividir dashboard_service | 8h | +3 | ⏳ Pendente | — |
 | T11 | Alta | Corrigir Pyright + robustez notifications (timezone/mocks) | 30min | Atual | ✅ Concluído | 7d42348 |
 | T12 | Média | Aplicar ruff format (arquivos de teste) | 15min | Atual | ✅ Concluído | 4dacd0e |
