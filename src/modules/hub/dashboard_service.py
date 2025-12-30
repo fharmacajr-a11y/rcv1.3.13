@@ -11,8 +11,36 @@ from __future__ import annotations
 import logging
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Any
+
+# Re-export formatters for backward compatibility
+from src.modules.hub.dashboard_formatters import (
+    _due_badge,
+    _format_due_br,
+    _get_first_day_of_month,
+    _get_last_day_of_month,
+    _parse_due_date_iso,
+    _parse_timestamp,
+    due_badge,
+    format_due_br,
+    get_first_day_of_month,
+    get_last_day_of_month,
+    parse_due_date_iso,
+    parse_timestamp,
+)
+
+__all__ = [
+    "DashboardSnapshot",
+    "get_dashboard_snapshot",
+    # Re-exported formatters (public API)
+    "get_first_day_of_month",
+    "get_last_day_of_month",
+    "parse_due_date_iso",
+    "format_due_br",
+    "due_badge",
+    "parse_timestamp",
+]
 
 logger = logging.getLogger(__name__)
 
@@ -51,84 +79,6 @@ class DashboardSnapshot:
     risk_radar: dict[str, dict[str, Any]] = field(default_factory=dict)
     recent_activity: list[dict[str, Any]] = field(default_factory=list)
     anvisa_only: bool = False
-
-
-def _get_first_day_of_month(d: date) -> date:
-    """Returns the first day of the month for a given date."""
-    return d.replace(day=1)
-
-
-def _get_last_day_of_month(d: date) -> date:
-    """Returns the last day of the month for a given date."""
-    # Go to next month's first day, then subtract one day
-    if d.month == 12:
-        next_month = d.replace(year=d.year + 1, month=1, day=1)
-    else:
-        next_month = d.replace(month=d.month + 1, day=1)
-    return next_month - timedelta(days=1)
-
-
-def _parse_due_date_iso(due: str) -> date | None:
-    """Parse ISO date string (YYYY-MM-DD) to date object.
-
-    Args:
-        due: ISO date string.
-
-    Returns:
-        Date object or None if invalid.
-    """
-    try:
-        return date.fromisoformat(due.strip())
-    except (ValueError, AttributeError):
-        return None
-
-
-def _format_due_br(d: date | None) -> str:
-    """Format due date in Brazilian format (dd/mm/YYYY).
-
-    Args:
-        d: Date object or None.
-
-    Returns:
-        Formatted date string or "—" if None/invalid.
-    """
-    if d is None:
-        return "—"
-    try:
-        return d.strftime("%d/%m/%Y")
-    except (ValueError, AttributeError):
-        return "—"
-
-
-def _due_badge(due: date | None, today: date) -> tuple[str, int]:
-    """Generate status badge for a due date and calculate days delta.
-
-    Args:
-        due: Due date or None.
-        today: Reference date.
-
-    Returns:
-        Tuple of (status_text, days_delta):
-        - status_text: "Sem prazo", "Hoje", "Faltam Xd", "Atrasada Xd"
-        - days_delta: Days until/since due date, or 99999 if no due date
-    """
-    if due is None:
-        return ("Sem prazo", 99999)
-
-    try:
-        delta = (due - today).days
-
-        if delta < 0:
-            # Atrasada
-            return (f"Atrasada {abs(delta)}d", delta)
-        elif delta == 0:
-            # Hoje
-            return ("Hoje", delta)
-        else:
-            # Faltam X dias
-            return (f"Faltam {delta}d", delta)
-    except (ValueError, AttributeError, TypeError):
-        return ("Sem prazo", 99999)
 
 
 def _count_anvisa_open_and_due(
@@ -184,36 +134,6 @@ def _count_anvisa_open_and_due(
                     due_until_today += 1
 
     return open_total, due_until_today
-
-
-def _parse_timestamp(value: Any) -> datetime | None:
-    """Parse timestamp from datetime or ISO string.
-
-    Args:
-        value: Timestamp value (datetime, string, or other).
-
-    Returns:
-        Parsed datetime or None if invalid.
-    """
-    if isinstance(value, datetime):
-        return value
-
-    if isinstance(value, str):
-        # Try parsing ISO 8601 string
-        text = value.strip()
-        if not text:
-            return None
-
-        # Supabase often sends 'Z' suffix or offset (+00:00)
-        if text.endswith("Z"):
-            text = text[:-1] + "+00:00"
-
-        try:
-            return datetime.fromisoformat(text)
-        except ValueError:
-            return None
-
-    return None
 
 
 def _count_tasks_due_until_today(
