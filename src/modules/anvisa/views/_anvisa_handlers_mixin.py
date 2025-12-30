@@ -4,16 +4,66 @@ from __future__ import annotations
 
 import logging
 from tkinter import messagebox
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ..utils.anvisa_errors import extract_postgrest_error, user_message_from_error, log_exception
 from ..utils.anvisa_logging import fmt_ctx
+
+if TYPE_CHECKING:
+    from ..controllers.anvisa_client_lookup_controller import AnvisaClientLookupController
+    from ..controllers.anvisa_activity_publisher import AnvisaActivityPublisher
 
 log = logging.getLogger(__name__)
 
 
 class AnvisaHandlersMixin:
     """Mixin com handlers, menu de contexto e ações de exclusão/finalização."""
+
+    def _get_client_lookup_controller(self) -> AnvisaClientLookupController:
+        """Retorna (ou cria) o controller de lookup de cliente.
+
+        Returns:
+            Instância de AnvisaClientLookupController
+        """
+        from ..controllers.anvisa_client_lookup_controller import AnvisaClientLookupController
+
+        ctrl = getattr(self, "_client_lookup_controller", None)
+        if isinstance(ctrl, AnvisaClientLookupController):
+            return ctrl
+        ctrl = AnvisaClientLookupController(logger=log)
+        setattr(self, "_client_lookup_controller", ctrl)
+        return ctrl
+
+    def _get_activity_publisher(self) -> AnvisaActivityPublisher:
+        """Retorna (ou cria) o publisher de activity.
+
+        Returns:
+            Instância de AnvisaActivityPublisher
+        """
+        from ..controllers.anvisa_activity_publisher import AnvisaActivityPublisher
+
+        pub = getattr(self, "_activity_publisher", None)
+        if isinstance(pub, AnvisaActivityPublisher):
+            return pub
+        pub = AnvisaActivityPublisher(logger=log)
+        setattr(self, "_activity_publisher", pub)
+        return pub
+
+    def _get_due_date_for_request(self, client_id: str, request_id: str) -> str | None:
+        """Obtém due_date de uma demanda específica do cache.
+
+        Args:
+            client_id: ID do cliente
+            request_id: ID da demanda
+
+        Returns:
+            due_date se encontrado, None caso contrário
+        """
+        demandas = self._requests_by_client.get(client_id, [])  # type: ignore[attr-defined]
+        for d in demandas:
+            if str(d.get("id")) == request_id:
+                return d.get("due_date")
+        return None
 
     def _get_client_info_for_event(
         self,
@@ -46,29 +96,15 @@ class AnvisaHandlersMixin:
                     return cnpj, razao
                 break
 
-        # Prioridade 2: Fazer lookup na tabela clients
-        try:
-            from infra.supabase_client import get_supabase
-
-            sb = get_supabase()
-            resp = (
-                sb.table("clients")
-                .select("cnpj,razao_social")
-                .eq("org_id", org_id)
-                .eq("id", client_id)
-                .limit(1)
-                .execute()
-            )
-
-            if resp.data and len(resp.data) > 0:
-                client_data = resp.data[0]
-                cnpj = client_data.get("cnpj")
-                razao = client_data.get("razao_social") or ""
-                log.debug(f"[ANVISA][event] Dados obtidos via lookup: cnpj={cnpj}, razao={razao}")
-            else:
-                log.warning(f"[ANVISA][event] Cliente {client_id} não encontrado na tabela clients")
-        except Exception as exc:
-            log.warning(f"[ANVISA][event] Erro ao fazer lookup de cliente: {exc}")
+        # Prioridade 2: Fazer lookup via controller
+        cnpj, razao = self._get_client_lookup_controller().lookup_client_cnpj_razao(
+            org_id=org_id,
+            client_id=client_id,
+        )
+        if cnpj:
+            log.debug(f"[ANVISA][event] Dados obtidos via lookup: cnpj={cnpj}, razao={razao}")
+        else:
+            log.warning(f"[ANVISA][event] Cliente {client_id} não encontrado na tabela clients")
 
         return cnpj, razao
 
@@ -384,60 +420,22 @@ class AnvisaHandlersMixin:
             if success:
                 # Registrar evento no histórico de atividades
                 try:
-                    from src.modules.hub.recent_activity_store import (
-                        ActivityEvent,
-                        get_recent_activity_store,
-                    )
-                    from src.modules.hub.async_runner import HubAsyncRunner
-                    from src.core.session import get_current_user
-
-                    # Obter informações do usuário
-                    current_user = get_current_user()
-                    user_email = current_user.email if current_user and current_user.email else None
-                    user_id = current_user.uid if current_user else None
-
-                    # Obter org_id
                     org_id = self._resolve_org_id()  # type: ignore[attr-defined]
-
-                    # Obter dados do cliente (CORRETO: do client_id, não do ctx)
-                    cnpj, razao = self._get_client_info_for_event(client_id, demanda_id, org_id)
-
-                    # Obter due_date se disponível
-                    due_date = None
-                    demandas = self._requests_by_client.get(client_id, [])  # type: ignore[attr-defined]
-                    for d in demandas:
-                        if str(d.get("id")) == demanda_id:
-                            due_date = d.get("due_date")
-                            break
-
-                    # Log de consistência
-                    log.info(
-                        f"[ANVISA][event] Concluída - request={demanda_id} client_id={client_id} "
-                        f"cnpj={cnpj} razao={razao}"
-                    )
-
-                    # Criar evento estruturado
-                    event = ActivityEvent(
-                        org_id=org_id,
-                        module="ANVISA",
-                        action="Concluída",
-                        message=f"Demanda concluída: {tipo}",
-                        client_id=int(client_id) if client_id else None,
-                        cnpj=cnpj,
-                        request_id=demanda_id,
-                        request_type=tipo,
-                        due_date=due_date,
-                        actor_email=user_email,
-                        actor_user_id=user_id,
-                        metadata={"razao_social": razao},
-                    )
-
-                    # Criar runner para persistência assíncrona
-                    tk_root = self.winfo_toplevel()  # type: ignore[attr-defined]
-                    runner = HubAsyncRunner(tk_root=tk_root, logger=log)
-
-                    # Adicionar evento (persiste automaticamente)
-                    get_recent_activity_store().add_event(event, persist=True, runner=runner)
+                    if org_id:
+                        cnpj, razao = self._get_client_info_for_event(client_id, demanda_id, org_id)
+                        due_date = self._get_due_date_for_request(client_id, demanda_id)
+                        self._get_activity_publisher().publish(
+                            tk_root=self.winfo_toplevel(),  # type: ignore[attr-defined]
+                            org_id=org_id,
+                            action="Concluída",
+                            message=f"Demanda concluída: {tipo}",
+                            client_id=str(client_id),
+                            cnpj=cnpj,
+                            request_id=demanda_id,
+                            request_type=tipo,
+                            due_date=due_date,
+                            razao_social=razao,
+                        )
                 except Exception as exc:
                     log.warning(f"[ANVISA View] Erro ao registrar evento no histórico: {exc}")
 
@@ -552,60 +550,22 @@ class AnvisaHandlersMixin:
             if success:
                 # Registrar evento no histórico de atividades
                 try:
-                    from src.modules.hub.recent_activity_store import (
-                        ActivityEvent,
-                        get_recent_activity_store,
-                    )
-                    from src.modules.hub.async_runner import HubAsyncRunner
-                    from src.core.session import get_current_user
-
-                    # Obter informações do usuário
-                    current_user = get_current_user()
-                    user_email = current_user.email if current_user and current_user.email else None
-                    user_id = current_user.uid if current_user else None
-
-                    # Obter org_id
                     org_id = self._resolve_org_id()  # type: ignore[attr-defined]
-
-                    # Obter dados do cliente (CORRETO: do client_id, não do ctx)
-                    cnpj, razao = self._get_client_info_for_event(client_id, demanda_id, org_id)
-
-                    # Obter due_date se disponível
-                    due_date = None
-                    demandas = self._requests_by_client.get(client_id, [])  # type: ignore[attr-defined]
-                    for d in demandas:
-                        if str(d.get("id")) == demanda_id:
-                            due_date = d.get("due_date")
-                            break
-
-                    # Log de consistência
-                    log.info(
-                        f"[ANVISA][event] Cancelada - request={demanda_id} client_id={client_id} "
-                        f"cnpj={cnpj} razao={razao}"
-                    )
-
-                    # Criar evento estruturado
-                    event = ActivityEvent(
-                        org_id=org_id,
-                        module="ANVISA",
-                        action="Cancelada",
-                        message=f"Demanda cancelada: {tipo}",
-                        client_id=int(client_id) if client_id else None,
-                        cnpj=cnpj,
-                        request_id=demanda_id,
-                        request_type=tipo,
-                        due_date=due_date,
-                        actor_email=user_email,
-                        actor_user_id=user_id,
-                        metadata={"razao_social": razao},
-                    )
-
-                    # Criar runner para persistência assíncrona
-                    tk_root = self.winfo_toplevel()  # type: ignore[attr-defined]
-                    runner = HubAsyncRunner(tk_root=tk_root, logger=log)
-
-                    # Adicionar evento (persiste automaticamente)
-                    get_recent_activity_store().add_event(event, persist=True, runner=runner)
+                    if org_id:
+                        cnpj, razao = self._get_client_info_for_event(client_id, demanda_id, org_id)
+                        due_date = self._get_due_date_for_request(client_id, demanda_id)
+                        self._get_activity_publisher().publish(
+                            tk_root=self.winfo_toplevel(),  # type: ignore[attr-defined]
+                            org_id=org_id,
+                            action="Cancelada",
+                            message=f"Demanda cancelada: {tipo}",
+                            client_id=str(client_id),
+                            cnpj=cnpj,
+                            request_id=demanda_id,
+                            request_type=tipo,
+                            due_date=due_date,
+                            razao_social=razao,
+                        )
                 except Exception as exc:
                     log.warning(f"[ANVISA View] Erro ao registrar evento no histórico: {exc}")
 
@@ -711,60 +671,22 @@ class AnvisaHandlersMixin:
             if success:
                 # Registrar evento no histórico de atividades
                 try:
-                    from src.modules.hub.recent_activity_store import (
-                        ActivityEvent,
-                        get_recent_activity_store,
-                    )
-                    from src.modules.hub.async_runner import HubAsyncRunner
-                    from src.core.session import get_current_user
-
-                    # Obter informações do usuário
-                    current_user = get_current_user()
-                    user_email = current_user.email if current_user and current_user.email else None
-                    user_id = current_user.uid if current_user else None
-
-                    # Obter org_id
                     org_id = self._resolve_org_id()  # type: ignore[attr-defined]
-
-                    # Obter dados do cliente (CORRETO: do client_id, não do ctx)
-                    cnpj, razao = self._get_client_info_for_event(client_id, demanda_id, org_id)
-
-                    # Obter due_date se disponível
-                    due_date = None
-                    demandas = self._requests_by_client.get(client_id, [])  # type: ignore[attr-defined]
-                    for d in demandas:
-                        if str(d.get("id")) == demanda_id:
-                            due_date = d.get("due_date")
-                            break
-
-                    # Log de consistência
-                    log.info(
-                        f"[ANVISA][event] Excluída - request={demanda_id} client_id={client_id} "
-                        f"cnpj={cnpj} razao={razao}"
-                    )
-
-                    # Criar evento estruturado
-                    event = ActivityEvent(
-                        org_id=org_id,
-                        module="ANVISA",
-                        action="Excluída",
-                        message=f"Demanda excluída: {tipo}",
-                        client_id=int(client_id) if client_id else None,
-                        cnpj=cnpj,
-                        request_id=demanda_id,
-                        request_type=tipo,
-                        due_date=due_date,
-                        actor_email=user_email,
-                        actor_user_id=user_id,
-                        metadata={"razao_social": razao},
-                    )
-
-                    # Criar runner para persistência assíncrona
-                    tk_root = self.winfo_toplevel()  # type: ignore[attr-defined]
-                    runner = HubAsyncRunner(tk_root=tk_root, logger=log)
-
-                    # Adicionar evento (persiste automaticamente)
-                    get_recent_activity_store().add_event(event, persist=True, runner=runner)
+                    if org_id:
+                        cnpj, razao = self._get_client_info_for_event(client_id, demanda_id, org_id)
+                        due_date = self._get_due_date_for_request(client_id, demanda_id)
+                        self._get_activity_publisher().publish(
+                            tk_root=self.winfo_toplevel(),  # type: ignore[attr-defined]
+                            org_id=org_id,
+                            action="Excluída",
+                            message=f"Demanda excluída: {tipo}",
+                            client_id=str(client_id),
+                            cnpj=cnpj,
+                            request_id=demanda_id,
+                            request_type=tipo,
+                            due_date=due_date,
+                            razao_social=razao,
+                        )
                 except Exception as exc:
                     log.warning(f"[ANVISA View] Erro ao registrar evento no histórico: {exc}")
 
