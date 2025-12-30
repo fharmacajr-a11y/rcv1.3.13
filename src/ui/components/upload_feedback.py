@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import messagebox
 from typing import Any, Mapping, Sequence, Tuple
+
+from src.ui.feedback import get_ui_feedback
 
 __all__ = ["build_upload_message_info", "show_upload_result_message"]
 
@@ -88,11 +89,11 @@ def show_upload_result_message(parent: tk.Misc | None, result: Mapping[str, Any]
     if not should_show_ui:
         return
 
-    parent_widget = parent if isinstance(parent, tk.Misc) else None
+    feedback = get_ui_feedback(parent)
 
     if message_type == "error":
-        messagebox.showerror(title, body, parent=parent_widget)
+        feedback.error(title, body)
     elif message_type == "warning":
-        messagebox.showwarning(title, body, parent=parent_widget)
+        feedback.warning(title, body)
     else:
-        messagebox.showinfo(title, body, parent=parent_widget)
+        feedback.info(title, body)
