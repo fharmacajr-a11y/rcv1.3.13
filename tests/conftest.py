@@ -149,12 +149,18 @@ def _load_smoke_prefixes() -> tuple[str, ...]:
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
-    """Adiciona opção --smoke ao pytest."""
+    """Adiciona opções --smoke e --smoke-strict ao pytest."""
     parser.addoption(
         "--smoke",
         action="store_true",
         default=False,
         help="Executa apenas a smoke suite definida em scripts/suites/smoke_nodeids.txt",
+    )
+    parser.addoption(
+        "--smoke-strict",
+        action="store_true",
+        default=False,
+        help="Falha se algum item do smoke_nodeids.txt não casar com nenhum teste.",
     )
 
 
@@ -908,6 +914,22 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         if not prefixes:
             raise pytest.UsageError("--smoke ativo, mas smoke_nodeids.txt está vazio")
 
+        # Detectar quais prefixes têm match
+        matched: dict[str, bool] = {p: False for p in prefixes}
+        for item in items:
+            nid = item.nodeid.replace("\\", "/")
+            for p in prefixes:
+                if nid.startswith(p):
+                    matched[p] = True
+                    break
+
+        unmatched = [p for p, ok in matched.items() if not ok]
+        if unmatched:
+            if config.getoption("smoke_strict", default=False):
+                raise pytest.UsageError("Entradas sem match no smoke_nodeids.txt:\n- " + "\n- ".join(unmatched))
+            setattr(config, "_smoke_unmatched_prefixes", unmatched)
+
+        # Filtrar itens
         selected: list[pytest.Item] = []
         deselected: list[pytest.Item] = []
         for item in items:
@@ -939,3 +961,13 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
                         reason="Windows: ttkbootstrap/tkinter element_create causa access violation (crash). Rodar com RC_RUN_PDF_UI_TESTS=1 se precisar."
                     )
                 )
+
+
+def pytest_terminal_summary(terminalreporter: Any, exitstatus: int, config: pytest.Config) -> None:
+    """Mostra aviso sobre entradas sem match no smoke_nodeids.txt."""
+    unmatched = getattr(config, "_smoke_unmatched_prefixes", None)
+    if unmatched:
+        terminalreporter.write_line("")
+        terminalreporter.write_line("[smoke] ATENÇÃO: entradas sem match no smoke_nodeids.txt:")
+        for p in unmatched:
+            terminalreporter.write_line(f"  - {p}")

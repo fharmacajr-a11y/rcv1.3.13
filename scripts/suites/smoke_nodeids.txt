@@ -2,7 +2,7 @@
 # SMOKE TEST SUITE - RC Gestor de Clientes
 # =============================================================================
 # Testes críticos de regressão rápida.
-# Uso: python scripts/run_smoke.py
+# Uso: pytest --smoke
 #
 # Formato: 1 nodeid por linha (módulo, classe ou método)
 # Linhas vazias e começando com # são ignoradas.
@@ -13,21 +13,21 @@ tests/unit/core/test_auth_bootstrap_microfase.py
 
 # Hub / Dashboard
 tests/unit/modules/hub/test_dashboard_service.py::TestDashboardSnapshot
-tests/unit/modules/hub/test_hub_screen_controller_mf42.py::TestHubInit
+tests/unit/modules/hub/test_hub_screen_controller_mf42.py::test_init_stores_dependencies
 
 # Clientes
-tests/unit/modules/clientes/test_viewmodel_round15.py::TestClientesCRUD
-tests/unit/modules/clientes/forms/test_prepare_round12.py::TestFormValidation
+tests/unit/modules/clientes/test_viewmodel_round15.py::TestLoadAndRebuild
+tests/unit/modules/clientes/forms/test_prepare_round12.py::TestSanityChecks
 
 # Uploads
-tests/unit/modules/uploads/test_uploads_service_fase32.py::TestUploadBasic
+tests/unit/modules/uploads/test_uploads_service_fase32.py::TestUploadFolderToSupabase
 
 # Anvisa
-tests/unit/modules/anvisa/test_anvisa_service.py::TestAnvisaBasic
+tests/unit/modules/anvisa/test_anvisa_service.py::TestAnvisaServiceMF52
 
 # Data / Infra
-tests/unit/data/test_supabase_repo.py::TestSupabaseRepoConnection
-tests/unit/infra/test_health_check.py
+tests/unit/data/test_supabase_repo.py::test_get_supabase_client_success
+tests/unit/infra/test_infra_healthcheck_fase37.py
 
 # UI
 tests/unit/ui/test_topbar_home_button.py
