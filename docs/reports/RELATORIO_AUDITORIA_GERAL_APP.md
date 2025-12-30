@@ -928,7 +928,8 @@ pytest --smoke --smoke-strict -q -x --tb=short
 ```
 
 Este comando executa apenas os testes críticos definidos em `scripts/suites/smoke_nodeids.txt`.  
-A flag `--smoke-strict` emite warnings se algum prefixo de nodeid não casar com testes reais.
+Sem `--smoke-strict`, o pytest imprime um **AVISO** no resumo se algum prefixo não casar.  
+Com `--smoke-strict`, o pytest **FALHA** (UsageError) se algum prefixo não casar.
 
 ### 3) Checks rápidos (sem rodar suite inteira)
 
