@@ -118,6 +118,46 @@ def _disable_tk_messageboxes():
 # ============================================================================
 PROJECT_ROOT = Path(__file__).resolve().parents[1]  # tests/conftest.py -> project root
 
+# ============================================================================
+# SMOKE SUITE - Arquivo com nodeids de testes críticos
+# ============================================================================
+SMOKE_NODEIDS_FILE = PROJECT_ROOT / "scripts" / "suites" / "smoke_nodeids.txt"
+
+
+@functools.lru_cache(maxsize=1)
+def _load_smoke_prefixes() -> tuple[str, ...]:
+    """Carrega prefixos de nodeids da smoke suite."""
+    if not SMOKE_NODEIDS_FILE.exists():
+        raise FileNotFoundError(str(SMOKE_NODEIDS_FILE))
+
+    prefixes: list[str] = []
+    for raw in SMOKE_NODEIDS_FILE.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        prefixes.append(line.replace("\\", "/"))
+
+    # Dedup preservando ordem
+    unique: list[str] = []
+    seen: set[str] = set()
+    for p in prefixes:
+        if p not in seen:
+            unique.append(p)
+            seen.add(p)
+
+    return tuple(unique)
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    """Adiciona opção --smoke ao pytest."""
+    parser.addoption(
+        "--smoke",
+        action="store_true",
+        default=False,
+        help="Executa apenas a smoke suite definida em scripts/suites/smoke_nodeids.txt",
+    )
+
+
 # Remove o PROJECT_ROOT se já estiver em sys.path (pode estar em posição errada)
 if str(PROJECT_ROOT) in sys.path:
     sys.path.remove(str(PROJECT_ROOT))
@@ -846,18 +886,43 @@ def tk_root_session() -> Generator[TkTk, None, None]:
 
 
 # ============================================================================
-# SKIP AUTOMÁTICO DE TESTES COM CRASH CONHECIDO NO WINDOWS
+# SKIP AUTOMÁTICO DE TESTES COM CRASH CONHECIDO NO WINDOWS + SMOKE SUITE
 # ============================================================================
 
 
-def pytest_collection_modifyitems(config, items):
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     """
-    Pula automaticamente testes de PDF Preview views que causam access violation
-    no Windows devido a bugs no ttkbootstrap/tkinter element_create.
+    Modifica a coleção de testes:
+    1. Filtra para smoke suite se --smoke estiver ativo
+    2. Pula testes de PDF Preview que causam crash no Windows
 
-    Para forçar execução desses testes: RC_RUN_PDF_UI_TESTS=1
+    Para forçar execução dos testes de PDF: RC_RUN_PDF_UI_TESTS=1
     """
-    # Se quiser forçar rodar esses testes, setar RC_RUN_PDF_UI_TESTS=1
+    # --- SMOKE SUITE ---
+    if config.getoption("smoke", default=False):
+        try:
+            prefixes = _load_smoke_prefixes()
+        except FileNotFoundError as exc:
+            raise pytest.UsageError(f"--smoke ativo, mas arquivo não encontrado: {exc}") from exc
+
+        if not prefixes:
+            raise pytest.UsageError("--smoke ativo, mas smoke_nodeids.txt está vazio")
+
+        selected: list[pytest.Item] = []
+        deselected: list[pytest.Item] = []
+        for item in items:
+            nodeid = item.nodeid.replace("\\", "/")
+            if nodeid.startswith(prefixes):
+                selected.append(item)
+            else:
+                deselected.append(item)
+
+        if deselected:
+            config.hook.pytest_deselected(items=deselected)
+
+        items[:] = selected
+
+    # --- SKIP PDF PREVIEW CRASH (Windows) ---
     if os.getenv("RC_RUN_PDF_UI_TESTS") == "1":
         return
 
