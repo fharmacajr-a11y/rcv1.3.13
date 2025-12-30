@@ -908,7 +908,56 @@ proteção fraca.
 
 ---
 
-## 📝 CONCLUSÃO
+## � Fluxo padrão de qualidade (recomendado)
+
+Esta seção documenta os comandos padrão para manter a qualidade do código.
+
+### 1) Rodar hooks localmente (equivalente ao commit)
+
+```bash
+pre-commit run --all-files
+```
+
+> **⚠️ Observação (Windows):** O pre-commit pode modificar arquivos (EOL/whitespace/format).  
+> Se isso acontecer: rode `git add -A` e execute novamente `pre-commit run --all-files` até passar.
+
+### 2) Smoke suite (rápida e crítica)
+
+```bash
+pytest --smoke --smoke-strict -q -x --tb=short
+```
+
+Este comando executa apenas os testes críticos definidos em `scripts/suites/smoke_nodeids.txt`.  
+A flag `--smoke-strict` emite warnings se algum prefixo de nodeid não casar com testes reais.
+
+### 3) Checks rápidos (sem rodar suite inteira)
+
+```bash
+ruff check .
+pyright
+```
+
+### 4) (Opcional) Smoke via script alternativo
+
+```bash
+python scripts/run_smoke.py
+python scripts/run_smoke.py --dry-run  # apenas lista os testes
+```
+
+> **Nota:** O smoke oficial é via `pytest --smoke`. O script é uma alternativa para uso ad-hoc.
+
+### 5) Quality Gate completo (antes de PR)
+
+```bash
+pre-commit run --all-files
+pytest --smoke --smoke-strict -q -x --tb=short
+ruff check .
+pyright
+```
+
+---
+
+## �📝 CONCLUSÃO
 
 O **RC - Gestor de Clientes** é um aplicativo desktop funcional e bem testado, com arquitetura modular em transição de uma estrutura legada (`src/ui/`) para uma organização por domínio (`src/modules/`).
 
