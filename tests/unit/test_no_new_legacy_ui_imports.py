@@ -4,10 +4,8 @@ Teste de guarda: policy de imports de src.ui.*.
 Regras:
 1. Toolkit ativo (window_utils, components, dialogs, widgets) → PERMITIDO
 2. Wrappers deprecated (hub, lixeira, main_window, etc) → PROIBIDO
-3. src.ui.forms.* → PROIBIDO (migrado para src.modules.forms.*)
 
-LEGADO-MIGRATE-01: src.ui.forms.actions migrado para src.modules.forms.actions.
-Não há mais arquivos grandfather para src.ui.forms.
+Nota: src.ui.forms foi removido em T09.1 - use src.modules.forms.
 """
 
 import os
@@ -43,6 +41,7 @@ ALLOWED_PREFIXES = [
     "src.ui.controllers",  # Controllers de UI (NotificationVM, TopbarNotificationsController)
     "src.ui.theme_toggle",  # Toggle de tema dark/light
     "src.ui.win_titlebar",  # Dark mode para titlebar Windows
+    "src.ui.feedback",  # UIFeedback protocol (T08)
 ]
 
 # Prefixos de wrappers deprecated (proibidos)
@@ -54,7 +53,7 @@ BANNED_PREFIXES = [
     "src.ui.main_screen",
     "src.ui.passwords_screen",
     "src.ui.login.login",
-    "src.ui.forms",  # Migrado para src.modules.forms (LEGADO-MIGRATE-01)
+    # src.ui.forms removido em T09.1 - migrado para src.modules.forms
 ]
 
 IGNORE_DIRS = {
@@ -125,7 +124,7 @@ def is_import_allowed(imported_module: str, source_file: str) -> Tuple[bool, str
 
     Retorna: (is_allowed, reason)
     """
-    # 1. Verifica se é wrapper banned (inclui src.ui.forms)
+    # 1. Verifica se é wrapper banned
     for banned_prefix in BANNED_PREFIXES:
         if imported_module.startswith(banned_prefix):
             return False, f"❌ BANNED: {banned_prefix} (deprecated/migrado)"
@@ -146,7 +145,6 @@ def test_no_new_legacy_ui_imports():
     Regras:
     1. Toolkit ativo → PERMITIDO
     2. Wrappers deprecated → PROIBIDO
-    3. src.ui.forms → PROIBIDO (migrado para src.modules.forms)
     """
     root_path = Path.cwd()
     violations = []
@@ -189,7 +187,6 @@ def test_no_new_legacy_ui_imports():
         msg.append("\n" + "=" * 70)
         msg.append("\n1. TOOLKIT ATIVO → Use prefixos em ALLOWED_PREFIXES")
         msg.append("\n2. WRAPPERS BANNED → Migre para src.modules.*")
-        msg.append("\n3. src.ui.forms → USE src.modules.forms.actions")
         msg.append("\n")
 
         pytest.fail("".join(msg))

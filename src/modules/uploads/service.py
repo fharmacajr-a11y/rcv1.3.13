@@ -203,7 +203,7 @@ def download_storage_object(remote_key: str, destination: str, *, bucket: str | 
         dict com {"ok": bool, "errors": list, "message": str, "local_path": str | None}
     """
     bn = (bucket or get_clients_bucket()).strip()
-    # usa o wrapper que já delega para src.ui.forms.actions.download_file(bucket, file, local)
+    # usa src.modules.forms.actions.download_file(bucket, file, local)
     return download_file(bn, remote_key, destination)
 
 

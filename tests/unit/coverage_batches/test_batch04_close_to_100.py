@@ -23,11 +23,11 @@ class TestPerf:
 
 # === src/ui/forms/actions.py ===
 class TestFormsActions:
-    """Testes para src/ui/forms/actions.py."""
+    """Testes para src/modules/forms/actions.py."""
 
     def test_getattr_found(self) -> None:
         """Testa __getattr__ quando atributo existe."""
-        import src.ui.forms.actions as actions_module
+        import src.modules.forms.actions as actions_module
 
         # Usa import direto do módulo
         subpasta_dialog = actions_module.__getattr__("SubpastaDialog")
@@ -37,7 +37,7 @@ class TestFormsActions:
         """Testa __getattr__ quando atributo não existe."""
         import pytest
 
-        import src.ui.forms.actions as actions_module
+        import src.modules.forms.actions as actions_module
 
         with pytest.raises(AttributeError):
             actions_module.__getattr__("NonExistentDialog")

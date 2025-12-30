@@ -32,10 +32,10 @@ BATCH_01_MODULES = [
     "src.ui.lixeira.__init__",
     "src.ui.lixeira.lixeira",
     "src.ui.passwords_screen",
-    "src.ui.forms.pipeline",
+    "src.modules.clientes.forms.pipeline",
     "src.ui.main_screen",
     "src.ui.widgets.client_picker",
-    "src.ui.forms.actions",
+    "src.modules.forms.actions",
 ]
 
 
