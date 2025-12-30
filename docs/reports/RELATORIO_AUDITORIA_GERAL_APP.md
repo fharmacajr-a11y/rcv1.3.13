@@ -903,7 +903,7 @@ proteção fraca.
 | T05 | Média | Guard em uploads/browser.py | 30min | Atual | ✅ Concluído | 37a9912 |
 | T06 | Média | Extrair PdfRenderService | 4h | Atual | ✅ Concluído | 207b8f8 |
 | T07 | Média | Converter mixin ANVISA em Controller | 6h | +2 | ⏳ Pendente | — |
-| T08 | Média | Protocolo UI feedback | 4h | +2 | ⏳ Pendente | — |
+| T08 | Média | Protocolo UI feedback | 4h | Atual | ✅ Concluído | 0d8cd5b |
 | T09 | Baixa | Remover shims deprecated | 8h | +3 | ⏳ Pendente | — |
 | T10 | Baixa | Dividir dashboard_service | 8h | +3 | ⏳ Pendente | — |
 | T11 | Alta | Corrigir Pyright + robustez notifications (timezone/mocks) | 30min | Atual | ✅ Concluído | 7d42348 |
