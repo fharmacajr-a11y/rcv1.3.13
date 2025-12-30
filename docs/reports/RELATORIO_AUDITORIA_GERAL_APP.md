@@ -1,9 +1,9 @@
 # 📋 RELATÓRIO DE AUDITORIA GERAL — RC Gestor de Clientes
 
 **Data:** 29 de dezembro de 2025  
-**Branch:** `chore/auditoria-limpeza-v1.4.40`  
-**Tag atual:** `v1.4.93`  
-**Commits à frente do remote:** 4  
+**Branch:** `main`  
+**Tag base:** `v1.5.27`  
+**Commits à frente do remote:** —  
 **Analista:** Copilot AI (Claude Opus 4.5)
 
 ---
@@ -15,7 +15,7 @@
 | **Arquivos Python (src/)** | 458 |
 | **Arquivos de teste** | 499 |
 | **Linhas totais (top 25 arquivos)** | ~16.500 LOC |
-| **Tags de versão** | v1.4.93 (atual), v1.1.45-qa-final, v1.0.29 |
+| **Tags de versão** | v1.5.27 (base), v1.4.93, v1.1.45-qa-final, v1.0.29 |
 | **Estado Git** | Working tree clean |
 | **TODOs/FIXMEs ativos** | ~1 (registrado em TECH_DEBT_REGISTER) |
 | **Módulos deprecated** | ~25+ shims/wrappers em `src/ui/` |
@@ -35,8 +35,8 @@ O aplicativo está funcional mas apresenta **dívida técnica acumulada** princi
 
 ### 1.1 Git Status
 ```
-Branch: chore/auditoria-limpeza-v1.4.40
-Status: 4 commits ahead of origin
+Branch: main
+Tag base: v1.5.27
 Working tree: clean
 ```
 
@@ -62,7 +62,8 @@ e35a0ab feat(clientes): exportar clientes para CSV (e XLSX opcional)
 ### 1.3 Tags de Versão
 | Tag | Descrição |
 |-----|-----------|
-| `v1.4.93` | Release atual - security & housekeeping |
+| `v1.5.27` | Versão base desta auditoria |
+| `v1.4.93` | Release anterior - security & housekeeping |
 | `v1.1.45-qa-final` | Marco de QA |
 | `v1.0.29` | Versão inicial estável |
 
@@ -893,18 +894,22 @@ proteção fraca.
 
 ### Tabela de Backlog Técnico
 
-| ID | Prioridade | Descrição | Esforço | Sprint |
-|----|------------|-----------|---------|--------|
-| T01 | Alta | Tipar exceções em app_core.py | 2h | Atual |
-| T02 | Alta | Remover arquivos .bak | 5min | Atual |
-| T03 | Alta | Criar suíte de regressão mínima | 1h | Atual |
-| T04 | Média | Extrair formatters de dashboard_service | 2h | +1 |
-| T05 | Média | Guard em uploads/browser.py | 30min | Atual |
-| T06 | Média | Extrair PdfRenderService | 4h | +1 |
-| T07 | Média | Converter mixin ANVISA em Controller | 6h | +2 |
-| T08 | Média | Protocolo UI feedback | 4h | +2 |
-| T09 | Baixa | Remover shims deprecated | 8h | +3 |
-| T10 | Baixa | Dividir dashboard_service | 8h | +3 |
+| ID | Prioridade | Descrição | Esforço | Sprint | Status | Evidência (commit) |
+|----|------------|-----------|---------|--------|--------|--------------------||
+| T01 | Alta | Tipar exceções em app_core.py | 2h | Atual | ✅ Concluído | 1727261 |
+| T02 | Alta | Remover arquivos .bak | 5min | Atual | ✅ Concluído | 0f3bbc0 |
+| T03 | Alta | Criar suíte de regressão mínima (smoke + --smoke/--smoke-strict) | 1h | Atual | ✅ Concluído | 1ae2a76, dcdad37, 1ce3bab |
+| T04 | Média | Extrair formatters de dashboard_service | 2h | +1 | ⏳ Pendente | — |
+| T05 | Média | Guard em uploads/browser.py | 30min | Atual | ⏳ Pendente | — |
+| T06 | Média | Extrair PdfRenderService | 4h | +1 | ⏳ Pendente | — |
+| T07 | Média | Converter mixin ANVISA em Controller | 6h | +2 | ⏳ Pendente | — |
+| T08 | Média | Protocolo UI feedback | 4h | +2 | ⏳ Pendente | — |
+| T09 | Baixa | Remover shims deprecated | 8h | +3 | ⏳ Pendente | — |
+| T10 | Baixa | Dividir dashboard_service | 8h | +3 | ⏳ Pendente | — |
+| T11 | Alta | Corrigir Pyright + robustez notifications (timezone/mocks) | 30min | Atual | ✅ Concluído | 7d42348 |
+| T12 | Média | Aplicar ruff format (arquivos de teste) | 15min | Atual | ✅ Concluído | 4dacd0e |
+| T13 | Média | Vulture 100% + whitelist + config no pyproject | 30min | Atual | ✅ Concluído | 4037546, a605855 |
+| T14 | Média | Alinhar pre-commit (Ruff + EOL) + documentar fluxo padrão | 30min | Atual | ✅ Concluído | 939c236, fc5a10b, b03a184 |
 
 ---
 
@@ -986,4 +991,4 @@ O **RC - Gestor de Clientes** é um aplicativo desktop funcional e bem testado, 
 ---
 
 *Relatório gerado automaticamente por auditoria Copilot AI*  
-*Data: 29/12/2025 | Versão: v1.4.93 | Branch: chore/auditoria-limpeza-v1.4.40*
+*Data: 29/12/2025 | Versão base: v1.5.27 | Branch: main*
