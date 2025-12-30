@@ -899,9 +899,9 @@ proteção fraca.
 | T01 | Alta | Tipar exceções em app_core.py | 2h | Atual | ✅ Concluído | 1727261 |
 | T02 | Alta | Remover arquivos .bak | 5min | Atual | ✅ Concluído | 0f3bbc0 |
 | T03 | Alta | Criar suíte de regressão mínima (smoke + --smoke/--smoke-strict) | 1h | Atual | ✅ Concluído | 1ae2a76, dcdad37, 1ce3bab |
-| T04 | Média | Extrair formatters de dashboard_service | 2h | +1 | ⏳ Pendente | — |
-| T05 | Média | Guard em uploads/browser.py | 30min | Atual | ⏳ Pendente | — |
-| T06 | Média | Extrair PdfRenderService | 4h | +1 | ⏳ Pendente | — |
+| T04 | Média | Extrair formatters de dashboard_service | 2h | Atual | ✅ Concluído | dda4c53 |
+| T05 | Média | Guard em uploads/browser.py | 30min | Atual | ✅ Concluído | 37a9912 |
+| T06 | Média | Extrair PdfRenderService | 4h | Atual | ✅ Concluído | 207b8f8 |
 | T07 | Média | Converter mixin ANVISA em Controller | 6h | +2 | ⏳ Pendente | — |
 | T08 | Média | Protocolo UI feedback | 4h | +2 | ⏳ Pendente | — |
 | T09 | Baixa | Remover shims deprecated | 8h | +3 | ⏳ Pendente | — |
