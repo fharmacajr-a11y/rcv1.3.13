@@ -39,6 +39,22 @@ _executor = ThreadPoolExecutor(max_workers=4)
 _log = logging.getLogger(__name__)
 
 
+def _resolve_parent(parent: Any) -> tk.Misc:
+    """Resolve parent para um widget Tk válido ou levanta RuntimeError."""
+    if isinstance(parent, tk.Misc):
+        return parent
+    try:
+        default_root = getattr(tk, "_default_root", None)
+    except Exception:  # noqa: BLE001
+        default_root = None
+    if isinstance(default_root, tk.Misc):
+        return default_root
+    raise RuntimeError(
+        "UploadsBrowser: root/parent Tk não encontrado. "
+        "Passe o parent (janela principal) ao abrir o navegador de arquivos."
+    )
+
+
 def _join(*parts: str) -> str:
     segs: list[str] = []
     for part in parts:
@@ -618,8 +634,9 @@ def open_files_browser(
     Returns:
         Janela UploadsBrowserWindow criada e exibida
     """
+    resolved_parent = _resolve_parent(parent)
     window = UploadsBrowserWindow(
-        parent,
+        resolved_parent,
         org_id=org_id,
         client_id=client_id,
         razao=razao,
@@ -636,9 +653,9 @@ def open_files_browser(
 
     window.deiconify()
 
-    if modal and parent is not None:
+    if modal:
         try:
-            parent.wait_window(window)
+            resolved_parent.wait_window(window)
         except Exception as exc:  # noqa: BLE001
             _log.debug("Falha ao aguardar janela modal do UploadsBrowser: %s", exc)
 

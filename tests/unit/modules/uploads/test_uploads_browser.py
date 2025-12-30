@@ -572,3 +572,61 @@ def test_zip_progress_window_uses_native_ttk_widgets(make_window: Callable, monk
     assert not hasattr(test_button, "bootstyle")
 
     win.destroy()
+
+
+# =============================================================================
+# Testes para guard de root/parent (T05)
+# =============================================================================
+
+
+def test_open_files_browser_uses_default_root_when_parent_is_none(
+    monkeypatch: pytest.MonkeyPatch, tk_root_session: "tk.Tk"
+) -> None:
+    """Testa que open_files_browser usa _default_root quando parent=None."""
+    import tkinter as tk
+
+    # Garantir que _default_root aponta para tk_root_session
+    monkeypatch.setattr(tk, "_default_root", tk_root_session)
+
+    # Mocks para evitar chamadas de rede e UI
+    monkeypatch.setattr(browser.UploadsBrowserWindow, "_populate_initial_state", lambda self: None)
+    monkeypatch.setattr(browser, "show_centered", lambda *args, **kwargs: None)
+    monkeypatch.setattr(browser, "list_browser_items", lambda *args, **kwargs: [])
+
+    win = browser.open_files_browser(
+        None,
+        client_id=1,
+        razao="Acme",
+        cnpj="12345678000199",
+        bucket="bucket-test",
+        base_prefix="org/1",
+        modal=False,
+    )
+
+    assert isinstance(win, browser.UploadsBrowserWindow)
+    win.destroy()
+
+
+def test_open_files_browser_raises_when_no_parent_and_no_default_root(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Testa que open_files_browser levanta RuntimeError sem parent e sem _default_root."""
+    import tkinter as tk
+
+    # Forçar _default_root = None
+    monkeypatch.setattr(tk, "_default_root", None, raising=False)
+
+    # Mocks para evitar chamadas de rede e UI (caso o guard falhe)
+    monkeypatch.setattr(browser.UploadsBrowserWindow, "_populate_initial_state", lambda self: None)
+    monkeypatch.setattr(browser, "show_centered", lambda *args, **kwargs: None)
+    monkeypatch.setattr(browser, "list_browser_items", lambda *args, **kwargs: [])
+
+    with pytest.raises(RuntimeError, match="root/parent Tk não encontrado"):
+        browser.open_files_browser(
+            None,
+            client_id=1,
+            razao="Acme",
+            cnpj="12345678000199",
+            bucket="bucket-test",
+            base_prefix="org/1",
+        )
