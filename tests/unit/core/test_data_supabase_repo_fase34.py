@@ -114,7 +114,7 @@ def test_list_passwords_erro_levanta_runtime_error():
 # Testes de decrypt_for_view
 # ========================================
 # NOTA: Testes removidos devido a importação circular ao tentar fazer
-# patch de "src.data.supabase_repo.decrypt_text".
+# patch de "src.db.supabase_repo.decrypt_text".
 
 
 # ========================================

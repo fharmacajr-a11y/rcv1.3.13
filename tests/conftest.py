@@ -530,7 +530,7 @@ def _clear_magicmock_modules() -> None:
     Remove entradas de sys.modules que foram substituidas por MagicMock.
     Isso evita contaminacao de estado entre testes quando algum teste deixa mocks no cache.
     """
-    prefixes = ("src.", "src.infra.", "src.adapters.", "src.data.")
+    prefixes = ("src.", "src.infra.", "src.adapters.", "src.db.")
     for name, mod in list(sys.modules.items()):
         if isinstance(mod, MagicMock) and name.startswith(prefixes):
             sys.modules.pop(name, None)

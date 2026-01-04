@@ -17,7 +17,7 @@ Note:
 
 from __future__ import annotations
 
-from src.data.domain_types import PasswordRow
+from src.db.domain_types import PasswordRow
 
 
 def get_passwords(
@@ -46,7 +46,7 @@ def get_passwords(
         >>> primeira_pagina = get_passwords("org-123", limit=50, offset=0)
         >>> segunda_pagina = get_passwords("org-123", limit=50, offset=50)
     """
-    from src.data.supabase_repo import list_passwords
+    from src.db.supabase_repo import list_passwords
 
     # PERF-003: Passa limit e offset para repositório Supabase
     passwords: list[PasswordRow] = list_passwords(org_id, limit=limit, offset=offset)
@@ -104,7 +104,7 @@ def create_password(
         ...     client_id="256"
         ... )
     """
-    from src.data.supabase_repo import add_password
+    from src.db.supabase_repo import add_password
 
     return add_password(org_id, client_name, service, username, password_plain, notes, created_by, client_id)
 
@@ -140,7 +140,7 @@ def update_password_by_id(
         ...     client_id="256"
         ... )
     """
-    from src.data.supabase_repo import update_password
+    from src.db.supabase_repo import update_password
 
     return update_password(password_id, client_name, service, username, password_plain, notes, client_id)
 
@@ -160,7 +160,7 @@ def delete_password_by_id(password_id: str) -> None:
     Note:
         Esta operação é irreversível. Recomenda-se confirmar com o usuário antes de executar.
     """
-    from src.data.supabase_repo import delete_password
+    from src.db.supabase_repo import delete_password
 
     delete_password(password_id)
 
@@ -182,7 +182,7 @@ def delete_all_passwords_for_client(org_id: str, client_id: str) -> int:
     Note:
         Esta operação é irreversível. Recomenda-se confirmar com o usuário antes de executar.
     """
-    from src.data.supabase_repo import delete_passwords_by_client
+    from src.db.supabase_repo import delete_passwords_by_client
 
     return delete_passwords_by_client(org_id, client_id)
 
@@ -214,7 +214,7 @@ def find_duplicate_password_by_service(
         >>> if duplicates:
         ...     print("Já existe senha para este serviço")
     """
-    from src.data.supabase_repo import list_passwords
+    from src.db.supabase_repo import list_passwords
 
     all_passwords: list[PasswordRow] = list_passwords(org_id)
 

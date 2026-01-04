@@ -10,7 +10,7 @@ import types
 
 import pytest
 
-from src.data.domain_types import PasswordRow
+from src.db.domain_types import PasswordRow
 from tests.unit.modules.passwords.conftest import make_password_row
 
 from src.modules.passwords import service as passwords_service

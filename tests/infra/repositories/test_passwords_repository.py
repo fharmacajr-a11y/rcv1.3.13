@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.data.domain_types import PasswordRow
+from src.db.domain_types import PasswordRow
 from src.infra.repositories.passwords_repository import (
     create_password,
     delete_all_passwords_for_client,
@@ -81,7 +81,7 @@ def sample_passwords() -> list[PasswordRow]:
 
 def test_get_passwords_sem_filtros_retorna_todas(sample_passwords: list[PasswordRow]) -> None:
     """get_passwords sem filtros deve retornar todas as senhas."""
-    with patch("src.data.supabase_repo.list_passwords") as mock_list:
+    with patch("src.db.supabase_repo.list_passwords") as mock_list:
         mock_list.return_value = sample_passwords
 
         result = get_passwords("org-123")
@@ -94,7 +94,7 @@ def test_get_passwords_sem_filtros_retorna_todas(sample_passwords: list[Password
 
 def test_get_passwords_com_search_text_filtra_client_name(sample_passwords: list[PasswordRow]) -> None:
     """get_passwords com search_text deve filtrar por client_name (case-insensitive)."""
-    with patch("src.data.supabase_repo.list_passwords") as mock_list:
+    with patch("src.db.supabase_repo.list_passwords") as mock_list:
         mock_list.return_value = sample_passwords
 
         result = get_passwords("org-123", search_text="xyz")
@@ -105,7 +105,7 @@ def test_get_passwords_com_search_text_filtra_client_name(sample_passwords: list
 
 def test_get_passwords_com_search_text_filtra_service(sample_passwords: list[PasswordRow]) -> None:
     """get_passwords com search_text deve filtrar por service (case-insensitive)."""
-    with patch("src.data.supabase_repo.list_passwords") as mock_list:
+    with patch("src.db.supabase_repo.list_passwords") as mock_list:
         mock_list.return_value = sample_passwords
 
         result = get_passwords("org-123", search_text="gmail")
@@ -116,7 +116,7 @@ def test_get_passwords_com_search_text_filtra_service(sample_passwords: list[Pas
 
 def test_get_passwords_com_search_text_filtra_username(sample_passwords: list[PasswordRow]) -> None:
     """get_passwords com search_text deve filtrar por username (case-insensitive)."""
-    with patch("src.data.supabase_repo.list_passwords") as mock_list:
+    with patch("src.db.supabase_repo.list_passwords") as mock_list:
         mock_list.return_value = sample_passwords
 
         result = get_passwords("org-123", search_text="admin")
@@ -127,7 +127,7 @@ def test_get_passwords_com_search_text_filtra_username(sample_passwords: list[Pa
 
 def test_get_passwords_com_search_text_vazio_retorna_todas(sample_passwords: list[PasswordRow]) -> None:
     """get_passwords com search_text vazio deve retornar todas."""
-    with patch("src.data.supabase_repo.list_passwords") as mock_list:
+    with patch("src.db.supabase_repo.list_passwords") as mock_list:
         mock_list.return_value = sample_passwords
 
         result = get_passwords("org-123", search_text="")
@@ -137,7 +137,7 @@ def test_get_passwords_com_search_text_vazio_retorna_todas(sample_passwords: lis
 
 def test_get_passwords_com_search_text_nao_encontrado_retorna_vazio(sample_passwords: list[PasswordRow]) -> None:
     """get_passwords com search_text que não existe deve retornar lista vazia."""
-    with patch("src.data.supabase_repo.list_passwords") as mock_list:
+    with patch("src.db.supabase_repo.list_passwords") as mock_list:
         mock_list.return_value = sample_passwords
 
         result = get_passwords("org-123", search_text="inexistente")
@@ -147,7 +147,7 @@ def test_get_passwords_com_search_text_nao_encontrado_retorna_vazio(sample_passw
 
 def test_get_passwords_com_client_filter_filtra_corretamente(sample_passwords: list[PasswordRow]) -> None:
     """get_passwords com client_filter deve filtrar exatamente pelo nome do cliente."""
-    with patch("src.data.supabase_repo.list_passwords") as mock_list:
+    with patch("src.db.supabase_repo.list_passwords") as mock_list:
         mock_list.return_value = sample_passwords
 
         result = get_passwords("org-123", client_filter="Empresa XYZ")
@@ -158,7 +158,7 @@ def test_get_passwords_com_client_filter_filtra_corretamente(sample_passwords: l
 
 def test_get_passwords_com_client_filter_todos_nao_filtra(sample_passwords: list[PasswordRow]) -> None:
     """get_passwords com client_filter='Todos' não deve filtrar."""
-    with patch("src.data.supabase_repo.list_passwords") as mock_list:
+    with patch("src.db.supabase_repo.list_passwords") as mock_list:
         mock_list.return_value = sample_passwords
 
         result = get_passwords("org-123", client_filter="Todos")
@@ -168,7 +168,7 @@ def test_get_passwords_com_client_filter_todos_nao_filtra(sample_passwords: list
 
 def test_get_passwords_com_client_filter_none_nao_filtra(sample_passwords: list[PasswordRow]) -> None:
     """get_passwords com client_filter=None não deve filtrar."""
-    with patch("src.data.supabase_repo.list_passwords") as mock_list:
+    with patch("src.db.supabase_repo.list_passwords") as mock_list:
         mock_list.return_value = sample_passwords
 
         result = get_passwords("org-123", client_filter=None)
@@ -178,7 +178,7 @@ def test_get_passwords_com_client_filter_none_nao_filtra(sample_passwords: list[
 
 def test_get_passwords_com_ambos_filtros_aplica_ambos(sample_passwords: list[PasswordRow]) -> None:
     """get_passwords com search_text e client_filter deve aplicar ambos os filtros."""
-    with patch("src.data.supabase_repo.list_passwords") as mock_list:
+    with patch("src.db.supabase_repo.list_passwords") as mock_list:
         mock_list.return_value = sample_passwords
 
         result = get_passwords("org-123", search_text="anvisa", client_filter="Empresa XYZ")
@@ -190,7 +190,7 @@ def test_get_passwords_com_ambos_filtros_aplica_ambos(sample_passwords: list[Pas
 
 def test_get_passwords_lista_vazia_retorna_vazio() -> None:
     """get_passwords deve retornar lista vazia quando não há senhas."""
-    with patch("src.data.supabase_repo.list_passwords") as mock_list:
+    with patch("src.db.supabase_repo.list_passwords") as mock_list:
         mock_list.return_value = []
 
         result = get_passwords("org-123")
@@ -205,7 +205,7 @@ def test_get_passwords_lista_vazia_retorna_vazio() -> None:
 
 def test_get_passwords_com_limit_e_offset(sample_passwords: list[PasswordRow]) -> None:
     """get_passwords deve passar limit e offset para list_passwords."""
-    with patch("src.data.supabase_repo.list_passwords") as mock_list:
+    with patch("src.db.supabase_repo.list_passwords") as mock_list:
         mock_list.return_value = sample_passwords[:2]  # Simula que retornou apenas 2
 
         result = get_passwords("org-123", limit=2, offset=0)
@@ -216,7 +216,7 @@ def test_get_passwords_com_limit_e_offset(sample_passwords: list[PasswordRow]) -
 
 def test_get_passwords_com_limit_none_retorna_todas(sample_passwords: list[PasswordRow]) -> None:
     """get_passwords com limit=None deve retornar todas as senhas."""
-    with patch("src.data.supabase_repo.list_passwords") as mock_list:
+    with patch("src.db.supabase_repo.list_passwords") as mock_list:
         mock_list.return_value = sample_passwords
 
         result = get_passwords("org-123", limit=None, offset=0)
@@ -232,7 +232,7 @@ def test_get_passwords_com_limit_none_retorna_todas(sample_passwords: list[Passw
 
 def test_create_password_chama_add_password_com_parametros_corretos() -> None:
     """create_password deve delegar para add_password com todos os parâmetros."""
-    with patch("src.data.supabase_repo.add_password") as mock_add:
+    with patch("src.db.supabase_repo.add_password") as mock_add:
         fake_password: PasswordRow = {
             "id": "pwd-new",
             "org_id": "org-123",
@@ -273,7 +273,7 @@ def test_create_password_chama_add_password_com_parametros_corretos() -> None:
 
 def test_create_password_sem_client_id_funciona() -> None:
     """create_password deve funcionar sem client_id (valor padrão None)."""
-    with patch("src.data.supabase_repo.add_password") as mock_add:
+    with patch("src.db.supabase_repo.add_password") as mock_add:
         fake_password: PasswordRow = {
             "id": "pwd-new",
             "org_id": "org-123",
@@ -310,7 +310,7 @@ def test_create_password_sem_client_id_funciona() -> None:
 
 def test_update_password_by_id_chama_update_password_com_todos_parametros() -> None:
     """update_password_by_id deve delegar para update_password."""
-    with patch("src.data.supabase_repo.update_password") as mock_update:
+    with patch("src.db.supabase_repo.update_password") as mock_update:
         fake_updated: PasswordRow = {
             "id": "pwd-001",
             "org_id": "org-123",
@@ -349,7 +349,7 @@ def test_update_password_by_id_chama_update_password_com_todos_parametros() -> N
 
 def test_update_password_by_id_com_campos_none_mantem_valores() -> None:
     """update_password_by_id com campos None deve passar None (manter valores atuais)."""
-    with patch("src.data.supabase_repo.update_password") as mock_update:
+    with patch("src.db.supabase_repo.update_password") as mock_update:
         fake_updated: PasswordRow = {
             "id": "pwd-001",
             "org_id": "org-123",
@@ -388,7 +388,7 @@ def test_update_password_by_id_com_campos_none_mantem_valores() -> None:
 
 def test_delete_password_by_id_chama_delete_password() -> None:
     """delete_password_by_id deve delegar para delete_password."""
-    with patch("src.data.supabase_repo.delete_password") as mock_delete:
+    with patch("src.db.supabase_repo.delete_password") as mock_delete:
         mock_delete.return_value = None
 
         result = delete_password_by_id("pwd-789")
@@ -404,7 +404,7 @@ def test_delete_password_by_id_chama_delete_password() -> None:
 
 def test_delete_all_passwords_for_client_retorna_count() -> None:
     """delete_all_passwords_for_client deve retornar número de senhas excluídas."""
-    with patch("src.data.supabase_repo.delete_passwords_by_client") as mock_delete_all:
+    with patch("src.db.supabase_repo.delete_passwords_by_client") as mock_delete_all:
         mock_delete_all.return_value = 5
 
         result = delete_all_passwords_for_client("org-123", "256")
@@ -415,7 +415,7 @@ def test_delete_all_passwords_for_client_retorna_count() -> None:
 
 def test_delete_all_passwords_for_client_sem_senhas_retorna_zero() -> None:
     """delete_all_passwords_for_client sem senhas deve retornar 0."""
-    with patch("src.data.supabase_repo.delete_passwords_by_client") as mock_delete_all:
+    with patch("src.db.supabase_repo.delete_passwords_by_client") as mock_delete_all:
         mock_delete_all.return_value = 0
 
         result = delete_all_passwords_for_client("org-123", "999")
@@ -437,7 +437,7 @@ def test_find_duplicate_password_by_service_encontra_duplicatas(sample_passwords
     passwords_with_client_id[1]["client_id"] = "257"  # type: ignore[typeddict-item]
     passwords_with_client_id[2]["client_id"] = "256"  # type: ignore[typeddict-item]
 
-    with patch("src.data.supabase_repo.list_passwords") as mock_list:
+    with patch("src.db.supabase_repo.list_passwords") as mock_list:
         mock_list.return_value = passwords_with_client_id
 
         result = find_duplicate_password_by_service(
@@ -458,7 +458,7 @@ def test_find_duplicate_password_by_service_nao_encontra_retorna_vazio(sample_pa
     passwords_with_client_id[1]["client_id"] = "257"  # type: ignore[typeddict-item]
     passwords_with_client_id[2]["client_id"] = "256"  # type: ignore[typeddict-item]
 
-    with patch("src.data.supabase_repo.list_passwords") as mock_list:
+    with patch("src.db.supabase_repo.list_passwords") as mock_list:
         mock_list.return_value = passwords_with_client_id
 
         result = find_duplicate_password_by_service(
@@ -481,7 +481,7 @@ def test_find_duplicate_password_by_service_multiplas_duplicatas(sample_password
     passwords_with_client_id[2]["client_id"] = "256"  # type: ignore[typeddict-item]
     passwords_with_client_id[2]["service"] = "ANVISA"
 
-    with patch("src.data.supabase_repo.list_passwords") as mock_list:
+    with patch("src.db.supabase_repo.list_passwords") as mock_list:
         mock_list.return_value = passwords_with_client_id
 
         result = find_duplicate_password_by_service(
@@ -512,7 +512,7 @@ def test_find_duplicate_password_by_service_sem_client_id_nao_encontra() -> None
         }
     ]
 
-    with patch("src.data.supabase_repo.list_passwords") as mock_list:
+    with patch("src.db.supabase_repo.list_passwords") as mock_list:
         mock_list.return_value = passwords_without_client_id
 
         result = find_duplicate_password_by_service(

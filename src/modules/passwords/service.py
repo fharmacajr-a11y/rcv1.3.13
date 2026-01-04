@@ -6,7 +6,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 
-from src.data.domain_types import PasswordRow
+from src.db.domain_types import PasswordRow
 from src.infra.repositories import passwords_repository
 
 

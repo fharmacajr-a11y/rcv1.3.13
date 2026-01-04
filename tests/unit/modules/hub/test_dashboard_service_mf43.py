@@ -1985,7 +1985,7 @@ def test_load_recent_activity_enrichment_empty_base_text(monkeypatch):
 # 5.1) _build_hot_items: SNGPC com min_days==1 (linha 211)
 def test_build_hot_items_sngpc_one_day_left(monkeypatch):
     """_build_hot_items deve incluir mensagem '1 dia' para SNGPC."""
-    _install_fake_module(monkeypatch, "src.data.supabase_repo")
+    _install_fake_module(monkeypatch, "src.db.supabase_repo")
 
     from src.modules.hub.dashboard_service import _build_hot_items
 
@@ -2013,7 +2013,7 @@ def test_build_hot_items_sngpc_one_day_left(monkeypatch):
 # 5.2) _build_hot_items: SNGPC com min_days>1 (linha 213)
 def test_build_hot_items_sngpc_multiple_days_left(monkeypatch):
     """_build_hot_items deve incluir mensagem 'N dias' para SNGPC."""
-    _install_fake_module(monkeypatch, "src.data.supabase_repo")
+    _install_fake_module(monkeypatch, "src.db.supabase_repo")
 
     from src.modules.hub.dashboard_service import _build_hot_items
 
@@ -2035,7 +2035,7 @@ def test_build_hot_items_sngpc_multiple_days_left(monkeypatch):
 # 5.3) _build_hot_items: FARMACIA_POPULAR com min_days==1 (linha 242)
 def test_build_hot_items_farmacia_popular_one_day_left(monkeypatch):
     """_build_hot_items deve incluir mensagem '1 dia' para Farmácia Popular."""
-    _install_fake_module(monkeypatch, "src.data.supabase_repo")
+    _install_fake_module(monkeypatch, "src.db.supabase_repo")
 
     from src.modules.hub.dashboard_service import _build_hot_items
 
@@ -2057,7 +2057,7 @@ def test_build_hot_items_farmacia_popular_one_day_left(monkeypatch):
 # 5.4) _build_hot_items: FARMACIA_POPULAR com min_days>1 (linha 244)
 def test_build_hot_items_farmacia_popular_multiple_days_left(monkeypatch):
     """_build_hot_items deve incluir mensagem 'N dias' para Farmácia Popular."""
-    _install_fake_module(monkeypatch, "src.data.supabase_repo")
+    _install_fake_module(monkeypatch, "src.db.supabase_repo")
 
     from src.modules.hub.dashboard_service import _build_hot_items
 
@@ -2087,7 +2087,7 @@ def test_load_pending_tasks_due_date_value_error(monkeypatch):
     """_load_pending_tasks deve lidar com ValueError na conversão de due_date."""
     fake_repo = _install_fake_module(
         monkeypatch,
-        "src.data.supabase_repo",
+        "src.db.supabase_repo",
         SupabaseRepository=lambda org_id: None,
     )
 
@@ -2116,7 +2116,7 @@ def test_load_pending_tasks_due_date_value_error(monkeypatch):
 # 5.6) _build_hot_items: Mistura de date e string em due_date (linhas 197-202, 227-230)
 def test_build_hot_items_mixed_date_types(monkeypatch):
     """_build_hot_items deve processar obrigações com due_date em tipos diferentes."""
-    _install_fake_module(monkeypatch, "src.data.supabase_repo")
+    _install_fake_module(monkeypatch, "src.db.supabase_repo")
 
     from src.modules.hub.dashboard_service import _build_hot_items
 

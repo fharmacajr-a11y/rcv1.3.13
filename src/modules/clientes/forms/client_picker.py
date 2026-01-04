@@ -14,7 +14,7 @@ from typing import Any, Dict, Optional
 
 import ttkbootstrap as tb
 
-from src.data.domain_types import ClientRow
+from src.db.domain_types import ClientRow
 from src.ui.components.progress_dialog import BusyDialog
 from src.ui.window_utils import show_centered
 
@@ -210,7 +210,7 @@ class ClientPicker(tk.Toplevel):
 
         def _worker() -> None:
             try:
-                from src.data.supabase_repo import list_clients_for_picker
+                from src.db.supabase_repo import list_clients_for_picker
 
                 t0 = time.perf_counter()
                 results: list[ClientRow] = list_clients_for_picker(self.org_id, limit=500)
@@ -267,7 +267,7 @@ class ClientPicker(tk.Toplevel):
 
         def _worker() -> None:
             try:
-                from src.data.supabase_repo import list_clients_for_picker, search_clients
+                from src.db.supabase_repo import list_clients_for_picker, search_clients
 
                 t0 = time.perf_counter()
                 results: list[ClientRow]

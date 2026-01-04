@@ -18,7 +18,7 @@ import httpx
 import pytest
 
 # Importar o módulo alvo
-import src.data.supabase_repo as repo
+import src.db.supabase_repo as repo
 
 
 # -----------------------------------------------------------------------------
@@ -47,21 +47,21 @@ def mock_session():
 # -----------------------------------------------------------------------------
 def test_get_supabase_client_success(mock_supabase_client):
     """Deve retornar cliente Supabase quando disponível."""
-    with patch("src.data.supabase_repo.get_supabase", return_value=mock_supabase_client):
+    with patch("src.db.supabase_repo.get_supabase", return_value=mock_supabase_client):
         client = repo.get_supabase_client()
         assert client is mock_supabase_client
 
 
 def test_get_supabase_client_returns_none():
     """Deve levantar RuntimeError quando get_supabase retorna None."""
-    with patch("src.data.supabase_repo.get_supabase", return_value=None):
+    with patch("src.db.supabase_repo.get_supabase", return_value=None):
         with pytest.raises(RuntimeError, match="Cliente Supabase retornou None"):
             repo.get_supabase_client()
 
 
 def test_get_supabase_client_exception():
     """Deve levantar RuntimeError quando get_supabase lança exceção."""
-    with patch("src.data.supabase_repo.get_supabase", side_effect=Exception("Connection failed")):
+    with patch("src.db.supabase_repo.get_supabase", side_effect=Exception("Connection failed")):
         with pytest.raises(RuntimeError, match="Cliente Supabase não disponível"):
             repo.get_supabase_client()
 
@@ -233,9 +233,9 @@ def test_list_passwords_success(mock_supabase_client):
     ]
 
     with (
-        patch("src.data.supabase_repo.supabase", mock_supabase_client),
-        patch("src.data.supabase_repo.exec_postgrest", return_value=mock_response),
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo.supabase", mock_supabase_client),
+        patch("src.db.supabase_repo.exec_postgrest", return_value=mock_response),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
     ):
         result = repo.list_passwords("org1")
 
@@ -252,9 +252,9 @@ def test_list_passwords_empty():
     mock_response.data = []
 
     with (
-        patch("src.data.supabase_repo.supabase", MagicMock()),
-        patch("src.data.supabase_repo.exec_postgrest", return_value=mock_response),
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo.supabase", MagicMock()),
+        patch("src.db.supabase_repo.exec_postgrest", return_value=mock_response),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
     ):
         result = repo.list_passwords("org1")
 
@@ -282,9 +282,9 @@ def test_list_passwords_no_client_data():
     ]
 
     with (
-        patch("src.data.supabase_repo.supabase", MagicMock()),
-        patch("src.data.supabase_repo.exec_postgrest", return_value=mock_response),
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo.supabase", MagicMock()),
+        patch("src.db.supabase_repo.exec_postgrest", return_value=mock_response),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
     ):
         result = repo.list_passwords("org1")
 
@@ -306,9 +306,9 @@ def test_list_passwords_with_pagination():
     mock_response.data = []
 
     with (
-        patch("src.data.supabase_repo.supabase", mock_client),
-        patch("src.data.supabase_repo.exec_postgrest", return_value=mock_response),
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo.supabase", mock_client),
+        patch("src.db.supabase_repo.exec_postgrest", return_value=mock_response),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
     ):
         repo.list_passwords("org1", limit=10, offset=20)
 
@@ -325,9 +325,9 @@ def test_list_passwords_no_org_id():
 def test_list_passwords_api_error():
     """Deve levantar RuntimeError quando API falha."""
     with (
-        patch("src.data.supabase_repo.supabase", MagicMock()),
-        patch("src.data.supabase_repo.exec_postgrest", side_effect=Exception("API Error")),
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo.supabase", MagicMock()),
+        patch("src.db.supabase_repo.exec_postgrest", side_effect=Exception("API Error")),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
     ):
         with pytest.raises(RuntimeError, match="Falha ao listar senhas"):
             repo.list_passwords("org1")
@@ -353,11 +353,11 @@ def test_add_password_success(mock_supabase_client):
     ]
 
     with (
-        patch("src.data.supabase_repo.supabase", mock_supabase_client),
-        patch("src.data.supabase_repo.exec_postgrest", return_value=mock_response),
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
-        patch("src.data.supabase_repo._rls_precheck_membership"),
-        patch("src.data.supabase_repo.encrypt_text", return_value="encrypted"),
+        patch("src.db.supabase_repo.supabase", mock_supabase_client),
+        patch("src.db.supabase_repo.exec_postgrest", return_value=mock_response),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo._rls_precheck_membership"),
+        patch("src.db.supabase_repo.encrypt_text", return_value="encrypted"),
     ):
         result = repo.add_password(
             org_id="org1",
@@ -379,11 +379,11 @@ def test_add_password_with_client_id(mock_supabase_client):
     mock_response.data = [{"id": "new_pass", "client_id": "client1"}]
 
     with (
-        patch("src.data.supabase_repo.supabase", mock_supabase_client),
-        patch("src.data.supabase_repo.exec_postgrest", return_value=mock_response),
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
-        patch("src.data.supabase_repo._rls_precheck_membership"),
-        patch("src.data.supabase_repo.encrypt_text", return_value="encrypted"),
+        patch("src.db.supabase_repo.supabase", mock_supabase_client),
+        patch("src.db.supabase_repo.exec_postgrest", return_value=mock_response),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo._rls_precheck_membership"),
+        patch("src.db.supabase_repo.encrypt_text", return_value="encrypted"),
     ):
         result = repo.add_password(
             org_id="org1",
@@ -419,11 +419,11 @@ def test_add_password_no_data_returned():
     mock_response.data = None
 
     with (
-        patch("src.data.supabase_repo.supabase", MagicMock()),
-        patch("src.data.supabase_repo.exec_postgrest", return_value=mock_response),
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
-        patch("src.data.supabase_repo._rls_precheck_membership"),
-        patch("src.data.supabase_repo.encrypt_text", return_value="encrypted"),
+        patch("src.db.supabase_repo.supabase", MagicMock()),
+        patch("src.db.supabase_repo.exec_postgrest", return_value=mock_response),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo._rls_precheck_membership"),
+        patch("src.db.supabase_repo.encrypt_text", return_value="encrypted"),
     ):
         with pytest.raises(RuntimeError, match="Insert não retornou dados"):
             repo.add_password(
@@ -440,11 +440,11 @@ def test_add_password_no_data_returned():
 def test_add_password_api_error():
     """Deve levantar RuntimeError quando API falha."""
     with (
-        patch("src.data.supabase_repo.supabase", MagicMock()),
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
-        patch("src.data.supabase_repo._rls_precheck_membership"),
-        patch("src.data.supabase_repo.encrypt_text", return_value="encrypted"),
-        patch("src.data.supabase_repo.exec_postgrest", side_effect=Exception("API Error")),
+        patch("src.db.supabase_repo.supabase", MagicMock()),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo._rls_precheck_membership"),
+        patch("src.db.supabase_repo.encrypt_text", return_value="encrypted"),
+        patch("src.db.supabase_repo.exec_postgrest", side_effect=Exception("API Error")),
     ):
         with pytest.raises(RuntimeError, match="Falha ao adicionar senha"):
             repo.add_password(
@@ -474,10 +474,10 @@ def test_update_password_success():
     ]
 
     with (
-        patch("src.data.supabase_repo.supabase", MagicMock()),
-        patch("src.data.supabase_repo.exec_postgrest", return_value=mock_response),
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
-        patch("src.data.supabase_repo.encrypt_text", return_value="new_encrypted"),
+        patch("src.db.supabase_repo.supabase", MagicMock()),
+        patch("src.db.supabase_repo.exec_postgrest", return_value=mock_response),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo.encrypt_text", return_value="new_encrypted"),
     ):
         result = repo.update_password(
             id="pass1",
@@ -497,9 +497,9 @@ def test_update_password_partial():
     mock_response.data = [{"id": "pass1", "notes": "Nova nota"}]
 
     with (
-        patch("src.data.supabase_repo.supabase", MagicMock()),
-        patch("src.data.supabase_repo.exec_postgrest", return_value=mock_response),
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo.supabase", MagicMock()),
+        patch("src.db.supabase_repo.exec_postgrest", return_value=mock_response),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
     ):
         result = repo.update_password(id="pass1", notes="Nova nota")
 
@@ -518,9 +518,9 @@ def test_update_password_no_data_returned():
     mock_response.data = []
 
     with (
-        patch("src.data.supabase_repo.supabase", MagicMock()),
-        patch("src.data.supabase_repo.exec_postgrest", return_value=mock_response),
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo.supabase", MagicMock()),
+        patch("src.db.supabase_repo.exec_postgrest", return_value=mock_response),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
     ):
         with pytest.raises(RuntimeError, match="Update não retornou dados"):
             repo.update_password(id="pass1", notes="Nova nota")
@@ -529,9 +529,9 @@ def test_update_password_no_data_returned():
 def test_update_password_api_error():
     """Deve levantar RuntimeError quando API falha."""
     with (
-        patch("src.data.supabase_repo.supabase", MagicMock()),
-        patch("src.data.supabase_repo.exec_postgrest", side_effect=Exception("API Error")),
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo.supabase", MagicMock()),
+        patch("src.db.supabase_repo.exec_postgrest", side_effect=Exception("API Error")),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
     ):
         with pytest.raises(RuntimeError, match="Falha ao atualizar senha"):
             repo.update_password(id="pass1", notes="Nova nota")
@@ -543,9 +543,9 @@ def test_update_password_api_error():
 def test_delete_password_success():
     """Deve deletar senha com sucesso."""
     with (
-        patch("src.data.supabase_repo.supabase", MagicMock()),
-        patch("src.data.supabase_repo.exec_postgrest", return_value=MagicMock()),
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo.supabase", MagicMock()),
+        patch("src.db.supabase_repo.exec_postgrest", return_value=MagicMock()),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
     ):
         repo.delete_password("pass1")
         # Sem exceção = sucesso
@@ -560,9 +560,9 @@ def test_delete_password_no_id():
 def test_delete_password_api_error():
     """Deve levantar RuntimeError quando API falha."""
     with (
-        patch("src.data.supabase_repo.supabase", MagicMock()),
-        patch("src.data.supabase_repo.exec_postgrest", side_effect=Exception("API Error")),
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo.supabase", MagicMock()),
+        patch("src.db.supabase_repo.exec_postgrest", side_effect=Exception("API Error")),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
     ):
         with pytest.raises(RuntimeError, match="Falha ao excluir senha"):
             repo.delete_password("pass1")
@@ -577,9 +577,9 @@ def test_delete_passwords_by_client_success():
     mock_response.data = [{"id": "pass1"}, {"id": "pass2"}]
 
     with (
-        patch("src.data.supabase_repo.supabase", MagicMock()),
-        patch("src.data.supabase_repo.exec_postgrest", return_value=mock_response),
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo.supabase", MagicMock()),
+        patch("src.db.supabase_repo.exec_postgrest", return_value=mock_response),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
     ):
         count = repo.delete_passwords_by_client("org1", "client1")
 
@@ -592,9 +592,9 @@ def test_delete_passwords_by_client_empty():
     mock_response.data = []
 
     with (
-        patch("src.data.supabase_repo.supabase", MagicMock()),
-        patch("src.data.supabase_repo.exec_postgrest", return_value=mock_response),
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo.supabase", MagicMock()),
+        patch("src.db.supabase_repo.exec_postgrest", return_value=mock_response),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
     ):
         count = repo.delete_passwords_by_client("org1", "client1")
 
@@ -616,9 +616,9 @@ def test_delete_passwords_by_client_no_client_id():
 def test_delete_passwords_by_client_api_error():
     """Deve levantar RuntimeError quando API falha."""
     with (
-        patch("src.data.supabase_repo.supabase", MagicMock()),
-        patch("src.data.supabase_repo.exec_postgrest", side_effect=Exception("API Error")),
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo.supabase", MagicMock()),
+        patch("src.db.supabase_repo.exec_postgrest", side_effect=Exception("API Error")),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
     ):
         with pytest.raises(RuntimeError, match="Falha ao excluir senhas do cliente"):
             repo.delete_passwords_by_client("org1", "client1")
@@ -629,14 +629,14 @@ def test_delete_passwords_by_client_api_error():
 # -----------------------------------------------------------------------------
 def test_decrypt_for_view_success():
     """Deve descriptografar token com sucesso."""
-    with patch("src.data.supabase_repo.decrypt_text", return_value="senha_plana"):
+    with patch("src.db.supabase_repo.decrypt_text", return_value="senha_plana"):
         result = repo.decrypt_for_view("encrypted_token")
     assert result == "senha_plana"
 
 
 def test_decrypt_for_view_error():
     """Deve levantar RuntimeError quando falha descriptografia."""
-    with patch("src.data.supabase_repo.decrypt_text", side_effect=Exception("Decrypt failed")):
+    with patch("src.db.supabase_repo.decrypt_text", side_effect=Exception("Decrypt failed")):
         with pytest.raises(RuntimeError, match="Falha ao descriptografar"):
             repo.decrypt_for_view("invalid_token")
 
@@ -661,9 +661,9 @@ def test_search_clients_success():
     ]
 
     with (
-        patch("src.data.supabase_repo.supabase", MagicMock()),
-        patch("src.data.supabase_repo.exec_postgrest", return_value=mock_response),
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo.supabase", MagicMock()),
+        patch("src.db.supabase_repo.exec_postgrest", return_value=mock_response),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
     ):
         result = repo.search_clients("org1", "Empresa")
 
@@ -677,9 +677,9 @@ def test_search_clients_short_query():
     mock_response.data = []
 
     with (
-        patch("src.data.supabase_repo.supabase", MagicMock()),
-        patch("src.data.supabase_repo.exec_postgrest", return_value=mock_response),
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo.supabase", MagicMock()),
+        patch("src.db.supabase_repo.exec_postgrest", return_value=mock_response),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
     ):
         result = repo.search_clients("org1", "A")
 
@@ -695,9 +695,9 @@ def test_search_clients_empty_org_id():
 def test_search_clients_api_error():
     """Deve retornar lista vazia quando API falha."""
     with (
-        patch("src.data.supabase_repo.supabase", MagicMock()),
-        patch("src.data.supabase_repo.exec_postgrest", side_effect=Exception("API Error")),
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo.supabase", MagicMock()),
+        patch("src.db.supabase_repo.exec_postgrest", side_effect=Exception("API Error")),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
     ):
         result = repo.search_clients("org1", "query")
 
@@ -716,9 +716,9 @@ def test_list_clients_for_picker_success():
     ]
 
     with (
-        patch("src.data.supabase_repo.supabase", MagicMock()),
-        patch("src.data.supabase_repo.exec_postgrest", return_value=mock_response),
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo.supabase", MagicMock()),
+        patch("src.db.supabase_repo.exec_postgrest", return_value=mock_response),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
     ):
         result = repo.list_clients_for_picker("org1")
 
@@ -735,9 +735,9 @@ def test_list_clients_for_picker_empty_org_id():
 def test_list_clients_for_picker_api_error():
     """Deve retornar lista vazia quando API falha."""
     with (
-        patch("src.data.supabase_repo.supabase", MagicMock()),
-        patch("src.data.supabase_repo.exec_postgrest", side_effect=Exception("API Error")),
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo.supabase", MagicMock()),
+        patch("src.db.supabase_repo.exec_postgrest", side_effect=Exception("API Error")),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
     ):
         result = repo.list_clients_for_picker("org1")
 
@@ -757,9 +757,9 @@ def test_list_clients_for_picker_custom_limit():
     mock_response.data = []
 
     with (
-        patch("src.data.supabase_repo.supabase", mock_client),
-        patch("src.data.supabase_repo.exec_postgrest", return_value=mock_response),
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo.supabase", mock_client),
+        patch("src.db.supabase_repo.exec_postgrest", return_value=mock_response),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
     ):
         repo.list_clients_for_picker("org1", limit=50)
 
@@ -807,8 +807,8 @@ def test_rls_precheck_membership_no_data():
     mock_response.data = None
 
     with (
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
-        patch("src.data.supabase_repo.exec_postgrest", return_value=mock_response),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo.exec_postgrest", return_value=mock_response),
     ):
         with pytest.raises(RuntimeError, match="RLS precheck: a API NÃO enxerga membership"):
             repo._rls_precheck_membership(client, "org1", "user1")
@@ -821,8 +821,8 @@ def test_rls_precheck_membership_empty_list():
     mock_response.data = []
 
     with (
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
-        patch("src.data.supabase_repo.exec_postgrest", return_value=mock_response),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo.exec_postgrest", return_value=mock_response),
     ):
         with pytest.raises(RuntimeError, match="RLS precheck: a API NÃO enxerga membership"):
             repo._rls_precheck_membership(client, "org1", "user1")
@@ -830,7 +830,7 @@ def test_rls_precheck_membership_empty_list():
 
 def test_supabase_proxy_getattr():
     """Deve delegar acesso ao cliente Supabase singleton."""
-    with patch("src.data.supabase_repo.get_supabase") as mock_get:
+    with patch("src.db.supabase_repo.get_supabase") as mock_get:
         mock_client = MagicMock()
         mock_table = MagicMock()
         mock_client.table = mock_table
@@ -855,9 +855,9 @@ def test_list_passwords_data_none():
     mock_response.data = None
 
     with (
-        patch("src.data.supabase_repo.supabase", MagicMock()),
-        patch("src.data.supabase_repo.exec_postgrest", return_value=mock_response),
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo.supabase", MagicMock()),
+        patch("src.db.supabase_repo.exec_postgrest", return_value=mock_response),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
     ):
         result = repo.list_passwords("org1")
 
@@ -877,7 +877,7 @@ def test_import_fallback_postgrest_api_error():
     from pathlib import Path
 
     # Caminho do módulo
-    module_path = Path(__file__).parent.parent.parent.parent / "src" / "data" / "supabase_repo.py"
+    module_path = Path(__file__).parent.parent.parent.parent / "src" / "db" / "supabase_repo.py"
 
     # Interceptar import de postgrest.exceptions
     original_import = builtins.__import__
@@ -888,7 +888,7 @@ def test_import_fallback_postgrest_api_error():
         return original_import(name, *args, **kwargs)
 
     # Criar spec para carregar módulo com nome alternativo
-    spec = importlib.util.spec_from_file_location("src.data.supabase_repo_fallback_test", module_path)
+    spec = importlib.util.spec_from_file_location("src.db.supabase_repo_fallback_test", module_path)
     if spec is None or spec.loader is None:
         pytest.skip("Could not create module spec")
 
@@ -898,7 +898,7 @@ def test_import_fallback_postgrest_api_error():
     builtins.__import__ = mock_import
     try:
         # Adicionar ao sys.modules temporariamente
-        sys.modules["src.data.supabase_repo_fallback_test"] = mod
+        sys.modules["src.db.supabase_repo_fallback_test"] = mod
         spec.loader.exec_module(mod)
 
         # Verificar fallbacks
@@ -910,7 +910,7 @@ def test_import_fallback_postgrest_api_error():
         # Restaurar import original
         builtins.__import__ = original_import
         # Limpar sys.modules
-        sys.modules.pop("src.data.supabase_repo_fallback_test", None)
+        sys.modules.pop("src.db.supabase_repo_fallback_test", None)
 
 
 def test_ensure_postgrest_auth_no_token_not_required():
@@ -919,7 +919,7 @@ def test_ensure_postgrest_auth_no_token_not_required():
     client = MagicMock()
     client.auth.get_session.return_value = None
 
-    with patch("src.data.supabase_repo._get_access_token", return_value=None):
+    with patch("src.db.supabase_repo._get_access_token", return_value=None):
         # Não deve levantar exceção
         repo._ensure_postgrest_auth(client, required=False)
 
@@ -931,8 +931,8 @@ def test_rls_precheck_membership_success_with_log(caplog):
     mock_response.data = [{"user_id": "user1"}]
 
     with (
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
-        patch("src.data.supabase_repo.exec_postgrest", return_value=mock_response),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo.exec_postgrest", return_value=mock_response),
         caplog.at_level(logging.INFO),
     ):
         # Não deve levantar exceção
@@ -969,9 +969,9 @@ def test_update_password_with_client_id_payload():
     mock_response.data = [{"id": "pass1", "client_id": "CID-123"}]
 
     with (
-        patch("src.data.supabase_repo.supabase", mock_client),
-        patch("src.data.supabase_repo.exec_postgrest", return_value=mock_response),
-        patch("src.data.supabase_repo._ensure_postgrest_auth"),
+        patch("src.db.supabase_repo.supabase", mock_client),
+        patch("src.db.supabase_repo.exec_postgrest", return_value=mock_response),
+        patch("src.db.supabase_repo._ensure_postgrest_auth"),
     ):
         result = repo.update_password(id="pass1", client_id="CID-123")
 

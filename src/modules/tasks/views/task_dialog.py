@@ -12,7 +12,7 @@ import ttkbootstrap as tb
 from ttkbootstrap.constants import W
 from ttkbootstrap.dialogs import Messagebox
 
-from src.data.domain_types import ClientRow
+from src.db.domain_types import ClientRow
 from src.core.app import apply_rc_icon
 from src.features.tasks.service import create_task
 from src.ui.window_utils import show_centered

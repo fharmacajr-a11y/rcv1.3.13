@@ -11,7 +11,7 @@ PADRÃO DE IMPORTAÇÃO PARA REPOSITORIES:
 ---------------------------------------
 Os repositories em src/features/* podem usar os helpers genéricos deste módulo:
 
-    from src.data.supabase_repo import (
+    from src.db.supabase_repo import (
         get_supabase_client,
         format_api_error,
         with_retries,
@@ -36,7 +36,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable, TypedDict, TypeVar, cast
 
 import httpx
-from src.data.domain_types import ClientRow, PasswordRow
+from src.db.domain_types import ClientRow, PasswordRow
 from src.infra.supabase_client import exec_postgrest, get_supabase
 from src.security.crypto import decrypt_text, encrypt_text
 

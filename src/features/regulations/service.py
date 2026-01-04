@@ -12,7 +12,7 @@ from datetime import date, datetime, timezone
 from typing import Final, Literal
 from uuid import uuid4
 
-from src.data.domain_types import RegObligationRow
+from src.db.domain_types import RegObligationRow
 from src.features.regulations.repository import list_obligations_for_org
 
 logger = logging.getLogger(__name__)

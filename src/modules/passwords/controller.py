@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import logging
 
-from src.data.domain_types import ClientRow, PasswordRow
-from src.data.supabase_repo import list_clients_for_picker
+from src.db.domain_types import ClientRow, PasswordRow
+from src.db.supabase_repo import list_clients_for_picker
 from src.security.crypto import decrypt_text
 
 from src.modules.passwords import service as passwords_service

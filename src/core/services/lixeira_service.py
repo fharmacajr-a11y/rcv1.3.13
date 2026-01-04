@@ -13,7 +13,7 @@ from src.adapters.storage.api import list_files as storage_list_files
 from src.adapters.storage.api import upload_file as storage_upload_file
 from src.adapters.storage.api import using_storage_backend
 from src.adapters.storage.supabase_storage import SupabaseStorageAdapter
-from src.data.supabase_repo import delete_passwords_by_client
+from src.db.supabase_repo import delete_passwords_by_client
 from src.infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ID
 from src.infra.supabase_client import exec_postgrest
 from src.utils.subpastas_config import get_mandatory_subpastas, join_prefix

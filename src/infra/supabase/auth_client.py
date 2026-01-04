@@ -19,7 +19,7 @@ def bind_postgrest_auth_if_any(client: Client) -> None:
         - Se falhar ao aplicar, loga WARNING mas não estoura exceção (graceful degradation)
         - O token é obtido via _get_access_token do módulo data.auth_bootstrap
     """
-    from src.data.auth_bootstrap import _get_access_token
+    from src.db.auth_bootstrap import _get_access_token
 
     token: str | None = _get_access_token(client)
     if not token:

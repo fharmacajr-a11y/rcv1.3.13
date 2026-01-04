@@ -17,7 +17,7 @@ pytest.importorskip("tkinter")
 
 import ttkbootstrap as tb  # noqa: E402
 
-from src.data.domain_types import ClientRow, RCTaskRow  # noqa: E402
+from src.db.domain_types import ClientRow, RCTaskRow  # noqa: E402
 from src.modules.tasks.views.task_dialog import NovaTarefaDialog  # noqa: E402
 
 

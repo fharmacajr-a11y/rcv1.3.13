@@ -6,7 +6,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from src.data.domain_types import ClientRow, PasswordRow
+from src.db.domain_types import ClientRow, PasswordRow
 
 from src.modules.passwords.controller import PasswordsController
 from src.modules.passwords import service as passwords_service

@@ -400,7 +400,7 @@ def test_totals_handles_none_amounts(mock_client):
 
 def test_iso_date_conversion():
     """Testa conversão de date para ISO string."""
-    from src.data.supabase_repo import to_iso_date
+    from src.db.supabase_repo import to_iso_date
 
     # Date object
     d = date(2024, 1, 15)

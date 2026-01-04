@@ -4,7 +4,7 @@ import types
 
 import pytest
 
-import src.data.supabase_repo as repo
+import src.db.supabase_repo as repo
 
 
 class DummySession:
@@ -550,7 +550,7 @@ def test_import_fallback_for_apierror(monkeypatch):
 
     monkeypatch.setattr(builtins, "__import__", fake_import)
     import importlib
-    import src.data.supabase_repo as module
+    import src.db.supabase_repo as module
 
     importlib.reload(module)
     assert module.APIError is Exception

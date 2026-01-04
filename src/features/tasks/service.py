@@ -10,8 +10,8 @@ import logging
 from datetime import date
 from typing import Dict, Union
 
-from src.data.domain_types import RCTaskRow
-from src.data.supabase_repo import PostgrestAPIError, get_supabase_client
+from src.db.domain_types import RCTaskRow
+from src.db.supabase_repo import PostgrestAPIError, get_supabase_client
 
 logger = logging.getLogger(__name__)
 

@@ -5,7 +5,7 @@ from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping, Optional, Protocol
 
-from src.data.auth_bootstrap import _get_access_token
+from src.db.auth_bootstrap import _get_access_token
 from src.modules.login.view import LoginDialog
 from src.core.session.session import refresh_current_user_from_supabase
 from src.utils import prefs as prefs_utils

@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.data.domain_types import RCTaskRow
+from src.db.domain_types import RCTaskRow
 from src.features.tasks.service import create_task
 
 

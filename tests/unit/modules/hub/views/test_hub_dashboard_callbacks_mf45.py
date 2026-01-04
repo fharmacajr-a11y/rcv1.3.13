@@ -64,7 +64,7 @@ def fake_main_app():
 
 @patch("src.modules.hub.views.hub_dashboard_callbacks.messagebox")
 @patch("src.modules.tasks.views.NovaTarefaDialog")
-@patch("src.data.supabase_repo.list_clients_for_picker")
+@patch("src.db.supabase_repo.list_clients_for_picker")
 def test_handle_new_task_click_success_happy_path(
     mock_list_clients,
     mock_dialog_class,
@@ -132,7 +132,7 @@ def test_handle_new_task_click_no_user_id(mock_messagebox, fake_parent):
 
 
 @patch("src.modules.hub.views.hub_dashboard_callbacks.messagebox")
-@patch("src.data.supabase_repo.list_clients_for_picker")
+@patch("src.db.supabase_repo.list_clients_for_picker")
 def test_handle_new_task_click_clients_load_fails(
     mock_list_clients,
     mock_messagebox,

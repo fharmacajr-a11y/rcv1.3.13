@@ -9,7 +9,7 @@ from tkinter import messagebox
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import DANGER, INFO
 
-from src.data.auth_bootstrap import _get_access_token
+from src.db.auth_bootstrap import _get_access_token
 from src.infra.healthcheck import healthcheck  # <-- ADICIONADO: health check pós-login
 from src.infra.supabase_client import bind_postgrest_auth_if_any, get_supabase
 from src.core.auth.auth import authenticate_user  # Import for authenticate_user
