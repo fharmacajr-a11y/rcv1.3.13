@@ -9,7 +9,7 @@ import unicodedata
 from tkinter import messagebox, ttk
 from typing import Any, Callable, Dict, Literal, Optional
 
-from src.helpers.formatters import fmt_datetime_br
+from src.utils.formatters import fmt_datetime_br
 from src.modules.auditoria.service import AuditoriaServiceError
 from src.modules.auditoria.viewmodel import AuditoriaViewModel
 from ..application import AuditoriaApplication, AuditoriaApplicationConfig

@@ -180,7 +180,7 @@ class TestWrapperDelegation:
 
     def test_subfolders_strip_diacritics_wrapper(self) -> None:
         """Wrapper em subfolders deve delegar para core."""
-        from src.shared.subfolders import _strip_diacritics as subfolder_strip
+        from src.utils.subfolders import _strip_diacritics as subfolder_strip
 
         assert subfolder_strip("São José") == "Sao Jose"
 

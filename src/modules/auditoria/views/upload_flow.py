@@ -121,7 +121,7 @@ class AuditoriaUploadFlow:
 
         # Usa implementação canônica de format_cnpj
         try:
-            from src.helpers.formatters import format_cnpj
+            from src.utils.formatters import format_cnpj
         except Exception:
             # Fallback simplificado caso o import falhe
             def format_cnpj(raw: str) -> str:

@@ -526,7 +526,7 @@ def format_activity_event(event: ActivityEvent) -> str:
     # 3) Cliente: "Cliente | ID: 312 — 07.816.095/0001-65"
     client_parts = []
     if event.client_id:
-        from src.helpers.formatters import format_cnpj
+        from src.utils.formatters import format_cnpj
 
         client_id_str = str(event.client_id)
         cnpj_fmt = format_cnpj(event.cnpj) if event.cnpj else ""

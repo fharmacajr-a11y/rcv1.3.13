@@ -16,7 +16,7 @@ from typing import Any
 
 import pytest
 
-from src.helpers.formatters import format_cnpj, format_datetime, fmt_datetime, fmt_datetime_br
+from src.utils.formatters import format_cnpj, format_datetime, fmt_datetime, fmt_datetime_br
 
 
 # --- Testes para format_cnpj ---

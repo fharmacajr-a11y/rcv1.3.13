@@ -10,7 +10,7 @@ import re
 
 from src.infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ID
 from src.core.string_utils import only_digits
-from src.shared.storage_ui_bridge import build_client_prefix
+from src.utils.storage_ui_bridge import build_client_prefix
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +32,9 @@ def format_cnpj_for_display(cnpj: str) -> str:
     Formata CNPJ numerico em 00.000.000/0000-00.
     Se nao tiver 14 digitos (ex.: futuro alfanumerico), retorna como veio.
 
-    Wrapper para compatibilidade. Delega para src.helpers.formatters.format_cnpj.
+    Wrapper para compatibilidade. Delega para src.utils.formatters.format_cnpj.
     """
-    from src.helpers.formatters import format_cnpj as _format_cnpj_canonical
+    from src.utils.formatters import format_cnpj as _format_cnpj_canonical
 
     return _format_cnpj_canonical(cnpj)
 

@@ -18,7 +18,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.helpers.auth_utils import current_user_id, resolve_org_id
+from src.utils.auth_utils import current_user_id, resolve_org_id
 
 
 # ============================================================================
@@ -37,7 +37,7 @@ class TestCurrentUserId:
         mock_resp = MagicMock()
         mock_resp.user = mock_user
 
-        with patch("src.helpers.auth_utils.supabase") as mock_sb:
+        with patch("src.utils.auth_utils.supabase") as mock_sb:
             mock_sb.auth.get_user.return_value = mock_resp
             result = current_user_id()
 
@@ -48,7 +48,7 @@ class TestCurrentUserId:
         mock_resp = MagicMock()
         mock_resp.user = None
 
-        with patch("src.helpers.auth_utils.supabase") as mock_sb:
+        with patch("src.utils.auth_utils.supabase") as mock_sb:
             mock_sb.auth.get_user.return_value = mock_resp
             result = current_user_id()
 
@@ -62,10 +62,10 @@ class TestCurrentUserId:
         mock_resp = MagicMock()
         mock_resp.user = mock_user
 
-        with patch("src.helpers.auth_utils.supabase") as mock_sb:
+        with patch("src.utils.auth_utils.supabase") as mock_sb:
             mock_sb.auth.get_user.return_value = mock_resp
             # Simula getattr retornando None
-            with patch("src.helpers.auth_utils.getattr", side_effect=lambda obj, attr, default=None: None):
+            with patch("src.utils.auth_utils.getattr", side_effect=lambda obj, attr, default=None: None):
                 result = current_user_id()
 
         assert result is None
@@ -74,7 +74,7 @@ class TestCurrentUserId:
         """Cenário: resposta em formato dict com chave 'user'."""
         mock_resp = {"user": {"id": "dict-user-789"}}
 
-        with patch("src.helpers.auth_utils.supabase") as mock_sb:
+        with patch("src.utils.auth_utils.supabase") as mock_sb:
             mock_sb.auth.get_user.return_value = mock_resp
             result = current_user_id()
 
@@ -84,7 +84,7 @@ class TestCurrentUserId:
         """Cenário: resposta em formato dict com chave 'data' -> 'user'."""
         mock_resp = {"data": {"user": {"id": "nested-user-456"}}}
 
-        with patch("src.helpers.auth_utils.supabase") as mock_sb:
+        with patch("src.utils.auth_utils.supabase") as mock_sb:
             mock_sb.auth.get_user.return_value = mock_resp
             result = current_user_id()
 
@@ -94,7 +94,7 @@ class TestCurrentUserId:
         """Cenário: resposta dict com chave 'uid' em vez de 'id'."""
         mock_resp = {"user": {"uid": "user-uid-999"}}
 
-        with patch("src.helpers.auth_utils.supabase") as mock_sb:
+        with patch("src.utils.auth_utils.supabase") as mock_sb:
             mock_sb.auth.get_user.return_value = mock_resp
             result = current_user_id()
 
@@ -102,7 +102,7 @@ class TestCurrentUserId:
 
     def test_current_user_id_exception_handling(self):
         """Cenário: exceção durante get_user() deve retornar None."""
-        with patch("src.helpers.auth_utils.supabase") as mock_sb:
+        with patch("src.utils.auth_utils.supabase") as mock_sb:
             mock_sb.auth.get_user.side_effect = Exception("Network error")
             result = current_user_id()
 
@@ -112,7 +112,7 @@ class TestCurrentUserId:
         """Cenário: resposta dict vazio."""
         mock_resp = {}
 
-        with patch("src.helpers.auth_utils.supabase") as mock_sb:
+        with patch("src.utils.auth_utils.supabase") as mock_sb:
             mock_sb.auth.get_user.return_value = mock_resp
             result = current_user_id()
 
@@ -133,8 +133,8 @@ class TestResolveOrgId:
         mock_result = MagicMock()
         mock_result.data = mock_data
 
-        with patch("src.helpers.auth_utils.current_user_id", return_value="user-123"):
-            with patch("src.helpers.auth_utils.exec_postgrest", return_value=mock_result):
+        with patch("src.utils.auth_utils.current_user_id", return_value="user-123"):
+            with patch("src.utils.auth_utils.exec_postgrest", return_value=mock_result):
                 result = resolve_org_id()
 
         assert result == "org-abc-123"
@@ -146,8 +146,8 @@ class TestResolveOrgId:
         mock_result = MagicMock()
         mock_result.data = []
 
-        with patch("src.helpers.auth_utils.current_user_id", return_value="user-123"):
-            with patch("src.helpers.auth_utils.exec_postgrest", return_value=mock_result):
+        with patch("src.utils.auth_utils.current_user_id", return_value="user-123"):
+            with patch("src.utils.auth_utils.exec_postgrest", return_value=mock_result):
                 result = resolve_org_id()
 
         assert result == "org-env-456"
@@ -156,7 +156,7 @@ class TestResolveOrgId:
         """Cenário: usuário não autenticado mas env var definida."""
         monkeypatch.setenv("SUPABASE_DEFAULT_ORG", "org-fallback-789")
 
-        with patch("src.helpers.auth_utils.current_user_id", return_value=None):
+        with patch("src.utils.auth_utils.current_user_id", return_value=None):
             result = resolve_org_id()
 
         assert result == "org-fallback-789"
@@ -165,7 +165,7 @@ class TestResolveOrgId:
         """Cenário: sem user e sem env var deve levantar RuntimeError."""
         monkeypatch.delenv("SUPABASE_DEFAULT_ORG", raising=False)
 
-        with patch("src.helpers.auth_utils.current_user_id", return_value=None):
+        with patch("src.utils.auth_utils.current_user_id", return_value=None):
             with pytest.raises(RuntimeError, match="Usuário não autenticado"):
                 resolve_org_id()
 
@@ -173,8 +173,8 @@ class TestResolveOrgId:
         """Cenário: exceção ao consultar memberships, usa env fallback."""
         monkeypatch.setenv("SUPABASE_DEFAULT_ORG", "org-exception-rescue")
 
-        with patch("src.helpers.auth_utils.current_user_id", return_value="user-123"):
-            with patch("src.helpers.auth_utils.exec_postgrest", side_effect=Exception("DB error")):
+        with patch("src.utils.auth_utils.current_user_id", return_value="user-123"):
+            with patch("src.utils.auth_utils.exec_postgrest", side_effect=Exception("DB error")):
                 result = resolve_org_id()
 
         assert result == "org-exception-rescue"
@@ -183,8 +183,8 @@ class TestResolveOrgId:
         """Cenário: exceção em memberships e sem env fallback deve levantar RuntimeError."""
         monkeypatch.delenv("SUPABASE_DEFAULT_ORG", raising=False)
 
-        with patch("src.helpers.auth_utils.current_user_id", return_value="user-123"):
-            with patch("src.helpers.auth_utils.exec_postgrest", side_effect=Exception("DB error")):
+        with patch("src.utils.auth_utils.current_user_id", return_value="user-123"):
+            with patch("src.utils.auth_utils.exec_postgrest", side_effect=Exception("DB error")):
                 with pytest.raises(RuntimeError, match="Não foi possível resolver"):
                     resolve_org_id()
 
@@ -195,9 +195,9 @@ class TestResolveOrgId:
         mock_result = MagicMock()
         del mock_result.data  # Remove atributo data
 
-        with patch("src.helpers.auth_utils.current_user_id", return_value="user-123"):
-            with patch("src.helpers.auth_utils.exec_postgrest", return_value=mock_result):
-                with patch("src.helpers.auth_utils.getattr", return_value=None):
+        with patch("src.utils.auth_utils.current_user_id", return_value="user-123"):
+            with patch("src.utils.auth_utils.exec_postgrest", return_value=mock_result):
+                with patch("src.utils.auth_utils.getattr", return_value=None):
                     result = resolve_org_id()
 
         assert result == "org-no-data-attr"
@@ -206,7 +206,7 @@ class TestResolveOrgId:
         """Cenário: env var com espaços deve ser tratada corretamente."""
         monkeypatch.setenv("SUPABASE_DEFAULT_ORG", "  org-trimmed-123  ")
 
-        with patch("src.helpers.auth_utils.current_user_id", return_value=None):
+        with patch("src.utils.auth_utils.current_user_id", return_value=None):
             result = resolve_org_id()
 
         assert result == "org-trimmed-123"
@@ -215,7 +215,7 @@ class TestResolveOrgId:
         """Cenário: env var vazia (após strip) e sem user deve levantar erro."""
         monkeypatch.setenv("SUPABASE_DEFAULT_ORG", "   ")
 
-        with patch("src.helpers.auth_utils.current_user_id", return_value=None):
+        with patch("src.utils.auth_utils.current_user_id", return_value=None):
             with pytest.raises(RuntimeError, match="Usuário não autenticado"):
                 resolve_org_id()
 
@@ -232,7 +232,7 @@ class TestAuthUtilsIntegration:
         """Verifica que resolve_org_id() usa current_user_id() internamente."""
         monkeypatch.setenv("SUPABASE_DEFAULT_ORG", "org-integration-test")
 
-        with patch("src.helpers.auth_utils.current_user_id") as mock_current:
+        with patch("src.utils.auth_utils.current_user_id") as mock_current:
             mock_current.return_value = None
             result = resolve_org_id()
 
@@ -251,9 +251,9 @@ class TestAuthUtilsIntegration:
         mock_membership_resp = MagicMock()
         mock_membership_resp.data = mock_membership_data
 
-        with patch("src.helpers.auth_utils.supabase") as mock_sb:
+        with patch("src.utils.auth_utils.supabase") as mock_sb:
             mock_sb.auth.get_user.return_value = mock_auth_resp
-            with patch("src.helpers.auth_utils.exec_postgrest", return_value=mock_membership_resp):
+            with patch("src.utils.auth_utils.exec_postgrest", return_value=mock_membership_resp):
                 # Primeiro chama current_user_id indiretamente via resolve_org_id
                 org_id = resolve_org_id()
 

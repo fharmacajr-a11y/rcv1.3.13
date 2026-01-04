@@ -12,7 +12,7 @@ from typing import Optional
 
 import ttkbootstrap as tb
 
-from src.shared.subfolders import sanitize_subfolder_name
+from src.utils.subfolders import sanitize_subfolder_name
 from src.ui.window_utils import show_centered
 from src.utils.resource_path import resource_path
 

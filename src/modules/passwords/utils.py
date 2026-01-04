@@ -7,7 +7,7 @@ from __future__ import annotations
 def format_cnpj(cnpj: str) -> str:
     """Formata CNPJ '05788603000113' -> '05.788.603/0001-13'.
 
-    Wrapper para compatibilidade. Delega para src.helpers.formatters.format_cnpj.
+    Wrapper para compatibilidade. Delega para src.utils.formatters.format_cnpj.
 
     Args:
         cnpj: String contendo CNPJ (com ou sem pontuação)
@@ -15,6 +15,6 @@ def format_cnpj(cnpj: str) -> str:
     Returns:
         CNPJ formatado com pontuação padrão, ou o valor original se não tiver 14 dígitos
     """
-    from src.helpers.formatters import format_cnpj as _format_cnpj_canonical
+    from src.utils.formatters import format_cnpj as _format_cnpj_canonical
 
     return _format_cnpj_canonical(cnpj)

@@ -526,7 +526,7 @@ class ClientesViewModel:
         updated_fmt = ""
         if updated_raw:
             try:
-                from src.helpers.formatters import fmt_datetime_br
+                from src.utils.formatters import fmt_datetime_br
 
                 updated_fmt = fmt_datetime_br(updated_raw)
             except Exception:

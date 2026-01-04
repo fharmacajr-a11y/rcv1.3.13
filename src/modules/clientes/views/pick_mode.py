@@ -322,8 +322,8 @@ class PickModeController:
     def _format_cnpj_for_pick(cnpj: str | None) -> str:
         """Formata CNPJ para exibição (##.###.###/####-##).
 
-        Wrapper para compatibilidade. Delega para src.helpers.formatters.format_cnpj.
+        Wrapper para compatibilidade. Delega para src.utils.formatters.format_cnpj.
         """
-        from src.helpers.formatters import format_cnpj as _format_cnpj_canonical
+        from src.utils.formatters import format_cnpj as _format_cnpj_canonical
 
         return _format_cnpj_canonical(cnpj)

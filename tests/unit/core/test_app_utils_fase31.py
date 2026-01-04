@@ -10,7 +10,7 @@ Cobertura:
 - parse_pasta (extração de metadados de nome de pasta)
 
 NOTA FASE 5: fmt_data agora é um wrapper deprecado que delega para
-src.helpers.formatters.fmt_datetime_br. Os testes mantêm compatibilidade
+src.utils.formatters.fmt_datetime_br. Os testes mantêm compatibilidade
 verificando que o comportamento permanece consistente.
 """
 

@@ -14,8 +14,8 @@ class TestFormatCNPJCanonical:
     """Valida comportamento da implementação canônica de format_cnpj."""
 
     def test_canonical_location(self) -> None:
-        """Implementação canônica deve estar em src.helpers.formatters."""
-        from src.helpers.formatters import format_cnpj
+        """Implementação canônica deve estar em src.utils.formatters."""
+        from src.utils.formatters import format_cnpj
 
         assert format_cnpj is not None
         assert callable(format_cnpj)
@@ -46,7 +46,7 @@ class TestFormatCNPJCanonical:
     )
     def test_canonical_behavior(self, input_value: str | int | float | None, expected_output: str) -> None:
         """Valida comportamento canônico para vários tipos de entrada."""
-        from src.helpers.formatters import format_cnpj
+        from src.utils.formatters import format_cnpj
 
         result = format_cnpj(input_value)  # type: ignore[arg-type]
         assert result == expected_output
@@ -57,7 +57,7 @@ class TestFormatCNPJWrappers:
 
     def test_text_utils_wrapper_delegates(self) -> None:
         """text_utils.format_cnpj deve delegar para canônico."""
-        from src.helpers.formatters import format_cnpj as canonical
+        from src.utils.formatters import format_cnpj as canonical
         from src.utils.text_utils import format_cnpj as wrapper
 
         # Comportamento idêntico para casos comuns
@@ -70,7 +70,7 @@ class TestFormatCNPJWrappers:
 
     def test_passwords_utils_wrapper_delegates(self) -> None:
         """passwords/utils.format_cnpj deve delegar para canônico."""
-        from src.helpers.formatters import format_cnpj as canonical
+        from src.utils.formatters import format_cnpj as canonical
         from src.modules.passwords.utils import format_cnpj as wrapper
 
         assert wrapper("12345678000190") == canonical("12345678000190")
@@ -79,7 +79,7 @@ class TestFormatCNPJWrappers:
 
     def test_uploads_helpers_wrapper_delegates(self) -> None:
         """uploads/helpers.format_cnpj_for_display deve delegar para canônico."""
-        from src.helpers.formatters import format_cnpj as canonical
+        from src.utils.formatters import format_cnpj as canonical
         from src.modules.uploads.components.helpers import format_cnpj_for_display as wrapper
 
         assert wrapper("12345678000190") == canonical("12345678000190")
@@ -88,7 +88,7 @@ class TestFormatCNPJWrappers:
 
     def test_pick_mode_wrapper_delegates(self) -> None:
         """pick_mode._format_cnpj_for_pick deve delegar para canônico."""
-        from src.helpers.formatters import format_cnpj as canonical
+        from src.utils.formatters import format_cnpj as canonical
         from src.modules.clientes.views.pick_mode import PickModeController
 
         assert PickModeController._format_cnpj_for_pick("12345678000190") == canonical("12345678000190")
@@ -97,7 +97,7 @@ class TestFormatCNPJWrappers:
 
     def test_client_picker_wrapper_delegates(self) -> None:
         """client_picker._format_cnpj deve delegar para canônico."""
-        from src.helpers.formatters import format_cnpj as canonical
+        from src.utils.formatters import format_cnpj as canonical
         from src.modules.clientes.forms.client_picker import _format_cnpj as wrapper
 
         assert wrapper("12345678000190") == canonical("12345678000190")
@@ -123,7 +123,7 @@ class TestBackwardCompatibility:
 
     def test_all_wrappers_handle_14_digits(self) -> None:
         """Todos os wrappers devem formatar corretamente CNPJ com 14 dígitos."""
-        from src.helpers.formatters import format_cnpj as canonical
+        from src.utils.formatters import format_cnpj as canonical
         from src.modules.clientes.forms.client_picker import _format_cnpj as picker_wrapper
         from src.modules.clientes.views.pick_mode import PickModeController
         from src.modules.passwords.utils import format_cnpj as pwd_wrapper

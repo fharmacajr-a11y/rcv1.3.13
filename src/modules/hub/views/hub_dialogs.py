@@ -20,7 +20,7 @@ from typing import Any, Literal, Sequence
 
 import ttkbootstrap as tb
 
-from src.helpers.formatters import format_cnpj
+from src.utils.formatters import format_cnpj
 
 logger = logging.getLogger(__name__)
 
@@ -347,7 +347,7 @@ def pick_anvisa_history_target(
     anvisa_service = None
 
     try:
-        from src.helpers.auth_utils import resolve_org_id
+        from src.utils.auth_utils import resolve_org_id
         from src.infra.repositories.anvisa_requests_repository import AnvisaRequestsRepositoryAdapter
         from src.modules.anvisa.services.anvisa_service import AnvisaService
 
@@ -418,7 +418,7 @@ def pick_anvisa_history_target(
 
                 # Import DENTRO do bloco condicional (só quando necessário)
                 from src.infra.supabase_client import get_supabase
-                from src.helpers.auth_utils import resolve_org_id
+                from src.utils.auth_utils import resolve_org_id
 
                 org_id = resolve_org_id()
                 sb = get_supabase()

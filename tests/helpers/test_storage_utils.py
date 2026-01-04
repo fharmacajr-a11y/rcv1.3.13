@@ -1,9 +1,9 @@
-"""Testes para src/helpers/storage_utils.py."""
+"""Testes para src/utils/storage_utils.py."""
 
 from __future__ import annotations
 
 
-from src.helpers.storage_utils import get_bucket_name
+from src.utils.storage_utils import get_bucket_name
 
 
 class TestGetBucketName:

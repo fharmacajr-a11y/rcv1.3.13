@@ -228,7 +228,7 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[tb.Toplev
             ultima_raw = _get_val(r, "ultima_alteracao", "updated_at") or ""
             if ultima_raw:
                 try:
-                    from src.helpers.formatters import fmt_datetime_br
+                    from src.utils.formatters import fmt_datetime_br
 
                     ultima_fmt = fmt_datetime_br(ultima_raw)
                 except Exception:

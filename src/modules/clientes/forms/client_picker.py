@@ -29,9 +29,9 @@ def _get_field(row: Any, key: str, default: str = "") -> str:
 def _format_cnpj(value: str) -> str:
     """Formata CNPJ para 00.000.000/0000-00; se nao tiver 14 digitos, retorna o original.
 
-    Wrapper para compatibilidade. Delega para src.helpers.formatters.format_cnpj.
+    Wrapper para compatibilidade. Delega para src.utils.formatters.format_cnpj.
     """
-    from src.helpers.formatters import format_cnpj as _format_cnpj_canonical
+    from src.utils.formatters import format_cnpj as _format_cnpj_canonical
 
     return _format_cnpj_canonical(value)
 

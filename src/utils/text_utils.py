@@ -86,10 +86,10 @@ def cnpj_is_valid(cnpj: str | None) -> bool:
 def format_cnpj(digits14: str | None) -> str | None:
     """Formata string de 14 digitos como CNPJ; retorna entrada original se invalida.
 
-    Wrapper para compatibilidade. Delega para src.helpers.formatters.format_cnpj.
+    Wrapper para compatibilidade. Delega para src.utils.formatters.format_cnpj.
     Mantém assinatura original (str | None -> str | None) por compatibilidade.
     """
-    from src.helpers.formatters import format_cnpj as _format_cnpj_canonical
+    from src.utils.formatters import format_cnpj as _format_cnpj_canonical
 
     # Preserva comportamento original: None input -> None output
     if digits14 is None:

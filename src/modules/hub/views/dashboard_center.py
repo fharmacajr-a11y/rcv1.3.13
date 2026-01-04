@@ -483,7 +483,7 @@ def _build_recent_activity_section(
     from tkinter.scrolledtext import ScrolledText
     from src.modules.hub.recent_activity_store import get_recent_activity_store
     from src.modules.hub.async_runner import HubAsyncRunner
-    from src.helpers.auth_utils import resolve_org_id
+    from src.utils.auth_utils import resolve_org_id
 
     section, content = _build_section_frame(parent, title="📋 Atividade recente da equipe")
     section.pack(fill=X, pady=(0, 15))

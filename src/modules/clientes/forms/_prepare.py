@@ -12,9 +12,9 @@ from src.adapters.storage.supabase_storage import SupabaseStorageAdapter
 from src.infra.supabase_client import get_supabase_state
 from src.core.logger import get_logger
 from src.core.storage_key import storage_slug_part
-from src.helpers.auth_utils import current_user_id, resolve_org_id
-from src.helpers.datetime_utils import now_iso_z
-from src.helpers.storage_utils import get_bucket_name
+from src.utils.auth_utils import current_user_id, resolve_org_id
+from src.utils.datetime_utils import now_iso_z
+from src.utils.storage_utils import get_bucket_name
 from src.modules.clientes.components.status import apply_status_prefix
 from src.modules.clientes.service import excluir_cliente_simples, salvar_cliente
 from src.utils.validators import only_digits

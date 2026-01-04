@@ -6,7 +6,7 @@ import os
 from dataclasses import dataclass
 from typing import Any, Iterable, Sequence
 
-from src.shared.storage_ui_bridge import build_client_prefix as _build_client_prefix_shared
+from src.utils.storage_ui_bridge import build_client_prefix as _build_client_prefix_shared
 
 CLIENTS_BUCKET = os.getenv("RC_STORAGE_BUCKET_CLIENTS", "rc-docs").strip() or "rc-docs"
 

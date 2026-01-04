@@ -12,7 +12,7 @@ from datetime import date, datetime
 
 import pytest
 
-from src.helpers.formatters import fmt_datetime_br
+from src.utils.formatters import fmt_datetime_br
 
 
 class TestFmtDatetimeBr:

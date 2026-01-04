@@ -24,7 +24,7 @@ _META_SEPARATOR = re.compile(r"\s*[-_/|]\s*")
 def fmt_data(iso_str: str | None) -> str:
     """[DEPRECATED] Formata data ISO para DD/MM/YYYY - HH:MM:SS.
 
-    **DEPRECADO**: Use fmt_datetime_br de src.helpers.formatters.
+    **DEPRECADO**: Use fmt_datetime_br de src.utils.formatters.
     Esta função é mantida apenas para compatibilidade com código legado.
     Delega para fmt_datetime_br que é mais robusta e aceita mais tipos.
 
@@ -34,7 +34,7 @@ def fmt_data(iso_str: str | None) -> str:
     Returns:
         String formatada no padrão brasileiro ou vazio se None/inválido.
     """
-    from src.helpers.formatters import fmt_datetime_br
+    from src.utils.formatters import fmt_datetime_br
 
     return fmt_datetime_br(iso_str)
 

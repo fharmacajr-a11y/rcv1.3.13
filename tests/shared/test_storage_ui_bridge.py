@@ -5,7 +5,7 @@ import importlib
 
 import pytest
 
-import src.shared.storage_ui_bridge as bridge
+import src.utils.storage_ui_bridge as bridge
 
 
 @pytest.fixture()

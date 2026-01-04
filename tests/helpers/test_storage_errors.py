@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.helpers.storage_errors import StorageErrorKind, classify_storage_error
+from src.utils.storage_errors import StorageErrorKind, classify_storage_error
 
 
 class DummyError(Exception):

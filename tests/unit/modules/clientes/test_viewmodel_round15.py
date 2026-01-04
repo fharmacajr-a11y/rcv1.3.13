@@ -920,7 +920,7 @@ class TestErrorHandling:
         """Testa fallback quando fmt_datetime_br falha."""
         cliente = make_cliente_dict(ultima_alteracao="2025-12-01T10:00:00")
 
-        with patch("src.helpers.formatters.fmt_datetime_br") as mock_fmt:
+        with patch("src.utils.formatters.fmt_datetime_br") as mock_fmt:
             mock_fmt.side_effect = Exception("Erro ao formatar")
 
             row = vm._build_row_from_cliente(cliente)

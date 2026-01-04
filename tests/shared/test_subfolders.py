@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from src.shared.subfolders import (
+from src.utils.subfolders import (
     sanitize_subfolder_name,
     suggest_client_subfolder,
     list_storage_subfolders,

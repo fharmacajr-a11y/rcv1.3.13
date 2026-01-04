@@ -11,7 +11,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 from typing import Optional
 
-from src.shared.subfolders import sanitize_subfolder_name
+from src.utils.subfolders import sanitize_subfolder_name
 from src.ui.window_utils import show_centered
 
 logger = logging.getLogger(__name__)

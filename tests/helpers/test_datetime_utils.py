@@ -1,11 +1,11 @@
-"""Tests for src.helpers.datetime_utils module."""
+"""Tests for src.utils.datetime_utils module."""
 
 from __future__ import annotations
 
 import datetime
 from unittest.mock import patch
 
-from src.helpers.datetime_utils import now_iso_z
+from src.utils.datetime_utils import now_iso_z
 
 
 class TestNowIsoZ:
@@ -51,7 +51,7 @@ class TestNowIsoZ:
         # Mock datetime.now(UTC) to control output
         mock_dt = datetime.datetime(2025, 11, 19, 14, 30, 45, 123456, tzinfo=datetime.UTC)
 
-        with patch("src.helpers.datetime_utils.datetime") as mock_datetime:
+        with patch("src.utils.datetime_utils.datetime") as mock_datetime:
             # Configure mock
             mock_datetime.UTC = datetime.UTC
             mock_datetime.datetime.now.return_value = mock_dt
@@ -69,7 +69,7 @@ class TestNowIsoZ:
         """Should format 2025-01-01 00:00:00 UTC correctly."""
         mock_dt = datetime.datetime(2025, 1, 1, 0, 0, 0, 0, tzinfo=datetime.UTC)
 
-        with patch("src.helpers.datetime_utils.datetime") as mock_datetime:
+        with patch("src.utils.datetime_utils.datetime") as mock_datetime:
             mock_datetime.UTC = datetime.UTC
             mock_datetime.datetime.now.return_value = mock_dt
 
@@ -80,7 +80,7 @@ class TestNowIsoZ:
         """Should format 2025-12-31 23:59:59 UTC correctly."""
         mock_dt = datetime.datetime(2025, 12, 31, 23, 59, 59, 999999, tzinfo=datetime.UTC)
 
-        with patch("src.helpers.datetime_utils.datetime") as mock_datetime:
+        with patch("src.utils.datetime_utils.datetime") as mock_datetime:
             mock_datetime.UTC = datetime.UTC
             mock_datetime.datetime.now.return_value = mock_dt
 
@@ -93,7 +93,7 @@ class TestNowIsoZ:
         # Test midnight rollover
         mock_dt = datetime.datetime(2025, 2, 28, 23, 59, 59, 500000, tzinfo=datetime.UTC)
 
-        with patch("src.helpers.datetime_utils.datetime") as mock_datetime:
+        with patch("src.utils.datetime_utils.datetime") as mock_datetime:
             mock_datetime.UTC = datetime.UTC
             mock_datetime.datetime.now.return_value = mock_dt
 

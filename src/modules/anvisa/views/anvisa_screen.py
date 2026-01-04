@@ -21,7 +21,7 @@ from ._anvisa_handlers_mixin import AnvisaHandlersMixin
 from ..controllers.anvisa_controller import AnvisaController
 from ..services.anvisa_service import AnvisaService
 from src.infra.repositories.anvisa_requests_repository import AnvisaRequestsRepositoryAdapter
-from src.helpers.auth_utils import current_user_id
+from src.utils.auth_utils import current_user_id
 from src.ui.window_utils import (
     apply_window_icon,
     prepare_hidden_window,
