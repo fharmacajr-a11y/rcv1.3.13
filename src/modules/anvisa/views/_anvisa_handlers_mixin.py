@@ -810,7 +810,7 @@ class AnvisaHandlersMixin:
 
         try:
             from src.modules.uploads import open_files_browser
-            from infra.supabase_client import supabase
+            from src.infra.supabase_client import supabase
 
             org_id = self._resolve_org_id()  # type: ignore[attr-defined]
             if not org_id:

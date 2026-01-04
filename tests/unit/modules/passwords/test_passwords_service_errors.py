@@ -10,7 +10,7 @@ import types
 
 import pytest
 
-from data.domain_types import PasswordRow
+from src.data.domain_types import PasswordRow
 from tests.unit.modules.passwords.conftest import make_password_row
 
 from src.modules.passwords import service as passwords_service
@@ -24,7 +24,7 @@ from src.modules.passwords import service as passwords_service
 @pytest.fixture
 def mock_supabase_user(monkeypatch):
     """Mock do cliente Supabase com usuário válido."""
-    import infra.supabase_client as supabase_client
+    import src.infra.supabase_client as supabase_client
 
     fake_user = types.SimpleNamespace(user=types.SimpleNamespace(id="user-123"))
     fake_supabase = types.SimpleNamespace(auth=types.SimpleNamespace(get_user=lambda: fake_user))
@@ -200,7 +200,7 @@ class TestResolveUserContextErrors:
 
     def test_resolve_context_dict_user_object(self, monkeypatch) -> None:
         """Deve extrair user_id de objeto dict."""
-        import infra.supabase_client as supabase_client
+        import src.infra.supabase_client as supabase_client
 
         # User como dict
         fake_user = {"id": "user-dict-123", "email": "test@test.com"}
@@ -217,7 +217,7 @@ class TestResolveUserContextErrors:
 
     def test_resolve_context_user_with_uid_fallback(self, monkeypatch) -> None:
         """Deve usar 'uid' se 'id' não existir no dict."""
-        import infra.supabase_client as supabase_client
+        import src.infra.supabase_client as supabase_client
 
         # User como dict com uid ao invés de id
         fake_user = {"uid": "user-uid-456"}

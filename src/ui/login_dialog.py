@@ -9,9 +9,9 @@ from tkinter import messagebox
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import DANGER, INFO
 
-from data.auth_bootstrap import _get_access_token
-from infra.healthcheck import healthcheck  # <-- ADICIONADO: health check pós-login
-from infra.supabase_client import bind_postgrest_auth_if_any, get_supabase
+from src.data.auth_bootstrap import _get_access_token
+from src.infra.healthcheck import healthcheck  # <-- ADICIONADO: health check pós-login
+from src.infra.supabase_client import bind_postgrest_auth_if_any, get_supabase
 from src.core.auth.auth import authenticate_user  # Import for authenticate_user
 from src.core.session.session import (  # <-- importa sessão
     refresh_current_user_from_supabase,

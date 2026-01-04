@@ -183,7 +183,7 @@ class HubScreenController:
             return
 
         try:
-            from infra.supabase_client import get_supabase
+            from src.infra.supabase_client import get_supabase
 
             client = get_supabase()
             channel_name = f"rc_notes_org_{org_id}"

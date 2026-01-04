@@ -11,7 +11,7 @@ from src.ui.dialogs.file_select import (
     ARCHIVE_FILETYPES,
     validate_archive_extension,
 )
-from infra.archive_utils import (
+from src.infra.archive_utils import (
     ARCHIVE_GLOBS,
     is_supported_archive,
 )

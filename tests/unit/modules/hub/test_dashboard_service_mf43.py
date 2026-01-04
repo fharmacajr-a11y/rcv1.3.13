@@ -904,7 +904,7 @@ def test_get_dashboard_snapshot_success(monkeypatch: pytest.MonkeyPatch) -> None
 
     # Mock list_requests (ANVISA-only)
     mock_list_requests = MagicMock(return_value=_fake_anvisa_requests())
-    monkeypatch.setattr("infra.repositories.anvisa_requests_repository.list_requests", mock_list_requests)
+    monkeypatch.setattr("src.infra.repositories.anvisa_requests_repository.list_requests", mock_list_requests)
 
     # Mock cashflow_totals
     mock_cashflow = MagicMock(return_value={"in": 1000.0, "out": 500.0})
@@ -926,7 +926,7 @@ def test_get_dashboard_snapshot_today_default(monkeypatch: pytest.MonkeyPatch) -
     """Testa get_dashboard_snapshot com today=None (usa date.today())."""
     mock_count_clients = MagicMock(return_value=10)
     monkeypatch.setattr("src.core.services.clientes_service.count_clients", mock_count_clients)
-    monkeypatch.setattr("infra.repositories.anvisa_requests_repository.list_requests", MagicMock(return_value=[]))
+    monkeypatch.setattr("src.infra.repositories.anvisa_requests_repository.list_requests", MagicMock(return_value=[]))
     monkeypatch.setattr("src.features.cashflow.repository.totals", MagicMock(return_value={"in": 0.0}))
 
     snapshot = get_dashboard_snapshot("org-123", today=None)
@@ -939,7 +939,7 @@ def test_get_dashboard_snapshot_exception_count_clients(
     """Testa get_dashboard_snapshot com exception em count_clients (fallback 0)."""
     mock_count_clients = MagicMock(side_effect=Exception("Database error"))
     monkeypatch.setattr("src.core.services.clientes_service.count_clients", mock_count_clients)
-    monkeypatch.setattr("infra.repositories.anvisa_requests_repository.list_requests", MagicMock(return_value=[]))
+    monkeypatch.setattr("src.infra.repositories.anvisa_requests_repository.list_requests", MagicMock(return_value=[]))
     monkeypatch.setattr("src.features.cashflow.repository.totals", MagicMock(return_value={"in": 0.0}))
 
     with caplog.at_level(logging.WARNING):
@@ -956,7 +956,7 @@ def test_get_dashboard_snapshot_exception_count_pending_obligations(
     monkeypatch.setattr("src.core.services.clientes_service.count_clients", MagicMock(return_value=10))
 
     mock_list_requests = MagicMock(side_effect=RuntimeError("boom"))
-    monkeypatch.setattr("infra.repositories.anvisa_requests_repository.list_requests", mock_list_requests)
+    monkeypatch.setattr("src.infra.repositories.anvisa_requests_repository.list_requests", mock_list_requests)
 
     monkeypatch.setattr("src.features.cashflow.repository.totals", MagicMock(return_value={"in": 0.0}))
 
@@ -988,11 +988,11 @@ def test_get_dashboard_snapshot_exception_tasks_today(
             }
         ]
     )
-    monkeypatch.setattr("infra.repositories.anvisa_requests_repository.list_requests", mock_list_requests)
+    monkeypatch.setattr("src.infra.repositories.anvisa_requests_repository.list_requests", mock_list_requests)
 
     # Mock _count_anvisa_open_and_due para lançar exception
     mock_count_anvisa = MagicMock(side_effect=RuntimeError("count boom"))
-    monkeypatch.setattr("src.modules.hub.dashboard_service._count_anvisa_open_and_due", mock_count_anvisa)
+    monkeypatch.setattr("src.modules.hub.dashboard.service._count_anvisa_open_and_due", mock_count_anvisa)
 
     monkeypatch.setattr("src.features.cashflow.repository.totals", MagicMock(return_value={"in": 0.0}))
 
@@ -1009,7 +1009,7 @@ def test_get_dashboard_snapshot_exception_cashflow(
 ) -> None:
     """Testa get_dashboard_snapshot com exception em cashflow_totals (fallback 0.0)."""
     monkeypatch.setattr("src.core.services.clientes_service.count_clients", MagicMock(return_value=10))
-    monkeypatch.setattr("infra.repositories.anvisa_requests_repository.list_requests", MagicMock(return_value=[]))
+    monkeypatch.setattr("src.infra.repositories.anvisa_requests_repository.list_requests", MagicMock(return_value=[]))
 
     mock_cashflow = MagicMock(side_effect=Exception("Database error"))
     monkeypatch.setattr("src.features.cashflow.repository.totals", mock_cashflow)
@@ -1041,7 +1041,7 @@ def test_get_dashboard_snapshot_exception_upcoming_deadlines(
             for i in range(6)
         ]
     )
-    monkeypatch.setattr("infra.repositories.anvisa_requests_repository.list_requests", mock_list_requests)
+    monkeypatch.setattr("src.infra.repositories.anvisa_requests_repository.list_requests", mock_list_requests)
     monkeypatch.setattr("src.features.cashflow.repository.totals", MagicMock(return_value={"in": 0.0}))
 
     snapshot = get_dashboard_snapshot("org-123", date(2023, 5, 15))
@@ -1055,12 +1055,12 @@ def test_get_dashboard_snapshot_exception_risk_radar(
 ) -> None:
     """Testa get_dashboard_snapshot com exception em _build_anvisa_radar_from_requests (fallback ANVISA verde)."""
     monkeypatch.setattr("src.core.services.clientes_service.count_clients", MagicMock(return_value=10))
-    monkeypatch.setattr("infra.repositories.anvisa_requests_repository.list_requests", MagicMock(return_value=[]))
+    monkeypatch.setattr("src.infra.repositories.anvisa_requests_repository.list_requests", MagicMock(return_value=[]))
     monkeypatch.setattr("src.features.cashflow.repository.totals", MagicMock(return_value={"in": 0.0}))
 
     # Mock _build_anvisa_radar_from_requests para lançar exception
     mock_radar = MagicMock(side_effect=RuntimeError("radar boom"))
-    monkeypatch.setattr("src.modules.hub.dashboard_service._build_anvisa_radar_from_requests", mock_radar)
+    monkeypatch.setattr("src.modules.hub.dashboard.service._build_anvisa_radar_from_requests", mock_radar)
 
     with caplog.at_level(logging.WARNING):
         snapshot = get_dashboard_snapshot("org-123", date(2023, 5, 15))
@@ -1299,7 +1299,7 @@ def test_get_dashboard_snapshot_count_obligations_exception(monkeypatch, caplog)
     )
     _install_fake_module(
         monkeypatch,
-        "infra.repositories.anvisa_requests_repository",
+        "src.infra.repositories.anvisa_requests_repository",
         list_requests=fake_list_requests,
     )
     _install_fake_module(
@@ -1331,7 +1331,7 @@ def test_get_dashboard_snapshot_tasks_today_exception(monkeypatch, caplog):
     )
     _install_fake_module(
         monkeypatch,
-        "infra.repositories.anvisa_requests_repository",
+        "src.infra.repositories.anvisa_requests_repository",
         list_requests=lambda org_id: [],
     )
     _install_fake_module(
@@ -1341,7 +1341,7 @@ def test_get_dashboard_snapshot_tasks_today_exception(monkeypatch, caplog):
     )
 
     # Mock _count_anvisa_open_and_due para lançar exception
-    monkeypatch.setattr("src.modules.hub.dashboard_service._count_anvisa_open_and_due", fake_count_anvisa)
+    monkeypatch.setattr("src.modules.hub.dashboard.service._count_anvisa_open_and_due", fake_count_anvisa)
 
     from src.modules.hub.dashboard_service import get_dashboard_snapshot
 
@@ -1413,7 +1413,7 @@ def test_get_dashboard_snapshot_upcoming_deadlines_exception(monkeypatch, caplog
     )
     _install_fake_module(
         monkeypatch,
-        "infra.repositories.anvisa_requests_repository",
+        "src.infra.repositories.anvisa_requests_repository",
         list_requests=lambda org_id: fake_requests,
     )
     _install_fake_module(
@@ -1444,7 +1444,7 @@ def test_get_dashboard_snapshot_risk_radar_exception(monkeypatch, caplog):
     )
     _install_fake_module(
         monkeypatch,
-        "infra.repositories.anvisa_requests_repository",
+        "src.infra.repositories.anvisa_requests_repository",
         list_requests=lambda org_id: [],
     )
     _install_fake_module(
@@ -1454,7 +1454,7 @@ def test_get_dashboard_snapshot_risk_radar_exception(monkeypatch, caplog):
     )
 
     # Mock _build_anvisa_radar_from_requests para lançar exception
-    monkeypatch.setattr("src.modules.hub.dashboard_service._build_anvisa_radar_from_requests", fake_build_radar)
+    monkeypatch.setattr("src.modules.hub.dashboard.service._build_anvisa_radar_from_requests", fake_build_radar)
 
     from src.modules.hub.dashboard_service import get_dashboard_snapshot
 
@@ -1830,7 +1830,7 @@ def test_get_dashboard_snapshot_hot_items_in_upcoming_block(monkeypatch, caplog)
     )
     _install_fake_module(
         monkeypatch,
-        "infra.repositories.anvisa_requests_repository",
+        "src.infra.repositories.anvisa_requests_repository",
         list_requests=lambda org_id: fake_requests,
     )
     _install_fake_module(
@@ -1985,7 +1985,7 @@ def test_load_recent_activity_enrichment_empty_base_text(monkeypatch):
 # 5.1) _build_hot_items: SNGPC com min_days==1 (linha 211)
 def test_build_hot_items_sngpc_one_day_left(monkeypatch):
     """_build_hot_items deve incluir mensagem '1 dia' para SNGPC."""
-    _install_fake_module(monkeypatch, "data.supabase_repo")
+    _install_fake_module(monkeypatch, "src.data.supabase_repo")
 
     from src.modules.hub.dashboard_service import _build_hot_items
 
@@ -2013,7 +2013,7 @@ def test_build_hot_items_sngpc_one_day_left(monkeypatch):
 # 5.2) _build_hot_items: SNGPC com min_days>1 (linha 213)
 def test_build_hot_items_sngpc_multiple_days_left(monkeypatch):
     """_build_hot_items deve incluir mensagem 'N dias' para SNGPC."""
-    _install_fake_module(monkeypatch, "data.supabase_repo")
+    _install_fake_module(monkeypatch, "src.data.supabase_repo")
 
     from src.modules.hub.dashboard_service import _build_hot_items
 
@@ -2035,7 +2035,7 @@ def test_build_hot_items_sngpc_multiple_days_left(monkeypatch):
 # 5.3) _build_hot_items: FARMACIA_POPULAR com min_days==1 (linha 242)
 def test_build_hot_items_farmacia_popular_one_day_left(monkeypatch):
     """_build_hot_items deve incluir mensagem '1 dia' para Farmácia Popular."""
-    _install_fake_module(monkeypatch, "data.supabase_repo")
+    _install_fake_module(monkeypatch, "src.data.supabase_repo")
 
     from src.modules.hub.dashboard_service import _build_hot_items
 
@@ -2057,7 +2057,7 @@ def test_build_hot_items_farmacia_popular_one_day_left(monkeypatch):
 # 5.4) _build_hot_items: FARMACIA_POPULAR com min_days>1 (linha 244)
 def test_build_hot_items_farmacia_popular_multiple_days_left(monkeypatch):
     """_build_hot_items deve incluir mensagem 'N dias' para Farmácia Popular."""
-    _install_fake_module(monkeypatch, "data.supabase_repo")
+    _install_fake_module(monkeypatch, "src.data.supabase_repo")
 
     from src.modules.hub.dashboard_service import _build_hot_items
 
@@ -2087,7 +2087,7 @@ def test_load_pending_tasks_due_date_value_error(monkeypatch):
     """_load_pending_tasks deve lidar com ValueError na conversão de due_date."""
     fake_repo = _install_fake_module(
         monkeypatch,
-        "data.supabase_repo",
+        "src.data.supabase_repo",
         SupabaseRepository=lambda org_id: None,
     )
 
@@ -2116,7 +2116,7 @@ def test_load_pending_tasks_due_date_value_error(monkeypatch):
 # 5.6) _build_hot_items: Mistura de date e string em due_date (linhas 197-202, 227-230)
 def test_build_hot_items_mixed_date_types(monkeypatch):
     """_build_hot_items deve processar obrigações com due_date em tipos diferentes."""
-    _install_fake_module(monkeypatch, "data.supabase_repo")
+    _install_fake_module(monkeypatch, "src.data.supabase_repo")
 
     from src.modules.hub.dashboard_service import _build_hot_items
 

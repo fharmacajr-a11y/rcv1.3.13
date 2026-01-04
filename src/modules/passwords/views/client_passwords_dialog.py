@@ -11,7 +11,7 @@ from typing import Callable, Optional
 
 import ttkbootstrap as tb
 
-from data.domain_types import ClientRow, PasswordRow
+from src.data.domain_types import ClientRow, PasswordRow
 from src.app_gui import apply_rc_icon
 from src.modules.passwords.controller import ClientPasswordsSummary, PasswordsController
 from src.modules.passwords.utils import format_cnpj

@@ -8,14 +8,14 @@ from tempfile import NamedTemporaryFile
 from tkinter import messagebox
 from typing import Iterable
 
-from adapters.storage.api import delete_file as storage_delete_file
-from adapters.storage.api import list_files as storage_list_files
-from adapters.storage.api import upload_file as storage_upload_file
-from adapters.storage.api import using_storage_backend
-from adapters.storage.supabase_storage import SupabaseStorageAdapter
-from data.supabase_repo import delete_passwords_by_client
-from infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ID
-from infra.supabase_client import exec_postgrest
+from src.adapters.storage.api import delete_file as storage_delete_file
+from src.adapters.storage.api import list_files as storage_list_files
+from src.adapters.storage.api import upload_file as storage_upload_file
+from src.adapters.storage.api import using_storage_backend
+from src.adapters.storage.supabase_storage import SupabaseStorageAdapter
+from src.data.supabase_repo import delete_passwords_by_client
+from src.infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ID
+from src.infra.supabase_client import exec_postgrest
 from src.utils.subpastas_config import get_mandatory_subpastas, join_prefix
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ BUCKET_DOCS = "rc-docs"
 # ----------------- Helpers Supabase -----------------
 def _get_supabase_and_org() -> tuple[object, str]:
     """Retorna (supabase, org_id) do usuário logado, ou lança RuntimeError."""
-    from infra.supabase_client import supabase
+    from src.infra.supabase_client import supabase
 
     try:
         # compat: get_user() pode retornar .user ou já o user

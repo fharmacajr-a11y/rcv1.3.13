@@ -18,11 +18,11 @@ import pytest
 @pytest.fixture
 def auth_client_module(monkeypatch):
     """Isola o import com stub de data.auth_bootstrap para controlar o token."""
-    stub_bootstrap = ModuleType("data.auth_bootstrap")
+    stub_bootstrap = ModuleType("src.data.auth_bootstrap")
     stub_bootstrap._get_access_token = MagicMock()
-    monkeypatch.setitem(sys.modules, "data.auth_bootstrap", stub_bootstrap)
-    sys.modules.pop("infra.supabase.auth_client", None)
-    module = importlib.import_module("infra.supabase.auth_client")
+    monkeypatch.setitem(sys.modules, "src.data.auth_bootstrap", stub_bootstrap)
+    sys.modules.pop("src.infra.supabase.auth_client", None)
+    module = importlib.import_module("src.infra.supabase.auth_client")
     return module
 
 
@@ -31,7 +31,7 @@ def test_bind_postgrest_auth_without_token(auth_client_module, monkeypatch, capl
     client = SimpleNamespace(postgrest=MagicMock())
     auth_client._get_access_token = MagicMock(return_value=None)
     # Ensure stub is used
-    monkeypatch.setattr(sys.modules["data.auth_bootstrap"], "_get_access_token", auth_client._get_access_token)
+    monkeypatch.setattr(sys.modules["src.data.auth_bootstrap"], "_get_access_token", auth_client._get_access_token)
 
     with caplog.at_level(logging.DEBUG):
         auth_client.bind_postgrest_auth_if_any(client)
@@ -45,7 +45,7 @@ def test_bind_postgrest_auth_success(auth_client_module, monkeypatch, caplog):
     auth_client = auth_client_module
     client = SimpleNamespace(postgrest=MagicMock())
     auth_client._get_access_token = MagicMock(return_value="token-123")
-    monkeypatch.setattr(sys.modules["data.auth_bootstrap"], "_get_access_token", auth_client._get_access_token)
+    monkeypatch.setattr(sys.modules["src.data.auth_bootstrap"], "_get_access_token", auth_client._get_access_token)
 
     with caplog.at_level(logging.INFO):
         auth_client.bind_postgrest_auth_if_any(client)
@@ -60,7 +60,7 @@ def test_bind_postgrest_auth_handles_errors(auth_client_module, monkeypatch, cap
     failing_postgrest.auth.side_effect = RuntimeError("postgrest down")
     client = SimpleNamespace(postgrest=failing_postgrest)
     auth_client._get_access_token = MagicMock(return_value="token-err")
-    monkeypatch.setattr(sys.modules["data.auth_bootstrap"], "_get_access_token", auth_client._get_access_token)
+    monkeypatch.setattr(sys.modules["src.data.auth_bootstrap"], "_get_access_token", auth_client._get_access_token)
 
     with caplog.at_level(logging.WARNING):
         auth_client.bind_postgrest_auth_if_any(client)

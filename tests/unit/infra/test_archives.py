@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from infra.archive_utils import (
+from src.infra.archive_utils import (
     ArchiveError,
     extract_archive,
     find_7z,
@@ -130,7 +130,7 @@ class TestRarExtraction:
         def mock_find_7z():
             return None
 
-        monkeypatch.setattr("infra.archive_utils.find_7z", mock_find_7z)
+        monkeypatch.setattr("src.infra.archive_utils.find_7z", mock_find_7z)
 
         rar_path = tmp_path / "test.rar"
         rar_path.write_text("fake rar")
@@ -160,9 +160,10 @@ class Test7ZExtraction:
         subdir.mkdir()
         (subdir / "file2.txt").write_text("Conteúdo do arquivo 2", encoding="utf-8")
 
-        # Compactar
+        # Compactar usando write() individual para evitar paths problemáticos
         with py7zr.SevenZipFile(seven_z_path, "w") as archive:
-            archive.writeall(source_dir, arcname="")
+            archive.write(source_dir / "file1.txt", "file1.txt")
+            archive.write(subdir / "file2.txt", "subdir/file2.txt")
 
         # Extrair
         result = extract_archive(seven_z_path, extract_dir)
@@ -249,7 +250,7 @@ class TestResourcePath:
 
     def test_resource_path_returns_path(self) -> None:
         """Testa que resource_path retorna um Path."""
-        from infra.archive_utils import resource_path
+        from src.infra.archive_utils import resource_path
 
         result = resource_path("infra", "bin", "7zip")
         assert isinstance(result, Path)
@@ -258,7 +259,7 @@ class TestResourcePath:
     def test_resource_path_with_meipass(self, monkeypatch, tmp_path: Path) -> None:
         """Testa resource_path quando rodando em bundle PyInstaller."""
         import sys
-        from infra.archive_utils import resource_path
+        from src.infra.archive_utils import resource_path
 
         # Simular _MEIPASS do PyInstaller (adicionar atributo temporário)
         monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
@@ -336,7 +337,7 @@ class TestExtractArchiveEdgeCases:
         def mock_find_7z():
             return Path("/fake/7z.exe")
 
-        monkeypatch.setattr("infra.archive_utils.find_7z", mock_find_7z)
+        monkeypatch.setattr("src.infra.archive_utils.find_7z", mock_find_7z)
 
         with pytest.raises(ArchiveError, match="Senha não é suportada para arquivos .rar"):
             extract_archive(rar_path, extract_dir, password="secret")
@@ -381,7 +382,7 @@ class TestExtractArchiveEdgeCases:
         (source_dir / "secret.txt").write_text("Conteúdo secreto", encoding="utf-8")
 
         with py7zr.SevenZipFile(seven_z_path, "w", password="mypassword") as archive:
-            archive.writeall(source_dir, arcname="")
+            archive.write(source_dir / "secret.txt", "secret.txt")
 
         # Extrair com senha correta
         result = extract_archive(seven_z_path, extract_dir, password="mypassword")
@@ -405,7 +406,7 @@ class TestExtractArchiveEdgeCases:
 
         # Criar como .7z normal (py7zr não cria volumes multi-parte facilmente)
         with py7zr.SevenZipFile(volume_path, "w") as archive:
-            archive.writeall(source_dir, arcname="")
+            archive.write(source_dir / "file_in_volume.txt", "file_in_volume.txt")
 
         # Extrair via volume
         result = extract_archive(volume_path, extract_dir)
@@ -496,7 +497,7 @@ class TestRarExtractionWithSubprocess:
         def mock_find_7z():
             return Path("/caminho/inexistente/7z.exe")
 
-        monkeypatch.setattr("infra.archive_utils.find_7z", mock_find_7z)
+        monkeypatch.setattr("src.infra.archive_utils.find_7z", mock_find_7z)
 
         # Mock subprocess.run para levantar FileNotFoundError
         def mock_run(*args, **kwargs):
@@ -519,7 +520,7 @@ class TestRarExtractionWithSubprocess:
         def mock_find_7z():
             return Path("/fake/7z.exe")
 
-        monkeypatch.setattr("infra.archive_utils.find_7z", mock_find_7z)
+        monkeypatch.setattr("src.infra.archive_utils.find_7z", mock_find_7z)
 
         # Mock subprocess.run para levantar exceção genérica
         def mock_run(*args, **kwargs):
@@ -542,7 +543,7 @@ class TestRarExtractionWithSubprocess:
         def mock_find_7z():
             return Path("/fake/7z.exe")
 
-        monkeypatch.setattr("infra.archive_utils.find_7z", mock_find_7z)
+        monkeypatch.setattr("src.infra.archive_utils.find_7z", mock_find_7z)
 
         # Mock subprocess.run para simular sucesso
         def mock_run(*args, **kwargs):
@@ -687,7 +688,7 @@ class TestFind7z:
         def mock_resource_path(*parts):
             return tmp_path.joinpath(*parts)
 
-        monkeypatch.setattr("infra.archive_utils.resource_path", mock_resource_path)
+        monkeypatch.setattr("src.infra.archive_utils.resource_path", mock_resource_path)
 
         # Mock shutil.which para não encontrar no PATH
         monkeypatch.setattr("shutil.which", lambda x: None)
@@ -704,7 +705,7 @@ class TestFind7z:
         def mock_resource_path(*parts):
             return Path("/nonexistent") / Path(*parts)
 
-        monkeypatch.setattr("infra.archive_utils.resource_path", mock_resource_path)
+        monkeypatch.setattr("src.infra.archive_utils.resource_path", mock_resource_path)
 
         # Mock shutil.which para retornar nosso executável
         def mock_which(name):
@@ -726,7 +727,7 @@ class TestFind7z:
         def mock_resource_path(*parts):
             return Path("/nonexistent") / Path(*parts)
 
-        monkeypatch.setattr("infra.archive_utils.resource_path", mock_resource_path)
+        monkeypatch.setattr("src.infra.archive_utils.resource_path", mock_resource_path)
 
         # Mock shutil.which - 7z.exe não encontrado, mas 7z sim
         def mock_which(name):

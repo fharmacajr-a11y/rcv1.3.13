@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from security import crypto
+from src.security import crypto
 
 
 @pytest.fixture(autouse=True)
@@ -19,28 +19,28 @@ def reset_crypto_state():
 @pytest.fixture
 def mock_keyring_available():
     """Mock para simular keyring disponível."""
-    with patch("security.crypto._keyring_is_available", return_value=True):
+    with patch("src.security.crypto._keyring_is_available", return_value=True):
         yield
 
 
 @pytest.fixture
 def mock_keyring_unavailable():
     """Mock para simular keyring indisponível."""
-    with patch("security.crypto._keyring_is_available", return_value=False):
+    with patch("src.security.crypto._keyring_is_available", return_value=False):
         yield
 
 
 @pytest.fixture
 def mock_keyring_get(mock_keyring_available):
     """Mock para keyring.get_password."""
-    with patch("security.crypto._keyring_get_secret_key") as mock_get:
+    with patch("src.security.crypto._keyring_get_secret_key") as mock_get:
         yield mock_get
 
 
 @pytest.fixture
 def mock_keyring_set(mock_keyring_available):
     """Mock para keyring.set_password."""
-    with patch("security.crypto._keyring_set_secret_key") as mock_set:
+    with patch("src.security.crypto._keyring_set_secret_key") as mock_set:
         yield mock_set
 
 

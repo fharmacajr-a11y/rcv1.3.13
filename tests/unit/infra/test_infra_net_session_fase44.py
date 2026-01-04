@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
-from infra import net_session
+from src.infra import net_session
 
 
 def test_timeout_http_adapter_sets_default_timeout(monkeypatch):

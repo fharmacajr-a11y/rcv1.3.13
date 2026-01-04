@@ -255,7 +255,7 @@ def test_add_note_with_service_exception_handles_gracefully(
     assert "Erro no Supabase" in args[1]
 
 
-@patch("infra.supabase_client.get_supabase")
+@patch("src.infra.supabase_client.get_supabase")
 @patch("src.core.session.get_current_user")
 def test_integration_hub_gateway_with_real_session(
     mock_get_current_user,
@@ -303,7 +303,7 @@ def test_integration_hub_gateway_with_real_session(
     assert email == "test@example.com"
 
     # Testar get_org_id (deve buscar do Supabase quando cache está vazio)
-    with patch("infra.supabase_client.exec_postgrest") as mock_exec:
+    with patch("src.infra.supabase_client.exec_postgrest") as mock_exec:
         mock_exec.return_value = mock_resp
         org_id = gateway.get_org_id()
         assert org_id == "org-456", f"Esperava org-456, obteve {org_id}"

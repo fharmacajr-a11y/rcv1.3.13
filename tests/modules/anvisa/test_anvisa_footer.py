@@ -128,7 +128,7 @@ def test_upload_success(root):
     footer._selected_files = ["/path/to/file1.pdf", "/path/to/file2.pdf"]
 
     with (
-        patch("adapters.storage.api.upload_file") as mock_upload,
+        patch("src.adapters.storage.api.upload_file") as mock_upload,
         patch("tkinter.messagebox.showinfo") as mock_info,
     ):
         footer._on_upload()
@@ -158,7 +158,7 @@ def test_upload_with_errors(root):
             raise Exception("Upload failed")
 
     with (
-        patch("adapters.storage.api.upload_file", side_effect=side_effect) as mock_upload,
+        patch("src.adapters.storage.api.upload_file", side_effect=side_effect) as mock_upload,
         patch("tkinter.messagebox.showwarning") as mock_warning,
     ):
         footer._on_upload()

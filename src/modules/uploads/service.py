@@ -18,14 +18,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterable, Optional, Sequence, Tuple
 
-from adapters.storage.api import (
+from src.adapters.storage.api import (
     DownloadCancelledError as _DownloadCancelledError,
     delete_file as _delete_file,
     download_folder_zip as _download_folder_zip,
     using_storage_backend,
 )
-from adapters.storage.supabase_storage import SupabaseStorageAdapter
-from infra.supabase.storage_helpers import download_bytes as _download_bytes
+from src.adapters.storage.supabase_storage import SupabaseStorageAdapter
+from src.infra.supabase.storage_helpers import download_bytes as _download_bytes
 from src.modules.uploads.components.helpers import (
     _cnpj_only_digits,
     client_prefix_for_id,
@@ -214,7 +214,7 @@ def delete_storage_object(remote_key: str, *, bucket: str | None = None) -> bool
     Retorna:
         bool: True se deletado com sucesso, False caso contrário
     """
-    from adapters.storage.api import using_storage_backend  # lazy import para evitar efeitos colaterais
+    from src.adapters.storage.api import using_storage_backend  # lazy import para evitar efeitos colaterais
 
     bn = (bucket or get_clients_bucket()).strip()
     adapter = SupabaseStorageAdapter(bucket=bn)

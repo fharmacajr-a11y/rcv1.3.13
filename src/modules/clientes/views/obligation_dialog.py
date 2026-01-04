@@ -11,7 +11,7 @@ import ttkbootstrap as tb
 from ttkbootstrap.constants import BOTH, RIGHT, X
 from ttkbootstrap.dialogs import Messagebox
 
-from data.domain_types import RegObligationRow
+from src.data.domain_types import RegObligationRow
 from src.features.regulations.service import (
     create_obligation,
     update_obligation,

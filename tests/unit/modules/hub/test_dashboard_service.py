@@ -1791,7 +1791,7 @@ def _get_snapshot_with_mocks(
             side_effect=mock_fetch_cliente,
         ),
         patch(
-            "infra.repositories.anvisa_requests_repository.list_requests",
+            "src.infra.repositories.anvisa_requests_repository.list_requests",
             return_value=anvisa_requests,
         ),
     ):
@@ -2223,7 +2223,7 @@ class TestGetDashboardSnapshotIO:
             raise RuntimeError("ANVISA repo failed")
 
         monkeypatch.setattr(
-            "infra.repositories.anvisa_requests_repository.list_requests",
+            "src.infra.repositories.anvisa_requests_repository.list_requests",
             raise_error,
         )
         # Other repos should work
@@ -2248,7 +2248,7 @@ class TestGetDashboardSnapshotIO:
         import src.modules.hub.dashboard.service as ds
 
         monkeypatch.setattr(
-            "infra.repositories.anvisa_requests_repository.list_requests",
+            "src.infra.repositories.anvisa_requests_repository.list_requests",
             lambda *args: [],
         )
 
@@ -2273,7 +2273,7 @@ class TestGetDashboardSnapshotIO:
         import src.modules.hub.dashboard.service as ds
 
         monkeypatch.setattr(
-            "infra.repositories.anvisa_requests_repository.list_requests",
+            "src.infra.repositories.anvisa_requests_repository.list_requests",
             lambda *args: [],
         )
         monkeypatch.setattr(
@@ -2298,7 +2298,7 @@ class TestGetDashboardSnapshotIO:
         import src.modules.hub.dashboard.service as ds
 
         monkeypatch.setattr(
-            "infra.repositories.anvisa_requests_repository.list_requests",
+            "src.infra.repositories.anvisa_requests_repository.list_requests",
             lambda *args: [],
         )
         monkeypatch.setattr(
@@ -2325,7 +2325,7 @@ class TestGetDashboardSnapshotIO:
         import src.modules.hub.dashboard.service as ds
 
         monkeypatch.setattr(
-            "infra.repositories.anvisa_requests_repository.list_requests",
+            "src.infra.repositories.anvisa_requests_repository.list_requests",
             lambda *args: [],
         )
         monkeypatch.setattr(
@@ -2371,7 +2371,7 @@ class TestGetDashboardSnapshotIO:
         ]
 
         monkeypatch.setattr(
-            "infra.repositories.anvisa_requests_repository.list_requests",
+            "src.infra.repositories.anvisa_requests_repository.list_requests",
             lambda *args: fake_requests,
         )
         monkeypatch.setattr(
@@ -2423,7 +2423,7 @@ class TestGetDashboardSnapshotIO:
         ]
 
         monkeypatch.setattr(
-            "infra.repositories.anvisa_requests_repository.list_requests",
+            "src.infra.repositories.anvisa_requests_repository.list_requests",
             lambda *args: fake_requests,
         )
         monkeypatch.setattr(
@@ -2471,7 +2471,7 @@ class TestGetDashboardSnapshotIO:
         ]
 
         monkeypatch.setattr(
-            "infra.repositories.anvisa_requests_repository.list_requests",
+            "src.infra.repositories.anvisa_requests_repository.list_requests",
             lambda *args: fake_requests,
         )
         monkeypatch.setattr(

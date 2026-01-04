@@ -10,7 +10,7 @@ from typing import Any
 
 import yaml
 
-from infra.net_status import Status, probe
+from src.infra.net_status import Status, probe
 
 log = logging.getLogger(__name__)
 

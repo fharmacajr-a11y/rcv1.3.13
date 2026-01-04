@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 
 def test_db_check_success():
     """Testa db_check quando INSERT e DELETE funcionam corretamente."""
-    from infra.healthcheck import db_check
+    from src.infra.healthcheck import db_check
 
     # Mock do Supabase client
     mock_sb = MagicMock()
@@ -38,7 +38,7 @@ def test_db_check_success():
     mock_delete.eq.return_value = mock_delete
     mock_delete.execute.return_value = mock_execute
 
-    with patch("infra.healthcheck.get_supabase", return_value=mock_sb):
+    with patch("src.infra.healthcheck.get_supabase", return_value=mock_sb):
         ok, msg = db_check()
 
     assert ok is True
@@ -49,7 +49,7 @@ def test_db_check_success():
 
 def test_db_check_insert_failure():
     """Testa db_check quando INSERT falha."""
-    from infra.healthcheck import db_check
+    from src.infra.healthcheck import db_check
 
     mock_sb = MagicMock()
     mock_table = MagicMock()
@@ -59,7 +59,7 @@ def test_db_check_insert_failure():
     mock_table.insert.return_value = mock_insert
     mock_insert.execute.side_effect = Exception("Permission denied on table test_health")
 
-    with patch("infra.healthcheck.get_supabase", return_value=mock_sb):
+    with patch("src.infra.healthcheck.get_supabase", return_value=mock_sb):
         ok, msg = db_check()
 
     assert ok is False
@@ -69,7 +69,7 @@ def test_db_check_insert_failure():
 
 def test_db_check_delete_failure():
     """Testa db_check quando DELETE falha."""
-    from infra.healthcheck import db_check
+    from src.infra.healthcheck import db_check
 
     mock_sb = MagicMock()
     mock_table = MagicMock()
@@ -87,7 +87,7 @@ def test_db_check_delete_failure():
     mock_delete.eq.return_value = mock_delete
     mock_delete.execute.side_effect = Exception("Network timeout on delete")
 
-    with patch("infra.healthcheck.get_supabase", return_value=mock_sb):
+    with patch("src.infra.healthcheck.get_supabase", return_value=mock_sb):
         ok, msg = db_check()
 
     assert ok is False
@@ -102,7 +102,7 @@ def test_db_check_delete_failure():
 
 def test_storage_check_success():
     """Testa storage_check quando bucket é acessível e retorna lista."""
-    from infra.healthcheck import storage_check
+    from src.infra.healthcheck import storage_check
 
     mock_sb = MagicMock()
     mock_storage = MagicMock()
@@ -114,7 +114,7 @@ def test_storage_check_success():
     mock_sb.storage.from_.return_value = mock_from
     mock_storage.from_.return_value = mock_from
 
-    with patch("infra.healthcheck.get_supabase", return_value=mock_sb):
+    with patch("src.infra.healthcheck.get_supabase", return_value=mock_sb):
         ok, info = storage_check("rc-docs")
 
     assert ok is True
@@ -124,7 +124,7 @@ def test_storage_check_success():
 
 def test_storage_check_empty_bucket():
     """Testa storage_check quando bucket está vazio."""
-    from infra.healthcheck import storage_check
+    from src.infra.healthcheck import storage_check
 
     mock_sb = MagicMock()
     mock_from = MagicMock()
@@ -132,7 +132,7 @@ def test_storage_check_empty_bucket():
 
     mock_sb.storage.from_.return_value = mock_from
 
-    with patch("infra.healthcheck.get_supabase", return_value=mock_sb):
+    with patch("src.infra.healthcheck.get_supabase", return_value=mock_sb):
         ok, info = storage_check("empty-bucket")
 
     assert ok is True
@@ -141,7 +141,7 @@ def test_storage_check_empty_bucket():
 
 def test_storage_check_non_list_response():
     """Testa storage_check quando resposta não é lista (caso inesperado)."""
-    from infra.healthcheck import storage_check
+    from src.infra.healthcheck import storage_check
 
     mock_sb = MagicMock()
     mock_from = MagicMock()
@@ -149,7 +149,7 @@ def test_storage_check_non_list_response():
 
     mock_sb.storage.from_.return_value = mock_from
 
-    with patch("infra.healthcheck.get_supabase", return_value=mock_sb):
+    with patch("src.infra.healthcheck.get_supabase", return_value=mock_sb):
         ok, info = storage_check("weird-bucket")
 
     assert ok is True
@@ -158,7 +158,7 @@ def test_storage_check_non_list_response():
 
 def test_storage_check_failure():
     """Testa storage_check quando acesso ao bucket falha."""
-    from infra.healthcheck import storage_check
+    from src.infra.healthcheck import storage_check
 
     mock_sb = MagicMock()
     mock_from = MagicMock()
@@ -166,7 +166,7 @@ def test_storage_check_failure():
 
     mock_sb.storage.from_.return_value = mock_from
 
-    with patch("infra.healthcheck.get_supabase", return_value=mock_sb):
+    with patch("src.infra.healthcheck.get_supabase", return_value=mock_sb):
         ok, info = storage_check("rc-docs")
 
     assert ok is False
@@ -181,14 +181,14 @@ def test_storage_check_failure():
 
 def test_healthcheck_all_success():
     """Testa healthcheck quando todos os checks passam."""
-    from infra.healthcheck import healthcheck
+    from src.infra.healthcheck import healthcheck
 
     # Mock SessionGuard
-    with patch("infra.healthcheck.SessionGuard.ensure_alive", return_value=True):
+    with patch("src.infra.healthcheck.SessionGuard.ensure_alive", return_value=True):
         # Mock storage_check
-        with patch("infra.healthcheck.storage_check", return_value=(True, {"count": 5})):
+        with patch("src.infra.healthcheck.storage_check", return_value=(True, {"count": 5})):
             # Mock db_check
-            with patch("infra.healthcheck.db_check", return_value=(True, "insert/delete OK")):
+            with patch("src.infra.healthcheck.db_check", return_value=(True, "insert/delete OK")):
                 result = healthcheck(bucket="test-bucket")
 
     assert result["ok"] is True
@@ -202,11 +202,11 @@ def test_healthcheck_all_success():
 
 def test_healthcheck_session_failure():
     """Testa healthcheck quando sessão falha."""
-    from infra.healthcheck import healthcheck
+    from src.infra.healthcheck import healthcheck
 
-    with patch("infra.healthcheck.SessionGuard.ensure_alive", return_value=False):
-        with patch("infra.healthcheck.storage_check", return_value=(True, {"count": 5})):
-            with patch("infra.healthcheck.db_check", return_value=(True, "insert/delete OK")):
+    with patch("src.infra.healthcheck.SessionGuard.ensure_alive", return_value=False):
+        with patch("src.infra.healthcheck.storage_check", return_value=(True, {"count": 5})):
+            with patch("src.infra.healthcheck.db_check", return_value=(True, "insert/delete OK")):
                 result = healthcheck()
 
     assert result["ok"] is False  # Falha geral
@@ -217,11 +217,11 @@ def test_healthcheck_session_failure():
 
 def test_healthcheck_storage_failure():
     """Testa healthcheck quando storage falha."""
-    from infra.healthcheck import healthcheck
+    from src.infra.healthcheck import healthcheck
 
-    with patch("infra.healthcheck.SessionGuard.ensure_alive", return_value=True):
-        with patch("infra.healthcheck.storage_check", return_value=(False, {"error": "Connection timeout"})):
-            with patch("infra.healthcheck.db_check", return_value=(True, "insert/delete OK")):
+    with patch("src.infra.healthcheck.SessionGuard.ensure_alive", return_value=True):
+        with patch("src.infra.healthcheck.storage_check", return_value=(False, {"error": "Connection timeout"})):
+            with patch("src.infra.healthcheck.db_check", return_value=(True, "insert/delete OK")):
                 result = healthcheck()
 
     assert result["ok"] is False
@@ -233,11 +233,13 @@ def test_healthcheck_storage_failure():
 
 def test_healthcheck_db_failure():
     """Testa healthcheck quando DB check falha."""
-    from infra.healthcheck import healthcheck
+    from src.infra.healthcheck import healthcheck
 
-    with patch("infra.healthcheck.SessionGuard.ensure_alive", return_value=True):
-        with patch("infra.healthcheck.storage_check", return_value=(True, {"count": 2})):
-            with patch("infra.healthcheck.db_check", return_value=(False, "DB health falhou: RLS policy violation")):
+    with patch("src.infra.healthcheck.SessionGuard.ensure_alive", return_value=True):
+        with patch("src.infra.healthcheck.storage_check", return_value=(True, {"count": 2})):
+            with patch(
+                "src.infra.healthcheck.db_check", return_value=(False, "DB health falhou: RLS policy violation")
+            ):
                 result = healthcheck()
 
     assert result["ok"] is False
@@ -249,11 +251,11 @@ def test_healthcheck_db_failure():
 
 def test_healthcheck_multiple_failures():
     """Testa healthcheck quando múltiplos checks falham."""
-    from infra.healthcheck import healthcheck
+    from src.infra.healthcheck import healthcheck
 
-    with patch("infra.healthcheck.SessionGuard.ensure_alive", return_value=False):
-        with patch("infra.healthcheck.storage_check", return_value=(False, {"error": "Network error"})):
-            with patch("infra.healthcheck.db_check", return_value=(False, "DB health falhou: Connection lost")):
+    with patch("src.infra.healthcheck.SessionGuard.ensure_alive", return_value=False):
+        with patch("src.infra.healthcheck.storage_check", return_value=(False, {"error": "Network error"})):
+            with patch("src.infra.healthcheck.db_check", return_value=(False, "DB health falhou: Connection lost")):
                 result = healthcheck(bucket="prod-bucket")
 
     assert result["ok"] is False
@@ -265,12 +267,12 @@ def test_healthcheck_multiple_failures():
 
 def test_healthcheck_db_failure_logs_warning():
     """Testa que healthcheck loga warning quando DB falha."""
-    from infra.healthcheck import healthcheck
+    from src.infra.healthcheck import healthcheck
 
-    with patch("infra.healthcheck.SessionGuard.ensure_alive", return_value=True):
-        with patch("infra.healthcheck.storage_check", return_value=(True, {"count": 1})):
-            with patch("infra.healthcheck.db_check", return_value=(False, "DB health falhou: timeout")):
-                with patch("infra.healthcheck.log") as mock_log:
+    with patch("src.infra.healthcheck.SessionGuard.ensure_alive", return_value=True):
+        with patch("src.infra.healthcheck.storage_check", return_value=(True, {"count": 1})):
+            with patch("src.infra.healthcheck.db_check", return_value=(False, "DB health falhou: timeout")):
+                with patch("src.infra.healthcheck.log") as mock_log:
                     result = healthcheck()
 
     # Verificar que warning foi logado
@@ -284,11 +286,11 @@ def test_healthcheck_db_failure_logs_warning():
 
 def test_healthcheck_session_none_treated_as_false():
     """Testa que healthcheck trata None de ensure_alive como False."""
-    from infra.healthcheck import healthcheck
+    from src.infra.healthcheck import healthcheck
 
-    with patch("infra.healthcheck.SessionGuard.ensure_alive", return_value=None):
-        with patch("infra.healthcheck.storage_check", return_value=(True, {"count": 0})):
-            with patch("infra.healthcheck.db_check", return_value=(True, "insert/delete OK")):
+    with patch("src.infra.healthcheck.SessionGuard.ensure_alive", return_value=None):
+        with patch("src.infra.healthcheck.storage_check", return_value=(True, {"count": 0})):
+            with patch("src.infra.healthcheck.db_check", return_value=(True, "insert/delete OK")):
                 result = healthcheck()
 
     # None é tratado como falsy
@@ -298,11 +300,11 @@ def test_healthcheck_session_none_treated_as_false():
 
 def test_healthcheck_default_bucket():
     """Testa que healthcheck usa bucket padrão 'rc-docs'."""
-    from infra.healthcheck import healthcheck
+    from src.infra.healthcheck import healthcheck
 
-    with patch("infra.healthcheck.SessionGuard.ensure_alive", return_value=True):
-        with patch("infra.healthcheck.storage_check", return_value=(True, {"count": 10})) as mock_storage:
-            with patch("infra.healthcheck.db_check", return_value=(True, "insert/delete OK")):
+    with patch("src.infra.healthcheck.SessionGuard.ensure_alive", return_value=True):
+        with patch("src.infra.healthcheck.storage_check", return_value=(True, {"count": 10})) as mock_storage:
+            with patch("src.infra.healthcheck.db_check", return_value=(True, "insert/delete OK")):
                 result = healthcheck()  # Sem especificar bucket
 
     # Verificar que storage_check foi chamado com bucket padrão
@@ -312,11 +314,11 @@ def test_healthcheck_default_bucket():
 
 def test_healthcheck_custom_bucket():
     """Testa que healthcheck aceita bucket customizado."""
-    from infra.healthcheck import healthcheck
+    from src.infra.healthcheck import healthcheck
 
-    with patch("infra.healthcheck.SessionGuard.ensure_alive", return_value=True):
-        with patch("infra.healthcheck.storage_check", return_value=(True, {"count": 7})) as mock_storage:
-            with patch("infra.healthcheck.db_check", return_value=(True, "insert/delete OK")):
+    with patch("src.infra.healthcheck.SessionGuard.ensure_alive", return_value=True):
+        with patch("src.infra.healthcheck.storage_check", return_value=(True, {"count": 7})) as mock_storage:
+            with patch("src.infra.healthcheck.db_check", return_value=(True, "insert/delete OK")):
                 result = healthcheck(bucket="custom-bucket")
 
     mock_storage.assert_called_once_with("custom-bucket")
@@ -330,7 +332,7 @@ def test_healthcheck_custom_bucket():
 
 def test_db_check_uses_unique_uuids():
     """Testa que db_check usa UUIDs únicos para cada execução."""
-    from infra.healthcheck import db_check
+    from src.infra.healthcheck import db_check
 
     mock_sb = MagicMock()
     mock_table = MagicMock()
@@ -344,7 +346,7 @@ def test_db_check_uses_unique_uuids():
     mock_delete.eq.return_value = mock_delete
     mock_delete.execute.return_value = MagicMock()
 
-    with patch("infra.healthcheck.get_supabase", return_value=mock_sb):
+    with patch("src.infra.healthcheck.get_supabase", return_value=mock_sb):
         # Primeira chamada
         db_check()
         first_insert_call = mock_table.insert.call_args_list[0][0][0]

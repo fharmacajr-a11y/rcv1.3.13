@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-import infra.supabase.db_client as db_client
+import src.infra.supabase.db_client as db_client
 
 
 @pytest.fixture(autouse=True)
@@ -38,12 +38,12 @@ class TestHealthCheckerOfflineCloudOnly:
             mock_check.return_value = False
 
             # Mock de threading.Thread para capturar se foi iniciado
-            with patch("infra.supabase.db_client.threading.Thread") as mock_thread:
+            with patch("src.infra.supabase.db_client.threading.Thread") as mock_thread:
                 mock_thread_instance = MagicMock()
                 mock_thread.return_value = mock_thread_instance
 
                 # Mock de supa_types para evitar erro se HEALTHCHECK_DISABLED não existir
-                with patch("infra.supabase.db_client.supa_types") as mock_supa_types:
+                with patch("src.infra.supabase.db_client.supa_types") as mock_supa_types:
                     mock_supa_types.HEALTHCHECK_DISABLED = False
                     mock_supa_types.HEALTHCHECK_INTERVAL_SECONDS = 30.0
                     mock_supa_types.HEALTHCHECK_UNSTABLE_THRESHOLD = 60.0
@@ -71,7 +71,7 @@ class TestHealthCheckerOfflineCloudOnly:
             mock_check.return_value = True
 
             # Mock de threading.Thread
-            with patch("infra.supabase.db_client.threading.Thread") as mock_thread:
+            with patch("src.infra.supabase.db_client.threading.Thread") as mock_thread:
                 mock_thread_instance = MagicMock()
                 mock_thread.return_value = mock_thread_instance
 
@@ -98,7 +98,7 @@ class TestHealthCheckerOfflineCloudOnly:
             mock_check.return_value = False  # Simula offline, mas não deve importar
 
             # Mock de threading.Thread
-            with patch("infra.supabase.db_client.threading.Thread") as mock_thread:
+            with patch("src.infra.supabase.db_client.threading.Thread") as mock_thread:
                 mock_thread_instance = MagicMock()
                 mock_thread.return_value = mock_thread_instance
 
@@ -125,7 +125,7 @@ class TestHealthCheckerOfflineCloudOnly:
             mock_check.return_value = False
 
             # Mock de threading.Thread
-            with patch("infra.supabase.db_client.threading.Thread") as mock_thread:
+            with patch("src.infra.supabase.db_client.threading.Thread") as mock_thread:
                 mock_thread_instance = MagicMock()
                 mock_thread.return_value = mock_thread_instance
 
@@ -145,7 +145,7 @@ class TestHealthCheckerOfflineCloudOnly:
         """Segunda chamada a _start_health_checker deve ser idempotente."""
         monkeypatch.setenv("RC_NO_LOCAL_FS", "0")
 
-        with patch("infra.supabase.db_client.threading.Thread") as mock_thread:
+        with patch("src.infra.supabase.db_client.threading.Thread") as mock_thread:
             mock_thread_instance = MagicMock()
             mock_thread.return_value = mock_thread_instance
 
@@ -170,7 +170,7 @@ class TestHealthCheckerOfflineCloudOnly:
             mock_check.side_effect = Exception("Network error")
 
             # Mock de threading.Thread
-            with patch("infra.supabase.db_client.threading.Thread") as mock_thread:
+            with patch("src.infra.supabase.db_client.threading.Thread") as mock_thread:
                 mock_thread_instance = MagicMock()
                 mock_thread.return_value = mock_thread_instance
 

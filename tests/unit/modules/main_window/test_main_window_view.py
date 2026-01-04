@@ -341,7 +341,7 @@ def test_app_apply_online_state_false_marca_offline(app_hidden):
 
 def test_app_on_net_status_change_atualiza_estado(app_hidden):
     """Testa que on_net_status_change() processa mudanças de rede."""
-    from infra.net_status import Status
+    from src.infra.net_status import Status
 
     app_hidden.on_net_status_change(Status.ONLINE)
     assert app_hidden._connectivity_state.is_online is True
@@ -379,7 +379,7 @@ def test_app_handle_menu_theme_change_chama_set_theme(app_hidden):
 def test_app_on_menu_logout_chama_auth_logout(app_hidden):
     """Testa que _on_menu_logout() chama logout do supabase."""
     with patch("src.ui.custom_dialogs.ask_ok_cancel", return_value=True):
-        with patch("infra.supabase_auth.logout") as mock_logout:
+        with patch("src.infra.supabase_auth.logout") as mock_logout:
             app_hidden._on_menu_logout()
 
             mock_logout.assert_called_once_with(app_hidden._client)

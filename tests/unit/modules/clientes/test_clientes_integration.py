@@ -146,7 +146,7 @@ def test_fluxo_lixeira_cliente_move_lista_restaura(monkeypatch: pytest.MonkeyPat
     )
 
     # Mock de funções de storage que seriam usadas
-    import adapters.storage.api as storage_api_module
+    import src.adapters.storage.api as storage_api_module
 
     monkeypatch.setattr(storage_api_module, "list_files", lambda *a, **k: [])
     monkeypatch.setattr(storage_api_module, "delete_file", lambda *a, **k: None)

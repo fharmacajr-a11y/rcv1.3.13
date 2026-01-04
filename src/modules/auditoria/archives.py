@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Callable, TYPE_CHECKING
 
 try:
-    from infra.archive_utils import (  # type: ignore[import-untyped]
+    from src.infra.archive_utils import (  # type: ignore[import-untyped]
         ArchiveError as _ArchiveErrorType,
         extract_archive as _infra_extract_archive,
         is_supported_archive as _infra_is_supported_archive,

@@ -40,7 +40,7 @@ class AnvisaRequestsController:
         Raises:
             RuntimeError: Se usuário não autenticado ou organização não encontrada
         """
-        from infra.repositories.anvisa_requests_repository import (
+        from src.infra.repositories.anvisa_requests_repository import (
             _get_supabase_and_user,
             _resolve_org_id,
         )
@@ -58,7 +58,7 @@ class AnvisaRequestsController:
         Returns:
             Lista de demandas com dados do cliente (join)
         """
-        from infra.repositories.anvisa_requests_repository import list_requests
+        from src.infra.repositories.anvisa_requests_repository import list_requests
 
         return list_requests(org_id)
 
@@ -81,7 +81,7 @@ class AnvisaRequestsController:
         Returns:
             Dict com registro criado (incluindo id)
         """
-        from infra.repositories.anvisa_requests_repository import create_request
+        from src.infra.repositories.anvisa_requests_repository import create_request
 
         return create_request(
             org_id=org_id,

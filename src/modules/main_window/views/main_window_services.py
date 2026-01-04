@@ -21,7 +21,7 @@ def init_notifications_service(app: "MainWindow") -> Optional[Any]:
         Instância do NotificationsService ou None se falhar
     """
     try:
-        from infra.repositories.notifications_repository import NotificationsRepositoryAdapter
+        from src.infra.repositories.notifications_repository import NotificationsRepositoryAdapter
         from src.core.notifications_service import NotificationsService
 
         notifications_repo = NotificationsRepositoryAdapter()
@@ -105,7 +105,7 @@ def init_supabase_client() -> Optional[Any]:
         Cliente supabase ou None se falhar
     """
     try:
-        from infra.supabase_client import supabase
+        from src.infra.supabase_client import supabase
 
         return supabase
     except Exception as exc:  # noqa: BLE001

@@ -30,7 +30,7 @@ from unittest.mock import MagicMock
 def setup_test_environment():
     """Configura ambiente de testes isolado para cada teste."""
     original_modules = {}
-    modules_to_mock = ["src", "src.config", "src.config.paths", "src.config.environment", "infra.supabase_client"]
+    modules_to_mock = ["src", "src.config", "src.config.paths", "src.config.environment", "src.infra.supabase_client"]
 
     # Salva módulos originais
     for mod in modules_to_mock:
@@ -42,7 +42,7 @@ def setup_test_environment():
     sys.modules["src.config"] = MagicMock()
     sys.modules["src.config.paths"] = MagicMock(CLOUD_ONLY=False)
     sys.modules["src.config.environment"] = MagicMock()
-    sys.modules["infra.supabase_client"] = MagicMock()
+    sys.modules["src.infra.supabase_client"] = MagicMock()
 
     yield
 
@@ -57,7 +57,7 @@ def setup_test_environment():
 @pytest.fixture(scope="function")
 def storage_funcs(setup_test_environment):
     """Importa funções após configurar mocks."""
-    from adapters.storage.supabase_storage import (
+    from src.adapters.storage.supabase_storage import (
         SupabaseStorageAdapter,
         _normalize_bucket,
         normalize_key_for_storage,

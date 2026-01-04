@@ -6,8 +6,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ROLE
-from infra.supabase_client import exec_postgrest, supabase
+from src.infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ROLE
+from src.infra.supabase_client import exec_postgrest, supabase
 
 
 # -------------------- Modelos -------------------- #

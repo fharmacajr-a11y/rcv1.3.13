@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Mapping, Sequence
 
-from infra.supabase_client import exec_postgrest, is_supabase_online, supabase
+from src.infra.supabase_client import exec_postgrest, is_supabase_online, supabase
 from src.core.db_manager.db_manager import CLIENT_COLUMNS
 from src.core.models import Cliente
 from src.core.session.session import get_current_user  # << pegar org_id da sessao

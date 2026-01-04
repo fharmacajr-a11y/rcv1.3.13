@@ -138,7 +138,7 @@ def controller_with_mocks(
 # ─────────────────────────────────────────────────────────────────────────
 
 
-@patch("infra.supabase_client.get_supabase")
+@patch("src.infra.supabase_client.get_supabase")
 def test_setup_realtime_registra_callback(mock_get_supabase, controller_with_mocks, fake_state):
     """setup_realtime() deve registrar callback para eventos INSERT."""
     fake_state.org_id = "org-123"
@@ -173,7 +173,7 @@ def test_setup_realtime_registra_callback(mock_get_supabase, controller_with_moc
     assert fake_state.live_channel == mock_channel
 
 
-@patch("infra.supabase_client.get_supabase")
+@patch("src.infra.supabase_client.get_supabase")
 def test_setup_realtime_sem_org_id_nao_faz_nada(mock_get_supabase, controller_with_mocks, fake_state):
     """setup_realtime() sem org_id não deve configurar canal."""
     fake_state.org_id = None
@@ -186,7 +186,7 @@ def test_setup_realtime_sem_org_id_nao_faz_nada(mock_get_supabase, controller_wi
     assert fake_state.live_sync_on is False
 
 
-@patch("infra.supabase_client.get_supabase")
+@patch("src.infra.supabase_client.get_supabase")
 def test_setup_realtime_ja_ativo_nao_recria_canal(mock_get_supabase, controller_with_mocks, fake_state):
     """setup_realtime() com canal já ativo não deve recriar."""
     fake_state.org_id = "org-123"
@@ -199,7 +199,7 @@ def test_setup_realtime_ja_ativo_nao_recria_canal(mock_get_supabase, controller_
     mock_get_supabase.assert_not_called()
 
 
-@patch("infra.supabase_client.get_supabase")
+@patch("src.infra.supabase_client.get_supabase")
 def test_setup_realtime_com_erro_nao_quebra(mock_get_supabase, controller_with_mocks, fake_state):
     """setup_realtime() com erro não deve quebrar aplicação."""
     fake_state.org_id = "org-123"

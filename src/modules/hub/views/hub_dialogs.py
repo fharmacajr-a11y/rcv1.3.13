@@ -348,7 +348,7 @@ def pick_anvisa_history_target(
 
     try:
         from src.helpers.auth_utils import resolve_org_id
-        from infra.repositories.anvisa_requests_repository import AnvisaRequestsRepositoryAdapter
+        from src.infra.repositories.anvisa_requests_repository import AnvisaRequestsRepositoryAdapter
         from src.modules.anvisa.services.anvisa_service import AnvisaService
 
         org_id = resolve_org_id()
@@ -417,7 +417,7 @@ def pick_anvisa_history_target(
                 logger.info(f"pick_anvisa_history_target: buscando CNPJs faltantes para {len(missing_ids)} clientes")
 
                 # Import DENTRO do bloco condicional (só quando necessário)
-                from infra.supabase_client import get_supabase
+                from src.infra.supabase_client import get_supabase
                 from src.helpers.auth_utils import resolve_org_id
 
                 org_id = resolve_org_id()

@@ -17,7 +17,7 @@ __all__ = [
 def list_storage_files(bucket: str, prefix: str) -> list[dict[str, Any]]:
     """Return storage metadata for the given prefix; on error logs and returns an empty list."""
     try:
-        from adapters.storage import api as storage_api
+        from src.adapters.storage import api as storage_api
 
         return storage_api.list_files(bucket, prefix)  # pyright: ignore[reportCallIssue]
     except Exception as exc:

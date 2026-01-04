@@ -7,10 +7,10 @@ import os
 from pathlib import Path
 from typing import Any, Callable, Sequence, Tuple, TypeVar, cast
 
-from adapters.storage.api import list_files as _storage_list_files, upload_file as _storage_upload_file
-from adapters.storage.supabase_storage import SupabaseStorageAdapter
-from infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ID
-from infra.supabase_client import exec_postgrest, supabase
+from src.adapters.storage.api import list_files as _storage_list_files, upload_file as _storage_upload_file
+from src.adapters.storage.supabase_storage import SupabaseStorageAdapter
+from src.infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ID
+from src.infra.supabase_client import exec_postgrest, supabase
 from src.modules.uploads.upload_retry import (
     DEFAULT_MAX_RETRIES,
     upload_with_retry,

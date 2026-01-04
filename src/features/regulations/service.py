@@ -12,7 +12,7 @@ from datetime import date, datetime, timezone
 from typing import Final, Literal
 from uuid import uuid4
 
-from data.domain_types import RegObligationRow
+from src.data.domain_types import RegObligationRow
 from src.features.regulations.repository import list_obligations_for_org
 
 logger = logging.getLogger(__name__)
@@ -131,11 +131,11 @@ def _normalize_kind(value: str) -> str:
 def _get_client():
     """Get Supabase client instance."""
     try:
-        from infra.supabase.db_client import get_client  # type: ignore[import-not-found]
+        from src.infra.supabase.db_client import get_client  # type: ignore[import-not-found]
 
         return get_client()
     except ImportError:
-        from infra.supabase_client import get_supabase  # type: ignore[import-not-found]
+        from src.infra.supabase_client import get_supabase  # type: ignore[import-not-found]
 
         return get_supabase()
 

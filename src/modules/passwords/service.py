@@ -6,8 +6,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 
-from data.domain_types import PasswordRow
-from infra.repositories import passwords_repository
+from src.data.domain_types import PasswordRow
+from src.infra.repositories import passwords_repository
 
 
 @dataclass
@@ -172,7 +172,7 @@ def resolve_user_context(main_window: Any) -> PasswordsUserContext:
         RuntimeError: Se não conseguir determinar usuário ou organização
     """
     try:
-        from infra.supabase_client import supabase
+        from src.infra.supabase_client import supabase
     except Exception as exc:  # noqa: BLE001
         raise RuntimeError("Cliente Supabase indisponível para senhas.") from exc
 

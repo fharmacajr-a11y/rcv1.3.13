@@ -31,8 +31,8 @@ build/
 dist/
 *.exe
 # Exceção: binários embarcados do 7-Zip
-!infra/bin/7zip/*.exe
-!infra/bin/7zip/*.dll
+!src/infra/bin/7zip/*.exe
+!src/infra/bin/7zip/*.dll
 *.egg-info/
 wheels/
 
@@ -84,33 +84,15 @@ audit-report.md
 coverage.xml
 coverage.json
 htmlcov/
-reports/coverage/
-reports/_qa/
-reports/baseline/
-reports/*.txt
-reports/coverage.json
-reports/coverage.xml
-reports/*_pytest*.txt
-reports/nodes_*.txt
+
+# Pasta reports/ da raiz (não versionada - apenas local)
+/reports/
 bandit_*.txt
 bandit_*.csv
 bandit_*.json
 ruff_*.json
 pyright_*.json
 pyright_final.json
-
-# QA Codex reports (local artifacts)
-reports/_qa_codex*/
-reports/_qa_codex_org_*/
-reports/_qa_codex_audit_*/
-
-# QA Codex reports (auditoria automatizada)
-reports/_qa_codex_quick/
-reports/_qa_codex_followup/
-reports/_qa_codex_b110/
-reports/_qa_codex_b110_p2/
-reports/_qa_codex_b110_p3/
-reports/_qa_codex_git_001/
 
 # Workspaces temporários de ferramentas
 _codex_workspace/

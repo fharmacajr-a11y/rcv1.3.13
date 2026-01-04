@@ -4,7 +4,7 @@ import importlib
 
 import pytest
 
-import data.auth_bootstrap as auth_bootstrap
+import src.data.auth_bootstrap as auth_bootstrap
 
 
 class DummyAuth:

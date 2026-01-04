@@ -10,7 +10,7 @@
 # Saída:
 #   dist/RC-Gestor-Clientes-{versão}.exe
 #
-# Revisado na FASE 4 (2025-12-02) - Documentação e organização do build.
+# Revisado na FASE 5 (2026-01-03) - src-layout: paths atualizados para src/infra.
 # =============================================================================
 
 import sys
@@ -23,7 +23,9 @@ from PyInstaller.utils.hooks import collect_data_files  # retorna (src, dest) 2-
 # =============================================================================
 BASE = Path(SPECPATH).resolve()  # usar pasta do .spec (estavel)
 SRC = BASE / "src"
-sys.path.insert(0, str(SRC))
+
+# FASE 5: Adicionar BASE ao sys.path para permitir "import src.*"
+sys.path.insert(0, str(BASE))
 
 # Importa versão do app para nomear o executável
 from src.version import get_version  # noqa: E402
@@ -84,8 +86,9 @@ a = Analysis(
     # Binários externos necessários
     binaries=[
         # 7-Zip para extração de arquivos RAR/ZIP
-        ("infra/bin/7zip/7z.exe", "7z"),
-        ("infra/bin/7zip/7z.dll", "7z"),
+        # FASE 5 (2026-01-03): Atualizado para src/infra após migração
+        ("src/infra/bin/7zip/7z.exe", "7z"),
+        ("src/infra/bin/7zip/7z.dll", "7z"),
     ],
 
     # Arquivos de dados (tuplas src, dest)

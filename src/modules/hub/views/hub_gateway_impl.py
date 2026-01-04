@@ -53,7 +53,7 @@ class HubGatewayImpl:
         """
         try:
             from src.core.session import get_current_user
-            from infra.supabase_client import get_supabase, exec_postgrest
+            from src.infra.supabase_client import get_supabase, exec_postgrest
 
             # Primeiro tenta obter do cache de sessão
             user = get_current_user()
@@ -68,7 +68,7 @@ class HubGatewayImpl:
             if session and hasattr(session, "user") and session.user:
                 user_id = session.user.id
                 # Buscar org_id na tabela memberships
-                from infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ROLE
+                from src.infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ROLE
 
                 resp = exec_postgrest(
                     client.table("memberships").select(MEMBERSHIPS_SELECT_ORG_ROLE).eq("user_id", user_id)
@@ -94,7 +94,7 @@ class HubGatewayImpl:
             Email do usuário ou None se não autenticado
         """
         try:
-            from infra.supabase_client import get_supabase
+            from src.infra.supabase_client import get_supabase
 
             client = get_supabase()
             if not client:
@@ -124,7 +124,7 @@ class HubGatewayImpl:
             True se autenticado, False caso contrário
         """
         try:
-            from infra.supabase_client import get_supabase
+            from src.infra.supabase_client import get_supabase
 
             client = get_supabase()
             if not client:

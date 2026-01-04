@@ -14,7 +14,7 @@ from typing import Any
 import logging
 from threading import Lock
 
-from infra.supabase_client import get_supabase  # cliente lazy singleton
+from src.infra.supabase_client import get_supabase  # cliente lazy singleton
 from src.config.paths import USERS_DB_PATH
 
 log = logging.getLogger(__name__)

@@ -6,7 +6,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from infra.supabase_client import exec_postgrest, get_supabase
+from src.infra.supabase_client import exec_postgrest, get_supabase
 
 log = logging.getLogger(__name__)
 

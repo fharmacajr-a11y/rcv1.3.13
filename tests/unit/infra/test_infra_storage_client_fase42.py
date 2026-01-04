@@ -21,11 +21,11 @@ from requests import exceptions as req_exc
 @pytest.fixture
 def storage_client(monkeypatch):
     """Isola import com stub de infra.supabase_client para evitar circular."""
-    stub_client_mod = ModuleType("infra.supabase_client")
+    stub_client_mod = ModuleType("src.infra.supabase_client")
     stub_client_mod.supabase = SimpleNamespace(storage=SimpleNamespace(from_=MagicMock()))
-    monkeypatch.setitem(sys.modules, "infra.supabase_client", stub_client_mod)
-    sys.modules.pop("infra.supabase.storage_client", None)
-    module = importlib.import_module("infra.supabase.storage_client")
+    monkeypatch.setitem(sys.modules, "src.infra.supabase_client", stub_client_mod)
+    sys.modules.pop("src.infra.supabase.storage_client", None)
+    module = importlib.import_module("src.infra.supabase.storage_client")
     return module
 
 
@@ -424,7 +424,7 @@ def test_ensure_client_storage_prefix_success(tmp_path, storage_client, monkeypa
 
     fake_storage = SimpleNamespace(from_=lambda bucket: FakeBucket())
     fake_supabase = SimpleNamespace(storage=fake_storage)
-    monkeypatch.setitem(sys.modules, "infra.supabase_client", SimpleNamespace(supabase=fake_supabase))
+    monkeypatch.setitem(sys.modules, "src.infra.supabase_client", SimpleNamespace(supabase=fake_supabase))
 
     prefix = mod.ensure_client_storage_prefix("bucket", "org", "cnpj", client_id=5)
 
@@ -443,7 +443,7 @@ def test_ensure_client_storage_prefix_propagates_error(tmp_path, storage_client,
 
     fake_storage = SimpleNamespace(from_=lambda bucket: ExplodingBucket())
     fake_supabase = SimpleNamespace(storage=fake_storage)
-    monkeypatch.setitem(sys.modules, "infra.supabase_client", SimpleNamespace(supabase=fake_supabase))
+    monkeypatch.setitem(sys.modules, "src.infra.supabase_client", SimpleNamespace(supabase=fake_supabase))
 
     with pytest.raises(RuntimeError):
         mod.ensure_client_storage_prefix("b", "org", "cnpj", client_id=1)
@@ -464,7 +464,7 @@ def test_ensure_client_storage_prefix_cleanup_warning(tmp_path, storage_client, 
         removed_paths.append(path)
         raise OSError("cannot remove")
 
-    monkeypatch.setitem(sys.modules, "infra.supabase_client", SimpleNamespace(supabase=fake_supabase))
+    monkeypatch.setitem(sys.modules, "src.infra.supabase_client", SimpleNamespace(supabase=fake_supabase))
     monkeypatch.setattr(mod.os, "remove", fake_remove)
 
     prefix = mod.ensure_client_storage_prefix("b", "org", "cnpj", client_id=9)

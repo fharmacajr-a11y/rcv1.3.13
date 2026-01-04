@@ -139,7 +139,7 @@ def test_load_demandas_for_cliente_cache_hit(monkeypatch):
         list_requests_called.append(org_id)
         return []
 
-    monkeypatch.setattr("infra.repositories.anvisa_requests_repository.list_requests", fake_list_requests)
+    monkeypatch.setattr("src.infra.repositories.anvisa_requests_repository.list_requests", fake_list_requests)
 
     # Mock _resolve_org_id
     dummy._resolve_org_id = MagicMock(return_value="ORG-1")
@@ -165,7 +165,7 @@ def test_load_demandas_for_cliente_cache_miss_filters_by_client_id(monkeypatch):
     def fake_list_requests(org_id):
         return all_requests
 
-    monkeypatch.setattr("infra.repositories.anvisa_requests_repository.list_requests", fake_list_requests)
+    monkeypatch.setattr("src.infra.repositories.anvisa_requests_repository.list_requests", fake_list_requests)
 
     # Mock _resolve_org_id
     dummy._resolve_org_id = MagicMock(return_value="ORG-1")
@@ -205,7 +205,7 @@ def test_load_demandas_for_cliente_exception_returns_empty_and_logs(monkeypatch)
     def fake_list_requests_boom(org_id):
         raise Exception("Database connection failed")
 
-    monkeypatch.setattr("infra.repositories.anvisa_requests_repository.list_requests", fake_list_requests_boom)
+    monkeypatch.setattr("src.infra.repositories.anvisa_requests_repository.list_requests", fake_list_requests_boom)
 
     # Executar (não deve crashar)
     result = dummy._load_demandas_for_cliente("client-1")
@@ -263,7 +263,7 @@ def test_load_demandas_orders_by_created_at(monkeypatch):
     def fake_list_requests(org_id):
         return all_requests
 
-    monkeypatch.setattr("infra.repositories.anvisa_requests_repository.list_requests", fake_list_requests)
+    monkeypatch.setattr("src.infra.repositories.anvisa_requests_repository.list_requests", fake_list_requests)
 
     dummy._resolve_org_id = MagicMock(return_value="ORG-1")
 
@@ -319,11 +319,11 @@ def test_resolve_org_id_success_returns_org_id(monkeypatch):
     dummy = DummyRequestsMixin()
 
     # Salvar módulo original (se existir)
-    original_module = sys.modules.get("infra.repositories.anvisa_requests_repository")
+    original_module = sys.modules.get("src.infra.repositories.anvisa_requests_repository")
 
     try:
         # Criar fake module
-        fake_module = types.ModuleType("infra.repositories.anvisa_requests_repository")
+        fake_module = types.ModuleType("src.infra.repositories.anvisa_requests_repository")
 
         def fake_get_supabase_and_user():
             return (None, "user-1")
@@ -334,7 +334,7 @@ def test_resolve_org_id_success_returns_org_id(monkeypatch):
         fake_module._get_supabase_and_user = fake_get_supabase_and_user
         fake_module._resolve_org_id = fake_resolve_org_id
 
-        sys.modules["infra.repositories.anvisa_requests_repository"] = fake_module
+        sys.modules["src.infra.repositories.anvisa_requests_repository"] = fake_module
 
         # Spy messagebox
         showerror_called = []
@@ -349,9 +349,9 @@ def test_resolve_org_id_success_returns_org_id(monkeypatch):
     finally:
         # Restaurar módulo original
         if original_module is not None:
-            sys.modules["infra.repositories.anvisa_requests_repository"] = original_module
+            sys.modules["src.infra.repositories.anvisa_requests_repository"] = original_module
         else:
-            sys.modules.pop("infra.repositories.anvisa_requests_repository", None)
+            sys.modules.pop("src.infra.repositories.anvisa_requests_repository", None)
 
 
 def test_resolve_org_id_exception_shows_error_and_returns_none(monkeypatch):
@@ -361,17 +361,17 @@ def test_resolve_org_id_exception_shows_error_and_returns_none(monkeypatch):
 
     dummy = DummyRequestsMixin()
 
-    original_module = sys.modules.get("infra.repositories.anvisa_requests_repository")
+    original_module = sys.modules.get("src.infra.repositories.anvisa_requests_repository")
 
     try:
         # Criar fake module que lança exceção
-        fake_module = types.ModuleType("infra.repositories.anvisa_requests_repository")
+        fake_module = types.ModuleType("src.infra.repositories.anvisa_requests_repository")
 
         def fake_get_supabase_and_user():
             raise Exception("Database connection failed")
 
         fake_module._get_supabase_and_user = fake_get_supabase_and_user
-        sys.modules["infra.repositories.anvisa_requests_repository"] = fake_module
+        sys.modules["src.infra.repositories.anvisa_requests_repository"] = fake_module
 
         # Spy messagebox
         showerror_called = []
@@ -385,9 +385,9 @@ def test_resolve_org_id_exception_shows_error_and_returns_none(monkeypatch):
         assert len(showerror_called) == 1
     finally:
         if original_module is not None:
-            sys.modules["infra.repositories.anvisa_requests_repository"] = original_module
+            sys.modules["src.infra.repositories.anvisa_requests_repository"] = original_module
         else:
-            sys.modules.pop("infra.repositories.anvisa_requests_repository", None)
+            sys.modules.pop("src.infra.repositories.anvisa_requests_repository", None)
 
 
 def test_to_local_dt_converts_utc_to_minus3():
@@ -471,17 +471,17 @@ def test_persist_request_cloud_success_calls_create_request(monkeypatch):
     # Mock _resolve_org_id
     dummy._resolve_org_id = MagicMock(return_value="ORG-1")
 
-    original_module = sys.modules.get("infra.repositories.anvisa_requests_repository")
+    original_module = sys.modules.get("src.infra.repositories.anvisa_requests_repository")
 
     try:
         # Criar fake module
-        fake_module = types.ModuleType("infra.repositories.anvisa_requests_repository")
+        fake_module = types.ModuleType("src.infra.repositories.anvisa_requests_repository")
 
         def fake_create_request(org_id, client_id, request_type, status):
             return {"id": 123, "client_id": client_id, "request_type": request_type, "status": status}
 
         fake_module.create_request = fake_create_request
-        sys.modules["infra.repositories.anvisa_requests_repository"] = fake_module
+        sys.modules["src.infra.repositories.anvisa_requests_repository"] = fake_module
 
         # Executar
         payload = {"client_id": "1", "request_type": "RENOVACAO", "status": "draft"}
@@ -493,9 +493,9 @@ def test_persist_request_cloud_success_calls_create_request(monkeypatch):
         assert result["client_id"] == 1  # Convertido para int
     finally:
         if original_module is not None:
-            sys.modules["infra.repositories.anvisa_requests_repository"] = original_module
+            sys.modules["src.infra.repositories.anvisa_requests_repository"] = original_module
         else:
-            sys.modules.pop("infra.repositories.anvisa_requests_repository", None)
+            sys.modules.pop("src.infra.repositories.anvisa_requests_repository", None)
 
 
 def test_persist_request_cloud_exception_shows_error_and_returns_none(monkeypatch):
@@ -507,17 +507,17 @@ def test_persist_request_cloud_exception_shows_error_and_returns_none(monkeypatc
 
     dummy._resolve_org_id = MagicMock(return_value="ORG-1")
 
-    original_module = sys.modules.get("infra.repositories.anvisa_requests_repository")
+    original_module = sys.modules.get("src.infra.repositories.anvisa_requests_repository")
 
     try:
         # Criar fake module que lança exceção
-        fake_module = types.ModuleType("infra.repositories.anvisa_requests_repository")
+        fake_module = types.ModuleType("src.infra.repositories.anvisa_requests_repository")
 
         def fake_create_request(org_id, client_id, request_type, status):
             raise Exception("Network error")
 
         fake_module.create_request = fake_create_request
-        sys.modules["infra.repositories.anvisa_requests_repository"] = fake_module
+        sys.modules["src.infra.repositories.anvisa_requests_repository"] = fake_module
 
         # Spy messagebox
         showerror_called = []
@@ -531,9 +531,9 @@ def test_persist_request_cloud_exception_shows_error_and_returns_none(monkeypatc
         assert len(showerror_called) == 1
     finally:
         if original_module is not None:
-            sys.modules["infra.repositories.anvisa_requests_repository"] = original_module
+            sys.modules["src.infra.repositories.anvisa_requests_repository"] = original_module
         else:
-            sys.modules.pop("infra.repositories.anvisa_requests_repository", None)
+            sys.modules.pop("src.infra.repositories.anvisa_requests_repository", None)
 
 
 def test_append_request_row_inserts_and_selects():
@@ -579,7 +579,9 @@ class TestRequestsMixinMF52:
 
         # Mock repo
         fake_requests = [{"id": "req-1", "client_id": "123", "request_type": "AFE", "status": "draft"}]
-        monkeypatch.setattr("infra.repositories.anvisa_requests_repository.list_requests", lambda org_id: fake_requests)
+        monkeypatch.setattr(
+            "src.infra.repositories.anvisa_requests_repository.list_requests", lambda org_id: fake_requests
+        )
 
         # Mock service build_main_rows
         fake_rows = [
@@ -612,7 +614,7 @@ class TestRequestsMixinMF52:
         def raise_error(org_id):
             raise RuntimeError("DB connection failed")
 
-        monkeypatch.setattr("infra.repositories.anvisa_requests_repository.list_requests", raise_error)
+        monkeypatch.setattr("src.infra.repositories.anvisa_requests_repository.list_requests", raise_error)
 
         # Mock messagebox
         messagebox_calls = []
@@ -681,7 +683,7 @@ class TestRequestsMixinMF52:
         def raise_error(*args, **kwargs):
             raise RuntimeError("Supabase error")
 
-        monkeypatch.setattr("infra.repositories.anvisa_requests_repository.create_request", raise_error)
+        monkeypatch.setattr("src.infra.repositories.anvisa_requests_repository.create_request", raise_error)
 
         fake_request = {"client_id": "123", "request_type": "AFE", "status": "draft"}
 
@@ -699,7 +701,7 @@ class TestRequestsMixinMF52:
         def raise_error():
             raise RuntimeError("Auth failed")
 
-        monkeypatch.setattr("infra.repositories.anvisa_requests_repository._get_supabase_and_user", raise_error)
+        monkeypatch.setattr("src.infra.repositories.anvisa_requests_repository._get_supabase_and_user", raise_error)
 
         # Mock messagebox
         messagebox_calls = []
@@ -722,9 +724,11 @@ class TestRequestsMixinMF52:
 
         # Mock _get_supabase_and_user e _resolve_org_id
         monkeypatch.setattr(
-            "infra.repositories.anvisa_requests_repository._get_supabase_and_user", lambda: (None, "user123")
+            "src.infra.repositories.anvisa_requests_repository._get_supabase_and_user", lambda: (None, "user123")
         )
-        monkeypatch.setattr("infra.repositories.anvisa_requests_repository._resolve_org_id", lambda user_id: "org456")
+        monkeypatch.setattr(
+            "src.infra.repositories.anvisa_requests_repository._resolve_org_id", lambda user_id: "org456"
+        )
 
         result = dummy._resolve_org_id()
         assert result == "org456"

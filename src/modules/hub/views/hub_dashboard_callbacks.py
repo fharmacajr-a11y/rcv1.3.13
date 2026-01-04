@@ -71,7 +71,7 @@ def handle_new_task_click(
         # Carregar lista de clientes
         clients: list = []
         try:
-            from data.supabase_repo import list_clients_for_picker
+            from src.data.supabase_repo import list_clients_for_picker
 
             clients = list_clients_for_picker(org_id, limit=500)
         except Exception as e:  # noqa: BLE001

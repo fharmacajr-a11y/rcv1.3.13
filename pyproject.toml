@@ -59,7 +59,7 @@ extend_exclude = [
 ]
 
 # Módulos first-party do projeto
-known_first_party = ["src", "infra", "adapters", "data", "security", "helpers"]
+known_first_party = ["src"]
 
 # Mapeamento de nomes de pacotes para módulos importados
 [tool.deptry.package_module_name_map]
@@ -67,6 +67,9 @@ Pillow = ["PIL"]
 
 # Ignorar DEP002 para dependências transitivas e pacotes fixados
 [tool.deptry.per_rule_ignores]
+DEP001 = [
+    "openpyxl",  # Importação opcional para exportação de Excel
+]
 DEP002 = [
     "sv_ttk",
     "tkinterweb",
@@ -111,7 +114,7 @@ DEP002 = [
 ]
 
 [tool.vulture]
-paths = ["src", "infra", "adapters", "data", "security", "helpers", "vulture_whitelist.py"]
+paths = ["src", "vulture_whitelist.py"]
 exclude = ["tests", "docs", "reports", "build", "dist", ".venv", "venv", ".pytest_cache", ".ruff_cache", "__pycache__"]
 ignore_decorators = ["@overload"]
 min_confidence = 100

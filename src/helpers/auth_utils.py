@@ -5,8 +5,8 @@ from __future__ import annotations
 import logging
 import os
 
-from infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ID
-from infra.supabase_client import exec_postgrest, supabase
+from src.infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ID
+from src.infra.supabase_client import exec_postgrest, supabase
 
 logger = logging.getLogger(__name__)
 

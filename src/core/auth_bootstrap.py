@@ -5,13 +5,13 @@ from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping, Optional, Protocol
 
-from data.auth_bootstrap import _get_access_token
+from src.data.auth_bootstrap import _get_access_token
 from src.modules.login.view import LoginDialog
 from src.core.session.session import refresh_current_user_from_supabase
 from src.utils import prefs as prefs_utils
 
 try:  # pragma: no cover - fallback for environments without Supabase
-    from infra.supabase_client import bind_postgrest_auth_if_any, get_supabase
+    from src.infra.supabase_client import bind_postgrest_auth_if_any, get_supabase
 except Exception:  # pragma: no cover
     bind_postgrest_auth_if_any = None  # type: ignore[assignment]
     get_supabase = None  # type: ignore[assignment]

@@ -63,7 +63,7 @@ def _read_pdf_text_pymupdf(p: Path) -> str | None:
         parts: list[str] = []
         with fitz.open(str(p)) as doc:
             for page in doc:
-                t = page.get_text() or ""
+                t = str(page.get_text() or "")
                 if t.strip():
                     parts.append(t)
         res = "\n".join(parts).strip()

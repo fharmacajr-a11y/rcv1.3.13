@@ -16,7 +16,7 @@ from postgrest.exceptions import APIError
 
 def test_list_notifications_success() -> None:
     """Testa list_notifications com sucesso e verifica colunas selecionadas."""
-    from infra.repositories.notifications_repository import list_notifications
+    from src.infra.repositories.notifications_repository import list_notifications
 
     # Mock do supabase client
     mock_response = MagicMock()
@@ -63,7 +63,7 @@ def test_list_notifications_success() -> None:
     mock_table = MagicMock()
     mock_table.table.return_value = mock_select
 
-    with patch("infra.supabase_client.supabase", mock_table):
+    with patch("src.infra.supabase_client.supabase", mock_table):
         # Executar
         result = list_notifications("org-123", limit=50)
 
@@ -101,7 +101,7 @@ def test_list_notifications_success() -> None:
 
 def test_list_notifications_empty_result() -> None:
     """Testa list_notifications quando não há notificações."""
-    from infra.repositories.notifications_repository import list_notifications
+    from src.infra.repositories.notifications_repository import list_notifications
 
     # Mock retornando lista vazia
     mock_response = MagicMock()
@@ -110,7 +110,7 @@ def test_list_notifications_empty_result() -> None:
     mock_execute = MagicMock()
     mock_execute.execute.return_value = mock_response
 
-    with patch("infra.supabase_client.supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.supabase") as mock_supabase:
         mock_supabase.table.return_value.select.return_value.eq.return_value.order.return_value.limit.return_value = (
             mock_execute
         )
@@ -125,10 +125,10 @@ def test_list_notifications_empty_result() -> None:
 
 def test_list_notifications_exception() -> None:
     """Testa list_notifications quando ocorre exceção."""
-    from infra.repositories.notifications_repository import list_notifications
+    from src.infra.repositories.notifications_repository import list_notifications
 
     # Mock que lança exceção
-    with patch("infra.supabase_client.supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.supabase") as mock_supabase:
         mock_supabase.table.side_effect = Exception("Database connection error")
 
         # Executar (não deve propagar exceção)
@@ -140,7 +140,7 @@ def test_list_notifications_exception() -> None:
 
 def test_list_notifications_response_data_none() -> None:
     """Testa list_notifications quando response.data é None."""
-    from infra.repositories.notifications_repository import list_notifications
+    from src.infra.repositories.notifications_repository import list_notifications
 
     # Mock com data = None
     mock_response = MagicMock()
@@ -149,7 +149,7 @@ def test_list_notifications_response_data_none() -> None:
     mock_execute = MagicMock()
     mock_execute.execute.return_value = mock_response
 
-    with patch("infra.supabase_client.supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.supabase") as mock_supabase:
         mock_supabase.table.return_value.select.return_value.eq.return_value.order.return_value.limit.return_value = (
             mock_execute
         )
@@ -163,7 +163,7 @@ def test_list_notifications_response_data_none() -> None:
 
 def test_count_unread_success() -> None:
     """Testa count_unread com sucesso e verifica filtros."""
-    from infra.repositories.notifications_repository import count_unread
+    from src.infra.repositories.notifications_repository import count_unread
 
     # Mock do supabase client
     mock_response = MagicMock()
@@ -187,7 +187,7 @@ def test_count_unread_success() -> None:
     mock_table = MagicMock()
     mock_table.table.return_value = mock_select
 
-    with patch("infra.supabase_client.supabase", mock_table):
+    with patch("src.infra.supabase_client.supabase", mock_table):
         # Executar
         result = count_unread("org-abc")
 
@@ -207,7 +207,7 @@ def test_count_unread_success() -> None:
 
 def test_count_unread_zero() -> None:
     """Testa count_unread quando não há notificações não lidas."""
-    from infra.repositories.notifications_repository import count_unread
+    from src.infra.repositories.notifications_repository import count_unread
 
     # Mock retornando count=0
     mock_response = MagicMock()
@@ -216,7 +216,7 @@ def test_count_unread_zero() -> None:
     mock_execute = MagicMock()
     mock_execute.execute.return_value = mock_response
 
-    with patch("infra.supabase_client.supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.supabase") as mock_supabase:
         mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value = mock_execute
 
         # Executar
@@ -228,10 +228,10 @@ def test_count_unread_zero() -> None:
 
 def test_count_unread_exception() -> None:
     """Testa count_unread quando ocorre exceção."""
-    from infra.repositories.notifications_repository import count_unread
+    from src.infra.repositories.notifications_repository import count_unread
 
     # Mock que lança exceção
-    with patch("infra.supabase_client.supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.supabase") as mock_supabase:
         mock_supabase.table.side_effect = Exception("Connection timeout")
 
         # Executar (não deve propagar exceção)
@@ -243,7 +243,7 @@ def test_count_unread_exception() -> None:
 
 def test_count_unread_count_none() -> None:
     """Testa count_unread quando response.count é None."""
-    from infra.repositories.notifications_repository import count_unread
+    from src.infra.repositories.notifications_repository import count_unread
 
     # Mock com count = None
     mock_response = MagicMock()
@@ -252,7 +252,7 @@ def test_count_unread_count_none() -> None:
     mock_execute = MagicMock()
     mock_execute.execute.return_value = mock_response
 
-    with patch("infra.supabase_client.supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.supabase") as mock_supabase:
         mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value = mock_execute
 
         # Executar
@@ -264,7 +264,7 @@ def test_count_unread_count_none() -> None:
 
 def test_insert_notification_rls_blocked() -> None:
     """Testa insert_notification quando RLS bloqueia (data vazia)."""
-    from infra.repositories.notifications_repository import insert_notification
+    from src.infra.repositories.notifications_repository import insert_notification
 
     # Mock retornando data vazia (bloqueado por RLS)
     mock_response = MagicMock()
@@ -276,7 +276,7 @@ def test_insert_notification_rls_blocked() -> None:
     mock_insert = MagicMock()
     mock_insert.insert.return_value = mock_execute
 
-    with patch("infra.supabase_client.supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.supabase") as mock_supabase:
         mock_supabase.table.return_value = mock_insert
 
         # Executar
@@ -295,7 +295,7 @@ def test_insert_notification_rls_blocked() -> None:
 
 def test_insert_notification_api_error_dict() -> None:
     """Testa insert_notification quando APIError retorna dict estruturado."""
-    from infra.repositories.notifications_repository import insert_notification
+    from src.infra.repositories.notifications_repository import insert_notification
 
     # Criar mock de APIError com dict nos args
     error_data = {
@@ -312,7 +312,7 @@ def test_insert_notification_api_error_dict() -> None:
     mock_insert = MagicMock()
     mock_insert.insert.side_effect = mock_api_error
 
-    with patch("infra.supabase_client.supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.supabase") as mock_supabase:
         mock_supabase.table.return_value = mock_insert
 
         # Executar (não deve propagar exceção)
@@ -331,7 +331,7 @@ def test_insert_notification_api_error_dict() -> None:
 
 def test_insert_notification_api_error_string() -> None:
     """Testa insert_notification quando APIError retorna string simples."""
-    from infra.repositories.notifications_repository import insert_notification
+    from src.infra.repositories.notifications_repository import insert_notification
 
     # Criar mock de APIError com string nos args
     mock_api_error = MagicMock(spec=APIError)
@@ -340,7 +340,7 @@ def test_insert_notification_api_error_string() -> None:
     mock_insert = MagicMock()
     mock_insert.insert.side_effect = mock_api_error
 
-    with patch("infra.supabase_client.supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.supabase") as mock_supabase:
         mock_supabase.table.return_value = mock_insert
 
         # Executar (não deve propagar exceção)
@@ -359,10 +359,10 @@ def test_insert_notification_api_error_string() -> None:
 
 def test_insert_notification_generic_exception() -> None:
     """Testa insert_notification quando ocorre exceção genérica."""
-    from infra.repositories.notifications_repository import insert_notification
+    from src.infra.repositories.notifications_repository import insert_notification
 
     # Mock que lança exceção genérica
-    with patch("infra.supabase_client.supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.supabase") as mock_supabase:
         mock_supabase.table.side_effect = RuntimeError("Unexpected error")
 
         # Executar (não deve propagar exceção)
@@ -381,16 +381,16 @@ def test_insert_notification_generic_exception() -> None:
 
 def test_notifications_repository_adapter_methods() -> None:
     """Testa que NotificationsRepositoryAdapter delega para funções corretas."""
-    from infra.repositories.notifications_repository import NotificationsRepositoryAdapter
+    from src.infra.repositories.notifications_repository import NotificationsRepositoryAdapter
 
     adapter = NotificationsRepositoryAdapter()
 
     # Mock das funções do módulo
     with (
-        patch("infra.repositories.notifications_repository.list_notifications") as mock_list,
-        patch("infra.repositories.notifications_repository.count_unread") as mock_count,
-        patch("infra.repositories.notifications_repository.mark_all_read") as mock_mark,
-        patch("infra.repositories.notifications_repository.insert_notification") as mock_insert,
+        patch("src.infra.repositories.notifications_repository.list_notifications") as mock_list,
+        patch("src.infra.repositories.notifications_repository.count_unread") as mock_count,
+        patch("src.infra.repositories.notifications_repository.mark_all_read") as mock_mark,
+        patch("src.infra.repositories.notifications_repository.insert_notification") as mock_insert,
     ):
         mock_list.return_value = [{"id": "1"}]
         mock_count.return_value = 3

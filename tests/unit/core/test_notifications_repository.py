@@ -12,7 +12,7 @@ from postgrest.exceptions import APIError
 
 def test_insert_notification_uses_actor_user_id() -> None:
     """Testa que insert_notification usa actor_user_id (não actor_uid) no payload."""
-    from infra.repositories.notifications_repository import insert_notification
+    from src.infra.repositories.notifications_repository import insert_notification
 
     # Mock do supabase client
     mock_insert_response = MagicMock()
@@ -29,7 +29,7 @@ def test_insert_notification_uses_actor_user_id() -> None:
     mock_table.insert.return_value.execute.return_value = mock_insert_response
 
     # Patch do supabase dentro do módulo infra.supabase_client
-    with patch("infra.supabase_client.supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.supabase") as mock_supabase:
         mock_supabase.table.return_value = mock_table
 
         # Executar insert
@@ -70,7 +70,7 @@ def test_insert_notification_uses_actor_user_id() -> None:
 
 def test_insert_notification_api_error_with_string() -> None:
     """Testa que APIError com args[0] = str não quebra (retorna False e loga)."""
-    from infra.repositories.notifications_repository import insert_notification
+    from src.infra.repositories.notifications_repository import insert_notification
 
     # Mock do supabase client que lança APIError com string
     mock_table = MagicMock()
@@ -81,7 +81,7 @@ def test_insert_notification_api_error_with_string() -> None:
 
     mock_table.insert.return_value.execute.side_effect = api_error
 
-    with patch("infra.supabase_client.supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.supabase") as mock_supabase:
         mock_supabase.table.return_value = mock_table
 
         # Executar insert (não deve quebrar)
@@ -99,7 +99,7 @@ def test_insert_notification_api_error_with_string() -> None:
 
 def test_insert_notification_api_error_with_dict() -> None:
     """Testa que APIError com args[0] = dict funciona corretamente."""
-    from infra.repositories.notifications_repository import insert_notification
+    from src.infra.repositories.notifications_repository import insert_notification
 
     # Mock do supabase client que lança APIError com dict estruturado
     mock_table = MagicMock()
@@ -117,7 +117,7 @@ def test_insert_notification_api_error_with_dict() -> None:
 
     mock_table.insert.return_value.execute.side_effect = api_error
 
-    with patch("infra.supabase_client.supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.supabase") as mock_supabase:
         mock_supabase.table.return_value = mock_table
 
         # Executar insert (não deve quebrar)
@@ -134,7 +134,7 @@ def test_insert_notification_api_error_with_dict() -> None:
 
 def test_insert_notification_without_actor() -> None:
     """Testa insert sem actor (campos opcionais)."""
-    from infra.repositories.notifications_repository import insert_notification
+    from src.infra.repositories.notifications_repository import insert_notification
 
     # Mock do supabase client
     mock_response = MagicMock()
@@ -143,7 +143,7 @@ def test_insert_notification_without_actor() -> None:
     mock_table = MagicMock()
     mock_table.insert.return_value.execute.return_value = mock_response
 
-    with patch("infra.supabase_client.supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.supabase") as mock_supabase:
         mock_supabase.table.return_value = mock_table
 
         # Executar insert sem actor
@@ -169,7 +169,7 @@ def test_insert_notification_without_actor() -> None:
 
 def test_notifications_repository_adapter() -> None:
     """Testa que NotificationsRepositoryAdapter usa actor_user_id."""
-    from infra.repositories.notifications_repository import NotificationsRepositoryAdapter
+    from src.infra.repositories.notifications_repository import NotificationsRepositoryAdapter
 
     adapter = NotificationsRepositoryAdapter()
 
@@ -180,7 +180,7 @@ def test_notifications_repository_adapter() -> None:
     mock_table = MagicMock()
     mock_table.insert.return_value.execute.return_value = mock_response
 
-    with patch("infra.supabase_client.supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.supabase") as mock_supabase:
         mock_supabase.table.return_value = mock_table
 
         # Executar via adapter
@@ -207,7 +207,7 @@ def test_notifications_repository_adapter() -> None:
 
 def test_list_notifications_with_exclude_actor_email() -> None:
     """Testa que list_notifications filtra notificações do próprio autor."""
-    from infra.repositories.notifications_repository import list_notifications
+    from src.infra.repositories.notifications_repository import list_notifications
 
     # Mock do supabase client
     mock_response = MagicMock()
@@ -222,7 +222,7 @@ def test_list_notifications_with_exclude_actor_email() -> None:
     mock_table = MagicMock()
     mock_table.select.return_value.eq.return_value = mock_query
 
-    with patch("infra.supabase_client.supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.supabase") as mock_supabase:
         mock_supabase.table.return_value = mock_table
 
         # Executar list com exclude_actor_email
@@ -237,7 +237,7 @@ def test_list_notifications_with_exclude_actor_email() -> None:
 
 def test_count_unread_with_exclude_actor_email() -> None:
     """Testa que count_unread filtra notificações do próprio autor."""
-    from infra.repositories.notifications_repository import count_unread
+    from src.infra.repositories.notifications_repository import count_unread
 
     # Mock do supabase client
     mock_response = MagicMock()
@@ -249,7 +249,7 @@ def test_count_unread_with_exclude_actor_email() -> None:
     mock_table = MagicMock()
     mock_table.select.return_value.eq.return_value.eq.return_value = mock_query
 
-    with patch("infra.supabase_client.supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.supabase") as mock_supabase:
         mock_supabase.table.return_value = mock_table
 
         # Executar count com exclude_actor_email
@@ -264,7 +264,7 @@ def test_count_unread_with_exclude_actor_email() -> None:
 
 def test_insert_notification_dedupe_existing() -> None:
     """Testa que insert_notification não duplica quando request_id já existe."""
-    from infra.repositories.notifications_repository import insert_notification
+    from src.infra.repositories.notifications_repository import insert_notification
 
     # Mock do supabase client - simular que notificação já existe
     mock_existing_response = MagicMock()
@@ -275,7 +275,7 @@ def test_insert_notification_dedupe_existing() -> None:
 
     mock_table = MagicMock()
 
-    with patch("infra.supabase_client.supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.supabase") as mock_supabase:
         mock_supabase.table.return_value = mock_table
         # Mock select para pre-check
         mock_table.select.return_value.eq.return_value.eq.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value = mock_existing_response
@@ -298,7 +298,7 @@ def test_insert_notification_dedupe_existing() -> None:
 
 def test_insert_notification_dedupe_new() -> None:
     """Testa que insert_notification cria notificação quando request_id não existe."""
-    from infra.repositories.notifications_repository import insert_notification
+    from src.infra.repositories.notifications_repository import insert_notification
 
     # Mock do supabase client - simular que notificação NÃO existe
     mock_existing_response = MagicMock()
@@ -311,7 +311,7 @@ def test_insert_notification_dedupe_new() -> None:
     mock_table.select.return_value.eq.return_value.eq.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value = mock_existing_response
     mock_table.insert.return_value.execute.return_value = mock_insert_response
 
-    with patch("infra.supabase_client.supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.supabase") as mock_supabase:
         mock_supabase.table.return_value = mock_table
 
         # Executar insert com request_id novo
@@ -332,7 +332,7 @@ def test_insert_notification_dedupe_new() -> None:
 
 def test_insert_notification_normalizes_prefixed_uuid_request_id() -> None:
     """Testa normalização de request_id com formato 'prefixo:<uuid>'."""
-    from infra.repositories.notifications_repository import insert_notification
+    from src.infra.repositories.notifications_repository import insert_notification
 
     # UUID válido para teste
     test_uuid = "550e8400-e29b-41d4-a716-446655440000"
@@ -353,7 +353,7 @@ def test_insert_notification_normalizes_prefixed_uuid_request_id() -> None:
     # Mock do insert
     mock_table.insert.return_value.execute.return_value = mock_insert_response
 
-    with patch("infra.supabase_client.supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.supabase") as mock_supabase:
         mock_supabase.table.return_value = mock_table
 
         # Executar insert com request_id prefixado
@@ -385,7 +385,7 @@ def test_insert_notification_normalizes_prefixed_uuid_request_id() -> None:
 
 def test_extract_uuid_from_request_id_helper() -> None:
     """Testa helper _extract_uuid_from_request_id diretamente."""
-    from infra.repositories.notifications_repository import _extract_uuid_from_request_id
+    from src.infra.repositories.notifications_repository import _extract_uuid_from_request_id
 
     test_uuid = "550e8400-e29b-41d4-a716-446655440000"
 

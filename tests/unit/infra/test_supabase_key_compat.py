@@ -12,13 +12,13 @@ def test_supabase_client_accepts_supabase_key_fallback(monkeypatch):
     monkeypatch.setenv("SUPABASE_KEY", "test-key-12345")
 
     # Reset singleton para forçar recriação
-    import infra.supabase.db_client as db_client
+    import src.infra.supabase.db_client as db_client
 
     db_client._SUPABASE_SINGLETON = None
     db_client._SINGLETON_REUSE_LOGGED = False
 
     # Mock create_client to avoid real connection
-    with patch("infra.supabase.db_client.create_client") as mock_create:
+    with patch("src.infra.supabase.db_client.create_client") as mock_create:
         mock_create.return_value = object()
 
         # Deve aceitar sem erro
@@ -36,12 +36,12 @@ def test_supabase_client_prefers_anon_key_over_key(monkeypatch):
     monkeypatch.setenv("SUPABASE_KEY", "old-key")
     monkeypatch.setenv("SUPABASE_ANON_KEY", "new-anon-key")
 
-    import infra.supabase.db_client as db_client
+    import src.infra.supabase.db_client as db_client
 
     db_client._SUPABASE_SINGLETON = None
     db_client._SINGLETON_REUSE_LOGGED = False
 
-    with patch("infra.supabase.db_client.create_client") as mock_create:
+    with patch("src.infra.supabase.db_client.create_client") as mock_create:
         mock_create.return_value = object()
 
         db_client.get_supabase()
@@ -56,8 +56,8 @@ def test_supabase_client_raises_if_no_key(monkeypatch):
     monkeypatch.delenv("SUPABASE_KEY", raising=False)
     monkeypatch.setenv("SUPABASE_URL", "https://test.supabase.co")
 
-    import infra.supabase.db_client as db_client
-    from infra.supabase import types as supa_types
+    import src.infra.supabase.db_client as db_client
+    from src.infra.supabase import types as supa_types
 
     # Limpar singleton e módulo types
     db_client._SUPABASE_SINGLETON = None

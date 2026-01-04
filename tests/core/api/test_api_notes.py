@@ -13,7 +13,7 @@ def test_list_storage_files_returns_backend_payload(monkeypatch):
         captured.append((bucket, prefix))
         return [{"name": "client-file.pdf", "size": 1024}]
 
-    monkeypatch.setattr("adapters.storage.api.list_files", fake_list)
+    monkeypatch.setattr("src.adapters.storage.api.list_files", fake_list)
 
     result = api_notes.list_storage_files("clients", "org-123/")
 
@@ -25,7 +25,7 @@ def test_list_storage_files_logs_and_returns_empty_on_failure(monkeypatch, caplo
     def fake_list(*_args, **_kwargs):
         raise RuntimeError("storage offline")
 
-    monkeypatch.setattr("adapters.storage.api.list_files", fake_list)
+    monkeypatch.setattr("src.adapters.storage.api.list_files", fake_list)
     caplog.set_level(logging.ERROR)
 
     assert api_notes.list_storage_files("clients", "org-404/") == []

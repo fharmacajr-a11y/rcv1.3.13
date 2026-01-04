@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 import re
 
-from infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ID
+from src.infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ID
 from src.core.string_utils import only_digits
 from src.shared.storage_ui_bridge import build_client_prefix
 

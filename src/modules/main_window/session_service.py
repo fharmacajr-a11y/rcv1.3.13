@@ -7,8 +7,8 @@ from typing import Any, Callable, Optional
 
 # Import no nível do módulo para permitir DI e evitar lazy imports
 try:
-    from infra.supabase_client import exec_postgrest, supabase
-    from infra.db_schemas import MEMBERSHIPS_SELECT_ROLE, MEMBERSHIPS_SELECT_ORG_ID
+    from src.infra.supabase_client import exec_postgrest, supabase
+    from src.infra.db_schemas import MEMBERSHIPS_SELECT_ROLE, MEMBERSHIPS_SELECT_ORG_ID
 except ImportError:
     # Fallback para testes sem dependências
     exec_postgrest = None  # type: ignore

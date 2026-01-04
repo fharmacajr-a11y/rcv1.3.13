@@ -11,6 +11,13 @@ import json
 import sys
 from pathlib import Path
 
+# Configurar encoding UTF-8 para suportar emojis no Windows
+if sys.stdout.encoding != "utf-8":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except AttributeError:
+        pass  # Python < 3.7
+
 
 def load_coverage(coverage_path: Path) -> dict:
     """Carrega o arquivo coverage.json"""

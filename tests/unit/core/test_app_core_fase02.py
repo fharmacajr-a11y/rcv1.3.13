@@ -31,7 +31,11 @@ def reset_messagebox(monkeypatch):
 
 def test_resolve_cliente_row_returns_none_when_exception(monkeypatch):
     """Testa que _resolve_cliente_row retorna None quando get_cliente_by_id lança exceção."""
-    monkeypatch.setattr(app_core, "get_cliente_by_id", lambda pk: (_ for _ in ()).throw(Exception("DB error")))
+
+    def raise_timeout(pk):
+        raise TimeoutError("DB error")
+
+    monkeypatch.setattr(app_core, "get_cliente_by_id", raise_timeout)
 
     result = app_core._resolve_cliente_row(123)
 
@@ -79,7 +83,7 @@ def test_excluir_cliente_handles_move_exception(monkeypatch, reset_messagebox):
     """Testa que excluir_cliente mostra erro quando mover_cliente_para_lixeira falha."""
 
     def fail_move(cid):
-        raise Exception("Database error")
+        raise TimeoutError("Database error")
 
     monkeypatch.setattr(app_core, "mover_cliente_para_lixeira", fail_move)
 
@@ -94,7 +98,7 @@ def test_excluir_cliente_handles_carregar_exception(monkeypatch, reset_messagebo
     calls = {"move": []}
 
     def fail_reload():
-        raise Exception("Reload error")
+        raise RuntimeError("Reload error")
 
     monkeypatch.setattr(app_core, "mover_cliente_para_lixeira", lambda cid: calls["move"].append(cid))
 
@@ -110,7 +114,7 @@ def test_excluir_cliente_handles_refresh_exception(monkeypatch, reset_messagebox
     calls = {"move": []}
 
     def fail_refresh():
-        raise Exception("Refresh error")
+        raise RuntimeError("Refresh error")
 
     monkeypatch.setattr(app_core, "mover_cliente_para_lixeira", lambda cid: calls["move"].append(cid))
     monkeypatch.setattr(app_core, "_module_refresh_if_open", fail_refresh)
@@ -272,7 +276,10 @@ def test_open_client_local_subfolders_handles_config_load_exception(monkeypatch,
     forms_module = SimpleNamespace(open_subpastas_dialog=fake_dialog)
     monkeypatch.setitem(sys.modules, "src.modules.clientes.forms", forms_module)
 
-    config_module = SimpleNamespace(load_subpastas_config=lambda: (_ for _ in ()).throw(Exception("Config error")))
+    def raise_oserror():
+        raise OSError("Config error")
+
+    config_module = SimpleNamespace(load_subpastas_config=raise_oserror)
     monkeypatch.setitem(sys.modules, "src.utils.subpastas_config", config_module)
 
     app_core.open_client_local_subfolders(SimpleNamespace(), 42)
@@ -337,7 +344,7 @@ def test_abrir_lixeira_ui_handles_setattr_exception(monkeypatch):
 
         def __setattr__(self, name, value):
             if name == "lixeira_win":
-                raise RuntimeError("Cannot set attribute")
+                raise TypeError("Cannot set attribute")
             super().__setattr__(name, value)
 
     app = BadApp()

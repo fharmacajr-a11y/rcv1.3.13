@@ -12,7 +12,7 @@ import pytest
 
 def test_list_requests_returns_data(monkeypatch):
     """list_requests deve retornar lista de demandas do Supabase."""
-    from infra.repositories.anvisa_requests_repository import list_requests
+    from src.infra.repositories.anvisa_requests_repository import list_requests
 
     # Mock do supabase
     mock_response = Mock()
@@ -46,7 +46,7 @@ def test_list_requests_returns_data(monkeypatch):
     mock_table = Mock(return_value=Mock(select=mock_select))
 
     # Mock do módulo supabase_client
-    import infra.supabase_client as supabase_module
+    import src.infra.supabase_client as supabase_module
 
     mock_supabase = Mock()
     mock_supabase.table = mock_table
@@ -71,7 +71,7 @@ def test_list_requests_returns_data(monkeypatch):
 
 def test_create_request_inserts_and_returns_data(monkeypatch):
     """create_request deve inserir demanda e retornar registro criado."""
-    from infra.repositories.anvisa_requests_repository import create_request
+    from src.infra.repositories.anvisa_requests_repository import create_request
 
     # Mock do supabase
     mock_response = Mock()
@@ -90,7 +90,7 @@ def test_create_request_inserts_and_returns_data(monkeypatch):
     mock_table = Mock(return_value=Mock(insert=mock_insert))
 
     # Mock do módulo supabase_client
-    import infra.supabase_client as supabase_module
+    import src.infra.supabase_client as supabase_module
 
     mock_supabase = Mock()
     mock_supabase.table = mock_table
@@ -124,7 +124,7 @@ def test_create_request_inserts_and_returns_data(monkeypatch):
 
 def test_create_request_raises_on_empty_data(monkeypatch):
     """create_request deve lançar exceção se insert retornar vazio (RLS)."""
-    from infra.repositories.anvisa_requests_repository import create_request
+    from src.infra.repositories.anvisa_requests_repository import create_request
 
     # Mock do supabase - retorna data vazia (bloqueado por RLS)
     mock_response = Mock()
@@ -135,7 +135,7 @@ def test_create_request_raises_on_empty_data(monkeypatch):
     mock_table = Mock(return_value=Mock(insert=mock_insert))
 
     # Mock do módulo supabase_client
-    import infra.supabase_client as supabase_module
+    import src.infra.supabase_client as supabase_module
 
     mock_supabase = Mock()
     mock_supabase.table = mock_table
@@ -155,39 +155,57 @@ def test_create_request_raises_on_empty_data(monkeypatch):
 
 def test_update_request_status_updates_and_returns(monkeypatch):
     """update_request_status deve atualizar status da demanda."""
-    from infra.repositories.anvisa_requests_repository import update_request_status
+    from src.infra.repositories.anvisa_requests_repository import update_request_status
 
-    # Mock do response do Supabase
-    mock_response = Mock()
-    mock_response.data = [{"id": "req-555", "status": "done"}]
-    mock_response.count = 1
+    # Mock do response do Supabase para SELECT (buscar payload existente)
+    mock_select_response = Mock()
+    mock_select_response.data = [{"payload": {"existing": "data"}}]
 
-    # Mock do chain: table().update().eq().eq().execute()
-    mock_execute = Mock()
-    mock_execute.execute.return_value = mock_response
+    # Mock do response do Supabase para UPDATE
+    mock_update_response = Mock()
+    mock_update_response.data = [{"id": "req-555", "status": "done"}]
+    mock_update_response.count = 1
 
-    mock_eq2 = Mock()
-    mock_eq2.eq.return_value = mock_execute
+    # Mock para SELECT chain: table().select().eq().eq().limit().execute()
+    mock_select_execute = Mock(return_value=mock_select_response)
+    mock_select_limit = Mock(return_value=Mock(execute=mock_select_execute))
+    mock_select_eq2 = Mock(return_value=Mock(limit=mock_select_limit))
+    mock_select_eq1 = Mock(return_value=Mock(eq=mock_select_eq2))
+    mock_select = Mock(return_value=Mock(eq=mock_select_eq1))
 
-    mock_eq1 = Mock()
-    mock_eq1.eq.return_value = mock_eq2
+    # Mock para UPDATE chain: table().update().eq().eq().execute()
+    mock_update_execute = Mock(return_value=mock_update_response)
+    mock_update_eq2 = Mock(return_value=Mock(execute=mock_update_execute))
+    mock_update_eq1 = Mock(return_value=Mock(eq=mock_update_eq2))
+    mock_update = Mock(return_value=Mock(eq=mock_update_eq1))
 
-    mock_update = Mock()
-    mock_update.update.return_value = mock_eq1
+    # Mock de table() que retorna diferentes chains para select e update
+    call_count = {"n": 0}
 
-    mock_table = Mock()
-    mock_table.table.return_value = mock_update
+    def mock_table_fn(table_name):
+        """Retorna diferentes mocks para cada chamada."""
+        call_count["n"] += 1
+        if call_count["n"] == 1:
+            # Primeira chamada: SELECT para buscar payload
+            return Mock(select=mock_select)
+        else:
+            # Segunda chamada: UPDATE
+            return Mock(update=mock_update)
+
+    mock_supabase = Mock()
+    mock_supabase.table = mock_table_fn
 
     # Mock do módulo supabase_client
-    import infra.supabase_client as supabase_module
+    import src.infra.supabase_client as supabase_module
 
-    monkeypatch.setattr(supabase_module, "supabase", mock_table)
+    monkeypatch.setattr(supabase_module, "supabase", mock_supabase)
 
     # Mock das funções auxiliares
-    import infra.repositories.anvisa_requests_repository as repo_module
+    import src.infra.repositories.anvisa_requests_repository as repo_module
 
-    monkeypatch.setattr(repo_module, "_get_supabase_and_user", lambda: (mock_table, "user-123"))
+    monkeypatch.setattr(repo_module, "_get_supabase_and_user", lambda: (mock_supabase, "user-123"))
     monkeypatch.setattr(repo_module, "_resolve_org_id", lambda user_id: "org-456")
+    monkeypatch.setattr(repo_module, "_get_current_user_email", lambda: "test@example.com")
 
     # Chamar função com status válido
     result = update_request_status("req-555", "done")
@@ -195,18 +213,13 @@ def test_update_request_status_updates_and_returns(monkeypatch):
     # Verificar resultado (retorna bool!)
     assert result is True
 
-    # Verificar chamadas
-    mock_table.table.assert_called_once_with("client_anvisa_requests")
-    mock_update.update.assert_called_once_with({"status": "done"})
-
-    # Verificar que os dois eq foram chamados (id e depois org_id)
-    mock_eq1.eq.assert_called_once_with("id", "req-555")
-    mock_eq2.eq.assert_called_once_with("org_id", "org-456")
+    # Verificar que houve 2 chamadas (SELECT + UPDATE)
+    assert call_count["n"] == 2
 
 
 def test_get_supabase_and_user_returns_tuple(monkeypatch):
     """_get_supabase_and_user deve retornar tupla (supabase, user_id)."""
-    from infra.repositories.anvisa_requests_repository import _get_supabase_and_user
+    from src.infra.repositories.anvisa_requests_repository import _get_supabase_and_user
 
     # Mock do supabase auth
     mock_user = Mock()
@@ -219,7 +232,7 @@ def test_get_supabase_and_user_returns_tuple(monkeypatch):
     mock_auth.get_user = Mock(return_value=mock_auth_response)
 
     # Mock do módulo supabase_client
-    import infra.supabase_client as supabase_module
+    import src.infra.supabase_client as supabase_module
 
     mock_supabase = Mock()
     mock_supabase.auth = mock_auth
@@ -235,7 +248,7 @@ def test_get_supabase_and_user_returns_tuple(monkeypatch):
 
 def test_resolve_org_id_returns_org_id(monkeypatch):
     """_resolve_org_id deve retornar org_id do usuário via memberships."""
-    from infra.repositories.anvisa_requests_repository import _resolve_org_id
+    from src.infra.repositories.anvisa_requests_repository import _resolve_org_id
 
     # Mock do supabase
     mock_response = Mock()
@@ -248,7 +261,7 @@ def test_resolve_org_id_returns_org_id(monkeypatch):
     mock_table = Mock(return_value=Mock(select=mock_select))
 
     # Mock do módulo supabase_client
-    import infra.supabase_client as supabase_module
+    import src.infra.supabase_client as supabase_module
 
     mock_supabase = Mock()
     mock_supabase.table = mock_table

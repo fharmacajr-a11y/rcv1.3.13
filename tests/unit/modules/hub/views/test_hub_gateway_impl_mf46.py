@@ -56,8 +56,8 @@ def test_get_org_id_from_session_cache(mock_get_user, gateway):
     mock_get_user.assert_called_once()
 
 
-@patch("infra.supabase_client.exec_postgrest")
-@patch("infra.supabase_client.get_supabase")
+@patch("src.infra.supabase_client.exec_postgrest")
+@patch("src.infra.supabase_client.get_supabase")
 @patch("src.core.session.get_current_user")
 def test_get_org_id_from_supabase_owner_role(mock_get_user, mock_get_supabase, mock_exec_postgrest, gateway):
     """Test 1.2: Fallback Supabase - escolhe owner quando disponível."""
@@ -89,8 +89,8 @@ def test_get_org_id_from_supabase_owner_role(mock_get_user, mock_get_supabase, m
     mock_exec_postgrest.assert_called_once()
 
 
-@patch("infra.supabase_client.exec_postgrest")
-@patch("infra.supabase_client.get_supabase")
+@patch("src.infra.supabase_client.exec_postgrest")
+@patch("src.infra.supabase_client.get_supabase")
 @patch("src.core.session.get_current_user")
 def test_get_org_id_from_supabase_no_owner(mock_get_user, mock_get_supabase, mock_exec_postgrest, gateway):
     """Test 1.3: Fallback Supabase - escolhe primeiro se não há owner."""
@@ -120,7 +120,7 @@ def test_get_org_id_from_supabase_no_owner(mock_get_user, mock_get_supabase, moc
     assert result == "org-first"
 
 
-@patch("infra.supabase_client.get_supabase")
+@patch("src.infra.supabase_client.get_supabase")
 @patch("src.core.session.get_current_user")
 def test_get_org_id_no_session(mock_get_user, mock_get_supabase, gateway):
     """Test 1.4: Sem sessão retorna None."""
@@ -135,8 +135,8 @@ def test_get_org_id_no_session(mock_get_user, mock_get_supabase, gateway):
     assert result is None
 
 
-@patch("infra.supabase_client.exec_postgrest")
-@patch("infra.supabase_client.get_supabase")
+@patch("src.infra.supabase_client.exec_postgrest")
+@patch("src.infra.supabase_client.get_supabase")
 @patch("src.core.session.get_current_user")
 def test_get_org_id_empty_memberships(mock_get_user, mock_get_supabase, mock_exec_postgrest, gateway):
     """Test 1.5: Memberships vazio retorna None."""
@@ -181,7 +181,7 @@ def test_get_org_id_exception_handling(mock_get_user, gateway):
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-@patch("infra.supabase_client.get_supabase")
+@patch("src.infra.supabase_client.get_supabase")
 def test_get_user_email_no_client(mock_get_supabase, gateway):
     """Test 2.1: Cliente None retorna None."""
     mock_get_supabase.return_value = None
@@ -191,7 +191,7 @@ def test_get_user_email_no_client(mock_get_supabase, gateway):
     assert result is None
 
 
-@patch("infra.supabase_client.get_supabase")
+@patch("src.infra.supabase_client.get_supabase")
 def test_get_user_email_no_session(mock_get_supabase, gateway):
     """Test 2.2: Sessão None retorna None."""
     mock_client = MagicMock()
@@ -203,7 +203,7 @@ def test_get_user_email_no_session(mock_get_supabase, gateway):
     assert result is None
 
 
-@patch("infra.supabase_client.get_supabase")
+@patch("src.infra.supabase_client.get_supabase")
 def test_get_user_email_no_user(mock_get_supabase, gateway):
     """Test 2.3: Sessão sem user retorna None."""
     mock_client = MagicMock()
@@ -217,7 +217,7 @@ def test_get_user_email_no_user(mock_get_supabase, gateway):
     assert result is None
 
 
-@patch("infra.supabase_client.get_supabase")
+@patch("src.infra.supabase_client.get_supabase")
 def test_get_user_email_success(mock_get_supabase, gateway):
     """Test 2.4: Retorna email do usuário."""
     mock_client = MagicMock()
@@ -232,7 +232,7 @@ def test_get_user_email_success(mock_get_supabase, gateway):
     assert result == "test@example.com"
 
 
-@patch("infra.supabase_client.get_supabase")
+@patch("src.infra.supabase_client.get_supabase")
 def test_get_user_email_exception(mock_get_supabase, gateway):
     """Test 2.5: Exception retorna None."""
     mock_get_supabase.side_effect = RuntimeError("Supabase error")
@@ -247,7 +247,7 @@ def test_get_user_email_exception(mock_get_supabase, gateway):
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-@patch("infra.supabase_client.get_supabase")
+@patch("src.infra.supabase_client.get_supabase")
 def test_is_authenticated_no_client(mock_get_supabase, gateway):
     """Test 3.1: Cliente None retorna False."""
     mock_get_supabase.return_value = None
@@ -257,7 +257,7 @@ def test_is_authenticated_no_client(mock_get_supabase, gateway):
     assert result is False
 
 
-@patch("infra.supabase_client.get_supabase")
+@patch("src.infra.supabase_client.get_supabase")
 def test_is_authenticated_no_user(mock_get_supabase, gateway):
     """Test 3.2: Sessão sem user retorna False."""
     mock_client = MagicMock()
@@ -271,7 +271,7 @@ def test_is_authenticated_no_user(mock_get_supabase, gateway):
     assert result is False
 
 
-@patch("infra.supabase_client.get_supabase")
+@patch("src.infra.supabase_client.get_supabase")
 def test_is_authenticated_with_user(mock_get_supabase, gateway):
     """Test 3.3: Sessão com user retorna True."""
     mock_client = MagicMock()
@@ -287,7 +287,7 @@ def test_is_authenticated_with_user(mock_get_supabase, gateway):
     assert result is True
 
 
-@patch("infra.supabase_client.get_supabase")
+@patch("src.infra.supabase_client.get_supabase")
 def test_is_authenticated_exception(mock_get_supabase, gateway):
     """Test 3.4: Exception retorna False."""
     mock_get_supabase.side_effect = RuntimeError("Auth error")

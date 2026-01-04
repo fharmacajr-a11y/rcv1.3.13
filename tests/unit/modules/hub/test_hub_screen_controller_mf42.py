@@ -475,7 +475,7 @@ def test_setup_realtime_syncs_org_id_from_view():
     view = FakeHubScreenView(_org_id="org-456")
     controller = create_controller(state=state, view=view)
 
-    with patch("infra.supabase_client.get_supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.get_supabase") as mock_supabase:
         mock_supabase.side_effect = Exception("Realtime not available")
         controller.setup_realtime()
 
@@ -502,7 +502,7 @@ def test_setup_realtime_skips_if_already_active():
     logger = MagicMock()
     controller = create_controller(state=state, logger=logger)
 
-    with patch("infra.supabase_client.get_supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.get_supabase") as mock_supabase:
         controller.setup_realtime()
 
         # Não deve ter chamado supabase
@@ -516,7 +516,7 @@ def test_setup_realtime_handles_attribute_error_with_sync_client():
     logger = MagicMock()
     controller = create_controller(state=state, logger=logger)
 
-    with patch("infra.supabase_client.get_supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.get_supabase") as mock_supabase:
         mock_supabase.side_effect = AttributeError("sync client has no attribute realtime")
         controller.setup_realtime()
 
@@ -532,7 +532,7 @@ def test_setup_realtime_handles_generic_exception():
     logger = MagicMock()
     controller = create_controller(state=state, logger=logger)
 
-    with patch("infra.supabase_client.get_supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.get_supabase") as mock_supabase:
         mock_supabase.side_effect = Exception("Network error")
         controller.setup_realtime()
 
@@ -547,7 +547,7 @@ def test_setup_realtime_logs_warning_only_once():
     logger = MagicMock()
     controller = create_controller(state=state, logger=logger)
 
-    with patch("infra.supabase_client.get_supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.get_supabase") as mock_supabase:
         mock_supabase.side_effect = AttributeError("sync client")
 
         controller.setup_realtime()  # Primeira vez
@@ -570,7 +570,7 @@ def test_setup_realtime_success_configures_channel():
     mock_client = MagicMock()
     mock_client.realtime.channel.return_value = mock_channel
 
-    with patch("infra.supabase_client.get_supabase", return_value=mock_client):
+    with patch("src.infra.supabase_client.get_supabase", return_value=mock_client):
         controller.setup_realtime()
 
         # Deve ter configurado o canal
@@ -590,7 +590,7 @@ def test_setup_realtime_handles_attribute_error_other():
     logger = MagicMock()
     controller = create_controller(state=state, logger=logger)
 
-    with patch("infra.supabase_client.get_supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.get_supabase") as mock_supabase:
         mock_supabase.side_effect = AttributeError("some other error")
         controller.setup_realtime()
 

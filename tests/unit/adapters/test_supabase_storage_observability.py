@@ -15,7 +15,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from adapters.storage import supabase_storage
+from src.adapters.storage import supabase_storage
 
 
 # ============================================================================
@@ -49,7 +49,7 @@ def test_upload_logs_start_and_success(mock_client, temp_file, caplog):
     mock_client.storage.from_().upload.return_value = {"data": {"path": "docs/test.pdf"}}
 
     # Act
-    with caplog.at_level("INFO", logger="infra.supabase.storage"):
+    with caplog.at_level("INFO", logger="src.infra.supabase.storage"):
         result = supabase_storage._upload(
             mock_client,
             "rc-docs",
@@ -80,7 +80,7 @@ def test_upload_logs_error_on_exception(mock_client, temp_file, caplog):
     mock_client.storage.from_().upload.side_effect = Exception("Network error")
 
     # Act & Assert
-    with caplog.at_level("ERROR", logger="infra.supabase.storage"):
+    with caplog.at_level("ERROR", logger="src.infra.supabase.storage"):
         with pytest.raises(Exception, match="Network error"):
             supabase_storage._upload(
                 mock_client,
@@ -109,7 +109,7 @@ def test_download_logs_start_and_success_bytes(mock_client, caplog):
     mock_client.storage.from_().download.return_value = b"file content"
 
     # Act
-    with caplog.at_level("INFO", logger="infra.supabase.storage"):
+    with caplog.at_level("INFO", logger="src.infra.supabase.storage"):
         result = supabase_storage._download(
             mock_client,
             "rc-docs",
@@ -138,7 +138,7 @@ def test_download_logs_success_with_local_path(mock_client, tmp_path, caplog):
     local_path = str(tmp_path / "downloaded.pdf")
 
     # Act
-    with caplog.at_level("INFO", logger="infra.supabase.storage"):
+    with caplog.at_level("INFO", logger="src.infra.supabase.storage"):
         result = supabase_storage._download(
             mock_client,
             "rc-docs",
@@ -163,7 +163,7 @@ def test_download_logs_error_on_exception(mock_client, caplog):
     mock_client.storage.from_().download.side_effect = Exception("File not found")
 
     # Act & Assert
-    with caplog.at_level("ERROR", logger="infra.supabase.storage"):
+    with caplog.at_level("ERROR", logger="src.infra.supabase.storage"):
         with pytest.raises(Exception, match="File not found"):
             supabase_storage._download(
                 mock_client,
@@ -191,7 +191,7 @@ def test_delete_logs_start_and_success(mock_client, caplog):
     mock_client.storage.from_().remove.return_value = {"data": []}  # sucesso
 
     # Act
-    with caplog.at_level("INFO", logger="infra.supabase.storage"):
+    with caplog.at_level("INFO", logger="src.infra.supabase.storage"):
         result = supabase_storage._delete(
             mock_client,
             "rc-docs",
@@ -218,7 +218,7 @@ def test_delete_logs_warning_on_api_error(mock_client, caplog):
     mock_client.storage.from_().remove.return_value = {"error": {"message": "Permission denied"}}
 
     # Act
-    with caplog.at_level("WARNING", logger="infra.supabase.storage"):
+    with caplog.at_level("WARNING", logger="src.infra.supabase.storage"):
         result = supabase_storage._delete(
             mock_client,
             "rc-docs",
@@ -241,7 +241,7 @@ def test_delete_logs_error_on_exception(mock_client, caplog):
     mock_client.storage.from_().remove.side_effect = Exception("Network error")
 
     # Act & Assert
-    with caplog.at_level("ERROR", logger="infra.supabase.storage"):
+    with caplog.at_level("ERROR", logger="src.infra.supabase.storage"):
         with pytest.raises(Exception, match="Network error"):
             supabase_storage._delete(
                 mock_client,
@@ -270,7 +270,7 @@ def test_list_logs_start_and_success(mock_client, caplog):
     ]
 
     # Act
-    with caplog.at_level("INFO", logger="infra.supabase.storage"):
+    with caplog.at_level("INFO", logger="src.infra.supabase.storage"):
         result = supabase_storage._list(
             mock_client,
             "rc-docs",
@@ -298,7 +298,7 @@ def test_list_logs_error_on_exception(mock_client, caplog):
     mock_client.storage.from_().list.side_effect = Exception("Bucket not found")
 
     # Act & Assert
-    with caplog.at_level("ERROR", logger="infra.supabase.storage"):
+    with caplog.at_level("ERROR", logger="src.infra.supabase.storage"):
         with pytest.raises(Exception, match="Bucket not found"):
             supabase_storage._list(
                 mock_client,
@@ -325,7 +325,7 @@ def test_upload_includes_duration_in_logs(mock_client, temp_file, caplog):
     mock_client.storage.from_().upload.return_value = {"data": {"path": "test.pdf"}}
 
     # Act
-    with caplog.at_level("INFO", logger="infra.supabase.storage"):
+    with caplog.at_level("INFO", logger="src.infra.supabase.storage"):
         supabase_storage._upload(mock_client, "rc-docs", temp_file, "test.pdf", None)
 
     # Assert
@@ -352,7 +352,7 @@ def test_download_includes_size_in_logs(mock_client, caplog):
     mock_client.storage.from_().download.return_value = test_data
 
     # Act
-    with caplog.at_level("INFO", logger="infra.supabase.storage"):
+    with caplog.at_level("INFO", logger="src.infra.supabase.storage"):
         supabase_storage._download(mock_client, "rc-docs", "test.pdf", None)
 
     # Assert

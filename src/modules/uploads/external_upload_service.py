@@ -12,7 +12,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict
 
-from infra.supabase_client import get_supabase_state, is_really_online
+from src.infra.supabase_client import get_supabase_state, is_really_online
 from src.config.environment import env_int
 from src.modules.uploads.file_validator import FileValidationResult, validate_upload_file
 from src.modules.uploads.uploader_supabase import (

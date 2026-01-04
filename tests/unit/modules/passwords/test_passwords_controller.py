@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-from data.domain_types import PasswordRow
+from src.data.domain_types import PasswordRow
 from tests.unit.modules.passwords.conftest import make_password_row
 
 from src.modules.passwords.controller import PasswordsController

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-import adapters.storage.api as storage_api
+import src.adapters.storage.api as storage_api
 
 
 class RecordingBackend:

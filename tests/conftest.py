@@ -31,6 +31,62 @@ except (ImportError, ModuleNotFoundError):
     TK_AVAILABLE = False
 
 
+# ============================================================================
+# FIX: Python 3.13 tkinter.Image.__del__ crash during interpreter shutdown
+# ----------------------------------------------------------------------------
+# Durante o shutdown do interpretador, as globals do módulo tkinter são
+# destruídas antes que todos os objetos Image sejam coletados. O método
+# Image.__del__ tenta fazer "except TclError", mas TclError já é None,
+# causando: TypeError: catching classes that do not inherit from BaseException
+#
+# Este fix faz wrap do __del__ original para capturar qualquer exceção que
+# ocorra durante o shutdown, evitando o traceback poluir o stderr do pytest.
+# Compatível com Python 3.11–3.13.
+# ============================================================================
+def _patch_tkinter_image_del() -> None:
+    """
+    Aplica monkeypatch no tkinter.Image.__del__ para evitar crash no shutdown.
+
+    O wrapper captura TypeError e Exception que podem ocorrer quando as globals
+    do tkinter já foram destruídas (TclError=None durante interpreter shutdown).
+    """
+    if not TK_AVAILABLE or tk is None:
+        return
+
+    try:
+        _Image = getattr(tk, "Image", None)
+        if _Image is None:
+            return
+
+        _original_del = getattr(_Image, "__del__", None)
+        if _original_del is None:
+            return
+
+        # Marca para não aplicar múltiplas vezes
+        if getattr(_original_del, "_pytest_patched", False):
+            return
+
+        def _safe_del(self: Any) -> None:
+            """Wrapper que engole exceções durante shutdown do interpretador."""
+            try:
+                _original_del(self)
+            except (TypeError, Exception):
+                # TypeError: catching classes that do not inherit from BaseException
+                # Ocorre quando TclError já foi destruída (globals=None no shutdown)
+                pass
+
+        _safe_del._pytest_patched = True  # type: ignore[attr-defined]
+        _Image.__del__ = _safe_del
+
+    except Exception:
+        # Se qualquer coisa falhar, não queremos quebrar o pytest
+        pass
+
+
+# Aplica o patch imediatamente ao carregar conftest.py
+_patch_tkinter_image_del()
+
+
 @functools.lru_cache(maxsize=1)
 def _check_tk_usable() -> bool:
     """
@@ -191,7 +247,7 @@ os.environ.setdefault("RC_HEALTHCHECK_DISABLE", "1")
 # Silenciar logs de health check durante testes para evitar spam
 import logging  # noqa: E402 - Import após configuração de ambiente é intencional
 
-logging.getLogger("infra.supabase.db_client").setLevel(logging.ERROR)
+logging.getLogger("src.infra.supabase.db_client").setLevel(logging.ERROR)
 
 
 # ============================================================================
@@ -474,7 +530,7 @@ def _clear_magicmock_modules() -> None:
     Remove entradas de sys.modules que foram substituidas por MagicMock.
     Isso evita contaminacao de estado entre testes quando algum teste deixa mocks no cache.
     """
-    prefixes = ("src.", "infra.", "adapters.", "data.")
+    prefixes = ("src.", "src.infra.", "src.adapters.", "src.data.")
     for name, mod in list(sys.modules.items()):
         if isinstance(mod, MagicMock) and name.startswith(prefixes):
             sys.modules.pop(name, None)

@@ -47,7 +47,7 @@ def test_safe_messagebox_handles_exception_in_messagebox(monkeypatch):
     monkeypatch.undo()
 
     def fail_messagebox(*args, **kwargs):
-        raise Exception("GUI error")
+        raise RuntimeError("GUI error")
 
     # Mock do módulo messagebox
     messagebox_module = SimpleNamespace(showerror=fail_messagebox)
@@ -83,10 +83,10 @@ def test_excluir_cliente_handles_razao_extraction_exception(monkeypatch, reset_m
     # selected_values com objeto que não permite conversão para string
     class BadString:
         def __str__(self):
-            raise Exception("Cannot convert to string")
+            raise TypeError("Cannot convert to string")
 
         def strip(self):
-            raise Exception("Cannot strip")
+            raise AttributeError("Cannot strip")
 
     monkeypatch.setattr(app_core, "mover_cliente_para_lixeira", lambda cid: calls["move"].append(cid))
     monkeypatch.setattr(app_core, "_module_refresh_if_open", None)
@@ -113,9 +113,9 @@ def test_dir_base_cliente_handles_db_manager_exception(monkeypatch, tmp_path):
             raise ImportError("Module not found")
         return sys.modules.get(name)
 
-    # db_manager que falha
+    # db_manager que falha com ImportError
     def fail_get_cliente(pk):
-        raise Exception("Database error")
+        raise ImportError("Database error")
 
     db_module = SimpleNamespace(get_cliente_by_id=fail_get_cliente)
     monkeypatch.setitem(sys.modules, "src.core.db_manager", db_module)
@@ -179,7 +179,7 @@ def test_ensure_live_folder_ready_handles_ensure_subpastas_exception(monkeypatch
     monkeypatch.setattr(app_core, "dir_base_cliente_from_pk", lambda pk: str(tmp_path / "test"))
 
     def fail_ensure(*args, **kwargs):
-        raise Exception("Subpastas error")
+        raise OSError("Subpastas error")
 
     file_utils_module = SimpleNamespace(ensure_subpastas=fail_ensure, write_marker=lambda p, pk: None)
     monkeypatch.setitem(sys.modules, "src.utils.file_utils", file_utils_module)
@@ -209,7 +209,7 @@ def test_ensure_live_folder_ready_handles_marker_read_exception(monkeypatch, tmp
 
     class FailingPath(original_path):
         def read_text(self, *args, **kwargs):
-            raise Exception("Read error")
+            raise OSError("Read error")
 
     file_utils_module = SimpleNamespace(ensure_subpastas=lambda *args, **kwargs: None, write_marker=lambda p, pk: None)
     monkeypatch.setitem(sys.modules, "src.utils.file_utils", file_utils_module)
@@ -348,7 +348,10 @@ def test_ensure_live_folder_ready_handles_load_subpastas_config_exception(monkey
     )
     monkeypatch.setitem(sys.modules, "src.utils.file_utils", file_utils_module)
 
-    config_module = SimpleNamespace(load_subpastas_config=lambda: (_ for _ in ()).throw(Exception("Config error")))
+    def raise_oserror():
+        raise OSError("Config error")
+
+    config_module = SimpleNamespace(load_subpastas_config=raise_oserror)
     monkeypatch.setitem(sys.modules, "src.utils.subpastas_config", config_module)
 
     app_core._ensure_live_folder_ready(42)

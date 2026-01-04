@@ -11,7 +11,7 @@ from unittest.mock import patch
 import pytest
 from cryptography.fernet import Fernet
 
-from security import crypto
+from src.security import crypto
 
 
 # ========================================
@@ -303,7 +303,7 @@ def test_encrypt_text_com_exception_no_fernet_e_capturada(monkeypatch, valid_fer
     monkeypatch.setenv("RC_CLIENT_SECRET_KEY", valid_fernet_key)
 
     # Mock Fernet.encrypt para levantar exceção
-    with patch("security.crypto.Fernet") as mock_fernet:
+    with patch("src.security.crypto.Fernet") as mock_fernet:
         mock_fernet.return_value.encrypt.side_effect = ValueError("Erro simulado")
 
         with pytest.raises(RuntimeError, match="Falha na criptografia"):
@@ -316,7 +316,7 @@ def test_decrypt_text_com_exception_no_fernet_e_capturada(monkeypatch, valid_fer
     """
     monkeypatch.setenv("RC_CLIENT_SECRET_KEY", valid_fernet_key)
 
-    with patch("security.crypto.Fernet") as mock_fernet:
+    with patch("src.security.crypto.Fernet") as mock_fernet:
         mock_fernet.return_value.decrypt.side_effect = ValueError("Erro simulado")
 
         # TEST-001: Deve retornar string vazia
@@ -337,7 +337,7 @@ def test_encrypt_text_loga_exception_em_caso_de_erro(monkeypatch, valid_fernet_k
 
     monkeypatch.setenv("RC_CLIENT_SECRET_KEY", valid_fernet_key)
 
-    with patch("security.crypto.Fernet") as mock_fernet:
+    with patch("src.security.crypto.Fernet") as mock_fernet:
         mock_fernet.return_value.encrypt.side_effect = ValueError("Erro de teste")
 
         with caplog.at_level(logging.ERROR):
@@ -356,7 +356,7 @@ def test_decrypt_text_loga_exception_em_caso_de_erro(monkeypatch, valid_fernet_k
 
     monkeypatch.setenv("RC_CLIENT_SECRET_KEY", valid_fernet_key)
 
-    with patch("security.crypto.Fernet") as mock_fernet:
+    with patch("src.security.crypto.Fernet") as mock_fernet:
         mock_fernet.return_value.decrypt.side_effect = ValueError("Erro de teste")
 
         with caplog.at_level(logging.WARNING):
@@ -386,6 +386,6 @@ def test_get_fernet_erro_ao_processar_chave(monkeypatch):
         def encode(self, *args, **kwargs):
             raise UnicodeDecodeError("utf-8", b"", 0, 1, "test error")
 
-    with patch("security.crypto.os.getenv", return_value=BadString()):
+    with patch("src.security.crypto.os.getenv", return_value=BadString()):
         with pytest.raises(RuntimeError, match="RC_CLIENT_SECRET_KEY tem formato inválido para Fernet"):
             crypto.encrypt_text("test")

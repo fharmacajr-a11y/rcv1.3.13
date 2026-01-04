@@ -11,7 +11,7 @@ Garante que a criptografia Fernet lida corretamente com:
 
 import pytest
 
-from security.crypto import encrypt_text, decrypt_text, _reset_fernet_cache
+from src.security.crypto import encrypt_text, decrypt_text, _reset_fernet_cache
 
 
 @pytest.fixture(autouse=True)

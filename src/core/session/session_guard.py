@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 
-from infra.supabase_client import get_supabase
+from src.infra.supabase_client import get_supabase
 from src.core import session
 
 log = logging.getLogger(__name__)

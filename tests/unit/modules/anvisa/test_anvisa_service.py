@@ -1553,7 +1553,7 @@ class TestAnvisaServiceMF52:
         def failing_repo(org_id):
             raise RuntimeError("DB connection failed")
 
-        monkeypatch.setattr("infra.repositories.anvisa_requests_repository.list_requests", failing_repo)
+        monkeypatch.setattr("src.infra.repositories.anvisa_requests_repository.list_requests", failing_repo)
 
         result = service.check_duplicate_open_request("org123", "456", "AFE")
         assert result is None

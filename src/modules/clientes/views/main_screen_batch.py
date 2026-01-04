@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from tkinter import messagebox
 
-from infra.supabase_client import get_supabase_state
+from src.infra.supabase_client import get_supabase_state
 from src.modules.clientes.views.main_screen_controller import (
     decide_batch_delete,
     decide_batch_export,

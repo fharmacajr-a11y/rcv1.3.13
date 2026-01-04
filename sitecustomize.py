@@ -4,11 +4,16 @@ import os
 import sys
 import warnings
 
+# =============================================================================
+# FASE 5 (2026-01-03): Simplificado para src-layout
+# -----------------------------------------------------------------------------
+# Após migração completa para src/, não precisamos mais adicionar subpastas
+# individuais (infra/, adapters/). Apenas garantimos que a RAIZ do projeto
+# esteja no sys.path para permitir "import src.*" de forma determinística.
+# =============================================================================
 _ROOT = os.path.dirname(os.path.abspath(__file__))
-for rel_path in ("src", "infra", "adapters"):
-    abs_path = os.path.join(_ROOT, rel_path)
-    if os.path.isdir(abs_path) and abs_path not in sys.path:
-        sys.path.insert(0, abs_path)
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
 
 # PyMuPDF (fitz) dispara um DeprecationWarning envolvendo swigvarlink logo ao ser importado.
 # Silenciamos no processo inteiro para evitar ruído em run globais e no app.

@@ -10,7 +10,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Optional, Tuple
 
-from infra.supabase_client import exec_postgrest, supabase
+from src.infra.supabase_client import exec_postgrest, supabase
 from src.app_utils import safe_base_from_fields
 from src.config.paths import CLOUD_ONLY, DOCS_DIR
 from src.core.db_manager import (

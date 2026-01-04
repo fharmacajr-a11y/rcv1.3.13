@@ -31,19 +31,19 @@ def temp_settings_file(tmp_path):
 @pytest.fixture
 def mock_cloud_only_false(monkeypatch):
     """Mock de CLOUD_ONLY = False (modo normal, persiste em disco)."""
-    monkeypatch.setattr("infra.settings.CLOUD_ONLY", False)
+    monkeypatch.setattr("src.infra.settings.CLOUD_ONLY", False)
 
 
 @pytest.fixture
 def mock_cloud_only_true(monkeypatch):
     """Mock de CLOUD_ONLY = True (modo memória, não persiste)."""
-    monkeypatch.setattr("infra.settings.CLOUD_ONLY", True)
+    monkeypatch.setattr("src.infra.settings.CLOUD_ONLY", True)
 
 
 @pytest.fixture
 def clear_settings_cache():
     """Limpa cache global antes de cada teste."""
-    import infra.settings as settings_mod
+    import src.infra.settings as settings_mod
 
     settings_mod._CACHE = None
     settings_mod._MEMORY_STORE.clear()
@@ -61,10 +61,10 @@ def test_get_value_retorna_default_quando_arquivo_nao_existe(
     temp_settings_file, mock_cloud_only_false, clear_settings_cache, monkeypatch
 ):
     """Testa que get_value retorna default quando settings.json não existe."""
-    from infra import settings
+    from src.infra import settings
 
     # Garantir que arquivo não existe
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
     assert not temp_settings_file.exists()
 
     result = settings.get_value("window_width", default=800)
@@ -76,13 +76,13 @@ def test_get_value_le_valor_do_arquivo_json(
     temp_settings_file, mock_cloud_only_false, clear_settings_cache, monkeypatch
 ):
     """Testa que get_value lê corretamente valores do settings.json."""
-    from infra import settings
+    from src.infra import settings
 
     # Criar arquivo com dados
     data = {"window_width": 1024, "window_height": 768}
     temp_settings_file.write_text(json.dumps(data), encoding="utf-8")
 
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
 
     result = settings.get_value("window_width")
 
@@ -93,12 +93,12 @@ def test_get_value_retorna_default_para_chave_inexistente(
     temp_settings_file, mock_cloud_only_false, clear_settings_cache, monkeypatch
 ):
     """Testa que get_value retorna default para chave que não existe no arquivo."""
-    from infra import settings
+    from src.infra import settings
 
     data = {"outro_campo": "valor"}
     temp_settings_file.write_text(json.dumps(data), encoding="utf-8")
 
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
 
     result = settings.get_value("campo_inexistente", default="padrao")
 
@@ -109,10 +109,10 @@ def test_get_value_retorna_none_por_default_quando_nao_especificado(
     temp_settings_file, mock_cloud_only_false, clear_settings_cache, monkeypatch
 ):
     """Testa que get_value retorna None quando default não é fornecido."""
-    from infra import settings
+    from src.infra import settings
 
     temp_settings_file.write_text("{}", encoding="utf-8")
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
 
     result = settings.get_value("chave_qualquer")
 
@@ -123,11 +123,11 @@ def test_get_value_com_arquivo_json_invalido_retorna_default(
     temp_settings_file, mock_cloud_only_false, clear_settings_cache, monkeypatch
 ):
     """Testa que get_value retorna default quando JSON é inválido."""
-    from infra import settings
+    from src.infra import settings
 
     # Escrever JSON inválido
     temp_settings_file.write_text("{ isso não é json válido }", encoding="utf-8")
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
 
     result = settings.get_value("qualquer", default="fallback")
 
@@ -138,11 +138,11 @@ def test_get_value_com_arquivo_json_nao_dict_retorna_default(
     temp_settings_file, mock_cloud_only_false, clear_settings_cache, monkeypatch
 ):
     """Testa que get_value retorna default quando JSON não é um dict."""
-    from infra import settings
+    from src.infra import settings
 
     # JSON válido mas não é dict
     temp_settings_file.write_text("[1, 2, 3]", encoding="utf-8")
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
 
     result = settings.get_value("campo", default=999)
 
@@ -156,9 +156,9 @@ def test_get_value_com_arquivo_json_nao_dict_retorna_default(
 
 def test_set_value_persiste_em_disco(temp_settings_file, mock_cloud_only_false, clear_settings_cache, monkeypatch):
     """Testa que set_value persiste valor em disco (modo não-cloud)."""
-    from infra import settings
+    from src.infra import settings
 
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
 
     settings.set_value("tema", "dark")
 
@@ -172,9 +172,9 @@ def test_set_value_sobrescreve_valor_existente(
     temp_settings_file, mock_cloud_only_false, clear_settings_cache, monkeypatch
 ):
     """Testa que set_value sobrescreve valor existente."""
-    from infra import settings
+    from src.infra import settings
 
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
 
     settings.set_value("contador", 10)
     settings.set_value("contador", 20)
@@ -185,9 +185,9 @@ def test_set_value_sobrescreve_valor_existente(
 
 def test_set_value_com_none_remove_chave(temp_settings_file, mock_cloud_only_false, clear_settings_cache, monkeypatch):
     """Testa que set_value(key, None) remove a chave."""
-    from infra import settings
+    from src.infra import settings
 
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
 
     settings.set_value("temporario", "valor")
     settings.set_value("temporario", None)
@@ -198,10 +198,10 @@ def test_set_value_com_none_remove_chave(temp_settings_file, mock_cloud_only_fal
 
 def test_set_value_cria_diretorio_se_nao_existir(tmp_path, mock_cloud_only_false, clear_settings_cache, monkeypatch):
     """Testa que set_value cria diretório pai se não existir."""
-    from infra import settings
+    from src.infra import settings
 
     nested_file = tmp_path / "subdir" / "deep" / "settings.json"
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", nested_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", nested_file)
 
     settings.set_value("chave", "valor")
 
@@ -213,9 +213,9 @@ def test_set_value_em_modo_cloud_only_usa_memoria(
     temp_settings_file, mock_cloud_only_true, clear_settings_cache, monkeypatch
 ):
     """Testa que set_value em CLOUD_ONLY=True não persiste em disco."""
-    from infra import settings
+    from src.infra import settings
 
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
 
     settings.set_value("memoria_key", "memoria_valor")
 
@@ -235,9 +235,9 @@ def test_update_values_atualiza_multiplos_campos(
     temp_settings_file, mock_cloud_only_false, clear_settings_cache, monkeypatch
 ):
     """Testa que update_values atualiza múltiplos campos de uma vez."""
-    from infra import settings
+    from src.infra import settings
 
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
 
     settings.update_values({"campo1": "valor1", "campo2": 123, "campo3": True})
 
@@ -251,9 +251,9 @@ def test_update_values_preserva_campos_existentes(
     temp_settings_file, mock_cloud_only_false, clear_settings_cache, monkeypatch
 ):
     """Testa que update_values preserva campos não atualizados."""
-    from infra import settings
+    from src.infra import settings
 
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
 
     settings.set_value("existente", "original")
     settings.update_values({"novo": "adicionado"})
@@ -267,9 +267,9 @@ def test_update_values_com_dict_vazio_nao_altera_nada(
     temp_settings_file, mock_cloud_only_false, clear_settings_cache, monkeypatch
 ):
     """Testa que update_values({}) não altera arquivo."""
-    from infra import settings
+    from src.infra import settings
 
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
 
     settings.set_value("original", "valor")
     settings.update_values({})
@@ -282,9 +282,9 @@ def test_update_values_com_parametro_nao_dict_nao_faz_nada(
     temp_settings_file, mock_cloud_only_false, clear_settings_cache, monkeypatch
 ):
     """Testa que update_values com não-dict é ignorado."""
-    from infra import settings
+    from src.infra import settings
 
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
 
     settings.set_value("original", "valor")
     settings.update_values("string_invalida")  # type: ignore
@@ -303,11 +303,11 @@ def test_cache_evita_multiplas_leituras_de_disco(
     temp_settings_file, mock_cloud_only_false, clear_settings_cache, monkeypatch
 ):
     """Testa que cache funciona e evita múltiplas leituras do arquivo."""
-    from infra import settings
+    from src.infra import settings
 
     data = {"cached_key": "cached_value"}
     temp_settings_file.write_text(json.dumps(data), encoding="utf-8")
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
 
     # Primeira leitura (popula cache)
     val1 = settings.get_value("cached_key")
@@ -324,9 +324,9 @@ def test_cache_evita_multiplas_leituras_de_disco(
 
 def test_escrita_atualiza_cache(temp_settings_file, mock_cloud_only_false, clear_settings_cache, monkeypatch):
     """Testa que set_value atualiza o cache interno."""
-    from infra import settings
+    from src.infra import settings
 
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
 
     settings.set_value("key1", "value1")
 
@@ -345,10 +345,10 @@ def test_set_value_com_erro_de_escrita_nao_levanta_excecao(
     temp_settings_file, mock_cloud_only_false, clear_settings_cache, monkeypatch
 ):
     """Testa que erros ao escrever não levantam exceção (são logados)."""
-    from infra import settings
+    from src.infra import settings
 
     # Simular erro ao escrever
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
 
     with patch("builtins.open", side_effect=PermissionError("Sem permissão")):
         # Não deve levantar exceção
@@ -365,12 +365,12 @@ def test_set_value_com_erro_de_escrita_nao_levanta_excecao(
 
 def test_concurrent_writes_usam_lock(temp_settings_file, mock_cloud_only_false, clear_settings_cache, monkeypatch):
     """Testa que escritas concorrentes usam lock (não testa paralelismo real)."""
-    from infra import settings
+    from src.infra import settings
 
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
 
     # Verificar que _LOCK existe e é RLock
-    from infra.settings import _LOCK
+    from src.infra.settings import _LOCK
 
     assert type(_LOCK).__name__ == "RLock"
 
@@ -412,10 +412,10 @@ def test_cache_atualizado_apos_escrita_bem_sucedida(
     temp_settings_file, mock_cloud_only_false, clear_settings_cache, monkeypatch
 ):
     """Testa que _CACHE é atualizado corretamente após escrita bem-sucedida (linha 93)."""
-    from infra import settings
-    import infra.settings as settings_mod
+    from src.infra import settings
+    import src.infra.settings as settings_mod
 
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
 
     # Primeira escrita - popula cache
     settings.set_value("key1", "value1")
@@ -436,10 +436,10 @@ def test_erro_ao_criar_arquivo_temporario_nao_levanta_excecao(
     temp_settings_file, mock_cloud_only_false, clear_settings_cache, monkeypatch
 ):
     """Testa que erro ao criar arquivo .tmp não levanta exceção (linha 94-95)."""
-    from infra import settings
+    from src.infra import settings
     from pathlib import Path
 
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
 
     # Primeiro, criar um valor para ter algo no cache
     settings.set_value("existing", "value")
@@ -465,9 +465,9 @@ def test_erro_json_dump_nao_levanta_excecao(
     temp_settings_file, mock_cloud_only_false, clear_settings_cache, monkeypatch
 ):
     """Testa que erro no json.dump não levanta exceção (linha 94-95)."""
-    from infra import settings
+    from src.infra import settings
 
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
 
     # Criar um valor inicial
     settings.set_value("initial", "data")
@@ -486,10 +486,10 @@ def test_erro_ao_substituir_arquivo_nao_levanta_excecao(
     temp_settings_file, mock_cloud_only_false, clear_settings_cache, monkeypatch
 ):
     """Testa que erro ao fazer replace do arquivo temporário não levanta exceção."""
-    from infra import settings
+    from src.infra import settings
     from pathlib import Path
 
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
 
     # Criar valor inicial
     settings.set_value("key", "value")
@@ -514,11 +514,11 @@ def test_load_from_disk_com_erro_de_leitura_retorna_vazio(
     temp_settings_file, mock_cloud_only_false, clear_settings_cache, monkeypatch
 ):
     """Testa que _load_from_disk retorna {} quando há erro ao ler arquivo (linha 37)."""
-    from infra import settings
-    import infra.settings as settings_mod
+    from src.infra import settings
+    import src.infra.settings as settings_mod
     from pathlib import Path
 
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
 
     # NÃO criar arquivo - queremos testar quando arquivo não existe E há erro ao ler
     # Forçar cache a ser None para forçar leitura
@@ -537,13 +537,13 @@ def test_load_from_disk_com_json_decode_error_retorna_vazio(
     temp_settings_file, mock_cloud_only_false, clear_settings_cache, monkeypatch
 ):
     """Testa que _load_from_disk trata JSONDecodeError e retorna {} (linha 37)."""
-    from infra import settings
-    import infra.settings as settings_mod
+    from src.infra import settings
+    import src.infra.settings as settings_mod
 
     # Criar arquivo com JSON inválido
     temp_settings_file.write_text("{ invalid json }", encoding="utf-8")
 
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
 
     # Forçar cache a ser None para forçar leitura
     settings_mod._CACHE = None
@@ -556,9 +556,9 @@ def test_load_from_disk_com_json_decode_error_retorna_vazio(
 
 def test_update_values_em_modo_cloud_only(temp_settings_file, mock_cloud_only_true, clear_settings_cache, monkeypatch):
     """Testa que update_values funciona corretamente em modo CLOUD_ONLY."""
-    from infra import settings
+    from src.infra import settings
 
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
 
     # Adicionar valores via update_values
     settings.update_values({"key1": "val1", "key2": "val2"})
@@ -575,10 +575,10 @@ def test_set_value_atualiza_cache_em_cloud_only_mode(
     temp_settings_file, mock_cloud_only_true, clear_settings_cache, monkeypatch
 ):
     """Testa que set_value atualiza _CACHE corretamente em modo CLOUD_ONLY."""
-    from infra import settings
-    import infra.settings as settings_mod
+    from src.infra import settings
+    import src.infra.settings as settings_mod
 
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
 
     # Setar valor em modo cloud
     settings.set_value("cloud_key", "cloud_value")
@@ -595,9 +595,9 @@ def test_erro_escrita_mantem_cache_anterior(
     temp_settings_file, mock_cloud_only_false, clear_settings_cache, monkeypatch
 ):
     """Testa que erro de escrita mantém cache anterior sem propagar exceção."""
-    from infra import settings
+    from src.infra import settings
 
-    monkeypatch.setattr("infra.settings._SETTINGS_FILE", temp_settings_file)
+    monkeypatch.setattr("src.infra.settings._SETTINGS_FILE", temp_settings_file)
 
     # Criar valores iniciais com sucesso
     settings.set_value("key1", "value1")

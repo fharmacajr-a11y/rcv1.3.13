@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import logging
 from typing import Optional, TYPE_CHECKING
 
-from infra.supabase_client import get_cloud_status_for_ui, get_supabase_state
+from src.infra.supabase_client import get_cloud_status_for_ui, get_supabase_state
 
 logger = logging.getLogger(__name__)
 

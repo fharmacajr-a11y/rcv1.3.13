@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from infra.db_schemas import RC_NOTES_SELECT_FIELDS, RC_NOTES_SELECT_FIELDS_SAFE, is_schema_drift_error
+from src.infra.db_schemas import RC_NOTES_SELECT_FIELDS, RC_NOTES_SELECT_FIELDS_SAFE, is_schema_drift_error
 from src.core.services import notes_service
 
 log = logging.getLogger(__name__)
@@ -81,7 +81,7 @@ class NotesServiceAdapter:
             raise ValueError("Nenhum campo fornecido para atualização")
 
         # Importar supabase client
-        from infra.supabase_client import exec_postgrest, get_supabase
+        from src.infra.supabase_client import exec_postgrest, get_supabase
 
         supa = get_supabase()
 
@@ -149,7 +149,7 @@ class NotesServiceAdapter:
         Raises:
             NotesAuthError: Se política RLS bloquear DELETE
         """
-        from infra.supabase_client import exec_postgrest, get_supabase
+        from src.infra.supabase_client import exec_postgrest, get_supabase
 
         supa = get_supabase()
 

@@ -35,9 +35,9 @@ def test_build_upload_message_info_includes_stats_summary() -> None:
     assert "Arquivos ignorados pelo limite de lote: 1" in body
 
 
-@patch("src.ui.components.upload_feedback.messagebox.showinfo")
-@patch("src.ui.components.upload_feedback.messagebox.showerror")
-@patch("src.ui.components.upload_feedback.messagebox.showwarning")
+@patch("src.ui.feedback.messagebox.showinfo")
+@patch("src.ui.feedback.messagebox.showerror")
+@patch("src.ui.feedback.messagebox.showwarning")
 def test_show_upload_result_message_uses_message_type(mock_warning, mock_error, mock_info) -> None:
     """Deve acionar o tipo correto de messagebox."""
     result = {
@@ -54,9 +54,9 @@ def test_show_upload_result_message_uses_message_type(mock_warning, mock_error, 
     mock_info.assert_not_called()
 
 
-@patch("src.ui.components.upload_feedback.messagebox.showinfo")
-@patch("src.ui.components.upload_feedback.messagebox.showerror")
-@patch("src.ui.components.upload_feedback.messagebox.showwarning")
+@patch("src.ui.feedback.messagebox.showinfo")
+@patch("src.ui.feedback.messagebox.showerror")
+@patch("src.ui.feedback.messagebox.showwarning")
 def test_show_upload_result_message_respects_flag(mock_warning, mock_error, mock_info) -> None:
     """Quando should_show_ui for falso, nenhuma messagebox deve ser exibida."""
     result = {

@@ -16,8 +16,8 @@ import time
 from typing import Any, Callable
 
 
-from infra.db_schemas import RC_NOTES_SELECT_FIELDS_LIST
-from infra.supabase_client import exec_postgrest, get_supabase
+from src.infra.db_schemas import RC_NOTES_SELECT_FIELDS_LIST
+from src.infra.supabase_client import exec_postgrest, get_supabase
 
 
 log = logging.getLogger(__name__)

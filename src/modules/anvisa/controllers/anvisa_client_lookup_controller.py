@@ -41,7 +41,7 @@ class AnvisaClientLookupController:
             Tupla (cnpj, razao_social). Se não encontrado, retorna (None, "").
         """
         try:
-            from infra.supabase_client import get_supabase
+            from src.infra.supabase_client import get_supabase
 
             sb = get_supabase()
             resp = (

@@ -17,7 +17,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from adapters.storage import supabase_storage
+from src.adapters.storage import supabase_storage
 
 
 # ============================================================================

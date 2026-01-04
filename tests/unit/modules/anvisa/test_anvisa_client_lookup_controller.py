@@ -46,8 +46,8 @@ class TestLookupClientCnpjRazao:
 
         fake_module = _create_fake_supabase_module(fake_data=[{"cnpj": expected_cnpj, "razao_social": expected_razao}])
 
-        original = sys.modules.get("infra.supabase_client")
-        sys.modules["infra.supabase_client"] = fake_module
+        original = sys.modules.get("src.infra.supabase_client")
+        sys.modules["src.infra.supabase_client"] = fake_module
 
         try:
             controller = AnvisaClientLookupController()
@@ -60,16 +60,16 @@ class TestLookupClientCnpjRazao:
             assert razao == expected_razao
         finally:
             if original is not None:
-                sys.modules["infra.supabase_client"] = original
+                sys.modules["src.infra.supabase_client"] = original
             else:
-                sys.modules.pop("infra.supabase_client", None)
+                sys.modules.pop("src.infra.supabase_client", None)
 
     def test_returns_none_empty_when_data_not_found(self) -> None:
         """Deve retornar (None, '') quando cliente não encontrado."""
         fake_module = _create_fake_supabase_module(fake_data=[])
 
-        original = sys.modules.get("infra.supabase_client")
-        sys.modules["infra.supabase_client"] = fake_module
+        original = sys.modules.get("src.infra.supabase_client")
+        sys.modules["src.infra.supabase_client"] = fake_module
 
         try:
             controller = AnvisaClientLookupController()
@@ -82,9 +82,9 @@ class TestLookupClientCnpjRazao:
             assert razao == ""
         finally:
             if original is not None:
-                sys.modules["infra.supabase_client"] = original
+                sys.modules["src.infra.supabase_client"] = original
             else:
-                sys.modules.pop("infra.supabase_client", None)
+                sys.modules.pop("src.infra.supabase_client", None)
 
     def test_returns_none_empty_on_exception(self) -> None:
         """Deve retornar (None, '') quando ocorre exceção."""
@@ -97,8 +97,8 @@ class TestLookupClientCnpjRazao:
 
         fake_module.get_supabase = get_supabase_error  # type: ignore[attr-defined]
 
-        original = sys.modules.get("infra.supabase_client")
-        sys.modules["infra.supabase_client"] = fake_module
+        original = sys.modules.get("src.infra.supabase_client")
+        sys.modules["src.infra.supabase_client"] = fake_module
 
         try:
             controller = AnvisaClientLookupController()
@@ -111,9 +111,9 @@ class TestLookupClientCnpjRazao:
             assert razao == ""
         finally:
             if original is not None:
-                sys.modules["infra.supabase_client"] = original
+                sys.modules["src.infra.supabase_client"] = original
             else:
-                sys.modules.pop("infra.supabase_client", None)
+                sys.modules.pop("src.infra.supabase_client", None)
 
 
 class TestControllerInit:

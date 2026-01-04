@@ -15,7 +15,7 @@ from typing import Optional
 import tkinter as tk
 
 # Importar constantes centralizadas
-from infra.archive_utils import ARCHIVE_GLOBS, is_supported_archive
+from src.infra.archive_utils import ARCHIVE_GLOBS, is_supported_archive
 
 log = logging.getLogger("rc.ui.file_select")
 

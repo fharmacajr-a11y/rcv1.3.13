@@ -10,7 +10,7 @@ from typing import Any, Callable, Optional
 
 import ttkbootstrap as tb
 
-from data.domain_types import ClientRow, PasswordRow
+from src.data.domain_types import ClientRow, PasswordRow
 from src.modules.passwords.controller import ClientPasswordsSummary, PasswordsController
 from src.modules.passwords.passwords_actions import PasswordsActions, PasswordsScreenState
 from src.modules.passwords.views.client_passwords_dialog import ClientPasswordsDialog

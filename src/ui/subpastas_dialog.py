@@ -110,8 +110,8 @@ class SubpastaDialog(tk.Toplevel):
             return
 
         try:
-            from adapters.storage.api import list_files, using_storage_backend
-            from adapters.storage.supabase_storage import SupabaseStorageAdapter
+            from src.adapters.storage.api import list_files, using_storage_backend
+            from src.adapters.storage.supabase_storage import SupabaseStorageAdapter
 
             # Limpa tree
             for item in self.tree.get_children():

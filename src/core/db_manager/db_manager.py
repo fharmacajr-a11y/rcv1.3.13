@@ -10,7 +10,7 @@ from typing import Any, Callable, Iterable
 
 import httpx
 
-from infra.supabase_client import exec_postgrest, supabase
+from src.infra.supabase_client import exec_postgrest, supabase
 from src.config.constants import RETRY_BASE_DELAY
 from src.core.cnpj_norm import normalize_cnpj as normalize_cnpj_norm
 from src.core.models import Cliente

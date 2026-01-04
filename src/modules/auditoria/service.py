@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Sequence
 
 try:
-    from infra.supabase_client import get_supabase  # type: ignore[import-untyped]
+    from src.infra.supabase_client import get_supabase  # type: ignore[import-untyped]
 except Exception:
 
     def get_supabase():  # type: ignore[no-redef]

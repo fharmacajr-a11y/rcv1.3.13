@@ -14,7 +14,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from data.domain_types import ClientRow, PasswordRow
+from src.data.domain_types import ClientRow, PasswordRow
 from src.modules.passwords.controller import PasswordsController
 from src.modules.passwords.passwords_actions import (
     PasswordDialogActions,

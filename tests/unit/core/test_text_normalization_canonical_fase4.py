@@ -186,7 +186,7 @@ class TestWrapperDelegation:
 
     def test_supabase_storage_normalize_key(self) -> None:
         """normalize_key_for_storage deve usar normalize_ascii do core."""
-        from adapters.storage.supabase_storage import normalize_key_for_storage
+        from src.adapters.storage.supabase_storage import normalize_key_for_storage
 
         # Testa normalização apenas no último segmento (nome do arquivo)
         result = normalize_key_for_storage("pasta/subpasta/Relatório José.pdf")

@@ -10,7 +10,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from infra.http.retry import _collect_default_excs, retry_call, DEFAULT_EXCS
+from src.infra.http.retry import _collect_default_excs, retry_call, DEFAULT_EXCS
 
 
 # ============================================================================
@@ -32,7 +32,7 @@ def test_collect_default_excs_filtra_none_values():
     Simula cenário onde httpx/httpcore não estão disponíveis.
     """
     # Mock getattr para retornar None em alguns casos
-    with patch("infra.http.retry.httpx", None), patch("infra.http.retry.httpcore", None):
+    with patch("src.infra.http.retry.httpx", None), patch("src.infra.http.retry.httpcore", None):
         result = _collect_default_excs()
 
         # Deve ainda ter Exception e socket.error
@@ -101,7 +101,7 @@ def test_retry_call_com_retry_ate_sucesso():
             raise ConnectionError("Temporary failure")
         return "success"
 
-    with patch("infra.http.retry.time.sleep"):  # mock sleep para acelerar
+    with patch("src.infra.http.retry.time.sleep"):  # mock sleep para acelerar
         result = retry_call(failing_fn, tries=5, exceptions=(ConnectionError,))
 
     assert result == "success"
@@ -112,7 +112,7 @@ def test_retry_call_falha_apos_esgolar_tentativas():
     """retry_call propaga exceção após esgotar tentativas."""
     mock_fn = Mock(side_effect=ValueError("Persistent error"))
 
-    with patch("infra.http.retry.time.sleep"):
+    with patch("src.infra.http.retry.time.sleep"):
         with pytest.raises(ValueError, match="Persistent error"):
             retry_call(mock_fn, tries=2, exceptions=(ValueError,))
 
@@ -128,7 +128,7 @@ def test_retry_call_usa_backoff_exponencial():
 
     mock_fn = Mock(side_effect=[RuntimeError("fail1"), RuntimeError("fail2"), "success"])
 
-    with patch("infra.http.retry.time.sleep", side_effect=mock_sleep):
+    with patch("src.infra.http.retry.time.sleep", side_effect=mock_sleep):
         result = retry_call(mock_fn, tries=3, backoff=0.5, jitter=0.0)
 
     assert result == "success"
@@ -147,7 +147,7 @@ def test_retry_call_adiciona_jitter():
 
     mock_fn = Mock(side_effect=[RuntimeError("fail"), "success"])
 
-    with patch("infra.http.retry.time.sleep", side_effect=mock_sleep):
+    with patch("src.infra.http.retry.time.sleep", side_effect=mock_sleep):
         result = retry_call(mock_fn, tries=2, backoff=0.5, jitter=0.2)
 
     assert result == "success"

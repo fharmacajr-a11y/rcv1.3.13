@@ -21,13 +21,13 @@ def supabase_auth_module(monkeypatch):
     Isola o import de supabase_auth com um stub de infra.supabase_client
     para evitar dependencias pesadas e ciclos.
     """
-    stub_client = ModuleType("infra.supabase_client")
+    stub_client = ModuleType("src.infra.supabase_client")
     stub_client.get_supabase = MagicMock()
     stub_client.exec_postgrest = MagicMock()
     stub_client.supabase = MagicMock()
-    monkeypatch.setitem(sys.modules, "infra.supabase_client", stub_client)
-    sys.modules.pop("infra.supabase_auth", None)
-    module = importlib.import_module("infra.supabase_auth")
+    monkeypatch.setitem(sys.modules, "src.infra.supabase_client", stub_client)
+    sys.modules.pop("src.infra.supabase_auth", None)
+    module = importlib.import_module("src.infra.supabase_auth")
     return module
 
 

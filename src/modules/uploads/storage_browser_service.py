@@ -12,10 +12,10 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict
 
-from adapters.storage.api import download_file as storage_download_file
-from adapters.storage.api import list_files as storage_list_files
-from adapters.storage.api import using_storage_backend
-from adapters.storage.supabase_storage import SupabaseStorageAdapter
+from src.adapters.storage.api import download_file as storage_download_file
+from src.adapters.storage.api import list_files as storage_list_files
+from src.adapters.storage.api import using_storage_backend
+from src.adapters.storage.supabase_storage import SupabaseStorageAdapter
 from src.helpers.storage_utils import get_bucket_name
 
 log = logging.getLogger(__name__)

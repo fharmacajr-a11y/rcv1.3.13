@@ -7,13 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.40] - 2025-01-03
+
+### Changed
+- **[BUMP-VERSION]**: Atualização de versão 1.4.93 → 1.5.40
+- **[REFACTOR]**: Consolidação src-layout (infra/data/adapters/security movidos para src/)
+- **[CLEANUP]**: Ajustes pós-migração em configs (pyrightconfig, pyproject.toml, .gitignore)
+
 ### Fixed
-- **Hub (ANVISA-only)**: Card "Tarefas Hoje" agora:
-  - Abre histórico direto quando todas as tarefas do dia são do mesmo cliente
-  - Abre um seletor/modal quando houver tarefas do dia para múltiplos clientes
-  - Mantém fallback para abrir ANVISA quando não houver seleção/nenhum alvo
-  - Lógica de detecção baseada em `unique_client_ids` ao invés de contagem bruta de tarefas
-  - Testes atualizados: `test_dashboard_actions.py` (21 testes), `test_dashboard_service_mf43.py` (97 testes)
+- **[TESTS]**: Correção dos testes 7z (py7zr) - mudado de writeall() para write() individual
+- **[TESTS]**: test_extract_7z_simple, test_extract_7z_with_password, test_extract_7z_volume_file agora passam
 
 ## [1.4.93] - 2025-12-26
 

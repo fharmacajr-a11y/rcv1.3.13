@@ -8,8 +8,8 @@ from dataclasses import dataclass, field
 from tkinter import filedialog, messagebox
 from typing import Any, Mapping
 
-from adapters.storage.supabase_storage import SupabaseStorageAdapter
-from infra.supabase_client import get_supabase_state
+from src.adapters.storage.supabase_storage import SupabaseStorageAdapter
+from src.infra.supabase_client import get_supabase_state
 from src.core.logger import get_logger
 from src.core.storage_key import storage_slug_part
 from src.helpers.auth_utils import current_user_id, resolve_org_id

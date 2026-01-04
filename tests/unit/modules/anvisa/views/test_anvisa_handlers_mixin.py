@@ -246,7 +246,7 @@ def test_get_client_info_for_event_from_lookup(monkeypatch):
     fake_sb = MagicMock()
     fake_sb.table.return_value = fake_table
 
-    monkeypatch.setattr("infra.supabase_client.get_supabase", lambda: fake_sb)
+    monkeypatch.setattr("src.infra.supabase_client.get_supabase", lambda: fake_sb)
 
     cnpj, razao = dummy._get_client_info_for_event("client1", "req1", "org1")
 
@@ -834,7 +834,7 @@ def test_get_client_info_for_event_lookup_empty_response(monkeypatch):
     fake_sb = MagicMock()
     fake_sb.table.return_value = fake_table
 
-    monkeypatch.setattr("infra.supabase_client.get_supabase", lambda: fake_sb)
+    monkeypatch.setattr("src.infra.supabase_client.get_supabase", lambda: fake_sb)
 
     cnpj, razao = dummy._get_client_info_for_event("client1", "req1", "org1")
 
@@ -852,7 +852,7 @@ def test_get_client_info_for_event_lookup_exception(monkeypatch):
     def raise_exception():
         raise RuntimeError("DB error")
 
-    monkeypatch.setattr("infra.supabase_client.get_supabase", raise_exception)
+    monkeypatch.setattr("src.infra.supabase_client.get_supabase", raise_exception)
 
     cnpj, razao = dummy._get_client_info_for_event("client1", "req1", "org1")
 

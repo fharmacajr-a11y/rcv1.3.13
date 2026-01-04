@@ -152,7 +152,7 @@ class RecentActivityStore:
 
     def _persist_event_async(self, event: ActivityEvent, runner: HubAsyncRunner) -> None:
         """Persiste evento no Supabase em background."""
-        from infra.repositories import activity_events_repository
+        from src.infra.repositories import activity_events_repository
 
         def persist() -> bool:
             """Função executada em background."""
@@ -204,7 +204,7 @@ class RecentActivityStore:
 
         # 3) Bulk query na tabela clients
         try:
-            from infra.supabase_client import get_supabase
+            from src.infra.supabase_client import get_supabase
 
             sb = get_supabase()
             client_ids_list = list(missing_client_ids)
@@ -283,7 +283,8 @@ class RecentActivityStore:
                     if current_razao and info["razao_social"] and current_razao != info["razao_social"]:
                         log.warning(
                             f"[RecentActivityStore] Razão social inconsistente corrigida: "
-                            f"client_id={ev.client_id} evento_razao='{current_razao}' -> correto_razao='{info['razao_social']}'"
+                            f"client_id={ev.client_id} evento_razao='{current_razao}' -> "
+                            f"correto_razao='{info['razao_social']}'"
                         )
                         ev.metadata["razao_social"] = info["razao_social"]
 
@@ -309,7 +310,7 @@ class RecentActivityStore:
             log.debug("[RecentActivityStore] Já foi carregado do DB, ignorando")
             return
 
-        from infra.repositories import activity_events_repository
+        from src.infra.repositories import activity_events_repository
 
         def load_events() -> list[dict[str, Any]]:
             """Função executada em background."""

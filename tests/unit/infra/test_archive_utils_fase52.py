@@ -14,7 +14,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import infra.archive_utils as archive_utils
+import src.infra.archive_utils as archive_utils
 
 
 def test_is_supported_archive_cobre_formats():

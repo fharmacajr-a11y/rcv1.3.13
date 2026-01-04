@@ -8,7 +8,7 @@ import threading
 from typing import Any, Callable
 
 try:
-    from infra.net_status import Status, probe
+    from src.infra.net_status import Status, probe
 except Exception:  # pragma: no cover
     from src.app_status import Status, probe  # type: ignore
 

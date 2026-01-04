@@ -12,7 +12,7 @@ import time
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-import infra.supabase.db_client as db_client
+import src.infra.supabase.db_client as db_client
 
 
 def test_health_check_rpc_retorna_ok(monkeypatch):

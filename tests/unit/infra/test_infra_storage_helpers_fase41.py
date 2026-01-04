@@ -17,11 +17,11 @@ import pytest
 @pytest.fixture
 def storage_helpers_module(monkeypatch):
     """Isola o import com stub leve de infra.supabase_client."""
-    stub_client_mod = ModuleType("infra.supabase_client")
+    stub_client_mod = ModuleType("src.infra.supabase_client")
     stub_client_mod.get_supabase = MagicMock()
-    monkeypatch.setitem(sys.modules, "infra.supabase_client", stub_client_mod)
-    sys.modules.pop("infra.supabase.storage_helpers", None)
-    module = importlib.import_module("infra.supabase.storage_helpers")
+    monkeypatch.setitem(sys.modules, "src.infra.supabase_client", stub_client_mod)
+    sys.modules.pop("src.infra.supabase.storage_helpers", None)
+    module = importlib.import_module("src.infra.supabase.storage_helpers")
     return module
 
 

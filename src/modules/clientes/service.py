@@ -10,14 +10,14 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Callable, Iterable, Mapping, Tuple, cast
 
-from adapters.storage.api import (
+from src.adapters.storage.api import (
     delete_file as storage_delete_file,
     list_files as storage_list_files,
     using_storage_backend,
 )
-from adapters.storage.supabase_storage import SupabaseStorageAdapter
-from infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ID
-from infra.supabase_client import exec_postgrest, supabase
+from src.adapters.storage.supabase_storage import SupabaseStorageAdapter
+from src.infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ID
+from src.infra.supabase_client import exec_postgrest, supabase
 from src.core.cnpj_norm import normalize_cnpj as normalize_cnpj_norm
 from src.core.db_manager import (
     find_cliente_by_cnpj_norm,

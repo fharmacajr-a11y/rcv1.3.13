@@ -31,3 +31,6 @@ tests/unit/infra/test_infra_healthcheck_fase37.py
 
 # UI
 tests/unit/ui/test_topbar_home_button.py
+
+# Coverage Batches (headless utility modules)
+tests/unit/coverage_batches/test_batch05_prefs_smoke.py

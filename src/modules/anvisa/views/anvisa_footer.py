@@ -178,7 +178,7 @@ class AnvisaFooter(ttb.Frame):
             target_prefix: Prefixo target no storage
             process_name: Nome do processo
         """
-        from adapters.storage.api import upload_file
+        from src.adapters.storage.api import upload_file
 
         uploaded_count = 0
         failed_files: list[str] = []

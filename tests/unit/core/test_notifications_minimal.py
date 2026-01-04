@@ -219,7 +219,7 @@ def test_toast_without_winotify_does_not_crash() -> None:
 
 def test_notifications_repository_mark_all_read_updates_only_unread() -> None:
     """Testa que mark_all_read do repo atualiza apenas notificações não lidas."""
-    from infra.repositories.notifications_repository import mark_all_read
+    from src.infra.repositories.notifications_repository import mark_all_read
 
     # Mock do supabase client
     mock_response = MagicMock()
@@ -234,7 +234,7 @@ def test_notifications_repository_mark_all_read_updates_only_unread() -> None:
     mock_table = MagicMock()
     mock_table.update.return_value = mock_eq
 
-    with patch("infra.supabase_client.supabase") as mock_supabase:
+    with patch("src.infra.supabase_client.supabase") as mock_supabase:
         mock_supabase.table.return_value = mock_table
 
         # Executar mark_all_read

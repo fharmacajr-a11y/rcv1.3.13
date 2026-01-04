@@ -64,8 +64,8 @@ class TestResolveOrgId:
         )
 
         # Injetar módulo fake
-        original = sys.modules.get("infra.repositories.anvisa_requests_repository")
-        sys.modules["infra.repositories.anvisa_requests_repository"] = fake_module
+        original = sys.modules.get("src.infra.repositories.anvisa_requests_repository")
+        sys.modules["src.infra.repositories.anvisa_requests_repository"] = fake_module
 
         try:
             controller = AnvisaRequestsController()
@@ -75,9 +75,9 @@ class TestResolveOrgId:
         finally:
             # Restaurar módulo original
             if original is not None:
-                sys.modules["infra.repositories.anvisa_requests_repository"] = original
+                sys.modules["src.infra.repositories.anvisa_requests_repository"] = original
             else:
-                sys.modules.pop("infra.repositories.anvisa_requests_repository", None)
+                sys.modules.pop("src.infra.repositories.anvisa_requests_repository", None)
 
 
 class TestListRequests:
@@ -92,8 +92,8 @@ class TestListRequests:
 
         fake_module = _create_fake_repo_module(fake_requests=expected_requests)
 
-        original = sys.modules.get("infra.repositories.anvisa_requests_repository")
-        sys.modules["infra.repositories.anvisa_requests_repository"] = fake_module
+        original = sys.modules.get("src.infra.repositories.anvisa_requests_repository")
+        sys.modules["src.infra.repositories.anvisa_requests_repository"] = fake_module
 
         try:
             controller = AnvisaRequestsController()
@@ -103,9 +103,9 @@ class TestListRequests:
             assert len(result) == 2
         finally:
             if original is not None:
-                sys.modules["infra.repositories.anvisa_requests_repository"] = original
+                sys.modules["src.infra.repositories.anvisa_requests_repository"] = original
             else:
-                sys.modules.pop("infra.repositories.anvisa_requests_repository", None)
+                sys.modules.pop("src.infra.repositories.anvisa_requests_repository", None)
 
 
 class TestCreateRequest:
@@ -123,8 +123,8 @@ class TestCreateRequest:
 
         fake_module = _create_fake_repo_module(fake_created=expected_created)
 
-        original = sys.modules.get("infra.repositories.anvisa_requests_repository")
-        sys.modules["infra.repositories.anvisa_requests_repository"] = fake_module
+        original = sys.modules.get("src.infra.repositories.anvisa_requests_repository")
+        sys.modules["src.infra.repositories.anvisa_requests_repository"] = fake_module
 
         try:
             controller = AnvisaRequestsController()
@@ -139,9 +139,9 @@ class TestCreateRequest:
             assert result["id"] == 42
         finally:
             if original is not None:
-                sys.modules["infra.repositories.anvisa_requests_repository"] = original
+                sys.modules["src.infra.repositories.anvisa_requests_repository"] = original
             else:
-                sys.modules.pop("infra.repositories.anvisa_requests_repository", None)
+                sys.modules.pop("src.infra.repositories.anvisa_requests_repository", None)
 
 
 class TestControllerInit:

@@ -26,7 +26,7 @@ def test_health_fallback_on_rpc_404(fake_supabase_url):
     Args:
         fake_supabase_url: Fixture com URL fake do Supabase para testes
     """
-    from infra.supabase.db_client import _health_check_once
+    from src.infra.supabase.db_client import _health_check_once
 
     # Mock do cliente Supabase
     mock_client = MagicMock()
@@ -37,7 +37,7 @@ def test_health_fallback_on_rpc_404(fake_supabase_url):
     )
 
     # Simular RPC ping retornando 404 e /auth/v1/health retornando 200
-    with patch("infra.supabase.db_client.exec_postgrest", side_effect=Exception("404 Not Found")):
+    with patch("src.infra.supabase.db_client.exec_postgrest", side_effect=Exception("404 Not Found")):
         with patch("httpx.get", return_value=mock_health_response) as mock_httpx_get:
             with patch.dict("os.environ", {"SUPABASE_URL": fake_supabase_url}):
                 # Executar health check
@@ -58,12 +58,12 @@ def test_health_fallback_continues_on_auth_failure(fake_supabase_url):
     Args:
         fake_supabase_url: Fixture com URL fake do Supabase para testes
     """
-    from infra.supabase.db_client import _health_check_once
+    from src.infra.supabase.db_client import _health_check_once
 
     mock_client = MagicMock()
 
     # Simular RPC ping 404 e /auth/v1/health falhando
-    with patch("infra.supabase.db_client.exec_postgrest") as mock_exec:
+    with patch("src.infra.supabase.db_client.exec_postgrest") as mock_exec:
         # Primeira chamada (RPC): 404
         # Segunda chamada (tabela fallback): sucesso
         mock_exec.side_effect = [
@@ -95,12 +95,12 @@ def test_health_rpc_non_404_error_skips_auth_fallback(fake_supabase_url):
     Args:
         fake_supabase_url: Fixture com URL fake do Supabase para testes
     """
-    from infra.supabase.db_client import _health_check_once
+    from src.infra.supabase.db_client import _health_check_once
 
     mock_client = MagicMock()
 
     # Simular erro de rede (não 404)
-    with patch("infra.supabase.db_client.exec_postgrest") as mock_exec:
+    with patch("src.infra.supabase.db_client.exec_postgrest") as mock_exec:
         mock_exec.side_effect = [
             Exception("Connection refused"),  # RPC falha com erro de rede
             MagicMock(),  # fallback de tabela bem-sucedido
@@ -130,7 +130,7 @@ def test_health_auth_fallback_requires_valid_response(fake_supabase_url):
     Args:
         fake_supabase_url: Fixture com URL fake do Supabase para testes
     """
-    from infra.supabase.db_client import _health_check_once
+    from src.infra.supabase.db_client import _health_check_once
 
     mock_client = MagicMock()
 
@@ -140,7 +140,7 @@ def test_health_auth_fallback_requires_valid_response(fake_supabase_url):
         json_data={"status": "unknown"},  # sem 'version' ou 'name': 'GoTrue'
     )
 
-    with patch("infra.supabase.db_client.exec_postgrest") as mock_exec:
+    with patch("src.infra.supabase.db_client.exec_postgrest") as mock_exec:
         # RPC 404, depois tabela bem-sucedida
         mock_exec.side_effect = [Exception("404 Not Found"), MagicMock()]
 
@@ -168,14 +168,14 @@ def test_health_auth_fallback_on_401_unauthorized(fake_supabase_url):
     Args:
         fake_supabase_url: Fixture com URL fake do Supabase para testes
     """
-    from infra.supabase.db_client import _health_check_once
+    from src.infra.supabase.db_client import _health_check_once
 
     mock_client = MagicMock()
 
     # Mock de resposta 401 Unauthorized
     mock_unauthorized_response = MockResponse(status_code=401, json_data={"error": "Unauthorized"})
 
-    with patch("infra.supabase.db_client.exec_postgrest") as mock_exec:
+    with patch("src.infra.supabase.db_client.exec_postgrest") as mock_exec:
         # RPC 404, depois tabela bem-sucedida
         mock_exec.side_effect = [Exception("404 Not Found"), MagicMock()]
 
@@ -203,14 +203,14 @@ def test_health_auth_fallback_on_403_forbidden(fake_supabase_url):
     Args:
         fake_supabase_url: Fixture com URL fake do Supabase para testes
     """
-    from infra.supabase.db_client import _health_check_once
+    from src.infra.supabase.db_client import _health_check_once
 
     mock_client = MagicMock()
 
     # Mock de resposta 403 Forbidden
     mock_forbidden_response = MockResponse(status_code=403, json_data={"error": "Forbidden"})
 
-    with patch("infra.supabase.db_client.exec_postgrest") as mock_exec:
+    with patch("src.infra.supabase.db_client.exec_postgrest") as mock_exec:
         # RPC 404, depois tabela bem-sucedida
         mock_exec.side_effect = [Exception("404 Not Found"), MagicMock()]
 
@@ -238,12 +238,12 @@ def test_health_auth_fallback_on_timeout(fake_supabase_url):
     Args:
         fake_supabase_url: Fixture com URL fake do Supabase para testes
     """
-    from infra.supabase.db_client import _health_check_once
+    from src.infra.supabase.db_client import _health_check_once
     import httpx
 
     mock_client = MagicMock()
 
-    with patch("infra.supabase.db_client.exec_postgrest") as mock_exec:
+    with patch("src.infra.supabase.db_client.exec_postgrest") as mock_exec:
         # RPC 404, depois tabela bem-sucedida
         mock_exec.side_effect = [Exception("404 Not Found"), MagicMock()]
 

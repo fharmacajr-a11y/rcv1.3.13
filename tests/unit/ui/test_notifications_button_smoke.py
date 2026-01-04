@@ -7,9 +7,16 @@ mesmo quando o ícone PNG não existe (fallback para emoji).
 
 from __future__ import annotations
 
+import sys
 import tkinter as tk
 
 import pytest
+
+# Pular testes em Python 3.13+ no Windows devido a bugs conhecidos de tkinter
+_skip_tkinter_windows = pytest.mark.skipif(
+    sys.platform == "win32" and sys.version_info >= (3, 13),
+    reason="Tkinter/ttkbootstrap + pytest em Python 3.13 no Windows pode causar 'Windows fatal exception: access violation' (bug do runtime, ver CPython #125179/118973).",
+)
 
 
 @pytest.fixture
@@ -36,6 +43,7 @@ def tk_root():
     root.destroy()
 
 
+@_skip_tkinter_windows
 def test_notifications_button_instantiates_without_error(tk_root: tk.Tk) -> None:
     """Testa que NotificationsButton pode ser instanciado sem erros."""
     from src.ui.components.notifications.notifications_button import NotificationsButton
@@ -52,6 +60,7 @@ def test_notifications_button_instantiates_without_error(tk_root: tk.Tk) -> None
     assert hasattr(btn, "get_count"), "Deve ter método get_count"
 
 
+@_skip_tkinter_windows
 def test_notifications_button_set_count_zero_and_nonzero(tk_root: tk.Tk) -> None:
     """Testa que set_count funciona para 0 e valores positivos."""
     from src.ui.components.notifications.notifications_button import NotificationsButton
@@ -70,6 +79,7 @@ def test_notifications_button_set_count_zero_and_nonzero(tk_root: tk.Tk) -> None
     assert btn.get_count() == 0
 
 
+@_skip_tkinter_windows
 def test_notifications_button_with_callback(tk_root: tk.Tk) -> None:
     """Testa que callback on_click é chamado."""
     from src.ui.components.notifications.notifications_button import NotificationsButton
@@ -87,6 +97,7 @@ def test_notifications_button_with_callback(tk_root: tk.Tk) -> None:
     assert len(clicked) == 1
 
 
+@_skip_tkinter_windows
 def test_notifications_button_badge_visibility(tk_root: tk.Tk) -> None:
     """Testa que badge aparece/desaparece conforme contador."""
     from src.ui.components.notifications.notifications_button import NotificationsButton

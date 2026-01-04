@@ -25,8 +25,8 @@ def mock_notes_service():
 def mock_supabase():
     """Mock do cliente Supabase."""
     with (
-        patch("infra.supabase_client.get_supabase") as mock_get,
-        patch("infra.supabase_client.exec_postgrest") as mock_exec,
+        patch("src.infra.supabase_client.get_supabase") as mock_get,
+        patch("src.infra.supabase_client.exec_postgrest") as mock_exec,
     ):
         mock_client = MagicMock()
         mock_get.return_value = mock_client

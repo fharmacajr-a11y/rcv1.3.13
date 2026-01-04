@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 
 from postgrest.exceptions import APIError
 
-from infra.repositories import notifications_repository
+from src.infra.repositories import notifications_repository
 
 
 class TestExtractUuidFromRequestId:
@@ -57,7 +57,7 @@ class TestExtractUuidFromRequestId:
 class TestListNotifications:
     """Testes para list_notifications()."""
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_list_notifications_sucesso(self, mock_supabase):
         """Deve retornar lista de notificações com sucesso."""
         mock_response = MagicMock()
@@ -73,7 +73,7 @@ class TestListNotifications:
         assert result[0]["id"] == 1
         mock_supabase.table.assert_called_once_with("org_notifications")
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_list_notifications_com_exclude_actor_email(self, mock_supabase):
         """Deve aplicar filtro exclude_actor_email quando fornecido."""
         mock_response = MagicMock()
@@ -86,7 +86,7 @@ class TestListNotifications:
         assert len(result) == 1
         mock_chain.neq.assert_called_once_with("actor_email", "test@example.com")
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_list_notifications_sem_exclude_actor_email(self, mock_supabase):
         """Não deve aplicar filtro neq quando exclude_actor_email é None."""
         mock_response = MagicMock()
@@ -100,7 +100,7 @@ class TestListNotifications:
         # neq não deve ser chamado
         assert not hasattr(mock_chain, "neq") or not mock_chain.neq.called
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_list_notifications_response_data_none(self, mock_supabase):
         """Deve retornar lista vazia se response.data for None."""
         mock_response = MagicMock()
@@ -111,7 +111,7 @@ class TestListNotifications:
 
         assert result == []
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_list_notifications_exception(self, mock_supabase):
         """Deve retornar lista vazia em caso de exceção."""
         mock_supabase.table.side_effect = Exception("Database error")
@@ -124,7 +124,7 @@ class TestListNotifications:
 class TestCountUnread:
     """Testes para count_unread()."""
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_count_unread_sucesso(self, mock_supabase):
         """Deve retornar contagem de não lidas."""
         mock_response = MagicMock()
@@ -138,7 +138,7 @@ class TestCountUnread:
         assert result == 42
         mock_supabase.table.assert_called_once_with("org_notifications")
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_count_unread_com_exclude_actor_email(self, mock_supabase):
         """Deve aplicar filtro exclude_actor_email na contagem."""
         mock_response = MagicMock()
@@ -151,7 +151,7 @@ class TestCountUnread:
         assert result == 10
         mock_chain.neq.assert_called_once_with("actor_email", "admin@example.com")
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_count_unread_response_count_none(self, mock_supabase):
         """Deve retornar 0 se response.count for None."""
         mock_response = MagicMock()
@@ -164,7 +164,7 @@ class TestCountUnread:
 
         assert result == 0
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_count_unread_exception(self, mock_supabase):
         """Deve retornar 0 em caso de exceção."""
         mock_supabase.table.side_effect = RuntimeError("Connection timeout")
@@ -177,7 +177,7 @@ class TestCountUnread:
 class TestMarkAllRead:
     """Testes para mark_all_read()."""
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_mark_all_read_sucesso(self, mock_supabase):
         """Deve marcar todas como lidas e retornar True."""
         mock_response = MagicMock()
@@ -189,7 +189,7 @@ class TestMarkAllRead:
         mock_supabase.table.assert_called_once_with("org_notifications")
         mock_supabase.table.return_value.update.assert_called_once_with({"is_read": True})
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_mark_all_read_exception(self, mock_supabase):
         """Deve retornar False em caso de exceção."""
         mock_supabase.table.return_value.update.side_effect = Exception("Update failed")
@@ -202,7 +202,7 @@ class TestMarkAllRead:
 class TestInsertNotification:
     """Testes para insert_notification()."""
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_insert_notification_sucesso_basico(self, mock_supabase):
         """Deve inserir notificação com campos obrigatórios."""
         mock_response = MagicMock()
@@ -216,7 +216,7 @@ class TestInsertNotification:
         assert result is True
         mock_supabase.table.assert_called_with("org_notifications")
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_insert_notification_com_todos_campos(self, mock_supabase):
         """Deve inserir com todos os campos opcionais."""
         valid_uuid = str(uuid.uuid4())
@@ -238,7 +238,7 @@ class TestInsertNotification:
 
         assert result is True
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_insert_notification_com_request_id_valido(self, mock_supabase):
         """Deve aceitar request_id válido (verificação básica de fluxo)."""
         valid_uuid = str(uuid.uuid4())
@@ -254,7 +254,7 @@ class TestInsertNotification:
         # Função retorna False em exceção
         assert result is False
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_insert_notification_duplicacao_detectada(self, mock_supabase):
         """Deve detectar duplicação e retornar True sem inserir."""
         valid_uuid = str(uuid.uuid4())
@@ -272,7 +272,7 @@ class TestInsertNotification:
         # Insert NÃO deve ser chamado (porque detectou duplicação)
         mock_supabase.table.return_value.insert.assert_not_called()
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_insert_notification_check_duplicacao_falha(self, mock_supabase):
         """Se check de duplicação falhar, deve continuar com insert."""
         valid_uuid = str(uuid.uuid4())
@@ -290,7 +290,7 @@ class TestInsertNotification:
 
         assert result is True
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_insert_notification_response_data_vazio(self, mock_supabase):
         """Deve retornar False se response.data estiver vazio (RLS bloqueou)."""
         mock_response = MagicMock()
@@ -303,7 +303,7 @@ class TestInsertNotification:
 
         assert result is False
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_insert_notification_response_data_none(self, mock_supabase):
         """Deve retornar False se response.data for None."""
         mock_response = MagicMock()
@@ -316,7 +316,7 @@ class TestInsertNotification:
 
         assert result is False
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_insert_notification_api_error_22p02_sem_request_id_no_row(self, mock_supabase):
         """Se erro 22P02 mas request_id não está no row, não faz retry."""
         # Erro 22P02 mas row não tem request_id
@@ -336,7 +336,7 @@ class TestInsertNotification:
         # Insert deve ter sido chamado apenas 1 vez (sem retry)
         assert mock_supabase.table.return_value.insert.return_value.execute.call_count == 1
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_insert_notification_api_error_string(self, mock_supabase):
         """Deve lidar com APIError onde args[0] é dict."""
         payload: dict[str, Any] = {"message": "String error message", "code": "TEST"}
@@ -349,7 +349,7 @@ class TestInsertNotification:
 
         assert result is False
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_insert_notification_api_error_empty_dict(self, mock_supabase):
         """Deve lidar com APIError com dict vazio."""
         payload: dict[str, Any] = {}
@@ -362,7 +362,7 @@ class TestInsertNotification:
 
         assert result is False
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_insert_notification_exception_generica(self, mock_supabase):
         """Deve retornar False para exceção genérica."""
         mock_supabase.table.side_effect = RuntimeError("Generic error")
@@ -377,7 +377,7 @@ class TestInsertNotification:
 class TestNotificationsRepositoryAdapter:
     """Testes para classe NotificationsRepositoryAdapter."""
 
-    @patch("infra.repositories.notifications_repository.list_notifications")
+    @patch("src.infra.repositories.notifications_repository.list_notifications")
     def test_adapter_list_notifications(self, mock_list):
         """Adapter deve chamar função list_notifications."""
         mock_list.return_value = [{"id": 1}]
@@ -388,7 +388,7 @@ class TestNotificationsRepositoryAdapter:
         assert result == [{"id": 1}]
         mock_list.assert_called_once_with("org1", 10, exclude_actor_email="test@example.com")
 
-    @patch("infra.repositories.notifications_repository.count_unread")
+    @patch("src.infra.repositories.notifications_repository.count_unread")
     def test_adapter_count_unread(self, mock_count):
         """Adapter deve chamar função count_unread."""
         mock_count.return_value = 5
@@ -399,7 +399,7 @@ class TestNotificationsRepositoryAdapter:
         assert result == 5
         mock_count.assert_called_once_with("org1", exclude_actor_email="admin@example.com")
 
-    @patch("infra.repositories.notifications_repository.mark_all_read")
+    @patch("src.infra.repositories.notifications_repository.mark_all_read")
     def test_adapter_mark_all_read(self, mock_mark):
         """Adapter deve chamar função mark_all_read."""
         mock_mark.return_value = True
@@ -410,7 +410,7 @@ class TestNotificationsRepositoryAdapter:
         assert result is True
         mock_mark.assert_called_once_with("org1")
 
-    @patch("infra.repositories.notifications_repository.insert_notification")
+    @patch("src.infra.repositories.notifications_repository.insert_notification")
     def test_adapter_insert_notification(self, mock_insert):
         """Adapter deve chamar função insert_notification com todos os args."""
         mock_insert.return_value = True
@@ -452,7 +452,7 @@ class TestInsertNotificationGapCoverage:
             self.data = data
             self.count = count
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_insert_notification_dedupe_returns_true(self, mock_supabase):
         """Dedupe: quando notificação já existe, deve retornar True sem inserir."""
         valid_uuid = "550e8400-e29b-41d4-a716-446655440000"
@@ -475,7 +475,7 @@ class TestInsertNotificationGapCoverage:
         # Insert NÃO deve ser chamado (dedupe evita)
         assert not table_mock.insert.called
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_insert_notification_precheck_exception_continues(self, mock_supabase):
         """Pre-check falha com exceção, mas insert deve continuar (fail-safe)."""
         valid_uuid = "550e8400-e29b-41d4-a716-446655440000"
@@ -502,7 +502,7 @@ class TestInsertNotificationGapCoverage:
         # Insert DEVE ter sido chamado (apesar do pre-check falhar)
         assert table_mock.insert.called
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_insert_notification_insert_returns_false_when_no_data(self, mock_supabase):
         """Insert retorna data vazio (RLS bloqueou): deve retornar False."""
         table_mock = MagicMock()
@@ -520,7 +520,7 @@ class TestInsertNotificationGapCoverage:
 
         assert result is False
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_insert_notification_apierror_parsing_args_dict(self, mock_supabase):
         """APIError com args[0] dict: deve parsear corretamente."""
         table_mock = MagicMock()
@@ -538,7 +538,7 @@ class TestInsertNotificationGapCoverage:
 
         assert result is False
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_insert_notification_apierror_22p02_retry_success(self, mock_supabase):
         """APIError 22P02 (invalid UUID): retry sem request_id deve ter sucesso."""
         valid_uuid = "550e8400-e29b-41d4-a716-446655440000"
@@ -590,7 +590,7 @@ class TestInsertNotificationGapCoverage:
         assert result is True
         assert mock_supabase.table.call_count == 3
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_insert_notification_apierror_22p02_retry_fails_returns_false(self, mock_supabase):
         """APIError 22P02: retry também falha, deve retornar False."""
         valid_uuid = "550e8400-e29b-41d4-a716-446655440000"
@@ -634,7 +634,7 @@ class TestInsertNotificationGapCoverage:
         assert result is False
         assert mock_supabase.table.call_count == 3
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_insert_notification_apierror_args0_is_none_hits_else_parse(self, mock_supabase):
         """APIError com args[0]=None: deve cair no else do parsing (linhas 296-300)."""
         table_mock = MagicMock()
@@ -655,7 +655,7 @@ class TestInsertNotificationGapCoverage:
 
         assert result is False
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_insert_notification_apierror_args_empty_hits_parse_fallback(self, mock_supabase):
         """APIError com args=(): deve cair no fallback do parsing (linha 335)."""
         table_mock = MagicMock()
@@ -676,7 +676,7 @@ class TestInsertNotificationGapCoverage:
 
         assert result is False
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_insert_notification_retry_22p02_second_insert_raises_exception_hits_retry_except(self, mock_supabase):
         """APIError 22P02: retry lança exceção, deve cair no except do retry (linhas 377-378)."""
         valid_uuid = "550e8400-e29b-41d4-a716-446655440000"
@@ -728,7 +728,7 @@ class TestInsertNotificationFinalGaps:
         def __init__(self, data):
             self.data = data
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_insert_notification_apierror_args0_is_string_hits_str_parse(self, mock_supabase):
         """APIError com args[0] string: deve usar parsing string (linha 340-341)."""
         valid_uuid = "550e8400-e29b-41d4-a716-446655440000"
@@ -760,7 +760,7 @@ class TestInsertNotificationFinalGaps:
         assert result is False
         assert mock_supabase.table.call_count == 2
 
-    @patch("infra.supabase_client.supabase")
+    @patch("src.infra.supabase_client.supabase")
     def test_insert_notification_with_actor_email_and_client_id_covers_optional_fields(self, mock_supabase):
         """insert_notification com actor_email e client_id: cobre linhas 296, 298, 300."""
         valid_uuid = "550e8400-e29b-41d4-a716-446655440000"

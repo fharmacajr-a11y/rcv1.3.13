@@ -95,7 +95,7 @@ from typing import Any, Callable, Optional
 
 import ttkbootstrap as tb
 
-from infra.net_status import Status
+from src.infra.net_status import Status
 from src.modules.main_window.views.state_helpers import (
     ConnectivityState,
     combine_status_display,

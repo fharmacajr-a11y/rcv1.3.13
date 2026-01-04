@@ -86,7 +86,7 @@ class TestHandleNewTaskClick:
         assert "Autenticação Necessária" in mock_messagebox.showwarning.call_args[0][0]
 
     @patch("src.modules.tasks.views.NovaTarefaDialog")
-    @patch("data.supabase_repo.list_clients_for_picker")
+    @patch("src.data.supabase_repo.list_clients_for_picker")
     def test_opens_dialog_with_valid_credentials(
         self,
         mock_list_clients,
@@ -123,7 +123,7 @@ class TestHandleNewTaskClick:
         mock_dialog.deiconify.assert_called_once()
 
     @patch("src.modules.hub.views.hub_dashboard_callbacks.messagebox")
-    @patch("data.supabase_repo.list_clients_for_picker")
+    @patch("src.data.supabase_repo.list_clients_for_picker")
     def test_handles_error_loading_clients_gracefully(
         self,
         mock_list_clients,

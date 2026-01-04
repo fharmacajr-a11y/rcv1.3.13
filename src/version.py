@@ -4,7 +4,7 @@
 import os
 
 # Fonte única de verdade da versão do aplicativo.
-__version__ = "1.4.93"
+__version__ = "1.5.40"
 APP_VERSION = __version__
 
 

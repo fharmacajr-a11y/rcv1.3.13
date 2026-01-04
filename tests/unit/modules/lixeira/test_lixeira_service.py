@@ -446,10 +446,10 @@ def test_get_supabase_and_org_sucesso_com_user_id(monkeypatch):
     # Mock do módulo infra.supabase_client
     import sys
 
-    fake_infra_module = types.ModuleType("infra.supabase_client")
+    fake_infra_module = types.ModuleType("src.infra.supabase_client")
     fake_infra_module.supabase = fake_supabase
 
-    sys.modules["infra.supabase_client"] = fake_infra_module
+    sys.modules["src.infra.supabase_client"] = fake_infra_module
 
     try:
         # Import a função depois do mock
@@ -459,8 +459,8 @@ def test_get_supabase_and_org_sucesso_com_user_id(monkeypatch):
         assert org_id == "ORG456"
     finally:
         # Cleanup
-        if "infra.supabase_client" in sys.modules:
-            del sys.modules["infra.supabase_client"]
+        if "src.infra.supabase_client" in sys.modules:
+            del sys.modules["src.infra.supabase_client"]
 
 
 def test_list_storage_children_ignora_items_nao_dict(monkeypatch):

@@ -403,7 +403,7 @@ def open_chatgpt_window(app: App) -> None:
 
 def on_menu_logout(app: App) -> None:
     """Handler do menu Sair: confirmação + logout + fechar app."""
-    from infra import supabase_auth
+    from src.infra import supabase_auth
     from src.ui import custom_dialogs
 
     title = "Encerrar sessão"
@@ -799,7 +799,7 @@ def set_user_status(app: App, email: Optional[str], role: Optional[str] = None) 
 def poll_health_impl(app: App) -> None:
     """Implementação headless de health check (sem lógica de reagendamento)."""
     try:
-        from infra.supabase_client import get_supabase_state
+        from src.infra.supabase_client import get_supabase_state
 
         state, _ = get_supabase_state()
         app.footer.set_cloud(state)

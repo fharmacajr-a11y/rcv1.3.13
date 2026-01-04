@@ -56,7 +56,7 @@ class TestActivityLimit:
 
     def test_max_activity_constant(self):
         """Verifica que a constante MAX_ACTIVITY_ITEMS_DASHBOARD está definida como 5."""
-        from src.modules.hub.views.dashboard_center import MAX_ACTIVITY_ITEMS_DASHBOARD
+        from src.modules.hub.views.dashboard_center_constants import MAX_ACTIVITY_ITEMS_DASHBOARD
 
         assert MAX_ACTIVITY_ITEMS_DASHBOARD == 5
 
@@ -69,7 +69,7 @@ class TestActivityLimit:
         ]
 
         # Simular o corte
-        from src.modules.hub.views.dashboard_center import MAX_ACTIVITY_ITEMS_DASHBOARD
+        from src.modules.hub.views.dashboard_center_constants import MAX_ACTIVITY_ITEMS_DASHBOARD
 
         limited = activities[:MAX_ACTIVITY_ITEMS_DASHBOARD]
         assert len(limited) == 3
@@ -79,7 +79,7 @@ class TestActivityLimit:
         activities = [{"timestamp": datetime(2025, 12, 15, i, 0), "text": f"Item {i}"} for i in range(10)]
 
         # Simular o corte
-        from src.modules.hub.views.dashboard_center import MAX_ACTIVITY_ITEMS_DASHBOARD
+        from src.modules.hub.views.dashboard_center_constants import MAX_ACTIVITY_ITEMS_DASHBOARD
 
         limited = activities[:MAX_ACTIVITY_ITEMS_DASHBOARD]
         assert len(limited) == 5
@@ -89,7 +89,7 @@ class TestActivityLimit:
         activities = [{"timestamp": datetime(2025, 12, 15, i, 0), "text": f"Item {i}"} for i in range(5)]
 
         # Simular o corte
-        from src.modules.hub.views.dashboard_center import MAX_ACTIVITY_ITEMS_DASHBOARD
+        from src.modules.hub.views.dashboard_center_constants import MAX_ACTIVITY_ITEMS_DASHBOARD
 
         limited = activities[:MAX_ACTIVITY_ITEMS_DASHBOARD]
         assert len(limited) == 5
@@ -209,7 +209,7 @@ class TestActivityGrouping:
         ]
 
         # Simular corte
-        from src.modules.hub.views.dashboard_center import MAX_ACTIVITY_ITEMS_DASHBOARD
+        from src.modules.hub.views.dashboard_center_constants import MAX_ACTIVITY_ITEMS_DASHBOARD
 
         limited = activities[:MAX_ACTIVITY_ITEMS_DASHBOARD]
 

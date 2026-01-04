@@ -7,7 +7,7 @@ import logging
 from typing import TYPE_CHECKING, Any, Callable
 from tkinter import messagebox
 
-from infra.supabase_client import supabase
+from src.infra.supabase_client import supabase
 from src.modules.passwords.controller import ClientPasswordsSummary, PasswordsController
 
 if TYPE_CHECKING:

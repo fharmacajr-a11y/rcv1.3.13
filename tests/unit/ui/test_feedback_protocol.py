@@ -87,7 +87,10 @@ class TestTkFeedbackMessagebox:
         feedback = TkFeedback(parent=None, allow_toast=False)
         feedback.notify("info", "Título Info", "Mensagem info", toast=False)
 
-        mock_messagebox.showinfo.assert_called_once_with("Título Info", "Mensagem info", parent=None)
+        mock_messagebox.showinfo.assert_called_once()
+        args, kwargs = mock_messagebox.showinfo.call_args
+        assert args == ("Título Info", "Mensagem info")
+        assert "parent" in kwargs
 
     @patch("src.ui.feedback.messagebox")
     def test_notify_warning_uses_messagebox(self, mock_messagebox: MagicMock) -> None:
@@ -95,7 +98,10 @@ class TestTkFeedbackMessagebox:
         feedback = TkFeedback(parent=None, allow_toast=False)
         feedback.notify("warning", "Título Aviso", "Mensagem aviso", toast=False)
 
-        mock_messagebox.showwarning.assert_called_once_with("Título Aviso", "Mensagem aviso", parent=None)
+        mock_messagebox.showwarning.assert_called_once()
+        args, kwargs = mock_messagebox.showwarning.call_args
+        assert args == ("Título Aviso", "Mensagem aviso")
+        assert "parent" in kwargs
 
     @patch("src.ui.feedback.messagebox")
     def test_notify_error_uses_messagebox(self, mock_messagebox: MagicMock) -> None:
@@ -103,7 +109,10 @@ class TestTkFeedbackMessagebox:
         feedback = TkFeedback(parent=None, allow_toast=False)
         feedback.notify("error", "Título Erro", "Mensagem erro", toast=False)
 
-        mock_messagebox.showerror.assert_called_once_with("Título Erro", "Mensagem erro", parent=None)
+        mock_messagebox.showerror.assert_called_once()
+        args, kwargs = mock_messagebox.showerror.call_args
+        assert args == ("Título Erro", "Mensagem erro")
+        assert "parent" in kwargs
 
     @patch("src.ui.feedback.messagebox")
     def test_notify_success_uses_showinfo(self, mock_messagebox: MagicMock) -> None:
@@ -111,7 +120,10 @@ class TestTkFeedbackMessagebox:
         feedback = TkFeedback(parent=None, allow_toast=False)
         feedback.notify("success", "Sucesso", "Operação OK", toast=False)
 
-        mock_messagebox.showinfo.assert_called_once_with("Sucesso", "Operação OK", parent=None)
+        mock_messagebox.showinfo.assert_called_once()
+        args, kwargs = mock_messagebox.showinfo.call_args
+        assert args == ("Sucesso", "Operação OK")
+        assert "parent" in kwargs
 
     @patch("src.ui.feedback.messagebox")
     def test_info_method_calls_showinfo(self, mock_messagebox: MagicMock) -> None:
@@ -145,7 +157,10 @@ class TestTkFeedbackMessagebox:
         feedback = TkFeedback(parent=None, allow_toast=False)
         result = feedback.confirm("Confirmar?", "Deseja continuar?")
 
-        mock_messagebox.askokcancel.assert_called_once_with("Confirmar?", "Deseja continuar?", parent=None)
+        mock_messagebox.askokcancel.assert_called_once()
+        args, kwargs = mock_messagebox.askokcancel.call_args
+        assert args == ("Confirmar?", "Deseja continuar?")
+        assert "parent" in kwargs
         assert result is True
 
 

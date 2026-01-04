@@ -6,7 +6,7 @@ from src.modules.passwords import service
 
 
 def _patch_supabase(monkeypatch, user_obj):
-    import infra.supabase_client as supabase_client
+    import src.infra.supabase_client as supabase_client
 
     fake_supabase = types.SimpleNamespace(auth=types.SimpleNamespace(get_user=lambda: user_obj))
     monkeypatch.setattr(supabase_client, "supabase", fake_supabase)

@@ -519,7 +519,7 @@ def get_dashboard_snapshot(
 
     # Fetch ANVISA requests once (used for multiple calculations)
     try:
-        from infra.repositories.anvisa_requests_repository import list_requests as list_anvisa_requests
+        from src.infra.repositories.anvisa_requests_repository import list_requests as list_anvisa_requests
 
         anvisa_requests = list_anvisa_requests(org_id)
     except Exception as e:  # noqa: BLE001

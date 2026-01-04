@@ -160,7 +160,7 @@ class TestAnvisaRequestsMixinMF52Coverage:
         monkeypatch.setattr(dummy, "_resolve_org_id", lambda: "org123")
 
         # Mock repo retornando lista vazia
-        monkeypatch.setattr("infra.repositories.anvisa_requests_repository.list_requests", lambda org_id: [])
+        monkeypatch.setattr("src.infra.repositories.anvisa_requests_repository.list_requests", lambda org_id: [])
 
         # Mock service retornando listas vazias
         dummy._service.build_main_rows = Mock(return_value=({}, []))

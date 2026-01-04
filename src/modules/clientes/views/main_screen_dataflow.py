@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 from tkinter import messagebox
 from typing import TYPE_CHECKING, Any, Sequence
 
-from infra.supabase_client import get_supabase_state
+from src.infra.supabase_client import get_supabase_state
 from src.modules.clientes.controllers.connectivity_state_manager import ConnectivityRawInput
 from src.modules.clientes.controllers.rendering_adapter import (
     build_rendering_context_from_ui,

@@ -287,7 +287,7 @@ def wire_session_and_health(app: "MainWindow") -> None:
         # DEPRECATED: Poll_health agora é gerenciado por MainWindowPollers (P2-MF3C)
         def poll_health():
             try:
-                from infra.supabase_client import get_supabase_state
+                from src.infra.supabase_client import get_supabase_state
 
                 state, _ = get_supabase_state()
                 app.footer.set_cloud(state)
@@ -311,7 +311,7 @@ def wire_session_and_health(app: "MainWindow") -> None:
 
         # Tentar obter estado inicial
         try:
-            from infra.supabase_client import get_supabase_state
+            from src.infra.supabase_client import get_supabase_state
 
             current, _ = get_supabase_state()
             app.footer.set_cloud(current)

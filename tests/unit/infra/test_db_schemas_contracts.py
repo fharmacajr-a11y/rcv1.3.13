@@ -6,7 +6,7 @@ Verifica consistência dos contratos de colunas para prevenir schema drift.
 
 import unittest
 
-from infra.db_schemas import (
+from src.infra.db_schemas import (
     CLIENTS_SELECT_FIELDS,
     CLIENTS_SELECT_FIELDS_COUNT,
     CLIENTS_SELECT_FIELDS_SAFE,

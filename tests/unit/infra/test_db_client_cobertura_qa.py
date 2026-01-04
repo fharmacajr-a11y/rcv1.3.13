@@ -14,7 +14,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import infra.supabase.db_client as db_client
+import src.infra.supabase.db_client as db_client
 
 
 @pytest.fixture(autouse=True)

@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from data.domain_types import RegObligationRow
+from src.data.domain_types import RegObligationRow
 from src.features.regulations.service import (
     create_obligation,
     delete_obligation,

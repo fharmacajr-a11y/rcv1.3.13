@@ -20,7 +20,7 @@ from ._anvisa_history_popup_mixin import AnvisaHistoryPopupMixin
 from ._anvisa_handlers_mixin import AnvisaHandlersMixin
 from ..controllers.anvisa_controller import AnvisaController
 from ..services.anvisa_service import AnvisaService
-from infra.repositories.anvisa_requests_repository import AnvisaRequestsRepositoryAdapter
+from src.infra.repositories.anvisa_requests_repository import AnvisaRequestsRepositoryAdapter
 from src.helpers.auth_utils import current_user_id
 from src.ui.window_utils import (
     apply_window_icon,

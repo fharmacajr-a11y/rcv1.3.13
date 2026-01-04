@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from data.domain_types import PasswordRow
+from src.data.domain_types import PasswordRow
 
 
 def make_password_row(**overrides: Any) -> PasswordRow:

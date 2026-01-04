@@ -34,7 +34,7 @@ def db_client(monkeypatch):
     """Isola import com stubs para dependencias externas."""
     import os
 
-    supa_types = ModuleType("infra.supabase.types")
+    supa_types = ModuleType("src.infra.supabase.types")
     supa_types.SUPABASE_URL = "https://stub.supabase.co"
     supa_types.SUPABASE_ANON_KEY = "anon"
     supa_types.HEALTHCHECK_USE_RPC = True
@@ -44,21 +44,21 @@ def db_client(monkeypatch):
     supa_types.HEALTHCHECK_INTERVAL_SECONDS = 0.01
     # Respeitar RC_HEALTHCHECK_DISABLE do ambiente ao invés de forçar False
     supa_types.HEALTHCHECK_DISABLED = os.getenv("RC_HEALTHCHECK_DISABLE", "0") == "1"
-    monkeypatch.setitem(sys.modules, "infra.supabase.types", supa_types)
+    monkeypatch.setitem(sys.modules, "src.infra.supabase.types", supa_types)
 
-    http_client = ModuleType("infra.supabase.http_client")
+    http_client = ModuleType("src.infra.supabase.http_client")
     http_client.HTTPX_CLIENT = "httpx-client"
     http_client.HTTPX_TIMEOUT_LIGHT = 1.0
-    monkeypatch.setitem(sys.modules, "infra.supabase.http_client", http_client)
+    monkeypatch.setitem(sys.modules, "src.infra.supabase.http_client", http_client)
 
-    http_retry = ModuleType("infra.http.retry")
+    http_retry = ModuleType("src.infra.http.retry")
 
     def fake_retry(fn, tries, backoff, jitter):
         return fn()
 
     http_retry.retry_call = fake_retry
-    monkeypatch.setitem(sys.modules, "infra.http.retry", http_retry)
-    monkeypatch.setitem(sys.modules, "infra.http", ModuleType("infra.http"))
+    monkeypatch.setitem(sys.modules, "src.infra.http.retry", http_retry)
+    monkeypatch.setitem(sys.modules, "src.infra.http", ModuleType("src.infra.http"))
 
     supabase_mod = ModuleType("supabase")
 
@@ -75,8 +75,8 @@ def db_client(monkeypatch):
     supabase_mod.create_client = create_client
     monkeypatch.setitem(sys.modules, "supabase", supabase_mod)
 
-    sys.modules.pop("infra.supabase.db_client", None)
-    module = importlib.import_module("infra.supabase.db_client")
+    sys.modules.pop("src.infra.supabase.db_client", None)
+    module = importlib.import_module("src.infra.supabase.db_client")
     module._SUPABASE_SINGLETON = None
     module._SINGLETON_REUSE_LOGGED = False
     module._IS_ONLINE = False

@@ -90,7 +90,7 @@ class TestSessionCache:
 
     def test_get_role_returns_user_when_no_data(self, cache: SessionCache):
         """Testa que get_role() retorna 'user' (fallback) quando não há dados."""
-        with patch("infra.supabase_client.exec_postgrest") as mock_exec:
+        with patch("src.infra.supabase_client.exec_postgrest") as mock_exec:
             # Mock de resposta vazia
             mock_response = MagicMock()
             mock_response.data = None
@@ -101,7 +101,7 @@ class TestSessionCache:
 
     def test_get_role_returns_user_on_error(self, cache: SessionCache):
         """Testa que get_role() retorna 'user' quando há erro na query."""
-        with patch("infra.supabase_client.exec_postgrest") as mock_exec:
+        with patch("src.infra.supabase_client.exec_postgrest") as mock_exec:
             mock_exec.side_effect = Exception("Database error")
 
             role = cache.get_role("user-uuid")
@@ -140,7 +140,7 @@ class TestSessionCache:
 
     def test_get_org_id_returns_none_when_no_data(self, cache: SessionCache):
         """Testa que get_org_id() retorna None quando não há org_id."""
-        with patch("infra.supabase_client.exec_postgrest") as mock_exec:
+        with patch("src.infra.supabase_client.exec_postgrest") as mock_exec:
             # Mock de resposta sem org_id
             mock_response = MagicMock()
             mock_response.data = [{"org_id": None}]
@@ -151,7 +151,7 @@ class TestSessionCache:
 
     def test_get_org_id_returns_none_on_error(self, cache: SessionCache):
         """Testa que get_org_id() retorna None quando há erro."""
-        with patch("infra.supabase_client.exec_postgrest") as mock_exec:
+        with patch("src.infra.supabase_client.exec_postgrest") as mock_exec:
             mock_exec.side_effect = Exception("Database error")
 
             org_id = cache.get_org_id("user-uuid")
@@ -204,7 +204,7 @@ class TestSessionCache:
 
     def test_get_user_with_org_returns_none_when_no_user(self, cache: SessionCache):
         """Testa que get_user_with_org() retorna None quando não há usuário."""
-        with patch("infra.supabase_client.supabase") as mock_supa:
+        with patch("src.infra.supabase_client.supabase") as mock_supa:
             mock_supa.auth.get_user.side_effect = Exception("Auth error")
 
             user_data = cache.get_user_with_org()
@@ -212,7 +212,7 @@ class TestSessionCache:
 
     def test_get_user_returns_none_when_no_uid(self, cache: SessionCache):
         """Testa que get_user() retorna None quando user.id é None."""
-        with patch("infra.supabase_client.supabase") as mock_supa:
+        with patch("src.infra.supabase_client.supabase") as mock_supa:
             # Mock de usuário sem ID
             mock_user = MagicMock()
             mock_user.id = None
@@ -225,7 +225,7 @@ class TestSessionCache:
 
     def test_get_role_returns_user_when_role_is_none(self, cache: SessionCache):
         """Testa que get_role() retorna 'user' quando role é None."""
-        with patch("infra.supabase_client.exec_postgrest") as mock_exec:
+        with patch("src.infra.supabase_client.exec_postgrest") as mock_exec:
             # Mock de resposta com role=None
             mock_response = MagicMock()
             mock_response.data = [{"role": None}]
@@ -236,7 +236,7 @@ class TestSessionCache:
 
     def test_get_role_fallback_when_cache_is_none(self, cache: SessionCache):
         """Testa que get_role() retorna 'user' quando cache é None (fallback final)."""
-        with patch("infra.supabase_client.exec_postgrest") as mock_exec:
+        with patch("src.infra.supabase_client.exec_postgrest") as mock_exec:
             # Mock de resposta com data vazio
             mock_response = MagicMock()
             mock_response.data = []
@@ -250,7 +250,7 @@ class TestSessionCache:
 
     def test_get_org_id_returns_none_when_data_is_empty(self, cache: SessionCache):
         """Testa que get_org_id() retorna None quando data está vazio."""
-        with patch("infra.supabase_client.exec_postgrest") as mock_exec:
+        with patch("src.infra.supabase_client.exec_postgrest") as mock_exec:
             # Mock de resposta sem dados
             mock_response = MagicMock()
             mock_response.data = []
@@ -264,7 +264,7 @@ class TestSessionCache:
         # Preenche cache diretamente
         cache._user_cache = {"id": "cached-id", "email": "cached@test.com"}
 
-        with patch("infra.supabase_client.supabase") as mock_supa:
+        with patch("src.infra.supabase_client.supabase") as mock_supa:
             # Não deve chamar Supabase
             user = cache.get_user()
             assert user == {"id": "cached-id", "email": "cached@test.com"}
@@ -275,7 +275,7 @@ class TestSessionCache:
         # Preenche cache diretamente
         cache._role_cache = "superadmin"
 
-        with patch("infra.supabase_client.exec_postgrest") as mock_exec:
+        with patch("src.infra.supabase_client.exec_postgrest") as mock_exec:
             # Não deve chamar exec_postgrest
             role = cache.get_role("user-uuid")
             assert role == "superadmin"
@@ -286,7 +286,7 @@ class TestSessionCache:
         # Preenche cache diretamente
         cache._org_id_cache = "cached-org"
 
-        with patch("infra.supabase_client.exec_postgrest") as mock_exec:
+        with patch("src.infra.supabase_client.exec_postgrest") as mock_exec:
             # Não deve chamar exec_postgrest
             org_id = cache.get_org_id("user-uuid")
             assert org_id == "cached-org"
