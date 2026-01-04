@@ -20,7 +20,7 @@ from types import SimpleNamespace
 
 import pytest
 
-import src.app_core as app_core
+import src.core.app_core as app_core
 
 
 @pytest.fixture(autouse=True)
@@ -536,12 +536,12 @@ def test_module_level_import_exception_safe_base_from_fields(monkeypatch):
     import sys
 
     # Salvar módulo original
-    original_app_core = sys.modules.get("src.app_core")
+    original_app_core = sys.modules.get("src.core.app_core")
 
     try:
         # Remover do cache
-        if "src.app_core" in sys.modules:
-            del sys.modules["src.app_core"]
+        if "src.core.app_core" in sys.modules:
+            del sys.modules["src.core.app_core"]
 
         # Mock para falhar imports específicos
         original_import = builtins.__import__
@@ -554,7 +554,7 @@ def test_module_level_import_exception_safe_base_from_fields(monkeypatch):
         monkeypatch.setattr(builtins, "__import__", mock_import)
 
         # Reimportar
-        import src.app_core as reimported
+        import src.core.app_core as reimported
 
         # Verificar fallback
         assert reimported.safe_base_from_fields is None
@@ -563,7 +563,7 @@ def test_module_level_import_exception_safe_base_from_fields(monkeypatch):
     finally:
         # Restaurar módulo original
         if original_app_core is not None:
-            sys.modules["src.app_core"] = original_app_core
+            sys.modules["src.core.app_core"] = original_app_core
 
 
 # ==================== Testes de dir_base_cliente - exception em import (linha 173-174) ====================

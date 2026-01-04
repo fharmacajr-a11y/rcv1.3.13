@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 
 def test_app_is_reexported():
-    import src.app_gui as app_gui
+    import src.core.app as app_gui
 
     # App deve estar acessível no namespace do módulo
     assert hasattr(app_gui, "App")

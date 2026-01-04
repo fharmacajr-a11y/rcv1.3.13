@@ -180,7 +180,7 @@ def test_novo_cliente_chama_app_core(monkeypatch):
     def fake_novo_cliente(app):
         recorded["app"] = app
 
-    monkeypatch.setattr("src.app_core.novo_cliente", fake_novo_cliente)
+    monkeypatch.setattr("src.core.app_core.novo_cliente", fake_novo_cliente)
 
     app = object()
     actions = AppActions(app)
@@ -204,7 +204,7 @@ def test_editar_cliente_sem_selecao_mostra_alerta(monkeypatch):
 def test_editar_cliente_com_id_invalido_mostra_erro(monkeypatch):
     calls, _ = _stub_tk_modules(monkeypatch)
     app = types.SimpleNamespace(_selected_main_values=lambda: [None])
-    monkeypatch.setattr("src.app_core.editar_cliente", lambda *args, **kwargs: pytest.fail("nao deve chamar"))
+    monkeypatch.setattr("src.core.app_core.editar_cliente", lambda *args, **kwargs: pytest.fail("nao deve chamar"))
     actions = AppActions(app)
 
     actions.editar_cliente()
@@ -220,7 +220,7 @@ def test_editar_cliente_valido_chama_app_core(monkeypatch):
     def fake_editar(app, pk):
         recorded["args"] = (app, pk)
 
-    monkeypatch.setattr("src.app_core.editar_cliente", fake_editar)
+    monkeypatch.setattr("src.core.app_core.editar_cliente", fake_editar)
     app = types.SimpleNamespace(_selected_main_values=lambda: ["10"])
     actions = AppActions(app)
 

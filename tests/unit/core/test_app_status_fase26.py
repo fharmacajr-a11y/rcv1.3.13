@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from src import app_status
+import src.core.status as app_status
 
 
 class DummyVar:

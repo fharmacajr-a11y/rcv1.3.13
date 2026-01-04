@@ -646,7 +646,7 @@ class TestBuildRow:
         """Testa formatação de data."""
         cliente = make_cliente_dict(ultima_alteracao="2025-12-01T10:00:00")
 
-        with patch("src.app_utils.fmt_data") as mock_fmt:
+        with patch("src.core.app_utils.fmt_data") as mock_fmt:
             mock_fmt.return_value = "01/12/2025"
 
             row = vm._build_row_from_cliente(cliente)
@@ -660,7 +660,7 @@ class TestBuildRow:
             ultima_por="admin@example.com",
         )
 
-        with patch("src.app_utils.fmt_data", return_value="01/12/2025"):
+        with patch("src.core.app_utils.fmt_data", return_value="01/12/2025"):
             row = vm._build_row_from_cliente(cliente)
 
             # Deve ter inicial (A) de admin
@@ -675,7 +675,7 @@ class TestBuildRow:
         vm_custom = ClientesViewModel(author_resolver=resolver)
         cliente = make_cliente_dict(ultima_por="admin@test.com")
 
-        with patch("src.app_utils.fmt_data", return_value="01/12"):
+        with patch("src.core.app_utils.fmt_data", return_value="01/12"):
             row = vm_custom._build_row_from_cliente(cliente)
 
             assert "(X)" in row.ultima_alteracao
@@ -699,7 +699,7 @@ class TestBuildRow:
 
         mapping = json.dumps({"john@example.com": "JD"})
         with patch.dict(os.environ, {"RC_INITIALS_MAP": mapping}):
-            with patch("src.app_utils.fmt_data", return_value="01/12"):
+            with patch("src.core.app_utils.fmt_data", return_value="01/12"):
                 row = vm._build_row_from_cliente(cliente)
 
                 assert "(J)" in row.ultima_alteracao  # primeira letra de "JD"
@@ -933,7 +933,7 @@ class TestErrorHandling:
         cliente = make_cliente_dict(ultima_por="user@test.com")
 
         with patch.dict(os.environ, {"RC_INITIALS_MAP": "{invalid json"}):
-            with patch("src.app_utils.fmt_data", return_value="01/12"):
+            with patch("src.core.app_utils.fmt_data", return_value="01/12"):
                 row = vm._build_row_from_cliente(cliente)
 
                 # Deve usar primeira letra do email

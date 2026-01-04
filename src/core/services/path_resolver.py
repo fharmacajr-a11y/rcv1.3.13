@@ -15,7 +15,7 @@ import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Iterator, Literal, Optional, Tuple
 
-from src.app_utils import safe_base_from_fields
+from src.core.app_utils import safe_base_from_fields
 from src.config.paths import DOCS_DIR
 from src.core.db_manager import get_cliente_by_id
 from src.utils.file_utils import read_marker_id

@@ -6,6 +6,8 @@ import os
 import tkinter as tk
 from typing import Optional, cast
 
+# Reexport da classe App (migrado de shim para módulo real)
+from src.modules.main_window.views.main_window import App
 from src.core import bootstrap
 from src.version import get_version
 
@@ -15,9 +17,6 @@ APP_VERSION: str = get_version()
 
 bootstrap.configure_environment()
 bootstrap.configure_logging(preload=True)
-
-# Reexport da classe App (migrado de shim para módulo real)
-from src.modules.main_window.views.main_window import App
 
 __all__ = ["App", "apply_rc_icon"]
 

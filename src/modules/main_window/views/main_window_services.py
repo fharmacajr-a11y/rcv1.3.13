@@ -49,7 +49,7 @@ def init_status_monitor(app: "MainWindow") -> Optional[Any]:
     """
     try:
         from src.core.status_monitor import StatusMonitor
-        from src.app_core import NO_FS
+        from src.core.app_core import NO_FS
 
         monitor = StatusMonitor(app._handle_status_update, app_after=app.after)
         monitor.set_cloud_only(NO_FS)

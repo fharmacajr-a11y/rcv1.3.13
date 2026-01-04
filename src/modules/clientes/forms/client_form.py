@@ -28,7 +28,7 @@ from src.modules.clientes.service import (
 from src.modules.forms.actions import preencher_via_pasta as preencher_via_pasta  # noqa: F401
 
 # Re-exports para patch em testes (Fase 2)
-from src.app_gui import apply_rc_icon as apply_rc_icon  # noqa: F401
+from src.core.app import apply_rc_icon as apply_rc_icon  # noqa: F401
 from src.modules.passwords.helpers import open_senhas_for_cliente as open_senhas_for_cliente  # noqa: F401
 from ._collect import coletar_valores as _collect_values  # noqa: F401
 from ._dupes import (  # noqa: F401

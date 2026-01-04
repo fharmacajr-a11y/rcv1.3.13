@@ -54,11 +54,11 @@ def _patch_tkinter_image_del() -> None:
         return
 
     try:
-        _Image = getattr(tk, "Image", None)
-        if _Image is None:
+        image_class = getattr(tk, "Image", None)
+        if image_class is None:
             return
 
-        _original_del = getattr(_Image, "__del__", None)
+        _original_del = getattr(image_class, "__del__", None)
         if _original_del is None:
             return
 
@@ -76,7 +76,7 @@ def _patch_tkinter_image_del() -> None:
                 pass
 
         _safe_del._pytest_patched = True  # type: ignore[attr-defined]
-        _Image.__del__ = _safe_del
+        image_class.__del__ = _safe_del
 
     except Exception:
         # Se qualquer coisa falhar, não queremos quebrar o pytest

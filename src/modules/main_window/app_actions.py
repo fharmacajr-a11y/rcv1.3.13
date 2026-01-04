@@ -24,14 +24,14 @@ class AppActions:
 
     def novo_cliente(self) -> None:
         """Fluxo original de criação de novo cliente, movido da App."""
-        from src import app_core
+        import src.core.app_core as app_core
 
         app_core.novo_cliente(self._app)
 
     def editar_cliente(self) -> None:
         """Fluxo original de edição de cliente, movido da App."""
         from tkinter import messagebox
-        from src import app_core
+        import src.core.app_core as app_core
 
         values = self._app._selected_main_values()
         if not values:

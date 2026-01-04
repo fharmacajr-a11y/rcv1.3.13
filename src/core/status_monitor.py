@@ -10,7 +10,7 @@ from typing import Any, Callable
 try:
     from src.infra.net_status import Status, probe
 except Exception:  # pragma: no cover
-    from src.app_status import Status, probe  # type: ignore
+    from src.core.status import Status, probe  # type: ignore
 
 from src.config.environment import cloud_only_default
 

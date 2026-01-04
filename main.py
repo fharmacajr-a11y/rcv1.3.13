@@ -4,4 +4,4 @@
 if __name__ == "__main__":
     import runpy
 
-    runpy.run_module("src.app_gui", run_name="__main__")
+    runpy.run_module("src.core.app", run_name="__main__")

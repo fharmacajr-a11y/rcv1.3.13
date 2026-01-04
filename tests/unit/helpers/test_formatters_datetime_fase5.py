@@ -159,19 +159,19 @@ class TestFmtDatetimeBrCompatibility:
 
     def test_fmt_datetime_br_compatible_with_fmt_data_none(self) -> None:
         """Comportamento com None deve ser compatível com fmt_data."""
-        from src.app_utils import fmt_data
+        from src.core.app_utils import fmt_data
 
         assert fmt_datetime_br(None) == fmt_data(None)
 
     def test_fmt_datetime_br_compatible_with_fmt_data_empty(self) -> None:
         """Comportamento com string vazia deve ser compatível."""
-        from src.app_utils import fmt_data
+        from src.core.app_utils import fmt_data
 
         assert fmt_datetime_br("") == fmt_data("")
 
     def test_fmt_datetime_br_compatible_with_fmt_data_iso(self) -> None:
         """Formatação de ISO string deve ser compatível."""
-        from src.app_utils import fmt_data
+        from src.core.app_utils import fmt_data
 
         iso_input = "2024-01-15T10:30:00"
         result_br = fmt_datetime_br(iso_input)
@@ -182,7 +182,7 @@ class TestFmtDatetimeBrCompatibility:
 
     def test_fmt_datetime_br_compatible_with_fmt_data_iso_z(self) -> None:
         """Formatação de ISO com Z deve ser compatível."""
-        from src.app_utils import fmt_data
+        from src.core.app_utils import fmt_data
 
         iso_z = "2024-01-15T10:30:00Z"
         result_br = fmt_datetime_br(iso_z)
@@ -192,7 +192,7 @@ class TestFmtDatetimeBrCompatibility:
 
     def test_fmt_datetime_br_compatible_with_fmt_data_invalid(self) -> None:
         """Comportamento com entrada inválida deve ser compatível."""
-        from src.app_utils import fmt_data
+        from src.core.app_utils import fmt_data
 
         invalid = "data-invalida"
         result_br = fmt_datetime_br(invalid)

@@ -78,7 +78,7 @@ for cand in (BASE / "runtime_docs", SRC / "runtime_docs", BASE / "assets" / "run
 # =============================================================================
 a = Analysis(
     # Entrypoint principal do aplicativo
-    ["src/app_gui.py"],
+    ["src/core/app.py"],
 
     # Caminhos de busca de módulos
     pathex=[str(BASE), str(SRC)],

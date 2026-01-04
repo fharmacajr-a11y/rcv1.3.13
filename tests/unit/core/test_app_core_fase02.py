@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
-import src.app_core as app_core
+import src.core.app_core as app_core
 
 
 @pytest.fixture(autouse=True)

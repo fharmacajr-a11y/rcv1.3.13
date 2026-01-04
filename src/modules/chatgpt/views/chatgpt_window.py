@@ -35,7 +35,7 @@ class ChatGPTWindow(tk.Toplevel):
         self._on_close_callback = on_close_callback
 
         try:
-            from src.app_gui import apply_rc_icon  # type: ignore
+            from src.core.app import apply_rc_icon  # type: ignore
 
             apply_rc_icon(self)  # type: ignore[arg-type]
         except Exception as exc:  # noqa: BLE001

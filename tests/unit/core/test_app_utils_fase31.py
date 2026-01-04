@@ -16,7 +16,7 @@ verificando que o comportamento permanece consistente.
 
 from __future__ import annotations
 
-from src.app_utils import (
+from src.core.app_utils import (
     fmt_data,
     only_digits,
     parse_pasta,

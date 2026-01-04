@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional, Tuple
 
 from src.infra.supabase_client import exec_postgrest, supabase
-from src.app_utils import safe_base_from_fields
+from src.core.app_utils import safe_base_from_fields
 from src.config.paths import CLOUD_ONLY, DOCS_DIR
 from src.core.db_manager import (
     find_cliente_by_cnpj_norm,

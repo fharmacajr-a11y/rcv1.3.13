@@ -94,7 +94,7 @@ def build_main_window_layout(
     )
     from src.ui.window_policy import apply_fit_policy
     from src.utils.themes import apply_combobox_style
-    from src import app_status
+    import src.core.status as app_status
 
     # 1. Separadores horizontais
     sep_menu_toolbar = ttk.Separator(app, orient="horizontal")
