@@ -128,11 +128,15 @@ def build_row_values(row: ClienteRow, ctx: RowRenderingContext) -> tuple[Any, ..
     return tuple(values)
 
 
-def build_row_tags(row: ClienteRow) -> tuple[str, ...]:
+def build_row_tags(row: ClienteRow, row_index: int | None = None) -> tuple[str, ...]:
     """Determina tags visuais para a linha na Treeview.
 
     Esta função replica a lógica de tags do _render_clientes,
     mas de forma headless e testável.
+
+    OTIMIZAÇÃO: Para evitar loops extras sobre os dados, o zebra striping
+    é aplicado no momento do build das tags (passando row_index).
+    Tags de status têm prioridade sobre zebra.
 
     Tags suportadas:
     - "has_obs": Aplicada quando o cliente tem observações não vazias
@@ -142,9 +146,11 @@ def build_row_tags(row: ClienteRow) -> tuple[str, ...]:
     - "status_aguardando": Cinza (aguardando documento/pagamento)
     - "status_finalizado": Verde (finalizado)
     - "status_followup": Roxo (follow-up)
+    - "zebra_even"/"zebra_odd": Linhas alternadas (quando não há status)
 
     Args:
         row: ClienteRow com os dados do cliente
+        row_index: Índice da linha (opcional, para zebra striping)
 
     Returns:
         Tupla de tags para aplicar na linha
@@ -172,6 +178,10 @@ def build_row_tags(row: ClienteRow) -> tuple[str, ...]:
     status_tag = _get_status_tag(row.status)
     if status_tag:
         tags.append(status_tag)
+    elif row_index is not None:
+        # Zebra striping apenas se NÃO tiver tag de status (status tem prioridade visual)
+        zebra_tag = "zebra_even" if row_index % 2 == 0 else "zebra_odd"
+        tags.append(zebra_tag)
 
     return tuple(tags)
 

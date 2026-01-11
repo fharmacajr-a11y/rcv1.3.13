@@ -47,8 +47,9 @@ from src.modules.clientes.views.main_screen_helpers import (
     resolve_filter_choice_from_options,
 )
 
-# Import para zebra striping modernizado
-from src.ui.components.lists import apply_zebra_striping
+# NOTA: apply_zebra_striping disponível em src.ui.components.lists para
+# reordenações dinâmicas pós-carregamento. No _render_clientes, o zebra
+# é aplicado diretamente no build_row_tags para otimizar performance.
 
 if TYPE_CHECKING:
     pass
@@ -344,6 +345,9 @@ class MainScreenDataflowMixin:
         Melhorias de UI v1.5.41:
         - Tags de status dinâmico com cores (verde, laranja, azul, etc.)
         - Zebra striping para melhor legibilidade em linhas longas
+
+        OTIMIZAÇÃO: Tags (incluindo zebra) são aplicadas no momento do insert,
+        evitando loop extra sobre os dados após a inserção.
         """
         try:
             self.client_list.delete(*self.client_list.get_children())  # pyright: ignore[reportAttributeAccessIssue]
@@ -351,16 +355,12 @@ class MainScreenDataflowMixin:
         except Exception as exc:  # noqa: BLE001
             log.debug("Falha ao limpar treeview de clientes: %s", exc)
 
-        for row in rows:
-            tags = build_row_tags(row)
+        # OTIMIZAÇÃO: Aplica tags (incluindo zebra) no momento do insert
+        for idx, row in enumerate(rows):
+            # Passa o índice para build_row_tags aplicar zebra striping diretamente
+            tags = build_row_tags(row, row_index=idx)
 
             self.client_list.insert("", "end", values=self._row_values_masked(row), tags=tags)  # pyright: ignore[reportAttributeAccessIssue]
-
-        # Aplica zebra striping para linhas sem status destacado
-        try:
-            apply_zebra_striping(self.client_list)  # pyright: ignore[reportAttributeAccessIssue]
-        except Exception as exc:  # noqa: BLE001
-            log.debug("Falha ao aplicar zebra striping: %s", exc)
 
         raw_clientes = [row.raw.get("cliente") for row in rows if row.raw.get("cliente") is not None]
 

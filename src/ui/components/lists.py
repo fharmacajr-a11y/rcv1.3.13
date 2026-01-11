@@ -152,8 +152,16 @@ def configure_status_tags(tree: tb.Treeview) -> None:
 def apply_zebra_striping(tree: tb.Treeview) -> None:
     """Aplica zebra striping (linhas alternadas) à Treeview.
 
-    Deve ser chamado após inserir/remover itens da tabela.
-    Preserva tags de status existentes.
+    NOTA DE PERFORMANCE: Esta função itera sobre todos os itens da Treeview
+    e deve ser usada apenas em casos específicos como:
+    - Reordenação manual de linhas pelo usuário
+    - Remoção de linhas individuais
+    - Atualização de status que remove tag de cor
+
+    Para carregamento inicial ou refresh completo, use build_row_tags()
+    com row_index para aplicar zebra no momento do insert (mais eficiente).
+
+    Preserva tags de status existentes (status tem prioridade sobre zebra).
     """
     try:
         children = tree.get_children()
