@@ -58,15 +58,27 @@ PICK_MODE_SELECT_TEXT = "✓ Selecionar"
 # ============================================================================
 
 # Padding horizontal padrão da toolbar
-TOOLBAR_PADX = 10
+TOOLBAR_PADX = 12
 
-# Padding vertical padrão da toolbar
-TOOLBAR_PADY = 10
+# Padding vertical padrão da toolbar (aumentado para dar "respiro" visual)
+TOOLBAR_PADY = 14
 
-# Padding do separador de colunas
-SEPARATOR_PADX = 10
-SEPARATOR_PADY_TOP = 6
-SEPARATOR_PADY_BOTTOM = 4
+# Padding do separador de colunas (aumentado para melhor hierarquia visual)
+SEPARATOR_PADX = 12
+SEPARATOR_PADY_TOP = 10
+SEPARATOR_PADY_BOTTOM = 8
+
+# Espaçamento entre a toolbar e a tabela (whitespace breathing room)
+TABLE_SECTION_PADDING_TOP = 8
+TABLE_SECTION_PADDING_BOTTOM = 6
+
+# Padding do container da lista de clientes
+CLIENT_LIST_PADX = 12
+CLIENT_LIST_PADY = 8
+
+# Padding do footer (aumentado para hierarquia visual)
+FOOTER_PADX = 12
+FOOTER_PADY = 14
 
 # ============================================================================
 # ORDEM DE COLUNAS
@@ -107,6 +119,12 @@ __all__ = [
     "SEPARATOR_PADX",
     "SEPARATOR_PADY_TOP",
     "SEPARATOR_PADY_BOTTOM",
+    "TABLE_SECTION_PADDING_TOP",
+    "TABLE_SECTION_PADDING_BOTTOM",
+    "CLIENT_LIST_PADX",
+    "CLIENT_LIST_PADY",
+    "FOOTER_PADX",
+    "FOOTER_PADY",
     # Ordem de colunas
     "DEFAULT_COLUMN_ORDER",
 ]

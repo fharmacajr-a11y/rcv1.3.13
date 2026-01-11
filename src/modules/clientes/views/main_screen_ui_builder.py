@@ -1,7 +1,13 @@
 # -*- coding: utf-8 -*-
 # pyright: strict, reportUnknownMemberType=false, reportUnknownArgumentType=false, reportUnknownVariableType=false, reportPrivateUsage=false
 
-"""Builders da tela principal de clientes (toolbar, lista, footer e banner)."""
+"""Builders da tela principal de clientes (toolbar, lista, footer e banner).
+
+Melhorias de UI v1.5.41:
+- Espaçamentos aumentados para melhor hierarquia visual
+- Tags de status dinâmico com cores
+- Zebra striping para melhor legibilidade
+"""
 
 from __future__ import annotations
 
@@ -38,6 +44,11 @@ from src.modules.clientes.views.main_screen_constants import (
     SEPARATOR_PADY_TOP,
     TOOLBAR_PADX,
     TOOLBAR_PADY,
+    # Novos imports para espaçamento melhorado
+    CLIENT_LIST_PADX,
+    CLIENT_LIST_PADY,
+    FOOTER_PADX,
+    FOOTER_PADY,
 )
 from src.modules.clientes.views.main_screen_helpers import normalize_order_label
 from src.modules.clientes.views.toolbar import ClientesToolbar
@@ -146,8 +157,14 @@ def build_tree_and_column_controls(frame: MainScreenFrame) -> None:
         _on_toggle(col)
         _update_toggle_labels()
 
+    # Container da lista de clientes com padding aumentado para "respiro" visual
     frame.client_list_container = tk.Frame(frame)  # type: ignore[attr-defined]
-    frame.client_list_container.pack(expand=True, fill="both", padx=10, pady=5)
+    frame.client_list_container.pack(
+        expand=True,
+        fill="both",
+        padx=CLIENT_LIST_PADX,  # Padding horizontal melhorado
+        pady=CLIENT_LIST_PADY,  # Padding vertical melhorado
+    )
 
     frame.client_list = create_clients_treeview(
         frame.client_list_container,
@@ -302,7 +319,12 @@ def build_tree_and_column_controls(frame: MainScreenFrame) -> None:
 
 
 def build_footer(frame: MainScreenFrame) -> None:
-    """Cria o footer com ações CRUD e batch operations."""
+    """Cria o footer com ações CRUD e batch operations.
+
+    Melhorias de UI v1.5.41:
+    - Padding aumentado para melhor hierarquia visual
+    - Botões com ícones e estilos diferenciados
+    """
 
     def _handle_new():
         if frame._pick_mode_manager.get_snapshot().is_pick_mode_active:
@@ -336,7 +358,8 @@ def build_footer(frame: MainScreenFrame) -> None:
         on_batch_export=frame._on_batch_export_clicked,
     )
 
-    frame.footer.pack(fill="x", padx=10, pady=10)
+    # Padding aumentado para dar "respiro" visual ao footer
+    frame.footer.pack(fill="x", padx=FOOTER_PADX, pady=FOOTER_PADY)
 
     frame.btn_novo = frame.footer.btn_novo
     frame.btn_editar = frame.footer.btn_editar

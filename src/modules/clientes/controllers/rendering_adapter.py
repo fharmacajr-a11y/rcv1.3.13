@@ -134,8 +134,14 @@ def build_row_tags(row: ClienteRow) -> tuple[str, ...]:
     Esta função replica a lógica de tags do _render_clientes,
     mas de forma headless e testável.
 
-    Atualmente suporta:
+    Tags suportadas:
     - "has_obs": Aplicada quando o cliente tem observações não vazias
+    - "status_novo_cliente": Verde (cliente novo)
+    - "status_sem_resposta": Laranja (sem resposta)
+    - "status_analise": Azul (em análise)
+    - "status_aguardando": Cinza (aguardando documento/pagamento)
+    - "status_finalizado": Verde (finalizado)
+    - "status_followup": Roxo (follow-up)
 
     Args:
         row: ClienteRow com os dados do cliente
@@ -162,7 +168,51 @@ def build_row_tags(row: ClienteRow) -> tuple[str, ...]:
     if row.observacoes.strip():
         tags.append("has_obs")
 
+    # Tags de status dinâmico (badges visuais)
+    status_tag = _get_status_tag(row.status)
+    if status_tag:
+        tags.append(status_tag)
+
     return tuple(tags)
+
+
+def _get_status_tag(status_text: str) -> str | None:
+    """Retorna a tag de status apropriada baseado no texto do status.
+
+    Mapeamento de status para tags visuais (cores):
+    - "Novo cliente" → status_novo_cliente (verde)
+    - "Sem resposta" → status_sem_resposta (laranja)
+    - "Análise..." → status_analise (azul)
+    - "Aguardando..." → status_aguardando (cinza)
+    - "Finalizado" → status_finalizado (verde)
+    - "Follow-up..." → status_followup (roxo)
+
+    Args:
+        status_text: Texto do status do cliente
+
+    Returns:
+        Nome da tag de status ou None se não houver match
+    """
+    if not status_text:
+        return None
+
+    status_lower = status_text.lower().strip()
+
+    # Mapeamento de status para tags
+    if "novo cliente" in status_lower:
+        return "status_novo_cliente"
+    elif "sem resposta" in status_lower:
+        return "status_sem_resposta"
+    elif "análise" in status_lower or "analise" in status_lower:
+        return "status_analise"
+    elif "aguardando" in status_lower:
+        return "status_aguardando"
+    elif "finalizado" in status_lower:
+        return "status_finalizado"
+    elif "follow-up" in status_lower or "follow up" in status_lower or "followup" in status_lower:
+        return "status_followup"
+
+    return None
 
 
 # ============================================================================

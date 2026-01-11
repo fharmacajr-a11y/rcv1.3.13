@@ -47,6 +47,9 @@ from src.modules.clientes.views.main_screen_helpers import (
     resolve_filter_choice_from_options,
 )
 
+# Import para zebra striping modernizado
+from src.ui.components.lists import apply_zebra_striping
+
 if TYPE_CHECKING:
     pass
 
@@ -336,6 +339,12 @@ class MainScreenDataflowMixin:
             self.client_list.item(item_id, values=self._row_values_masked(row))  # pyright: ignore[reportAttributeAccessIssue]
 
     def _render_clientes(self, rows: Sequence[ClienteRow]) -> None:
+        """Renderiza a lista de clientes na Treeview.
+
+        Melhorias de UI v1.5.41:
+        - Tags de status dinâmico com cores (verde, laranja, azul, etc.)
+        - Zebra striping para melhor legibilidade em linhas longas
+        """
         try:
             self.client_list.delete(*self.client_list.get_children())  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -346,6 +355,12 @@ class MainScreenDataflowMixin:
             tags = build_row_tags(row)
 
             self.client_list.insert("", "end", values=self._row_values_masked(row), tags=tags)  # pyright: ignore[reportAttributeAccessIssue]
+
+        # Aplica zebra striping para linhas sem status destacado
+        try:
+            apply_zebra_striping(self.client_list)  # pyright: ignore[reportAttributeAccessIssue]
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao aplicar zebra striping: %s", exc)
 
         raw_clientes = [row.raw.get("cliente") for row in rows if row.raw.get("cliente") is not None]
 
