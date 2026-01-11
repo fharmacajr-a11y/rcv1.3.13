@@ -14,39 +14,44 @@ COL_ULTIMA_WIDTH: Final[int] = 165
 # TREEVIEW MODERNIZATION - Visual Design Improvements
 # ============================================================================
 
-# Altura da linha (rowheight) - aumentada para melhor legibilidade
-# Recomendado: 30-35px para evitar linhas "grudadas"
-TREEVIEW_ROW_HEIGHT: Final[int] = 32
+# Altura da linha (rowheight) - aumentada para evitar texto cortado
+# 36px garante espaço vertical para centralização do texto
+TREEVIEW_ROW_HEIGHT: Final[int] = 36
 
-# Fonte moderna para a Treeview
+# Fonte moderna para a Treeview (reduzida para 9pt para caber bem em 36px)
 TREEVIEW_FONT_FAMILY: Final[str] = "Segoe UI"  # Fallback: Roboto, Arial
-TREEVIEW_FONT_SIZE: Final[int] = 10
-TREEVIEW_HEADER_FONT_SIZE: Final[int] = 11
+TREEVIEW_FONT_SIZE: Final[int] = 9
+TREEVIEW_HEADER_FONT_SIZE: Final[int] = 10
 
-# Cores de status dinâmico (badges visuais)
-# Status: Novo Cliente - Verde (destaque positivo)
-STATUS_NOVO_CLIENTE_BG: Final[str] = "#d4edda"  # Verde claro
-STATUS_NOVO_CLIENTE_FG: Final[str] = "#155724"  # Verde escuro
+# ============================================================================
+# CORES DE STATUS - Tons PASTEL suaves com texto escuro para legibilidade
+# ============================================================================
+# As cores de fundo são muito claras (pastel) para não conflitar com zebra
+# O texto é sempre escuro (preto/cinza) para garantir contraste
 
-# Status: Sem resposta - Laranja/Cinza (atenção)
-STATUS_SEM_RESPOSTA_BG: Final[str] = "#fff3cd"  # Amarelo claro
-STATUS_SEM_RESPOSTA_FG: Final[str] = "#856404"  # Laranja escuro
+# Status: Novo Cliente - Verde pastel suave
+STATUS_NOVO_CLIENTE_BG: Final[str] = "#e8f5e9"  # Verde muito claro (pastel)
+STATUS_NOVO_CLIENTE_FG: Final[str] = "#1b5e20"  # Verde escuro para texto
 
-# Status: Análise - Azul (em processamento)
-STATUS_ANALISE_BG: Final[str] = "#cce5ff"  # Azul claro
-STATUS_ANALISE_FG: Final[str] = "#004085"  # Azul escuro
+# Status: Sem resposta - Amarelo/Laranja pastel suave
+STATUS_SEM_RESPOSTA_BG: Final[str] = "#fff8e1"  # Amarelo muito claro (pastel)
+STATUS_SEM_RESPOSTA_FG: Final[str] = "#e65100"  # Laranja escuro para texto
 
-# Status: Aguardando documento/pagamento - Cinza neutro
-STATUS_AGUARDANDO_BG: Final[str] = "#e2e3e5"  # Cinza claro
-STATUS_AGUARDANDO_FG: Final[str] = "#383d41"  # Cinza escuro
+# Status: Análise - Azul pastel suave
+STATUS_ANALISE_BG: Final[str] = "#e3f2fd"  # Azul muito claro (pastel)
+STATUS_ANALISE_FG: Final[str] = "#0d47a1"  # Azul escuro para texto
 
-# Status: Finalizado - Verde sucesso
-STATUS_FINALIZADO_BG: Final[str] = "#c3e6cb"  # Verde médio
-STATUS_FINALIZADO_FG: Final[str] = "#1e7e34"  # Verde
+# Status: Aguardando documento/pagamento - Cinza pastel
+STATUS_AGUARDANDO_BG: Final[str] = "#f5f5f5"  # Cinza muito claro
+STATUS_AGUARDANDO_FG: Final[str] = "#424242"  # Cinza escuro para texto
 
-# Status: Follow-up - Roxo/Magenta (urgência)
-STATUS_FOLLOWUP_BG: Final[str] = "#e2d5f1"  # Lilás claro
-STATUS_FOLLOWUP_FG: Final[str] = "#6f42c1"  # Roxo
+# Status: Finalizado - Verde pastel (mais saturado que Novo Cliente)
+STATUS_FINALIZADO_BG: Final[str] = "#c8e6c9"  # Verde claro
+STATUS_FINALIZADO_FG: Final[str] = "#2e7d32"  # Verde escuro
+
+# Status: Follow-up - Roxo/Lilás pastel suave
+STATUS_FOLLOWUP_BG: Final[str] = "#f3e5f5"  # Lilás muito claro (pastel)
+STATUS_FOLLOWUP_FG: Final[str] = "#6a1b9a"  # Roxo escuro para texto
 
 # Cores de zebra striping (linhas alternadas)
 ZEBRA_EVEN_BG: Final[str] = "#ffffff"  # Branco

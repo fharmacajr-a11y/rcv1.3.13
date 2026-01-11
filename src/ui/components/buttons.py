@@ -77,55 +77,60 @@ def create_footer_buttons(
 
     # =========================================================================
     # BOTÃO PRINCIPAL: Novo Cliente (PRIMARY ACTION)
-    # - Cor verde (success) para destaque máximo
+    # - Cor verde sólida (success) para destaque máximo
     # - Ícone de "+" para indicar criação
+    # - Padding interno aumentado para ícones respirarem
     # =========================================================================
     btn_novo = tb.Button(
         frame,
-        text=f"{ICON_NEW}{BUTTON_ICON_SPACING}Novo Cliente",
+        text=f"{ICON_NEW}  Novo Cliente",  # Espaçamento duplo para respirar
         command=on_novo,
-        bootstyle="success",
-        width=15,  # Largura fixa para consistência
+        bootstyle="success",  # SÓLIDO (não outline) - ação principal
+        width=18,  # Largura aumentada
+        padding=(12, 8),  # Padding interno (horizontal, vertical)
     )
 
     # =========================================================================
     # BOTÕES SECUNDÁRIOS: Editar e Arquivos
-    # - Estilos mais sutis (secondary, info)
-    # - Menor peso visual que a ação principal
+    # - Estilos outline para menor destaque
+    # - Padding aumentado para consistência
     # =========================================================================
     btn_editar = tb.Button(
         frame,
-        text=f"{ICON_EDIT}{BUTTON_ICON_SPACING}Editar",
+        text=f"{ICON_EDIT}  Editar",
         command=on_editar,
-        bootstyle="secondary-outline",  # Outline para menor destaque
+        bootstyle="secondary-outline",
+        padding=(10, 6),
     )
 
     btn_subpastas = tb.Button(
         frame,
-        text=f"{ICON_FILES}{BUTTON_ICON_SPACING}Arquivos",
+        text=f"{ICON_FILES}  Arquivos",
         command=on_subpastas,
-        bootstyle="info-outline",  # Info com outline
+        bootstyle="info-outline",
+        padding=(10, 6),
     )
 
     # Layout dos botões principais com padding aumentado
-    btn_novo.grid(row=0, column=0, padx=(0, 8), pady=8, sticky="w")
-    btn_editar.grid(row=0, column=1, padx=8, pady=8, sticky="w")
-    btn_subpastas.grid(row=0, column=2, padx=8, pady=8, sticky="w")
+    btn_novo.grid(row=0, column=0, padx=(0, 10), pady=10, sticky="w")
+    btn_editar.grid(row=0, column=1, padx=10, pady=10, sticky="w")
+    btn_subpastas.grid(row=0, column=2, padx=10, pady=10, sticky="w")
 
     # =========================================================================
     # BOTÃO DE PERIGO: Excluir (DANGER ACTION)
-    # - Cor vermelha (danger) para alertar o usuário
-    # - Ícone de lixeira
+    # - Estilo outline vermelho para alertar sem ser agressivo
+    # - Padding consistente
     # =========================================================================
     btn_excluir: Optional[tb.Button] = None
     if on_excluir is not None:
         btn_excluir = tb.Button(
             frame,
-            text=f"{ICON_DELETE}{BUTTON_ICON_SPACING}Excluir",
+            text=f"{ICON_DELETE}  Excluir",
             command=on_excluir,
-            bootstyle="danger-outline",  # Danger outline - menos agressivo mas ainda alerta
+            bootstyle="danger-outline",
+            padding=(10, 6),
         )
-        btn_excluir.grid(row=0, column=3, padx=8, pady=8, sticky="w")
+        btn_excluir.grid(row=0, column=3, padx=10, pady=10, sticky="w")
 
     # Botão Obrigações (REMOVIDO - funcionalidade movida para Hub)
     # HISTÓRICO: Anteriormente havia um botão "Obrigações" no módulo Clientes.

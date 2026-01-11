@@ -86,26 +86,24 @@ def configure_status_tags(tree: tb.Treeview) -> None:
     """Configura tags de status com cores dinâmicas para a Treeview.
 
     Tags disponíveis:
-    - status_novo_cliente: Verde (Novo Cliente)
-    - status_sem_resposta: Laranja/Amarelo (Sem resposta)
-    - status_analise: Azul (Análise da Caixa, Análise do Ministério)
-    - status_aguardando: Cinza (Aguardando documento/pagamento)
-    - status_finalizado: Verde (Finalizado)
-    - status_followup: Roxo (Follow-up hoje/amanhã)
+    - status_novo_cliente: Verde pastel (Novo Cliente)
+    - status_sem_resposta: Amarelo pastel (Sem resposta)
+    - status_analise: Azul pastel (Análise da Caixa, Análise do Ministério)
+    - status_aguardando: Cinza pastel (Aguardando documento/pagamento)
+    - status_finalizado: Verde pastel (Finalizado)
+    - status_followup: Roxo pastel (Follow-up hoje/amanhã)
     - zebra_even: Linha par (branco)
     - zebra_odd: Linha ímpar (cinza claro)
+
+    NOTA: Cores pastel suaves com texto escuro para garantir legibilidade.
+    Zebra striping só é aplicado em linhas SEM status colorido.
     """
     try:
-        modern_font = _get_modern_font()
-        bold_font = modern_font.copy()
-        bold_font.configure(weight="bold")
-
-        # Tags de status com cores visuais (badges dinâmicos)
+        # Tags de status com cores PASTEL suaves (não usamos bold para evitar texto cortado)
         tree.tag_configure(
             "status_novo_cliente",
             background=STATUS_NOVO_CLIENTE_BG,
             foreground=STATUS_NOVO_CLIENTE_FG,
-            font=bold_font,
         )
 
         tree.tag_configure(
@@ -136,7 +134,6 @@ def configure_status_tags(tree: tb.Treeview) -> None:
             "status_followup",
             background=STATUS_FOLLOWUP_BG,
             foreground=STATUS_FOLLOWUP_FG,
-            font=bold_font,
         )
 
         # Zebra striping para melhor legibilidade em linhas longas
@@ -276,11 +273,21 @@ def create_clients_treeview(
     except Exception as exc:
         log.debug("Falha ao configurar estilo moderno da Treeview: %s", exc)
 
+    # =========================================================================
+    # ALINHAMENTO DE COLUNAS:
+    # - ID: centralizado (numérico, pequeno)
+    # - Razão Social, Nome, Observações: esquerda (textos longos)
+    # - CNPJ, WhatsApp, Status, Última Alteração: centralizado (tamanho fixo)
+    # =========================================================================
+    left_aligned_cols = {"Razao Social", "Nome", "Observacoes"}
+
     for key, heading, _, _ in columns:
-        tree.heading(key, text=heading, anchor="center")
+        col_anchor = "w" if key in left_aligned_cols else "center"
+        tree.heading(key, text=heading, anchor=col_anchor)
 
     for key, _, width, can_stretch in columns:
-        tree.column(key, width=width, minwidth=width, anchor="center", stretch=can_stretch)
+        col_anchor = "w" if key in left_aligned_cols else "center"
+        tree.column(key, width=width, minwidth=width, anchor=col_anchor, stretch=can_stretch)
 
     def _block_header_resize(event: Any) -> str | None:
         if tree.identify_region(event.x, event.y) == "separator":
