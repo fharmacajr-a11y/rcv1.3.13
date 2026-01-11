@@ -8,34 +8,21 @@ from typing import Any, Callable
 
 import ttkbootstrap as tb
 
-from src.config.constants import COL_STATUS_WIDTH  # <-- adicionar
 from src.config.constants import (
     COL_CNPJ_WIDTH,
     COL_ID_WIDTH,
     COL_NOME_WIDTH,
     COL_OBS_WIDTH,
     COL_RAZAO_WIDTH,
+    COL_STATUS_WIDTH,
     COL_ULTIMA_WIDTH,
     COL_WHATSAPP_WIDTH,
-    # Novas constantes de modernização
+    # Constantes de estilo da Treeview
     TREEVIEW_ROW_HEIGHT,
     TREEVIEW_FONT_FAMILY,
     TREEVIEW_FONT_SIZE,
     TREEVIEW_HEADER_FONT_SIZE,
-    # Cores de status
-    STATUS_NOVO_CLIENTE_BG,
-    STATUS_NOVO_CLIENTE_FG,
-    STATUS_SEM_RESPOSTA_BG,
-    STATUS_SEM_RESPOSTA_FG,
-    STATUS_ANALISE_BG,
-    STATUS_ANALISE_FG,
-    STATUS_AGUARDANDO_BG,
-    STATUS_AGUARDANDO_FG,
-    STATUS_FINALIZADO_BG,
-    STATUS_FINALIZADO_FG,
-    STATUS_FOLLOWUP_BG,
-    STATUS_FOLLOWUP_FG,
-    # Zebra striping
+    # Zebra striping (único estilo visual usado)
     ZEBRA_EVEN_BG,
     ZEBRA_ODD_BG,
 )
@@ -73,9 +60,13 @@ def _get_modern_font() -> tkfont.Font:
 
 
 def _get_header_font() -> tkfont.Font:
-    """Retorna uma fonte para os cabeçalhos da Treeview."""
+    """Retorna uma fonte para os cabeçalhos da Treeview.
+
+    Usa mesma fonte e tamanho das células para layout uniforme.
+    """
     try:
-        font = tkfont.Font(family=TREEVIEW_FONT_FAMILY, size=TREEVIEW_HEADER_FONT_SIZE, weight="bold")
+        # Fonte sem negrito para manter consistência visual
+        font = tkfont.Font(family=TREEVIEW_FONT_FAMILY, size=TREEVIEW_HEADER_FONT_SIZE)
         return font
     except Exception:
         default = tkfont.nametofont("TkDefaultFont")
@@ -83,67 +74,41 @@ def _get_header_font() -> tkfont.Font:
 
 
 def configure_status_tags(tree: tb.Treeview) -> None:
-    """Configura tags de status com cores dinâmicas para a Treeview.
+    """Configura tags para a Treeview.
+
+    LAYOUT PADRONIZADO v1.5.41:
+    - Apenas ZEBRA STRIPING clássico (branco + cinza #f9f9f9)
+    - Cores de status DESABILITADAS para manter layout limpo
+    - Fonte única Segoe UI 9pt em todas as linhas
+    - Nenhuma tag altera altura ou fonte das linhas
 
     Tags disponíveis:
-    - status_novo_cliente: Verde pastel (Novo Cliente)
-    - status_sem_resposta: Amarelo pastel (Sem resposta)
-    - status_analise: Azul pastel (Análise da Caixa, Análise do Ministério)
-    - status_aguardando: Cinza pastel (Aguardando documento/pagamento)
-    - status_finalizado: Verde pastel (Finalizado)
-    - status_followup: Roxo pastel (Follow-up hoje/amanhã)
-    - zebra_even: Linha par (branco)
-    - zebra_odd: Linha ímpar (cinza claro)
-
-    NOTA: Cores pastel suaves com texto escuro para garantir legibilidade.
-    Zebra striping só é aplicado em linhas SEM status colorido.
+    - zebra_even: Linha par (branco #ffffff)
+    - zebra_odd: Linha ímpar (cinza #f9f9f9)
     """
     try:
-        # Tags de status com cores PASTEL suaves (não usamos bold para evitar texto cortado)
-        tree.tag_configure(
-            "status_novo_cliente",
-            background=STATUS_NOVO_CLIENTE_BG,
-            foreground=STATUS_NOVO_CLIENTE_FG,
-        )
-
-        tree.tag_configure(
-            "status_sem_resposta",
-            background=STATUS_SEM_RESPOSTA_BG,
-            foreground=STATUS_SEM_RESPOSTA_FG,
-        )
-
-        tree.tag_configure(
-            "status_analise",
-            background=STATUS_ANALISE_BG,
-            foreground=STATUS_ANALISE_FG,
-        )
-
-        tree.tag_configure(
-            "status_aguardando",
-            background=STATUS_AGUARDANDO_BG,
-            foreground=STATUS_AGUARDANDO_FG,
-        )
-
-        tree.tag_configure(
-            "status_finalizado",
-            background=STATUS_FINALIZADO_BG,
-            foreground=STATUS_FINALIZADO_FG,
-        )
-
-        tree.tag_configure(
-            "status_followup",
-            background=STATUS_FOLLOWUP_BG,
-            foreground=STATUS_FOLLOWUP_FG,
-        )
-
-        # Zebra striping para melhor legibilidade em linhas longas
+        # =====================================================================
+        # ZEBRA STRIPING ÚNICO - Layout limpo e profissional
+        # =====================================================================
         tree.tag_configure("zebra_even", background=ZEBRA_EVEN_BG)
         tree.tag_configure("zebra_odd", background=ZEBRA_ODD_BG)
 
-        log.debug("Tags de status configuradas com sucesso")
+        # Tags de status mantidas para compatibilidade (sem cores de fundo)
+        # Todas usam fundo transparente para não interferir no zebra
+        for tag_name in (
+            "status_novo_cliente",
+            "status_sem_resposta",
+            "status_analise",
+            "status_aguardando",
+            "status_finalizado",
+            "status_followup",
+        ):
+            tree.tag_configure(tag_name)  # Tag vazia, sem estilo
+
+        log.debug("Tags de zebra configuradas com sucesso")
 
     except Exception as exc:
-        log.debug("Falha ao configurar tags de status: %s", exc)
+        log.debug("Falha ao configurar tags: %s", exc)
 
 
 def apply_zebra_striping(tree: tb.Treeview) -> None:
@@ -274,12 +239,11 @@ def create_clients_treeview(
         log.debug("Falha ao configurar estilo moderno da Treeview: %s", exc)
 
     # =========================================================================
-    # ALINHAMENTO DE COLUNAS:
-    # - ID: centralizado (numérico, pequeno)
-    # - Razão Social, Nome, Observações: esquerda (textos longos)
-    # - CNPJ, WhatsApp, Status, Última Alteração: centralizado (tamanho fixo)
+    # ALINHAMENTO PADRONIZADO:
+    # - Razão Social, Nome: esquerda (textos longos que precisam de leitura)
+    # - ID, CNPJ, WhatsApp, Status, Observações, Última Alteração: centralizado
     # =========================================================================
-    left_aligned_cols = {"Razao Social", "Nome", "Observacoes"}
+    left_aligned_cols = {"Razao Social", "Nome"}
 
     for key, heading, _, _ in columns:
         col_anchor = "w" if key in left_aligned_cols else "center"
@@ -297,15 +261,13 @@ def create_clients_treeview(
     tree.bind("<Button-1>", _block_header_resize, add="+")
 
     # =========================================================================
-    # MODERNIZAÇÃO: Configurar tags de status e observações
+    # TAG OBSERVAÇÕES: Apenas cor diferente, SEM negrito (fonte única)
     # =========================================================================
     try:
-        modern_font = _get_modern_font()
-        bold_font = modern_font.copy()
-        bold_font.configure(weight="bold")
-        tree.tag_configure("has_obs", font=bold_font, foreground=OBS_FG)
+        # Cor azul para indicar que há observação, mas mesma fonte
+        tree.tag_configure("has_obs", foreground=OBS_FG)
     except Exception as exc:
-        log.debug("Falha ao configurar fonte em negrito: %s", exc)
+        log.debug("Falha ao configurar tag has_obs: %s", exc)
 
     # Configurar tags de status dinâmico
     configure_status_tags(tree)
