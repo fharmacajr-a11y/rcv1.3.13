@@ -46,6 +46,10 @@ from src.utils.prefs import load_columns_visibility, save_columns_visibility
 
 log = logging.getLogger("app_gui")
 
+# Constantes para switchbar de controle de colunas
+SWITCHBAR_HEIGHT = 30
+SWITCHCELL_HEIGHT = 30
+
 
 def build_toolbar(frame: MainScreenFrame) -> None:
     """Cria a toolbar com filtros, busca e botão de lixeira."""
@@ -135,17 +139,6 @@ def build_tree_and_column_controls(frame: MainScreenFrame) -> None:
         frame._refresh_rows()
         _persist_visibility()
 
-    def _label_for(col: str) -> str:
-        return "Ocultar" if frame._col_content_visible[col].get() else "Mostrar"
-
-    def _update_toggle_labels():
-        for col, parts in frame._col_ctrls.items():
-            parts["label"].config(text=_label_for(col))
-
-    def _on_toggle_with_labels(col: str):
-        _on_toggle(col)
-        _update_toggle_labels()
-
     frame.client_list_container = tk.Frame(frame)  # type: ignore[attr-defined]
     frame.client_list_container.pack(expand=True, fill="both", padx=10, pady=5)
 
@@ -187,40 +180,93 @@ def build_tree_and_column_controls(frame: MainScreenFrame) -> None:
                     "Observacoes": "Observações",
                     "Ultima Alteracao": "Última Alteração",
                 }.get(col, col)
-                frame.client_list.heading(col, text=friendly, anchor="center")
+                # WhatsApp com anchor='w' para alinhar com o conteúdo
+                anchor = "w" if col == "WhatsApp" else "center"
+                frame.client_list.heading(col, text=friendly, anchor=anchor)
             else:
-                frame.client_list.heading(col, text=cur, anchor="center")
+                # WhatsApp com anchor='w' para alinhar com o conteúdo
+                anchor = "w" if col == "WhatsApp" else "center"
+                frame.client_list.heading(col, text=cur, anchor=anchor)
         except Exception as e:
             log.debug("Erro ao configurar heading %s: %s", col, e)
 
+    # Inicializar atributos para switches
+    frame._switch_tree = frame.client_list  # type: ignore[attr-defined]
+    frame._switch_cells = {}  # type: ignore[attr-defined]
+    frame._switch_job = None  # type: ignore[attr-defined]
+    frame._switchbar_bound = False  # type: ignore[attr-defined] # Flag anti-bind-duplicado
     frame._col_ctrls = {}
 
-    for col in frame._col_order:
-        grp = tk.Frame(frame.columns_align_bar, bd=0, highlightthickness=0)  # type: ignore[attr-defined]
+    # Configurar altura mínima da barra (evita cortar switches)
+    frame.columns_align_bar.configure(height=SWITCHBAR_HEIGHT)
+    try:
+        frame.columns_align_bar.grid_propagate(False)
+    except Exception:  # noqa: BLE001
+        pass
 
-        chk = tk.Checkbutton(  # type: ignore[attr-defined]
-            grp,
+    # Criar cell frames (um por coluna) para alinhamento perfeito
+    for i, col in enumerate(frame._col_order):
+        # Cell frame com altura fixa
+        cell = tb.Frame(frame.columns_align_bar, height=SWITCHCELL_HEIGHT)
+        cell.grid(row=0, column=i, sticky="nsew")
+        cell.grid_propagate(False)  # Não deixar grid encolher e cortar o switch
+
+        # Switch round-toggle SEM TEXTO
+        chk = tb.Checkbutton(
+            cell,
+            text="",  # SEM TEXTO - apenas o switch
             variable=frame._col_content_visible[col],
-            command=lambda c=col: _on_toggle_with_labels(c),  # type: ignore[misc]
-            bd=0,
-            highlightthickness=0,
-            padx=0,
-            pady=0,
+            command=lambda c=col: _on_toggle(c),  # type: ignore[misc]
+            bootstyle="info-round-toggle",
             cursor="hand2",
-            anchor="w",
+            takefocus=False,
         )
-        chk.pack(side="left")
+        # Usar place para centralização matemática perfeita (elimina qualquer viés de padding/anchor)
+        chk.place(relx=0.5, rely=0.5, anchor="center")
 
-        lbl = ttk.Label(grp, text=_label_for(col))
-        lbl.pack(side="left", padx=(0, 0))
+        frame._col_ctrls[col] = {"frame": cell, "check": chk}
+        frame._switch_cells[col] = cell  # type: ignore[attr-defined]
 
-        grp.place(x=0, y=2, width=120, height=HEADER_CTRL_H - 4)
+    # Funções de sincronização
+    def _schedule_sync_switchbar(*_: Any) -> None:
+        """Agenda sincronização com debounce."""
+        if frame._switch_job is not None:  # type: ignore[attr-defined]
+            try:
+                frame.client_list.after_cancel(frame._switch_job)  # type: ignore[attr-defined]
+            except Exception:  # noqa: BLE001
+                pass
+        frame._switch_job = frame.client_list.after(60, _sync_switchbar_to_tree)  # type: ignore[attr-defined]
 
-        frame._col_ctrls[col] = {"frame": grp, "label": lbl, "check": chk}
+    def _sync_switchbar_to_tree() -> None:
+        """Sincroniza largura dos cells com as colunas do Treeview."""
+        frame._switch_job = None  # type: ignore[attr-defined]
+        try:
+            # Garante que widths já estejam assentados
+            frame.client_list.update_idletasks()
 
-    _update_toggle_labels()
+            for col, cell in frame._switch_cells.items():  # type: ignore[attr-defined]
+                try:
+                    w = int(frame.client_list.column(col, "width"))
+                    cell.configure(width=w)
+                except Exception:  # noqa: BLE001
+                    pass
+        except Exception:  # noqa: BLE001
+            pass
 
-    def _sync_col_controls():
+    # Sincronizar após criar (when Tk calculates sizes)
+    frame.columns_align_bar.after_idle(_schedule_sync_switchbar)
+
+    # Sincronizar quando Treeview redimensionar (com debounce) - apenas uma vez
+    if not frame._switchbar_bound:  # type: ignore[attr-defined]
+        frame.client_list.bind("<Configure>", _schedule_sync_switchbar, add="+")
+        frame._switchbar_bound = True  # type: ignore[attr-defined]
+
+    # Inicializa atributo para tracking do callback pendente (debounce)
+    frame._col_controls_after_id: str | None = None  # type: ignore[attr-defined]
+    frame._col_controls_bound = False  # type: ignore[attr-defined] # Flag anti-bind-duplicado
+
+    def _sync_col_controls() -> None:
+        """Executa o reposicionamento dos controles de coluna UMA vez (sem se reagendar)."""
         try:
             base_left = frame.client_list.winfo_rootx() - frame.columns_align_bar.winfo_rootx()
 
@@ -277,9 +323,29 @@ def build_tree_and_column_controls(frame: MainScreenFrame) -> None:
         except Exception as exc:  # noqa: BLE001
             log.debug("Falha ao posicionar controles de colunas: %s", exc)
 
-        frame.after(120, _sync_col_controls)
+    def _schedule_sync_col_controls(delay_ms: int = 60) -> None:
+        """Agenda _sync_col_controls com debounce (cancela agendamento anterior)."""
+        _cancel_scheduled_sync_col_controls()
+        frame._col_controls_after_id = frame.after(delay_ms, _sync_col_controls)
 
-    frame.client_list.bind("<Configure>", lambda e: _sync_col_controls())  # type: ignore[misc]
+    def _cancel_scheduled_sync_col_controls() -> None:
+        """Cancela agendamento pendente de _sync_col_controls, se existir."""
+        if frame._col_controls_after_id is not None:
+            try:
+                frame.after_cancel(frame._col_controls_after_id)
+            except Exception:  # noqa: BLE001
+                pass  # Tk pode lançar erro se já foi executado/cancelado
+            frame._col_controls_after_id = None
+
+    # Expõe a função de cancelamento no frame para uso no destroy()
+    frame._cancel_scheduled_sync_col_controls = _cancel_scheduled_sync_col_controls  # type: ignore[attr-defined]
+    # Expõe a função de agendamento para uso em _on_toggle_with_labels
+    frame._schedule_sync_col_controls_fn = _schedule_sync_col_controls  # type: ignore[attr-defined]
+
+    # Bind do Configure apenas uma vez para evitar acúmulo de callbacks
+    if not frame._col_controls_bound:  # type: ignore[attr-defined]
+        frame.client_list.bind("<Configure>", lambda e: _schedule_sync_col_controls())  # type: ignore[misc]
+        frame._col_controls_bound = True  # type: ignore[attr-defined]
 
     try:
         old_cmd = frame.client_list.cget("xscrollcommand")
@@ -291,14 +357,15 @@ def build_tree_and_column_controls(frame: MainScreenFrame) -> None:
                     func.set(*args)
                 except Exception as inner_exc:  # noqa: BLE001
                     log.debug("Falha ao atualizar scrollbar horizontal: %s", inner_exc)
-            _sync_col_controls()
+            _schedule_sync_col_controls()
 
         frame.client_list.configure(xscrollcommand=_xscroll_proxy)
 
     except Exception as exc:  # noqa: BLE001
         log.debug("Falha ao configurar proxy de scrollbar horizontal: %s", exc)
 
-    _sync_col_controls()
+    # Inicialização: agenda após layout estabilizar (after_idle + schedule)
+    frame.after_idle(lambda: _schedule_sync_col_controls(100))
 
 
 def build_footer(frame: MainScreenFrame) -> None:
