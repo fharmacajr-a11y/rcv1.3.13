@@ -180,13 +180,11 @@ def build_tree_and_column_controls(frame: MainScreenFrame) -> None:
                     "Observacoes": "Observações",
                     "Ultima Alteracao": "Última Alteração",
                 }.get(col, col)
-                # WhatsApp com anchor='w' para alinhar com o conteúdo
-                anchor = "w" if col == "WhatsApp" else "center"
-                frame.client_list.heading(col, text=friendly, anchor=anchor)
+                # Todos os headings centralizados (incluindo WhatsApp)
+                frame.client_list.heading(col, text=friendly, anchor="center")
             else:
-                # WhatsApp com anchor='w' para alinhar com o conteúdo
-                anchor = "w" if col == "WhatsApp" else "center"
-                frame.client_list.heading(col, text=cur, anchor=anchor)
+                # Todos os headings centralizados (incluindo WhatsApp)
+                frame.client_list.heading(col, text=cur, anchor="center")
         except Exception as e:
             log.debug("Erro ao configurar heading %s: %s", col, e)
 
@@ -254,7 +252,10 @@ def build_tree_and_column_controls(frame: MainScreenFrame) -> None:
             pass
 
     # Sincronizar após criar (when Tk calculates sizes)
+    # Fazemos 2 sincronizações: uma imediata e outra com delay
+    # para garantir que os widths finais sejam aplicados
     frame.columns_align_bar.after_idle(_schedule_sync_switchbar)
+    frame.columns_align_bar.after(120, _schedule_sync_switchbar)
 
     # Sincronizar quando Treeview redimensionar (com debounce) - apenas uma vez
     if not frame._switchbar_bound:  # type: ignore[attr-defined]

@@ -231,12 +231,30 @@ class MainScreenDataflowMixin:
         future = MainScreenDataflowMixin._load_executor.submit(_fetch_data)
 
         def _on_done() -> None:
+            # Verificar se frame ainda existe
+            try:
+                if not self.winfo_exists():  # pyright: ignore[reportAttributeAccessIssue]
+                    self._load_inflight = False  # pyright: ignore[reportAttributeAccessIssue]
+                    return
+            except Exception:  # noqa: BLE001
+                self._load_inflight = False  # pyright: ignore[reportAttributeAccessIssue]
+                return
+
+            # Verificar se esta carga ainda é válida (não foi substituída por outra)
+            if current_seq != self._load_seq:  # pyright: ignore[reportAttributeAccessIssue]
+                # Uma nova carga foi iniciada, abandonar esta
+                return
+
             try:
                 result = future.result(timeout=0.001)  # Non-blocking check
                 self.after(0, lambda: _apply_loaded(result))  # pyright: ignore[reportAttributeAccessIssue]
             except Exception:
-                # Future ainda não completou, reagendar
-                self.after(10, _on_done)  # pyright: ignore[reportAttributeAccessIssue]
+                # Future ainda não completou, reagendar apenas se ainda válido
+                if current_seq == self._load_seq:  # pyright: ignore[reportAttributeAccessIssue]
+                    try:
+                        self.after(10, _on_done)  # pyright: ignore[reportAttributeAccessIssue]
+                    except Exception:  # noqa: BLE001
+                        self._load_inflight = False  # pyright: ignore[reportAttributeAccessIssue]
 
         self.after(10, _on_done)  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -320,46 +338,120 @@ class MainScreenDataflowMixin:
         return build_row_values(row, ctx)
 
     def _refresh_rows(self) -> None:
+        """Atualiza linhas existentes ou re-renderiza se quantidade mudou."""
         rows = self._current_rows  # pyright: ignore[reportAttributeAccessIssue]
-
         items = self.client_list.get_children()  # pyright: ignore[reportAttributeAccessIssue]
 
+        # Se quantidade mudou, delegar para _render_clientes (que tem chunked rendering)
         if len(items) != len(rows):
-            self.client_list.delete(*items)  # pyright: ignore[reportAttributeAccessIssue]
-
-            for row in rows:
-                self.client_list.insert("", "end", values=self._row_values_masked(row))  # pyright: ignore[reportAttributeAccessIssue]
-
+            self._render_clientes(rows)
             return
 
-        for item_id, row in zip(items, rows):
-            self.client_list.item(item_id, values=self._row_values_masked(row))  # pyright: ignore[reportAttributeAccessIssue]
+        # Atualizar itens existentes in-place (mais eficiente que re-render)
+        # Só atualiza se values/tags realmente mudaram (otimização)
+        for idx, (item_id, row) in enumerate(zip(items, rows)):
+            zebra_tag = "even" if idx % 2 == 0 else "odd"
+            base_tags = build_row_tags(row)
+            tags = base_tags + (zebra_tag,)
+            new_values = self._row_values_masked(row)
+            self.client_list.item(item_id, values=new_values, tags=tags)  # pyright: ignore[reportAttributeAccessIssue]
+
+    # Constantes para renderização chunked
+    _RENDER_CHUNK_THRESHOLD = 800  # Acima desse limiar, usar chunked rendering
+    _RENDER_CHUNK_SIZE = 200  # Quantidade de itens por chunk
+    _render_job_id: str | None = None  # ID do after pendente para cancelamento
+    _render_job_seq: int = 0  # Sequência para invalidar jobs antigos
+
+    def _cancel_pending_render(self) -> None:
+        """Cancela renderização chunked pendente, se houver."""
+        if self._render_job_id is not None:
+            try:
+                self.after_cancel(self._render_job_id)  # pyright: ignore[reportAttributeAccessIssue]
+            except Exception:  # noqa: BLE001
+                pass
+            self._render_job_id = None
 
     def _render_clientes(self, rows: Sequence[ClienteRow]) -> None:
-        try:
-            self.client_list.delete(*self.client_list.get_children())  # pyright: ignore[reportAttributeAccessIssue]
+        """Renderiza lista de clientes na Treeview.
 
+        Para listas grandes (> _RENDER_CHUNK_THRESHOLD), usa renderização
+        em chunks para manter a UI responsiva.
+        """
+        # Cancelar qualquer renderização pendente antes de iniciar nova
+        self._cancel_pending_render()
+
+        # Limpar Treeview
+        try:
+            children = self.client_list.get_children()  # pyright: ignore[reportAttributeAccessIssue]
+            if children:
+                self.client_list.delete(*children)  # pyright: ignore[reportAttributeAccessIssue]
         except Exception as exc:  # noqa: BLE001
             log.debug("Falha ao limpar treeview de clientes: %s", exc)
 
-        for row in rows:
-            tags = build_row_tags(row)
+        # Para listas pequenas, renderizar diretamente (mais rápido)
+        if len(rows) <= self._RENDER_CHUNK_THRESHOLD:
+            self._render_clientes_sync(rows)
+            return
 
+        # Para listas grandes, usar renderização em chunks
+        self._render_job_seq += 1
+        current_seq = self._render_job_seq
+        self._render_clientes_chunked(rows, 0, current_seq)
+
+    def _render_clientes_sync(self, rows: Sequence[ClienteRow]) -> None:
+        """Renderiza lista de clientes de forma síncrona (para listas pequenas)."""
+        for idx, row in enumerate(rows):
+            zebra_tag = "even" if idx % 2 == 0 else "odd"
+            base_tags = build_row_tags(row)
+            tags = base_tags + (zebra_tag,)
             self.client_list.insert("", "end", values=self._row_values_masked(row), tags=tags)  # pyright: ignore[reportAttributeAccessIssue]
 
-        raw_clientes = [row.raw.get("cliente") for row in rows if row.raw.get("cliente") is not None]
+        self._finalize_render(rows)
 
-        count = len(rows) if isinstance(rows, (list, tuple)) else len(self.client_list.get_children())  # pyright: ignore[reportAttributeAccessIssue]
+    def _render_clientes_chunked(self, rows: Sequence[ClienteRow], start_idx: int, seq: int) -> None:
+        """Renderiza um chunk de linhas e agenda o próximo chunk.
 
-        self._set_count_text(count, raw_clientes)
+        Args:
+            rows: Lista completa de clientes
+            start_idx: Índice inicial do chunk atual
+            seq: Sequência do job para validação (evita jobs obsoletos)
+        """
+        # Verificar se este job ainda é válido (não foi cancelado/substituído)
+        if seq != self._render_job_seq:
+            return
 
-        self._update_main_buttons_state()  # pyright: ignore[reportAttributeAccessIssue]
-
+        # Verificar se a tela ainda existe
         try:
-            self.after(50, lambda: None)  # pyright: ignore[reportAttributeAccessIssue]
+            if not self.winfo_exists():  # pyright: ignore[reportAttributeAccessIssue]
+                return
+        except Exception:  # noqa: BLE001
+            return
 
-        except Exception as exc:  # noqa: BLE001
-            log.debug("Falha ao agendar refresh assíncrono: %s", exc)
+        # Calcular limites do chunk
+        end_idx = min(start_idx + self._RENDER_CHUNK_SIZE, len(rows))
+
+        # Inserir chunk atual
+        for idx in range(start_idx, end_idx):
+            row = rows[idx]
+            zebra_tag = "even" if idx % 2 == 0 else "odd"
+            base_tags = build_row_tags(row)
+            tags = base_tags + (zebra_tag,)
+            self.client_list.insert("", "end", values=self._row_values_masked(row), tags=tags)  # pyright: ignore[reportAttributeAccessIssue]
+
+        # Se ainda há mais chunks, agendar próximo
+        if end_idx < len(rows):
+            self._render_job_id = self.after(0, lambda: self._render_clientes_chunked(rows, end_idx, seq))  # pyright: ignore[reportAttributeAccessIssue]
+        else:
+            # Renderização completa - finalizar
+            self._render_job_id = None
+            self._finalize_render(rows)
+
+    def _finalize_render(self, rows: Sequence[ClienteRow]) -> None:
+        """Finaliza renderização: atualiza contadores e botões."""
+        raw_clientes = [row.raw.get("cliente") for row in rows if row.raw.get("cliente") is not None]
+        count = len(rows)
+        self._set_count_text(count, raw_clientes)
+        self._update_main_buttons_state()  # pyright: ignore[reportAttributeAccessIssue]
 
     def _get_clients_for_controller(self) -> Sequence[ClienteRow]:
         """Obtém lista completa de clientes para passar ao controller.

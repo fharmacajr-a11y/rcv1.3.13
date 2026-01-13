@@ -168,9 +168,44 @@ class MainScreenFrame(
     def destroy(self) -> None:
         """Cleanup ao destruir o frame.
 
-        Garante que os menus da topbar sejam reabilitados caso o usuário
-        saia do modo seleção navegando para outro módulo (FIX-CLIENTES-007).
+        Garante que:
+        - Todos os callbacks after pendentes são cancelados
+        - Monitor de conectividade é parado
+        - Menus da topbar são reabilitados se em pick mode
         """
+        # Parar monitor de conectividade (cancela after interno)
+        try:
+            self._connectivity.stop()
+        except Exception:  # noqa: BLE001
+            pass
+
+        # Cancelar debounce de busca pendente
+        buscar_after = getattr(self, "_buscar_after", None)
+        if buscar_after is not None:
+            try:
+                self.after_cancel(buscar_after)
+            except Exception:  # noqa: BLE001
+                pass
+            self._buscar_after = None
+
+        # Cancelar callback pendente de sincronização de controles de colunas
+        col_controls_after_id = getattr(self, "_col_controls_after_id", None)
+        if col_controls_after_id is not None:
+            try:
+                self.after_cancel(col_controls_after_id)
+            except Exception:  # noqa: BLE001
+                pass  # Tk pode lançar erro se já foi executado/cancelado
+            self._col_controls_after_id = None  # type: ignore[attr-defined]
+
+        # Cancelar renderização chunked pendente (se existir)
+        render_job_id = getattr(self, "_render_job_id", None)
+        if render_job_id is not None:
+            try:
+                self.after_cancel(render_job_id)
+            except Exception:  # noqa: BLE001
+                pass
+            self._render_job_id = None  # type: ignore[attr-defined]
+
         snapshot = self._pick_mode_manager.get_snapshot()
         if snapshot.is_pick_mode_active and self.app and hasattr(self.app, "topbar"):
             try:

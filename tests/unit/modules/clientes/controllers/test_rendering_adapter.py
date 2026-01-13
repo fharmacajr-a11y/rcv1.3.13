@@ -434,7 +434,11 @@ class TestEdgeCases:
         assert tags == ("has_obs",)
 
     def test_valores_com_quebras_de_linha(self) -> None:
-        """Valores com quebras de linha devem ser preservados."""
+        """Valores com quebras de linha devem ser normalizados (removidos).
+
+        Quebras de linha são substituídas por espaço para evitar que o texto
+        apareça em duas linhas na Treeview.
+        """
         row = ClienteRow(
             id="1",
             razao_social="Empresa\nMulti Linha",
@@ -453,4 +457,5 @@ class TestEdgeCases:
 
         values = build_row_values(row, ctx)
 
-        assert values == ("Empresa\nMulti Linha",)
+        # Quebras de linha são convertidas para espaço
+        assert values == ("Empresa Multi Linha",)

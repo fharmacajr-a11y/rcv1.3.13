@@ -10,6 +10,7 @@ Responsabilidades:
 - Mapear campos de ClienteRow para colunas específicas
 - Aplicar mascaramento de colunas ocultas
 - Determinar tags visuais (ex.: "has_obs")
+- Normalizar texto para exibição (remover quebras de linha)
 
 NÃO faz:
 - Manipular widgets Tkinter/Treeview
@@ -19,11 +20,45 @@ NÃO faz:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 if TYPE_CHECKING:
     from src.modules.clientes.viewmodel import ClienteRow
+
+# Regex para colapsar espaços múltiplos
+_MULTI_SPACE_RE = re.compile(r"\s+")
+
+
+def normalize_cell_text(value: Any) -> str:
+    """Normaliza texto para exibição em célula de Treeview.
+
+    Remove quebras de linha e espaços múltiplos para evitar que o texto
+    quebre em duas linhas ou apareça cortado.
+
+    Args:
+        value: Valor a normalizar (pode ser None, str, ou qualquer tipo)
+
+    Returns:
+        String normalizada (sem \\n, \\r, espaços múltiplos)
+
+    Examples:
+        >>> normalize_cell_text("Empresa\\nLtda")
+        'Empresa Ltda'
+        >>> normalize_cell_text("  Múltiplos   espaços  ")
+        'Múltiplos espaços'
+        >>> normalize_cell_text(None)
+        ''
+    """
+    if value is None:
+        return ""
+    text = str(value)
+    # Substituir quebras de linha por espaço
+    text = text.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
+    # Colapsar espaços múltiplos
+    text = _MULTI_SPACE_RE.sub(" ", text)
+    return text.strip()
 
 
 # ============================================================================
@@ -52,11 +87,14 @@ class RowRenderingContext:
 def _build_column_mapping(row: ClienteRow) -> dict[str, str]:
     """Constrói mapeamento de nome de coluna para valor do ClienteRow.
 
+    Aplica normalização de texto (remove quebras de linha, espaços múltiplos)
+    para evitar que o texto quebre em duas linhas na Treeview.
+
     Args:
         row: ClienteRow com os dados do cliente
 
     Returns:
-        Dict mapeando nomes de colunas para valores
+        Dict mapeando nomes de colunas para valores normalizados
 
     Examples:
         >>> row = ClienteRow(id="123", razao_social="Empresa X", ...)
@@ -67,14 +105,14 @@ def _build_column_mapping(row: ClienteRow) -> dict[str, str]:
         'Empresa X'
     """
     return {
-        "ID": row.id,
-        "Razao Social": row.razao_social,
-        "CNPJ": row.cnpj,
-        "Nome": row.nome,
-        "WhatsApp": row.whatsapp,
-        "Observacoes": row.observacoes,
-        "Status": row.status,
-        "Ultima Alteracao": row.ultima_alteracao,
+        "ID": normalize_cell_text(row.id),
+        "Razao Social": normalize_cell_text(row.razao_social),
+        "CNPJ": normalize_cell_text(row.cnpj),
+        "Nome": normalize_cell_text(row.nome),
+        "WhatsApp": normalize_cell_text(row.whatsapp),
+        "Observacoes": normalize_cell_text(row.observacoes),
+        "Status": normalize_cell_text(row.status),
+        "Ultima Alteracao": normalize_cell_text(row.ultima_alteracao),
     }
 
 

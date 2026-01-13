@@ -179,6 +179,15 @@ class App(tb.Window):
         except Exception as exc:  # noqa: BLE001
             log.debug("Falha ao configurar HiDPI: %s", exc)
 
+        # Configurar tema customizado com cor 'info' = #3498DB para switches
+        try:
+            from src.modules.main_window.views.theme_setup import ensure_info_color
+
+            style = tb.Style()
+            ensure_info_color(style, "#3498DB")
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao configurar tema customizado: %s", exc)
+
         # Setup básico antes do bootstrap
         self.report_callback_exception = tk_report
         self.tema_atual = _theme_name
