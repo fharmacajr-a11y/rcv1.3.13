@@ -89,6 +89,21 @@ repos:
         files: ^tests/(unit|integration)/.*\.py$
         exclude: (doubles|factories|helpers|conftest|LEGACY_).*\.py$
 
+  # ---------------------------------------------------------------------------
+  # HOOKS LOCAIS - Políticas Customizadas do Projeto
+  # ---------------------------------------------------------------------------
+  - repo: local
+    hooks:
+      - id: no-direct-customtkinter-import
+        name: Proibir import direto de customtkinter (usar src/ui/ctk_config.py)
+        language: pygrep
+        entry: '^\s*(import\s+customtkinter|from\s+customtkinter\s+import)'
+        types: [python]
+        exclude: ^src/ui/ctk_config\.py$
+        description: |
+          CustomTkinter deve ser importado apenas via src/ui/ctk_config.py (Single Source of Truth).
+          Use: from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+
 # ============================================================================
 # CONFIGURAÇÕES GLOBAIS
 # ============================================================================

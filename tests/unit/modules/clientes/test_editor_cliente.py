@@ -1,18 +1,11 @@
-import sys
-
 import pytest
 
+from tests.helpers.skip_conditions import SKIP_PY313_TKINTER
 from src.core.services import clientes_service
 from src.modules.clientes.forms import client_form
 
-
-pytestmark = pytest.mark.skipif(
-    sys.platform == "win32" and sys.version_info >= (3, 13),
-    reason=(
-        "Tkinter/ttkbootstrap + pytest em Python 3.13 no Windows pode causar "
-        "'Windows fatal exception: access violation' (bug do runtime, ver CPython #125179/118973)."
-    ),
-)
+# Aplica skip a todos os testes deste módulo (bug Python 3.13 + Tkinter)
+pytestmark = SKIP_PY313_TKINTER
 
 
 def _patch_service_defaults(monkeypatch: pytest.MonkeyPatch) -> None:

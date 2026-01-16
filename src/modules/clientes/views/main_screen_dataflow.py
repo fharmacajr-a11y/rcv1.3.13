@@ -679,6 +679,10 @@ class MainScreenDataflowMixin:
             if pick_snapshot.is_pick_mode_active and hasattr(self, "btn_select"):
                 self.btn_select.configure(state=("normal" if button_states.select else "disabled"))  # pyright: ignore[reportAttributeAccessIssue]
 
+            # Microfase 3: Atualiza actionbar CustomTkinter se disponível
+            if hasattr(self, "footer") and hasattr(self.footer, "update_state"):
+                self.footer.update_state(has_selection=selection_snapshot.has_selection)  # pyright: ignore[reportAttributeAccessIssue]
+
             btn_excluir = getattr(self, "btn_excluir", None)
             if btn_excluir is not None:
                 btn_excluir.configure(state=("normal" if button_states.editar else "disabled"))

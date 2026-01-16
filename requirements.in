@@ -17,6 +17,7 @@ supabase
 
 # GUI toolkit
 ttkbootstrap
+customtkinter>=5.2.0
 
 # Configuração
 python-dotenv

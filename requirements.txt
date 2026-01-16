@@ -13,6 +13,7 @@ ttkbootstrap>=1.14.2      # Framework moderno para Tkinter
 sv_ttk>=2.6.1             # Tema Sun Valley para ttk
 tkinterweb>=4.4.4         # Navegador web embarcado (preview)
 tkinterweb-tkhtml>=1.1.4  # Renderizador HTML para tkinterweb
+customtkinter>=5.2.0      # UI moderna com suporte a temas light/dark
 
 # ============================================================================
 # BACKEND & DATABASE

@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from tests.helpers.skip_conditions import SKIP_PY313_TKINTER
 from src.modules.clientes.forms.client_form_ui_builders import (
     apply_light_selection,
     bind_dirty_tracking,
@@ -28,10 +29,8 @@ if TYPE_CHECKING:
     pass
 
 # Skip todos os testes de Tkinter em Windows + Python 3.13 devido a bug conhecido
-skip_tk_windows_313 = pytest.mark.skipif(
-    sys.platform == "win32" and sys.version_info >= (3, 13),
-    reason="Tkinter bug no Python 3.13+ em Windows",
-)
+# Usa decorator centralizado para manutenção fácil quando o bug for corrigido
+skip_tk_windows_313 = SKIP_PY313_TKINTER
 
 
 # =============================================================================
@@ -43,7 +42,7 @@ skip_tk_windows_313 = pytest.mark.skipif(
 def tk_root() -> tk.Tk:
     """Cria uma janela Tkinter para testes."""
     if sys.platform == "win32" and sys.version_info >= (3, 13):
-        pytest.skip("Tkinter bug no Python 3.13+ em Windows")
+        pytest.skip("Tkinter bug no Python 3.13+ em Windows (ver skip_conditions.SKIP_PY313_TKINTER)")
     root = tk.Tk()
     root.withdraw()  # Não mostrar janela
     yield root

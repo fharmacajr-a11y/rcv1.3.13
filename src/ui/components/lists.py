@@ -63,7 +63,93 @@ _MULTI_SPACE_RE = re.compile(r"\s+")
 logger = logging.getLogger(__name__)
 log = logger
 
-__all__ = ["create_clients_treeview", "CLIENTS_COL_ANCHOR", "normalize_cell_text"]
+__all__ = [
+    "create_clients_treeview",
+    "CLIENTS_COL_ANCHOR",
+    "normalize_cell_text",
+    "reapply_clientes_treeview_style",
+    "reapply_clientes_treeview_tags",
+]
+
+
+def reapply_clientes_treeview_style(
+    style: tb.Style,
+    *,
+    base_bg: str,
+    base_fg: str,
+    field_bg: str,
+    heading_bg: str,
+    heading_fg: str,
+    heading_bg_active: str,
+    selected_bg: str,
+    selected_fg: str,
+) -> tuple[str, str]:
+    """Reaplica estilos da Treeview de Clientes.
+
+    Args:
+        style: Instância de tb.Style
+        base_bg: Cor de fundo base
+        base_fg: Cor de texto base
+        field_bg: Cor de fundo dos campos
+        heading_bg: Cor de fundo dos headings
+        heading_fg: Cor de texto dos headings
+        heading_bg_active: Cor de fundo dos headings no hover
+        selected_bg: Cor de fundo de item selecionado
+        selected_fg: Cor de texto de item selecionado
+
+    Returns:
+        Tupla (even_color, odd_color) para zebra
+    """
+    try:
+        # Configura Treeview
+        style.configure(
+            CLIENTS_TREEVIEW_STYLE,
+            background=field_bg,
+            fieldbackground=field_bg,
+            foreground=base_fg,
+            borderwidth=0,
+            relief="flat",
+        )
+        style.map(
+            CLIENTS_TREEVIEW_STYLE,
+            background=[("selected", selected_bg)],
+            foreground=[("selected", selected_fg)],
+        )
+
+        # Configura headings com padding adequado e relief flat
+        style.configure(
+            f"{CLIENTS_TREEVIEW_STYLE}.Heading",
+            background=heading_bg,
+            foreground=heading_fg,
+            relief="flat",
+            borderwidth=1,
+            padding=(8, 6),  # (horizontal, vertical) para espaçamento adequado
+        )
+        style.map(
+            f"{CLIENTS_TREEVIEW_STYLE}.Heading",
+            background=[("active", heading_bg_active)],
+            foreground=[("active", heading_fg)],
+        )
+
+        # Calcula cores zebra
+        from ttkbootstrap import colorutils
+
+        lum = _get_luminance(field_bg)
+        is_dark = lum < 0.5
+        delta = ZEBRA_LIGHTNESS_DELTA_DARK if is_dark else ZEBRA_LIGHTNESS_DELTA_LIGHT
+
+        even_color = field_bg
+        try:
+            odd_color = colorutils.update_hsv(field_bg, vd=delta)
+        except Exception:
+            # Fallback se colorutils falhar
+            odd_color = "#E8E8E8" if not is_dark else "#303030"
+
+        return even_color, odd_color
+
+    except Exception:
+        log.exception("Erro ao reaplicar estilo da Treeview")
+        return field_bg, field_bg
 
 
 def normalize_cell_text(value: Any) -> str:
@@ -183,6 +269,7 @@ def _configure_clients_treeview_style(style: tb.Style) -> tuple[str, str]:
         style.configure(
             f"{CLIENTS_TREEVIEW_STYLE}.Heading",
             font=(font_family, new_size, "bold"),
+            padding=(8, 6),  # Padding adequado para headings
         )
         # Garantir que a seleção seja legível sobre as tags zebra (even/odd)
         # Cores de seleção explícitas que sobrescrevem o background das tags
@@ -287,9 +374,10 @@ def create_clients_treeview(
         style=CLIENTS_TREEVIEW_STYLE,
     )
 
-    # Configurar headings (sempre centralizados)
+    # Configurar headings (maioria centralizado, WhatsApp alinhado à esquerda)
     for key, heading, _, _, _ in columns:
-        tree.heading(key, text=heading, anchor="center")
+        heading_anchor = "w" if key == "WhatsApp" else "center"
+        tree.heading(key, text=heading, anchor=heading_anchor)
 
     # Configurar colunas com larguras, minwidths e alinhamento
     for key, _, width, minwidth, can_stretch in columns:
@@ -527,3 +615,36 @@ def _setup_flex_column_resize(tree: tb.Treeview, columns: tuple) -> None:
 
     # Fazer resize inicial após a janela ser mapeada
     tree.after(100, _do_resize)
+
+
+# =============================================================================
+# Microfase 4: Funções de reaplicação de estilos da Treeview
+# =============================================================================
+
+
+def reapply_clientes_treeview_tags(
+    tree: tb.Treeview,
+    even_bg: str,
+    odd_bg: str,
+    fg: str = "",
+) -> None:
+    """Reaplica tags de zebra (even/odd) na Treeview do módulo Clientes.
+
+    Esta função é idempotente e pode ser chamada sempre que o tema muda.
+
+    Args:
+        tree: Instância da Treeview
+        even_bg: Cor de fundo para linhas pares
+        odd_bg: Cor de fundo para linhas ímpares
+        fg: Cor de texto para ambas (opcional)
+    """
+    try:
+        if fg:
+            tree.tag_configure("even", background=even_bg, foreground=fg)
+            tree.tag_configure("odd", background=odd_bg, foreground=fg)
+        else:
+            tree.tag_configure("even", background=even_bg)
+            tree.tag_configure("odd", background=odd_bg)
+        log.debug("Tags de zebra reaplicadas na Treeview")
+    except Exception:
+        log.exception("Erro ao reaplicar tags de zebra")

@@ -38,6 +38,15 @@ from ._dupes import (  # noqa: F401
     show_cnpj_warning_and_abort as show_cnpj_warning_and_abort,
 )
 
+# CustomTkinter: fonte única centralizada (Microfase 23 - SSoT)
+from src.ui.ctk_config import HAS_CUSTOMTKINTER
+
+# Import condicional de view CTK (MICROFASE-5)
+if HAS_CUSTOMTKINTER:
+    from .client_form_view_ctk import ClientFormViewCTK
+else:
+    ClientFormViewCTK = None  # type: ignore[assignment, misc]
+
 from .client_form_view import ClientFormView
 from .client_form_state import ClientFormState, extract_address_fields
 from .client_form_controller import ClientFormController
@@ -236,7 +245,14 @@ def form_cliente(
                 controller.mark_dirty()
 
     handlers = Handlers()
-    view = ClientFormView(parent=self, handlers=handlers)
+
+    # MICROFASE-5: Selecionar view baseada em disponibilidade do CustomTkinter
+    if HAS_CUSTOMTKINTER and ClientFormViewCTK is not None:
+        logger.debug("Usando ClientFormViewCTK (CustomTkinter)")
+        view = ClientFormViewCTK(parent=self, handlers=handlers)  # type: ignore[assignment]
+    else:
+        logger.debug("Usando ClientFormView (ttk/ttkbootstrap - fallback)")
+        view = ClientFormView(parent=self, handlers=handlers)
     view_ref[0] = view
 
     # -------------------------------------------------------------------------

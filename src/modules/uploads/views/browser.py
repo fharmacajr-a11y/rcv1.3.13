@@ -7,8 +7,11 @@ import threading
 import tkinter as tk
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox
 from typing import Any, Callable
+
+# CustomTkinter (fonte centralizada)
+from src.ui.ctk_config import ctk
 
 from src.modules.uploads.components.helpers import (
     client_prefix_for_id,
@@ -96,8 +99,8 @@ STATUS_GLYPHS = {
 }
 
 
-class UploadsBrowserWindow(tk.Toplevel):
-    """Janela principal para navegar arquivos do Storage."""
+class UploadsBrowserWindow(ctk.CTkToplevel):  # type: ignore[misc]
+    """Janela principal para navegar arquivos do Storage (CustomTkinter)."""
 
     def __init__(
         self,
@@ -171,26 +174,26 @@ class UploadsBrowserWindow(tk.Toplevel):
         self.rowconfigure(1, weight=1)  # Linha do LabelFrame principal cresce
 
         # Barra superior com código do cliente e botão refresh
-        top_bar = ttk.Frame(self, padding=(UI_PADX, UI_PADY))
-        top_bar.grid(row=0, column=0, sticky="ew")
-        top_bar.columnconfigure(0, weight=1)  # Entry expande
-        top_bar.columnconfigure(1, weight=0)  # Botão fixo
+        top_bar = ctk.CTkFrame(self)  # type: ignore[union-attr]
+        top_bar.grid(row=0, column=0, sticky="ew", padx=UI_PADX, pady=(UI_PADY, 0))  # type: ignore[union-attr]
+        top_bar.columnconfigure(0, weight=1)  # Entry expande  # type: ignore[union-attr]
+        top_bar.columnconfigure(1, weight=0)  # Botão fixo  # type: ignore[union-attr]
 
         # Entry única com código do cliente
         self.prefix_var = tk.StringVar(value=f"Código do cliente no Supabase: {_short_client_code(self._base_prefix)}")
-        prefix_entry = ttk.Entry(top_bar, textvariable=self.prefix_var, state="readonly", width=60)
-        prefix_entry.grid(row=0, column=0, sticky="ew")
+        prefix_entry = ctk.CTkEntry(top_bar, textvariable=self.prefix_var, state="readonly", width=500)  # type: ignore[union-attr]
+        prefix_entry.grid(row=0, column=0, sticky="ew", padx=(0, UI_GAP))
 
         # Botão refresh (ícone-only) à direita
-        btn_refresh_top = ttk.Button(top_bar, text="⟳", width=3, command=self._refresh_listing, bootstyle="info")
-        btn_refresh_top.grid(row=0, column=1, sticky="e", padx=(UI_GAP, 0))
+        btn_refresh_top = ctk.CTkButton(top_bar, text="⟳", width=40, command=self._refresh_listing)  # type: ignore[union-attr]
+        btn_refresh_top.grid(row=0, column=1, sticky="e")
 
-        # LabelFrame contendo a árvore de arquivos (ocupa toda a área central)
-        file_frame = ttk.LabelFrame(self, text="Nome do arquivo/pasta", padding=(UI_PADX, UI_PADY))
-        file_frame.grid(row=1, column=0, sticky="nsew", padx=UI_PADX, pady=(0, UI_PADY))
-        file_frame.rowconfigure(0, weight=1)  # Lista cresce
-        file_frame.rowconfigure(1, weight=0)  # Barra fixa
-        file_frame.columnconfigure(0, weight=1)
+        # Frame contendo a árvore de arquivos (ocupa toda a área central)
+        file_frame = ctk.CTkFrame(self)  # type: ignore[union-attr]
+        file_frame.grid(row=1, column=0, sticky="nsew", padx=UI_PADX, pady=(UI_PADY, UI_PADY))  # type: ignore[union-attr]
+        file_frame.rowconfigure(0, weight=1)  # Lista cresce  # type: ignore[union-attr]
+        file_frame.rowconfigure(1, weight=0)  # Barra fixa  # type: ignore[union-attr]
+        file_frame.columnconfigure(0, weight=1)  # type: ignore[union-attr]
 
         # FileList no topo
         self.file_list = FileList(

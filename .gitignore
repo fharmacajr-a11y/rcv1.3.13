@@ -84,6 +84,8 @@ audit-report.md
 coverage.xml
 coverage.json
 htmlcov/
+coverage/trace/
+*.cover
 
 # Pasta reports/ da raiz (não versionada - apenas local)
 /reports/

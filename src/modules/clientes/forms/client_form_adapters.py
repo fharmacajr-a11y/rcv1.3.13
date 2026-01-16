@@ -6,6 +6,7 @@ e a lógica de negócio do formulário de clientes. Extraídas de client_form.py
 para facilitar testabilidade e reutilização.
 
 Refatoração: UI-DECOUPLE-CLIENT-FORM-001 (Fase 1)
+Microfase: 6 (Subdialogs CustomTkinter)
 """
 
 from __future__ import annotations
@@ -14,6 +15,17 @@ import logging
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from typing import Any, Callable
+
+# CustomTkinter: fonte única centralizada (Microfase 23 - SSoT)
+from src.ui.ctk_config import HAS_CUSTOMTKINTER
+
+try:
+    from src.modules.clientes.ui import ClientesModalCTK
+    from src.modules.clientes.appearance import ClientesThemeManager
+except ImportError:
+    # Fallback caso ui/appearance não disponíveis
+    ClientesModalCTK = None  # type: ignore[misc,assignment]
+    ClientesThemeManager = None  # type: ignore[misc,assignment]
 
 logger = logging.getLogger(__name__)
 
@@ -24,35 +36,52 @@ logger = logging.getLogger(__name__)
 
 
 class TkMessageAdapter:
-    """Adaptador para messagebox do Tkinter.
+    """Adaptador para messagebox do Tkinter com suporte CustomTkinter.
 
-    Fornece interface unificada para exibir mensagens ao usuário,
-    abstraindo o uso direto de tkinter.messagebox.
+    Fornece interface unificada para exibir mensagens ao usuário.
+    Usa ClientesModalCTK quando CustomTkinter disponível, fallback para
+    tkinter.messagebox caso contrário.
+
+    Microfase: 6 (Subdialogs CustomTkinter)
     """
 
-    def __init__(self, parent: tk.Misc | None = None) -> None:
+    def __init__(self, parent: tk.Misc | None = None, theme_manager: Any | None = None) -> None:
         """Inicializa o adaptador.
 
         Args:
             parent: Widget pai para centralizar diálogos (opcional).
+            theme_manager: ClientesThemeManager para cores (opcional, cria se ausente).
         """
         self.parent = parent
+        self.theme_manager = theme_manager
 
     def warn(self, title: str, message: str) -> None:
         """Exibe aviso ao usuário."""
-        messagebox.showwarning(title, message, parent=self.parent)
+        if HAS_CUSTOMTKINTER and ClientesModalCTK is not None and self.parent is not None:
+            ClientesModalCTK.alert(self.parent, title, message, self.theme_manager)
+        else:
+            messagebox.showwarning(title, message, parent=self.parent)
 
     def ask_yes_no(self, title: str, message: str) -> bool:
         """Pergunta sim/não ao usuário."""
-        return messagebox.askokcancel(title, message, parent=self.parent)
+        if HAS_CUSTOMTKINTER and ClientesModalCTK is not None and self.parent is not None:
+            return ClientesModalCTK.confirm(self.parent, title, message, self.theme_manager)
+        else:
+            return messagebox.askokcancel(title, message, parent=self.parent)
 
     def show_error(self, title: str, message: str) -> None:
         """Exibe erro ao usuário."""
-        messagebox.showerror(title, message, parent=self.parent)
+        if HAS_CUSTOMTKINTER and ClientesModalCTK is not None and self.parent is not None:
+            ClientesModalCTK.error(self.parent, title, message, self.theme_manager)
+        else:
+            messagebox.showerror(title, message, parent=self.parent)
 
     def show_info(self, title: str, message: str) -> None:
         """Exibe informação ao usuário."""
-        messagebox.showinfo(title, message, parent=self.parent)
+        if HAS_CUSTOMTKINTER and ClientesModalCTK is not None and self.parent is not None:
+            ClientesModalCTK.info(self.parent, title, message, self.theme_manager)
+        else:
+            messagebox.showinfo(title, message, parent=self.parent)
 
 
 class FormDataAdapter:

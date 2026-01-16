@@ -31,6 +31,8 @@ O **RC – Gestor de Clientes** é uma aplicação desktop desenvolvida em Pytho
 
 📖 **Documentação Adicional:**
 - [Modelo de Segurança - Criptografia e Gestão de Chaves](docs/SECURITY_MODEL.md)
+- [Política CustomTkinter (SSoT) - Guia de Imports](docs/CTK_IMPORT_POLICY.md)
+- [Guia de Contribuição - Setup e Boas Práticas](CONTRIBUTING.md)
 
 ---
 

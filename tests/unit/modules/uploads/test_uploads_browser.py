@@ -388,9 +388,9 @@ def test_prefix_entry_has_fixed_width(make_window: Callable) -> None:
 
     assert prefix_entry is not None, "Entry do prefixo não encontrado"
 
-    # Verificar que tem width fixo
+    # Verificar que tem width fixo (500 para CTk, 60 para ttk)
     width = prefix_entry.cget("width")
-    assert width == 60, f"Entry deveria ter width=60, mas tem width={width}"
+    assert width in (60, 500), f"Entry deveria ter width=60 ou width=500 (CTk), mas tem width={width}"
 
     win.destroy()
 

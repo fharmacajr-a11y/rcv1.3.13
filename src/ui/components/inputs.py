@@ -80,8 +80,14 @@ def create_search_controls(
     status_var: tk.StringVar | None = None,
     status_choices: Iterable[str] | None = None,
     entry_width: int = 40,
+    theme_palette: dict[str, str] | None = None,
 ) -> SearchControls:
-    """Build the search + ordering toolbar."""
+    """Build the search + ordering toolbar.
+
+    Args:
+        theme_palette: Dicionário com cores customizadas para o tema (opcional).
+                      Chaves esperadas: entry_bg, entry_fg, entry_border, combo_bg, combo_fg, bg
+    """
     frame = tb.Frame(parent)
 
     style = tb.Style()
@@ -94,23 +100,32 @@ def create_search_controls(
             return default
         return default
 
-    entry_bg = (
-        _lookup("TEntry", "fieldbackground", "")
-        or _lookup("TEntry", "background", "")
-        or _lookup(".", "background", "")
-        or "white"
-    )
-    entry_fg = _lookup("TEntry", "foreground", "") or _lookup(".", "foreground", "") or NORMAL_TEXT_FG
-    border_color = _lookup("TEntry", "bordercolor", "") or _lookup("TEntry", "lightcolor", "") or "#ced4da"
+    # Usa palette customizada se fornecida, senão usa lookup do tema
+    if theme_palette:
+        entry_bg = theme_palette.get("entry_bg", "white")
+        entry_fg = theme_palette.get("entry_fg", NORMAL_TEXT_FG)
+        border_color = theme_palette.get("entry_border", "#ced4da")
+        combo_fg = theme_palette.get("combo_fg", entry_fg)
+        frame_bg = theme_palette.get("bg", "")
+    else:
+        entry_bg = (
+            _lookup("TEntry", "fieldbackground", "")
+            or _lookup("TEntry", "background", "")
+            or _lookup(".", "background", "")
+            or "white"
+        )
+        entry_fg = _lookup("TEntry", "foreground", "") or _lookup(".", "foreground", "") or NORMAL_TEXT_FG
+        border_color = _lookup("TEntry", "bordercolor", "") or _lookup("TEntry", "lightcolor", "") or "#ced4da"
+        combo_fg = _lookup("TCombobox", "foreground", "") or entry_fg
+        frame_bg = _lookup("TFrame", "background", "") or _lookup(".", "background", "") or entry_bg
 
     combo_style = "Filtro.TCombobox"
-    combo_fg = _lookup("TCombobox", "foreground", "") or entry_fg
     try:
         # Estilo proprio para manter comboboxes de filtro ativas (sem fundo cinza)
         style.configure(
             combo_style,
-            fieldbackground=entry_bg,
-            background=entry_bg,
+            fieldbackground=theme_palette.get("combo_bg", entry_bg) if theme_palette else entry_bg,
+            background=theme_palette.get("combo_bg", entry_bg) if theme_palette else entry_bg,
             foreground=combo_fg,
             bordercolor=border_color,
         )
@@ -132,7 +147,7 @@ def create_search_controls(
     # O frame container agora e invisivel, sem bordas
     search_container = tk.Frame(
         frame,
-        bg=_lookup("TFrame", "background", "") or _lookup(".", "background", "") or entry_bg,
+        bg=frame_bg,
         bd=0,
         relief="flat",
         highlightthickness=0,
@@ -149,13 +164,18 @@ def create_search_controls(
 
     # Icone de lupa
     if search_icon is not None:
-        icon_label = tk.Label(search_container, image=search_icon, bg=search_container.cget("bg"), borderwidth=0)
-        icon_label.pack(side="left", padx=(0, 4))
-        # FIX-TESTS-002: Manter referência forte à PhotoImage para evitar garbage collection
-        # Mantem referências em multiplos locais para garantir que a imagem sobreviva
-        icon_label.image = search_icon  # type: ignore[attr-defined]
-        search_container._search_icon = search_icon  # type: ignore[attr-defined]
-        frame._search_icon = search_icon  # type: ignore[attr-defined] - referência no frame retornado
+        try:
+            icon_label = tk.Label(search_container, image=search_icon, bg=search_container.cget("bg"), borderwidth=0)
+            icon_label.pack(side="left", padx=(0, 4))
+            # FIX-TESTS-002: Manter referência forte à PhotoImage para evitar garbage collection
+            # Mantem referências em multiplos locais para garantir que a imagem sobreviva
+            icon_label.image = search_icon  # type: ignore[attr-defined]
+            search_container._search_icon = search_icon  # type: ignore[attr-defined]
+            frame._search_icon = search_icon  # type: ignore[attr-defined] - referência no frame retornado
+        except tk.TclError as exc:
+            # Fix Microfase 19.2: Se TclError (pyimage doesn't exist), continua sem ícone
+            log.debug("Falha ao criar label com ícone de busca: %s", exc)
+            search_icon = None
 
     # Entry de busca (a caixinha visivel)
     entry_style = "Search.TEntry"

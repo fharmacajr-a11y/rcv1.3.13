@@ -7,16 +7,14 @@ mesmo quando o ícone PNG não existe (fallback para emoji).
 
 from __future__ import annotations
 
-import sys
 import tkinter as tk
 
 import pytest
 
+from tests.helpers.skip_conditions import SKIP_PY313_TKINTER
+
 # Pular testes em Python 3.13+ no Windows devido a bugs conhecidos de tkinter
-_skip_tkinter_windows = pytest.mark.skipif(
-    sys.platform == "win32" and sys.version_info >= (3, 13),
-    reason="Tkinter/ttkbootstrap + pytest em Python 3.13 no Windows pode causar 'Windows fatal exception: access violation' (bug do runtime, ver CPython #125179/118973).",
-)
+_skip_tkinter_windows = SKIP_PY313_TKINTER
 
 
 @pytest.fixture

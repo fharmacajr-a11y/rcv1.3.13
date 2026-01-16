@@ -5,6 +5,7 @@ Este arquivo mantém compatibilidade com código existente, delegando toda a
 lógica para os componentes separados (View, Controller, State, Actions).
 
 Refatoração: MICROFASE-11 (Divisão em 4 componentes - Facade)
+Microfase: 6 (Subdialogs CustomTkinter)
 """
 
 from __future__ import annotations
@@ -34,6 +35,15 @@ from .client_form_adapters import (
 )
 from .client_form_cnpj_actions import CnpjActionDeps, handle_cartao_cnpj_action
 from . import client_form_upload_actions
+
+# CustomTkinter: fonte única centralizada (Microfase 23 - SSoT)
+from src.ui.ctk_config import HAS_CUSTOMTKINTER
+
+# Importação condicional de modal CTk
+if HAS_CUSTOMTKINTER:
+    from src.modules.clientes.ui import ClientesModalCTK
+else:
+    ClientesModalCTK = None  # type: ignore[misc,assignment]
 
 logger = logging.getLogger(__name__)
 
@@ -163,11 +173,21 @@ def form_cliente(
             except Exception as exc:
                 logger.exception("Erro ao processar Cartão CNPJ")
                 if view and view.window:
-                    messagebox.showerror(
-                        "Erro",
-                        f"Falha ao processar Cartão CNPJ:\n{exc}",
-                        parent=view.window,
-                    )
+                    # Usa modal CTk se disponível
+                    if HAS_CUSTOMTKINTER and ClientesModalCTK is not None:
+                        ClientesModalCTK.error(
+                            view.window,
+                            "Erro",
+                            f"Falha ao processar Cartão CNPJ:\n{exc}",
+                        )
+                    else:
+                        from tkinter import messagebox
+
+                        messagebox.showerror(
+                            "Erro",
+                            f"Falha ao processar Cartão CNPJ:\n{exc}",
+                            parent=view.window,
+                        )
 
             finally:
                 cnpj_busy[0] = False
@@ -189,7 +209,6 @@ def form_cliente(
 
         def on_senhas(self) -> None:
             """Handler para botão Senhas."""
-            from tkinter import messagebox
             from src.modules.passwords.helpers import open_senhas_for_cliente
 
             view = view_ref[0]
@@ -198,11 +217,21 @@ def form_cliente(
 
             cid = state.client_id
             if not cid:
-                messagebox.showinfo(
-                    "Senhas do Cliente",
-                    "Salve o cliente antes de abrir as senhas.",
-                    parent=view.window,
-                )
+                # Usa modal CTk se disponível
+                if HAS_CUSTOMTKINTER and ClientesModalCTK is not None:
+                    ClientesModalCTK.info(
+                        view.window,
+                        "Senhas do Cliente",
+                        "Salve o cliente antes de abrir as senhas.",
+                    )
+                else:
+                    from tkinter import messagebox
+
+                    messagebox.showinfo(
+                        "Senhas do Cliente",
+                        "Salve o cliente antes de abrir as senhas.",
+                        parent=view.window,
+                    )
                 return
 
             try:
@@ -210,11 +239,21 @@ def form_cliente(
                 open_senhas_for_cliente(view.window, str(cid), razao_social=razao_text)
             except Exception as exc:  # noqa: BLE001
                 logger.exception("Falha ao abrir senhas do cliente: %s", exc)
-                messagebox.showerror(
-                    "Erro",
-                    f"Falha ao abrir senhas: {exc}",
-                    parent=view.window,
-                )
+                # Usa modal CTk se disponível
+                if HAS_CUSTOMTKINTER and ClientesModalCTK is not None:
+                    ClientesModalCTK.error(
+                        view.window,
+                        "Erro",
+                        f"Falha ao abrir senhas: {exc}",
+                    )
+                else:
+                    from tkinter import messagebox
+
+                    messagebox.showerror(
+                        "Erro",
+                        f"Falha ao abrir senhas: {exc}",
+                        parent=view.window,
+                    )
 
         def on_dirty(self, *args: Any) -> None:
             """Handler para marcação de dirty state."""

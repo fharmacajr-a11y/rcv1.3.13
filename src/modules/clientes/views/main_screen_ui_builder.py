@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import _tkinter
 import logging
 import tkinter as tk
 from tkinter import ttk
@@ -20,7 +21,39 @@ if TYPE_CHECKING:
 
 from src.modules.clientes.components.helpers import STATUS_CHOICES
 from src.modules.clientes.views.footer import ClientesFooter
-from src.modules.clientes.views.main_screen_constants import (
+
+# CustomTkinter ActionBar (Microfase 3)
+# Evita redefinição de constantes (Microfase 7): variáveis internas em lowercase
+_use_ctk_actionbar = False
+ClientesActionBarCtk = None  # type: ignore[assignment,misc]
+
+try:
+    from src.modules.clientes.views.actionbar_ctk import ClientesActionBarCtk, HAS_CUSTOMTKINTER
+
+    _use_ctk_actionbar = HAS_CUSTOMTKINTER
+except ImportError:
+    pass
+
+USE_CTK_ACTIONBAR: bool = _use_ctk_actionbar
+
+# CustomTkinter Scrollbar (Microfase 4)
+# Evita redefinição de constantes (Microfase 7): variáveis internas em lowercase
+_use_ctk_scrollbar = False
+CTkScrollbar = None  # type: ignore[assignment,misc]
+
+try:
+    if USE_CTK_ACTIONBAR:  # Reutiliza HAS_CUSTOMTKINTER via USE_CTK_ACTIONBAR
+        from src.ui.ctk_config import ctk
+
+        CTkScrollbar = ctk.CTkScrollbar  # type: ignore[union-attr]
+
+        _use_ctk_scrollbar = True
+except (ImportError, NameError, AttributeError):
+    pass
+
+USE_CTK_SCROLLBAR: bool = _use_ctk_scrollbar
+
+from src.modules.clientes.views.main_screen_constants import (  # noqa: E402
     COLUMN_CHECKBOX_WIDTH,
     COLUMN_CONTROL_PADDING,
     COLUMN_CONTROL_Y_OFFSET,
@@ -39,10 +72,25 @@ from src.modules.clientes.views.main_screen_constants import (
     TOOLBAR_PADX,
     TOOLBAR_PADY,
 )
-from src.modules.clientes.views.main_screen_helpers import normalize_order_label
-from src.modules.clientes.views.toolbar import ClientesToolbar
-from src.ui.components import create_clients_treeview
-from src.utils.prefs import load_columns_visibility, save_columns_visibility
+from src.modules.clientes.views.main_screen_helpers import normalize_order_label  # noqa: E402
+
+# Tenta importar toolbar CustomTkinter, senão usa legada
+# Evita redefinição de constantes (Microfase 7): variáveis internas em lowercase
+_use_ctk_toolbar = False
+ClientesToolbarCtk = None  # type: ignore[misc,assignment]
+
+try:
+    from src.modules.clientes.views.toolbar_ctk import ClientesToolbarCtk
+
+    _use_ctk_toolbar = _use_ctk_actionbar  # Reutiliza o status do actionbar (ambos dependem de customtkinter)
+except ImportError:
+    pass
+
+USE_CTK_TOOLBAR: bool = _use_ctk_toolbar
+
+from src.modules.clientes.views.toolbar import ClientesToolbar  # noqa: E402
+from src.ui.components import create_clients_treeview  # noqa: E402
+from src.utils.prefs import load_columns_visibility, save_columns_visibility  # noqa: E402
 
 log = logging.getLogger("app_gui")
 
@@ -61,17 +109,36 @@ def build_toolbar(frame: MainScreenFrame) -> None:
         frame._handle_action_result(result, "abrir lixeira")
         frame._update_main_buttons_state()
 
-    frame.toolbar = ClientesToolbar(
-        frame,
-        order_choices=list(frame._order_choices.keys()),
-        default_order=frame._default_order_label,
-        status_choices=STATUS_CHOICES,
-        on_search_changed=lambda text: frame._buscar(text),
-        on_clear_search=frame._limpar_busca,
-        on_order_changed=frame._on_order_changed,
-        on_status_changed=lambda _value: frame.apply_filters(),
-        on_open_trash=_handle_open_trash,
-    )
+    # Usa toolbar CustomTkinter se disponível, senão fallback para legada
+    theme_manager = getattr(frame, "_theme_manager", None)
+
+    if USE_CTK_TOOLBAR and ClientesToolbarCtk is not None:
+        log.info("Usando toolbar CustomTkinter")
+        frame.toolbar = ClientesToolbarCtk(
+            frame,
+            order_choices=list(frame._order_choices.keys()),
+            default_order=frame._default_order_label,
+            status_choices=STATUS_CHOICES,
+            on_search_changed=lambda text: frame._buscar(text),
+            on_clear_search=frame._limpar_busca,
+            on_order_changed=frame._on_order_changed,
+            on_status_changed=lambda _value: frame.apply_filters(),
+            on_open_trash=_handle_open_trash,
+            theme_manager=theme_manager,
+        )
+    else:
+        log.info("Usando toolbar legada (ttk/ttkbootstrap)")
+        frame.toolbar = ClientesToolbar(
+            frame,
+            order_choices=list(frame._order_choices.keys()),
+            default_order=frame._default_order_label,
+            status_choices=STATUS_CHOICES,
+            on_search_changed=lambda text: frame._buscar(text),
+            on_clear_search=frame._limpar_busca,
+            on_order_changed=frame._on_order_changed,
+            on_status_changed=lambda _value: frame.apply_filters(),
+            on_open_trash=_handle_open_trash,
+        )
 
     frame.toolbar.pack(fill="x", padx=TOOLBAR_PADX, pady=TOOLBAR_PADY)
 
@@ -150,11 +217,19 @@ def build_tree_and_column_controls(frame: MainScreenFrame) -> None:
         on_click=frame._on_click,
     )
 
-    frame.clients_scrollbar = tb.Scrollbar(
-        frame.client_list_container,
-        orient="vertical",
-        command=frame.client_list.yview,
-    )
+    # Scrollbar vertical (CustomTkinter se disponível, senão ttk)
+    if USE_CTK_SCROLLBAR and CTkScrollbar:
+        frame.clients_scrollbar = CTkScrollbar(
+            frame.client_list_container,
+            orientation="vertical",
+            command=frame.client_list.yview,
+        )
+    else:
+        frame.clients_scrollbar = tb.Scrollbar(
+            frame.client_list_container,
+            orient="vertical",
+            command=frame.client_list.yview,
+        )
 
     frame.client_list.configure(yscrollcommand=frame.clients_scrollbar.set)
 
@@ -210,15 +285,28 @@ def build_tree_and_column_controls(frame: MainScreenFrame) -> None:
         cell.grid_propagate(False)  # Não deixar grid encolher e cortar o switch
 
         # Switch round-toggle SEM TEXTO
-        chk = tb.Checkbutton(
-            cell,
-            text="",  # SEM TEXTO - apenas o switch
-            variable=frame._col_content_visible[col],
-            command=lambda c=col: _on_toggle(c),  # type: ignore[misc]
-            bootstyle="info-round-toggle",
-            cursor="hand2",
-            takefocus=False,
-        )
+        # Fix Microfase 19.2: Fallback robusto se layout Round.Toggle não existir
+        try:
+            chk = tb.Checkbutton(
+                cell,
+                text="",  # SEM TEXTO - apenas o switch
+                variable=frame._col_content_visible[col],
+                command=lambda c=col: _on_toggle(c),  # type: ignore[misc]
+                bootstyle="info-round-toggle",
+                cursor="hand2",
+                takefocus=False,
+            )
+        except _tkinter.TclError as exc:
+            # Fallback: usar checkbutton simples se tema não suportar round-toggle
+            log.debug("Round toggle não disponível, usando checkbutton padrão: %s", exc)
+            chk = tb.Checkbutton(
+                cell,
+                text="",
+                variable=frame._col_content_visible[col],
+                command=lambda c=col: _on_toggle(c),  # type: ignore[misc]
+                cursor="hand2",
+                takefocus=False,
+            )
         # Usar place para centralização matemática perfeita (elimina qualquer viés de padding/anchor)
         chk.place(relx=0.5, rely=0.5, anchor="center")
 
@@ -393,16 +481,31 @@ def build_footer(frame: MainScreenFrame) -> None:
         frame._handle_action_result(result, "abrir subpastas")
         frame._update_main_buttons_state()
 
-    frame.footer = ClientesFooter(
-        frame,
-        on_novo=_handle_new,
-        on_editar=_handle_edit,
-        on_subpastas=_handle_subpastas,
-        on_excluir=frame.on_delete_selected_clients,
-        on_batch_delete=frame._on_batch_delete_clicked,
-        on_batch_restore=frame._on_batch_restore_clicked,
-        on_batch_export=frame._on_batch_export_clicked,
-    )
+    # Usa actionbar CustomTkinter se disponível, senão fallback para legada
+    theme_manager = getattr(frame, "_theme_manager", None)
+
+    if USE_CTK_ACTIONBAR and ClientesActionBarCtk is not None:
+        log.info("Usando actionbar CustomTkinter")
+        frame.footer = ClientesActionBarCtk(
+            frame,
+            on_novo=_handle_new,
+            on_editar=_handle_edit,
+            on_subpastas=_handle_subpastas,
+            on_excluir=frame.on_delete_selected_clients,
+            theme_manager=theme_manager,
+        )
+    else:
+        log.info("Usando actionbar legada (ttk/ttkbootstrap)")
+        frame.footer = ClientesFooter(
+            frame,
+            on_novo=_handle_new,
+            on_editar=_handle_edit,
+            on_subpastas=_handle_subpastas,
+            on_excluir=frame.on_delete_selected_clients,
+            on_batch_delete=frame._on_batch_delete_clicked,
+            on_batch_restore=frame._on_batch_restore_clicked,
+            on_batch_export=frame._on_batch_export_clicked,
+        )
 
     frame.footer.pack(fill="x", padx=10, pady=10)
 

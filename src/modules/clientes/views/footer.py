@@ -99,7 +99,7 @@ class ClientesFooter(tb.Frame):  # type: ignore[misc]
                 prev = self._pick_prev_states.get(btn)
                 if prev is not None:
                     btn.configure(state=prev)
-            except (tk.TclError, KeyError, AttributeError) as exc:
+            except Exception as exc:  # Captura todas exceções para máxima robustez
                 logger.debug(
                     "Ignorando falha ao restaurar botão %r após pick mode: %s",
                     btn,

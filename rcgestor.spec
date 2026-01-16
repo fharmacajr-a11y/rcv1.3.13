@@ -39,6 +39,9 @@ APP_VERSION = get_version()
 # Diretórios inteiros são adicionados via Tree após o Analysis.
 datas = []
 
+# Coletar arquivos de dados do customtkinter (assets necessários para funcionar)
+datas += collect_data_files("customtkinter")
+
 
 def add_file(src: Path, dest: str = ".") -> None:
     """Adiciona arquivo aos datas se existir."""

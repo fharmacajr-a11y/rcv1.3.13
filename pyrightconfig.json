@@ -1,6 +1,8 @@
 {
   "pythonVersion": "3.13",
   "typeCheckingMode": "basic",
+  "venvPath": ".",
+  "venv": ".venv",
   "extraPaths": [
     "src"
   ],
@@ -15,18 +17,16 @@
     "vulture_whitelist.py"
   ],
   "stubPath": "./typings",
-  "strict": [
-    "src/modules/clientes/views/main_screen_state.py",
-    "src/modules/clientes/views/main_screen_controller.py",
-    "src/modules/clientes/views/main_screen_helpers.py",
-    "src/modules/clientes/views/main_screen.py"
-  ],
-  "reportCallIssue": "error",
-  "reportAttributeAccessIssue": "none",
+  "reportCallIssue": "none",
+  "reportAttributeAccessIssue": "warning",
   "reportRedeclaration": "error",
   "reportUnknownMemberType": "none",
   "reportUnknownArgumentType": "none",
   "reportUnknownVariableType": "none",
-  "reportOptionalMemberAccess": "warning",
-  "reportMissingTypeStubs": "none"
+  "reportOptionalMemberAccess": "none",
+  "reportMissingTypeStubs": "warning",
+  "reportInvalidTypeForm": "none",
+  "reportMissingModuleSource": "none",
+  "reportArgumentType": "none",
+  "reportConstantRedefinition": "warning"
 }

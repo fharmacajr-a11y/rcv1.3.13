@@ -6,6 +6,7 @@ formulário de clientes (salvar, upload, etc.), separado da UI.
 
 Refatoração: UI-DECOUPLE-CLIENT-FORM-003 (Fase 3)
 Refatoração: MICROFASE-11 (Divisão em 4 componentes - Controller expandido)
+Microfase: 6 (Subdialogs CustomTkinter)
 """
 
 from __future__ import annotations
@@ -23,6 +24,15 @@ try:
     from tkinter import messagebox
 except ImportError:
     messagebox = None  # type: ignore[assignment]
+
+# CustomTkinter: fonte única centralizada (Microfase 23 - SSoT)
+from src.ui.ctk_config import HAS_CUSTOMTKINTER  # noqa: E402
+
+# Importação condicional de modal CTk para subdialogs
+if HAS_CUSTOMTKINTER:
+    from src.modules.clientes.ui import ClientesModalCTK
+else:
+    ClientesModalCTK = None  # type: ignore[misc,assignment]
 
 
 # =============================================================================
@@ -379,6 +389,19 @@ class ClientFormController:
         Returns:
             True se usuário confirma descarte, False caso contrário.
         """
+        # Tenta usar modal CTk primeiro
+        if HAS_CUSTOMTKINTER and ClientesModalCTK is not None and self._view:
+            try:
+                parent = self._view.window
+                return ClientesModalCTK.confirm(
+                    parent=parent,
+                    title="Alterações não salvas",
+                    message="Há alterações não salvas no formulário.\n\nDeseja descartar as alterações e fechar?",
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.debug(f"Falha ao exibir modal CTk: {exc}, tentando messagebox legado")
+
+        # Fallback para messagebox legado
         if messagebox is None:
             logger.warning("messagebox não disponível, permitindo fechamento sem confirmação")
             return True

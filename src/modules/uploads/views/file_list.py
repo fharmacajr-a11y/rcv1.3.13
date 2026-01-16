@@ -4,9 +4,12 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Callable, Iterable, Optional, Tuple
 
+# CustomTkinter (fonte centralizada)
+from src.ui.ctk_config import ctk
 
-class FileList(ttk.Frame):
-    """Treeview que exibe arquivos em estrutura hierárquica e delega acoes para callbacks."""
+
+class FileList(ctk.CTkFrame):  # type: ignore[misc]
+    """Treeview que exibe arquivos em estrutura hierárquica e delega acoes para callbacks (CustomTkinter)."""
 
     def __init__(
         self,
@@ -31,7 +34,7 @@ class FileList(ttk.Frame):
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
 
-        # Estrutura de colunas para árvore hierárquica
+        # Estrutura de colunas para árvore hierárquica (ttk.Treeview mantido)
         self.tree = ttk.Treeview(self, columns=("type",), show="tree headings", selectmode="browse")
 
         # Configuração dos headings
@@ -44,7 +47,7 @@ class FileList(ttk.Frame):
 
         self.tree.grid(row=0, column=0, sticky="nsew")
 
-        # Scrollbars vertical e horizontal
+        # Scrollbars vertical e horizontal (manter ttk, compatível com Treeview)
         scroll_y = ttk.Scrollbar(self, orient="vertical", command=self.tree.yview)
         scroll_y.grid(row=0, column=1, sticky="ns")
 

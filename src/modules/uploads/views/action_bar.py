@@ -1,26 +1,17 @@
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import ttk as tk_ttk
-from typing import TYPE_CHECKING, Callable, Optional, cast
+from typing import TYPE_CHECKING, Callable, Optional
 
-# Tentar importar ttkbootstrap, fallback para tkinter.ttk
-try:
-    import ttkbootstrap as ttk
-except ImportError:
-    ttk = tk_ttk  # type: ignore[assignment]
+# CustomTkinter (fonte centralizada)
+from src.ui.ctk_config import ctk
 
 if TYPE_CHECKING:
-    # Para type hints, use tipos estáticos
-    from tkinter.ttk import Button as TtkButton, Frame as TtkFrame
-else:
-    # Em runtime, use as classes importadas dinamicamente
-    TtkButton = ttk.Button  # type: ignore[misc]
-    TtkFrame = ttk.Frame  # type: ignore[misc]
+    pass  # ctk já importado via src.ui.ctk_config
 
 
-class ActionBar(tk_ttk.Frame):
-    """Barra com botões de ações rápidas."""
+class ActionBar(ctk.CTkFrame):  # type: ignore[misc]
+    """Barra com botões de ações rápidas (CustomTkinter)."""
 
     def __init__(
         self,
@@ -37,52 +28,53 @@ class ActionBar(tk_ttk.Frame):
         super().__init__(master, **kwargs)
 
         # Guardar referências dos botões
-        self.btn_download: Optional[TtkButton] = None
-        self.btn_download_folder: Optional[TtkButton] = None
-        self.btn_delete: Optional[TtkButton] = None
-        self.btn_view: Optional[TtkButton] = None
-        self.btn_refresh: Optional[TtkButton] = None
-        self.btn_close: Optional[TtkButton] = None
+        self.btn_download: Optional[CTkButton] = None  # type: ignore[valid-type]
+        self.btn_download_folder: Optional[CTkButton] = None  # type: ignore[valid-type]
+        self.btn_delete: Optional[CTkButton] = None  # type: ignore[valid-type]
+        self.btn_view: Optional[CTkButton] = None  # type: ignore[valid-type]
+        self.btn_refresh: Optional[CTkButton] = None  # type: ignore[valid-type]
+        self.btn_close: Optional[CTkButton] = None  # type: ignore[valid-type]
 
         # Frame esquerdo (botões principais)
-        left = cast(TtkFrame, ttk.Frame(self))
+        left = ctk.CTkFrame(self)  # type: ignore[union-attr]
         left.grid(row=0, column=0, sticky="w")
 
         col = 0
 
         if on_download is not None:
-            btn = ttk.Button(left, text="Baixar", command=on_download, bootstyle="info")
+            btn = ctk.CTkButton(left, text="Baixar", command=on_download)  # type: ignore[union-attr]
             btn.grid(row=0, column=col, padx=(0, 8))
-            self.btn_download = btn
+            self.btn_download = btn  # type: ignore[assignment]
             col += 1
 
         if on_download_folder is not None:
-            btn = ttk.Button(left, text="Baixar pasta (.zip)", command=on_download_folder, bootstyle="info")
+            btn = ctk.CTkButton(left, text="Baixar pasta (.zip)", command=on_download_folder)  # type: ignore[union-attr]
             btn.grid(row=0, column=col, padx=(0, 8))
-            self.btn_download_folder = btn
+            self.btn_download_folder = btn  # type: ignore[assignment]
             col += 1
 
         if on_delete is not None:
-            btn = ttk.Button(left, text="Excluir", command=on_delete, bootstyle="danger")
+            btn = ctk.CTkButton(left, text="Excluir", command=on_delete, fg_color="red", hover_color="darkred")  # type: ignore[union-attr]
             btn.grid(row=0, column=col, padx=(0, 8))
-            self.btn_delete = btn
+            self.btn_delete = btn  # type: ignore[assignment]
             col += 1
 
         if on_view is not None:
-            btn = ttk.Button(left, text="Visualizar", command=on_view, bootstyle="success")
+            btn = ctk.CTkButton(left, text="Visualizar", command=on_view, fg_color="green", hover_color="darkgreen")  # type: ignore[union-attr]
             btn.grid(row=0, column=col, padx=(0, 8))
-            self.btn_view = btn
+            self.btn_view = btn  # type: ignore[assignment]
             col += 1
 
         # Frame direito (botões auxiliares)
-        right = cast(TtkFrame, ttk.Frame(self))
+        right = ctk.CTkFrame(self)  # type: ignore[union-attr]
         right.grid(row=0, column=1, sticky="e")
 
         col_right = 0
 
         if on_close is not None:
-            self.btn_close = ttk.Button(right, text="Fechar", command=on_close, bootstyle="secondary")
-            # Type narrowing: garantir que btn_close foi criado
+            self.btn_close = ctk.CTkButton(
+                right, text="Fechar", command=on_close, fg_color="gray", hover_color="darkgray"
+            )  # type: ignore[assignment]
             if self.btn_close is not None:
                 self.btn_close.grid(row=0, column=col_right)
 
@@ -95,10 +87,10 @@ class ActionBar(tk_ttk.Frame):
     def set_enabled(self, *, download: bool, download_folder: bool, delete: bool, view: bool) -> None:
         """Habilita ou desabilita os botões conforme os parâmetros."""
         if self.btn_download is not None:
-            self.btn_download.configure(state="normal" if download else "disabled")
+            self.btn_download.configure(state="normal" if download else "disabled")  # type: ignore[union-attr]
         if self.btn_download_folder is not None:
-            self.btn_download_folder.configure(state="normal" if download_folder else "disabled")
+            self.btn_download_folder.configure(state="normal" if download_folder else "disabled")  # type: ignore[union-attr]
         if self.btn_delete is not None:
-            self.btn_delete.configure(state="normal" if delete else "disabled")
+            self.btn_delete.configure(state="normal" if delete else "disabled")  # type: ignore[union-attr]
         if self.btn_view is not None:
-            self.btn_view.configure(state="normal" if view else "disabled")
+            self.btn_view.configure(state="normal" if view else "disabled")  # type: ignore[union-attr]

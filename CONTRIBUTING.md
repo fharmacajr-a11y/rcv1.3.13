@@ -93,6 +93,7 @@ Após essa configuração:
   - Validação de sintaxe YAML/TOML/JSON
   - Detecção de merge conflicts
   - Normalização de line endings
+  - **Enforcement de políticas CustomTkinter** (ver abaixo)
 
 - ⚠️ **Se algum hook falhar** (ex: ruff encontrar problema de lint/formato), você precisa:
   1. Revisar as correções automáticas feitas pelo pre-commit
@@ -100,6 +101,38 @@ Após essa configuração:
   3. Tentar o commit novamente
 
 - 🚫 **Não use `--no-verify`** para pular pre-commit, exceto em casos muito específicos (ex: commits de docs/merge)
+
+#### 🎨 Política CustomTkinter (Single Source of Truth)
+
+**REGRA DE OURO:** Nunca importe `customtkinter` diretamente em qualquer arquivo do projeto.
+
+✅ **CORRETO:**
+```python
+from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+
+if HAS_CUSTOMTKINTER:
+    # usar ctk.CTkButton, etc.
+```
+
+❌ **PROIBIDO:**
+```python
+import customtkinter  # ❌ HOOK VAI FALHAR!
+from customtkinter import CTkButton  # ❌ HOOK VAI FALHAR!
+```
+
+**Por quê?**
+- `src/ui/ctk_config.py` é o **único arquivo permitido** para importar customtkinter
+- Isso garante Single Source of Truth (SSoT) para detecção de CTk
+- Evita duplicação de lógica try/except em múltiplos módulos
+- Facilita manutenção e debugging
+
+**O que acontece se eu importar direto?**
+- ⚠️ O hook `no-direct-customtkinter-import` do pre-commit **vai falhar o commit**
+- ⚠️ A CI/CD no GitHub Actions **vai falhar o PR**
+- 📝 Você precisará refatorar para usar `src.ui.ctk_config`
+
+**Arquivo whitelist (permitido):**
+- `src/ui/ctk_config.py` (único permitido)
 
 ### 5. Validar instalação rodando testes
 
