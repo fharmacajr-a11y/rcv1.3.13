@@ -1,16 +1,15 @@
+from __future__ import annotations
+
+from src.ui.ctk_config import ctk
+
 # -*- coding: utf-8 -*-
 """
 Dialogo simples para definir subpastas de clientes.
 """
 
-from __future__ import annotations
-
 import logging
 import tkinter as tk
-from tkinter import ttk
 from typing import Optional
-
-import ttkbootstrap as tb
 
 from src.utils.subfolders import sanitize_subfolder_name
 from src.ui.window_utils import show_centered
@@ -43,19 +42,19 @@ class SubpastaDialog(tk.Toplevel):
         self.rowconfigure(0, weight=0)
         self.columnconfigure(0, weight=1)
 
-        frm = tb.Frame(self, padding=(16, 12, 16, 10))
-        frm.grid(row=0, column=0, sticky="nsew")
+        frm = tk.Frame(self)
+        frm.grid(row=0, column=0, sticky="nsew", padx=16, pady=(12, 10))
         frm.columnconfigure(0, weight=1)
 
         # Labels com wraplength para evitar texto feio
-        ttk.Label(
+        ctk.CTkLabel(
             frm,
             text=f"Digite o nome da subpasta (ou deixe vazio para usar só '{DEFAULT_IMPORT_SUBFOLDER}/').",
             wraplength=520,
             justify="left",
         ).grid(row=0, column=0, sticky="w", pady=(0, 6))
 
-        ttk.Label(
+        ctk.CTkLabel(
             frm,
             text="Ex.: SIFAP, VISA, Farmacia_Popular, Auditoria",
             foreground="#6c757d",
@@ -64,14 +63,14 @@ class SubpastaDialog(tk.Toplevel):
         ).grid(row=1, column=0, sticky="w", pady=(0, 6))
 
         self.var = tk.StringVar(value=default or "")
-        ent = ttk.Entry(frm, textvariable=self.var, width=40)
+        ent = ctk.CTkEntry(frm, textvariable=self.var, width=40)
         ent.grid(row=2, column=0, sticky="ew", pady=(6, 8))
 
         # Botões no canto direito com padding mínimo
-        btns = tb.Frame(frm)
+        btns = tk.Frame(frm)
         btns.grid(row=3, column=0, sticky="e", pady=(0, 0))
-        tb.Button(btns, text="OK", command=self._ok, bootstyle="success").pack(side="left", padx=4)
-        tb.Button(btns, text="Cancelar", command=self._cancel, bootstyle="danger").pack(side="left", padx=4)
+        tk.Button(btns, text="OK", command=self._ok).pack(side="left", padx=4)
+        tk.Button(btns, text="Cancelar", command=self._cancel).pack(side="left", padx=4)
 
         self.bind("<Return>", lambda e: self._ok())
         self.bind("<Escape>", lambda e: self._cancel())

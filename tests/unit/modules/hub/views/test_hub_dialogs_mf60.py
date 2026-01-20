@@ -166,11 +166,11 @@ class TestShowNoteEditor:
         self.fake_text = FakeText()
 
     @patch("src.modules.hub.views.hub_dialogs.tk.Toplevel")
-    @patch("src.modules.hub.views.hub_dialogs.tb.Frame")
-    @patch("src.modules.hub.views.hub_dialogs.tb.Label")
-    @patch("src.modules.hub.views.hub_dialogs.tb.Scrollbar")
+    @patch("src.modules.hub.views.hub_dialogs.tk.Frame")
+    @patch("src.modules.hub.views.hub_dialogs.tk.Label")
+    @patch("src.modules.hub.views.hub_dialogs.ttk.Scrollbar")
     @patch("src.modules.hub.views.hub_dialogs.tk.Text")
-    @patch("src.modules.hub.views.hub_dialogs.tb.Button")
+    @patch("src.modules.hub.views.hub_dialogs.tk.Button")
     @patch("src.modules.hub.views.hub_dialogs.messagebox")
     def test_create_new_note_confirmed(
         self,
@@ -218,11 +218,11 @@ class TestShowNoteEditor:
         assert fake_dialog.wait_window_called
 
     @patch("src.modules.hub.views.hub_dialogs.tk.Toplevel")
-    @patch("src.modules.hub.views.hub_dialogs.tb.Frame")
-    @patch("src.modules.hub.views.hub_dialogs.tb.Label")
-    @patch("src.modules.hub.views.hub_dialogs.tb.Scrollbar")
+    @patch("src.modules.hub.views.hub_dialogs.tk.Frame")
+    @patch("src.modules.hub.views.hub_dialogs.tk.Label")
+    @patch("src.modules.hub.views.hub_dialogs.ttk.Scrollbar")
     @patch("src.modules.hub.views.hub_dialogs.tk.Text")
-    @patch("src.modules.hub.views.hub_dialogs.tb.Button")
+    @patch("src.modules.hub.views.hub_dialogs.tk.Button")
     @patch("src.modules.hub.views.hub_dialogs.messagebox")
     def test_edit_existing_note_confirmed(
         self,
@@ -275,11 +275,11 @@ class TestShowNoteEditor:
         assert fake_text.content == "Texto original"
 
     @patch("src.modules.hub.views.hub_dialogs.tk.Toplevel")
-    @patch("src.modules.hub.views.hub_dialogs.tb.Frame")
-    @patch("src.modules.hub.views.hub_dialogs.tb.Label")
-    @patch("src.modules.hub.views.hub_dialogs.tb.Scrollbar")
+    @patch("src.modules.hub.views.hub_dialogs.tk.Frame")
+    @patch("src.modules.hub.views.hub_dialogs.tk.Label")
+    @patch("src.modules.hub.views.hub_dialogs.ttk.Scrollbar")
     @patch("src.modules.hub.views.hub_dialogs.tk.Text")
-    @patch("src.modules.hub.views.hub_dialogs.tb.Button")
+    @patch("src.modules.hub.views.hub_dialogs.tk.Button")
     @patch("src.modules.hub.views.hub_dialogs.messagebox")
     def test_cancel_note_editor(
         self,
@@ -323,11 +323,11 @@ class TestShowNoteEditor:
         assert fake_dialog.destroyed
 
     @patch("src.modules.hub.views.hub_dialogs.tk.Toplevel")
-    @patch("src.modules.hub.views.hub_dialogs.tb.Frame")
-    @patch("src.modules.hub.views.hub_dialogs.tb.Label")
-    @patch("src.modules.hub.views.hub_dialogs.tb.Scrollbar")
+    @patch("src.modules.hub.views.hub_dialogs.tk.Frame")
+    @patch("src.modules.hub.views.hub_dialogs.tk.Label")
+    @patch("src.modules.hub.views.hub_dialogs.ttk.Scrollbar")
     @patch("src.modules.hub.views.hub_dialogs.tk.Text")
-    @patch("src.modules.hub.views.hub_dialogs.tb.Button")
+    @patch("src.modules.hub.views.hub_dialogs.tk.Button")
     @patch("src.modules.hub.views.hub_dialogs.messagebox")
     def test_empty_note_shows_warning(
         self,
@@ -378,11 +378,11 @@ class TestShowNoteEditor:
         assert not fake_dialog.destroyed
 
     @patch("src.modules.hub.views.hub_dialogs.tk.Toplevel")
-    @patch("src.modules.hub.views.hub_dialogs.tb.Frame")
-    @patch("src.modules.hub.views.hub_dialogs.tb.Label")
-    @patch("src.modules.hub.views.hub_dialogs.tb.Scrollbar")
+    @patch("src.modules.hub.views.hub_dialogs.tk.Frame")
+    @patch("src.modules.hub.views.hub_dialogs.tk.Label")
+    @patch("src.modules.hub.views.hub_dialogs.ttk.Scrollbar")
     @patch("src.modules.hub.views.hub_dialogs.tk.Text")
-    @patch("src.modules.hub.views.hub_dialogs.tb.Button")
+    @patch("src.modules.hub.views.hub_dialogs.tk.Button")
     @patch("src.modules.hub.views.hub_dialogs.messagebox")
     def test_keyboard_bindings_created(
         self,
@@ -412,11 +412,11 @@ class TestShowNoteEditor:
         assert "<Escape>" in fake_dialog.bindings
 
     @patch("src.modules.hub.views.hub_dialogs.tk.Toplevel")
-    @patch("src.modules.hub.views.hub_dialogs.tb.Frame")
-    @patch("src.modules.hub.views.hub_dialogs.tb.Label")
-    @patch("src.modules.hub.views.hub_dialogs.tb.Scrollbar")
+    @patch("src.modules.hub.views.hub_dialogs.tk.Frame")
+    @patch("src.modules.hub.views.hub_dialogs.tk.Label")
+    @patch("src.modules.hub.views.hub_dialogs.ttk.Scrollbar")
     @patch("src.modules.hub.views.hub_dialogs.tk.Text")
-    @patch("src.modules.hub.views.hub_dialogs.tb.Button")
+    @patch("src.modules.hub.views.hub_dialogs.tk.Button")
     @patch("src.modules.hub.views.hub_dialogs.messagebox")
     def test_dialog_positioning(
         self,
@@ -531,7 +531,7 @@ class TestImportStructure:
         """Verificar que imports necessários estão disponíveis."""
         assert hasattr(hub_dialogs, "tk")
         assert hasattr(hub_dialogs, "messagebox")
-        assert hasattr(hub_dialogs, "tb")
+        # tb is no longer imported - removed ttkbootstrap dependency
 
     def test_module_functions_exported(self) -> None:
         """Verificar que funções principais estão exportadas."""
@@ -544,3 +544,4 @@ class TestImportStructure:
         """Verificar que módulo tem docstring."""
         assert hub_dialogs.__doc__ is not None
         assert "HubDialogs" in hub_dialogs.__doc__
+

@@ -1,17 +1,16 @@
 # -*- coding: utf-8 -*-
-"""Diálogo para criação de nova tarefa."""
+"""Diálogo para criação de nova tarefa - MIGRADO PARA CUSTOMTKINTER."""
 
 from __future__ import annotations
 
 import logging
 import tkinter as tk
 from datetime import date
+from tkinter import messagebox
+from tkinter.constants import W
 from typing import Callable, Optional
 
-import ttkbootstrap as tb
-from ttkbootstrap.constants import W
-from ttkbootstrap.dialogs import Messagebox
-
+from src.ui.ctk_config import ctk  # SSoT: import via ctk_config
 from src.db.domain_types import ClientRow
 from src.core.app import apply_rc_icon
 from src.features.tasks.service import create_task
@@ -29,12 +28,12 @@ PRIORITY_OPTIONS = {
 }
 
 
-class NovaTarefaDialog(tb.Toplevel):
-    """Diálogo modal para criação de nova tarefa."""
+class NovaTarefaDialog(ctk.CTkToplevel):
+    """Diálogo modal para criação de nova tarefa - CustomTkinter."""
 
     def __init__(
         self,
-        parent: tb.Widget,
+        parent: tk.Widget,
         org_id: str,
         user_id: str,
         on_success: Callable[[], None],
@@ -89,14 +88,14 @@ class NovaTarefaDialog(tb.Toplevel):
 
     def _build_ui(self) -> None:
         """Constrói a interface do diálogo."""
-        container = tb.Frame(self, padding=20)
-        container.pack(fill="both", expand=True)
+        container = ctk.CTkFrame(self, fg_color="transparent")
+        container.pack(fill="both", expand=True, padx=20, pady=20)
 
         # Configurar grid para expansão
         container.columnconfigure(1, weight=1)
 
         # Cliente (opcional)
-        tb.Label(container, text="Cliente (opcional):").grid(row=0, column=0, sticky=W, pady=5)
+        ctk.CTkLabel(container, text="Cliente (opcional):").grid(row=0, column=0, sticky=W, pady=5)
         self.client_var = tk.StringVar()
 
         # Preparar lista de clientes para o combobox
@@ -112,102 +111,89 @@ class NovaTarefaDialog(tb.Toplevel):
                 client_values.append(display)
                 self._client_map[display] = client.get("id", "")
 
-        self.client_combo = tb.Combobox(
+        self.client_combo = ctk.CTkComboBox(
             container,
-            textvariable=self.client_var,
+            variable=self.client_var,
             values=client_values,
             state="readonly",
         )
-        self.client_combo.current(0)  # Seleciona "(Nenhum)" por padrão
+        self.client_combo.set("(Nenhum)")  # Default
         self.client_combo.grid(row=0, column=1, sticky="ew", pady=5, padx=(10, 0))
 
         # Título (obrigatório)
-        tb.Label(container, text="Título*:").grid(row=1, column=0, sticky=W, pady=5)
+        ctk.CTkLabel(container, text="Título*:").grid(row=1, column=0, sticky=W, pady=5)
         self.title_var = tk.StringVar()
-        self.title_entry = tb.Entry(container, textvariable=self.title_var)
+        self.title_entry = ctk.CTkEntry(container, textvariable=self.title_var)
         self.title_entry.grid(row=1, column=1, sticky="ew", pady=5, padx=(10, 0))
 
         # Descrição (opcional)
-        tb.Label(container, text="Descrição:").grid(row=2, column=0, sticky=W + "n", pady=5)
-        self.description_text = tb.Text(
+        ctk.CTkLabel(container, text="Descrição:").grid(row=2, column=0, sticky=W + "n", pady=5)
+        self.description_text = ctk.CTkTextbox(
             container,
-            height=5,
-            width=40,
+            height=100,
+            width=400,
             wrap="word",
         )
         self.description_text.grid(row=2, column=1, sticky="ew", pady=5, padx=(10, 0))
 
         # Prioridade
-        tb.Label(container, text="Prioridade:").grid(row=3, column=0, sticky=W, pady=5)
+        ctk.CTkLabel(container, text="Prioridade:").grid(row=3, column=0, sticky=W, pady=5)
         self.priority_var = tk.StringVar()
-        self.priority_combo = tb.Combobox(
+        self.priority_combo = ctk.CTkComboBox(
             container,
-            textvariable=self.priority_var,
+            variable=self.priority_var,
             values=list(PRIORITY_OPTIONS.keys()),
             state="readonly",
         )
-        self.priority_combo.current(1)  # Default: "Normal"
+        self.priority_combo.set("Normal")  # Default
         self.priority_combo.grid(row=3, column=1, sticky="ew", pady=5, padx=(10, 0))
 
         # Data de vencimento
-        tb.Label(container, text="Vencimento:").grid(row=4, column=0, sticky=W, pady=5)
+        ctk.CTkLabel(container, text="Vencimento:").grid(row=4, column=0, sticky=W, pady=5)
 
         # Frame para data
-        date_frame = tb.Frame(container)
+        date_frame = ctk.CTkFrame(container, fg_color="transparent")
         date_frame.grid(row=4, column=1, sticky="ew", pady=5, padx=(10, 0))
 
-        # Usar DateEntry (widget de calendário inline) se disponível
+        # Entry simples para data (DateEntry não é compatível com CTk)
         self.date_var = tk.StringVar(value=date.today().strftime("%Y-%m-%d"))
-
-        try:
-            from ttkbootstrap.widgets import DateEntry  # type: ignore
-
-            date_entry_widget = DateEntry(date_frame, dateformat="%Y-%m-%d")
-            date_entry_widget.entry.delete(0, "end")
-            date_entry_widget.entry.insert(0, self.date_var.get())
-            date_entry_widget.entry.configure(textvariable=self.date_var)
-            date_entry_widget.pack(side="left", padx=(0, 5))
-            self.date_entry = date_entry_widget.entry
-
-        except Exception as exc:  # noqa: BLE001
-            logger.debug("DateEntry não disponível, usando Entry simples: %s", exc)
-            self.date_entry = tb.Entry(date_frame, textvariable=self.date_var, width=15)
-            self.date_entry.pack(side="left")
-            tb.Label(
-                date_frame,
-                text="(formato: AAAA-MM-DD)",
-                font=("Segoe UI", 8),
-                foreground="gray",
-            ).pack(side="left", padx=(5, 0))
+        self.date_entry = ctk.CTkEntry(date_frame, textvariable=self.date_var, width=150)
+        self.date_entry.pack(side="left")
+        ctk.CTkLabel(
+            date_frame,
+            text="(formato: AAAA-MM-DD)",
+            text_color="gray",
+        ).pack(side="left", padx=(5, 0))
 
         # Hint para campos obrigatórios
-        hint_label = tb.Label(
+        hint_label = ctk.CTkLabel(
             container,
             text="* Campos obrigatórios",
-            font=("Segoe UI", 8),
-            foreground="gray",
+            text_color="gray",
         )
         hint_label.grid(row=5, column=0, columnspan=2, sticky=W, pady=(10, 5))
 
         # Botões
-        button_frame = tb.Frame(container)
+        button_frame = ctk.CTkFrame(container, fg_color="transparent")
         button_frame.grid(row=6, column=0, columnspan=2, pady=(15, 0))
 
-        self.ok_button = tb.Button(
+        self.ok_button = ctk.CTkButton(
             button_frame,
             text="Criar Tarefa",
             command=self._on_ok,
-            bootstyle="success",
-            width=15,
+            fg_color="green",
+            hover_color="darkgreen",
+            width=150,
         )
         self.ok_button.pack(side="left", padx=5)
 
-        self.cancel_button = tb.Button(
+        self.cancel_button = ctk.CTkButton(
             button_frame,
             text="Cancelar",
             command=self._on_close,
-            bootstyle="secondary",
-            width=15,
+            fg_color="gray",
+            hover_color="darkgray",
+            width=150,
         )
         self.cancel_button.pack(side="left", padx=5)
 
@@ -223,9 +209,9 @@ class NovaTarefaDialog(tb.Toplevel):
         # Validar título
         title = self.title_var.get().strip()
         if not title:
-            Messagebox.show_error(
-                "Por favor, preencha o título da tarefa.",
+            messagebox.showerror(
                 "Campo obrigatório",
+                "Por favor, preencha o título da tarefa.",
                 parent=self,
             )
             self.title_entry.focus_force()
@@ -242,9 +228,9 @@ class NovaTarefaDialog(tb.Toplevel):
         try:
             due_date = date.fromisoformat(date_str)
         except ValueError:
-            Messagebox.show_error(
-                f"Data inválida: '{date_str}'. Use o formato AAAA-MM-DD.",
+            messagebox.showerror(
                 "Data inválida",
+                f"Data inválida: '{date_str}'. Use o formato AAAA-MM-DD.",
                 parent=self,
             )
             self.date_entry.focus_force()
@@ -285,8 +271,8 @@ class NovaTarefaDialog(tb.Toplevel):
 
         except Exception as exc:
             logger.exception("Erro ao criar tarefa")
-            Messagebox.show_error(
-                f"Erro ao criar tarefa: {exc}",
+            messagebox.showerror(
                 "Erro",
+                f"Erro ao criar tarefa: {exc}",
                 parent=self,
             )

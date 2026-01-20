@@ -1,3 +1,8 @@
+from __future__ import annotations
+
+from src.ui.ctk_config import ctk
+from src.ui.ui_tokens import SURFACE_DARK
+
 # -*- coding: utf-8 -*-
 """Componente de ações da TopBar - compositor para NotificationsButton e NotificationsPopup.
 
@@ -7,10 +12,7 @@ REFATORAÇÃO P2 (Microfase 2 → MF3):
 - UI agora consome ViewModels do controller
 """
 
-from __future__ import annotations
-
 import logging
-from tkinter import ttk
 from typing import Any, Protocol
 
 from src.ui.controllers import TopbarNotificationsController
@@ -55,7 +57,7 @@ class TopbarActionsCallbacks(Protocol):
         ...
 
 
-class TopbarActions(ttk.Frame):
+class TopbarActions(ctk.CTkFrame):
     """Componente compositor de ações da TopBar (lado direito).
 
     Orquestra:
@@ -75,7 +77,7 @@ class TopbarActions(ttk.Frame):
             master: Widget pai
             callbacks: Objeto com callbacks de ações
         """
-        super().__init__(master, **kwargs)
+        super().__init__(master, fg_color=SURFACE_DARK, corner_radius=0, **kwargs)
         self._callbacks = callbacks
 
         # Criar controller headless (MF3)

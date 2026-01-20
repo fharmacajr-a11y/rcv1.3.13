@@ -1,33 +1,42 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from src.ui.ctk_config import ctk
+
 import tkinter as tk
 from dataclasses import dataclass
-from tkinter import ttk
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, TYPE_CHECKING
 
-import ttkbootstrap as tb
+from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+
+if TYPE_CHECKING:
+    # Para type hints sem quebrar em runtime
+    ButtonType = ctk.CTkButton if HAS_CUSTOMTKINTER and ctk is not None else tk.Button
+    FrameType = ctk.CTkFrame if HAS_CUSTOMTKINTER and ctk is not None else tk.Frame
+else:
+    ButtonType = Any
+    FrameType = Any
 
 
 @dataclass(slots=True)
 class FooterButtons:
-    frame: tb.Frame
-    novo: tb.Button
-    editar: tb.Button
-    subpastas: tb.Button
-    excluir: Optional[tb.Button] = None
-    obrigacoes: Optional[tb.Button] = None
-    batch_delete: Optional[tb.Button] = None
-    batch_restore: Optional[tb.Button] = None
-    batch_export: Optional[tb.Button] = None
+    frame: FrameType
+    novo: ButtonType
+    editar: ButtonType
+    subpastas: ButtonType
+    excluir: Optional[ButtonType] = None
+    obrigacoes: Optional[ButtonType] = None
+    batch_delete: Optional[ButtonType] = None
+    batch_restore: Optional[ButtonType] = None
+    batch_export: Optional[ButtonType] = None
 
 
 __all__ = ["FooterButtons", "toolbar_button", "create_footer_buttons"]
 
 
-def toolbar_button(parent: tk.Misc, text: str, command: Callable[[], Any]) -> ttk.Button:
+def toolbar_button(parent: tk.Misc, text: str, command: Callable[[], Any]) -> ctk.CTkButton:
     """Create a standard toolbar button and return it."""
-    return ttk.Button(parent, text=text, command=command)
+    return ctk.CTkButton(parent, text=text, command=command)
 
 
 def create_footer_buttons(
@@ -43,11 +52,19 @@ def create_footer_buttons(
     on_batch_export: Optional[Callable[[], Any]] = None,
 ) -> FooterButtons:
     """Create the footer buttons frame used on the main window."""
-    frame = tb.Frame(parent)
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        frame = ctk.CTkFrame(parent, fg_color="transparent")
+    else:
+        frame = tk.Frame(parent)
 
-    btn_novo = tb.Button(frame, text="Novo Cliente", command=on_novo, bootstyle="success")
-    btn_editar = tb.Button(frame, text="Editar", command=on_editar, bootstyle="secondary")
-    btn_subpastas = tb.Button(frame, text="Arquivos", command=on_subpastas, bootstyle="info")
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        btn_novo = ctk.CTkButton(frame, text="Novo Cliente", command=on_novo, fg_color="#28a745", hover_color="#218838")
+        btn_editar = ctk.CTkButton(frame, text="Editar", command=on_editar)
+        btn_subpastas = ctk.CTkButton(frame, text="Arquivos", command=on_subpastas)
+    else:
+        btn_novo = tk.Button(frame, text="Novo Cliente", command=on_novo, bg="#28a745", fg="white")
+        btn_editar = tk.Button(frame, text="Editar", command=on_editar)
+        btn_subpastas = tk.Button(frame, text="Arquivos", command=on_subpastas)
 
     # Layout dos botões principais
     btn_novo.grid(row=0, column=0, padx=5, pady=5, sticky="w")
@@ -55,9 +72,12 @@ def create_footer_buttons(
     btn_subpastas.grid(row=0, column=2, padx=5, pady=5, sticky="w")
 
     # Botão Excluir (vermelho)
-    btn_excluir: Optional[tb.Button] = None
+    btn_excluir: Optional[Any] = None
     if on_excluir is not None:
-        btn_excluir = tb.Button(frame, text="Excluir", command=on_excluir, bootstyle="danger")
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            btn_excluir = ctk.CTkButton(frame, text="Excluir", command=on_excluir, fg_color="#dc3545", hover_color="#c82333")
+        else:
+            btn_excluir = tk.Button(frame, text="Excluir", command=on_excluir, bg="#dc3545", fg="white")
         btn_excluir.grid(row=0, column=3, padx=5, pady=5, sticky="w")
 
     # Botão Obrigações (REMOVIDO - funcionalidade movida para Hub)
@@ -66,32 +86,41 @@ def create_footer_buttons(
     # - Hub tem botão "+ Nova Obrigação" que abre Modo Seleção de Clientes
     # - Após selecionar cliente, abre a janela de obrigações
     # - Mantemos o campo no dataclass como None para compatibilidade
-    btn_obrigacoes: Optional[tb.Button] = None
+    btn_obrigacoes: Optional[Any] = None
 
     # Botões batch (opcionais)
-    btn_batch_delete: Optional[tb.Button] = None
-    btn_batch_restore: Optional[tb.Button] = None
-    btn_batch_export: Optional[tb.Button] = None
+    btn_batch_delete: Optional[Any] = None
+    btn_batch_restore: Optional[Any] = None
+    btn_batch_export: Optional[Any] = None
     next_column = 5
 
     if on_batch_delete is not None or on_batch_restore is not None or on_batch_export is not None:
         # Separador visual entre ações unitárias e batch
-        separator = ttk.Separator(frame, orient="vertical")
+        separator = ctk.CTkFrame(frame, width=2)  # Separador vertical
         separator.grid(row=0, column=next_column, padx=10, pady=5, sticky="ns")
         next_column += 1
 
         if on_batch_delete is not None:
-            btn_batch_delete = tb.Button(frame, text="Excluir em Lote", command=on_batch_delete, bootstyle="danger")
+            if HAS_CUSTOMTKINTER and ctk is not None:
+                btn_batch_delete = ctk.CTkButton(frame, text="Excluir em Lote", command=on_batch_delete, fg_color="#dc3545", hover_color="#c82333")
+            else:
+                btn_batch_delete = tk.Button(frame, text="Excluir em Lote", command=on_batch_delete, bg="#dc3545", fg="white")
             btn_batch_delete.grid(row=0, column=next_column, padx=5, pady=5, sticky="w")
             next_column += 1
 
         if on_batch_restore is not None:
-            btn_batch_restore = tb.Button(frame, text="Restaurar em Lote", command=on_batch_restore, bootstyle="info")
+            if HAS_CUSTOMTKINTER and ctk is not None:
+                btn_batch_restore = ctk.CTkButton(frame, text="Restaurar em Lote", command=on_batch_restore)
+            else:
+                btn_batch_restore = tk.Button(frame, text="Restaurar em Lote", command=on_batch_restore)
             btn_batch_restore.grid(row=0, column=next_column, padx=5, pady=5, sticky="w")
             next_column += 1
 
         if on_batch_export is not None:
-            btn_batch_export = tb.Button(frame, text="Exportar em Lote", command=on_batch_export, bootstyle="secondary")
+            if HAS_CUSTOMTKINTER and ctk is not None:
+                btn_batch_export = ctk.CTkButton(frame, text="Exportar em Lote", command=on_batch_export)
+            else:
+                btn_batch_export = tk.Button(frame, text="Exportar em Lote", command=on_batch_export)
             btn_batch_export.grid(row=0, column=next_column, padx=5, pady=5, sticky="w")
             next_column += 1
 

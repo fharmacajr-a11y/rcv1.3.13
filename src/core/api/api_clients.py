@@ -19,23 +19,26 @@ __all__ = [
 
 
 def switch_theme(root: Any, theme_name: str) -> None:
-    """Apply a UI theme and log a warning if applying fails."""
+    """Apply a UI theme and log a warning if applying fails.
+    
+    DEPRECATED: Mantido para compatibilidade. CustomTkinter gerencia temas globalmente.
+    """
     try:
-        from src.utils import themes
-
-        themes.apply_theme(root, theme=theme_name)
+        from src.ui.theme_manager import theme_manager
+        # Mapear nome antigo para modo CTk
+        mode = "dark" if "dark" in theme_name.lower() else "light"
+        theme_manager.set_mode(mode)  # type: ignore[arg-type]
     except Exception as exc:
         log.warning(f"Failed to apply theme '{theme_name}': {exc}")
 
 
 def get_current_theme() -> str:
-    """Return the stored theme name, falling back to 'flatly' when load_theme errors."""
+    """Return the stored theme mode, falling back to 'light' when unavailable."""
     try:
-        from src.utils import themes
-
-        return themes.load_theme()
+        from src.ui.theme_manager import theme_manager
+        return theme_manager.get_current_mode()
     except Exception:
-        return "flatly"
+        return "light"
 
 
 def upload_folder(local_dir: str, org_id: str, client_id: str, subdir: str = "GERAL") -> Dict[str, Any]:

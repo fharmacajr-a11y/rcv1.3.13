@@ -111,8 +111,8 @@ class ClientFormViewCTK:
         self.theme_manager = ClientesThemeManager()
         self.current_mode = self.theme_manager.load_mode()
 
-        # Aplicar appearance mode do CustomTkinter
-        ctk.set_appearance_mode(self.current_mode)
+        # NÃO usar ctk.set_appearance_mode direto (viola SSoT)
+        # O GlobalThemeManager já definiu o modo global
 
         # Paleta atual
         self.palette = DARK_PALETTE if self.current_mode == "dark" else LIGHT_PALETTE

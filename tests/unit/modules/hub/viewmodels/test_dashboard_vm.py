@@ -105,7 +105,7 @@ class TestCardClientes:
         assert card.label == "Clientes"
         assert card.value == 0
         assert card.value_text == "0"
-        assert card.bootstyle == "info"
+        # bootstyle não mais definido (era tag ttkbootstrap)
 
     def test_card_clientes_with_value(self):
         """Card de clientes com valor positivo."""
@@ -120,7 +120,7 @@ class TestCardClientes:
         assert card.label == "Clientes"
         assert card.value == 42
         assert card.value_text == "42"
-        assert card.bootstyle == "info"  # Sempre info (azul neutro)
+        # bootstyle não mais definido (era tag ttkbootstrap)
 
 
 class TestCardPendencias:
@@ -139,7 +139,7 @@ class TestCardPendencias:
         assert card.label == "Pendências"
         assert card.value == 0
         assert card.value_text == "0"
-        assert card.bootstyle == "success"  # Verde quando 0
+        # bootstyle não mais definido (era tag ttkbootstrap)
 
     def test_card_pendencias_with_one(self):
         """Card de pendências com 1 pendência (vermelho, com ícone)."""
@@ -154,7 +154,7 @@ class TestCardPendencias:
         assert card.label == "Pendências"
         assert card.value == 1
         assert card.value_text == "1 ⚠"  # Com ícone de alerta
-        assert card.bootstyle == "danger"  # Vermelho quando >0
+        # bootstyle não mais definido (era tag ttkbootstrap)
 
     def test_card_pendencias_with_many(self):
         """Card de pendências com várias pendências (vermelho, com ícone)."""
@@ -169,7 +169,7 @@ class TestCardPendencias:
         assert card.label == "Pendências"
         assert card.value == 15
         assert card.value_text == "15 ⚠"
-        assert card.bootstyle == "danger"
+        # bootstyle não mais definido (era tag ttkbootstrap)
 
 
 class TestCardTarefas:
@@ -188,7 +188,7 @@ class TestCardTarefas:
         assert card.label == "Tarefas hoje"
         assert card.value == 0
         assert card.value_text == "0"
-        assert card.bootstyle == "success"  # Verde quando 0
+        # bootstyle não mais definido (era tag ttkbootstrap)
 
     def test_card_tarefas_with_one(self):
         """Card de tarefas com 1 tarefa (amarelo)."""
@@ -203,7 +203,7 @@ class TestCardTarefas:
         assert card.label == "Tarefas hoje"
         assert card.value == 1
         assert card.value_text == "1"
-        assert card.bootstyle == "warning"  # Amarelo quando >0
+        # bootstyle não mais definido (era tag ttkbootstrap)
 
     def test_card_tarefas_with_many(self):
         """Card de tarefas com várias tarefas (amarelo)."""
@@ -218,7 +218,7 @@ class TestCardTarefas:
         assert card.label == "Tarefas hoje"
         assert card.value == 25
         assert card.value_text == "25"
-        assert card.bootstyle == "warning"
+        # bootstyle não mais definido (era tag ttkbootstrap)
 
 
 class TestViewStateImmutability:

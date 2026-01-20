@@ -1,25 +1,27 @@
 from __future__ import annotations
 
 import logging
-from tkinter import Toplevel, StringVar, DoubleVar, ttk, messagebox
 from datetime import date
-from typing import Optional, Dict, Any
+from tkinter import DoubleVar, StringVar, messagebox
+from typing import Any, Dict, Optional
 
-# ttkbootstrap DateEntry
-try:
-    from ttkbootstrap.widgets import DateEntry  # type: ignore
-except Exception:  # fallback simples (campo texto)
-    DateEntry = None  # type: ignore
-
+# CustomTkinter: fonte única centralizada
+from src.ui.ctk_config import ctk
 from src.ui.window_utils import show_centered
+
+# CTkDatePicker substituiu ttkbootstrap DateEntry
+try:
+    from src.ui.widgets import CTkDatePicker
+except Exception:  # fallback simples (campo texto)
+    CTkDatePicker = None  # type: ignore
 
 log = logging.getLogger(__name__)
 
-CATEGORIES_IN = ["Vendas", "Servi��os", "Outros"]
+CATEGORIES_IN = ["Vendas", "Serviços", "Outros"]
 CATEGORIES_OUT = ["Compra", "Impostos", "Folha", "Aluguel", "Outros"]
 
 
-class EntryDialog(Toplevel):
+class EntryDialog(ctk.CTkToplevel):
     def __init__(self, master, initial: Optional[Dict[str, Any]] = None, title="Lan��amento"):
         super().__init__(master)
         self.withdraw()
@@ -41,43 +43,62 @@ class EntryDialog(Toplevel):
         self.result = None
 
     def _build_form(self) -> None:
-        frm = ttk.Frame(self, padding=10)
-        frm.grid(row=0, column=0, sticky="nsew")
+        frm = ctk.CTkFrame(self)
+        frm.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
-        ttk.Label(frm, text="Tipo").grid(row=0, column=0, sticky="w")
-        cb_type = ttk.Combobox(frm, textvariable=self.var_type, values=["IN", "OUT"], state="readonly", width=10)
+        # Tipo
+        ctk.CTkLabel(frm, text="Tipo").grid(row=0, column=0, sticky="w", pady=2)
+        cb_type = ctk.CTkOptionMenu(
+            frm,
+            variable=self.var_type,
+            values=["IN", "OUT"],
+            width=120,
+            command=lambda _: self._update_cats(),
+        )
         cb_type.grid(row=0, column=1, sticky="ew", pady=2)
 
-        ttk.Label(frm, text="Data").grid(row=1, column=0, sticky="w")
-        if DateEntry:
-            de = DateEntry(frm, dateformat="%Y-%m-%d")
-            de.entry.delete(0, "end")
-            de.entry.insert(0, self.var_date.get())
-            de.entry.configure(textvariable=self.var_date)
+        # Data
+        ctk.CTkLabel(frm, text="Data").grid(row=1, column=0, sticky="w", pady=2)
+        if CTkDatePicker:
+            de = CTkDatePicker(frm, date_format="%Y-%m-%d")
+            de.set(self.var_date.get())
             de.grid(row=1, column=1, sticky="ew", pady=2)
+            # Bind para atualizar StringVar ao alterar data
+            def on_date_change(event=None):
+                self.var_date.set(de.get())
+            de.bind("<Return>", on_date_change)
+            de.bind("<FocusOut>", on_date_change)
         else:
-            ttk.Entry(frm, textvariable=self.var_date).grid(row=1, column=1, sticky="ew", pady=2)
+            ctk.CTkEntry(frm, textvariable=self.var_date).grid(row=1, column=1, sticky="ew", pady=2)
 
-        ttk.Label(frm, text="Categoria").grid(row=2, column=0, sticky="w")
-        self.cb_cat = ttk.Combobox(frm, textvariable=self.var_category, values=self._cats(), width=22)
+        # Categoria
+        ctk.CTkLabel(frm, text="Categoria").grid(row=2, column=0, sticky="w", pady=2)
+        self.cb_cat = ctk.CTkOptionMenu(
+            frm,
+            variable=self.var_category,
+            values=self._cats(),
+        )
         self.cb_cat.grid(row=2, column=1, sticky="ew", pady=2)
 
-        ttk.Label(frm, text="Descri��ǜo").grid(row=3, column=0, sticky="w")
-        ttk.Entry(frm, textvariable=self.var_desc).grid(row=3, column=1, sticky="ew", pady=2)
+        # Descrição
+        ctk.CTkLabel(frm, text="Descrição").grid(row=3, column=0, sticky="w", pady=2)
+        ctk.CTkEntry(frm, textvariable=self.var_desc).grid(row=3, column=1, sticky="ew", pady=2)
 
-        ttk.Label(frm, text="Valor").grid(row=4, column=0, sticky="w")
-        ttk.Entry(frm, textvariable=self.var_amount).grid(row=4, column=1, sticky="ew", pady=2)
+        # Valor
+        ctk.CTkLabel(frm, text="Valor").grid(row=4, column=0, sticky="w", pady=2)
+        ctk.CTkEntry(frm, textvariable=self.var_amount).grid(row=4, column=1, sticky="ew", pady=2)
 
-        ttk.Label(frm, text="Conta").grid(row=5, column=0, sticky="w")
-        ttk.Entry(frm, textvariable=self.var_account).grid(row=5, column=1, sticky="ew", pady=2)
+        # Conta
+        ctk.CTkLabel(frm, text="Conta").grid(row=5, column=0, sticky="w", pady=2)
+        ctk.CTkEntry(frm, textvariable=self.var_account).grid(row=5, column=1, sticky="ew", pady=2)
 
-        btns = ttk.Frame(frm)
+        # Botões
+        btns = ctk.CTkFrame(frm, fg_color="transparent")
         btns.grid(row=6, column=0, columnspan=2, sticky="ew", pady=(8, 0))
-        ttk.Button(btns, text="Cancelar", command=self._cancel, bootstyle="secondary").pack(side="right", padx=4)
-        ttk.Button(btns, text="Salvar", command=self._ok, bootstyle="success").pack(side="right", padx=4)
+        ctk.CTkButton(btns, text="Cancelar", command=self._cancel, width=80).pack(side="right", padx=4)
+        ctk.CTkButton(btns, text="Salvar", command=self._ok, width=80).pack(side="right", padx=4)
 
         frm.columnconfigure(1, weight=1)
-        cb_type.bind("<<ComboboxSelected>>", lambda e: self._update_cats())
 
     def _finalize_modal(self) -> None:
         try:
@@ -92,6 +113,7 @@ class EntryDialog(Toplevel):
         return CATEGORIES_IN if self.var_type.get() == "IN" else CATEGORIES_OUT
 
     def _update_cats(self):
+        # Atualizar valores do CTkOptionMenu
         self.cb_cat.configure(values=self._cats())
 
     def _cancel(self):

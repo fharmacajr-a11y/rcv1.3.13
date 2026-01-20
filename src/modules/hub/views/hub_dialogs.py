@@ -18,9 +18,12 @@ from datetime import date
 from tkinter import messagebox
 from typing import Any, Literal, Sequence
 
-import ttkbootstrap as tb
+from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+import tkinter as tk
+
 
 from src.utils.formatters import format_cnpj
+from src.ui.widgets import CTkTableView
 
 logger = logging.getLogger(__name__)
 
@@ -61,17 +64,17 @@ def show_note_editor(
     result = {"confirmed": False, "data": None}
 
     # Build UI
-    frame = tb.Frame(dialog, padding=10)
+    frame = tk.Frame(dialog, padding=10)
     frame.pack(fill="both", expand=True)
 
     # Label
-    tb.Label(frame, text="Texto da nota:").pack(anchor="w", pady=(0, 5))
+    tk.Label(frame, text="Texto da nota:").pack(anchor="w", pady=(0, 5))
 
     # Text widget with scrollbar
-    text_frame = tb.Frame(frame)
+    text_frame = tk.Frame(frame)
     text_frame.pack(fill="both", expand=True, pady=(0, 10))
 
-    scrollbar = tb.Scrollbar(text_frame)
+    scrollbar = ctk.CTkScrollbar(text_frame)
     scrollbar.pack(side="right", fill="y")
 
     text_widget = tk.Text(
@@ -92,7 +95,7 @@ def show_note_editor(
     text_widget.focus_set()
 
     # Buttons frame
-    btn_frame = tb.Frame(frame)
+    btn_frame = tk.Frame(frame)
     btn_frame.pack(fill="x")
 
     def on_confirm():
@@ -121,17 +124,15 @@ def show_note_editor(
         dialog.destroy()
 
     # Buttons
-    tb.Button(
+    tk.Button(
         btn_frame,
         text="Confirmar",
-        bootstyle="success",
         command=on_confirm,
     ).pack(side="left", padx=(0, 5))
 
-    tb.Button(
+    tk.Button(
         btn_frame,
         text="Cancelar",
-        bootstyle="secondary",
         command=on_cancel,
     ).pack(side="left")
 
@@ -608,33 +609,26 @@ def pick_anvisa_history_target(
 
     result: dict[str, Any] = {"action": None, "client_id": ""}
 
-    frame = tb.Frame(dialog, padding=10)
+    frame = tk.Frame(dialog, padding=10)
     frame.pack(fill="both", expand=True)
 
-    tb.Label(
+    tk.Label(
         frame,
         text="Selecione o cliente para abrir o histórico de regularizações:",
         font=("Segoe UI", 10),
     ).pack(anchor="w", pady=(0, 8))
 
-    tree_frame = tb.Frame(frame)
+    tree_frame = tk.Frame(frame)
     tree_frame.pack(fill="both", expand=True)
 
-    # Scrollbar vertical (única - sem horizontal)
-    scrollbar_y = tb.Scrollbar(tree_frame, orient="vertical")
-    scrollbar_y.pack(side="right", fill="y")
-
-    tree = tb.Treeview(
+    tree = CTkTableView(
         tree_frame,
         columns=("cliente_id", "cnpj", "regularizacoes", "criada_em", "prazo", "situacao"),
         show="headings",
         height=10,
+        zebra=True,
     )
     tree.pack(side="left", fill="both", expand=True)
-
-    # Configurar apenas scrollbar vertical
-    scrollbar_y.config(command=tree.yview)
-    tree.configure(yscrollcommand=scrollbar_y.set)
 
     # Configurar headings e columns - TUDO CENTRALIZADO
     tree.heading("cliente_id", text="Cliente", anchor="center")
@@ -717,30 +711,29 @@ def pick_anvisa_history_target(
             "",
             "end",
             iid=cid,
-            values=(
+            values=[
                 cid,  # ID do cliente
                 cnpj_display,  # CNPJ
                 detail_str,  # Regularizações
                 data.get("criada_em_display", "—"),
                 data.get("prazo_display", "—"),
                 data.get("situacao", "Sem prazo"),
-            ),
+            ],
         )
 
-    btn_frame = tb.Frame(frame)
+    btn_frame = tk.Frame(frame)
     btn_frame.pack(fill="x", pady=(10, 0))
 
-    btn_open_history = tb.Button(
+    btn_open_history = tk.Button(
         btn_frame,
         text="Abrir histórico",
-        bootstyle="primary",
         state="disabled",
     )
     btn_open_history.pack(side="left")
 
     def _selected_client_id() -> str:
-        sel = tree.selection()
-        return str(sel[0]) if sel else ""
+        iid = tree.get_selected_iid()
+        return str(iid) if iid else ""
 
     def on_open_history() -> None:
         cid = _selected_client_id()
@@ -755,10 +748,9 @@ def pick_anvisa_history_target(
 
     btn_open_history.configure(command=on_open_history)
 
-    tb.Button(
+    tk.Button(
         btn_frame,
         text="Cancelar",
-        bootstyle="secondary",
         command=on_cancel,
     ).pack(side="left", padx=(8, 0))
 

@@ -107,6 +107,11 @@ class MainWindowPollers:
 
     def _poll_notifications_wrapper(self) -> None:
         """Wrapper para polling de notificações com reagendamento."""
+        # SHUTDOWN FIX: Não reagendar se app está fechando
+        if hasattr(self._scheduler, "_closing") and self._scheduler._closing:
+            self._jobs["notifications"] = None
+            return
+
         # Executar callback do MainWindow
         try:
             self._on_poll_notifications()
@@ -129,6 +134,11 @@ class MainWindowPollers:
 
     def _poll_health_wrapper(self) -> None:
         """Wrapper para health check com reagendamento."""
+        # SHUTDOWN FIX: Não reagendar se app está fechando
+        if hasattr(self._scheduler, "_closing") and self._scheduler._closing:
+            self._jobs["health"] = None
+            return
+
         # Executar callback do MainWindow
         try:
             self._on_poll_health()
@@ -151,6 +161,11 @@ class MainWindowPollers:
 
     def _refresh_status_wrapper(self) -> None:
         """Wrapper para status refresh com reagendamento."""
+        # SHUTDOWN FIX: Não reagendar se app está fechando
+        if hasattr(self._scheduler, "_closing") and self._scheduler._closing:
+            self._jobs["status"] = None
+            return
+
         # Executar callback do MainWindow
         try:
             self._on_refresh_status()

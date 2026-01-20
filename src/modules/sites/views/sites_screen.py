@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from src.ui.ctk_config import ctk
+
 import logging
 import tkinter as tk
 from dataclasses import dataclass
-from tkinter import ttk
 import webbrowser
 
 
@@ -116,17 +117,17 @@ CATEGORIES: tuple[SiteCategory, ...] = (
 SITES: tuple[SiteLink, ...] = tuple(site for category in CATEGORIES for site in category.sites)
 
 
-class SitesScreen(ttk.Frame):
+class SitesScreen(ctk.CTkFrame):
     """Tela simples de atalhos para sites úteis (apenas botões)."""
 
     def __init__(self, master: tk.Misc, *args: object, **kwargs: object) -> None:
         super().__init__(master, *args, **kwargs)
 
-        self.empresa_buttons: list[ttk.Button] = []
-        self.convenios_buttons: list[ttk.Button] = []
-        self.anvisa_buttons: list[ttk.Button] = []
-        self.farmacia_popular_buttons: list[ttk.Button] = []
-        self.financas_buttons: list[ttk.Button] = []
+        self.empresa_buttons: list[ctk.CTkButton] = []
+        self.convenios_buttons: list[ctk.CTkButton] = []
+        self.anvisa_buttons: list[ctk.CTkButton] = []
+        self.farmacia_popular_buttons: list[ctk.CTkButton] = []
+        self.financas_buttons: list[ctk.CTkButton] = []
 
         category_button_map = {
             CATEGORY_EMPRESA.name: self.empresa_buttons,
@@ -136,29 +137,25 @@ class SitesScreen(ttk.Frame):
             CATEGORY_FINANCAS.name: self.financas_buttons,
         }
 
-        title = ttk.Label(self, text="Sites úteis", font=("TkDefaultFont", 12, "bold"))
+        title = ctk.CTkLabel(self, text="Sites úteis", font=("TkDefaultFont", 12, "bold"))
         title.pack(anchor="w", padx=15, pady=(10, 5))
 
-        content = ttk.Frame(self)
+        content = ctk.CTkFrame(self)
         content.pack(anchor="n", pady=(5, 15), expand=True)
         content.columnconfigure(0, weight=1)
 
         for row_index, category in enumerate(CATEGORIES):
-            category_frame = ttk.Labelframe(
-                content,
-                text=category.name,
-                bootstyle="dark",
-                padding=(10, 8),
-            )
+            # Usar CTkSection para substituir LabelFrame pattern
+            from src.ui.widgets.ctk_section import CTkSection
+            category_frame = CTkSection(content, title=category.name)
             category_frame.grid(row=row_index, column=0, sticky="n", pady=(0, 12))
-            category_frame.columnconfigure(0, weight=1)
+            category_frame.content_frame.columnconfigure(0, weight=1)
 
             for i, site in enumerate(category.sites):
-                btn = ttk.Button(
-                    category_frame,
+                btn = ctk.CTkButton(
+                    category_frame.content_frame,
                     text=site.name,
                     width=80,
-                    bootstyle=category.bootstyle,
                     command=lambda url=site.url: self._open_site(url),
                 )
                 btn.grid(row=i, column=0, sticky="ew", pady=3, padx=(5, 5))

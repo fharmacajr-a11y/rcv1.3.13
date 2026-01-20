@@ -7,9 +7,9 @@ import re
 import tkinter as tk
 import webbrowser
 from dataclasses import dataclass
-from typing import Callable
+from typing import Any, Callable
 
-import ttkbootstrap as tb
+from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
 from PIL import Image, ImageOps, ImageTk
 
 STATUS_DOT = "\u25cf"
@@ -37,12 +37,12 @@ class MenuComponents:
 
 @dataclass(slots=True)
 class StatusIndicators:
-    frame: tb.Frame
+    frame: Any  # CTkFrame | tk.Frame
     count_var: tk.StringVar
     status_dot_var: tk.StringVar
     status_text_var: tk.StringVar
-    status_dot: tb.Label
-    status_label: tb.Label
+    status_dot: Any  # CTkLabel | tk.Label
+    status_label: Any  # CTkLabel | tk.Label
 
 
 def create_menubar(
@@ -102,22 +102,34 @@ def create_status_bar(
     default_status_text: str = "LOCAL",
 ) -> StatusIndicators:
     """Create the status bar used on the bottom of the main window."""
-    frame = tb.Frame(parent)
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        frame = ctk.CTkFrame(parent, fg_color="transparent")
+    else:
+        frame = tk.Frame(parent)
 
     count_var = count_var or tk.StringVar(master=parent, value="0 clientes")
     status_dot_var = status_dot_var or tk.StringVar(master=parent, value=STATUS_DOT)
     status_text_var = status_text_var or tk.StringVar(master=parent, value=default_status_text)
 
-    tb.Label(frame, textvariable=count_var).pack(side="left")
-
-    right_box = tb.Frame(frame)
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        ctk.CTkLabel(frame, textvariable=count_var).pack(side="left")
+        right_box = ctk.CTkFrame(frame, fg_color="transparent")
+    else:
+        tk.Label(frame, textvariable=count_var).pack(side="left")
+        right_box = tk.Frame(frame)
     right_box.pack(side="right")
 
-    status_dot = tb.Label(right_box, textvariable=status_dot_var, bootstyle="warning")
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        status_dot = ctk.CTkLabel(right_box, textvariable=status_dot_var, text_color="#ffc107")
+    else:
+        status_dot = tk.Label(right_box, textvariable=status_dot_var, fg="#ffc107")
     status_dot.configure(font=("", 14))
     status_dot.pack(side="left", padx=(0, 6))
 
-    status_label = tb.Label(right_box, textvariable=status_text_var, bootstyle="inverse")
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        status_label = ctk.CTkLabel(right_box, textvariable=status_text_var)
+    else:
+        status_label = tk.Label(right_box, textvariable=status_text_var)
     status_label.pack(side="left")
 
     return StatusIndicators(

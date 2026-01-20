@@ -1,0 +1,10 @@
+================================================================================
+DIAGNÓSTICO 06: PYLANCE HOTSPOTS (SCAN ESTÁTICO)
+================================================================================
+
+✓ Nenhum hotspot Pylance encontrado
+
+Verificações realizadas:
+  1. HAS_CUSTOMTKINTER redefinido em tests/modules/clientes/**/*.py
+  2. .reconfigure( em tools/**/*.py
+================================================================================

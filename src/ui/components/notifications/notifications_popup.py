@@ -6,10 +6,8 @@ from __future__ import annotations
 import logging
 import os
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import messagebox
 from typing import Any, Callable, Optional
-
-import ttkbootstrap as tb
 
 from src.ui.controllers import NotificationVM, TopbarNotificationsController
 from src.utils.resource_path import resource_path
@@ -54,7 +52,7 @@ class NotificationsPopup:
 
         # Estado interno
         self._popup: tk.Toplevel | None = None
-        self._tree: ttk.Treeview | None = None
+        self._tree: CTkTableView | None = None
         self._notifications_data: list[dict[str, Any]] = []
         self._notifications_items: list[NotificationVM] = []  # ViewModels do controller
         self._notifications_by_id: dict[str, NotificationVM] = {}  # id -> ViewModel
@@ -166,11 +164,11 @@ class NotificationsPopup:
         prepare_hidden_window(popup)
 
         # Container principal
-        main_frame = ttk.Frame(popup, padding=10)
+        main_frame = ctk.CTkFrame(popup)  # TODO: padding=10 -> usar padx/pady no pack/grid
         main_frame.pack(fill="both", expand=True)
 
         # Título
-        title_label = ttk.Label(
+        title_label = ctk.CTkLabel(
             main_frame,
             text="Notificações Recentes",
             font=("Arial", 12, "bold"),
@@ -178,25 +176,17 @@ class NotificationsPopup:
         title_label.pack(anchor="w", pady=(0, 10))
 
         # Frame da Treeview
-        tree_frame = ttk.Frame(main_frame)
+        tree_frame = ctk.CTkFrame(main_frame)
         tree_frame.pack(fill="both", expand=True)
 
-        # Scrollbars
-        vsb = ttk.Scrollbar(tree_frame, orient="vertical")
-        vsb.pack(side="right", fill="y")
-
-        hsb = ttk.Scrollbar(tree_frame, orient="horizontal")
-        hsb.pack(side="bottom", fill="x")
-
-        # Treeview
+        # Treeview (CTkTableView)
         columns = ("data", "mensagem", "por")
-        tree = ttk.Treeview(
+        tree = CTkTableView(
             tree_frame,
             columns=columns,
             show="headings",
-            yscrollcommand=vsb.set,
-            xscrollcommand=hsb.set,
             height=12,
+            zebra=True,
         )
 
         tree.heading("data", text="Data/Hora", anchor="center")
@@ -207,9 +197,6 @@ class NotificationsPopup:
         tree.column("mensagem", width=420, anchor="center", stretch=True)
         tree.column("por", width=140, anchor="center", stretch=False)
 
-        vsb.config(command=tree.yview)
-        hsb.config(command=tree.xview)
-
         tree.pack(fill="both", expand=True)
 
         # Adicionar handler de duplo clique para mostrar detalhes
@@ -218,51 +205,50 @@ class NotificationsPopup:
         self._tree = tree
 
         # Botões
-        buttons_frame = ttk.Frame(main_frame)
+        buttons_frame = ctk.CTkFrame(main_frame)
         buttons_frame.pack(fill="x", pady=(10, 0))
 
-        btn_mark_read = tb.Button(
+        btn_mark_read = tk.Button(
             buttons_frame,
             text="Marcar Tudo como Lido",
             command=self._handle_mark_all_read,
-            bootstyle="success",
+            bg="#28a745",
+            fg="white",
         )
         btn_mark_read.pack(side="left", padx=(0, 10))
 
         # Botão Excluir Selecionada (pra mim)
-        btn_delete_selected = tb.Button(
+        btn_delete_selected = tk.Button(
             buttons_frame,
             text="Excluir Selecionada",
             command=self._handle_delete_selected,
-            bootstyle="danger-outline",
         )
         btn_delete_selected.pack(side="left", padx=(0, 10))
 
         # Botão Excluir Todas (pra mim)
-        btn_delete_all = tb.Button(
+        btn_delete_all = tk.Button(
             buttons_frame,
             text="Excluir Todas (pra mim)",
             command=self._handle_delete_all,
-            bootstyle="danger",
+            bg="#dc3545",
+            fg="white",
         )
         btn_delete_all.pack(side="left", padx=(0, 10))
 
         # Checkbutton para silenciar notificações
         self._mute_var = tk.BooleanVar(value=False)
-        chk_mute = ttk.Checkbutton(
+        chk_mute = ctk.CTkCheckBox(
             buttons_frame,
             text="🔕 Silenciar",
             variable=self._mute_var,
             command=self._handle_mute_toggled,
-            bootstyle="round-toggle",
         )
         chk_mute.pack(side="left")
 
-        btn_close = tb.Button(
+        btn_close = tk.Button(
             buttons_frame,
             text="Fechar",
             command=self.close,
-            bootstyle="secondary",
         )
         btn_close.pack(side="right")
 
@@ -311,11 +297,11 @@ class NotificationsPopup:
                     values=(date_str, message, por),
                 )
 
-    def _show_details(self, tree: ttk.Treeview) -> None:
+    def _show_details(self, tree: Any) -> None:
         """Mostra detalhes completos de uma notificação ao dar duplo clique.
 
         Args:
-            tree: Treeview com notificações
+            tree: Treeview/TableView com notificações
         """
         # Obter item selecionado
         selection = tree.selection()

@@ -187,7 +187,8 @@ def _create_ctk_modal(
         theme_manager = ClientesThemeManager()
 
     current_mode = theme_manager.load_mode()
-    ctk.set_appearance_mode(current_mode)
+    # NÃO usar ctk.set_appearance_mode direto (viola SSoT)
+    # O GlobalThemeManager já definiu o modo global
 
     # Paletas
     palette = DARK_PALETTE if current_mode == "dark" else LIGHT_PALETTE

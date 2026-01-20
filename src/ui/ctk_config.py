@@ -7,7 +7,7 @@ evitando duplicação de imports e lógica de fallback em múltiplos módulos.
 Política do projeto (Microfase 22):
 - CustomTkinter é dependência obrigatória para UI moderna
 - Testes devem usar skip se CTk não estiver disponível (CI/CD com CTk)
-- ttk.Treeview e ttk.Scrollbar são mantidos (CTk não possui Treeview)
+- CTkTreeview (vendor) é mantido para hierarquias
 """
 
 from __future__ import annotations

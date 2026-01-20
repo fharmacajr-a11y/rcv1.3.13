@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from src.ui.ctk_config import ctk
+from src.ui.widgets.ctk_splitpane import CTkSplitPane
+
 import io
 import logging
 import os
 import tkinter as tk
-from tkinter import ttk
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, cast
 
 try:
@@ -95,8 +97,8 @@ class PdfViewerWin(tk.Toplevel):
         self._img_pil: Optional[Image.Image] = None  # type: ignore[name-defined]
         self._img_ref: Optional[tk.PhotoImage] = None  # type: ignore[name-defined]  # manter referência viva
         self._img_zoom: float = 1.0
-        self.btn_download_pdf: Optional[ttk.Button] = None
-        self.btn_download_img: Optional[ttk.Button] = None
+        self.btn_download_pdf: Optional[ctk.CTkButton] = None
+        self.btn_download_img: Optional[ctk.CTkButton] = None
         # --- hotfix 02: origem do PDF (arquivo ou bytes) ---
         self._pdf_bytes: bytes | None = None
         self._pdf_path: str | None = None
@@ -125,11 +127,11 @@ class PdfViewerWin(tk.Toplevel):
             on_open_converter=self._open_pdf_converter,
         )
         self.toolbar.pack(side="top", fill="x")
-        self.lbl_page: ttk.Label = self.toolbar.lbl_page
-        self.lbl_zoom: ttk.Label = self.toolbar.lbl_zoom
+        self.lbl_page: ctk.CTkLabel = self.toolbar.lbl_page
+        self.lbl_zoom: ctk.CTkLabel = self.toolbar.lbl_zoom
         self.lbl_zoom.bind("<Button-1>", lambda e: self._toggle_fit_100())
         self.var_show_text: tk.BooleanVar = self.toolbar.var_text
-        self.chk_text: ttk.Checkbutton = self.toolbar.chk_text
+        self.chk_text: ctk.CTkCheckBox = self.toolbar.chk_text
         self.btn_download_pdf = self.toolbar.btn_download_pdf
         self.btn_download_img = self.toolbar.btn_download_img
         self._update_download_buttons(is_pdf=False, is_image=False)
@@ -137,10 +139,10 @@ class PdfViewerWin(tk.Toplevel):
         # Inicializa contexto do conversor PDF
         self.set_context_master(master)
 
-        ttk.Separator(self, orient="horizontal").pack(fill="x", padx=8, pady=(0, 8))
+        ctk.CTkFrame(self, fg_color="transparent").pack(fill="x", padx=8, pady=(0, 8))
 
-        # Paned layout (canvas | text)
-        pane: ttk.Panedwindow = ttk.Panedwindow(self, orient="horizontal")
+        # Split panes layout (canvas | text) - usando CTkSplitPane
+        pane = CTkSplitPane(self, orient="horizontal")
         pane.pack(side="top", fill="both", expand=True)
 
         self.page_view: PdfPageView = PdfPageView(
@@ -157,9 +159,9 @@ class PdfViewerWin(tk.Toplevel):
             on_search_next=self._on_search_next,
             on_search_prev=self._on_search_prev,
         )
-        self._pane: ttk.Panedwindow = pane
+        self._pane: CTkSplitPane = pane
         self._pane_right: PdfTextPanel = self.text_panel
-        self._pane.add(self._pane_right, weight=2)
+        self._pane.add(self._pane_right)
         self._pane.forget(self._pane_right)
         self._pane_right_added: bool = False
 
@@ -336,9 +338,11 @@ class PdfViewerWin(tk.Toplevel):
                 logger.debug("Falha ao esconder painel de texto no PDF viewer: %s", exc)
             self._pane_right_added = False
             self.var_show_text.set(False)
-            self.chk_text.state(["disabled"])
+            from src.ui.widget_state import set_disabled
+            set_disabled(self.chk_text)
         else:
-            self.chk_text.state(["!disabled"])
+            from src.ui.widget_state import set_normal
+            set_normal(self.chk_text)
         self._update_page_label(0)
 
     def _clear_empty_state(self) -> None:
@@ -389,7 +393,8 @@ class PdfViewerWin(tk.Toplevel):
         self._pane_right_added = False
         self.text_panel.clear()
         try:
-            self.chk_text.state(["disabled"])
+            from src.ui.widget_state import set_disabled
+            set_disabled(self.chk_text)
         except Exception as exc:  # noqa: BLE001
             logger.debug("Falha ao desabilitar toggle de texto no estado vazio do PDF viewer: %s", exc)
         self._update_download_buttons(is_pdf=False, is_image=False)
@@ -1009,10 +1014,12 @@ class PdfViewerWin(tk.Toplevel):
         # Usa helper para calcular estados
         pdf_enabled, img_enabled = calculate_button_states(is_pdf=is_pdf, is_image=is_image)
 
+        from src.ui.widget_state import set_enabled
+        
         if self.btn_download_pdf is not None:
-            self.btn_download_pdf.state(["!disabled"] if pdf_enabled else ["disabled"])
+            set_enabled(self.btn_download_pdf, pdf_enabled)
         if self.btn_download_img is not None:
-            self.btn_download_img.state(["!disabled"] if img_enabled else ["disabled"])
+            set_enabled(self.btn_download_img, img_enabled)
 
 
 # Helper para abrir a janela (ex.: integrar ao seu app principal)

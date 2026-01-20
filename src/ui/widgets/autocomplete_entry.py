@@ -1,18 +1,24 @@
 # gui/widgets/autocomplete_entry.py
 # -*- coding: utf-8 -*-
-"""Entry com autocomplete (dropdown com sugestões)."""
+"""Entry com autocomplete (dropdown com sugestões).
+
+NOTA MICROFASE 27: AutocompleteEntry ainda usa ctk.CTkEntry (por ser baseclass).
+Scrollbar migrado para CTkScrollbar. Em versão futura, criar CTkAutocompleteEntry.
+"""
 
 from __future__ import annotations
 
 import logging
 import tkinter as tk
-from tkinter import ttk
 from typing import Any, Callable, Dict, List, Literal, Optional
+
+# CustomTkinter: fonte única centralizada
+from src.ui.ctk_config import ctk
 
 _log = logging.getLogger(__name__)
 
 
-class AutocompleteEntry(ttk.Entry):
+class AutocompleteEntry(ctk.CTkEntry):
     """
     Entry com autocomplete dropdown.
 
@@ -146,11 +152,12 @@ class AutocompleteEntry(ttk.Entry):
         self._dropdown.withdraw()
         self._dropdown.overrideredirect(True)
 
-        # Listbox com scrollbar
-        frame = ttk.Frame(self._dropdown)
+        # Listbox com scrollbar (MICROFASE 27: CTkScrollbar)
+        frame = tk.Frame(self._dropdown)
         frame.pack(fill="both", expand=True)
 
-        scrollbar = ttk.Scrollbar(frame, orient="vertical")
+        # Usar CTkScrollbar ao invés de ctk.CTkScrollbar
+        scrollbar = ctk.CTkScrollbar(frame, orientation="vertical")
         self._listbox = tk.Listbox(
             frame,
             height=10,
@@ -159,7 +166,7 @@ class AutocompleteEntry(ttk.Entry):
         )
         if self._listbox is None:  # Type narrowing for Pyright
             raise RuntimeError("AutocompleteEntry internal error: _listbox is None")
-        scrollbar.config(command=self._listbox.yview)
+        scrollbar.configure(command=self._listbox.yview)
 
         self._listbox.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")

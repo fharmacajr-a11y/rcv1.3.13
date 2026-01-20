@@ -26,12 +26,16 @@ from typing import Optional
 
 @dataclass(frozen=True)
 class ModuleButton:
-    """Configuração de um botão de módulo no Hub."""
+    """Configuração de um botão de módulo no Hub.
+    
+    Note: bootstyle is kept as optional semantic tag for backward compatibility
+    with tests, but is NOT used to style actual widgets (no ttkbootstrap).
+    """
 
     text: str
     enabled: bool
-    bootstyle: str
-    has_callback: bool
+    bootstyle: str | None = None  # Optional semantic tag, not passed to widgets
+    has_callback: bool = False
 
 
 def build_module_buttons(
@@ -82,36 +86,36 @@ def build_module_buttons(
 
     # Ordem fixa de módulos
     if has_clientes:
-        buttons.append(ModuleButton("Clientes", True, "info", True))
+        buttons.append(ModuleButton("Clientes", enabled=True, bootstyle="info", has_callback=True))
 
     if has_senhas:
-        buttons.append(ModuleButton("Senhas", True, "info", True))
+        buttons.append(ModuleButton("Senhas", enabled=True, bootstyle="info", has_callback=True))
 
     if has_auditoria:
-        buttons.append(ModuleButton("Auditoria", True, "success", True))
+        buttons.append(ModuleButton("Auditoria", enabled=True, bootstyle="success", has_callback=True))
 
     # Fluxo de Caixa (em desenvolvimento)
     buttons.append(
         ModuleButton(
             "Fluxo de Caixa",
             enabled=has_cashflow,
-            bootstyle="warning",
+            bootstyle="warning" if has_cashflow else "secondary",
             has_callback=has_cashflow,
         )
     )
 
     # Módulos em desenvolvimento (sempre aparecem, mas desabilitados)
-    buttons.append(ModuleButton("Anvisa", has_anvisa, "secondary", has_anvisa))
+    buttons.append(ModuleButton("Anvisa", enabled=has_anvisa, bootstyle="secondary", has_callback=has_anvisa))
     buttons.append(
         ModuleButton(
             "Farmácia Popular",
-            has_farmacia_popular,
-            "secondary",
-            has_farmacia_popular,
+            enabled=has_farmacia_popular,
+            bootstyle="secondary",
+            has_callback=has_farmacia_popular,
         )
     )
-    buttons.append(ModuleButton("Sngpc", has_sngpc, "secondary", has_sngpc))
-    buttons.append(ModuleButton("Sifap", has_sifap, "secondary", has_sifap))
+    buttons.append(ModuleButton("Sngpc", enabled=has_sngpc, bootstyle="secondary", has_callback=has_sngpc))
+    buttons.append(ModuleButton("Sifap", enabled=has_sifap, bootstyle="secondary", has_callback=has_sifap))
 
     return buttons
 
@@ -145,11 +149,11 @@ def calculate_module_button_style(
         'success'
         >>> calculate_module_button_style(yellow=True)
         'warning'
-        >>> calculate_module_button_style(bootstyle='danger')
+        >>> calculate_module_button_style()
         'danger'
         >>> calculate_module_button_style(highlight=True, yellow=True)
         'warning'
-        >>> calculate_module_button_style(highlight=True, bootstyle='info')
+        >>> calculate_module_button_style(highlight=True)
         'info'
     """
     if bootstyle:

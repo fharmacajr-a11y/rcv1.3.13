@@ -262,43 +262,37 @@ def test_format_note_line_missing_fields():
     assert "Texto de teste" in result, "Deve conter body mesmo sem outros campos"
 
 
-def test_make_module_button_with_mock():
-    """Testa criação de botão de módulo (mockando ttkbootstrap).
+def test_make_module_button_with_mock(tk_root):
+    """Testa criação de botão de módulo com tk.Button real.
 
     ORG-006: Função extraída de hub_screen_view.py.
-    O import de ttkbootstrap é feito dentro da função, então patchamos o módulo ttkbootstrap.
+    Migrada para usar tk.Button real ao invés de ttkbootstrap.
     """
     from src.modules.hub.views.hub_screen_view_pure import make_module_button
+    import tkinter as tk
+    from tkinter import ttk
 
-    # Patch do ttkbootstrap.Button (onde é importado dentro da função)
-    with patch("ttkbootstrap.Button") as mock_button_class:
-        mock_button_instance = MagicMock()
-        mock_button_class.return_value = mock_button_instance
+    # Criar parent real
+    parent = ttk.Frame(tk_root)
 
-        # Mock do parent
-        mock_parent = MagicMock()
+    # Mock do command
+    mock_command = MagicMock()
 
-        # Mock do command
-        mock_command = MagicMock()
+    # Chamar função
+    result = make_module_button(
+        parent=parent,
+        text="Clientes",
+        command=mock_command,
+        bootstyle="primary",  # Ignorado no tk fallback
+    )
 
-        # Chamar função
-        result = make_module_button(
-            parent=mock_parent,
-            text="Clientes",
-            command=mock_command,
-            bootstyle="primary",
-        )
-
-        # Validações
-        assert result == mock_button_instance, "Deve retornar instância do botão"
-
-        # Verificar que Button foi chamado com args corretos
-        mock_button_class.assert_called_once_with(
-            mock_parent,
-            text="Clientes",
-            command=mock_command,
-            bootstyle="primary",
-        )
+    # Validações
+    assert isinstance(result, tk.Button), "Deve retornar um tk.Button"
+    assert result.cget("text") == "Clientes"
+    
+    # Testar comando
+    result.invoke()
+    mock_command.assert_called_once()
 
 
 # ═══════════════════════════════════════════════════════════════════════

@@ -3,10 +3,11 @@ from __future__ import annotations
 import logging
 import tkinter as tk
 from datetime import date, timedelta
-from tkinter import messagebox, ttk
+from tkinter import messagebox
 from typing import Any, Optional
 
-import ttkbootstrap as tb
+from src.ui.ctk_config import ctk
+from src.ui.widgets import CTkTableView
 
 from src.features.cashflow import repository as repo
 
@@ -22,14 +23,14 @@ def _last_day_month(d: date) -> date:
     return next_month - timedelta(days=1)
 
 
-class CashflowFrame(tb.Frame):
+class CashflowFrame(ctk.CTkFrame):
     """Tela principal do Fluxo de Caixa integrada à área central da App."""
 
     TYPE_LABEL_TO_CODE = {"Entrada": "IN", "Saída": "OUT"}
     TYPE_CODE_TO_LABEL = {"IN": "Entrada", "OUT": "Saída"}
 
     def __init__(self, master: tk.Widget, app: Any | None = None, **kwargs: Any) -> None:
-        super().__init__(master, padding=0, **kwargs)
+        super().__init__(master, **kwargs)
         self.app = app
 
         self._org_id: Optional[str] = None
@@ -42,42 +43,44 @@ class CashflowFrame(tb.Frame):
         self.var_text = tk.StringVar(value="")
 
         # --- topo (filtros) ---
-        top = ttk.Frame(self, padding=8)
-        top.pack(fill="x")
+        top = ctk.CTkFrame(self)
+        top.pack(fill="x", padx=8, pady=8)
 
-        ttk.Label(top, text="De").pack(side="left")
-        e1 = ttk.Entry(top, textvariable=self.var_from, width=12)
+        ctk.CTkLabel(top, text="De").pack(side="left", padx=4)
+        e1 = ctk.CTkEntry(top, textvariable=self.var_from, width=100)
         e1.pack(side="left", padx=4)
 
-        ttk.Label(top, text="Até").pack(side="left")
-        e2 = ttk.Entry(top, textvariable=self.var_to, width=12)
+        ctk.CTkLabel(top, text="Até").pack(side="left", padx=4)
+        e2 = ctk.CTkEntry(top, textvariable=self.var_to, width=100)
         e2.pack(side="left", padx=4)
 
-        ttk.Label(top, text="Tipo").pack(side="left")
-        self.cbo_tipo = ttk.Combobox(
+        ctk.CTkLabel(top, text="Tipo").pack(side="left", padx=4)
+        self.cbo_tipo = ctk.CTkComboBox(
             top,
-            textvariable=self.var_type,
+            variable=self.var_type,
             values=["Todos", "Entrada", "Saída"],
-            width=10,
+            width=100,
             state="readonly",
         )
         self.cbo_tipo.pack(side="left", padx=4)
 
-        ttk.Label(top, text="Busca").pack(side="left")
-        ttk.Entry(top, textvariable=self.var_text, width=22).pack(side="left", padx=4)
+        ctk.CTkLabel(top, text="Busca").pack(side="left", padx=4)
+        ctk.CTkEntry(top, textvariable=self.var_text, width=180).pack(side="left", padx=4)
 
-        ttk.Button(top, text="Filtrar", command=self.refresh).pack(side="left", padx=6)
-        ttk.Button(top, text="Novo", command=self.create).pack(side="right", padx=4)
-        ttk.Button(top, text="Editar", command=self.edit).pack(side="right", padx=4)
-        ttk.Button(top, text="Excluir", command=self.delete).pack(side="right", padx=4)
+        ctk.CTkButton(top, text="Filtrar", command=self.refresh, width=80).pack(side="left", padx=6)
+        ctk.CTkButton(top, text="Novo", command=self.create, width=80).pack(side="right", padx=4)
+        ctk.CTkButton(top, text="Editar", command=self.edit, width=80).pack(side="right", padx=4)
+        ctk.CTkButton(top, text="Excluir", command=self.delete, width=80).pack(side="right", padx=4)
 
         # --- grade ---
-        self.tree = ttk.Treeview(
+        self.tree = CTkTableView(
             self,
             columns=("date", "type", "category", "description", "amount", "account"),
             show="headings",
             height=18,
+            zebra=True,
         )
+        
         self.tree.pack(fill="both", expand=True, padx=8, pady=4)
 
         headers = {
@@ -103,7 +106,7 @@ class CashflowFrame(tb.Frame):
         self.tree.column("amount", anchor="e")
 
         # --- rodapé totais ---
-        self.lbl_totals = ttk.Label(self, text="Receitas: 0.00 | Despesas: 0.00 | Saldo: 0.00", anchor="w")
+        self.lbl_totals = ctk.CTkLabel(self, text="Receitas: 0.00 | Despesas: 0.00 | Saldo: 0.00", anchor="w")
         self.lbl_totals.pack(fill="x", padx=8, pady=(0, 6))
 
         # --- primeira carga ---
@@ -181,20 +184,19 @@ class CashflowFrame(tb.Frame):
         if not self._guard_widgets():
             return
 
-        for iid in self.tree.get_children():
-            self.tree.delete(iid)
+        self.tree.clear()
 
         for r in rows:
             tipo_raw = r.get("type") or ""
             tipo_label = self.TYPE_CODE_TO_LABEL.get(tipo_raw, tipo_raw)
-            values = (
+            values = [
                 r.get("date"),
                 tipo_label,
                 r.get("category"),
                 r.get("description", ""),
                 f"{self._to_float(r.get('amount')):.2f}",
                 r.get("account", ""),
-            )
+            ]
             self.tree.insert("", "end", iid=r.get("id") or "", values=values)
 
         tot = repo.totals(dfrom, dto, org_id=self._org_id)
@@ -206,8 +208,7 @@ class CashflowFrame(tb.Frame):
             self.lbl_totals.configure(text=f"Receitas: {inc:.2f} | Despesas: {out:.2f} | Saldo: {net:.2f}")
 
     def _selected_id(self) -> Optional[str]:
-        sel = self.tree.selection()
-        return sel[0] if sel else None
+        return self.tree.get_selected_iid()
 
     def create(self) -> None:
         from src.features.cashflow.dialogs import EntryDialog

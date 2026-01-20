@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from src.ui.ctk_config import ctk
+
 import logging
 import threading
 import tkinter as tk
-from tkinter import ttk
 from typing import Callable
 
 from src.modules.chatgpt.service import send_chat_completion
@@ -75,25 +76,25 @@ class ChatGPTWindow(tk.Toplevel):
             log.warning(f"[CHATGPT_WINDOW] Não foi possível verificar estado: {exc}")
 
     def _build_ui(self) -> None:
-        main = ttk.Frame(self, padding=10)
+        main = ctk.CTkFrame(self)  # TODO: padding=10 -> usar padx/pady no pack/grid
         main.pack(fill="both", expand=True)
 
         self._history = tk.Text(main, wrap="word", state="disabled", height=20)
-        scroll = ttk.Scrollbar(main, command=self._history.yview)
+        scroll = ctk.CTkScrollbar(main, command=self._history.yview)
         self._history.configure(yscrollcommand=scroll.set)
 
         self._history.grid(row=0, column=0, columnspan=3, sticky="nsew")
         scroll.grid(row=0, column=3, sticky="ns")
 
         self._input_var = tk.StringVar()
-        self._entry = ttk.Entry(main, textvariable=self._input_var)
+        self._entry = ctk.CTkEntry(main, textvariable=self._input_var)
         self._entry.grid(row=1, column=0, sticky="ew", pady=(8, 0))
         self._entry.bind("<Return>", self._on_send_event)
 
-        send_btn = ttk.Button(main, text="Enviar", command=self._on_send_clicked)
+        send_btn = ctk.CTkButton(main, text="Enviar", command=self._on_send_clicked)
         send_btn.grid(row=1, column=1, padx=(8, 0), pady=(8, 0), sticky="e")
 
-        new_chat_btn = ttk.Button(main, text="Nova conversa", command=self.new_conversation)
+        new_chat_btn = ctk.CTkButton(main, text="Nova conversa", command=self.new_conversation)
         new_chat_btn.grid(row=1, column=2, padx=(8, 0), pady=(8, 0), sticky="e")
 
         main.columnconfigure(0, weight=1)
@@ -104,10 +105,10 @@ class ChatGPTWindow(tk.Toplevel):
         # Header simples com apenas o título
         # Os botões de minimizar/fechar são os nativos da barra do Windows
 
-        header = ttk.Frame(self, style="TFrame")
+        header = ctk.CTkFrame(self, style="TFrame")
         header.pack(side="top", fill="x", before=self.winfo_children()[0] if self.winfo_children() else None)
 
-        title_label = ttk.Label(header, text="ChatGPT", font=("Segoe UI", 10, "bold"))
+        title_label = ctk.CTkLabel(header, text="ChatGPT", font=("Segoe UI", 10, "bold"))
         title_label.pack(side="left", padx=8, pady=4)
 
     def _on_close_clicked(self) -> None:

@@ -1,0 +1,93 @@
+Return Code: 1
+
+================================================================================
+STDOUT
+================================================================================
+
+...........................F..............FFFFFFF....F.FFFF............. [ 51%]
+..........F........................................................      [100%]
+================================== FAILURES ===================================
+________________ test_actionbar_fallback_when_ctk_unavailable _________________
+tests\modules\clientes\test_clientes_actionbar_ctk_smoke.py:190: in test_actionbar_fallback_when_ctk_unavailable
+    importlib.reload(actionbar_module)
+..\..\AppData\Local\Programs\Python\Python313\Lib\importlib\__init__.py:129: in reload
+    _bootstrap._exec(spec, module)
+<frozen importlib._bootstrap>:866: in _exec
+    ???
+<frozen importlib._bootstrap_external>:1026: in exec_module
+    ???
+<frozen importlib._bootstrap>:488: in _call_with_frames_removed
+    ???
+src\modules\clientes\views\actionbar_ctk.py:20: in <module>
+    import customtkinter as ctk
+E   ModuleNotFoundError: import of customtkinter halted; None in sys.modules
+_____________________ test_toolbar_imports_without_crash ______________________
+tests\modules\clientes\test_clientes_layout_polish_smoke.py:43: in test_toolbar_imports_without_crash
+    assert hasattr(toolbar_ctk, "ClientesToolbarCTK")
+E   AssertionError: assert False
+E    +  where False = hasattr(<module 'src.modules.clientes.views.toolbar_ctk' from 'C:\\Users\\Pichau\\Desktop\\v1.5.42\\src\\modules\\clientes\\views\\toolbar_ctk.py'>, 'ClientesToolbarCTK')
+___________________ test_toolbar_has_entry_busca_attribute ____________________
+tests\modules\clientes\test_clientes_layout_polish_smoke.py:48: in test_toolbar_has_entry_busca_attribute
+    from src.modules.clientes.views.toolbar_ctk import ClientesToolbarCTK
+E   ImportError: cannot import name 'ClientesToolbarCTK' from 'src.modules.clientes.views.toolbar_ctk' (C:\Users\Pichau\Desktop\v1.5.42\src\modules\clientes\views\toolbar_ctk.py)
+__________________ test_toolbar_search_uses_wrapper_pattern ___________________
+tests\modules\clientes\test_clientes_layout_polish_smoke.py:61: in test_toolbar_search_uses_wrapper_pattern
+    from src.modules.clientes.views.toolbar_ctk import ClientesToolbarCTK
+E   ImportError: cannot import name 'ClientesToolbarCTK' from 'src.modules.clientes.views.toolbar_ctk' (C:\Users\Pichau\Desktop\v1.5.42\src\modules\clientes\views\toolbar_ctk.py)
+____________________ test_actionbar_imports_without_crash _____________________
+tests\modules\clientes\test_clientes_layout_polish_smoke.py:87: in test_actionbar_imports_without_crash
+    assert hasattr(actionbar_ctk, "ClientesActionBarCTK")
+E   AssertionError: assert False
+E    +  where False = hasattr(<module 'src.modules.clientes.views.actionbar_ctk' from 'C:\\Users\\Pichau\\Desktop\\v1.5.42\\src\\modules\\clientes\\views\\actionbar_ctk.py'>, 'ClientesActionBarCTK')
+____________________ test_actionbar_has_button_attributes _____________________
+tests\modules\clientes\test_clientes_layout_polish_smoke.py:92: in test_actionbar_has_button_attributes
+    from src.modules.clientes.views.actionbar_ctk import ClientesActionBarCTK
+E   ImportError: cannot import name 'ClientesActionBarCTK' from 'src.modules.clientes.views.actionbar_ctk' (C:\Users\Pichau\Desktop\v1.5.42\src\modules\clientes\views\actionbar_ctk.py)
+______________ test_actionbar_buttons_use_standardized_constants ______________
+tests\modules\clientes\test_clientes_layout_polish_smoke.py:103: in test_actionbar_buttons_use_standardized_constants
+    from src.modules.clientes.views.actionbar_ctk import ClientesActionBarCTK
+E   ImportError: cannot import name 'ClientesActionBarCTK' from 'src.modules.clientes.views.actionbar_ctk' (C:\Users\Pichau\Desktop\v1.5.42\src\modules\clientes\views\actionbar_ctk.py)
+___________________ test_actionbar_buttons_have_same_height ___________________
+tests\modules\clientes\test_clientes_layout_polish_smoke.py:132: in test_actionbar_buttons_have_same_height
+    from src.modules.clientes.views.actionbar_ctk import ClientesActionBarCTK
+E   ImportError: cannot import name 'ClientesActionBarCTK' from 'src.modules.clientes.views.actionbar_ctk' (C:\Users\Pichau\Desktop\v1.5.42\src\modules\clientes\views\actionbar_ctk.py)
+_____________ test_clientes_module_imports_toolbar_and_actionbar ______________
+tests\modules\clientes\test_clientes_layout_polish_smoke.py:209: in test_clientes_module_imports_toolbar_and_actionbar
+    assert hasattr(toolbar_ctk, "ClientesToolbarCTK")
+E   AssertionError: assert False
+E    +  where False = hasattr(<module 'src.modules.clientes.views.toolbar_ctk' from 'C:\\Users\\Pichau\\Desktop\\v1.5.42\\src\\modules\\clientes\\views\\toolbar_ctk.py'>, 'ClientesToolbarCTK')
+_______________________ test_actionbar_btn_height_is_36 _______________________
+tests\modules\clientes\test_clientes_layout_polish_smoke.py:227: in test_actionbar_btn_height_is_36
+    from src.modules.clientes.views.actionbar_ctk import ClientesActionBarCTK
+E   ImportError: cannot import name 'ClientesActionBarCTK' from 'src.modules.clientes.views.actionbar_ctk' (C:\Users\Pichau\Desktop\v1.5.42\src\modules\clientes\views\actionbar_ctk.py)
+_______________________ test_actionbar_btn_corner_is_6 ________________________
+tests\modules\clientes\test_clientes_layout_polish_smoke.py:235: in test_actionbar_btn_corner_is_6
+    from src.modules.clientes.views.actionbar_ctk import ClientesActionBarCTK
+E   ImportError: cannot import name 'ClientesActionBarCTK' from 'src.modules.clientes.views.actionbar_ctk' (C:\Users\Pichau\Desktop\v1.5.42\src\modules\clientes\views\actionbar_ctk.py)
+_____________________ test_actionbar_btn_padx_is_uniform ______________________
+tests\modules\clientes\test_clientes_layout_polish_smoke.py:243: in test_actionbar_btn_padx_is_uniform
+    from src.modules.clientes.views.actionbar_ctk import ClientesActionBarCTK
+E   ImportError: cannot import name 'ClientesActionBarCTK' from 'src.modules.clientes.views.actionbar_ctk' (C:\Users\Pichau\Desktop\v1.5.42\src\modules\clientes\views\actionbar_ctk.py)
+______________ test_toolbar_search_wrapper_corner_matches_entry _______________
+tests\modules\clientes\test_clientes_layout_polish_smoke.py:260: in test_toolbar_search_wrapper_corner_matches_entry
+    from src.modules.clientes.views.toolbar_ctk import ClientesToolbarCTK
+E   ImportError: cannot import name 'ClientesToolbarCTK' from 'src.modules.clientes.views.toolbar_ctk' (C:\Users\Pichau\Desktop\v1.5.42\src\modules\clientes\views\toolbar_ctk.py)
+____________ test_toolbar_ctk_fallback_when_customtkinter_missing _____________
+tests\modules\clientes\test_clientes_toolbar_branches.py:458: in test_toolbar_ctk_fallback_when_customtkinter_missing
+    toolbar = ClientesToolbarCtk(
+src\modules\clientes\views\toolbar_ctk.py:103: in __init__
+    self._build_fallback_toolbar(order_choices, default_order, status_choices)
+src\modules\clientes\views\toolbar_ctk.py:301: in _build_fallback_toolbar
+    controls = create_search_controls(
+src\ui\components\inputs.py:167: in create_search_controls
+    icon_label = tk.Label(search_container, image=search_icon, bg=search_container.cget("bg"), borderwidth=0)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\ttkbootstrap\style.py:5516: in __init__wrapper
+    func(self, *args, **kwargs)
+..\..\AppData\Local\Programs\Python\Python313\Lib\tkinter\__init__.py:3367: in __init__
+    Widget.__init__(self, master, 'label', cnf, kw)
+..\..\AppData\Local\Programs\Python\Python313\Lib\tkinter\__init__.py:2780: in __init__
+    self.tk.call(
+E   _tkinter.TclError: image "pyimage1" doesn't exist
+------------------------------ Captured log call ------------------------------
+WARNING  src.modules.clientes.views.toolbar_ctk:toolbar_ctk.py:102 CustomTkinter não disponível, usando toolbar legada

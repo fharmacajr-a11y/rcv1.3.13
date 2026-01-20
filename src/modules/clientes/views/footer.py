@@ -4,17 +4,22 @@ import logging
 import tkinter as tk
 from typing import Callable, Optional
 
-try:
-    import ttkbootstrap as tb
-except Exception:
-    from tkinter import ttk as tb  # fallback
-
 from src.ui.components import create_footer_buttons
+
+# CustomTkinter via SSoT
+from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
 
 logger = logging.getLogger(__name__)
 
 
-class ClientesFooter(tb.Frame):  # type: ignore[misc]
+# Determina classe base para o footer
+if HAS_CUSTOMTKINTER and ctk is not None:
+    _FooterBase = ctk.CTkFrame  # type: ignore[misc,assignment]
+else:
+    _FooterBase = tk.Frame  # type: ignore[misc,assignment]
+
+
+class ClientesFooter(_FooterBase):  # type: ignore[misc]
     """Barra inferior com botões de ações da tela de Clientes."""
 
     def __init__(
@@ -30,7 +35,11 @@ class ClientesFooter(tb.Frame):  # type: ignore[misc]
         on_batch_restore: Callable[[], None],
         on_batch_export: Callable[[], None],
     ) -> None:
-        super().__init__(master)
+        # Inicializar base (CTkFrame ou tk.Frame)
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            super().__init__(master, fg_color="transparent")
+        else:
+            super().__init__(master)
 
         buttons = create_footer_buttons(
             self,

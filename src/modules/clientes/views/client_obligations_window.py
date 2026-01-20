@@ -4,22 +4,29 @@
 from __future__ import annotations
 
 import logging
+import tkinter as tk
 from typing import Callable
-
-import ttkbootstrap as tb
-from ttkbootstrap.constants import BOTH
 
 from src.modules.clientes.views.client_obligations_frame import ClientObligationsFrame
 
+# CustomTkinter via SSoT
+from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+
 logger = logging.getLogger(__name__)
 
+# Determina classe base para Toplevel
+if HAS_CUSTOMTKINTER and ctk is not None:
+    _TopLevelBase = ctk.CTkToplevel  # type: ignore[misc,assignment]
+else:
+    _TopLevelBase = tk.Toplevel  # type: ignore[misc,assignment]
 
-class ClientObligationsWindow(tb.Toplevel):
+
+class ClientObligationsWindow(_TopLevelBase):  # type: ignore[misc]
     """Standalone window for managing client regulatory obligations."""
 
     def __init__(
         self,
-        parent: tb.Window,
+        parent: tk.Misc,
         org_id: str,
         created_by: str,
         client_id: int,
@@ -50,23 +57,24 @@ class ClientObligationsWindow(tb.Toplevel):
 
         # Create obligations frame
         self.obligations_frame = ClientObligationsFrame(
-            self,  # type: ignore[arg-type]
+            self,
             org_id=org_id,
             created_by=created_by,
             client_id=client_id,
             on_refresh_hub=on_refresh_hub,
         )
-        self.obligations_frame.pack(fill=BOTH, expand=True)
+        self.obligations_frame.pack(fill="both", expand=True)
 
         # Center on parent
         self.update_idletasks()
-        x = parent.winfo_x() + (parent.winfo_width() // 2) - (self.winfo_width() // 2)
-        y = parent.winfo_y() + (parent.winfo_height() // 2) - (self.winfo_height() // 2)
-        self.geometry(f"+{max(0, x)}+{max(0, y)}")
+        if hasattr(parent, 'winfo_x'):
+            x = parent.winfo_x() + (parent.winfo_width() // 2) - (self.winfo_width() // 2)
+            y = parent.winfo_y() + (parent.winfo_height() // 2) - (self.winfo_height() // 2)
+            self.geometry(f"+{max(0, x)}+{max(0, y)}")
 
 
 def show_client_obligations_window(
-    parent: tb.Window,
+    parent: tk.Misc,
     org_id: str,
     created_by: str,
     client_id: int,

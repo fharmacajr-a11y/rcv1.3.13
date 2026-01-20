@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from src.ui.ctk_config import ctk
+
 import logging
 import os
 import tkinter as tk
-from tkinter import ttk
 from typing import Optional
 
 from src.ui.window_utils import show_centered
@@ -84,16 +85,16 @@ class PDFDeleteImagesConfirmDialog(_BaseDialog):
         super().__init__(parent, "Conversor PDF")
         self._result: Optional[str] = None
 
-        content = ttk.Frame(self, padding=16)
+        content = ctk.CTkFrame(self)  # TODO: padding=16 -> usar padx/pady no pack/grid
         content.pack(fill="both", expand=True)
 
-        icon_frame = ttk.Frame(content)
+        icon_frame = ctk.CTkFrame(content)
         icon_frame.grid(row=0, column=0, padx=(4, 16), pady=(0, 8), sticky="n")
 
-        question_label = ttk.Label(icon_frame, text="?", font=("Segoe UI", 26, "bold"))
+        question_label = ctk.CTkLabel(icon_frame, text="?", font=("Segoe UI", 26, "bold"))
         question_label.pack()
 
-        message_label = ttk.Label(
+        message_label = ctk.CTkLabel(
             content,
             text=DELETE_IMAGES_MESSAGE,
             wraplength=440,
@@ -103,16 +104,16 @@ class PDFDeleteImagesConfirmDialog(_BaseDialog):
         message_label.grid(row=0, column=1, padx=(0, 8), pady=(0, 8), sticky="w")
         content.columnconfigure(1, weight=1)
 
-        buttons = ttk.Frame(content)
+        buttons = ctk.CTkFrame(content)
         buttons.grid(row=1, column=0, columnspan=2, pady=(12, 0), sticky="e")
 
-        btn_cancel = ttk.Button(buttons, text="Cancelar", command=self.on_cancel)
+        btn_cancel = ctk.CTkButton(buttons, text="Cancelar", command=self.on_cancel)
         btn_cancel.pack(side="left", padx=(0, 8))
 
-        btn_no = ttk.Button(buttons, text="N\u00e3o", command=self.on_no)
+        btn_no = ctk.CTkButton(buttons, text="N\u00e3o", command=self.on_no)
         btn_no.pack(side="left", padx=(0, 8))
 
-        btn_yes = ttk.Button(buttons, text="Sim", command=self.on_yes)
+        btn_yes = ctk.CTkButton(buttons, text="Sim", command=self.on_yes)
         btn_yes.pack(side="left")
 
         btn_cancel.focus_set()
@@ -149,10 +150,10 @@ class PDFConversionResultDialog(_BaseDialog):
     def __init__(self, parent: tk.Misc, message: str) -> None:
         super().__init__(parent, "Conversor PDF")
 
-        content = ttk.Frame(self, padding=16)
+        content = ctk.CTkFrame(self)  # TODO: padding=16 -> usar padx/pady no pack/grid
         content.pack(fill="both", expand=True)
 
-        message_label = ttk.Label(
+        message_label = ctk.CTkLabel(
             content,
             text=message,
             wraplength=520,
@@ -161,7 +162,7 @@ class PDFConversionResultDialog(_BaseDialog):
         )
         message_label.pack(fill="both", expand=True, pady=(0, 12))
 
-        button = ttk.Button(content, text="OK", command=self.on_ok)
+        button = ctk.CTkButton(content, text="OK", command=self.on_ok)
         button.pack(side="right")
 
         self.bind("<Return>", lambda _: self.on_ok())

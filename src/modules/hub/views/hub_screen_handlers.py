@@ -39,16 +39,23 @@ def setup_bindings(screen: HubScreen) -> None:
     # Configurar atalhos (apenas uma vez)
     binds_ready = getattr(screen, "_binds_ready", False)
     if not binds_ready:
-        # Ctrl+D para diagnóstico
-        screen.bind_all("<Control-d>", screen._show_debug_info)
-        screen.bind_all("<Control-D>", screen._show_debug_info)
+        # CTkFrame doesn't support bind_all, use bind on root/winfo_toplevel instead
+        # Get the toplevel window
+        try:
+            root = screen.winfo_toplevel()
+        except Exception:
+            root = screen
+        
+        # Ctrl+D para diagnóstico - use bind on root instead of bind_all
+        root.bind("<Control-d>", screen._show_debug_info)
+        root.bind("<Control-D>", screen._show_debug_info)
 
         # Ctrl+L para recarregar cache de nomes (teste)
-        screen.bind_all(
+        root.bind(
             "<Control-l>",
             lambda e: screen._refresh_author_names_cache_async(force=True),
         )
-        screen.bind_all(
+        root.bind(
             "<Control-L>",
             lambda e: screen._refresh_author_names_cache_async(force=True),
         )

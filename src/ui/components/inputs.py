@@ -5,11 +5,10 @@ import logging
 import os
 import tkinter as tk
 from dataclasses import dataclass
-from tkinter import ttk
+
 from typing import Any, Callable, Iterable
 
-import ttkbootstrap as tb
-
+from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
 from src.utils.resource_path import resource_path
 
 log = logging.getLogger(__name__)
@@ -22,7 +21,7 @@ NORMAL_TEXT_FG = "black"
 def _clear_combobox_selection(combo: tk.Widget) -> None:
     """Remove selecao visual (texto marcado) de um Combobox.
 
-    Aceita ttk.Combobox ou ttkbootstrap.Combobox (ambos derivam de tk.Widget).
+    Aceita ctk.CTkComboBox ou ttkbootstrap.Combobox (ambos derivam de tk.Widget).
     """
     try:
         combo.selection_clear()  # type: ignore[attr-defined]
@@ -37,17 +36,17 @@ def _clear_combobox_selection(combo: tk.Widget) -> None:
 
 @dataclass(slots=True)
 class SearchControls:
-    frame: tb.Frame
+    frame: Any  # CTkFrame | tk.Frame
     search_var: tk.StringVar
     order_var: tk.StringVar
     status_var: tk.StringVar
-    entry: tb.Entry
-    search_button: tb.Button
-    clear_button: tb.Button
-    order_combobox: tb.Combobox
-    status_combobox: tb.Combobox
-    lixeira_button: tb.Button
-    obrigacoes_button: tb.Button | None = None
+    entry: Any  # CTkEntry | tk.Entry
+    search_button: Any  # CTkButton | tk.Button
+    clear_button: Any  # CTkButton | tk.Button
+    order_combobox: Any  # CTkOptionMenu | ctk.CTkComboBox
+    status_combobox: Any  # CTkOptionMenu | ctk.CTkComboBox
+    lixeira_button: Any  # CTkButton | tk.Button
+    obrigacoes_button: Any | None = None
     search_container: tk.Frame | None = None
     placeholder_label: tk.Label | None = None
     search_icon: tk.PhotoImage | None = None
@@ -57,10 +56,10 @@ class SearchControls:
 __all__ = ["SearchControls", "labeled_entry", "create_search_controls"]
 
 
-def labeled_entry(parent: tk.Misc, label_text: str) -> tuple[ttk.Label, ttk.Entry]:
+def labeled_entry(parent: tk.Misc, label_text: str) -> tuple[ctk.CTkLabel, ctk.CTkEntry]:
     """Return a label/entry pair for uniform forms."""
-    label = ttk.Label(parent, text=label_text)
-    entry = ttk.Entry(parent, width=50)
+    label = ctk.CTkLabel(parent, text=label_text)
+    entry = ctk.CTkEntry(parent, width=50)
     return label, entry
 
 
@@ -88,9 +87,9 @@ def create_search_controls(
         theme_palette: Dicionário com cores customizadas para o tema (opcional).
                       Chaves esperadas: entry_bg, entry_fg, entry_border, combo_bg, combo_fg, bg
     """
-    frame = tb.Frame(parent)
-
-    style = tb.Style()
+    # Sempre usar CTkFrame (projeto 100% CustomTkinter agora)
+    frame = ctk.CTkFrame(parent, fg_color="transparent")
+    style = None  # CTk não usa Style legado
 
     def _lookup(style_name: str, option: str, default: str) -> str:
         try:
@@ -137,7 +136,10 @@ def create_search_controls(
     order_var = order_var or tk.StringVar(master=parent, value=default_order)
     status_var = status_var or tk.StringVar(master=parent, value="Todos")
 
-    tb.Label(frame, text="Pesquisar:").pack(side="left", padx=5)
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        ctk.CTkLabel(frame, text="Pesquisar:").pack(side="left", padx=5)
+    else:
+        tk.Label(frame, text="Pesquisar:").pack(side="left", padx=5)
 
     def _trigger_search(event: Any | None = None) -> None:
         if on_search:
@@ -189,7 +191,7 @@ def create_search_controls(
     except Exception:
         entry_style = "TEntry"
 
-    entry = tb.Entry(
+    entry = ctk.CTkEntry(
         search_container,
         textvariable=search_var,
         width=entry_width,
@@ -204,7 +206,7 @@ def create_search_controls(
             selectforeground="#000000",
         )
     except tk.TclError:
-        # ttk.Entry/ttkbootstrap geralmente nao suportam essas opcoes; ignora.
+        # ctk.CTkEntry/ttkbootstrap geralmente nao suportam essas opcoes; ignora.
         pass
 
     # Placeholder usando Label sobreposto ao Entry
@@ -250,12 +252,18 @@ def create_search_controls(
         search_var.trace_add("write", lambda *_args: _update_placeholder())
     _update_placeholder()
 
-    search_button = tb.Button(
-        frame,
-        text="Buscar",
-        command=_trigger_search,
-        bootstyle="info",
-    )
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        search_button = ctk.CTkButton(
+            frame,
+            text="Buscar",
+            command=_trigger_search,
+        )
+    else:
+        search_button = tk.Button(
+            frame,
+            text="Buscar",
+            command=_trigger_search,
+        )
     search_button.pack(side="left", padx=5)
 
     def _on_clear_pressed() -> None:
@@ -266,29 +274,47 @@ def create_search_controls(
             on_clear()
 
     # Botao Limpar com estilo especifico para topbar de clientes
-    clear_button = tb.Button(
-        frame,
-        text="Limpar",
-        command=_on_clear_pressed,
-        bootstyle="secondary",
-    )
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        clear_button = ctk.CTkButton(
+            frame,
+            text="Limpar",
+            command=_on_clear_pressed,
+        )
+    else:
+        clear_button = tk.Button(
+            frame,
+            text="Limpar",
+            command=_on_clear_pressed,
+        )
     clear_button.pack(side="left", padx=5)
 
-    tb.Label(frame, text="Ordenar por:").pack(side="left", padx=5)
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        ctk.CTkLabel(frame, text="Ordenar por:").pack(side="left", padx=5)
+    else:
+        tk.Label(frame, text="Ordenar por:").pack(side="left", padx=5)
 
     def _order_changed(_event: Any | None = None) -> None:
         if on_order_change:
             on_order_change()
         _clear_combobox_selection(order_combobox)
 
-    order_combobox = tb.Combobox(
-        frame,
-        textvariable=order_var,
-        values=list(order_choices),
-        state="readonly",
-        width=28,
-        style=combo_style,
-    )
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        order_combobox = ctk.CTkOptionMenu(
+            frame,
+            variable=order_var,
+            values=list(order_choices),
+            width=220,
+        )
+        # CTkOptionMenu usa command em vez de event binding
+        order_combobox.configure(command=lambda _: _order_changed())
+    else:
+        order_combobox = ctk.CTkComboBox(
+            frame,
+
+            values=list(order_choices),
+            state="readonly",
+            width=28,
+        )
     order_combobox.pack(side="left", padx=5)
     try:
         order_combobox.state(["!disabled", "readonly"])
@@ -300,7 +326,10 @@ def create_search_controls(
         order_var.trace_add("write", lambda *_args: _clear_combobox_selection(order_combobox))
     _clear_combobox_selection(order_combobox)
 
-    tb.Label(frame, text="Status:").pack(side="left", padx=5)
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        ctk.CTkLabel(frame, text="Status:").pack(side="left", padx=5)
+    else:
+        tk.Label(frame, text="Status:").pack(side="left", padx=5)
 
     def _status_changed(event: Any | None = None) -> None:
         if on_status_change:
@@ -311,14 +340,21 @@ def create_search_controls(
     if "Todos" not in status_values:
         status_values.insert(0, "Todos")
 
-    status_combobox = tb.Combobox(
-        frame,
-        textvariable=status_var,
-        values=status_values or ["Todos"],
-        state="readonly",
-        width=28,
-        style=combo_style,
-    )
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        status_combobox = ctk.CTkOptionMenu(
+            frame,
+            variable=status_var,
+            values=status_values or ["Todos"],
+            width=220,
+        )
+        status_combobox.configure(command=lambda _: _status_changed())
+    else:
+        status_combobox = ctk.CTkComboBox(
+            frame,
+            values=status_values or ["Todos"],
+            state="readonly",
+            width=28,
+        )
     status_combobox.pack(side="left", padx=5)
     try:
         status_combobox.state(["!disabled", "readonly"])
@@ -331,29 +367,47 @@ def create_search_controls(
     _clear_combobox_selection(status_combobox)
 
     # Separator e botão Obrigações (se callback fornecido)
-    obrigacoes_button: tb.Button | None = None
+    obrigacoes_button: Any = None
     if on_obrigacoes is not None:
         # Separator visual
-        sep = ttk.Separator(frame, orient="vertical")
+        sep = ctk.CTkFrame(frame, width=2)  # Separador vertical
         sep.pack(side="left", fill="y", padx=(8, 4))
 
         # Botão Obrigações
-        obrigacoes_button = tb.Button(
-            frame,
-            text="Obrigações",
-            command=on_obrigacoes,
-            bootstyle="secondary",
-            width=12,
-        )
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            obrigacoes_button = ctk.CTkButton(
+                frame,
+                text="Obrigações",
+                command=on_obrigacoes,
+                width=120,
+            )
+        else:
+            obrigacoes_button = tk.Button(
+                frame,
+                text="Obrigações",
+                command=on_obrigacoes,
+                width=12,
+            )
         obrigacoes_button.pack(side="left", padx=(0, 4))
 
     # Botão Lixeira à direita
-    lixeira_button = tb.Button(
-        frame,
-        text="Lixeira",
-        command=on_lixeira,
-        bootstyle="warning",
-    )
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        lixeira_button = ctk.CTkButton(
+            frame,
+            text="Lixeira",
+            command=on_lixeira,
+            fg_color="#ffc107",
+            hover_color="#e0a800",
+            text_color="black",
+        )
+    else:
+        lixeira_button = tk.Button(
+            frame,
+            text="Lixeira",
+            command=on_lixeira,
+            bg="#ffc107",
+            fg="black",
+        )
     lixeira_button.pack(side="right", padx=5)
 
     return SearchControls(

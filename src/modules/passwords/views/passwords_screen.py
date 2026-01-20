@@ -5,10 +5,11 @@ from __future__ import annotations
 
 import logging
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import messagebox
 from typing import Any, Callable, Optional
 
-import ttkbootstrap as tb
+from src.ui.ctk_config import ctk
+from src.ui.widgets import CTkTableView
 
 from src.db.domain_types import ClientRow, PasswordRow
 from src.modules.passwords.controller import ClientPasswordsSummary, PasswordsController
@@ -24,7 +25,7 @@ logger = log
 # FIX-SENHAS-004: Refatoração para reduzir tamanho do arquivo
 
 
-class PasswordsScreen(tb.Frame):
+class PasswordsScreen(ctk.CTkFrame):
     """Tela de gerenciamento de senhas com layout master-detail (clientes → senhas)."""
 
     def __init__(
@@ -35,7 +36,9 @@ class PasswordsScreen(tb.Frame):
         controller: Optional[PasswordsController] = None,
         **kwargs,
     ) -> None:
-        super().__init__(master, padding=16, **kwargs)
+        super().__init__(master, **kwargs)
+        
+        # Aplicar padding via geometry manager (pack/grid) dependendo do uso
 
         self.main_window = main_window
         self.controller = controller or PasswordsController()
@@ -82,116 +85,100 @@ class PasswordsScreen(tb.Frame):
     def _build_ui(self) -> None:
         """Constrói a interface principal com lista única de clientes (FIX-SENHAS-002)."""
         # Filtros no topo
-        filters_frame = tb.Frame(self)
+        filters_frame = ctk.CTkFrame(self)
         filters_frame.pack(fill="x", pady=(0, 10))
 
         # FIX-SENHAS-014: Buscar e Serviço lado a lado, à esquerda, larguras fixas
 
         # Busca
-        tb.Label(filters_frame, text="Buscar:").grid(row=0, column=0, sticky="w", padx=(0, 4), pady=4)
+        ctk.CTkLabel(filters_frame, text="Buscar:").grid(row=0, column=0, sticky="w", padx=(0, 4), pady=4)
         self.search_var = tk.StringVar()
-        self.search_entry = tb.Entry(filters_frame, textvariable=self.search_var, width=40)
+        self.search_entry = ctk.CTkEntry(filters_frame, textvariable=self.search_var, width=300)
         self.search_entry.grid(row=0, column=1, sticky="w", padx=(0, 12), pady=4)
         self.search_entry.bind("<KeyRelease>", lambda e: self._on_search_changed())
 
         # Serviço
-        tb.Label(filters_frame, text="Serviço:").grid(row=0, column=2, sticky="w", padx=(0, 4), pady=4)
+        ctk.CTkLabel(filters_frame, text="Serviço:").grid(row=0, column=2, sticky="w", padx=(0, 4), pady=4)
         self.service_filter_var = tk.StringVar(value="Todos")
-        self.service_filter_combo = tb.Combobox(
+        self.service_filter_combo = ctk.CTkComboBox(
             filters_frame,
-            textvariable=self.service_filter_var,
+            variable=self.service_filter_var,
             values=["Todos", "SIFAP", "CRF", "GOV.BR", "E-mail", "Banco", "Outro"],
-            state="readonly",  # FIX-SENHAS-015: Somente seleção, sem digitar
-            width=20,  # FIX-SENHAS-014: Largura pequena ao lado do Buscar
+            state="readonly",
+            width=150,
+            command=lambda _: self._on_search_changed()
         )
         self.service_filter_combo.grid(row=0, column=3, sticky="w", padx=(0, 0), pady=4)
-        self.service_filter_combo.bind("<<ComboboxSelected>>", lambda e: self._on_search_changed())
 
         # FIX-SENHAS-014: Nenhuma coluna expande (tudo grudado à esquerda)
         for col in range(4):
             filters_frame.columnconfigure(col, weight=0)
 
         # ===== Lista única de Clientes com Senhas (FIX-SENHAS-002) =====
-        clients_frame = tb.Labelframe(self, text="Clientes com Senhas", padding=5)
+        clients_frame = ctk.CTkFrame(self)
         clients_frame.pack(fill="both", expand=True, pady=(0, 10))
+        
+        # Label do frame
+        ctk.CTkLabel(clients_frame, text="Clientes com Senhas", font=("Arial", 12, "bold")).pack(pady=(5, 5))
 
-        clients_table_frame = tb.Frame(clients_frame)
-        clients_table_frame.pack(fill="both", expand=True)
+        clients_table_frame = ctk.CTkFrame(clients_frame)
+        clients_table_frame.pack(fill="both", expand=True, padx=5, pady=(0, 5))
 
         # FIX-SENHAS-006: Colunas idênticas à tela de Clientes + Qtd. Senhas e Serviços
-        clients_columns = ("id", "razao_social", "cnpj", "nome", "whatsapp", "qtd_senhas", "servicos")
-        self.tree_clients = ttk.Treeview(
+        clients_columns = ["id", "razao_social", "cnpj", "nome", "whatsapp", "qtd_senhas", "servicos"]
+        self.tree_clients = CTkTableView(
             clients_table_frame,
             columns=clients_columns,
-            show="headings",
-            selectmode="browse",
             height=15,
+            zebra=True
         )
-
-        # Mostra apenas os headings, sem coluna raiz (#0)
-        self.tree_clients["show"] = "headings"
-        self.tree_clients.column("#0", width=0, stretch=False)
-
-        # Cabeçalhos centralizados
-        self.tree_clients.heading("id", text="ID", anchor="center")
-        self.tree_clients.heading("razao_social", text="Razão Social", anchor="center")
-        self.tree_clients.heading("cnpj", text="CNPJ", anchor="center")
-        self.tree_clients.heading("nome", text="Nome", anchor="center")
-        self.tree_clients.heading("whatsapp", text="WhatsApp", anchor="center")
-        self.tree_clients.heading("qtd_senhas", text="Qtd. Senhas", anchor="center")
-        self.tree_clients.heading("servicos", text="Serviços", anchor="center")
-
-        # Larguras base mais equilibradas (todas centralizadas)
-        self.tree_clients.column("id", width=60, anchor="center", stretch=False)
-        self.tree_clients.column("razao_social", width=230, anchor="center", stretch=False)
-        self.tree_clients.column("cnpj", width=150, anchor="center", stretch=False)
-        self.tree_clients.column("nome", width=200, anchor="center", stretch=False)
-        self.tree_clients.column("whatsapp", width=170, anchor="center", stretch=False)
-        self.tree_clients.column("qtd_senhas", width=90, anchor="center", stretch=False)
-        self.tree_clients.column("servicos", width=200, anchor="center", stretch=False)
-
-        clients_scrollbar = ttk.Scrollbar(clients_table_frame, orient="vertical", command=self.tree_clients.yview)
-        self.tree_clients.configure(yscrollcommand=clients_scrollbar.set)
+        
+        # Cabeçalhos
+        self.tree_clients.set_columns([
+            "ID",
+            "Razão Social",
+            "CNPJ",
+            "Nome",
+            "WhatsApp",
+            "Qtd. Senhas",
+            "Serviços"
+        ])
 
         # Double-click abre o diálogo de senhas do cliente
-        self.tree_clients.bind("<Double-1>", lambda e: self._on_manage_client_passwords_clicked())
+        self.tree_clients.bind("<Double-Button-1>", lambda e: self._on_manage_client_passwords_clicked())
 
-        # Bloqueia redimensionamento de colunas
-        self.tree_clients.bind("<Button-1>", self._on_clients_tree_heading_click)
-
-        # Ajusta a largura da coluna "servicos" para ocupar o espaço restante
-        self.tree_clients.bind("<Configure>", self._on_clients_tree_configure)
-
-        self.tree_clients.pack(side="left", fill="both", expand=True)
-        clients_scrollbar.pack(side="right", fill="y")
+        self.tree_clients.pack(fill="both", expand=True)
 
         # Barra de ações
-        actions_frame = tb.Frame(self)
+        actions_frame = ctk.CTkFrame(self)
         actions_frame.pack(fill="x", pady=(10, 0))
 
-        tb.Button(
+        ctk.CTkButton(
             actions_frame,
             text="Nova Senha",
-            bootstyle="success",
+            fg_color=("#2E7D32", "#1B5E20"),
+            hover_color=("#1B5E20", "#0D4A11"),
             command=self._on_new_password_clicked,
-            width=14,
+            width=140,
         ).pack(side="left", padx=5)
 
-        tb.Button(
+        ctk.CTkButton(
             actions_frame,
             text="Gerenciar Senhas",
-            bootstyle="secondary",
+            fg_color=("#757575", "#616161"),
+            hover_color=("#616161", "#424242"),
             command=self._on_manage_client_passwords_clicked,
-            width=16,
+            width=160,
         ).pack(side="left", padx=5)
 
         # FIX-SENHAS-006: Botão Excluir na tela principal
-        tb.Button(
+        ctk.CTkButton(
             actions_frame,
             text="Excluir",
-            bootstyle="danger",
+            fg_color=("#D32F2F", "#B71C1C"),
+            hover_color=("#B71C1C", "#8B0000"),
             command=self._on_delete_client_passwords_clicked,
-            width=14,
+            width=140,
         ).pack(side="left", padx=5)
 
     def _on_search_changed(self) -> None:
@@ -200,11 +187,11 @@ class PasswordsScreen(tb.Frame):
 
     def _get_selected_client_id(self) -> Optional[str]:
         """Retorna o client_id do cliente selecionado na tree de clientes."""
-        selection = self.tree_clients.selection()
-        if not selection:
+        iid = self.tree_clients.get_selected_iid()
+        if not iid:
             return None
         # O iid do item é o client_id (FIX-SENHAS-005: sempre string)
-        return selection[0]
+        return iid
 
     def _get_selected_client_summary(self) -> Optional[ClientPasswordsSummary]:
         """Retorna o ClientPasswordsSummary do cliente selecionado.
@@ -219,8 +206,7 @@ class PasswordsScreen(tb.Frame):
     def _populate_clients_tree(self, summaries: list[ClientPasswordsSummary]) -> None:
         """Preenche a árvore de clientes com os resumos."""
         # Limpa a árvore
-        for item in self.tree_clients.get_children():
-            self.tree_clients.delete(item)
+        self.tree_clients.clear()
 
         for summary in summaries:
             # FIX-SENHAS-006: Formata a lista de serviços
@@ -234,15 +220,15 @@ class PasswordsScreen(tb.Frame):
                 "",
                 "end",
                 iid=str(summary.client_id),  # FIX-SENHAS-005: Converte para string (Treeview sempre retorna str)
-                values=(
-                    summary.client_external_id,  # ID
+                values=[
+                    str(summary.client_external_id),  # ID
                     summary.razao_social,  # Razão Social
                     summary.cnpj,  # CNPJ
                     summary.contato_nome,  # Nome
                     summary.whatsapp,  # WhatsApp
-                    summary.passwords_count,  # Qtd. Senhas
+                    str(summary.passwords_count),  # Qtd. Senhas
                     services_text,  # Serviços
-                ),
+                ],
             )
 
     def _refresh_clients_list(self) -> None:
@@ -268,7 +254,6 @@ class PasswordsScreen(tb.Frame):
 
         if previous_selection and self.tree_clients.exists(previous_selection):
             self.tree_clients.selection_set(previous_selection)
-            self.tree_clients.see(previous_selection)
             self._selected_client_id = previous_selection
         else:
             self._selected_client_id = None
@@ -483,68 +468,6 @@ class PasswordsScreen(tb.Frame):
             self._open_new_password_dialog(client_data=client_data)
         else:
             self._password_dialog.set_client_from_data(client_data)
-
-    def _on_clients_tree_heading_click(self, event: tk.Event) -> str | None:
-        """Impede redimensionar e clicar no cabeçalho da lista de clientes.
-
-        - separator: bloqueia resize de coluna
-        - heading: bloqueia qualquer ação (sort, pulo de scroll) - FIX-SENHAS-014
-        """
-        region = self.tree_clients.identify_region(event.x, event.y)
-        if region in {"separator", "heading"}:
-            return "break"
-        return None
-
-    def _on_clients_tree_configure(self, event: tk.Event) -> None:
-        """Redistribui a largura extra da tree entre Razão Social, Nome e Serviços.
-
-        Evita que apenas a coluna 'servicos' fique gigante em telas mais largas.
-        """
-        try:
-            total_width = int(event.width)
-
-            # Larguras base, devem bater com as usadas em self.tree_clients.column(...)
-            base_widths: dict[str, int] = {
-                "id": 60,
-                "razao_social": 230,
-                "cnpj": 150,
-                "nome": 200,
-                "whatsapp": 170,
-                "qtd_senhas": 90,
-                "servicos": 200,
-            }
-
-            base_total = sum(base_widths.values())
-
-            # Pequena folga para bordas/scrollbar
-            extra = total_width - base_total - 4
-            if extra < 0:
-                extra = 0
-
-            # Distribui o extra entre Razão Social, Nome e Serviços
-            share_cols = ("razao_social", "nome", "servicos")
-            share_count = len(share_cols)
-
-            per_col = extra // share_count if share_count else 0
-            remainder = extra - per_col * share_count
-
-            widths: dict[str, int] = {}
-            for col, base in base_widths.items():
-                width = base
-                if col in share_cols:
-                    width += per_col
-                    # joga o resto na última coluna de share (servicos)
-                    if col == "servicos":
-                        width += remainder
-                widths[col] = max(width, 60)  # largura mínima por segurança
-
-            # Aplica as larguras calculadas
-            for col, width in widths.items():
-                self.tree_clients.column(col, width=width)
-
-        except Exception:
-            # Não queremos quebrar a tela por causa de erro de layout
-            return
 
     def _get_main_app(self) -> Optional[Any]:
         """Obtém referência ao app principal."""

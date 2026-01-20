@@ -455,7 +455,7 @@ class TestBuildModuleButtons:
         cashflow = [b for b in buttons if b.text == "Fluxo de Caixa"][0]
         assert cashflow.enabled is False
         assert cashflow.has_callback is False
-        assert cashflow.bootstyle == "warning"
+        assert cashflow.bootstyle == "secondary"  # secondary quando disabled
 
     def test_cashflow_enabled(self):
         """Fluxo de Caixa habilitado quando especificado."""

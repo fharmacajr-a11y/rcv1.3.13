@@ -11,13 +11,8 @@ from __future__ import annotations
 
 import logging
 import tkinter as tk
-from tkinter import ttk
-from typing import Any, Callable, Dict, List
 
-try:
-    import ttkbootstrap as tb
-except Exception:
-    tb = ttk  # type: ignore
+from typing import Any, Callable, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +30,7 @@ def create_labeled_entry(
     padx: int = 6,
     pady_label: tuple[int, int] = (5, 0),
     pady_entry: tuple[int, int] = (0, 5),
-) -> tuple[ttk.Label, ttk.Entry, int]:
+) -> tuple[ctk.CTkLabel, ctk.CTkEntry, int]:
     """Cria um par label+entry padronizado em duas linhas consecutivas.
 
     Args:
@@ -50,10 +45,10 @@ def create_labeled_entry(
     Returns:
         Tupla (label, entry, próximo_row_idx).
     """
-    label = ttk.Label(parent, text=label_text)
+    label = ctk.CTkLabel(parent, text=label_text)
     label.grid(row=row_idx, column=column, sticky="w", padx=padx, pady=pady_label)
 
-    entry = ttk.Entry(parent)
+    entry = ctk.CTkEntry(parent)
     entry.grid(row=row_idx + 1, column=column, sticky="ew", padx=padx, pady=pady_entry)
 
     return label, entry, row_idx + 2
@@ -69,7 +64,7 @@ def create_labeled_text(
     padx: int = 6,
     pady_label: tuple[int, int] = (0, 0),
     pady_text: tuple[int, int] = (0, 5),
-) -> tuple[ttk.Label, tk.Text, int, int]:
+) -> tuple[ctk.CTkLabel, tk.Text, int, int]:
     """Cria um par label+Text padronizado em duas linhas consecutivas.
 
     Args:
@@ -86,7 +81,7 @@ def create_labeled_text(
     Returns:
         Tupla (label, text_widget, row_do_text, próximo_row_idx).
     """
-    label = ttk.Label(parent, text=label_text)
+    label = ctk.CTkLabel(parent, text=label_text)
     label.grid(row=row_idx, column=column, sticky="w", padx=padx, pady=pady_label)
 
     text_widget = tk.Text(parent, width=width, height=height)
@@ -101,7 +96,7 @@ def create_status_dropdown(
     label_text: str,
     status_choices: List[str],
     on_senhas_clicked: Callable[[], None],
-) -> tuple[ttk.LabelFrame, ttk.Combobox, tk.StringVar, Any]:
+) -> tuple[ctk.CTkFrame, ctk.CTkComboBox, tk.StringVar, Any]:
     """Cria frame de status com dropdown e botão Senhas.
 
     Args:
@@ -113,23 +108,26 @@ def create_status_dropdown(
     Returns:
         Tupla (frame, combobox, string_var, btn_senhas).
     """
-    frame = ttk.LabelFrame(parent, text=label_text)
+    # Frame container com label superior
+    container = ctk.CTkFrame(parent)
+    ctk.CTkLabel(container, text=label_text, font=("-size", 10, "bold")).pack(anchor="w", padx=8, pady=(4, 2))
+    frame = ctk.CTkFrame(container)
+    frame.pack(padx=8, pady=(0, 8), fill="both", expand=True)
     frame.columnconfigure(0, weight=1)
     frame.columnconfigure(1, weight=0)
 
     status_var = tk.StringVar(value="")
-    combobox = ttk.Combobox(frame, textvariable=status_var, values=status_choices, state="readonly")
+    combobox = ctk.CTkComboBox(frame, values=status_choices, state="readonly")
     combobox.grid(row=0, column=0, sticky="ew", padx=6, pady=6)
 
-    btn_senhas = tb.Button(
+    btn_senhas = tk.Button(
         frame,
         text="Senhas",
         command=on_senhas_clicked,
-        bootstyle="secondary",
     )
     btn_senhas.grid(row=0, column=1, sticky="w", padx=6, pady=6)
 
-    return frame, combobox, status_var, btn_senhas
+    return container, combobox, status_var, btn_senhas
 
 
 # =============================================================================
@@ -156,16 +154,16 @@ def create_button_bar(
     Returns:
         Dicionário com botões: {"save", "upload", "cartao_cnpj", "cancel"}.
     """
-    btn_save = tb.Button(parent, text="Salvar", command=on_save, bootstyle="success")
+    btn_save = tk.Button(parent, text="Salvar", command=on_save)
     btn_save.pack(side="left", padx=5)
 
-    btn_cartao_cnpj = tb.Button(parent, text="Cartão CNPJ", command=on_cartao_cnpj, bootstyle="info")
+    btn_cartao_cnpj = tk.Button(parent, text="Cartão CNPJ", command=on_cartao_cnpj)
     btn_cartao_cnpj.pack(side="left", padx=5)
 
-    btn_upload = tb.Button(parent, text="Enviar documentos", command=on_save_and_upload, bootstyle="info")
+    btn_upload = tk.Button(parent, text="Enviar documentos", command=on_save_and_upload)
     btn_upload.pack(side="left", padx=5)
 
-    btn_cancel = tb.Button(parent, text="Cancelar", command=on_cancel, bootstyle="danger")
+    btn_cancel = tk.Button(parent, text="Cancelar", command=on_cancel)
     btn_cancel.pack(side="left", padx=5)
 
     return {
@@ -193,7 +191,7 @@ def apply_light_selection(widget: tk.Widget) -> None:
             selectforeground="#000000",  # texto preto
         )
     except tk.TclError:
-        # Widget (ex. ttk.Entry) não suporta essas opções; mantém seleção padrão
+        # Widget (ex. ctk.CTkEntry) não suporta essas opções; mantém seleção padrão
         pass
 
 

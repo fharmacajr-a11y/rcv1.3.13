@@ -1,0 +1,29 @@
+================================================================================
+DIAGNÓSTICO 04: SELEÇÃO DE TESTES (INCLUI/EXCLUI modules)
+================================================================================
+
+[Comandos que especificam APENAS tests/unit]
+  ✓ Nenhum encontrado
+
+[Comandos com markers que excluem modules (-m/-k)]
+  ✓ Nenhum encontrado
+
+[Configuração pytest.ini / pytest_cov.ini]
+  testpaths: tests
+  ✓ Inclui todo o diretório tests/ (modules incluído)
+  norecursedirs: .venv
+    venv
+    build
+    dist
+    .git
+    __pycache__
+    tests/archived
+
+[CONCLUSÃO]
+  INCLUI tests/modules (testpaths=tests)
+
+✓ TUDO CERTO:
+  - Configuração inclui tests/modules/clientes
+  - Cobertura de módulos Clientes ENTRA na PP
+
+================================================================================

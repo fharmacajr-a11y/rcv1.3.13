@@ -52,12 +52,11 @@ def bootstrap_main_window(app: App) -> None:
     # ═══════════════════════════════════════════════════════════════
     # 1. BUILD LAYOUT
     # ═══════════════════════════════════════════════════════════════
-    tema_atual = app.tema_atual
+    # MICROFASE 24: Removido tema_atual (gerenciado por CustomTkinter globalmente)
     start_hidden = getattr(app, "_start_hidden", False)
 
     app._layout = build_main_window_layout(
         app,
-        theme_name=tema_atual,
         start_hidden=start_hidden,
     )
 
@@ -174,6 +173,10 @@ def bootstrap_main_window(app: App) -> None:
     # ═══════════════════════════════════════════════════════════════
     app.bind("<FocusIn>", lambda e: app._update_user_status(), add="+")
 
+    # MICROFASE 24: Usar tema global do CustomTkinter
+    from src.ui.theme_manager import theme_manager as global_theme_manager
+
+    tema_atual = global_theme_manager.get_current_mode()
     log.info("Bootstrap do MainWindow concluído com tema: %s", tema_atual)
 
 

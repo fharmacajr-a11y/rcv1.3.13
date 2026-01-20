@@ -1,5 +1,9 @@
 # utils/helpers/hidpi.py
-"""Configuracao de suporte HiDPI para monitores de alta resolucao via ttkbootstrap."""
+"""Configuracao de suporte HiDPI para monitores de alta resolucao.
+
+⚠️ MIGRAÇÃO COMPLETA: ttkbootstrap foi REMOVIDO (18/01/2026).
+Este módulo agora usa apenas configurações nativas do Tkinter.
+"""
 
 from __future__ import annotations
 
@@ -17,23 +21,18 @@ log = logging.getLogger(__name__)
 def configure_hidpi_support(root: "tk.Tk | None" = None, scaling: float | None = None) -> None:
     """Configura suporte HiDPI de forma best-effort para Windows e Linux.
 
-    - Windows: chama enable_high_dpi_awareness antes de criar o Tk e ignora erros.
-    - Linux: aplica scaling calculado (ou informado) apos o Tk existir; se falhar, apenas registra debug.
-    - macOS: suporte nativo, mantem no-op.
+    - Windows: usa ctypes para configurar DPI awareness antes de criar Tk
+    - Linux: aplica scaling calculado (ou informado) após o Tk existir
+    - macOS: suporte nativo, mantém no-op.
     """
-    try:
-        from ttkbootstrap.utility import enable_high_dpi_awareness
-    except ImportError:
-        # ttkbootstrap nao disponivel ou versao antiga
-        return
-
     system = platform.system()
 
     if system == "Windows":
-        # Windows: chamar sem parametros ANTES de criar Tk
+        # Windows: configurar DPI awareness via ctypes ANTES de criar Tk
         if root is None:
             try:
-                enable_high_dpi_awareness()
+                import ctypes
+                ctypes.windll.shcore.SetProcessDpiAwareness(2)  # PROCESS_PER_MONITOR_DPI_AWARE
             except Exception as exc:
                 log.debug("HiDPI ja configurado ou indisponivel (Windows)", exc_info=exc)
         # Se root foi passado no Windows, ignora (ja tarde demais)

@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 from unittest.mock import MagicMock
+from tkinter import ttk
 
 import pytest
-import ttkbootstrap as tb
+
+from tests import ui_compat as tb
 
 from src.modules.hub.viewmodels.quick_actions_vm import (
     QuickActionItemView,
@@ -18,7 +20,7 @@ from src.modules.hub.views.modules_panel import build_modules_panel
 @pytest.fixture
 def parent_frame(tk_root):
     """Cria frame pai para testes."""
-    return tb.Frame(tk_root)
+    return ttk.Frame(tk_root)
 
 
 class TestBuildModulesPanel:
@@ -35,7 +37,7 @@ class TestBuildModulesPanel:
             on_action_click=on_action_click,
         )
 
-        assert isinstance(panel, tb.Labelframe)
+        assert isinstance(panel, ttk.Labelframe)
         assert panel.cget("text") == "Módulos"
 
     def test_renders_actions_grouped_by_category(self, parent_frame):
@@ -71,7 +73,7 @@ class TestBuildModulesPanel:
 
         # Verificar que criou 3 labelframes (1 por categoria)
         children = list(panel.winfo_children())
-        labelframes = [w for w in children if isinstance(w, tb.Labelframe)]
+        labelframes = [w for w in children if isinstance(w, ttk.Labelframe)]
         assert len(labelframes) == 3
 
         # Verificar títulos das categorias
@@ -106,11 +108,12 @@ class TestBuildModulesPanel:
         )
 
         # Contar botões criados
+        import tkinter as tk
         all_buttons = []
         for child in panel.winfo_children():
-            if isinstance(child, tb.Labelframe):
+            if isinstance(child, ttk.Labelframe):
                 for subchild in child.winfo_children():
-                    if isinstance(subchild, tb.Button):
+                    if isinstance(subchild, tk.Button):
                         all_buttons.append(subchild)
 
         assert len(all_buttons) == 2
@@ -143,11 +146,12 @@ class TestBuildModulesPanel:
         )
 
         # Encontrar botões
+        import tkinter as tk
         buttons = []
         for child in panel.winfo_children():
-            if isinstance(child, tb.Labelframe):
+            if isinstance(child, ttk.Labelframe):
                 for subchild in child.winfo_children():
-                    if isinstance(subchild, tb.Button):
+                    if isinstance(subchild, tk.Button):
                         buttons.append(subchild)
 
         assert len(buttons) == 2
@@ -173,11 +177,12 @@ class TestBuildModulesPanel:
         )
 
         # Encontrar botão
+        import tkinter as tk
         button = None
         for child in panel.winfo_children():
-            if isinstance(child, tb.Labelframe):
+            if isinstance(child, ttk.Labelframe):
                 for subchild in child.winfo_children():
-                    if isinstance(subchild, tb.Button):
+                    if isinstance(subchild, tk.Button):
                         button = subchild
                         break
 
@@ -200,9 +205,10 @@ class TestBuildModulesPanel:
             on_action_click=on_action_click,
         )
 
-        assert isinstance(panel, tb.Labelframe)
+        assert isinstance(panel, ttk.Labelframe)
 
         # Não deve ter labelframes filhos (sem categorias)
         children = list(panel.winfo_children())
-        labelframes = [w for w in children if isinstance(w, tb.Labelframe)]
+        labelframes = [w for w in children if isinstance(w, ttk.Labelframe)]
         assert len(labelframes) == 0
+

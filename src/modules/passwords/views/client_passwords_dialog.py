@@ -6,10 +6,11 @@ from __future__ import annotations
 import logging
 import tkinter as tk
 import tkinter.font as tkfont
-from tkinter import messagebox, ttk
+from tkinter import messagebox
 from typing import Callable, Optional
 
-import ttkbootstrap as tb
+from src.ui.ctk_config import ctk
+from src.ui.widgets import CTkTableView
 
 from src.db.domain_types import ClientRow, PasswordRow
 from src.core.app import apply_rc_icon
@@ -21,7 +22,7 @@ log = logging.getLogger(__name__)
 logger = log
 
 
-class ClientPasswordsDialog(tb.Toplevel):
+class ClientPasswordsDialog(ctk.CTkToplevel):
     """Diálogo para gerenciar todas as senhas de um cliente específico (FIX-SENHAS-002).
 
     Permite visualizar, adicionar, editar, excluir e copiar senhas de um único cliente.
@@ -29,7 +30,7 @@ class ClientPasswordsDialog(tb.Toplevel):
 
     def __init__(
         self,
-        parent: tb.Widget,
+        parent,
         controller: PasswordsController,
         client_summary: ClientPasswordsSummary,
         org_id: str,
@@ -87,15 +88,12 @@ class ClientPasswordsDialog(tb.Toplevel):
 
     def _build_ui(self) -> None:
         """Constrói a interface do diálogo."""
-        container = tb.Frame(self, padding=10)
-        container.pack(fill="both", expand=True)
+        container = ctk.CTkFrame(self)
+        container.pack(fill="both", expand=True, padx=10, pady=10)
 
         # Cabeçalho com informações do cliente
-        header_frame = tb.Frame(container)
+        header_frame = ctk.CTkFrame(container)
         header_frame.pack(fill="x", pady=(0, 10))
-
-        # FIX-SENHAS-005: Criar fontes sem nome para evitar conflito "already exists"
-        bold_font = tkfont.Font(size=11, weight="bold")
 
         # FIX-SENHAS-011: Label único com CNPJ formatado
         formatted_cnpj = format_cnpj(self.client_summary.cnpj) if self.client_summary.cnpj else ""
@@ -105,24 +103,24 @@ class ClientPasswordsDialog(tb.Toplevel):
             else f"Cliente: {self.client_summary.display_name}"
         )
 
-        tb.Label(
+        ctk.CTkLabel(
             header_frame,
             text=client_label,
-            font=bold_font,
+            font=("Arial", 11, "bold"),
         ).pack(side="left")
 
         # Tabela de senhas
-        table_frame = tb.Frame(container)
+        table_frame = ctk.CTkFrame(container)
         table_frame.pack(fill="both", expand=True)
 
         columns = ("servico", "usuario", "senha", "anotacoes")
-        self.tree = ttk.Treeview(
+        self.tree = CTkTableView(
             table_frame,
             columns=columns,
             show="headings",
-            selectmode="browse",
             height=12,
-        )
+            zebra=True,
+        )  # TODO: selectmode="browse" -> handle in CTk way
 
         self.tree.heading("servico", text="Serviço", anchor="center", command=lambda: self._sort_by_column("servico"))
         self.tree.heading(
@@ -139,59 +137,60 @@ class ClientPasswordsDialog(tb.Toplevel):
         self.tree.column("senha", width=120, anchor="center", stretch=False)
         self.tree.column("anotacoes", width=260, anchor="center", stretch=True)
 
-        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
-        self.tree.configure(yscrollcommand=scrollbar.set)
-
         self.tree.bind("<Double-1>", lambda e: self._on_edit_clicked())
 
-        # Impede redimensionamento das colunas arrastando o separador
-        self.tree.bind("<Button-1>", self._on_passwords_tree_heading_click)
-
         self.tree.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
 
         # Barra de ações
-        actions_frame = tb.Frame(container)
+        actions_frame = ctk.CTkFrame(container)
         actions_frame.pack(fill="x", pady=(10, 0))
 
-        tb.Button(
+        ctk.CTkButton(
             actions_frame,
             text="Nova Senha",
-            bootstyle="success",
+            fg_color=("#2E7D32", "#1B5E20"),
+            hover_color=("#1B5E20", "#0D4A11"),
             command=self._on_new_password_clicked,
-            width=14,
+            width=140,
         ).pack(side="left", padx=5)
 
-        tb.Button(
+        ctk.CTkButton(
             actions_frame,
             text="Editar",
-            bootstyle="secondary",
+            fg_color=("#757575", "#616161"),
+            hover_color=("#616161", "#424242"),
             command=self._on_edit_clicked,
-            width=14,
+            width=140,
         ).pack(side="left", padx=5)
 
-        tb.Button(
+        ctk.CTkButton(
             actions_frame,
             text="Excluir",
-            bootstyle="danger",
+            fg_color=("#D32F2F", "#B71C1C"),
+            hover_color=("#B71C1C", "#8B0000"),
             command=self._on_delete_clicked,
-            width=14,
+            width=140,
         ).pack(side="left", padx=5)
 
-        tb.Button(
+        ctk.CTkButton(
             actions_frame,
             text="Copiar Senha",
-            bootstyle="info",
+            fg_color=("#0288D1", "#01579B"),
+            hover_color=("#01579B", "#004C8C"),
             command=self._on_copy_password_clicked,
-            width=14,
+            width=140,
         ).pack(side="left", padx=5)
 
-        tb.Button(
+        ctk.CTkButton(
             actions_frame,
             text="Fechar",
-            bootstyle="secondary-outline",
+            fg_color="transparent",
+            border_width=2,
+            border_color=("#757575", "#616161"),
+            text_color=("#757575", "#FFFFFF"),
+            hover_color=("#F5F5F5", "#424242"),
             command=self._on_close,
-            width=10,
+            width=100,
         ).pack(side="right", padx=5)
 
     def _load_passwords(self) -> None:
@@ -202,32 +201,20 @@ class ClientPasswordsDialog(tb.Toplevel):
     def _populate_table(self) -> None:
         """Preenche a tabela com as senhas."""
         # Limpa a tabela
-        for item in self.tree.get_children():
-            self.tree.delete(item)
+        self.tree.clear()
 
         for password in self.passwords:
             self.tree.insert(
                 "",
                 "end",
-                values=(
+                values=[
                     password["service"],
                     password["username"],
                     "••••••",
                     password["notes"],
-                ),
+                ],
                 tags=(str(password["id"]),),
             )
-
-    def _on_passwords_tree_heading_click(self, event: tk.Event) -> str | None:
-        """Bloqueia clique/resizer no cabeçalho da lista de senhas.
-
-        - separator: bloqueia resize de coluna
-        - heading: bloqueia qualquer ação (sort, pulo de scroll) - FIX-SENHAS-014
-        """
-        region = self.tree.identify_region(event.x, event.y)
-        if region in {"separator", "heading"}:
-            return "break"
-        return None
 
     def _sort_by_column(self, column: str) -> None:
         """Ordena a tabela pela coluna especificada."""
@@ -249,11 +236,10 @@ class ClientPasswordsDialog(tb.Toplevel):
 
     def _get_selected_password(self) -> Optional[PasswordRow]:
         """Retorna a senha selecionada na tabela."""
-        selection = self.tree.selection()
-        if not selection:
+        item_id = self.tree.get_selected_iid()
+        if not item_id:
             return None
 
-        item_id = selection[0]
         password_id = self.tree.item(item_id, "tags")[0]
         return next((p for p in self.passwords if str(p["id"]) == password_id), None)
 

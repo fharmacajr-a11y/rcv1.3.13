@@ -25,7 +25,8 @@ from __future__ import annotations
 import tkinter as tk
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-import ttkbootstrap as tb
+from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+from src.ui.ui_tokens import APP_BG
 
 try:
     from src.core.logger import get_logger
@@ -76,7 +77,7 @@ LOCAL_TZ = get_local_timezone()
 # logger disponível desde o topo do módulo
 
 
-class HubScreen(tb.Frame):
+class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame):  # type: ignore[misc]
     """HubScreen - Orquestrador central do HUB.
 
     Responsável por:
@@ -122,7 +123,16 @@ class HubScreen(tb.Frame):
         open_cashflow = open_cashflow or kwargs.pop("on_open_cashflow", None)
         open_sites = open_sites or kwargs.pop("on_open_sites", None)
 
-        super().__init__(master, padding=0, **kwargs)
+        # Don't pass padding to super().__init__ - CTkFrame doesn't support it
+        # Use pack/grid padding instead if needed
+        super().__init__(master, **kwargs)
+        
+        # MICROFASE 35: Configurar fg_color para evitar fundo cinza
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            self.configure(fg_color=APP_BG)
+        
+        # Flag para evitar destroy duplo
+        self._destroy_called = False
 
         # BUGFIX-UX-STARTUP-HUB-001 (C3): Instrumentação para medir custo de construção
         import os
@@ -814,24 +824,37 @@ class HubScreen(tb.Frame):
         return self.state
 
     def destroy(self) -> None:
-        """Override destroy para parar lifecycle e polling (MF-26: com proteção)."""
+        """Override destroy para parar lifecycle e polling (MF-26: com proteção duplo)."""
+        # Verificar se widget ainda existe e não foi destruído
+        if self._destroy_called:
+            return
+            
+        try:
+            if not self.winfo_exists():
+                return
+        except tk.TclError:
+            return
+            
+        # Marcar como destruído
+        self._destroy_called = True
+        
         try:
             # Parar lifecycle interno (compatibilidade)
             if hasattr(self, "_lifecycle") and self._lifecycle is not None:
                 self._lifecycle.stop()
         except Exception as e:
-            logger.warning(f"Erro ao parar _lifecycle no destroy: {e}")
+            logger.debug(f"Erro ao parar _lifecycle no destroy: {e}")
 
         try:
             # Parar polling via facade (MF-24)
             self.stop_polling()
         except Exception as e:
-            logger.warning(f"Erro ao parar polling no destroy: {e}")
+            logger.debug(f"Erro ao parar polling no destroy: {e}")
 
         try:
             super().destroy()
         except Exception as e:
-            logger.error(f"Erro ao chamar super().destroy(): {e}")
+            logger.debug(f"Erro ao chamar super().destroy(): {e}")
 
     # ==============================================================================
     # COMPATIBILIDADE (aliases para métodos legados)

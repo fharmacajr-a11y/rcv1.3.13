@@ -1,16 +1,23 @@
-# -*- coding: utf-8 -*-
-"""Componente de navegação da TopBar (botões principais à esquerda)."""
-
 from __future__ import annotations
+
+from src.ui.ctk_config import ctk
+
+from src.ui.ui_tokens import SURFACE_DARK
+
+# -*- coding: utf-8 -*-
+"""Componente de navegação da TopBar (botões principais à esquerda).
+
+MICROFASE 24: Migrado para CustomTkinter.
+"""
 
 import logging
 import os
-import tkinter as tk
-from tkinter import ttk
 from typing import Protocol
 
-import ttkbootstrap as tb
+from PIL import Image
 
+# CustomTkinter: fonte única centralizada (Microfase 23 - SSoT)
+from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
 from src.utils.resource_path import resource_path
 
 _log = logging.getLogger(__name__)
@@ -40,7 +47,7 @@ class TopbarNavCallbacks(Protocol):
         ...
 
 
-class TopbarNav(ttk.Frame):
+class TopbarNav(ctk.CTkFrame):
     """Componente de navegação da TopBar com botões principais.
 
     Responsável pelos botões de navegação do lado esquerdo:
@@ -48,6 +55,8 @@ class TopbarNav(ttk.Frame):
     - Visualizador PDF
     - ChatGPT
     - Sites
+
+    MICROFASE 24: Usa CTkButton ao invés de ttkbootstrap.
     """
 
     def __init__(
@@ -62,28 +71,45 @@ class TopbarNav(ttk.Frame):
             master: Widget pai
             callbacks: Objeto com callbacks de navegação
         """
-        super().__init__(master, **kwargs)
+        # Configurar strip cinza atrás dos botões
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            super().__init__(master, fg_color=SURFACE_DARK, corner_radius=0, **kwargs)
+        else:
+            super().__init__(master, bg=SURFACE_DARK[0], **kwargs)
+            
         self._callbacks = callbacks
 
-        # Carregar ícones
+        # Referências de imagens (IMPORTANTE: manter para evitar GC)
         self._sites_image = None
         self._chatgpt_image = None
-        self._load_icons()
 
-        # Estilos para botão Início
-        self._home_bootstyle_inactive = "info"
-        self._home_bootstyle_active = "info"
+        # Carregar ícones
+        self._load_icons()
 
         # Construir botões
         self._build_buttons()
 
     def _load_icons(self) -> None:
-        """Carrega ícones dos botões."""
+        """Carrega ícones dos botões como CTkImage."""
+        if not HAS_CUSTOMTKINTER or ctk is None:
+            _log.debug("CustomTkinter não disponível, ícones desabilitados")
+            return
+
         # Ícone Sites
         try:
             icon_path = resource_path("assets/topbar/sites.png")
             if os.path.exists(icon_path):
-                self._sites_image = tk.PhotoImage(file=icon_path)
+                img = Image.open(icon_path)
+                # Manter referência da PIL Image também para evitar GC
+                self._sites_pil = img
+                # Redimensionar se necessário
+                max_size = 16
+                if img.width > max_size or img.height > max_size:
+                    img = img.copy()
+                    img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+                    self._sites_pil = img
+                # Criar CTkImage
+                self._sites_image = ctk.CTkImage(light_image=img, dark_image=img, size=(img.width, img.height))
             else:
                 _log.warning("Ícone do Sites não encontrado: %s", icon_path)
         except Exception as exc:  # noqa: BLE001
@@ -93,58 +119,69 @@ class TopbarNav(ttk.Frame):
         try:
             chatgpt_icon_path = resource_path("assets/topbar/chatgpt.png")
             if os.path.exists(chatgpt_icon_path):
-                img = tk.PhotoImage(file=chatgpt_icon_path)
+                img = Image.open(chatgpt_icon_path)
+                # Manter referência da PIL Image também para evitar GC
+                self._chatgpt_pil = img
+                # Redimensionar se necessário
                 max_size = 16
-                width, height = img.width(), img.height()
-                if width > max_size or height > max_size:
-                    scale_x = max(1, (width + max_size - 1) // max_size)
-                    scale_y = max(1, (height + max_size - 1) // max_size)
-                    img = img.subsample(scale_x, scale_y)
-                self._chatgpt_image = img
+                if img.width > max_size or img.height > max_size:
+                    img = img.copy()
+                    img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+                    self._chatgpt_pil = img
+                # Criar CTkImage
+                self._chatgpt_image = ctk.CTkImage(light_image=img, dark_image=img, size=(img.width, img.height))
             else:
                 _log.warning("Ícone do ChatGPT não encontrado: %s", chatgpt_icon_path)
         except Exception as exc:  # noqa: BLE001
             _log.debug("Falha ao carregar ícone do ChatGPT: %s", exc)
 
     def _build_buttons(self) -> None:
-        """Constrói os botões de navegação."""
+        """Constrói os botões de navegação usando CTkButton."""
+        if not HAS_CUSTOMTKINTER or ctk is None:
+            _log.warning("CustomTkinter não disponível, botões não criados")
+            return
+
         # Botão Início
-        self.btn_home = tb.Button(
+        self.btn_home = ctk.CTkButton(
             self,
             text="Inicio",
             command=self._handle_home,
-            bootstyle=self._home_bootstyle_inactive,
+            width=80,
+            height=28,
         )
         self.btn_home.pack(side="left", padx=(6, BTN_PADX), pady=BTN_PADY)
 
         # Botão Visualizador PDF
-        self.btn_pdf_viewer = tb.Button(
+        self.btn_pdf_viewer = ctk.CTkButton(
             self,
             text="Visualizador PDF",
             command=self._handle_pdf_viewer,
-            bootstyle="info",
+            width=120,
+            height=28,
         )
         self.btn_pdf_viewer.pack(side="left", padx=(BTN_PADX, BTN_PADX), pady=BTN_PADY)
 
-        # Botão ChatGPT
-        self.btn_chatgpt = tb.Button(
+        # Botão ChatGPT (sem ícone temporariamente para debugging)
+        self.btn_chatgpt = ctk.CTkButton(
             self,
             text="ChatGPT",
-            image=self._chatgpt_image,
-            compound="left" if self._chatgpt_image else None,
+            # image=self._chatgpt_image,
+            # compound="left" if self._chatgpt_image else "none",
             command=self._handle_chatgpt,
-            bootstyle="info",
+            width=100,
+            height=28,
         )
         self.btn_chatgpt.pack(side="left", padx=(BTN_PADX, BTN_PADX), pady=BTN_PADY)
 
-        # Botão Sites
-        self.btn_sites = tb.Button(
+        # Botão Sites (sem ícone temporariamente para debugging)
+        self.btn_sites = ctk.CTkButton(
             self,
             text="Sites",
-            image=self._sites_image,
-            compound="left" if self._sites_image else None,
+            # image=self._sites_image,
+            # compound="left" if self._sites_image else "none",
             command=self._handle_sites,
-            bootstyle="info",
+            width=80,
+            height=28,
         )
         self.btn_sites.pack(side="left", padx=(BTN_PADX, 0), pady=BTN_PADY)
 
@@ -182,53 +219,28 @@ class TopbarNav(ttk.Frame):
         Args:
             screen_name: Nome da tela ativa ("main", "hub", "sites", "passwords", etc.)
         """
-        # FIX DEFINITIVO: btn_home SEMPRE habilitado (!disabled)
-        # Se precisar indicar "tela ativa", usar apenas mudança de estilo/cor
+        # CTkButton usa configure(state="normal"/"disabled")
         buttons = [self.btn_home, self.btn_pdf_viewer, self.btn_chatgpt, self.btn_sites]
         for btn in buttons:
             try:
-                btn.state(["!disabled"])
-            except Exception:
-                try:
-                    btn["state"] = "normal"
-                except Exception as exc:  # noqa: BLE001
-                    _log.debug("Falha ao habilitar botão %s: %s", btn, exc)
-
-        # Opcional: Aplicar estilo visual diferente para indicar tela ativa
-        # (sem desabilitar o botão)
-        try:
-            if screen_name in ("main", "hub"):
-                # Poderia aplicar bootstyle diferente aqui se necessário
-                # self.btn_home.configure(bootstyle="success")
-                pass
-        except Exception as exc:  # noqa: BLE001
-            _log.debug("Falha ao aplicar estilo de tela ativa: %s", exc)
+                btn.configure(state="normal")
+            except Exception as exc:  # noqa: BLE001
+                _log.debug("Falha ao habilitar botão %s: %s", btn, exc)
 
     def set_is_hub(self, is_hub: bool) -> None:
         """[DEPRECATED] Atualiza estado do botão Início conforme contexto Hub.
 
         NOTA: Mantido para compatibilidade. Prefira usar set_active_screen().
-        FIX: btn_home SEMPRE habilitado, apenas muda estilo visual.
+        btn_home sempre habilitado.
 
         Args:
             is_hub: True se está no Hub, False caso contrário
         """
-        # Aplicar estilo visual diferente
+        # CTkButton: sempre mantém habilitado
         try:
-            target_style = self._home_bootstyle_active if is_hub else self._home_bootstyle_inactive
-            self.btn_home.configure(bootstyle=target_style)
-        except Exception:
-            _log.debug("Falha ao aplicar estilo no botão Home", exc_info=True)
-
-        # FIX DEFINITIVO: NUNCA desabilitar btn_home
-        # Sempre manter habilitado para permitir navegação
-        try:
-            self.btn_home.state(["!disabled"])
-        except Exception:
-            try:
-                self.btn_home["state"] = "normal"
-            except Exception as exc:  # noqa: BLE001
-                _log.debug("Falha ao habilitar botão Home: %s", exc)
+            self.btn_home.configure(state="normal")
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao manter btn_home habilitado: %s", exc)
 
     def set_pick_mode_active(self, active: bool) -> None:
         """Habilita/desabilita botões durante modo seleção de clientes.
@@ -236,26 +248,17 @@ class TopbarNav(ttk.Frame):
         Args:
             active: True para desabilitar, False para habilitar
         """
-        # FIX: btn_home SEMPRE habilitado, mesmo no modo pick
-        # Desabilita apenas PDF/ChatGPT/Sites durante pick mode
+        # btn_home sempre habilitado, desabilita apenas PDF/ChatGPT/Sites durante pick mode
         buttons = [self.btn_pdf_viewer, self.btn_chatgpt, self.btn_sites]
+        state = "disabled" if active else "normal"
         for btn in buttons:
             try:
-                if active:
-                    btn.state(["disabled"])
-                else:
-                    btn.state(["!disabled"])
-            except Exception:
-                try:
-                    btn["state"] = "disabled" if active else "normal"
-                except Exception as exc:  # noqa: BLE001
-                    _log.debug("Falha ao atualizar estado do botão %s: %s", btn, exc)
+                btn.configure(state=state)
+            except Exception as exc:  # noqa: BLE001
+                _log.debug("Falha ao atualizar estado do botão %s: %s", btn, exc)
 
         # Garantir que btn_home permanece habilitado
         try:
-            self.btn_home.state(["!disabled"])
-        except Exception:
-            try:
-                self.btn_home["state"] = "normal"
-            except Exception as exc:  # noqa: BLE001
-                _log.debug("Falha ao manter btn_home habilitado: %s", exc)
+            self.btn_home.configure(state="normal")
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao manter btn_home habilitado: %s", exc)

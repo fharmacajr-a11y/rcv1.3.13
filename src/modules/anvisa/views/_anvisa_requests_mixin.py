@@ -69,8 +69,7 @@ class AnvisaRequestsMixin:
             requests = self._get_requests_controller().list_requests(org_id)
 
             # Limpar Treeview antes de popular
-            for item in self.tree_requests.get_children():  # type: ignore[attr-defined]
-                self.tree_requests.delete(item)  # type: ignore[attr-defined]
+            self.tree_requests.clear()  # type: ignore[attr-defined]
 
             # Service prepara dados prontos para renderização (agrupamento + sumário)
             self._requests_by_client, rows = self._service.build_main_rows(requests)  # type: ignore[attr-defined]
@@ -93,7 +92,7 @@ class AnvisaRequestsMixin:
                     "",
                     "end",
                     iid=client_id,
-                    values=(client_id, razao, cnpj_fmt, demanda_label, last_update_fmt),
+                    values=[client_id, razao, cnpj_fmt, demanda_label, last_update_fmt],
                 )
 
             count = len(rows)
@@ -411,14 +410,11 @@ class AnvisaRequestsMixin:
         item_id = self.tree_requests.insert(  # type: ignore[attr-defined]
             "",
             "end",
-            values=(client_id, razao, cnpj, request_type, updated_at_fmt),
+            values=[client_id, razao, cnpj, request_type, updated_at_fmt],
         )
 
         # Selecionar a linha recém-criada
         self.tree_requests.selection_set(item_id)  # type: ignore[attr-defined]
-
-        # Fazer scroll para a linha (garantir visibilidade)
-        self.tree_requests.see(item_id)  # type: ignore[attr-defined]
 
         log.info(f"[ANVISA] Linha adicionada na Treeview: {client_id} - {razao}")
 

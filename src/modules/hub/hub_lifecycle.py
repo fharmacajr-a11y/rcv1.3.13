@@ -129,6 +129,10 @@ class HubLifecycle:
         """Callback do timer de auth retry."""
         self._auth_retry_job_id = None
 
+        # SHUTDOWN FIX: Não reagendar se app está fechando
+        if hasattr(self.tk_root, "_closing") and self.tk_root._closing:
+            return
+
         try:
             # Chamar callback do HubScreen para verificar auth
             if self.tk_root._start_home_timers_safely_impl():
@@ -172,6 +176,10 @@ class HubLifecycle:
         """
         self._authors_refresh_job_id = None
 
+        # SHUTDOWN FIX: Não reagendar se app está fechando
+        if hasattr(self.tk_root, "_closing") and self.tk_root._closing:
+            return
+
         try:
             # MF-15: Chamar serviço de polling ao invés de HubScreen._*_impl
             self._polling_service.refresh_authors_cache(force=False)
@@ -209,7 +217,9 @@ class HubLifecycle:
         MF-15: Chama HubPollingService.poll_notes diretamente.
         """
         self._notes_poll_job_id = None
-
+        # SHUTDOWN FIX: Não reagendar se app está fechando
+        if hasattr(self.tk_root, "_closing") and self.tk_root._closing:
+            return
         try:
             # MF-15: Chamar serviço de polling ao invés de HubScreen._*_impl
             self._polling_service.poll_notes()

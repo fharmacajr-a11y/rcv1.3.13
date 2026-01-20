@@ -4,10 +4,10 @@
 from __future__ import annotations
 
 import tkinter as tk
+from tkinter import ttk
 from unittest.mock import MagicMock
 
 import pytest
-import ttkbootstrap as tb
 
 from src.modules.hub.viewmodels.notes_vm import NoteItemView, NotesViewState
 from src.modules.hub.views.notes_panel_view import (
@@ -19,7 +19,7 @@ from src.modules.hub.views.notes_panel_view import (
 @pytest.fixture
 def parent_frame(tk_root):
     """Cria frame pai para testes."""
-    return tb.Frame(tk_root)
+    return ttk.Frame(tk_root)
 
 
 @pytest.fixture
@@ -101,7 +101,7 @@ class TestBuildNotesSidePanel:
             callbacks=empty_callbacks,
         )
 
-        assert isinstance(panel, tb.Labelframe)
+        assert isinstance(panel, ttk.Labelframe)
         assert panel.cget("text") == "Anotações Compartilhadas"
 
     def test_has_required_widgets(self, parent_frame, sample_notes_state, empty_callbacks):
@@ -119,7 +119,7 @@ class TestBuildNotesSidePanel:
 
         assert isinstance(panel.notes_history, tk.Text)
         assert isinstance(panel.new_note, tk.Text)
-        assert isinstance(panel.btn_add_note, tb.Button)
+        assert isinstance(panel.btn_add_note, tk.Button)
 
     def test_add_button_calls_callback(self, parent_frame, sample_notes_state):
         """Deve chamar callback ao clicar no botão adicionar."""
@@ -148,7 +148,7 @@ class TestBuildNotesSidePanel:
             callbacks=empty_callbacks,
         )
 
-        assert isinstance(panel, tb.Labelframe)
+        assert isinstance(panel, ttk.Labelframe)
         assert hasattr(panel, "notes_history")
         assert hasattr(panel, "new_note")
         assert hasattr(panel, "btn_add_note")
@@ -190,9 +190,10 @@ class TestBuildNotesSidePanel:
         )
 
         # Verificar que o painel foi criado (callbacks são usadas internamente)
-        assert isinstance(panel, tb.Labelframe)
+        assert isinstance(panel, ttk.Labelframe)
         assert hasattr(panel, "btn_add_note")
 
         # Testar callback de adicionar
         panel.btn_add_note.invoke()
         mock_add.assert_called_once()
+

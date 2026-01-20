@@ -67,6 +67,14 @@ if __name__ == "__main__":
     except Exception as exc:
         logger.debug("Falha ao instalar global exception hook: %s", exc, exc_info=True)
 
+    # MICROFASE 24.1: Ativar guard rails para detectar múltiplas roots
+    try:
+        from src.ui.tk_root_guard import auto_enable_if_env
+
+        auto_enable_if_env()
+    except Exception as exc:
+        logger.debug("Falha ao ativar tk_root_guard: %s", exc, exc_info=True)
+
     # Cleanup de arquivos temporários antigos no startup
     try:
         from src.modules.uploads.temp_files import cleanup_on_startup

@@ -6,9 +6,9 @@ Testa que a view renderiza corretamente NotesViewState e conecta callbacks.
 
 from __future__ import annotations
 
+from tkinter import ttk
 
 import pytest
-import ttkbootstrap as tb
 
 from src.modules.hub.panels import build_notes_panel
 from src.modules.hub.viewmodels.notes_vm import NoteItemView, NotesViewState
@@ -17,7 +17,7 @@ from src.modules.hub.viewmodels.notes_vm import NoteItemView, NotesViewState
 @pytest.fixture
 def parent_frame(tk_root):
     """Create parent frame for testing."""
-    return tb.Frame(tk_root)
+    return ttk.Frame(tk_root)
 
 
 @pytest.fixture
@@ -81,7 +81,7 @@ class TestBuildNotesPanel:
         """Deve criar painel com widgets necessários."""
         panel = build_notes_panel(parent_frame, sample_notes_state)
 
-        assert isinstance(panel, tb.Labelframe)
+        assert isinstance(panel, ttk.Labelframe)
         # Verificar que widgets foram anexados ao painel
         assert hasattr(panel, "notes_history")
         assert hasattr(panel, "new_note")
@@ -261,3 +261,4 @@ class TestNotesCallbacks:
         panel = build_notes_panel(parent_frame, sample_notes_state, on_toggle_done_click=on_done)
 
         assert panel is not None
+

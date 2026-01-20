@@ -6,9 +6,7 @@ import time
 import tkinter as tk
 from tkinter import messagebox
 
-import ttkbootstrap as ttk
-from ttkbootstrap.constants import DANGER, INFO
-
+from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
 from src.db.auth_bootstrap import _get_access_token
 from src.infra.healthcheck import healthcheck  # <-- ADICIONADO: health check pós-login
 from src.infra.supabase_client import bind_postgrest_auth_if_any, get_supabase
@@ -78,66 +76,123 @@ class LoginDialog(tk.Toplevel):
                 self._icon_senha = None
 
         # Layout
-        self.email_label = ttk.Label(
-            self,
-            text="E-mail",
-            image=self._icon_email,
-            compound="left" if self._icon_email is not None else "none",
-            padding=0,
-            anchor="w",
-        )
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            self.email_label = ctk.CTkLabel(
+                self,
+                text="E-mail",
+                image=self._icon_email,
+                compound="left" if self._icon_email is not None else "none",
+                anchor="w",
+            )
+        else:
+            self.email_label = tk.Label(
+                self,
+                text="E-mail",
+                image=self._icon_email,
+                compound="left" if self._icon_email is not None else "none",
+                anchor="w",
+            )
         self.email_label.grid(row=0, column=0, sticky="w", padx=8, pady=(8, 2))
-        self.email_entry = ttk.Entry(self, textvariable=self.email_var, width=36, bootstyle=INFO)
+        
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            self.email_entry = ctk.CTkEntry(self, textvariable=self.email_var, width=280)
+        else:
+            self.email_entry = tk.Entry(self, textvariable=self.email_var, width=36)
         self.email_entry.grid(row=1, column=0, padx=8, pady=(0, 8))
 
-        self.pass_label = ttk.Label(
-            self,
-            text="Senha",
-            image=self._icon_senha,
-            compound="left" if self._icon_senha is not None else "none",
-            padding=0,
-            anchor="w",
-        )
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            self.pass_label = ctk.CTkLabel(
+                self,
+                text="Senha",
+                image=self._icon_senha,
+                compound="left" if self._icon_senha is not None else "none",
+                anchor="w",
+            )
+        else:
+            self.pass_label = tk.Label(
+                self,
+                text="Senha",
+                image=self._icon_senha,
+                compound="left" if self._icon_senha is not None else "none",
+                anchor="w",
+            )
         self.pass_label.grid(row=2, column=0, sticky="w", padx=8, pady=(8, 2))
-        self.pass_entry = ttk.Entry(self, textvariable=self.pass_var, width=36, show="•", bootstyle=INFO)
+        
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            self.pass_entry = ctk.CTkEntry(self, textvariable=self.pass_var, width=280, show="•")
+        else:
+            self.pass_entry = tk.Entry(self, textvariable=self.pass_var, width=36, show="•")
         self.pass_entry.grid(row=3, column=0, padx=8, pady=(0, 8))
 
-        self.remember_email_check = ttk.Checkbutton(
-            self,
-            text="Lembrar e-mail",
-            variable=self.remember_email_var,
-            bootstyle=INFO,
-        )
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            self.remember_email_check = ctk.CTkCheckBox(
+                self,
+                text="Lembrar e-mail",
+                variable=self.remember_email_var,
+            )
+        else:
+            self.remember_email_check = tk.Checkbutton(
+                self,
+                text="Lembrar e-mail",
+                variable=self.remember_email_var,
+            )
         self.remember_email_check.grid(row=4, column=0, padx=8, pady=(0, 4), sticky="w")
 
-        self.keep_logged_check = ttk.Checkbutton(
-            self,
-            text="Não pedir senha por 7 dias",
-            variable=self.keep_logged_var,
-            bootstyle=INFO,
-        )
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            self.keep_logged_check = ctk.CTkCheckBox(
+                self,
+                text="Não pedir senha por 7 dias",
+                variable=self.keep_logged_var,
+            )
+        else:
+            self.keep_logged_check = tk.Checkbutton(
+                self,
+                text="Não pedir senha por 7 dias",
+                variable=self.keep_logged_var,
+            )
         self.keep_logged_check.grid(row=5, column=0, padx=8, pady=(0, 4), sticky="w")
 
-        self.separator_bottom = ttk.Separator(self, orient="horizontal")
+        self.separator_bottom = ctk.CTkFrame(self, height=2, corner_radius=0, fg_color=("#cccccc", "#444444"))
         self.separator_bottom.grid(row=6, column=0, columnspan=2, padx=8, pady=(12, 8), sticky="ew")
 
-        self.buttons_frame = ttk.Frame(self)
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            self.buttons_frame = ctk.CTkFrame(self, fg_color="transparent")
+        else:
+            self.buttons_frame = tk.Frame(self)
         self.buttons_frame.grid(row=7, column=0, columnspan=2, padx=8, pady=(8, 12))
 
-        self.exit_btn = ttk.Button(
-            self.buttons_frame,
-            text="Sair",
-            command=self._on_exit,
-            bootstyle=DANGER,
-        )
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            self.exit_btn = ctk.CTkButton(
+                self.buttons_frame,
+                text="Sair",
+                command=self._on_exit,
+                fg_color="#dc3545",  # Bootstrap danger color
+                hover_color="#c82333",
+            )
+        else:
+            self.exit_btn = tk.Button(
+                self.buttons_frame,
+                text="Sair",
+                command=self._on_exit,
+                bg="#dc3545",
+                fg="white",
+            )
         self.exit_btn.pack(side="left", padx=(0, 8))
 
-        self.login_btn = ttk.Button(
-            self.buttons_frame,
-            text="Entrar",
-            command=self._do_login,
-            bootstyle=INFO,
-        )
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            self.login_btn = ctk.CTkButton(
+                self.buttons_frame,
+                text="Entrar",
+                command=self._do_login,
+            )
+        else:
+            self.login_btn = tk.Button(
+                self.buttons_frame,
+                text="Entrar",
+                command=self._do_login,
+                bg="#007bff",
+                fg="white",
+            )
         self.login_btn.pack(side="left")
 
         # Bindings

@@ -1,7 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [tool.ruff]
 src = ["src", "tests"]
 line-length = 120
 target-version = "py313"
+
+[project]
+name = "rcgestor"
+version = "1.5.54"
+description = "Sistema de Gestão de Clientes"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.13"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business",
+]
 
 [tool.ruff.lint]
 select = [

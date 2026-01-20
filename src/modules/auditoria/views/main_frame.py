@@ -6,9 +6,10 @@ import logging
 import re
 import tkinter as tk
 import unicodedata
-from tkinter import messagebox, ttk
+from tkinter import messagebox
 from typing import Any, Callable, Dict, Literal, Optional
 
+from src.ui.ctk_config import ctk
 from src.utils.formatters import fmt_datetime_br
 from src.modules.auditoria.service import AuditoriaServiceError
 from src.modules.auditoria.viewmodel import AuditoriaViewModel
@@ -33,7 +34,7 @@ logger = logging.getLogger(__name__)
 OFFLINE_MSG = "Recurso on-line. Verifique internet e credenciais do Supabase."
 
 
-class AuditoriaFrame(ttk.Frame):
+class AuditoriaFrame(ctk.CTkFrame):
     """
     Tela de Auditoria:
       - Combobox para escolher Cliente
@@ -50,7 +51,7 @@ class AuditoriaFrame(ttk.Frame):
         Args:
             master: Widget pai (Tk ou Frame)
             go_back: Callback para voltar ao Hub (opcional)
-            **kwargs: Argumentos adicionais para ttk.Frame
+            **kwargs: Argumentos adicionais para ctk.CTkFrame
         """
         super().__init__(master, **kwargs)
         self._go_back: Callable[[], None] | None = go_back
@@ -88,20 +89,8 @@ class AuditoriaFrame(ttk.Frame):
 
         self._build_ui()
 
-        try:
-            import ttkbootstrap as tb  # type: ignore[import]  # noqa: F401
-        except Exception:
-            style = ttk.Style(self)
-            style.configure("RC.Success.TButton", foreground="white")
-            style.map("RC.Success.TButton", background=[("!disabled", "#198754"), ("active", "#157347")])
-            self.btn_iniciar.configure(style="RC.Success.TButton")
-
-            style.configure("RC.Danger.TButton", foreground="white")
-            style.map("RC.Danger.TButton", background=[("!disabled", "#DC3545"), ("active", "#BB2D3B")])
-            self.btn_excluir.configure(style="RC.Danger.TButton")
-        else:
-            self.btn_iniciar.configure(bootstyle="success")  # type: ignore[arg-type]
-            self.btn_excluir.configure(bootstyle="danger")  # type: ignore[arg-type]
+        # MICROFASE 31: Removido Style legado (ZERO em runtime)
+        # Botões agora usam cores padrão CTk ou configuração inline
 
         # Deferir load para garantir widgets prontos
         self.after(100, self._lazy_load)
@@ -112,7 +101,7 @@ class AuditoriaFrame(ttk.Frame):
 
         ui_padx = getattr(self, "UI_PADX", 8)
         ui_pady = getattr(self, "UI_PADY", 6)
-        self.lbl_offline = ttk.Label(self, text=OFFLINE_MSG, foreground="#666")
+        self.lbl_offline = ctk.CTkLabel(self, text=OFFLINE_MSG, text_color="#666")
         self.lbl_offline.grid(row=4, column=0, sticky="w", padx=ui_padx, pady=(ui_pady, 0))
 
     # ---------- Search Helpers ----------

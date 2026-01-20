@@ -9,10 +9,11 @@ import os
 import threading
 import tkinter as tk
 from tkinter import messagebox as tkmsg
-from tkinter import ttk
 from typing import Any, Callable, Iterable, List, Optional, Tuple
 
-import ttkbootstrap as tb
+import customtkinter as ctk
+from src.ui.ctk_config import *
+from src.ui.widgets import CTkTableView
 
 from src.modules.clientes.service import (
     excluir_clientes_definitivamente,
@@ -37,7 +38,7 @@ def _log_ui_issue(context: str, exc: Exception, *, level: str = "debug") -> None
 
 
 # ---------- Singleton da janela ----------
-_OPEN_WINDOW: tb.Toplevel | None = None
+_OPEN_WINDOW: ctk.CTkToplevel | None = None
 
 
 def _is_open() -> bool:
@@ -58,7 +59,7 @@ def refresh_if_open() -> None:
 
 
 # ---------------- helpers UI ----------------
-def _set_busy(win: tb.Toplevel, buttons: Iterable[tb.Widget], busy: bool) -> None:
+def _set_busy(win: ctk.CTkToplevel, buttons: Iterable, busy: bool) -> None:
     try:
         win.configure(cursor=("watch" if busy else ""))
     except Exception as exc:  # noqa: BLE001
@@ -78,7 +79,7 @@ def _set_busy(win: tb.Toplevel, buttons: Iterable[tb.Widget], busy: bool) -> Non
 
 
 # ---------------- janela principal da Lixeira (com Treeview) ----------------
-def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[tb.Toplevel]:
+def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[ctk.CTkToplevel]:
     """Abre a Lixeira em modo singleton: se já estiver aberta, só foca e recarrega."""
     global _OPEN_WINDOW
 
@@ -101,7 +102,7 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[tb.Toplev
         return w
 
     # Criar nova janela
-    win = tb.Toplevel(parent)
+    win = ctk.CTkToplevel(parent)
     win.withdraw()
     win.title("Lixeira de Clientes")
     try:
@@ -109,54 +110,42 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[tb.Toplev
     except Exception as exc:  # noqa: BLE001
         _log_ui_issue("Falha ao aplicar tamanho minimo na Lixeira", exc)
 
-    container = tb.Frame(win, padding=10)
-    container.pack(fill="both", expand=True)
+    container = ctk.CTkFrame(win)
+    container.pack(fill="both", expand=True, padx=10, pady=10)
 
-    tb.Label(container, text="Clientes na Lixeira", font=("", 12, "bold")).pack(anchor="center", pady=(0, 8))  # pyright: ignore[reportArgumentType]
+    ctk.CTkLabel(container, text="Clientes na Lixeira", font=("Arial", 12, "bold")).pack(anchor="center", pady=(0, 8))
 
-    # Treeview
-    cols = ("id", "razao_social", "cnpj", "nome", "whatsapp", "obs", "ultima_alteracao")
-    tree = ttk.Treeview(container, show="headings", columns=cols, height=16)
+    # CTkTableView (substitui Treeview legado)
+    cols = ["id", "razao_social", "cnpj", "nome", "whatsapp", "obs", "ultima_alteracao"]
+    tree = CTkTableView(container, columns=cols, height=16, zebra=True)
     tree.pack(fill="both", expand=True)
 
-    headings = {
-        "id": "ID",
-        "razao_social": "Razão Social",
-        "cnpj": "CNPJ",
-        "nome": "Nome",
-        "whatsapp": "WhatsApp",
-        "obs": "Observações",
-        "ultima_alteracao": "Última Alteração",
-    }
-    widths = {
-        "id": 60,
-        "razao_social": 240,
-        "cnpj": 140,
-        "nome": 180,
-        "whatsapp": 120,
-        "obs": 260,
-        "ultima_alteracao": 180,
-    }
-    for c in cols:
-        tree.heading(c, text=headings[c])
-        tree.column(c, width=widths[c], anchor="w")
+    headings = [
+        "ID",
+        "Razão Social",
+        "CNPJ",
+        "Nome",
+        "WhatsApp",
+        "Observações",
+        "Última Alteração",
+    ]
+    tree.set_columns(headings)
 
     # Toolbar inferior
-    toolbar = tb.Frame(container)
+    toolbar = ctk.CTkFrame(container)
     toolbar.pack(fill="x", pady=(8, 0))
 
-    btn_restore = tb.Button(toolbar, text="Restaurar Selecionados", bootstyle="success")
-    btn_purge = tb.Button(toolbar, text="Apagar Selecionados", bootstyle="danger")
-    btn_refresh = tb.Button(toolbar, text="⟳", width=3)
-    btn_close = tb.Button(toolbar, text="Fechar", bootstyle="secondary", command=win.destroy)
+    btn_restore = ctk.CTkButton(toolbar, text="Restaurar Selecionados", fg_color=("#2E7D32", "#1B5E20"), hover_color=("#1B5E20", "#0D4A11"))
+    btn_purge = ctk.CTkButton(toolbar, text="Apagar Selecionados", fg_color=("#D32F2F", "#B71C1C"), hover_color=("#B71C1C", "#8B0000"))
+    btn_refresh = ctk.CTkButton(toolbar, text="⟳", width=40)
+    btn_close = ctk.CTkButton(toolbar, text="Fechar", fg_color=("#757575", "#616161"), hover_color=("#616161", "#424242"), command=win.destroy)
 
-    btn_restore.pack(side="left")
-    tb.Separator(toolbar, orient="vertical").pack(side="left", padx=6, fill="y")
-    btn_purge.pack(side="left")
-    btn_refresh.pack(side="right", padx=(0, 6))
-    btn_close.pack(side="right")
+    btn_restore.pack(side="left", padx=5)
+    btn_purge.pack(side="left", padx=5)
+    btn_refresh.pack(side="right", padx=5)
+    btn_close.pack(side="right", padx=5)
 
-    status = tb.Label(container, text="", anchor="w")
+    status = ctk.CTkLabel(container, text="", anchor="w")
     status.pack(fill="x", pady=(6, 0))
 
     # -------- helpers locais (com parent=win) --------
@@ -186,14 +175,15 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[tb.Toplev
 
     def get_selected_ids() -> List[int]:
         ids: List[int] = []
-        for iid in tree.selection():
+        selected_row = tree.get_selected_row()
+        if selected_row:
             try:
-                ids.append(int(tree.set(iid, "id")))
+                # ID é a primeira coluna
+                ids.append(int(selected_row[0]))
             except Exception as exc:  # noqa: BLE001
                 _log_ui_issue("Falha ao coletar ID selecionado na Lixeira", exc)
         return ids
 
-    # -------- carregar lista --------
     def carregar() -> None:
         def _get_val(obj: Any, *names: str):
             for name in names:
@@ -210,7 +200,7 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[tb.Toplev
                         return val
             return None
 
-        tree.delete(*tree.get_children())
+        tree.clear()
         try:
             rows = listar_clientes_na_lixeira(order_by="id", descending=True)
         except Exception as e:
@@ -218,6 +208,7 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[tb.Toplev
             _err("Lixeira", f"Erro ao carregar lixeira: {e}")
             return
 
+        table_rows = []
         for r in rows:
             r_id = _get_val(r, "id") or ""
             razao_social = _get_val(r, "razao_social") or ""
@@ -262,20 +253,18 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[tb.Toplev
             if ultima_fmt and initial:
                 ultima_fmt = f"{ultima_fmt} ({initial})"
 
-            tree.insert(
-                "",
-                "end",
-                values=(
-                    r_id,
-                    razao_social,
-                    cnpj,
-                    nome,
-                    whatsapp,
-                    obs,
-                    ultima_fmt,
-                ),
-            )
-        status.config(text=f"{len(rows)} item(ns) na lixeira")
+            table_rows.append([
+                str(r_id),
+                razao_social,
+                cnpj,
+                nome,
+                whatsapp,
+                obs,
+                ultima_fmt,
+            ])
+        
+        tree.set_rows(table_rows)
+        status.configure(text=f"{len(rows)} item(ns) na lixeira")
         log.info("Lixeira carregada com %d clientes", len(rows))
 
     # -------- ações --------
@@ -319,7 +308,7 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[tb.Toplev
         ):
             return
 
-        def _show_wait_dialog(count: int) -> Tuple[tk.Toplevel, ttk.Label, ttk.Progressbar]:
+        def _show_wait_dialog(count: int) -> Tuple[tk.Toplevel, ctk.CTkLabel, ctk.CTkProgressBar]:
             dlg = tk.Toplevel(win)
             dlg.withdraw()
             try:
@@ -329,9 +318,10 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[tb.Toplev
             except Exception as exc:  # noqa: BLE001
                 _log_ui_issue("Falha ao configurar dialogo de aguardando", exc)
 
-            label = ttk.Label(dlg, text=f"Apagando 0/{count} registro(s)... Aguarde.")
+            label = ctk.CTkLabel(dlg, text=f"Apagando 0/{count} registro(s)... Aguarde.")
             label.pack(padx=20, pady=(15, 5))
-            bar = ttk.Progressbar(dlg, mode="determinate", maximum=max(count, 1), value=0)
+            bar = ctk.CTkProgressBar(dlg, mode="determinate")
+            bar.set(0)
             bar.pack(fill="x", padx=20, pady=(0, 15))
 
             try:
@@ -349,12 +339,12 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[tb.Toplev
 
             return dlg, label, bar
 
-        def _make_purge_progress_cb(bar: ttk.Progressbar, label: ttk.Label) -> Callable[[int, int, int], None]:
+        def _make_purge_progress_cb(bar: ctk.CTkProgressBar, label: ctk.CTkLabel) -> Callable[[int, int, int], None]:
             def progress_cb(idx: int, total: int, client_id: int) -> None:
                 def _update():
                     try:
-                        bar["maximum"] = max(total, 1)
-                        bar["value"] = idx
+                        progress = idx / max(total, 1)
+                        bar.set(progress)
                         label.configure(text=f"Apagando {idx}/{total} registro(s)... Aguarde.")
                     except Exception as exc:  # noqa: BLE001
                         _log_ui_issue("Falha ao atualizar barra de progresso da Lixeira", exc)

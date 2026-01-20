@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable
 
-import ttkbootstrap as tb
+from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+import tkinter as tk
 
 from src.modules.hub.panels import build_notes_panel
 
@@ -48,10 +49,10 @@ class NotesViewCallbacks:
 
 
 def build_notes_side_panel(
-    parent: tb.Frame,
+    parent: tk.Frame,
     state: "NotesViewState",
     callbacks: NotesViewCallbacks,
-) -> tb.Labelframe:
+) -> tk.LabelFrame:
     """Constrói o painel de notas compartilhadas (lateral direita).
 
     Delega para build_notes_panel de panels.py para renderizar a lista.

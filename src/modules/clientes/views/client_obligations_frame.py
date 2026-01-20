@@ -4,16 +4,17 @@
 from __future__ import annotations
 
 import logging
-from tkinter import ttk
+import tkinter as tk
+from tkinter import messagebox
 from typing import Callable
-
-import ttkbootstrap as tb
-from ttkbootstrap.constants import BOTH, BOTTOM, LEFT, TOP, X
-from ttkbootstrap.dialogs import Messagebox
 
 from src.db.domain_types import RegObligationRow
 from src.features.regulations.service import delete_obligation, list_obligations_for_client
 from src.modules.clientes.views.obligation_dialog import ObligationDialog
+
+# CustomTkinter via SSoT
+from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+from src.ui.widgets import CTkTableView
 
 logger = logging.getLogger(__name__)
 
@@ -43,12 +44,19 @@ KIND_LABELS = {
 }
 
 
-class ClientObligationsFrame(tb.Frame):
+# Determina classe base
+if HAS_CUSTOMTKINTER and ctk is not None:
+    _ObligationsFrameBase = ctk.CTkFrame  # type: ignore[misc,assignment]
+else:
+    _ObligationsFrameBase = tk.Frame  # type: ignore[misc,assignment]
+
+
+class ClientObligationsFrame(_ObligationsFrameBase):  # type: ignore[misc]
     """Frame for managing regulatory obligations for a client."""
 
     def __init__(
         self,
-        parent: tb.Frame,
+        parent: tk.Misc,
         org_id: str,
         created_by: str,
         client_id: int,
@@ -64,7 +72,11 @@ class ClientObligationsFrame(tb.Frame):
             client_id: Client ID to show obligations for.
             on_refresh_hub: Optional callback to refresh Hub dashboard.
         """
-        super().__init__(parent)
+        # Inicializar base
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            super().__init__(parent, fg_color="transparent")
+        else:
+            super().__init__(parent)
 
         self.org_id = org_id
         self.created_by = created_by
@@ -77,51 +89,90 @@ class ClientObligationsFrame(tb.Frame):
     def _build_ui(self) -> None:
         """Build frame UI."""
         # Toolbar
-        toolbar = tb.Frame(self)
-        toolbar.pack(side=TOP, fill=X, padx=5, pady=5)
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            toolbar = ctk.CTkFrame(self, fg_color="transparent")
+        else:
+            toolbar = tk.Frame(self)
+        toolbar.pack(side="top", fill="x", padx=5, pady=5)
 
-        tb.Button(
-            toolbar,
-            text="➕ Nova Obrigação",
-            command=self._on_new,
-            bootstyle="success",
-            width=18,
-        ).pack(side=LEFT, padx=(0, 5))
+        # Botões da toolbar
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            ctk.CTkButton(
+                toolbar,
+                text="➕ Nova Obrigação",
+                command=self._on_new,
+                width=150,
+                fg_color="#28a745",
+                hover_color="#218838",
+            ).pack(side="left", padx=(0, 5))
 
-        tb.Button(
-            toolbar,
-            text="✏️ Editar",
-            command=self._on_edit,
-            bootstyle="primary",
-            width=15,
-        ).pack(side=LEFT, padx=(0, 5))
+            ctk.CTkButton(
+                toolbar,
+                text="✏️ Editar",
+                command=self._on_edit,
+                width=120,
+            ).pack(side="left", padx=(0, 5))
 
-        tb.Button(
-            toolbar,
-            text="🗑️ Excluir",
-            command=self._on_delete,
-            bootstyle="danger",
-            width=15,
-        ).pack(side=LEFT, padx=(0, 5))
+            ctk.CTkButton(
+                toolbar,
+                text="🗑️ Excluir",
+                command=self._on_delete,
+                width=120,
+                fg_color="#dc3545",
+                hover_color="#c82333",
+            ).pack(side="left", padx=(0, 5))
 
-        tb.Button(
-            toolbar,
-            text="🔄 Atualizar",
-            command=self.load_obligations,
-            bootstyle="info-outline",
-            width=15,
-        ).pack(side=LEFT)
+            ctk.CTkButton(
+                toolbar,
+                text="🔄 Atualizar",
+                command=self.load_obligations,
+                width=120,
+                fg_color="#17a2b8",
+                hover_color="#138496",
+            ).pack(side="left")
+        else:
+            tk.Button(
+                toolbar,
+                text="➕ Nova Obrigação",
+                command=self._on_new,
+                width=18,
+            ).pack(side="left", padx=(0, 5))
+
+            tk.Button(
+                toolbar,
+                text="✏️ Editar",
+                command=self._on_edit,
+                width=15,
+            ).pack(side="left", padx=(0, 5))
+
+            tk.Button(
+                toolbar,
+                text="🗑️ Excluir",
+                command=self._on_delete,
+                width=15,
+            ).pack(side="left", padx=(0, 5))
+
+            tk.Button(
+                toolbar,
+                text="🔄 Atualizar",
+                command=self.load_obligations,
+                width=15,
+            ).pack(side="left")
 
         # Treeview
-        tree_frame = tb.Frame(self)
-        tree_frame.pack(side=TOP, fill=BOTH, expand=True, padx=5, pady=5)
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            tree_frame = ctk.CTkFrame(self, fg_color="transparent")
+        else:
+            tree_frame = tk.Frame(self)
+        tree_frame.pack(side="top", fill="both", expand=True, padx=5, pady=5)
 
         # Create Treeview
-        self.tree = ttk.Treeview(
+        self.tree = CTkTableView(
             tree_frame,
             columns=list(COLUMNS.keys()),
             show="headings",
-            selectmode="browse",
+            # selectmode="browse" handled internally
+            zebra=True,
         )
 
         # Configure columns
@@ -129,15 +180,8 @@ class ClientObligationsFrame(tb.Frame):
             self.tree.heading(col_id, text=col_info["text"])
             self.tree.column(col_id, width=col_info["width"])
 
-        # Scrollbars
-        vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
-        hsb = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.tree.xview)
-        self.tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
-
         # Grid layout
         self.tree.grid(row=0, column=0, sticky="nsew")
-        vsb.grid(row=0, column=1, sticky="ns")
-        hsb.grid(row=1, column=0, sticky="ew")
 
         tree_frame.columnconfigure(0, weight=1)
         tree_frame.rowconfigure(0, weight=1)
@@ -146,15 +190,17 @@ class ClientObligationsFrame(tb.Frame):
         self.tree.bind("<Double-Button-1>", lambda e: self._on_edit())
 
         # Status bar
-        self.status_label = tb.Label(self, text="", font=("Segoe UI", 9))
-        self.status_label.pack(side=BOTTOM, fill=X, padx=5, pady=5)
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            self.status_label = ctk.CTkLabel(self, text="", font=("Segoe UI", 9))
+        else:
+            self.status_label = tk.Label(self, text="", font=("Segoe UI", 9))
+        self.status_label.pack(side="bottom", fill="x", padx=5, pady=5)
 
     def load_obligations(self) -> None:
         """Load and display obligations for the current client."""
         try:
             # Clear tree
-            for item in self.tree.get_children():
-                self.tree.delete(item)
+            self.tree.clear()
 
             # Fetch obligations
             obligations = list_obligations_for_client(self.org_id, self.client_id)
@@ -188,25 +234,24 @@ class ClientObligationsFrame(tb.Frame):
                 self.tree.insert(
                     "",
                     "end",
-                    values=(kind_label, title, due_date_str, status_label),
+                    values=[kind_label, title, due_date_str, status_label],
                     tags=(obl["id"],),
                 )
 
             # Update status
             count = len(obligations)
-            self.status_label.config(text=f"{count} obrigação(ões) encontrada(s)")
+            self.status_label.configure(text=f"{count} obrigação(ões) encontrada(s)")
 
         except Exception as exc:
             logger.error("Failed to load obligations: %s", exc)
-            Messagebox.show_error(f"Erro ao carregar obrigações: {exc}", "Erro", parent=self)
+            messagebox.showerror("Erro", f"Erro ao carregar obrigações: {exc}", parent=self)
 
     def _get_selected_obligation(self) -> RegObligationRow | None:
         """Get currently selected obligation."""
-        selection = self.tree.selection()
-        if not selection:
+        item = self.tree.get_selected_iid()
+        if not item:
             return None
 
-        item = selection[0]
         tags = self.tree.item(item, "tags")
         if not tags:
             return None
@@ -239,7 +284,7 @@ class ClientObligationsFrame(tb.Frame):
         """Handle edit obligation button."""
         obligation = self._get_selected_obligation()
         if not obligation:
-            Messagebox.show_warning("Selecione uma obrigação para editar", "Atenção", parent=self)
+            messagebox.showwarning("Atenção", "Selecione uma obrigação para editar", parent=self)
             return
 
         dialog = ObligationDialog(
@@ -256,17 +301,17 @@ class ClientObligationsFrame(tb.Frame):
         """Handle delete obligation button."""
         obligation = self._get_selected_obligation()
         if not obligation:
-            Messagebox.show_warning("Selecione uma obrigação para excluir", "Atenção", parent=self)
+            messagebox.showwarning("Atenção", "Selecione uma obrigação para excluir", parent=self)
             return
 
         # Confirm
-        confirm = Messagebox.yesno(
-            f"Deseja realmente excluir a obrigação '{obligation['title']}'?",
+        confirm = messagebox.askyesno(
             "Confirmar exclusão",
+            f"Deseja realmente excluir a obrigação '{obligation['title']}'?",
             parent=self,
         )
 
-        if confirm != "Yes":
+        if not confirm:
             return
 
         try:
@@ -274,7 +319,7 @@ class ClientObligationsFrame(tb.Frame):
             self._on_obligation_saved()
         except Exception as exc:
             logger.error("Failed to delete obligation: %s", exc)
-            Messagebox.show_error(f"Erro ao excluir: {exc}", "Erro", parent=self)
+            messagebox.showerror("Erro", f"Erro ao excluir: {exc}", parent=self)
 
     def _on_obligation_saved(self) -> None:
         """Handle successful obligation save/delete."""

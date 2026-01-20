@@ -104,6 +104,37 @@ repos:
           CustomTkinter deve ser importado apenas via src/ui/ctk_config.py (Single Source of Truth).
           Use: from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
 
+      - id: validate-ui-theme-policy
+        name: Validar política UI/Theme (SSoT + sem root implícita)
+        language: system
+        entry: python scripts/validate_ui_theme_policy.py
+        types: [python]
+        pass_filenames: false
+        description: |
+          Garante baseline CODEC:
+          - SSoT: set_appearance_mode apenas em theme_manager.py
+          - Sem root implícita: ttk.Style(master=)
+          - Zero ttkbootstrap imports executáveis
+
+      - id: compileall-check
+        name: Validar sintaxe Python (compileall)
+        language: system
+        entry: python -m compileall -q src tests
+        types: [python]
+        pass_filenames: false
+        description: |
+          Valida sintaxe de todos os arquivos Python antes do commit.
+
+      - id: smoke-ui-test
+        name: Smoke test UI (CustomTkinter básico)
+        language: system
+        entry: python scripts/smoke_ui.py
+        types: [python]
+        pass_filenames: false
+        stages: [pre-push]
+        description: |
+          Smoke test básico da UI CustomTkinter (apenas pre-push para não bloquear commits rápidos).
+
 # ============================================================================
 # CONFIGURAÇÕES GLOBAIS
 # ============================================================================

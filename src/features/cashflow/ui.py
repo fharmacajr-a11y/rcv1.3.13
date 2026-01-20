@@ -1,15 +1,17 @@
-"""Fluxo de Caixa - UI"""
+"""Fluxo de Caixa - UI (MICROFASE 27: 100% CustomTkinter)"""
 
 from __future__ import annotations
 
 import logging
-import tkinter as tk
 from datetime import date, timedelta
-from tkinter import StringVar, Toplevel, messagebox, ttk
+from tkinter import StringVar, messagebox
 from typing import Optional
 
-from . import repository as repo
+from src.ui.ctk_config import ctk
+from src.ui.widgets import CTkTableView
 from src.ui.window_utils import show_centered
+
+from . import repository as repo
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +25,8 @@ def _last_day_month(d: date) -> date:
     return next_month - timedelta(days=1)
 
 
-class CashflowWindow(Toplevel):
-    """Janela principal do Fluxo de Caixa."""
+class CashflowWindow(ctk.CTkToplevel):
+    """Janela principal do Fluxo de Caixa (CustomTkinter)."""
 
     TYPE_LABEL_TO_CODE = {"Entrada": "IN", "Saída": "OUT"}
     TYPE_CODE_TO_LABEL = {"IN": "Entrada", "OUT": "Saída"}
@@ -54,71 +56,58 @@ class CashflowWindow(Toplevel):
         self.var_to = StringVar(value=str(_last_day_month(today)))
         self.var_type = StringVar(value="Todos")
         self.var_text = StringVar(value="")
+        self._row_ids: list[str] = []  # Guardar IDs das linhas
 
     def _build_filters_row(self) -> None:
-        top = ttk.Frame(self, padding=8)
-        top.pack(fill="x")
+        top = ctk.CTkFrame(self)
+        top.pack(fill="x", padx=8, pady=8)
 
-        ttk.Label(top, text="De").pack(side="left")
-        e1 = ttk.Entry(top, textvariable=self.var_from, width=12)
+        # Linha de filtros
+        ctk.CTkLabel(top, text="De").pack(side="left", padx=(0, 4))
+        e1 = ctk.CTkEntry(top, textvariable=self.var_from, width=120)
         e1.pack(side="left", padx=4)
 
-        ttk.Label(top, text="At?").pack(side="left")
-        e2 = ttk.Entry(top, textvariable=self.var_to, width=12)
+        ctk.CTkLabel(top, text="Até").pack(side="left", padx=(8, 4))
+        e2 = ctk.CTkEntry(top, textvariable=self.var_to, width=120)
         e2.pack(side="left", padx=4)
 
-        ttk.Label(top, text="Tipo").pack(side="left")
-        self.cbo_tipo = ttk.Combobox(
+        ctk.CTkLabel(top, text="Tipo").pack(side="left", padx=(8, 4))
+        self.cbo_tipo = ctk.CTkOptionMenu(
             top,
-            textvariable=self.var_type,
-            values=["Todos", "Entrada", "Sa??da"],
-            width=10,
-            state="readonly",
+            variable=self.var_type,
+            values=["Todos", "Entrada", "Saída"],
+            width=100,
         )
         self.cbo_tipo.pack(side="left", padx=4)
 
-        ttk.Label(top, text="Busca").pack(side="left")
-        ttk.Entry(top, textvariable=self.var_text, width=22).pack(side="left", padx=4)
+        ctk.CTkLabel(top, text="Busca").pack(side="left", padx=(8, 4))
+        ctk.CTkEntry(top, textvariable=self.var_text, width=200).pack(side="left", padx=4)
 
-        ttk.Button(top, text="Filtrar", command=self.refresh).pack(side="left", padx=6)
-        ttk.Button(top, text="Novo", command=self.create).pack(side="right", padx=4)
-        ttk.Button(top, text="Editar", command=self.edit).pack(side="right", padx=4)
-        ttk.Button(top, text="Excluir", command=self.delete).pack(side="right", padx=4)
+        ctk.CTkButton(top, text="Filtrar", command=self.refresh, width=80).pack(side="left", padx=6)
+        ctk.CTkButton(top, text="Novo", command=self.create, width=70).pack(side="right", padx=4)
+        ctk.CTkButton(top, text="Editar", command=self.edit, width=70).pack(side="right", padx=4)
+        ctk.CTkButton(top, text="Excluir", command=self.delete, width=70).pack(side="right", padx=4)
 
     def _build_tree(self) -> None:
-        self.tree = ttk.Treeview(
+        # Usar CTkTableView ao invés de Treeview
+        self.tree = CTkTableView(
             self,
-            columns=("date", "type", "category", "description", "amount", "account"),
+            columns=["date", "type", "category", "description", "amount", "account"],
             show="headings",
             height=18,
         )
         self.tree.pack(fill="both", expand=True, padx=8, pady=4)
 
-        headers = {
-            "date": "DATA",
-            "type": "TIPO",
-            "category": "CATEGORIA",
-            "description": "DESCRI???O",
-            "amount": "VALOR",
-            "account": "CONTA",
-        }
-        widths = {
-            "date": 100,
-            "type": 90,
-            "category": 150,
-            "description": 360,
-            "amount": 120,
-            "account": 120,
-        }
-        for col in ("date", "type", "category", "description", "amount", "account"):
-            self.tree.heading(col, text=headers[col])
-            self.tree.column(col, width=widths[col], anchor=tk.CENTER)
-            self.tree.heading(col, anchor=tk.CENTER)
-        # (Se quiser a descri???o ?? esquerda, troque anchor=tk.W nas 2 linhas acima para "description")
+        # Definir headers
+        headers = ["DATA", "TIPO", "CATEGORIA", "DESCRIÇÃO", "VALOR", "CONTA"]
+        self.tree.set_columns(headers)
 
     def _build_totals_label(self) -> None:
-        self.lbl_totals = ttk.Label(self, text="Receitas: 0.00 | Despesas: 0.00 | Saldo: 0.00", padding=8)
-        self.lbl_totals.pack(fill="x")
+        self.lbl_totals = ctk.CTkLabel(
+            self,
+            text="Receitas: 0.00 | Despesas: 0.00 | Saldo: 0.00",
+        )
+        self.lbl_totals.pack(fill="x", padx=8, pady=8)
 
     def _finalize_window(self, master) -> None:
         self.update_idletasks()
@@ -161,23 +150,33 @@ class CashflowWindow(Toplevel):
     def _reload_tree(self, rows: list[dict]) -> None:
         if not self._guard_widgets():
             return
-        for iid in self.tree.get_children():
-            self.tree.delete(iid)
-
+        
+        # Limpar tabela
+        self.tree.clear()
+        
+        # Adicionar linhas
+        table_rows = []
         for r in rows:
             tipo_raw = r.get("type")
             if tipo_raw is None:
                 tipo_raw = ""  # fallback para tipo ausente
             tipo_label = self.TYPE_CODE_TO_LABEL.get(tipo_raw, tipo_raw)
-            values = (
-                r.get("date"),
+            
+            row_data = [
+                r.get("date") or "",
                 tipo_label,
-                r.get("category"),
+                r.get("category") or "",
                 r.get("description", ""),
                 f"{self._to_float(r.get('amount')):.2f}",
                 r.get("account", ""),
-            )
-            self.tree.insert("", "end", iid=r.get("id") or "", values=values)
+            ]
+            table_rows.append(row_data)
+            
+            # Guardar ID na linha para uso em edit/delete
+            # (CTkTableView não tem conceito de IID, usar índice)
+        
+        self.tree.set_rows(table_rows)
+        self._row_ids = [r.get("id") or "" for r in rows]  # Guardar IDs separadamente
 
     def _update_totals(self, dfrom: date, dto: date) -> None:
         tot = repo.totals(dfrom, dto, org_id=self._org_id)
@@ -238,8 +237,10 @@ class CashflowWindow(Toplevel):
         self._update_totals(dfrom, dto)
 
     def _selected_id(self) -> Optional[str]:
-        sel = self.tree.selection()
-        return sel[0] if sel else None
+        idx = self.tree.get_selected_row_index()
+        if idx is not None and 0 <= idx < len(self._row_ids):
+            return self._row_ids[idx]
+        return None
 
     def create(self) -> None:
         from .dialogs import EntryDialog
@@ -261,8 +262,11 @@ class CashflowWindow(Toplevel):
             messagebox.showinfo("Selecione", "Escolha um lançamento para editar.", parent=self)
             return
 
-        # coleta dados atuais a partir da linha da grid
-        item = self.tree.item(iid)["values"]
+        # Pegar dados da linha selecionada
+        item = self.tree.get_selected_row()
+        if not item:
+            return
+        
         current = {
             "id": iid,
             "date": item[0],

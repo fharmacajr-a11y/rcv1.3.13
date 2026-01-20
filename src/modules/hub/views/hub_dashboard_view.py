@@ -9,7 +9,9 @@ e pela renderização dos cards de dashboard.
 
 from typing import Any, Callable
 
-import ttkbootstrap as tb
+from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+from src.ui.ui_tokens import APP_BG
+import tkinter as tk
 
 # MF-30: Importar helpers de renderização
 from src.modules.hub.views.dashboard_center import build_dashboard_center, build_dashboard_error
@@ -38,10 +40,10 @@ class HubDashboardView:
             parent: Widget pai (onde o painel será criado)
         """
         self._parent = parent
-        self.center_spacer: tb.Frame | None = None
+        self.center_spacer: tk.Frame | None = None
         self.dashboard_scroll: Any = None  # ScrollableFrame
 
-    def build(self) -> tb.Frame:
+    def build(self) -> tk.Frame:
         """Constrói e retorna o frame do painel de dashboard.
 
         Este método cria:
@@ -54,11 +56,24 @@ class HubDashboardView:
         Returns:
             O frame container do painel de dashboard (center_spacer)
         """
-        # Container da coluna central
-        self.center_spacer = tb.Frame(self._parent)
+        # Container da coluna central - MICROFASE 35: fundo APP_BG
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            self.center_spacer = ctk.CTkFrame(
+                self._parent,
+                fg_color=APP_BG,
+                corner_radius=0,
+            )
+        else:
+            self.center_spacer = tk.Frame(self._parent)
 
-        # Frame normal dentro do container (sem scrollbar)
-        self.dashboard_scroll = tb.Frame(self.center_spacer)
+        # Frame normal dentro do container (sem scrollbar) - fundo transparente
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            self.dashboard_scroll = ctk.CTkFrame(
+                self.center_spacer,
+                fg_color="transparent",
+            )
+        else:
+            self.dashboard_scroll = tk.Frame(self.center_spacer)
         self.dashboard_scroll.pack(fill="both", expand=True)
 
         # Compatibilidade: quem chama espera .content
@@ -88,12 +103,20 @@ class HubDashboardView:
         for widget in self.dashboard_scroll.content.winfo_children():
             widget.destroy()
 
-        loading_label = tb.Label(
-            self.dashboard_scroll.content,
-            text="Carregando dashboard...",
-            font=("Segoe UI", 12),
-            bootstyle="secondary",
-        )
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            loading_label = ctk.CTkLabel(
+                self.dashboard_scroll.content,
+                text="Carregando dashboard...",
+                font=("Segoe UI", 12),
+                text_color=("#6b7280", "#9ca3af"),
+                fg_color="transparent",
+            )
+        else:
+            loading_label = tk.Label(
+                self.dashboard_scroll.content,
+                text="Carregando dashboard...",
+                font=("Segoe UI", 12),
+            )
         loading_label.pack(pady=50)
 
     def render_empty(self) -> None:
@@ -108,12 +131,20 @@ class HubDashboardView:
         for widget in self.dashboard_scroll.content.winfo_children():
             widget.destroy()
 
-        empty_label = tb.Label(
-            self.dashboard_scroll.content,
-            text="Nenhum dado disponível no momento.",
-            font=("Segoe UI", 12),
-            bootstyle="secondary",
-        )
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            empty_label = ctk.CTkLabel(
+                self.dashboard_scroll.content,
+                text="Nenhum dado disponível no momento.",
+                font=("Segoe UI", 12),
+                text_color=("#6b7280", "#9ca3af"),
+                fg_color="transparent",
+            )
+        else:
+            empty_label = tk.Label(
+                self.dashboard_scroll.content,
+                text="Nenhum dado disponível no momento.",
+                font=("Segoe UI", 12),
+            )
         empty_label.pack(pady=50)
 
     def render_error(self, message: str | None = None) -> None:

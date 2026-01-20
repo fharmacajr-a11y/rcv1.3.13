@@ -1,17 +1,19 @@
+from src.ui.ctk_config import ctk
+
 # -*- coding: utf-8 -*-
 """
 Main Application Window (App class).
 
 Este módulo implementa a janela principal do aplicativo Gestor de Clientes,
-baseada em ttkbootstrap (tema moderno do Tkinter).
+baseada em CustomTkinter (Microfase 24) com fallback para tkinter padrão.
 
 ARQUITETURA DA CLASSE App:
 ══════════════════════════
 
-A classe App herda de tb.Window e orquestra os componentes principais:
+A classe App herda de ctk.CTk (CustomTkinter) e orquestra os componentes principais:
 
 1. INICIALIZAÇÃO (__init__)
-   - Configuração de tema (ttkbootstrap com fallback para ttk padrão)
+   - Configuração de tema (CustomTkinter)
    - Configuração HiDPI para Linux/Windows
    - Criação de separadores visuais
    - TopBar com botão Home
@@ -90,10 +92,13 @@ import logging
 import os
 import sys
 import tkinter as tk
-from tkinter import ttk
 from typing import Any, Callable, Optional
 
-import ttkbootstrap as tb
+# CustomTkinter: fonte única centralizada (Microfase 23 - SSoT)
+from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+
+# Importar novo theme_manager (Microfase 24)
+from src.ui.theme_manager import theme_manager as global_theme_manager
 
 from src.infra.net_status import Status
 from src.modules.main_window.views.state_helpers import (
@@ -105,7 +110,6 @@ from src.modules.clientes import ClientesFrame
 from src.modules.chatgpt.views.chatgpt_window import ChatGPTWindow
 from src.modules.main_window.controller import create_frame, tk_report
 from src.modules.main_window.session_service import SessionCache
-from src.utils import themes
 from src.utils.validators import only_digits  # noqa: F401
 
 # Imports internos do módulo main_window.views
@@ -116,8 +120,15 @@ logger = logging.getLogger("app_gui")
 log = logger
 
 
-class App(tb.Window):
-    """Main ttkbootstrap window for the Gestor de Clientes desktop application."""
+class App(ctk.CTk if HAS_CUSTOMTKINTER else tk.Tk):  # type: ignore[misc]
+    """Main application window using CustomTkinter as primary theme system.
+
+    MICROFASE 24: Migração para CustomTkinter como tema principal.
+    - Usa ctk.CTk como base quando CustomTkinter disponível
+    - Fallback para tk.Tk quando CustomTkinter não disponível
+    - Remove sistema de temas legados (ttkbootstrap)
+    - Usa apenas appearance mode (light/dark) + color theme (blue/dark-blue/green)
+    """
 
     def __init__(self, start_hidden: bool = False) -> None:
         """Inicializa a janela principal do aplicativo.
@@ -125,34 +136,42 @@ class App(tb.Window):
         Toda a lógica de setup foi extraída para main_window_bootstrap.py
         para reduzir a complexidade do __init__.
         """
-        _theme_name = themes.load_theme()
-
-        # Try to initialize with ttkbootstrap theme, fallback to standard ttk
+        # MICROFASE 24: Inicializar theme manager global ANTES de criar widgets
         try:
-            # FIX: iconphoto=None desliga o iconphoto padrão do ttkbootstrap
-            # que contamina os dialogs com PNG. Usamos apenas iconbitmap com .ico
-            super().__init__(themename=_theme_name, iconphoto=None)
-        except Exception as e:
-            log.warning(
-                "Falha ao aplicar tema '%s': %s. Fallback ttk padrão.",
-                _theme_name,
-                e,
-            )
-            # Fallback to standard tk.Tk if ttkbootstrap fails
+            global_theme_manager.initialize()
+            log.info("Theme manager global inicializado")
+        except Exception as exc:
+            log.warning("Falha ao inicializar theme manager: %s", exc)
+
+        # MICROFASE 24: Usar CustomTkinter como base principal
+        if HAS_CUSTOMTKINTER and ctk is not None:
             try:
+                # Inicializar com CTk (CustomTkinter)
+                ctk.CTk.__init__(self)
+                log.info("Janela inicializada com CustomTkinter (ctk.CTk)")
+                self._using_customtkinter = True
+
+                # MICROFASE 24.1: Definir master no theme_manager APÓS criar a janela
+                try:
+                    global_theme_manager.set_master(self)
+                except Exception as exc:
+                    log.debug("Falha ao definir master no theme_manager: %s", exc)
+            except Exception as e:
+                log.warning(
+                    "Falha ao inicializar com CustomTkinter: %s. Fallback para tk.Tk.",
+                    e,
+                )
+                # Fallback para tk.Tk
                 tk.Tk.__init__(self)
-                # Initialize standard ttk Style (not ttkbootstrap)
-                style = ttk.Style()
-                # Use a valid ttk theme
-                available_themes = style.theme_names()
-                if "clam" in available_themes:
-                    style.theme_use("clam")
-                elif available_themes:
-                    style.theme_use(available_themes[0])
-                log.info("Initialized with standard Tk/ttk (theme: %s)", style.theme_use())
-            except Exception as fallback_error:
-                log.error("Critical: Failed to initialize GUI: %s", fallback_error)
-                raise
+                log.info("Janela inicializada com tk.Tk (fallback)")
+                self._using_customtkinter = False
+        else:
+            # CustomTkinter não disponível: usar tk.Tk
+            tk.Tk.__init__(self)
+            log.info("CustomTkinter não disponível, usando tk.Tk")
+            self._using_customtkinter = False
+
+        # MICROFASE 31: Removido configuração Style legado (ZERO em runtime)
 
         # BUGFIX-UX-STARTUP-HUB-001 (B1): Ocultar janela IMEDIATAMENTE para evitar flash (0,0)
         # Deve ser feito ANTES de qualquer outra configuração
@@ -179,20 +198,17 @@ class App(tb.Window):
         except Exception as exc:  # noqa: BLE001
             log.debug("Falha ao configurar HiDPI: %s", exc)
 
-        # Configurar tema customizado com cor 'info' = #3498DB para switches
-        try:
-            from src.modules.main_window.views.theme_setup import ensure_info_color
-
-            style = tb.Style()
-            ensure_info_color(style, "#3498DB")
-        except Exception as exc:  # noqa: BLE001
-            log.debug("Falha ao configurar tema customizado: %s", exc)
+        # MICROFASE 24: Remover configuração de tema customizado ttkbootstrap
+        # Agora CustomTkinter gerencia cores automaticamente
 
         # Setup básico antes do bootstrap
         self.report_callback_exception = tk_report
-        self.tema_atual = _theme_name
+        # MICROFASE 24: Manter tema_atual para compatibilidade com código legado
+        current_mode = global_theme_manager.get_current_mode()
+        self.tema_atual = current_mode  # "light" ou "dark"
         self._restarting = False
         self._start_hidden = start_hidden
+        self._closing = False  # Flag para prevenir novos after() jobs durante shutdown
 
         # Cache de sessão (user, role, org_id) delegado para SessionCache
         self._session: SessionCache = SessionCache()
@@ -373,7 +389,7 @@ class App(tb.Window):
 
     # ---------- Monkey patch para Combobox.*
     @staticmethod
-    def _patch_style_element_create(style: tb.Style) -> None:
+    def _patch_style_element_create(style: Any) -> None:
         """Patching de segurança (wrapper para main_window_actions)."""
         from . import main_window_actions as actions
 
@@ -387,19 +403,28 @@ class App(tb.Window):
         return actions.confirm_exit(self, *_)
 
     # ---------- Tema ----------
-    def _set_theme(self, new_theme: str) -> None:
-        """Troca o tema da aplicação (wrapper para main_window_actions)."""
-        from . import main_window_actions as actions
+    # MICROFASE 24: Remover _set_theme e _handle_menu_theme_change
+    # Substituir por toggle simples light/dark
+    def _handle_toggle_theme(self) -> None:
+        """Toggle entre light e dark mode (Microfase 24)."""
+        try:
+            new_mode = global_theme_manager.toggle_mode()
+            self.tema_atual = new_mode
+            log.info(f"Tema alternado para: {new_mode}")
+        except Exception as exc:
+            log.exception("Falha ao alternar tema: %s", exc)
+            from tkinter import messagebox
 
-        return actions.set_theme(self, new_theme)
+            messagebox.showerror("Erro", f"Falha ao alternar tema: {exc}", parent=self)
+
+    # Manter métodos legados para compatibilidade com código antigo
+    def _set_theme(self, new_theme: str) -> None:
+        """DEPRECATED: Mantido para compatibilidade (Microfase 24)."""
+        log.warning("_set_theme() está deprecated. Use _handle_toggle_theme() para light/dark.")
 
     def _handle_menu_theme_change(self, name: str) -> None:
-        """Callback do AppMenuBar para troca de tema."""
-        self._set_theme(name)
-        try:
-            self._menu.refresh_theme(name)
-        except Exception as exc:  # noqa: BLE001
-            log.debug("Falha ao atualizar tema do menu após mudança: %s", exc)
+        """DEPRECATED: Mantido para compatibilidade (Microfase 24)."""
+        log.warning("_handle_menu_theme_change() está deprecated. Use _handle_toggle_theme() para light/dark.")
 
     # ---------- Integração com Health Check e Sessão ----------
     def _wire_session_and_health(self):
@@ -664,11 +689,27 @@ class App(tb.Window):
         os.execv(sys.executable, [sys.executable, "-m", "main"])  # nosec B606 - reinício local do app com argumentos controlados
 
     def destroy(self) -> None:
-        """Limpeza e destruição do MainWindow (wrapper para main_window_actions)."""
+        """Limpeza e destruição do MainWindow.
+
+        MICROFASE 24.1: Shutdown limpo com idempotência.
+        """
         from . import main_window_actions as actions
 
+        # Executar cleanup (com idempotência)
         actions.destroy_window(self)
-        super().destroy()
+
+        # MICROFASE 24.1: Chamar quit() antes de destroy() para parar mainloop
+        try:
+            self.quit()
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha em quit(): %s", exc)
+
+        # Chamar destroy do pai uma única vez
+        try:
+            super().destroy()
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha em super().destroy(): %s", exc)
+
         if getattr(self, "_restarting", False):
             log.info("App reiniciado (troca de tema).")
         else:

@@ -1,9 +1,13 @@
 # ui/widgets/busy.py
+"""BusyOverlay - Overlay de carregamento (MICROFASE 28: 100% CustomTkinter)."""
+
 from __future__ import annotations
 
 import logging
 import tkinter as tk
-from tkinter import ttk
+
+# CustomTkinter: fonte única centralizada (SSoT)
+from src.ui.ctk_config import ctk
 
 _log = logging.getLogger(__name__)
 
@@ -51,14 +55,14 @@ class BusyOverlay:
         except Exception as exc:  # noqa: BLE001
             _log.debug("Falha ao configurar alpha em BusyOverlay: %s", exc)
 
-        # Container central
-        frame = ttk.Frame(self.top, padding=20)
+        # Container central (CTk)
+        frame = ctk.CTkFrame(self.top, fg_color="transparent")
         frame.place(relx=0.5, rely=0.5, anchor="center")
 
-        self.label = ttk.Label(frame, text=text, font=("Segoe UI", 11))
+        self.label = ctk.CTkLabel(frame, text=text, font=("Segoe UI", 11))
         self.label.pack(pady=(0, 10))
 
-        self.pb = ttk.Progressbar(frame, mode="indeterminate", length=220)
+        self.pb = ctk.CTkProgressBar(frame, mode="indeterminate", width=220)
         self.pb.pack()
 
     def show(self):

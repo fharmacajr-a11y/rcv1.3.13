@@ -416,6 +416,10 @@ def has_working_tk() -> bool:
     return _check_tk_usable()
 
 
+# Garantir que tb sempre existe, mesmo se ttkbootstrap não estiver instalado
+tb = None
+tb_style = None
+
 try:
     import ttkbootstrap as tb
     from ttkbootstrap import style as tb_style

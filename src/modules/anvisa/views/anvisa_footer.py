@@ -12,8 +12,8 @@ from pathlib import Path
 from tkinter import filedialog, messagebox
 from typing import Callable
 
-import ttkbootstrap as ttb
-from ttkbootstrap.constants import LEFT
+from src.ui.ctk_config import ctk
+from src.ui.ctk_config import *
 
 from src.modules.anvisa.constants import REQUEST_TYPES
 from src.modules.anvisa.helpers.process_slug import get_process_slug
@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 ANVISA_PROCESSES = REQUEST_TYPES
 
 
-class AnvisaFooter(ttb.Frame):
+class AnvisaFooter(ctk.CTkFrame):
     """Footer com controles para upload de PDFs ANVISA."""
 
     def __init__(
@@ -48,7 +48,7 @@ class AnvisaFooter(ttb.Frame):
             on_upload_complete: Callback após upload completar
             padding: Padding do frame
         """
-        super().__init__(parent, padding=padding)
+        super().__init__(parent)  # TODO: padding=padding -> usar pack/grid
         self._default_process = default_process
         self._base_prefix = base_prefix
         self._org_id = org_id
@@ -59,62 +59,61 @@ class AnvisaFooter(ttb.Frame):
     def _build_ui(self) -> None:
         """Constrói UI do footer."""
         # Título
-        ttb.Label(
+        ctk.CTkLabel(
             self,
             text="📋 Upload ANVISA",
-            font=("Segoe UI", 11, "bold"),  # type: ignore[arg-type]
-            bootstyle="primary",
+            font=("Segoe UI", 11, "bold"),
+            text_color=("#1976D2", "#64B5F6"),
         ).pack(anchor="w", pady=(0, 8))
 
-        # Separator
-        ttb.Separator(self, orient="horizontal").pack(fill="x", pady=(0, 8))
-
         # Frame do combobox
-        combo_frame = ttb.Frame(self)
+        combo_frame = ctk.CTkFrame(self)
         combo_frame.pack(fill="x", pady=(0, 8))
 
-        ttb.Label(combo_frame, text="Escolha o processo:").pack(side=LEFT, padx=(0, 8))
+        ctk.CTkLabel(combo_frame, text="Escolha o processo:").pack(side="left", padx=(0, 8))
 
         self._process_var = tk.StringVar(value=self._default_process or ANVISA_PROCESSES[0])
-        self._process_combo = ttb.Combobox(
+        self._process_combo = ctk.CTkComboBox(
             combo_frame,
-            textvariable=self._process_var,
+            variable=self._process_var,
             values=ANVISA_PROCESSES,
             state="readonly",
-            width=35,
+            width=280,
         )
-        self._process_combo.pack(side=LEFT, fill="x", expand=True)
+        self._process_combo.pack(side="left", fill="x", expand=True)
 
         # Label para mostrar arquivos selecionados
         self._files_label_var = tk.StringVar(value="Nenhum arquivo selecionado")
-        self._files_label = ttb.Label(
+        self._files_label = ctk.CTkLabel(
             self,
             textvariable=self._files_label_var,
-            bootstyle="secondary",
+            text_color=("#757575", "#BDBDBD"),
         )
         self._files_label.pack(anchor="w", pady=(0, 8))
 
         # Botões
-        buttons_frame = ttb.Frame(self)
+        buttons_frame = ctk.CTkFrame(self)
         buttons_frame.pack(fill="x")
 
-        ttb.Button(
+        ctk.CTkButton(
             buttons_frame,
             text="Selecionar PDFs...",
-            bootstyle="info",
+            fg_color=("#0288D1", "#01579B"),
+            hover_color=("#01579B", "#004C8C"),
             command=self._on_select_pdfs,
-            width=20,
-        ).pack(side=LEFT, padx=(0, 8))
+            width=160,
+        ).pack(side="left", padx=(0, 8))
 
-        self._btn_upload = ttb.Button(
+        self._btn_upload = ctk.CTkButton(
             buttons_frame,
             text="Salvar/Enviar",
-            bootstyle="success",
+            fg_color=("#2E7D32", "#1B5E20"),
+            hover_color=("#1B5E20", "#0D4A11"),
             command=self._on_upload,
-            width=15,
+            width=120,
             state="disabled",
         )
-        self._btn_upload.pack(side=LEFT)
+        self._btn_upload.pack(side="left")
 
     def _on_select_pdfs(self) -> None:
         """Handler para selecionar PDFs."""

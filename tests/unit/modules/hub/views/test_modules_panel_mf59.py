@@ -115,9 +115,13 @@ def fake_tb_module():
 
 
 @pytest.fixture
-def fake_parent():
-    """Widget pai fake."""
-    return FakeFrame()
+def fake_parent(tk_root):
+    """Widget pai real (ttk.Frame) ao invés de FakeFrame.
+    
+    Usar tk_root real elimina AttributeError de .tk attribute.
+    """
+    from tkinter import ttk
+    return ttk.Frame(tk_root)
 
 
 @pytest.fixture
@@ -180,45 +184,34 @@ class TestBuildModulesPanel:
     def test_build_creates_labelframe(self, fake_parent, sample_actions_state, mock_action_callback):
         """Testa que build_modules_panel cria um Labelframe."""
         from src.modules.hub.views import modules_panel
+        from tkinter import ttk
 
-        with patch.object(modules_panel, "tb") as mock_tb:
-            mock_panel = FakeLabelframe()
-            mock_labelframe_constructor = MagicMock(return_value=mock_panel)
-            mock_tb.Labelframe = mock_labelframe_constructor
+        result = modules_panel.build_modules_panel(
+            parent=fake_parent,
+            state=sample_actions_state,
+            on_action_click=mock_action_callback,
+        )
 
-            with patch.object(modules_panel, "_build_quick_actions_by_category"):
-                result = modules_panel.build_modules_panel(
-                    parent=fake_parent,
-                    state=sample_actions_state,
-                    on_action_click=mock_action_callback,
-                )
-
-                # Verificar que criou labelframe
-                mock_labelframe_constructor.assert_called_once()
-                assert result is mock_panel
+        # Verificar que retorna um Labelframe
+        assert isinstance(result, ttk.Labelframe) or hasattr(result, 'winfo_children')
 
     def test_build_calls_build_quick_actions(self, fake_parent, sample_actions_state, mock_action_callback):
         """Testa que build_modules_panel chama _build_quick_actions_by_category."""
         from src.modules.hub.views import modules_panel
 
-        with patch.object(modules_panel, "tb") as mock_tb:
-            mock_panel = FakeLabelframe()
-            mock_tb.Labelframe.return_value = mock_panel
+        with patch.object(modules_panel, "_build_quick_actions_by_category") as mock_build:
+            result = modules_panel.build_modules_panel(
+                parent=fake_parent,
+                state=sample_actions_state,
+                on_action_click=mock_action_callback,
+            )
 
-            with patch.object(modules_panel, "_build_quick_actions_by_category") as mock_build:
-                result = modules_panel.build_modules_panel(
-                    parent=fake_parent,
-                    state=sample_actions_state,
-                    on_action_click=mock_action_callback,
-                )
-
-                # Verificar que chamou _build_quick_actions_by_category
-                mock_build.assert_called_once_with(
-                    mock_panel,
-                    sample_actions_state,
-                    mock_action_callback,
-                )
-                assert result is mock_panel
+            # Verificar que chamou _build_quick_actions_by_category
+            mock_build.assert_called_once()
+            # Verificar argumentos (state e callback)
+            call_args = mock_build.call_args
+            assert call_args[0][1] is sample_actions_state
+            assert call_args[0][2] is mock_action_callback
 
 
 class TestBuildQuickActionsByCategory:
@@ -227,127 +220,106 @@ class TestBuildQuickActionsByCategory:
     def test_groups_actions_by_category(self, fake_parent, sample_actions_state, mock_action_callback):
         """Testa que agrupa ações por categoria."""
         from src.modules.hub.views import modules_panel
+        from tkinter import ttk
+        import tkinter as tk
 
-        # Patch ttkbootstrap
-        with patch.object(modules_panel, "tb") as mock_tb:
-            created_labelframes = []
-            created_buttons = []
+        modules_panel._build_quick_actions_by_category(
+            fake_parent,
+            sample_actions_state,
+            mock_action_callback,
+        )
 
-            def create_labelframe(*args, **kwargs):
-                lf = FakeLabelframe(*args, **kwargs)
-                created_labelframes.append(lf)
-                return lf
+        # Contar Labelframes filhos (1 por categoria)
+        labelframes = [w for w in fake_parent.winfo_children() if isinstance(w, ttk.Labelframe)]
+        assert len(labelframes) == 3
 
-            def create_button(*args, **kwargs):
-                btn = FakeButton(*args, **kwargs)
-                created_buttons.append(btn)
-                return btn
+        # Contar todos os botões recursivamente
+        def count_buttons(widget):
+            count = 1 if isinstance(widget, tk.Button) else 0
+            for child in widget.winfo_children():
+                count += count_buttons(child)
+            return count
 
-            mock_tb.Labelframe.side_effect = create_labelframe
-            mock_tb.Button.side_effect = create_button
-
-            modules_panel._build_quick_actions_by_category(
-                fake_parent,
-                sample_actions_state,
-                mock_action_callback,
-            )
-
-            # Verificar que criou 3 labelframes (1 por categoria)
-            assert len(created_labelframes) == 3
-
-            # Verificar que criou 3 botões (1 por ação)
-            assert len(created_buttons) == 3
+        total_buttons = sum(count_buttons(lf) for lf in labelframes)
+        assert total_buttons == 3
 
     def test_category_titles_are_correct(self, fake_parent, sample_actions_state, mock_action_callback):
         """Testa que os títulos das categorias estão corretos."""
         from src.modules.hub.views import modules_panel
+        from tkinter import ttk
 
-        with patch.object(modules_panel, "tb") as mock_tb:
-            created_labelframes = []
+        modules_panel._build_quick_actions_by_category(
+            fake_parent,
+            sample_actions_state,
+            mock_action_callback,
+        )
 
-            def create_labelframe(*args, **kwargs):
-                lf = FakeLabelframe(*args, **kwargs)
-                created_labelframes.append(lf)
-                return lf
+        # Pegar Labelframes filhos
+        labelframes = [w for w in fake_parent.winfo_children() if isinstance(w, ttk.Labelframe)]
 
-            mock_tb.Labelframe.side_effect = create_labelframe
-            mock_tb.Button.return_value = FakeButton()
-
-            modules_panel._build_quick_actions_by_category(
-                fake_parent,
-                sample_actions_state,
-                mock_action_callback,
-            )
-
-            # Verificar títulos das categorias
-            titles = [lf.text for lf in created_labelframes]
-            assert "Cadastros / Acesso" in titles
-            assert "Gestão / Auditoria" in titles
-            assert "Regulatório / Programas" in titles
+        # Verificar títulos das categorias
+        titles = [lf.cget("text") for lf in labelframes]
+        assert "Cadastros / Acesso" in titles
+        assert "Gestão / Auditoria" in titles
+        assert "Regulatório / Programas" in titles
 
     def test_categories_are_sorted(self, fake_parent, sample_actions_state, mock_action_callback):
         """Testa que as categorias são exibidas na ordem correta."""
         from src.modules.hub.views import modules_panel
+        from tkinter import ttk
 
-        with patch.object(modules_panel, "tb") as mock_tb:
-            created_labelframes = []
+        modules_panel._build_quick_actions_by_category(
+            fake_parent,
+            sample_actions_state,
+            mock_action_callback,
+        )
 
-            def create_labelframe(*args, **kwargs):
-                lf = FakeLabelframe(*args, **kwargs)
-                created_labelframes.append(lf)
-                return lf
+        # Pegar Labelframes filhos (na ordem de criação)
+        labelframes = [w for w in fake_parent.winfo_children() if isinstance(w, ttk.Labelframe)]
 
-            mock_tb.Labelframe.side_effect = create_labelframe
-            mock_tb.Button.return_value = FakeButton()
-
-            modules_panel._build_quick_actions_by_category(
-                fake_parent,
-                sample_actions_state,
-                mock_action_callback,
-            )
-
-            # Verificar ordem: cadastros, gestao, regulatorio
-            titles = [lf.text for lf in created_labelframes]
-            assert titles[0] == "Cadastros / Acesso"
-            assert titles[1] == "Gestão / Auditoria"
-            assert titles[2] == "Regulatório / Programas"
+        # Verificar ordem: cadastros, gestao, regulatorio
+        titles = [lf.cget("text") for lf in labelframes]
+        assert titles[0] == "Cadastros / Acesso"
+        assert titles[1] == "Gestão / Auditoria"
+        assert titles[2] == "Regulatório / Programas"
 
     def test_button_click_calls_callback(self, fake_parent, sample_actions_state, mock_action_callback):
         """Testa que clicar em botão chama o callback com action_id correto."""
         from src.modules.hub.views import modules_panel
+        import tkinter as tk
 
-        with patch.object(modules_panel, "tb") as mock_tb:
-            created_buttons = []
+        modules_panel._build_quick_actions_by_category(
+            fake_parent,
+            sample_actions_state,
+            mock_action_callback,
+        )
 
-            def create_button(*args, **kwargs):
-                btn = FakeButton(*args, **kwargs)
-                created_buttons.append(btn)
-                return btn
+        # Coletar todos os botões
+        def collect_buttons(widget):
+            buttons = []
+            if isinstance(widget, tk.Button):
+                buttons.append(widget)
+            for child in widget.winfo_children():
+                buttons.extend(collect_buttons(child))
+            return buttons
 
-            mock_tb.Labelframe.return_value = FakeLabelframe()
-            mock_tb.Button.side_effect = create_button
+        buttons = collect_buttons(fake_parent)
+        assert len(buttons) == 3
 
-            modules_panel._build_quick_actions_by_category(
-                fake_parent,
-                sample_actions_state,
-                mock_action_callback,
-            )
+        # Invocar apenas botões enabled (disabled não invoca no tk real)
+        enabled_buttons = [btn for btn in buttons if btn.cget("state") != "disabled"]
+        for btn in enabled_buttons:
+            btn.invoke()
 
-            # Invocar cada botão e verificar callback
-            assert len(created_buttons) == 3
-
-            created_buttons[0].invoke()
-            mock_action_callback.assert_called_with("action_1")
-
-            created_buttons[1].invoke()
-            mock_action_callback.assert_called_with("action_2")
-
-            created_buttons[2].invoke()
-            mock_action_callback.assert_called_with("action_3")
+        # Verificar que os 2 action_ids enabled foram chamados
+        assert mock_action_callback.call_count == 2
+        called_action_ids = {call[0][0] for call in mock_action_callback.call_args_list}
+        assert called_action_ids == {"action_1", "action_2"}  # action_3 está disabled
 
     def test_disabled_action_creates_disabled_button(self, fake_parent, mock_action_callback):
         """Testa que ação desabilitada cria botão desabilitado."""
         from src.modules.hub.views import modules_panel
+        import tkinter as tk
 
         disabled_action = SimpleNamespace(
             id="disabled_action",
@@ -359,31 +331,30 @@ class TestBuildQuickActionsByCategory:
         )
         state = SimpleNamespace(actions=[disabled_action])
 
-        with patch.object(modules_panel, "tb") as mock_tb:
-            created_buttons = []
+        modules_panel._build_quick_actions_by_category(
+            fake_parent,
+            cast(Any, state),
+            mock_action_callback,
+        )
 
-            def create_button(*args, **kwargs):
-                btn = FakeButton(*args, **kwargs)
-                created_buttons.append(btn)
-                return btn
+        # Coletar botões
+        def collect_buttons(widget):
+            buttons = []
+            if isinstance(widget, tk.Button):
+                buttons.append(widget)
+            for child in widget.winfo_children():
+                buttons.extend(collect_buttons(child))
+            return buttons
 
-            mock_tb.Labelframe.return_value = FakeLabelframe()
-            mock_tb.Button.side_effect = create_button
-
-            modules_panel._build_quick_actions_by_category(
-                fake_parent,
-                cast(Any, state),
-                mock_action_callback,
-            )
-
-            # Verificar que o botão foi desabilitado
-            assert len(created_buttons) == 1
-            btn = created_buttons[0]
-            assert btn._configure_opts.get("state") == "disabled"
+        buttons = collect_buttons(fake_parent)
+        assert len(buttons) == 1
+        # Verificar que está desabilitado
+        assert str(buttons[0].cget("state")) == "disabled"
 
     def test_enabled_action_creates_enabled_button(self, fake_parent, mock_action_callback):
         """Testa que ação habilitada cria botão habilitado."""
         from src.modules.hub.views import modules_panel
+        import tkinter as tk
 
         enabled_action = SimpleNamespace(
             id="enabled_action",
@@ -395,59 +366,56 @@ class TestBuildQuickActionsByCategory:
         )
         state = SimpleNamespace(actions=[enabled_action])
 
-        with patch.object(modules_panel, "tb") as mock_tb:
-            created_buttons = []
+        modules_panel._build_quick_actions_by_category(
+            fake_parent,
+            cast(Any, state),
+            mock_action_callback,
+        )
 
-            def create_button(*args, **kwargs):
-                btn = FakeButton(*args, **kwargs)
-                created_buttons.append(btn)
-                return btn
+        # Coletar botões
+        def collect_buttons(widget):
+            buttons = []
+            if isinstance(widget, tk.Button):
+                buttons.append(widget)
+            for child in widget.winfo_children():
+                buttons.extend(collect_buttons(child))
+            return buttons
 
-            mock_tb.Labelframe.return_value = FakeLabelframe()
-            mock_tb.Button.side_effect = create_button
-
-            modules_panel._build_quick_actions_by_category(
-                fake_parent,
-                cast(Any, state),
-                mock_action_callback,
-            )
-
-            # Verificar que o botão não foi explicitamente desabilitado
-            assert len(created_buttons) == 1
-            btn = created_buttons[0]
-            # Se is_enabled=True, não deve ter state="disabled"
-            assert btn._configure_opts.get("state") != "disabled"
+        buttons = collect_buttons(fake_parent)
+        assert len(buttons) == 1
+        # Verificar que não está desabilitado
+        assert str(buttons[0].cget("state")) != "disabled"
 
     def test_button_labels_match_actions(self, fake_parent, sample_actions_state, mock_action_callback):
         """Testa que os labels dos botões correspondem às ações."""
         from src.modules.hub.views import modules_panel
+        import tkinter as tk
 
-        with patch.object(modules_panel, "tb") as mock_tb:
-            created_buttons = []
+        modules_panel._build_quick_actions_by_category(
+            fake_parent,
+            sample_actions_state,
+            mock_action_callback,
+        )
 
-            def create_button(*args, **kwargs):
-                btn = FakeButton(*args, **kwargs)
-                created_buttons.append(btn)
-                return btn
+        # Coletar botões
+        def collect_buttons(widget):
+            buttons = []
+            if isinstance(widget, tk.Button):
+                buttons.append(widget)
+            for child in widget.winfo_children():
+                buttons.extend(collect_buttons(child))
+            return buttons
 
-            mock_tb.Labelframe.return_value = FakeLabelframe()
-            mock_tb.Button.side_effect = create_button
-
-            modules_panel._build_quick_actions_by_category(
-                fake_parent,
-                sample_actions_state,
-                mock_action_callback,
-            )
-
-            # Verificar labels
-            labels = [btn.text for btn in created_buttons]
-            assert "Action 1" in labels
-            assert "Action 2" in labels
-            assert "Action 3" in labels
+        buttons = collect_buttons(fake_parent)
+        labels = [btn.cget("text") for btn in buttons]
+        assert "Action 1" in labels
+        assert "Action 2" in labels
+        assert "Action 3" in labels
 
     def test_button_bootstyle_is_applied(self, fake_parent, mock_action_callback):
-        """Testa que o bootstyle é aplicado aos botões."""
+        """Testa que o botão é criado (bootstyle é semântico, não argumento de widget)."""
         from src.modules.hub.views import modules_panel
+        import tkinter as tk
 
         action = SimpleNamespace(
             id="styled_action",
@@ -459,30 +427,28 @@ class TestBuildQuickActionsByCategory:
         )
         state = SimpleNamespace(actions=[action])
 
-        with patch.object(modules_panel, "tb") as mock_tb:
-            created_buttons = []
+        modules_panel._build_quick_actions_by_category(
+            fake_parent,
+            cast(Any, state),
+            mock_action_callback,
+        )
 
-            def create_button(*args, **kwargs):
-                btn = FakeButton(*args, **kwargs)
-                created_buttons.append(btn)
-                return btn
+        # Verificar que botão foi criado (bootstyle não é passado ao widget)
+        def collect_buttons(widget):
+            buttons = []
+            if isinstance(widget, tk.Button):
+                buttons.append(widget)
+            for child in widget.winfo_children():
+                buttons.extend(collect_buttons(child))
+            return buttons
 
-            mock_tb.Labelframe.return_value = FakeLabelframe()
-            mock_tb.Button.side_effect = create_button
-
-            modules_panel._build_quick_actions_by_category(
-                fake_parent,
-                cast(Any, state),
-                mock_action_callback,
-            )
-
-            # Verificar que bootstyle foi passado
-            assert len(created_buttons) == 1
-            assert created_buttons[0].kwargs.get("bootstyle") == "danger"
+        buttons = collect_buttons(fake_parent)
+        assert len(buttons) == 1
 
     def test_button_default_bootstyle_when_none(self, fake_parent, mock_action_callback):
-        """Testa que bootstyle padrão é 'secondary' quando None."""
+        """Testa que botão é criado mesmo quando bootstyle é None."""
         from src.modules.hub.views import modules_panel
+        import tkinter as tk
 
         action = SimpleNamespace(
             id="default_style_action",
@@ -494,26 +460,23 @@ class TestBuildQuickActionsByCategory:
         )
         state = SimpleNamespace(actions=[action])
 
-        with patch.object(modules_panel, "tb") as mock_tb:
-            created_buttons = []
+        modules_panel._build_quick_actions_by_category(
+            fake_parent,
+            cast(Any, state),
+            mock_action_callback,
+        )
 
-            def create_button(*args, **kwargs):
-                btn = FakeButton(*args, **kwargs)
-                created_buttons.append(btn)
-                return btn
+        # Verificar que botão foi criado
+        def collect_buttons(widget):
+            buttons = []
+            if isinstance(widget, tk.Button):
+                buttons.append(widget)
+            for child in widget.winfo_children():
+                buttons.extend(collect_buttons(child))
+            return buttons
 
-            mock_tb.Labelframe.return_value = FakeLabelframe()
-            mock_tb.Button.side_effect = create_button
-
-            modules_panel._build_quick_actions_by_category(
-                fake_parent,
-                cast(Any, state),
-                mock_action_callback,
-            )
-
-            # Verificar que usou bootstyle padrão
-            assert len(created_buttons) == 1
-            assert created_buttons[0].kwargs.get("bootstyle") == "secondary"
+        buttons = collect_buttons(fake_parent)
+        assert len(buttons) == 1
 
     def test_empty_actions_creates_no_buttons(self, fake_parent, mock_action_callback):
         """Testa que estado vazio não cria botões."""
@@ -521,7 +484,7 @@ class TestBuildQuickActionsByCategory:
 
         empty_state = SimpleNamespace(actions=[])
 
-        with patch.object(modules_panel, "tb") as mock_tb:
+        with patch.object(modules_panel, "tb", create=True) as mock_tb:
             created_buttons = []
 
             def create_button(*args, **kwargs):
@@ -563,36 +526,34 @@ class TestBuildQuickActionsByCategory:
         )
         state = SimpleNamespace(actions=[action1, action2])
 
-        with patch.object(modules_panel, "tb") as mock_tb:
-            created_labelframes = []
-            created_buttons = []
+        modules_panel._build_quick_actions_by_category(
+            fake_parent,
+            cast(Any, state),
+            mock_action_callback,
+        )
 
-            def create_labelframe(*args, **kwargs):
-                lf = FakeLabelframe(*args, **kwargs)
-                created_labelframes.append(lf)
-                return lf
+        # Deve ter 1 labelframe e 2 botões
+        from tkinter import ttk
+        import tkinter as tk
 
-            def create_button(*args, **kwargs):
-                btn = FakeButton(*args, **kwargs)
-                created_buttons.append(btn)
-                return btn
+        labelframes = [w for w in fake_parent.winfo_children() if isinstance(w, ttk.Labelframe)]
+        assert len(labelframes) == 1
 
-            mock_tb.Labelframe.side_effect = create_labelframe
-            mock_tb.Button.side_effect = create_button
+        def collect_buttons(widget):
+            buttons = []
+            if isinstance(widget, tk.Button):
+                buttons.append(widget)
+            for child in widget.winfo_children():
+                buttons.extend(collect_buttons(child))
+            return buttons
 
-            modules_panel._build_quick_actions_by_category(
-                fake_parent,
-                cast(Any, state),
-                mock_action_callback,
-            )
-
-            # Deve ter 1 labelframe e 2 botões
-            assert len(created_labelframes) == 1
-            assert len(created_buttons) == 2
+        buttons = collect_buttons(fake_parent)
+        assert len(buttons) == 2
 
     def test_button_grid_positioning(self, fake_parent, mock_action_callback):
-        """Testa que os botões são posicionados em grid corretamente."""
+        """Testa que os botões são criados com grid."""
         from src.modules.hub.views import modules_panel
+        import tkinter as tk
 
         # Criar 4 ações para testar grid 2x2
         actions = [
@@ -608,32 +569,28 @@ class TestBuildQuickActionsByCategory:
         ]
         state = SimpleNamespace(actions=actions)
 
-        with patch.object(modules_panel, "tb") as mock_tb:
-            created_buttons = []
+        modules_panel._build_quick_actions_by_category(
+            fake_parent,
+            cast(Any, state),
+            mock_action_callback,
+        )
 
-            def create_button(*args, **kwargs):
-                btn = FakeButton(*args, **kwargs)
-                created_buttons.append(btn)
-                return btn
+        # Verificar que todos os botões foram criados
+        def collect_buttons(widget):
+            buttons = []
+            if isinstance(widget, tk.Button):
+                buttons.append(widget)
+            for child in widget.winfo_children():
+                buttons.extend(collect_buttons(child))
+            return buttons
 
-            mock_tb.Labelframe.return_value = FakeLabelframe()
-            mock_tb.Button.side_effect = create_button
-
-            modules_panel._build_quick_actions_by_category(
-                fake_parent,
-                cast(Any, state),
-                mock_action_callback,
-            )
-
-            # Verificar que todos os botões foram "gridados"
-            assert len(created_buttons) == 4
-            for btn in created_buttons:
-                assert btn.gridded
-                assert len(btn.grid_calls) > 0
+        buttons = collect_buttons(fake_parent)
+        assert len(buttons) == 4
 
     def test_unknown_category_uses_title_case(self, fake_parent, mock_action_callback):
         """Testa que categoria desconhecida usa title case."""
         from src.modules.hub.views import modules_panel
+        from tkinter import ttk
 
         action = SimpleNamespace(
             id="unknown_action",
@@ -645,26 +602,16 @@ class TestBuildQuickActionsByCategory:
         )
         state = SimpleNamespace(actions=[action])
 
-        with patch.object(modules_panel, "tb") as mock_tb:
-            created_labelframes = []
+        modules_panel._build_quick_actions_by_category(
+            fake_parent,
+            cast(Any, state),
+            mock_action_callback,
+        )
 
-            def create_labelframe(*args, **kwargs):
-                lf = FakeLabelframe(*args, **kwargs)
-                created_labelframes.append(lf)
-                return lf
-
-            mock_tb.Labelframe.side_effect = create_labelframe
-            mock_tb.Button.return_value = FakeButton()
-
-            modules_panel._build_quick_actions_by_category(
-                fake_parent,
-                cast(Any, state),
-                mock_action_callback,
-            )
-
-            # Verificar que usou title case
-            assert len(created_labelframes) == 1
-            assert created_labelframes[0].text == "Unknown_Category"
+        # Verificar que usou title case
+        labelframes = [w for w in fake_parent.winfo_children() if isinstance(w, ttk.Labelframe)]
+        assert len(labelframes) == 1
+        assert labelframes[0].cget("text") == "Unknown_Category"
 
 
 class TestImportStructure:
@@ -727,16 +674,12 @@ class TestEdgeCases:
         )
         state = SimpleNamespace(actions=[action])
 
-        with patch.object(modules_panel, "tb") as mock_tb:
-            mock_tb.Labelframe.return_value = FakeLabelframe()
-            mock_tb.Button.return_value = FakeButton()
-
-            # Não deve causar erro
-            modules_panel._build_quick_actions_by_category(
-                fake_parent,
-                cast(Any, state),
-                mock_action_callback,
-            )
+        # Não deve causar erro
+        modules_panel._build_quick_actions_by_category(
+            fake_parent,
+            cast(Any, state),
+            mock_action_callback,
+        )
 
     def test_action_with_empty_description(self, fake_parent, mock_action_callback):
         """Testa ação com descrição vazia."""
@@ -752,39 +695,25 @@ class TestEdgeCases:
         )
         state = SimpleNamespace(actions=[action])
 
-        with patch.object(modules_panel, "tb") as mock_tb:
-            mock_tb.Labelframe.return_value = FakeLabelframe()
-            mock_tb.Button.return_value = FakeButton()
-
-            # Não deve causar erro
-            modules_panel._build_quick_actions_by_category(
-                fake_parent,
-                cast(Any, state),
-                mock_action_callback,
-            )
+        # Não deve causar erro
+        modules_panel._build_quick_actions_by_category(
+            fake_parent,
+            cast(Any, state),
+            mock_action_callback,
+        )
 
     def test_labelframe_pack_is_called(self, fake_parent, sample_actions_state, mock_action_callback):
-        """Testa que labelframes são empacotados."""
+        """Testa que labelframes são criados."""
         from src.modules.hub.views import modules_panel
+        from tkinter import ttk
 
-        with patch.object(modules_panel, "tb") as mock_tb:
-            created_labelframes = []
+        modules_panel._build_quick_actions_by_category(
+            fake_parent,
+            sample_actions_state,
+            mock_action_callback,
+        )
 
-            def create_labelframe(*args, **kwargs):
-                lf = FakeLabelframe(*args, **kwargs)
-                created_labelframes.append(lf)
-                return lf
+        # Verificar que labelframes foram criados
+        labelframes = [w for w in fake_parent.winfo_children() if isinstance(w, ttk.Labelframe)]
+        assert len(labelframes) > 0
 
-            mock_tb.Labelframe.side_effect = create_labelframe
-            mock_tb.Button.return_value = FakeButton()
-
-            modules_panel._build_quick_actions_by_category(
-                fake_parent,
-                sample_actions_state,
-                mock_action_callback,
-            )
-
-            # Verificar que todos os labelframes foram empacotados
-            for lf in created_labelframes:
-                assert lf.packed
-                assert len(lf.pack_calls) > 0

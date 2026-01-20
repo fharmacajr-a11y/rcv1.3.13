@@ -1,0 +1,17 @@
+================================================================================
+DIAGNÓSTICO 02: PYTHON DA .venv
+================================================================================
+
+✓ Python da .venv ENCONTRADO: .venv\Scripts\python.exe
+
+[Executando verificação via subprocess...]
+
+sys.executable: C:\Users\Pichau\Desktop\v1.5.42\.venv\Scripts\python.exe
+sys.version: 3.13.7 (tags/v3.13.7:bcee1c3, Aug 14 2025, 14:15:11) [MSC v.1944 64 bit (AMD64)]
+sys.prefix: C:\Users\Pichau\Desktop\v1.5.42\.venv
+
+OK customtkinter: OK
+OK Versao: 5.2.2
+OK Localizacao: C:\Users\Pichau\Desktop\v1.5.42\.venv\Lib\site-packages\customtkinter\__init__.py
+
+================================================================================

@@ -63,10 +63,15 @@ def _ensure_author_tag(text_widget, email: str, tag_cache: Optional[Dict[str, st
 
     try:
         # Se já existir no widget, não recrie — apenas reutilize
-        if tag_name not in text_widget.tag_names():
+        from src.ui.ctk_text_compat import get_inner_text_widget
+        
+        # Para CTkTextbox, usar widget interno para tag_configure
+        inner_widget = get_inner_text_widget(text_widget)
+        
+        if tag_name not in inner_widget.tag_names():
             color = _author_color(email)
             # Aplica foreground com fonte padrão
-            text_widget.tag_configure(tag_name, foreground=color, font=("TkDefaultFont", 10, "bold"))
+            inner_widget.tag_configure(tag_name, foreground=color, font=("TkDefaultFont", 10, "bold"))
     except Exception:
         logger.exception("Hub: falha ao configurar tag do autor '%s'.", email)
         # Fallback: retorna um nome simples para não quebrar o fluxo

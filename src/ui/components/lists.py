@@ -7,8 +7,7 @@ import tkinter as tk
 import tkinter.font as tkfont
 from typing import Any, Callable
 
-import ttkbootstrap as tb
-from ttkbootstrap import colorutils
+from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
 
 from src.config.constants import (
     COL_CNPJ_WIDTH,
@@ -67,89 +66,49 @@ __all__ = [
     "create_clients_treeview",
     "CLIENTS_COL_ANCHOR",
     "normalize_cell_text",
-    "reapply_clientes_treeview_style",
     "reapply_clientes_treeview_tags",
 ]
 
 
-def reapply_clientes_treeview_style(
-    style: tb.Style,
-    *,
-    base_bg: str,
-    base_fg: str,
-    field_bg: str,
-    heading_bg: str,
-    heading_fg: str,
-    heading_bg_active: str,
-    selected_bg: str,
-    selected_fg: str,
-) -> tuple[str, str]:
-    """Reaplica estilos da Treeview de Clientes.
+def reapply_clientes_treeview_tags(
+    tree: Any,
+    even_bg: str,
+    odd_bg: str,
+    fg: str = "",
+) -> None:
+    """Reaplica tags de zebra (even/odd) na Treeview do módulo Clientes.
+
+    Esta função é idempotente e pode ser chamada sempre que o tema muda.
+    
+    MICROFASE 31: Simplificado - apenas tags, sem Style legado.
 
     Args:
-        style: Instância de tb.Style
-        base_bg: Cor de fundo base
-        base_fg: Cor de texto base
-        field_bg: Cor de fundo dos campos
-        heading_bg: Cor de fundo dos headings
-        heading_fg: Cor de texto dos headings
-        heading_bg_active: Cor de fundo dos headings no hover
-        selected_bg: Cor de fundo de item selecionado
-        selected_fg: Cor de texto de item selecionado
-
-    Returns:
-        Tupla (even_color, odd_color) para zebra
+        tree: Instância da Treeview (CTkTreeview)
+        even_bg: Cor de fundo para linhas pares
+        odd_bg: Cor de fundo para linhas ímpares
+        fg: Cor de texto para ambas (opcional)
     """
     try:
-        # Configura Treeview
-        style.configure(
-            CLIENTS_TREEVIEW_STYLE,
-            background=field_bg,
-            fieldbackground=field_bg,
-            foreground=base_fg,
-            borderwidth=0,
-            relief="flat",
-        )
-        style.map(
-            CLIENTS_TREEVIEW_STYLE,
-            background=[("selected", selected_bg)],
-            foreground=[("selected", selected_fg)],
-        )
-
-        # Configura headings com padding adequado e relief flat
-        style.configure(
-            f"{CLIENTS_TREEVIEW_STYLE}.Heading",
-            background=heading_bg,
-            foreground=heading_fg,
-            relief="flat",
-            borderwidth=1,
-            padding=(8, 6),  # (horizontal, vertical) para espaçamento adequado
-        )
-        style.map(
-            f"{CLIENTS_TREEVIEW_STYLE}.Heading",
-            background=[("active", heading_bg_active)],
-            foreground=[("active", heading_fg)],
-        )
-
-        # Calcula cores zebra
-        from ttkbootstrap import colorutils
-
-        lum = _get_luminance(field_bg)
-        is_dark = lum < 0.5
-        delta = ZEBRA_LIGHTNESS_DELTA_DARK if is_dark else ZEBRA_LIGHTNESS_DELTA_LIGHT
-
-        even_color = field_bg
-        try:
-            odd_color = colorutils.update_hsv(field_bg, vd=delta)
-        except Exception:
-            # Fallback se colorutils falhar
-            odd_color = "#E8E8E8" if not is_dark else "#303030"
-
-        return even_color, odd_color
-
+        if fg:
+            tree.tag_configure("even", background=even_bg, foreground=fg)
+            tree.tag_configure("odd", background=odd_bg, foreground=fg)
+        else:
+            tree.tag_configure("even", background=even_bg)
+            tree.tag_configure("odd", background=odd_bg)
+        log.debug("Tags de zebra reaplicadas na Treeview")
     except Exception:
-        log.exception("Erro ao reaplicar estilo da Treeview")
-        return field_bg, field_bg
+        log.exception("Erro ao reaplicar tags de zebra")
+
+
+def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
+    """Converte cor hex para RGB."""
+    hex_color = hex_color.lstrip('#')
+    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))  # type: ignore[return-value]
+
+
+def _rgb_to_hex(r: int, g: int, b: int) -> str:
+    """Converte RGB para hex."""
+    return f"#{r:02x}{g:02x}{b:02x}"
 
 
 def normalize_cell_text(value: Any) -> str:
@@ -185,7 +144,7 @@ def normalize_cell_text(value: Any) -> str:
 def _get_luminance(hex_color: str) -> float:
     """Calcula luminância de uma cor hex (0.0 = escuro, 1.0 = claro)."""
     try:
-        r, g, b = colorutils.color_to_rgb(hex_color)
+        r, g, b = _hex_to_rgb(hex_color)
         # Fórmula de luminância relativa (ITU-R BT.709)
         return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
     except Exception:
@@ -193,146 +152,45 @@ def _get_luminance(hex_color: str) -> float:
 
 
 def _adjust_lightness(hex_color: str, delta: float) -> str:
-    """Ajusta lightness de uma cor HSL. delta positivo = mais claro."""
+    """Ajusta lightness de uma cor hex. delta positivo = mais claro."""
     try:
-        h, s, l_val = colorutils.color_to_hsl(hex_color)
-        new_l = max(0.0, min(1.0, l_val + delta))
-        return colorutils.update_hsl_value(hex_color, lum=new_l)
+        r, g, b = _hex_to_rgb(hex_color)
+        # Ajuste simples: aumentar/diminuir cada componente proporcionalmente
+        factor = 1.0 + delta
+        r = max(0, min(255, int(r * factor)))
+        g = max(0, min(255, int(g * factor)))
+        b = max(0, min(255, int(b * factor)))
+        return _rgb_to_hex(r, g, b)
     except Exception:
         return hex_color  # retorna original se falhar
 
 
-def _configure_clients_treeview_style(style: tb.Style) -> tuple[str, str]:
-    """Configura style exclusivo para Treeview de clientes.
-
-    Retorna as cores de fundo para zebra striping (even_bg, odd_bg).
+def _get_zebra_colors() -> tuple[str, str]:
+    """Calcula cores para zebra striping baseado no modo CTk atual.
+    
+    MICROFASE 31: Substituiu _configure_clients_treeview_style (que usava Style legado).
+    
+    Returns:
+        Tupla (even_bg, odd_bg) com cores de fundo para zebra striping.
     """
-    # Obter cor de fundo do tema atual
+    # Detectar modo atual do CTk
     try:
-        base_bg = style.colors.bg
+        appearance_mode = ctk.get_appearance_mode()  # "Light" ou "Dark"
+        is_dark = appearance_mode == "Dark"
     except Exception:
-        base_bg = "#ffffff"  # fallback
-
-    # Calcular cor alternada baseada na luminância
-    try:
-        luminance = _get_luminance(base_bg)
-        # Tema escuro (baixa luminância): clarear levemente
-        # Tema claro (alta luminância): escurecer levemente
-        if luminance < 0.5:
-            # Tema escuro: clarear para zebra mais visível
-            alt_bg = _adjust_lightness(base_bg, ZEBRA_LIGHTNESS_DELTA_DARK)
-        else:
-            # Tema claro: usar cor cinza fixa bem visível
-            # O cálculo dinâmico pode não funcionar bem em alguns temas
-            alt_bg = "#e0e0e0"  # cinza bem visível (fallback sólido)
-            # Tentar ajuste dinâmico também
-            try:
-                dynamic_alt = _adjust_lightness(base_bg, ZEBRA_LIGHTNESS_DELTA_LIGHT)
-                # Usar o mais escuro entre dinâmico e fixo
-                if _get_luminance(dynamic_alt) < _get_luminance(alt_bg):
-                    alt_bg = dynamic_alt
-            except Exception:
-                pass
-    except Exception:
-        # Fallback para cores estáticas com bom contraste
-        alt_bg = "#e0e0e0" if base_bg == "#ffffff" else "#404040"
-
-    even_bg = base_bg
-    odd_bg = alt_bg
-
-    # Configurar fonte base: +1 ponto em relação ao TkDefaultFont
-    try:
-        default_font = tkfont.nametofont("TkDefaultFont")
-        font_family = default_font.cget("family")
-        font_size = default_font.cget("size")
-        new_size = font_size + 1 if font_size > 0 else 11
-    except Exception:
-        font_family = "Segoe UI"
-        new_size = 11
-
-    # Calcular rowheight: altura da fonte + padding GENEROSO
-    # Padding de 14 e mínimo de 34 para linhas bem espaçadas
-    try:
-        temp_font = tkfont.Font(family=font_family, size=new_size)
-        font_height = temp_font.metrics("linespace")
-        rowheight = max(34, font_height + 14)
-    except Exception:
-        rowheight = 36  # fallback seguro com espaçamento bom
-
-    # Configurar style exclusivo (não afeta outras Treeviews)
-    try:
-        style.configure(
-            CLIENTS_TREEVIEW_STYLE,
-            font=(font_family, new_size),
-            rowheight=rowheight,
-        )
-        style.configure(
-            f"{CLIENTS_TREEVIEW_STYLE}.Heading",
-            font=(font_family, new_size, "bold"),
-            padding=(8, 6),  # Padding adequado para headings
-        )
-        # Garantir que a seleção seja legível sobre as tags zebra (even/odd)
-        # Cores de seleção explícitas que sobrescrevem o background das tags
-        try:
-            sel_bg = style.colors.selectbg  # cor de seleção do tema
-            sel_fg = style.colors.selectfg  # texto da seleção
-        except Exception:
-            sel_bg = "#0d6efd"  # azul padrão
-            sel_fg = "#ffffff"
-
-        style.map(
-            CLIENTS_TREEVIEW_STYLE,
-            background=[("selected", sel_bg)],
-            foreground=[("selected", sel_fg)],
-        )
-    except Exception as exc:
-        log.debug("Falha ao configurar style do Clientes.Treeview: %s", exc)
-
+        is_dark = False  # fallback para modo claro
+    
+    # Cores base para zebra striping
+    if is_dark:
+        # Modo escuro: fundo escuro + alternado mais claro
+        even_bg = "#2b2b2b"  # cinza escuro
+        odd_bg = "#3c3c3c"   # cinza levemente mais claro
+    else:
+        # Modo claro: fundo branco + alternado cinza
+        even_bg = "#ffffff"  # branco
+        odd_bg = "#e8e8e8"   # cinza claro
+    
     return even_bg, odd_bg
-
-
-def _apply_treeview_fixed_map(style: tb.Style) -> None:
-    """Aplica workaround para bug do Tk 8.6.9 onde tags não pintam background.
-
-    Em algumas versões do Tk, os estados ('!disabled', '!selected') no style.map
-    impedem que as tags de background funcionem corretamente.
-
-    Este workaround remove esses estados problemáticos do mapeamento,
-    permitindo que as tags even/odd pintem o background corretamente.
-
-    Referência: https://core.tcl-lang.org/tk/tktview?name=509cafafae
-    """
-    try:
-        # Obter mapeamento atual do style base (Treeview)
-        # e filtrar estados problemáticos
-        def _fixed_map(option: str) -> list:
-            """Remove estados problemáticos do mapeamento."""
-            try:
-                # Obter mapa atual
-                current_map = style.map("Treeview", query_opt=option)
-                if not current_map:
-                    return []
-
-                # Filtrar estados que interferem com tags
-                # Remover entradas com '!disabled' e '!selected'
-                filtered = []
-                for item in current_map:
-                    if isinstance(item, tuple) and len(item) >= 2:
-                        state = item[0] if isinstance(item[0], str) else str(item[0])
-                        if "!disabled" not in state and "!selected" not in state:
-                            filtered.append(item)
-                return filtered
-            except Exception:
-                return []
-
-        # Aplicar mapeamento filtrado ao style exclusivo
-        style.map(
-            CLIENTS_TREEVIEW_STYLE,
-            background=_fixed_map("background"),
-            foreground=_fixed_map("foreground"),
-        )
-    except Exception as exc:
-        log.debug("Falha ao aplicar fixed_map para Treeview: %s", exc)
 
 
 def create_clients_treeview(
@@ -342,8 +200,11 @@ def create_clients_treeview(
     on_select: Callable[[Any], Any] | None,
     on_delete: Callable[[Any], Any] | None,
     on_click: Callable[[Any], Any] | None,
-) -> tb.Treeview:
-    """Create the main clients Treeview configured with column widths and bindings."""
+) -> Any:
+    """Create the main clients Treeview configured with column widths and bindings.
+    
+    MICROFASE 31: Migrado para CTkTreeview (ZERO widgets legados).
+    """
     # Definição das colunas: (key, heading, width, minwidth, stretch)
     # FIXAS: ID, CNPJ, WhatsApp, Observações, Status, Última Alteração
     # FLEX: Razão Social, Nome (crescem com a janela)
@@ -352,26 +213,27 @@ def create_clients_treeview(
         ("Razao Social", "Razão Social", COL_RAZAO_WIDTH, COL_RAZAO_MINWIDTH, True),
         ("CNPJ", "CNPJ", COL_CNPJ_WIDTH, 120, False),
         ("Nome", "Nome", COL_NOME_WIDTH, COL_NOME_MINWIDTH, True),
-        ("WhatsApp", "WhatsApp", COL_WHATSAPP_WIDTH, 120, False),  # Aumentado para criar espaço
-        ("Observacoes", "Observações", COL_OBS_WIDTH, 140, False),  # FIXA - compacta
-        ("Status", "Status", COL_STATUS_WIDTH, 180, False),  # FIXA - compacta, perto da Última Alteração
-        ("Ultima Alteracao", "Última Alteração", COL_ULTIMA_WIDTH, 170, False),  # FIXA - visível completa
+        ("WhatsApp", "WhatsApp", COL_WHATSAPP_WIDTH, 120, False),
+        ("Observacoes", "Observações", COL_OBS_WIDTH, 140, False),
+        ("Status", "Status", COL_STATUS_WIDTH, 180, False),
+        ("Ultima Alteracao", "Última Alteração", COL_ULTIMA_WIDTH, 170, False),
     )
 
-    # Configurar style exclusivo e obter cores para zebra
-    style = tb.Style()
-    even_bg, odd_bg = _configure_clients_treeview_style(style)
+    # Importar CTkTreeview (biblioteca vendorizada, API-compatível com Treeview)
+    try:
+        from src.third_party.ctktreeview import CTkTreeview  # MICROFASE 32: Vendor
+    except ImportError:
+        log.error("CTkTreeview vendor não encontrado em src/third_party/ctktreeview")
+        raise
 
-    # === WORKAROUND para bug do Tk 8.6.9 onde tags não pintam background ===
-    # Aplicar fixed_map ANTES de criar o Treeview para garantir que zebra funcione
-    _apply_treeview_fixed_map(style)
+    # Calcular cores para zebra striping baseado no modo CTk
+    even_bg, odd_bg = _get_zebra_colors()
 
-    # Criar Treeview com style exclusivo
-    tree = tb.Treeview(
+    # Criar CTkTreeview (substitui Treeview legado)
+    tree = CTkTreeview(
         parent,
         columns=[c[0] for c in columns],
         show="headings",
-        style=CLIENTS_TREEVIEW_STYLE,
     )
 
     # Configurar headings (maioria centralizado, WhatsApp alinhado à esquerda)
@@ -440,7 +302,7 @@ def create_clients_treeview(
     return tree
 
 
-def _setup_treeview_tooltip(tree: tb.Treeview, columns: tuple) -> None:
+def _setup_treeview_tooltip(tree: Any, columns: tuple) -> None:
     """Configura tooltip para mostrar texto completo de células truncadas."""
     tooltip_window: tk.Toplevel | None = None
     tooltip_label: tk.Label | None = None
@@ -543,7 +405,7 @@ def _setup_treeview_tooltip(tree: tb.Treeview, columns: tuple) -> None:
     tree.bind("<Destroy>", destroy_tooltip, add="+")
 
 
-def _setup_flex_column_resize(tree: tb.Treeview, columns: tuple) -> None:
+def _setup_flex_column_resize(tree: Any, columns: tuple) -> None:
     """Configura redimensionamento proporcional das colunas flex."""
     # Identificar colunas fixas e flex
     fixed_cols = [(c[0], c[2]) for c in columns if not c[4]]  # (key, width)
@@ -623,7 +485,7 @@ def _setup_flex_column_resize(tree: tb.Treeview, columns: tuple) -> None:
 
 
 def reapply_clientes_treeview_tags(
-    tree: tb.Treeview,
+    tree: Any,
     even_bg: str,
     odd_bg: str,
     fg: str = "",

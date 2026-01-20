@@ -1,3 +1,11 @@
+"""DEPRECATED: Testes do ThemeManager legado (sistema de 14 temas).
+
+MICROFASE 24: Estes testes cobrem o módulo src.utils.theme_manager (legado).
+Mantidos para garantir compatibilidade com código que ainda não foi migrado.
+
+Novos testes devem cobrir src.ui.theme_manager (CustomTkinter).
+"""
+
 from __future__ import annotations
 
 import src.utils.theme_manager as tm

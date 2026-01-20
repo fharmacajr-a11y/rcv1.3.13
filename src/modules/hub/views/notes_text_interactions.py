@@ -60,8 +60,13 @@ def install_notes_context_menu(
             note_id (string) ou None se não encontrado
         """
         try:
-            index = text_widget.index(f"@{x},{y}")
-            tags = text_widget.tag_names(index)
+            from src.ui.ctk_text_compat import get_inner_text_widget
+            
+            # Para CTkTextbox, usar widget interno para operações de index/tags
+            inner_widget = get_inner_text_widget(text_widget)
+            
+            index = inner_widget.index(f"@{x},{y}")
+            tags = inner_widget.tag_names(index)
 
             # Buscar tag "noteid_<ID>"
             for tag in tags:
@@ -154,7 +159,11 @@ def install_notes_context_menu(
     def _on_copy_selection() -> None:
         """Copia seleção atual do widget."""
         try:
-            selected_text = text_widget.selection_get()
+            from src.ui.ctk_text_compat import get_inner_text_widget
+            
+            # Para CTkTextbox, usar widget interno para selection_get
+            inner_widget = get_inner_text_widget(text_widget)
+            selected_text = inner_widget.selection_get()
             _copy_text_to_clipboard(selected_text)
         except tk.TclError:
             # Sem seleção
@@ -193,7 +202,11 @@ def install_notes_context_menu(
         else:
             # Menu reduzido: apenas copiar seleção (se houver)
             try:
-                text_widget.selection_get()
+                from src.ui.ctk_text_compat import get_inner_text_widget
+                
+                # Para CTkTextbox, usar widget interno para selection_get
+                inner_widget = get_inner_text_widget(text_widget)
+                inner_widget.selection_get()
                 context_menu.add_command(label="Copiar seleção", command=_on_copy_selection)
             except tk.TclError:
                 # Sem seleção: menu vazio (ou mensagem)
@@ -209,8 +222,12 @@ def install_notes_context_menu(
 
     # Bind do menu de contexto
     # Windows/Linux: Button-3 (botão direito)
-    text_widget.bind("<Button-3>", _show_context_menu)
+    from src.ui.ctk_text_compat import get_inner_text_widget
+    
+    # Para CTkTextbox, usar widget interno para bind de eventos
+    inner_widget = get_inner_text_widget(text_widget)
+    inner_widget.bind("<Button-3>", _show_context_menu)
 
     # macOS: Button-2 (Control+Click ou botão direito)
     if sys.platform == "darwin":
-        text_widget.bind("<Button-2>", _show_context_menu)
+        inner_widget.bind("<Button-2>", _show_context_menu)

@@ -1,5 +1,20 @@
 # -*- coding: utf-8 -*-
 # utils/themes.py
+"""DEPRECATED: Sistema legado de temas (ttkbootstrap com 14 temas).
+
+⚠️ MIGRAÇÃO COMPLETA: ttkbootstrap foi REMOVIDO do projeto (18/01/2026).
+Este módulo é mantido apenas para compatibilidade de assinatura com código legado.
+Todas as funcionalidades retornam None ou valores default sem executar código ttkbootstrap.
+
+NOVO CÓDIGO: Use src/ui/theme_manager.py (CustomTkinter com light/dark).
+
+IMPORTANTE:
+- ❌ Não adicionar novas funcionalidades aqui
+- ❌ Não usar em novos componentes
+- ✅ Migrar todas as chamadas para src.ui.theme_manager
+- ✅ Este arquivo será removido em versão futura
+"""
+
 from __future__ import annotations
 
 import json
@@ -7,10 +22,9 @@ import logging
 import os
 from typing import Any
 
-try:
-    import ttkbootstrap as tb
-except Exception:
-    tb = None  # fallback se ttkbootstrap nao estiver disponivel
+# ttkbootstrap foi REMOVIDO - código legado mantido apenas para compatibilidade
+tb = None
+TtkBootstrapStyle = None
 
 # ---------- Modo cloud-only (nao tocar no disco) ----------
 NO_FS = os.getenv("RC_NO_LOCAL_FS") == "1"
@@ -39,6 +53,71 @@ _CACHED_THEME: str | None = None
 _CACHED_MTIME: float | None = None
 
 
+def get_tb_style_safe(widget: Any = None, theme: str | None = None) -> Any:
+    """Retorna ttkbootstrap.Style SEM criar root implícita.
+    
+    CODEC: Helper seguro CORRETO conforme especificação final.
+    
+    IMPORTANTE: tb.Style(widget) NÃO é API válida! Style.__init__ recebe "theme" string.
+    
+    Regras corretas:
+    1) Se widget tiver atributo .style (ttkbootstrap.Window): usar widget.style
+    2) Senão: usar Style.get_instance() (singleton)
+    3) Só criar Style() se tk._default_root já existir (nunca criar Tk fantasma)
+    4) Se theme fornecido: aplicar style.theme_use(theme)
+    
+    Args:
+        widget: Widget/janela (ttkbootstrap.Window) que pode ter .style
+        theme: Tema opcional para aplicar
+        
+    Returns:
+        Instância de Style ou None se não puder criar com segurança
+    """
+    if tb is None or TtkBootstrapStyle is None:
+        return None
+    
+    # Regra 1: Se widget tem .style (ttkbootstrap.Window), reutilizar
+    if widget is not None and hasattr(widget, "style"):
+        style = widget.style
+        if theme and style:
+            try:
+                style.theme_use(theme)
+            except Exception:
+                logging.exception("Falha ao aplicar theme via widget.style")
+        return style
+    
+    # Regra 2: Tentar singleton Style.get_instance()
+    try:
+        if hasattr(TtkBootstrapStyle, "get_instance"):
+            style = TtkBootstrapStyle.get_instance()
+            if style is not None:
+                if theme:
+                    try:
+                        style.theme_use(theme)
+                    except Exception:
+                        logging.exception("Falha ao aplicar theme via get_instance")
+                return style
+    except Exception:
+        pass
+    
+    # Regra 3: Só criar Style() se root já existir
+    try:
+        import tkinter as tk
+        if tk._default_root is None:  # type: ignore[attr-defined]
+            return None  # NÃO criar Tk fantasma
+        
+        # Root existe: seguro criar Style
+        # CORRETO: Style(theme=theme) pois __init__ recebe theme como string
+        if theme:
+            style = TtkBootstrapStyle(theme=theme)
+        else:
+            style = TtkBootstrapStyle()
+        return style
+    except Exception:
+        logging.exception("Falha ao criar Style com root existente")
+        return None
+
+
 def _load_theme_from_disk() -> str:
     """Le o tema do JSON (sem cache). Usado apenas quando NO_FS=False."""
     if NO_FS:
@@ -58,12 +137,12 @@ def load_theme(force_reload: bool = False) -> str:
     """Retorna o tema ativo usando cache, variaveis de ambiente e config em disco conforme NO_FS e safe-mode."""
     global _CACHED_THEME, _CACHED_MTIME
 
-    # Check for safe-mode (returns default ttk theme)
+    # Check for safe-mode (returns default theme)
     try:
         from src.cli import get_args
 
         if get_args().safe_mode:
-            return "default"  # Standard ttk theme
+            return "default"  # Standard theme
     except Exception:
         logging.debug("themes: CLI indisponivel para verificar safe_mode", exc_info=True)
 
@@ -118,12 +197,10 @@ def toggle_theme(app: Any | None = None) -> str:
     atual = load_theme()
     novo = ALT_THEME if atual == DEFAULT_THEME else DEFAULT_THEME
 
-    # Aplica no ttkbootstrap se disponivel
-    if tb is not None:
-        try:
-            tb.Style().theme_use(novo)
-        except Exception:
-            logging.exception("themes: falha ao aplicar tema com ttkbootstrap")
+    # Aplica no ttkbootstrap se disponivel (usando helper seguro)
+    style = get_tb_style_safe(widget=app, theme=novo)
+    # Se style foi obtido, o theme já foi aplicado pelo helper
+    # Senão, continua sem problema (modo headless ou CTk-only)
 
     save_theme(novo)
 
@@ -169,7 +246,7 @@ def apply_combobox_style(style: Any) -> None:
     normalizamos para o mesmo fundo dos Entry, mantendo consistência visual.
 
     Args:
-        style: Instância de ttkbootstrap.Style ou ttk.Style já configurada.
+        style: Instância de estilo já configurada (legado - não usado).
                IMPORTANTE: Deve ser a MESMA instância usada pelo app.
     """
     if tb is None or style is None:
@@ -217,7 +294,6 @@ def apply_theme(win: Any, *, theme: str | None = None) -> None:
     """Aplica o tema carregado a uma janela/toplevel usando ttkbootstrap, se disponivel."""
     if tb is None:
         return
-    try:
-        tb.Style().theme_use(theme or load_theme())
-    except Exception:
-        logging.exception("themes: apply_theme falhou")
+    
+    # CODEC: Usar helper seguro (theme já é aplicado internamente)
+    get_tb_style_safe(widget=win, theme=theme or load_theme())

@@ -12,7 +12,8 @@ import logging
 from tkinter import TclError
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
-import ttkbootstrap as tb
+from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+import tkinter as tk
 
 from src.modules.hub.colors import _ensure_author_tag
 from src.modules.hub.services.authors_service import get_author_display_name
@@ -83,7 +84,7 @@ class HubNotesView:
         self._on_toggle_done_click = on_toggle_done_click
         self._current_user_email = current_user_email
 
-        self.notes_panel: tb.Labelframe | None = None
+        self.notes_panel: tk.LabelFrame | None = None
         self.notes_history: Any = None
         self.new_note: Any = None
         self.btn_add_note: Any = None
@@ -91,7 +92,7 @@ class HubNotesView:
         # MF-34: Atributo para cache de hash de renderização
         self._last_render_hash: Optional[str] = None
 
-    def build(self) -> tb.Labelframe:
+    def build(self) -> tk.LabelFrame:
         """Constrói e retorna o frame do painel de notas.
 
         Este método cria:

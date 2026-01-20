@@ -5,16 +5,9 @@
 
 from __future__ import annotations
 
-import _tkinter
 import logging
 import tkinter as tk
-from tkinter import ttk
 from typing import TYPE_CHECKING, Any
-
-try:
-    import ttkbootstrap as tb
-except Exception:
-    tb = ttk  # fallback
 
 if TYPE_CHECKING:
     from src.modules.clientes.views.main_screen import MainScreenFrame
@@ -26,13 +19,16 @@ from src.modules.clientes.views.footer import ClientesFooter
 # Evita redefinição de constantes (Microfase 7): variáveis internas em lowercase
 _use_ctk_actionbar = False
 ClientesActionBarCtk = None  # type: ignore[assignment,misc]
+ctk = None  # type: ignore[assignment]
 
 try:
-    from src.modules.clientes.views.actionbar_ctk import ClientesActionBarCtk, HAS_CUSTOMTKINTER
+    from src.modules.clientes.views.actionbar_ctk import ClientesActionBarCtk
+    from src.modules.clientes.views.actionbar_ctk import HAS_CUSTOMTKINTER
+    from src.ui.ctk_config import ctk
 
     _use_ctk_actionbar = HAS_CUSTOMTKINTER
 except ImportError:
-    pass
+    HAS_CUSTOMTKINTER = False  # type: ignore[misc]
 
 USE_CTK_ACTIONBAR: bool = _use_ctk_actionbar
 
@@ -40,14 +36,16 @@ USE_CTK_ACTIONBAR: bool = _use_ctk_actionbar
 # Evita redefinição de constantes (Microfase 7): variáveis internas em lowercase
 _use_ctk_scrollbar = False
 CTkScrollbar = None  # type: ignore[assignment,misc]
+CTkCheckBox = None  # type: ignore[assignment,misc]
 
 try:
     if USE_CTK_ACTIONBAR:  # Reutiliza HAS_CUSTOMTKINTER via USE_CTK_ACTIONBAR
-        from src.ui.ctk_config import ctk
+        from src.ui.ctk_config import ctk as _ctk_module
 
-        CTkScrollbar = ctk.CTkScrollbar  # type: ignore[union-attr]
-
-        _use_ctk_scrollbar = True
+        if HAS_CUSTOMTKINTER and _ctk_module is not None:
+            CTkScrollbar = _ctk_module.CTkScrollbar
+            CTkCheckBox = _ctk_module.CTkCheckBox  # pyright: ignore[reportAttributeAccessIssue]
+            _use_ctk_scrollbar = True
 except (ImportError, NameError, AttributeError):
     pass
 
@@ -127,7 +125,7 @@ def build_toolbar(frame: MainScreenFrame) -> None:
             theme_manager=theme_manager,
         )
     else:
-        log.info("Usando toolbar legada (ttk/ttkbootstrap)")
+        log.info("Usando toolbar legada (tk fallback)")
         frame.toolbar = ClientesToolbar(
             frame,
             order_choices=list(frame._order_choices.keys()),
@@ -163,7 +161,7 @@ def build_toolbar(frame: MainScreenFrame) -> None:
 def build_tree_and_column_controls(frame: MainScreenFrame) -> None:
     """Cria a Treeview de clientes e os controles de colunas."""
 
-    frame._cols_separator = ttk.Separator(frame, orient="horizontal")  # type: ignore[attr-defined]
+    frame._cols_separator = ctk.CTkFrame(frame, height=2)  # type: ignore[attr-defined]
     frame._cols_separator.pack(
         side="top", fill="x", padx=SEPARATOR_PADX, pady=(SEPARATOR_PADY_TOP, SEPARATOR_PADY_BOTTOM)
     )
@@ -171,7 +169,7 @@ def build_tree_and_column_controls(frame: MainScreenFrame) -> None:
     frame.columns_align_bar = tk.Frame(frame, height=HEADER_CTRL_H)  # type: ignore[attr-defined]
     frame.columns_align_bar.pack(side="top", fill="x", padx=SEPARATOR_PADX)
 
-    frame._col_order = DEFAULT_COLUMN_ORDER
+    frame._col_order = list(DEFAULT_COLUMN_ORDER)  # type: ignore[assignment]
 
     frame._user_key = (
         getattr(frame, "current_user_email", None) or getattr(frame, "status_user_email", None) or "default"
@@ -217,7 +215,7 @@ def build_tree_and_column_controls(frame: MainScreenFrame) -> None:
         on_click=frame._on_click,
     )
 
-    # Scrollbar vertical (CustomTkinter se disponível, senão ttk)
+    # Scrollbar vertical (CustomTkinter se disponível, senão tk)
     if USE_CTK_SCROLLBAR and CTkScrollbar:
         frame.clients_scrollbar = CTkScrollbar(
             frame.client_list_container,
@@ -225,9 +223,8 @@ def build_tree_and_column_controls(frame: MainScreenFrame) -> None:
             command=frame.client_list.yview,
         )
     else:
-        frame.clients_scrollbar = tb.Scrollbar(
+        frame.clients_scrollbar = ctk.CTkScrollbar(
             frame.client_list_container,
-            orient="vertical",
             command=frame.client_list.yview,
         )
 
@@ -280,26 +277,26 @@ def build_tree_and_column_controls(frame: MainScreenFrame) -> None:
     # Criar cell frames (um por coluna) para alinhamento perfeito
     for i, col in enumerate(frame._col_order):
         # Cell frame com altura fixa
-        cell = tb.Frame(frame.columns_align_bar, height=SWITCHCELL_HEIGHT)
+        cell = ctk.CTkFrame(frame.columns_align_bar, height=SWITCHCELL_HEIGHT)
         cell.grid(row=0, column=i, sticky="nsew")
         cell.grid_propagate(False)  # Não deixar grid encolher e cortar o switch
 
-        # Switch round-toggle SEM TEXTO
-        # Fix Microfase 19.2: Fallback robusto se layout Round.Toggle não existir
-        try:
-            chk = tb.Checkbutton(
+        # MICROFASE 24.1: Usar CTkCheckBox se disponível para evitar ctk.CTkCheckBox
+        # (que pode acionar ttkbootstrap e criar root implícita)
+        if CTkCheckBox is not None:
+            # CustomTkinter checkbox
+            chk = CTkCheckBox(
                 cell,
-                text="",  # SEM TEXTO - apenas o switch
+                text="",  # SEM TEXTO - apenas o checkbox
                 variable=frame._col_content_visible[col],
                 command=lambda c=col: _on_toggle(c),  # type: ignore[misc]
-                bootstyle="info-round-toggle",
                 cursor="hand2",
-                takefocus=False,
+                width=20,
+                height=20,
             )
-        except _tkinter.TclError as exc:
-            # Fallback: usar checkbutton simples se tema não suportar round-toggle
-            log.debug("Round toggle não disponível, usando checkbutton padrão: %s", exc)
-            chk = tb.Checkbutton(
+        else:
+            # Fallback: ctk.CTkCheckBox padrão (sem bootstyle)
+            chk = ctk.CTkCheckBox(
                 cell,
                 text="",
                 variable=frame._col_content_visible[col],
@@ -342,7 +339,7 @@ def build_tree_and_column_controls(frame: MainScreenFrame) -> None:
     # Sincronizar após criar (when Tk calculates sizes)
     # Fazemos 2 sincronizações: uma imediata e outra com delay
     # para garantir que os widths finais sejam aplicados
-    frame.columns_align_bar.after_idle(_schedule_sync_switchbar)
+    frame.columns_align_bar.after_idle(_schedule_sync_switchbar)  # pyright: ignore[reportAttributeAccessIssue]
     frame.columns_align_bar.after(120, _schedule_sync_switchbar)
 
     # Sincronizar quando Treeview redimensionar (com debounce) - apenas uma vez
@@ -357,7 +354,7 @@ def build_tree_and_column_controls(frame: MainScreenFrame) -> None:
     def _sync_col_controls() -> None:
         """Executa o reposicionamento dos controles de coluna UMA vez (sem se reagendar)."""
         try:
-            base_left = frame.client_list.winfo_rootx() - frame.columns_align_bar.winfo_rootx()
+            base_left = frame.client_list.winfo_rootx() - frame.columns_align_bar.winfo_rootx()  # pyright: ignore[reportAttributeAccessIssue]
 
             items = frame.client_list.get_children()
             first_item = items[0] if items else None
@@ -421,7 +418,7 @@ def build_tree_and_column_controls(frame: MainScreenFrame) -> None:
         """Cancela agendamento pendente de _sync_col_controls, se existir."""
         if frame._col_controls_after_id is not None:
             try:
-                frame.after_cancel(frame._col_controls_after_id)
+                frame.after_cancel(frame._col_controls_after_id)  # pyright: ignore[reportAttributeAccessIssue]
             except Exception:  # noqa: BLE001
                 pass  # Tk pode lançar erro se já foi executado/cancelado
             frame._col_controls_after_id = None
@@ -442,7 +439,7 @@ def build_tree_and_column_controls(frame: MainScreenFrame) -> None:
         def _xscroll_proxy(*args: Any) -> None:
             if old_cmd:
                 try:
-                    func = frame.nametowidget(old_cmd.split()[0])
+                    func = frame.nametowidget(old_cmd.split()[0])  # pyright: ignore[reportAttributeAccessIssue]
                     func.set(*args)
                 except Exception as inner_exc:  # noqa: BLE001
                     log.debug("Falha ao atualizar scrollbar horizontal: %s", inner_exc)
@@ -454,7 +451,7 @@ def build_tree_and_column_controls(frame: MainScreenFrame) -> None:
         log.debug("Falha ao configurar proxy de scrollbar horizontal: %s", exc)
 
     # Inicialização: agenda após layout estabilizar (after_idle + schedule)
-    frame.after_idle(lambda: _schedule_sync_col_controls(100))
+    frame.after_idle(lambda: _schedule_sync_col_controls(100))  # pyright: ignore[reportAttributeAccessIssue]
 
 
 def build_footer(frame: MainScreenFrame) -> None:
@@ -495,7 +492,7 @@ def build_footer(frame: MainScreenFrame) -> None:
             theme_manager=theme_manager,
         )
     else:
-        log.info("Usando actionbar legada (ttk/ttkbootstrap)")
+        log.info("Usando actionbar legada (tk fallback)")
         frame.footer = ClientesFooter(
             frame,
             on_novo=_handle_new,
@@ -525,33 +522,52 @@ def build_footer(frame: MainScreenFrame) -> None:
 def build_pick_mode_banner(frame: MainScreenFrame) -> None:
     """Cria o banner do modo seleção (pick mode)."""
 
-    frame._pick_banner_frame = tb.Frame(frame, bootstyle="info")
+    # Usa CustomTkinter se disponível, caso contrário usa tk.Frame
+    # IMPORTANTE: NÃO misturar toolkits - se usar CTk, todos os widgets devem ser CTk
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        # CustomTkinter completo
+        frame._pick_banner_frame = ctk.CTkFrame(frame, fg_color=("#F0F0F0", "#2B2B2B"), corner_radius=0)  # type: ignore[assignment]
+        
+        frame._pick_label = ctk.CTkLabel(
+            frame._pick_banner_frame,
+            text=PICK_MODE_BANNER_TEXT,
+            font=PICK_MODE_BANNER_FONT,  # pyright: ignore
+        )
+        frame._pick_banner_default_text = PICK_MODE_BANNER_TEXT
+        frame._pick_label.pack(side="left", padx=10, pady=5)
 
-    frame._pick_label = tb.Label(
-        frame._pick_banner_frame,
-        text=PICK_MODE_BANNER_TEXT,
-        font=PICK_MODE_BANNER_FONT,  # pyright: ignore
-        bootstyle="info-inverse",
-    )
-    frame._pick_banner_default_text = PICK_MODE_BANNER_TEXT
-    frame._pick_label.pack(side="left", padx=10, pady=5)
+        frame._pick_cancel_button = ctk.CTkButton(
+            frame._pick_banner_frame,
+            text=PICK_MODE_CANCEL_TEXT,
+            command=frame._on_pick_cancel,
+        )
+        frame._pick_cancel_button.pack(side="right", padx=10, pady=5)
+    else:
+        # Fallback tk completo
+        frame._pick_banner_frame = ctk.CTkFrame(frame)  # type: ignore[assignment]
+        
+        frame._pick_label = ctk.CTkLabel(
+            frame._pick_banner_frame,
+            text=PICK_MODE_BANNER_TEXT,
+            font=PICK_MODE_BANNER_FONT,  # pyright: ignore
+        )
+        frame._pick_banner_default_text = PICK_MODE_BANNER_TEXT
+        frame._pick_label.pack(side="left", padx=10, pady=5)
 
-    frame._pick_cancel_button = tb.Button(
-        frame._pick_banner_frame,
-        text=PICK_MODE_CANCEL_TEXT,
-        bootstyle="danger-outline",
-        command=frame._pick_controller.cancel_pick,
-    )
-    frame._pick_cancel_button.pack(side="right", padx=10, pady=5)
+        frame._pick_cancel_button = ctk.CTkButton(
+            frame._pick_banner_frame,
+            text=PICK_MODE_CANCEL_TEXT,
+            command=frame._on_pick_cancel,
+        )
+        frame._pick_cancel_button.pack(side="right", padx=10, pady=5)
 
-    frame.btn_select = tb.Button(
-        frame._pick_banner_frame,
-        text=PICK_MODE_SELECT_TEXT,
-        command=frame._pick_controller.confirm_pick,
-        state="disabled",
-        bootstyle="success",
-    )
-    frame.btn_select.pack(side="right", padx=10, pady=5)
+        frame.btn_select = ctk.CTkButton(
+            frame._pick_banner_frame,
+            text=PICK_MODE_SELECT_TEXT,
+            command=frame._pick_controller.confirm_pick,
+            state="disabled",
+        )
+        frame.btn_select.pack(side="right", padx=10, pady=5)
 
 
 def bind_main_events(frame: MainScreenFrame) -> None:
@@ -564,9 +580,9 @@ def setup_app_references(frame: MainScreenFrame) -> None:
     """Conecta referências compartilhadas com a aplicação principal."""
 
     if frame.app is not None:
-        frame.clients_count_var = getattr(frame.app, "clients_count_var", None)
-        frame.status_var_dot = getattr(frame.app, "status_var_dot", None)
-        frame.status_var_text = getattr(frame.app, "status_var_text", None)
+        frame.clients_count_var = getattr(frame.app, "clients_count_var", None)  # type: ignore[assignment]
+        frame.status_var_dot = getattr(frame.app, "status_var_dot", None)  # type: ignore[assignment]
+        frame.status_var_text = getattr(frame.app, "status_var_text", None)  # type: ignore[assignment]
         frame.status_dot = getattr(frame.app, "status_dot", None)
         frame.status_lbl = getattr(frame.app, "status_lbl", None)
         setattr(frame.app, "_main_frame_ref", frame)

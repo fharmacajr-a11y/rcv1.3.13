@@ -289,32 +289,60 @@ class TkFeedback:
         duration_ms: int,
         bootstyle: str | None,
     ) -> bool:
-        """Tenta exibir toast via ttkbootstrap. Retorna True se sucesso."""
-        toast_class: Any = None
+        """Tenta exibir toast nativo CTk/tk. Retorna True se sucesso."""
         try:
-            from ttkbootstrap.toast import ToastNotification
+            from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
 
-            toast_class = ToastNotification
-        except ImportError:
-            try:
-                from ttkbootstrap.widgets.toast import ToastNotification
+            parent = self._resolve_parent()
+            if parent is None:
+                return False
 
-                toast_class = ToastNotification
-            except ImportError:
-                pass
+            # Criar toplevel para o toast
+            if HAS_CUSTOMTKINTER and ctk is not None:
+                toast = ctk.CTkToplevel(parent)
+            else:
+                toast = tk.Toplevel(parent)
 
-        if toast_class is None:
-            return False
+            toast.withdraw()
+            toast.overrideredirect(True)
+            toast.attributes("-topmost", True)
 
-        try:
-            style = bootstyle or self._kind_to_bootstyle(kind)
-            toast_obj = toast_class(
-                title=title,
-                message=message,
-                duration=duration_ms,
-                bootstyle=style,
-            )
-            toast_obj.show_toast()
+            # Container com padding
+            if HAS_CUSTOMTKINTER and ctk is not None:
+                frame = ctk.CTkFrame(toast)
+                frame.pack(fill="both", expand=True, padx=10, pady=10)
+                label = ctk.CTkLabel(
+                    frame,
+                    text=f"{title}\n{message}",
+                    justify="left",
+                    anchor="w",
+                )
+            else:
+                frame = tk.Frame(toast, bg="#333333", padx=10, pady=10)
+                frame.pack(fill="both", expand=True)
+                label = tk.Label(
+                    frame,
+                    text=f"{title}\n{message}",
+                    justify="left",
+                    anchor="w",
+                    bg="#333333",
+                    fg="white",
+                )
+            label.pack()
+
+            # Posicionar no canto inferior direito
+            toast.update_idletasks()
+            sw = toast.winfo_screenwidth()
+            sh = toast.winfo_screenheight()
+            w = toast.winfo_width()
+            h = toast.winfo_height()
+            x = sw - w - 20
+            y = sh - h - 60
+            toast.geometry(f"{w}x{h}+{x}+{y}")
+            toast.deiconify()
+
+            # Auto-fechar após duration
+            toast.after(duration_ms, toast.destroy)
             return True
         except Exception as exc:  # noqa: BLE001
             logger.debug("Falha ao exibir toast: %s", exc)

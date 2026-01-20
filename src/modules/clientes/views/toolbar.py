@@ -1,17 +1,14 @@
 from __future__ import annotations
 
+from src.ui.ctk_config import ctk
+
 import tkinter as tk
 from typing import Callable, Iterable, Optional
-
-try:
-    import ttkbootstrap as tb
-except Exception:
-    from tkinter import ttk as tb  # fallback
 
 from src.ui.components import create_search_controls
 
 
-class ClientesToolbar(tb.Frame):  # type: ignore[misc]
+class ClientesToolbar(tk.Frame):  # type: ignore[misc]
     """Barra superior da tela de Clientes (busca, ordenação e status)."""
 
     def __init__(

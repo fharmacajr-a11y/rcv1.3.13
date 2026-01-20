@@ -2,7 +2,7 @@
 """Helpers puros (sem UI) para o HubScreen.
 
 ORG-004: Extraído de hub_screen.py para reduzir complexidade.
-Contém funções utilitárias puras sem dependências de tkinter ou ttk.
+Contém funções utilitárias puras sem dependências de tkinter.
 """
 
 from __future__ import annotations

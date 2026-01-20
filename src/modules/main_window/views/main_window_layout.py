@@ -1,3 +1,8 @@
+from __future__ import annotations
+
+from src.ui.ctk_config import ctk
+from src.ui.ui_tokens import APP_BG, SEP
+
 # -*- coding: utf-8 -*-
 """
 Main Window Layout Builder.
@@ -7,18 +12,16 @@ topbar, menu, footer) SEM lógica de negócio ou navegação.
 
 Extraído de main_window.py como parte de P2-MF "MainWindow Layout Extraction"
 para reduzir MainWindow a ~500 linhas (apenas orquestrador).
-"""
 
-from __future__ import annotations
+MICROFASE 24: Removido sistema de múltiplos temas ttkbootstrap.
+Agora usa CustomTkinter como sistema principal de temas (light/dark).
+"""
 
 import logging
 import os
 import tkinter as tk
 from dataclasses import dataclass
-from tkinter import ttk
 from typing import TYPE_CHECKING
-
-import ttkbootstrap as tb
 
 from src.ui.topbar import TopBar
 from src.ui.menu_bar import AppMenuBar
@@ -39,13 +42,13 @@ class MainWindowLayoutRefs:
     """
 
     # Separadores
-    sep_menu_toolbar: ttk.Separator
-    sep_toolbar_main: ttk.Separator
+    sep_menu_toolbar: ctk.CTkFrame
+    sep_toolbar_main: ctk.CTkFrame
 
     # Componentes principais
     topbar: TopBar
     menu: AppMenuBar
-    content_container: tb.Frame
+    content_container: tk.Frame  # MICROFASE 24: Pode ser tk.Frame ou ctk.CTkFrame
     nav: NavigationController
     footer: StatusFooter
 
@@ -58,15 +61,15 @@ class MainWindowLayoutRefs:
 def build_main_window_layout(
     app: App,
     *,
-    theme_name: str,
     start_hidden: bool = False,
 ) -> MainWindowLayoutRefs:
     """Constrói toda a estrutura visual do MainWindow.
 
     Args:
         app: Instância de MainWindow (App)
-        theme_name: Nome do tema ttkbootstrap a usar
         start_hidden: Se True, oculta janela após construção
+
+    MICROFASE 24: Removido theme_name (tema gerenciado por CustomTkinter globalmente)
 
     Returns:
         MainWindowLayoutRefs com todas as referências aos componentes criados
@@ -93,12 +96,24 @@ def build_main_window_layout(
         format_version_string,
     )
     from src.ui.window_policy import apply_fit_policy
-    from src.utils.themes import apply_combobox_style
     import src.core.status as app_status
 
+    # 0. Configurar fundo da janela principal (para tema light consistente)
+    if ctk is not None:
+        try:
+            app.configure(fg_color=APP_BG)
+        except (AttributeError, Exception):
+            pass
+
     # 1. Separadores horizontais
-    sep_menu_toolbar = ttk.Separator(app, orient="horizontal")
+    SEP_H = 2
+    sep_menu_toolbar = ctk.CTkFrame(app, height=SEP_H, corner_radius=0, fg_color=SEP)
     sep_menu_toolbar.pack(side="top", fill="x", pady=0)
+    # Blindagem contra crescimento
+    try:
+        sep_menu_toolbar.pack_propagate(False)
+    except (AttributeError, Exception):
+        pass
 
     # 2. TopBar (precisa de callbacks do app)
     topbar = TopBar(
@@ -116,8 +131,13 @@ def build_main_window_layout(
     topbar.pack(side="top", fill="x")
 
     # Separador após topbar
-    sep_toolbar_main = ttk.Separator(app, orient="horizontal")
+    sep_toolbar_main = ctk.CTkFrame(app, height=SEP_H, corner_radius=0, fg_color=SEP)
     sep_toolbar_main.pack(side="top", fill="x", pady=0)
+    # Blindagem contra crescimento
+    try:
+        sep_toolbar_main.pack_propagate(False)
+    except (AttributeError, Exception):
+        pass
 
     # 3. Ícone da aplicação
     _apply_window_icon(app, APP_ICON_PATH)
@@ -126,26 +146,18 @@ def build_main_window_layout(
     app.protocol("WM_DELETE_WINDOW", app._confirm_exit)
 
     # 5. AppMenuBar
+    # MICROFASE 24: Substituir on_change_theme por on_toggle_theme
     menu = AppMenuBar(
         app,
         on_home=app.show_hub_screen,
         on_refresh=app.refresh_current_view,
         on_quit=app._on_menu_logout,
-        on_change_theme=app._handle_menu_theme_change,
+        on_toggle_theme=app._handle_toggle_theme,
     )
     menu.attach()
-    try:
-        menu.refresh_theme(theme_name)
-    except Exception as exc:  # noqa: BLE001
-        log.debug("Falha ao atualizar tema do menu: %s", exc)
 
-    # 6. Aplicar theme e combobox style
-    try:
-        app_style = tb.Style()
-        app_style.theme_use(theme_name)
-        apply_combobox_style(app_style)
-    except Exception as exc:  # noqa: BLE001
-        log.debug("Falha ao aplicar tema via Style: %s", exc)
+    # MICROFASE 24: Remover aplicação de tema ttkbootstrap
+    # O tema agora é gerenciado por CustomTkinter globalmente
 
     # 7. Título da janela
     version_str = format_version_string(APP_VERSION)
@@ -180,7 +192,11 @@ def build_main_window_layout(
             log.debug("Falha ao ocultar janela: %s", exc)
 
     # 10. Container de conteúdo + NavigationController
-    content_container = tb.Frame(app)
+    # MICROFASE 35: Usar CTkFrame com APP_BG para evitar fundo cinza no Hub
+    if ctk is not None:
+        content_container = ctk.CTkFrame(app, fg_color=APP_BG, corner_radius=0)
+    else:
+        content_container = tk.Frame(app)
     content_container.pack(fill="both", expand=True)
 
     nav = NavigationController(content_container, frame_factory=app._frame_factory)

@@ -1,0 +1,116 @@
+================================================================================
+DIAGNÓSTICO 05: PYTEST COLLECT-ONLY (COLETA REAL)
+================================================================================
+
+[Python usado]: .venv\Scripts\python.exe
+
+[Saída do comando: pytest --collect-only -q]
+
+tests/adapters/test_storage_api.py: 6
+tests/core/api/test_api_clients.py: 14
+tests/core/api/test_api_files.py: 5
+tests/core/api/test_api_notes.py: 10
+tests/core/api/test_router.py: 7
+tests/core/logs/test_audit.py: 4
+tests/core/logs/test_configure.py: 4
+tests/core/logs/test_filters.py: 7
+tests/core/search/test_search.py: 13
+tests/core/services/test_path_resolver.py: 23
+tests/core/test_auth_bootstrap.py: 32
+tests/core/test_auth_controller.py: 14
+tests/core/test_bootstrap.py: 12
+tests/core/test_classify_document.py: 10
+tests/core/test_keybindings.py: 2
+tests/core/test_navigation_controller.py: 12
+tests/core/test_session_guard.py: 3
+tests/core/test_settings.py: 7
+tests/core/test_status_monitor.py: 17
+tests/data/test_auth_bootstrap_data.py: 8
+tests/data/test_supabase_repo.py: 36
+tests/helpers/test_datetime_utils.py: 10
+tests/helpers/test_storage_errors.py: 11
+tests/helpers/test_storage_utils.py: 17
+tests/infra/repositories/test_passwords_repository.py: 24
+tests/integration/modules/auditoria/test_auditoria_integration_fase01.py: 17
+tests/integration/passwords/test_passwords_crypto_integration.py: 10
+tests/integration/passwords/test_passwords_flows.py: 14
+tests/integration/uploads/test_upload_flow_fase7.py: 10
+tests/modules/auditoria/test_auditoria_service_data.py: 7
+tests/modules/auditoria/test_auditoria_service_uploads.py: 6
+tests/modules/auditoria/test_auditoria_storage.py: 28
+tests/modules/auditoria/test_auditoria_viewmodel.py: 59
+tests/modules/auditoria/test_dialogs_progress.py: 1
+tests/modules/auditoria/test_repository.py: 13
+tests/modules/auditoria/test_service.py: 27
+tests/modules/clientes/forms/test_client_form_cnpj_actions_cf3.py: 14
+tests/modules/clientes/forms/test_client_picker_sec001.py: 1
+tests/modules/clientes/test_client_form_ctk_create_no_crash.py: 2
+tests/modules/clientes/test_client_form_ctk_import_smoke.py: 4
+tests/modules/clientes/test_clientes_actionbar_ctk_smoke.py: 9
+tests/modules/clientes/test_clientes_actionbar_without_excluir.py: 4
+tests/modules/clientes/test_clientes_exception_handlers_mock.py: 4
+tests/modules/clientes/test_clientes_footer_disabled_state.py: 4
+tests/modules/clientes/test_clientes_layout_polish_smoke.py: 17
+tests/modules/clientes/test_clientes_modal_ctk_create_no_crash.py: 4
+tests/modules/clientes/test_clientes_modal_ctk_import_smoke.py: 4
+tests/modules/clientes/test_clientes_pick_mode_contract_runtime.py: 4
+tests/modules/clientes/test_clientes_service_status.py: 4
+tests/modules/clientes/test_clientes_toolbar_branches.py: 8
+tests/modules/clientes/test_clientes_toolbar_ctk_visual_polish_smoke.py: 6
+tests/modules/clientes/test_clientes_treeview_heading_whatsapp_smoke.py: 16
+tests/modules/clientes/test_clientes_treeview_skin_smoke.py: 8
+tests/modules/clientes/test_clientes_viewmodel.py: 3
+tests/modules/clientes/test_clientes_views_imports.py: 1
+tests/modules/clientes/test_clientes_visual_polish_surface.py: 13
+tests/modules/clientes/test_clientes_whatsapp_alignment_smoke.py: 7
+tests/modules/clientes/test_clientes_whatsapp_diagnosis.py: 2
+tests/modules/hub/test_dashboard_center.py: 18
+tests/modules/hub/test_dashboard_service.py: 18
+tests/modules/lixeira/test_lixeira_view_ui.py: 13
+tests/modules/main_window/test_app_actions_sec001.py: 2
+tests/modules/passwords/test_passwords_actions.py: 8
+tests/modules/passwords/test_passwords_service.py: 5
+tests/modules/test_clientes_apply_theme_no_crash.py: 4
+tests/modules/test_clientes_theme_smoke.py: 5
+tests/modules/test_clientes_toolbar_ctk_smoke.py: 6
+tests/modules/uploads/test_browser_anvisa_integration.py: 2
+tests/modules/uploads/test_browser_pdf_viewer.py: 3
+tests/modules/uploads/test_upload_retry_sec001.py: 1
+tests/modules/uploads/test_uploader_supabase.py: 19
+tests/modules/uploads/test_validation.py: 14
+tests/modules/uploads/test_view_wrappers.py: 2
+tests/shared/test_storage_ui_bridge.py: 12
+tests/shared/test_subfolders.py: 16
+tests/tools/test_pdf_batch_from_images.py: 9
+tests/ui/components/test_progress_dialog.py: 2
+tests/ui/files_browser/test_constants.py: 21
+tests/ui/files_browser/test_utils.py: 53
+tests/ui/test_menu_bar_available_themes.py: 8
+tests/ui/test_search_nav.py: 24
+tests/ui/test_ui_components_py_shim.py: 11
+tests/ui/test_ui_utils.py: 28
+tests/ui/test_wheel_windows.py: 23
+tests/ui/test_window_policy.py: 20
+tests/unit/adapters/test_adapters_supabase_storage_fase37.py: 40
+tests/unit/adapters/test_supabase_storage_fase02.py: 51
+tests/unit/adapters/test_supabase_storage_observability.py: 12
+tests/unit/core/auth/test_auth.py: 25
+tests/unit/core/search/test_search_fase61.py: 35
+tests/unit/core/services/test_clientes_service_fase60.py: 30
+tests/unit/core/services/test_notes_service_adapter.py: 13
+tests/unit/core/test_app_core.py: 9
+tests/unit/core/test_app_core_fase02.py: 22
+tests/unit/core/test_app_core_fase03.py: 21
+tests/unit/core/test_app_gui.py: 2
+tests/unit/core/test_app_status_fase26.py: 16
+tests/unit/core/test_app_utils_fase31.py: 53
+tests/unit/core/test_auth_auth_fase12.py: 4
+tests/unit/core/test_auth_bootstrap_microf
+
+... (truncado, muito longo)
+
+[Análise]
+✓ tests/modules/clientes DETECTADO na coleta
+✓ 22 linhas de testes/modules/clientes encontradas
+
+================================================================================

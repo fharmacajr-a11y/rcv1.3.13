@@ -1,0 +1,506 @@
+================================================================================
+SCAN ESTÁTICO DE SKIP/XFAIL - MICROFASE 19.3
+================================================================================
+
+📊 CONTAGENS TOTAIS:
+----------------------------------------
+  @pytest.mark.skip       : 40
+  @pytest.mark.skipif     : 31
+  @pytest.mark.xfail      : 0
+  pytest.skip() calls     : 43
+  pytest.importorskip()   : 43
+
+📂 POR CATEGORIA:
+----------------------------------------
+  gui_required              : 40 item(s)
+  import_dependency         : 43 item(s)
+  conditional               : 31 item(s)
+  other                     : 43 item(s)
+
+
+================================================================================
+CATEGORIA: GUI_REQUIRED
+================================================================================
+
+[SKIP] tests\modules\test_clientes_theme_smoke.py:71
+  Reason: reason="Microfase 19.2: ttkbootstrap Combobox causa access violation no Python 3.13"
+
+[SKIP] tests\modules\test_clientes_toolbar_ctk_smoke.py:84
+  Reason: reason="Microfase 19.2: ttkbootstrap Combobox no fallback causa access violation no Python 3.13"
+
+[SKIP_CALL] tests\gui_legacy\test_auditoria_main_frame_fase01.py:5
+  Reason: "GUI tests pulados por padrão (defina RC_RUN_GUI_TESTS=1 para rodar
+
+[SKIP_CALL] tests\gui_legacy\test_auth_bootstrap_gui.py:13
+  Reason: "GUI tests pulados por padrão (defina RC_RUN_GUI_TESTS=1 para rodar
+
+[SKIP_CALL] tests\gui_legacy\test_clientes_client_form_fase01.py:9
+  Reason: "GUI tests pulados por padrão (defina RC_RUN_GUI_TESTS=1 para rodar
+
+[SKIP_CALL] tests\gui_legacy\test_clientes_forms_prepare_gui.py:5
+  Reason: "GUI tests de clientes/forms pulados por padrão (defina RC_RUN_GUI_TESTS=1 para rodar
+
+[SKIP_CALL] tests\gui_legacy\test_clientes_main_screen_fase01.py:9
+  Reason: "GUI tests pulados por padrão (defina RC_RUN_GUI_TESTS=1 para rodar
+
+[SKIP_CALL] tests\gui_legacy\test_hub_screen_fase01.py:15
+  Reason: "GUI tests pulados por padrão (defina RC_RUN_GUI_TESTS=1 para rodar
+
+[SKIP_CALL] tests\gui_legacy\test_lixeira_view_fase01.py:9
+  Reason: "GUI tests pulados por padrão (defina RC_RUN_GUI_TESTS=1 para rodar
+
+[SKIP_CALL] tests\gui_legacy\test_main_window_view_fase01.py:9
+  Reason: "GUI tests pulados por padrão (defina RC_RUN_GUI_TESTS=1 para rodar
+
+[SKIP_CALL] tests\gui_legacy\test_pdf_preview_main_window_fase01.py:5
+  Reason: "GUI tests pulados por padrão (defina RC_RUN_GUI_TESTS=1 para rodar
+
+[SKIP_CALL] tests\gui_legacy\test_ui_components_clients_treeview.py:5
+  Reason: "GUI tests de ui/components (Treeview
+
+[SKIP_CALL] tests\integration\modules\clientes\forms\test_client_form_integration_fase01.py:44
+  Reason: "Tk instável neste ambiente (access violation no ttkbootstrap
+
+[SKIP_CALL] tests\modules\anvisa\test_anvisa_footer.py:36
+  Reason: "Tkinter display não disponível"
+
+[SKIP_CALL] tests\modules\clientes\test_clientes_actionbar_ctk_smoke.py:27
+  Reason: "CustomTkinter não disponível"
+
+[SKIP_CALL] tests\modules\clientes\test_clientes_toolbar_branches.py:67
+  Reason: "CustomTkinter não disponível, teste skipped"
+
+[SKIP_CALL] tests\modules\clientes\test_clientes_toolbar_branches.py:126
+  Reason: "CustomTkinter não disponível, teste skipped"
+
+[SKIP_CALL] tests\modules\clientes\test_clientes_toolbar_branches.py:177
+  Reason: "CustomTkinter não disponível, teste skipped"
+
+[SKIP_CALL] tests\modules\clientes\test_clientes_toolbar_branches.py:228
+  Reason: "CustomTkinter não disponível, teste skipped"
+
+[SKIP_CALL] tests\modules\clientes\test_clientes_toolbar_branches.py:281
+  Reason: "CustomTkinter não disponível, teste skipped"
+
+[SKIP_CALL] tests\modules\clientes\test_clientes_toolbar_branches.py:331
+  Reason: "CustomTkinter não disponível, teste skipped"
+
+[SKIP_CALL] tests\modules\clientes\test_clientes_toolbar_branches.py:382
+  Reason: "CustomTkinter não disponível, teste skipped"
+
+[SKIP_CALL] tests\modules\clientes\test_clientes_visual_polish_surface.py:152
+  Reason: "CustomTkinter não disponível"
+
+[SKIP_CALL] tests\modules\clientes\test_clientes_visual_polish_surface.py:163
+  Reason: "CustomTkinter não disponível"
+
+[SKIP_CALL] tests\modules\test_clientes_apply_theme_no_crash.py:23
+  Reason: "CustomTkinter não disponível, teste não aplicável"
+
+[SKIP_CALL] tests\modules\test_clientes_apply_theme_no_crash.py:70
+  Reason: "CustomTkinter não disponível"
+
+[SKIP_CALL] tests\modules\test_clientes_apply_theme_no_crash.py:118
+  Reason: "CustomTkinter não disponível"
+
+[SKIP_CALL] tests\modules\test_clientes_toolbar_ctk_smoke.py:50
+  Reason: "CustomTkinter não disponível"
+
+[SKIP_CALL] tests\modules\test_clientes_toolbar_ctk_smoke.py:138
+  Reason: "CustomTkinter não disponível"
+
+[SKIP_CALL] tests\test_login_dialog_focus.py:14
+  Reason: "GUI tests de LoginDialog pulados por padrão (defina RC_RUN_GUI_TESTS=1 para rodar
+
+[SKIP_CALL] tests\test_login_dialog_style.py:14
+  Reason: "GUI tests de LoginDialog pulados por padrão (defina RC_RUN_GUI_TESTS=1 para rodar
+
+[SKIP_CALL] tests\test_login_dialog_window_state.py:14
+  Reason: "GUI tests de LoginDialog pulados por padrão (defina RC_RUN_GUI_TESTS=1 para rodar
+
+[SKIP_CALL] tests\unit\coverage_batches\test_batch01_small_zeros.py:57
+  Reason: f"Ambiente sem Tcl/Tk funcional: {exc_type}: {exc}"
+
+[SKIP_CALL] tests\unit\coverage_batches\test_batch02_small_zeros.py:35
+  Reason: f"Ambiente sem Tcl/Tk funcional: {exc_type}: {exc}"
+
+[SKIP_CALL] tests\unit\coverage_batches\test_batch03_medium_zeros.py:36
+  Reason: f"Ambiente sem Tcl/Tk funcional: {exc_type}: {exc}"
+
+[SKIP_CALL] tests\unit\modules\chatgpt\test_chatgpt_features.py:17
+  Reason: f"Tkinter indisponível para testes de ChatGPT: {exc}"
+
+[SKIP_CALL] tests\unit\modules\chatgpt\test_chatgpt_window_ui.py:16
+  Reason: f"Tkinter indisponivel para testes: {exc}"
+
+[SKIP_CALL] tests\unit\modules\clientes\forms\test_client_form_ui_builders.py:46
+  Reason: "Tkinter bug no Python 3.13+ em Windows"
+
+[SKIP_CALL] tests\unit\modules\sites\test_sites_screen_ui.py:16
+  Reason: f"Tkinter indisponível para testes: {exc}"
+
+[SKIP_CALL] tests\unit\modules\tasks\views\test_task_dialog.py:43
+  Reason: f"Tk não disponível: {e}"
+
+================================================================================
+CATEGORIA: IMPORT_DEPENDENCY
+================================================================================
+
+[IMPORTORSKIP] tests\modules\clientes\test_client_form_ctk_create_no_crash.py:18
+  Module: customtkinter", reason="CustomTkinter não instalado
+
+[IMPORTORSKIP] tests\modules\clientes\test_client_form_ctk_create_no_crash.py:28
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\modules\clientes\test_client_form_ctk_create_no_crash.py:101
+  Module: customtkinter", reason="CustomTkinter não instalado
+
+[IMPORTORSKIP] tests\modules\clientes\test_client_form_ctk_create_no_crash.py:106
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\modules\clientes\test_client_form_ctk_import_smoke.py:17
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\modules\clientes\test_client_form_ctk_import_smoke.py:30
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\modules\clientes\test_clientes_actionbar_ctk_smoke.py:32
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\modules\clientes\test_clientes_actionbar_ctk_smoke.py:61
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\modules\clientes\test_clientes_actionbar_ctk_smoke.py:83
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\modules\clientes\test_clientes_actionbar_ctk_smoke.py:108
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\modules\clientes\test_clientes_actionbar_ctk_smoke.py:146
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\modules\clientes\test_clientes_actionbar_ctk_smoke.py:218
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\modules\clientes\test_clientes_actionbar_ctk_smoke.py:240
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\modules\clientes\test_clientes_actionbar_without_excluir.py:33
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\modules\clientes\test_clientes_actionbar_without_excluir.py:82
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\modules\clientes\test_clientes_actionbar_without_excluir.py:128
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\modules\clientes\test_clientes_actionbar_without_excluir.py:195
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\modules\clientes\test_clientes_exception_handlers_mock.py:33
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\modules\clientes\test_clientes_exception_handlers_mock.py:88
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\modules\clientes\test_clientes_modal_ctk_create_no_crash.py:11
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\modules\clientes\test_clientes_modal_ctk_import_smoke.py:9
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\modules\clientes\test_clientes_pick_mode_contract_runtime.py:35
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\modules\clientes\test_clientes_pick_mode_contract_runtime.py:125
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\modules\clientes\test_clientes_pick_mode_contract_runtime.py:201
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\modules\clientes\test_clientes_pick_mode_contract_runtime.py:262
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\modules\clientes\test_clientes_toolbar_ctk_visual_polish_smoke.py:77
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\modules\clientes\test_clientes_toolbar_ctk_visual_polish_smoke.py:109
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\modules\clientes\test_clientes_toolbar_ctk_visual_polish_smoke.py:137
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\modules\clientes\test_clientes_toolbar_ctk_visual_polish_smoke.py:168
+  Module: customtkinter
+
+[IMPORTORSKIP] tests\unit\core\test_env_precedence.py:16
+  Module: dotenv", reason="python-dotenv não instalado
+
+[IMPORTORSKIP] tests\unit\core\test_env_precedence.py:44
+  Module: dotenv", reason="python-dotenv não instalado
+
+[IMPORTORSKIP] tests\unit\core\test_env_precedence.py:61
+  Module: dotenv", reason="python-dotenv não instalado
+
+[IMPORTORSKIP] tests\unit\core\test_env_precedence.py:90
+  Module: dotenv", reason="python-dotenv não instalado
+
+[IMPORTORSKIP] tests\unit\infra\test_archives.py:148
+  Module: py7zr", reason="py7zr não instalado
+
+[IMPORTORSKIP] tests\unit\infra\test_archives.py:347
+  Module: py7zr", reason="py7zr não instalado
+
+[IMPORTORSKIP] tests\unit\infra\test_archives.py:360
+  Module: py7zr", reason="py7zr não instalado
+
+[IMPORTORSKIP] tests\unit\infra\test_archives.py:373
+  Module: py7zr", reason="py7zr não instalado
+
+[IMPORTORSKIP] tests\unit\infra\test_archives.py:396
+  Module: py7zr", reason="py7zr não instalado
+
+[IMPORTORSKIP] tests\unit\infra\test_archives.py:573
+  Module: py7zr", reason="py7zr não instalado
+
+[IMPORTORSKIP] tests\unit\infra\test_archives.py:599
+  Module: py7zr", reason="py7zr não instalado
+
+[IMPORTORSKIP] tests\unit\infra\test_archives.py:625
+  Module: py7zr", reason="py7zr não instalado
+
+[IMPORTORSKIP] tests\unit\infra\test_archives.py:651
+  Module: py7zr", reason="py7zr não instalado
+
+[IMPORTORSKIP] tests\unit\modules\tasks\views\test_task_dialog.py:16
+  Module: tkinter
+
+================================================================================
+CATEGORIA: CONDITIONAL
+================================================================================
+
+[SKIPIF] tests\modules\clientes\test_client_form_ctk_create_no_crash.py:17
+  Condition: not pytest.importorskip("customtkinter", reason="CustomTkinter não instalado"
+
+[SKIPIF] tests\modules\clientes\test_client_form_ctk_create_no_crash.py:100
+  Condition: not pytest.importorskip("customtkinter", reason="CustomTkinter não instalado"
+
+[SKIPIF] tests\modules\clientes\test_clientes_treeview_heading_whatsapp_smoke.py:114
+  Condition: not HAS_TTKBOOTSTRAP, reason="Requer ttkbootstrap"
+
+[SKIPIF] tests\modules\clientes\test_clientes_treeview_heading_whatsapp_smoke.py:127
+  Condition: not HAS_TTKBOOTSTRAP, reason="Requer ttkbootstrap"
+
+[SKIPIF] tests\modules\clientes\test_clientes_treeview_heading_whatsapp_smoke.py:162
+  Condition: not HAS_TTKBOOTSTRAP, reason="Requer ttkbootstrap"
+
+[SKIPIF] tests\modules\clientes\test_clientes_treeview_heading_whatsapp_smoke.py:176
+  Condition: not HAS_TTKBOOTSTRAP, reason="Requer ttkbootstrap"
+
+[SKIPIF] tests\modules\clientes\test_clientes_treeview_skin_smoke.py:24
+  Condition: not HAS_TTKBOOTSTRAP, reason="Requer ttkbootstrap"
+
+[SKIPIF] tests\modules\clientes\test_clientes_treeview_skin_smoke.py:62
+  Condition: not HAS_TTKBOOTSTRAP, reason="Requer ttkbootstrap"
+
+[SKIPIF] tests\modules\clientes\test_clientes_treeview_skin_smoke.py:94
+  Condition: not HAS_TTKBOOTSTRAP, reason="Requer ttkbootstrap"
+
+[SKIPIF] tests\modules\clientes\test_clientes_treeview_skin_smoke.py:113
+  Condition: not HAS_TTKBOOTSTRAP, reason="Requer ttkbootstrap"
+
+[SKIPIF] tests\modules\clientes\test_clientes_treeview_skin_smoke.py:159
+  Condition: not HAS_TTKBOOTSTRAP, reason="Requer ttkbootstrap"
+
+[SKIPIF] tests\modules\clientes\test_clientes_treeview_skin_smoke.py:167
+  Condition: not HAS_TTKBOOTSTRAP, reason="Requer ttkbootstrap"
+
+[SKIPIF] tests\modules\clientes\test_clientes_visual_polish_surface.py:24
+  Condition: not HAS_TTKBOOTSTRAP, reason="Requer ttkbootstrap"
+
+[SKIPIF] tests\modules\clientes\test_clientes_visual_polish_surface.py:37
+  Condition: not HAS_TTKBOOTSTRAP, reason="Requer ttkbootstrap"
+
+[SKIPIF] tests\modules\clientes\test_clientes_visual_polish_surface.py:46
+  Condition: not HAS_TTKBOOTSTRAP, reason="Requer ttkbootstrap"
+
+[SKIPIF] tests\modules\clientes\test_clientes_visual_polish_surface.py:67
+  Condition: not HAS_TTKBOOTSTRAP, reason="Requer ttkbootstrap"
+
+[SKIPIF] tests\modules\clientes\test_clientes_visual_polish_surface.py:75
+  Condition: not HAS_TTKBOOTSTRAP, reason="Requer ttkbootstrap"
+
+[SKIPIF] tests\modules\clientes\test_clientes_visual_polish_surface.py:84
+  Condition: not HAS_TTKBOOTSTRAP, reason="Requer ttkbootstrap"
+
+[SKIPIF] tests\modules\clientes\test_clientes_visual_polish_surface.py:171
+  Condition: not HAS_TTKBOOTSTRAP, reason="Requer ttkbootstrap"
+
+[SKIPIF] tests\modules\clientes\test_clientes_visual_polish_surface.py:182
+  Condition: not HAS_TTKBOOTSTRAP, reason="Requer ttkbootstrap"
+
+[SKIPIF] tests\unit\infra\test_archives.py:102
+  Condition: not is_7z_available(
+
+[SKIPIF] tests\unit\infra\test_archives.py:110
+  Condition: not is_7z_available(
+
+[SKIPIF] tests\unit\infra\test_archives.py:421
+  Condition: not is_7z_available(
+
+[SKIPIF] tests\unit\infra\test_archives.py:444
+  Condition: not is_7z_available(
+
+[SKIPIF] tests\unit\infra\test_archives.py:466
+  Condition: not is_7z_available(
+
+[SKIPIF] tests\unit\modules\uploads\test_download_and_open_file.py:16
+  Condition: not sys.platform.startswith("win"
+
+[SKIPIF] tests\unit\modules\uploads\test_download_and_open_file.py:55
+  Condition: sys.platform.startswith("win"
+
+[SKIPIF] tests\unit\utils\test_prefs_legacy_fase14.py:88
+  Condition: not HAS_FILELOCK, reason="Requer filelock instalado. Execute: pip install filelock"
+
+[SKIPIF] tests\utils\test_prefs.py:144
+  Condition: not HAS_FILELOCK, reason="Requer filelock instalado"
+
+[SKIPIF] tests\utils\test_prefs.py:585
+  Condition: not HAS_FILELOCK, reason="Requer filelock instalado"
+
+[SKIPIF] tests\utils\test_prefs.py:597
+  Condition: not HAS_FILELOCK, reason="Requer filelock instalado"
+
+================================================================================
+CATEGORIA: OTHER
+================================================================================
+
+[SKIP] tests\modules\clientes\test_client_form_ctk_create_no_crash.py:17
+  Reason: no reason
+
+[SKIP] tests\modules\clientes\test_client_form_ctk_create_no_crash.py:100
+  Reason: no reason
+
+[SKIP] tests\modules\clientes\test_clientes_treeview_heading_whatsapp_smoke.py:114
+  Reason: no reason
+
+[SKIP] tests\modules\clientes\test_clientes_treeview_heading_whatsapp_smoke.py:127
+  Reason: no reason
+
+[SKIP] tests\modules\clientes\test_clientes_treeview_heading_whatsapp_smoke.py:162
+  Reason: no reason
+
+[SKIP] tests\modules\clientes\test_clientes_treeview_heading_whatsapp_smoke.py:176
+  Reason: no reason
+
+[SKIP] tests\modules\clientes\test_clientes_treeview_skin_smoke.py:24
+  Reason: no reason
+
+[SKIP] tests\modules\clientes\test_clientes_treeview_skin_smoke.py:62
+  Reason: no reason
+
+[SKIP] tests\modules\clientes\test_clientes_treeview_skin_smoke.py:94
+  Reason: no reason
+
+[SKIP] tests\modules\clientes\test_clientes_treeview_skin_smoke.py:113
+  Reason: no reason
+
+[SKIP] tests\modules\clientes\test_clientes_treeview_skin_smoke.py:159
+  Reason: no reason
+
+[SKIP] tests\modules\clientes\test_clientes_treeview_skin_smoke.py:167
+  Reason: no reason
+
+[SKIP] tests\modules\clientes\test_clientes_visual_polish_surface.py:24
+  Reason: no reason
+
+[SKIP] tests\modules\clientes\test_clientes_visual_polish_surface.py:37
+  Reason: no reason
+
+[SKIP] tests\modules\clientes\test_clientes_visual_polish_surface.py:46
+  Reason: no reason
+
+[SKIP] tests\modules\clientes\test_clientes_visual_polish_surface.py:67
+  Reason: no reason
+
+[SKIP] tests\modules\clientes\test_clientes_visual_polish_surface.py:75
+  Reason: no reason
+
+[SKIP] tests\modules\clientes\test_clientes_visual_polish_surface.py:84
+  Reason: no reason
+
+[SKIP] tests\modules\clientes\test_clientes_visual_polish_surface.py:171
+  Reason: no reason
+
+[SKIP] tests\modules\clientes\test_clientes_visual_polish_surface.py:182
+  Reason: no reason
+
+[SKIP] tests\unit\infra\test_archives.py:102
+  Reason: no reason
+
+[SKIP] tests\unit\infra\test_archives.py:110
+  Reason: no reason
+
+[SKIP] tests\unit\infra\test_archives.py:421
+  Reason: no reason
+
+[SKIP] tests\unit\infra\test_archives.py:444
+  Reason: no reason
+
+[SKIP] tests\unit\infra\test_archives.py:466
+  Reason: no reason
+
+[SKIP] tests\unit\modules\hub\test_dashboard_service.py:941
+  Reason: reason="Disabled in ANVISA-only mode - recent_activity is empty"
+
+[SKIP] tests\unit\modules\hub\test_dashboard_service.py:1032
+  Reason: reason="Disabled in ANVISA-only mode - recent_activity is empty"
+
+[SKIP] tests\unit\modules\hub\test_dashboard_service.py:1088
+  Reason: reason="Disabled in ANVISA-only mode - recent_activity is empty"
+
+[SKIP] tests\unit\modules\hub\test_dashboard_service.py:1139
+  Reason: reason="Disabled in ANVISA-only mode - recent_activity is empty"
+
+[SKIP] tests\unit\modules\hub\test_dashboard_service.py:1168
+  Reason: reason="Disabled in ANVISA-only mode - recent_activity is empty"
+
+[SKIP] tests\unit\modules\hub\test_dashboard_service.py:1231
+  Reason: reason="Disabled in ANVISA-only mode - recent_activity is empty"
+
+[SKIP] tests\unit\modules\hub\test_dashboard_service.py:1271
+  Reason: reason="Disabled in ANVISA-only mode - recent_activity is empty"
+
+[SKIP] tests\unit\modules\uploads\test_download_and_open_file.py:16
+  Reason: no reason
+
+[SKIP] tests\unit\modules\uploads\test_download_and_open_file.py:55
+  Reason: no reason
+
+[SKIP] tests\unit\utils\test_prefs_legacy_fase14.py:88
+  Reason: no reason
+
+[SKIP] tests\utils\test_prefs.py:144
+  Reason: no reason
+
+[SKIP] tests\utils\test_prefs.py:585
+  Reason: no reason
+
+[SKIP] tests\utils\test_prefs.py:597
+  Reason: no reason
+
+[SKIP_CALL] tests\unit\core\test_notifications_minimal.py:206
+  Reason: "Código não usa winotify"
+
+[SKIP_CALL] tests\unit\data\test_supabase_repo.py:893
+  Reason: "Could not create module spec"
+
+[SKIP_CALL] tests\unit\modules\clientes\test_clientes_export.py:207
+  Reason: "openpyxl não está instalado"
+
+[SKIP_CALL] tests\unit\modules\clientes\test_clientes_export.py:245
+  Reason: "openpyxl não está instalado"
+
+[SKIP_CALL] tests\unit\utils\test_prefs.py:612
+  Reason: "filelock não disponível"

@@ -4,13 +4,16 @@ from __future__ import annotations
 
 import logging
 import tkinter as tk
-from tkinter import ttk
+
 from typing import Callable, Literal, Optional
+
+from src.ui.ctk_config import ctk
+from src.ui.widgets import CTkTableView
 
 logger = logging.getLogger(__name__)
 
 
-class AuditoriaToolbar(ttk.Frame):
+class AuditoriaToolbar(ctk.CTkFrame):
     """Toolbar with search, client selector and quick actions."""
 
     def __init__(
@@ -26,15 +29,15 @@ class AuditoriaToolbar(ttk.Frame):
         on_clear_filter: Optional[Callable[[], None]] = None,
         on_cliente_selected: Optional[Callable[[], None]] = None,
     ) -> None:
-        super().__init__(master, padding=(ui_padx, ui_pady, ui_padx, ui_pady))
+        super().__init__(master)  # CTkFrame não aceita padding args posicionais
         for col in range(0, 8):
             self.columnconfigure(col, weight=0)
         self.columnconfigure(4, weight=1)
         self.columnconfigure(7, weight=1)
 
         self.search_var = search_var or tk.StringVar()
-        ttk.Label(self, text="Buscar cliente:").grid(row=0, column=0, sticky="w", padx=(0, ui_gap))
-        self.entry_busca = ttk.Entry(self, textvariable=self.search_var, width=32)
+        ctk.CTkLabel(self, text="Buscar cliente:").grid(row=0, column=0, sticky="w", padx=(0, ui_gap))
+        self.entry_busca = ctk.CTkEntry(self, textvariable=self.search_var, width=32)
         self.entry_busca.grid(row=0, column=1, sticky="w", padx=(0, ui_gap))
         self.ent_busca = self.entry_busca
 
@@ -55,16 +58,16 @@ class AuditoriaToolbar(ttk.Frame):
 
         self.entry_busca.bind("<KeyRelease>", _on_busca_key)
 
-        self.btn_limpar = ttk.Button(self, text="Limpar", command=lambda: on_clear_filter and on_clear_filter())
+        self.btn_limpar = ctk.CTkButton(self, text="Limpar", command=lambda: on_clear_filter and on_clear_filter())
         self.btn_limpar.grid(row=0, column=2, padx=(0, ui_gap))
 
         self.cliente_var = cliente_var or tk.StringVar()
-        ttk.Label(self, text="Cliente para auditoria:").grid(row=0, column=3, sticky="e", padx=(ui_gap, ui_gap))
-        self.combo_cliente = ttk.Combobox(self, textvariable=self.cliente_var, state="readonly", width=64)
+        ctk.CTkLabel(self, text="Cliente para auditoria:").grid(row=0, column=3, sticky="e", padx=(ui_gap, ui_gap))
+        self.combo_cliente = ctk.CTkComboBox(self, state="readonly", width=64)
         self.combo_cliente.grid(row=0, column=4, sticky="ew")
         self.cmb_cliente = self.combo_cliente
 
-        ttk.Label(self, text="").grid(row=0, column=7, sticky="ew")
+        ctk.CTkLabel(self, text="").grid(row=0, column=7, sticky="ew")
 
         def _on_select(event=None):  # type: ignore[no-untyped-def]
             if on_cliente_selected:
@@ -73,7 +76,7 @@ class AuditoriaToolbar(ttk.Frame):
         self.combo_cliente.bind("<<ComboboxSelected>>", _on_select)
 
 
-class AuditoriaListPanel(ttk.Labelframe):
+class AuditoriaListPanel(ctk.CTkFrame):
     """List panel containing the treeview and action buttons."""
 
     def __init__(
@@ -90,22 +93,40 @@ class AuditoriaListPanel(ttk.Labelframe):
         on_upload_files: Optional[Callable[[], None]] = None,
         on_delete: Optional[Callable[[], None]] = None,
     ) -> None:
-        super().__init__(master, text="Auditorias recentes", padding=(6, 4, 6, 6))
+        super().__init__(master)  # CTkFrame não suporta text/padding
+        
+        # Header manual (CTkFrame não suporta text)
+        self.header = ctk.CTkLabel(
+            self, 
+            text="Auditorias recentes", 
+            font=("Arial", 12, "bold"),
+            anchor="w"
+        )
+        self.header.grid(row=0, column=0, sticky="ew", padx=6, pady=(4, 2))
+        
+        # Body container
+        self.body = ctk.CTkFrame(self, fg_color="transparent")
+        self.body.grid(row=1, column=0, sticky="nsew", padx=6, pady=(0, 6))
+        
+        # Configurar weights
         self.columnconfigure(0, weight=1)
-        self.rowconfigure(0, weight=1)
-        self.rowconfigure(1, weight=0)
+        self.rowconfigure(1, weight=1)
+        self.body.columnconfigure(0, weight=1)
+        self.body.rowconfigure(0, weight=1)
+        self.body.rowconfigure(1, weight=0)
 
-        self.tree_container = ttk.Frame(self)
+        self.tree_container = ctk.CTkFrame(self.body)
         self.tree_container.grid(row=0, column=0, sticky="nsew")
         self.tree_container.columnconfigure(0, weight=1)
         self.tree_container.rowconfigure(0, weight=1)
 
-        self.tree = ttk.Treeview(
+        self.tree = CTkTableView(
             self.tree_container,
             columns=("cliente", "status", "criado", "atualizado"),
             show="headings",
-            selectmode="extended",
+            # selectmode="extended" handled internally
             height=16,
+            zebra=True,
         )
         for cid, title in (
             ("cliente", "Cliente"),
@@ -122,16 +143,14 @@ class AuditoriaListPanel(ttk.Labelframe):
         if on_open_status_menu:
             self.tree.bind("<Button-3>", on_open_status_menu)
 
-        scrollbar = ttk.Scrollbar(self.tree_container, orient="vertical", command=self.tree.yview)
-        scrollbar.grid(row=0, column=1, sticky="ns")
-        self.tree.configure(yscrollcommand=scrollbar.set)
-
-        self.lbl_notfound = ttk.Label(self, text="", foreground="#a33")
+        self.lbl_notfound = ctk.CTkLabel(self.body, text="", text_color="#a33")
         self.lbl_notfound.grid(row=1, column=0, sticky="w", pady=(ui_gap, 0))
 
-        self.actions_frame = ttk.Frame(self, padding=(ui_padx, ui_pady, ui_padx, ui_pady))
-        self.actions_frame.grid(row=1, column=0, sticky="ew")
-        self.columnconfigure(0, weight=1)
+        self.actions_frame = ctk.CTkFrame(self.body)
+        self.actions_frame.grid(row=2, column=0, sticky="ew", pady=ui_pady)
+        
+        # Ajustar rowconfigure do body para incluir a nova linha
+        self.body.rowconfigure(2, weight=0)
 
         self.actions_frame.columnconfigure(0, weight=1)
         for col in (1, 2, 3, 4):
@@ -140,26 +159,26 @@ class AuditoriaListPanel(ttk.Labelframe):
         def _wrap(cb: Optional[Callable[[], None]]) -> Callable[[], None]:
             return (lambda: cb()) if cb else (lambda: None)
 
-        self.btn_iniciar = ttk.Button(self.actions_frame, text="Iniciar auditoria", command=_wrap(on_start_auditoria))
-        self.btn_subpastas = ttk.Button(
+        self.btn_iniciar = ctk.CTkButton(self.actions_frame, text="Iniciar auditoria", command=_wrap(on_start_auditoria))
+        self.btn_subpastas = ctk.CTkButton(
             self.actions_frame,
             text="Ver subpastas",
             command=_wrap(on_view_subpastas),
             state="disabled",
         )
-        self.btn_enviar = ttk.Button(
+        self.btn_enviar = ctk.CTkButton(
             self.actions_frame,
             text="Enviar arquivos para Auditoria",
             command=_wrap(on_upload_files),
         )
-        self.btn_excluir = ttk.Button(
+        self.btn_excluir = ctk.CTkButton(
             self.actions_frame,
             text="Excluir auditoria(s)",
             command=_wrap(on_delete),
             state="disabled",
         )
 
-        ttk.Label(self.actions_frame, text="").grid(row=0, column=0, sticky="ew")
+        ctk.CTkLabel(self.actions_frame, text="").grid(row=0, column=0, sticky="ew")
         self.btn_iniciar.grid(row=0, column=1, padx=(0, ui_gap), sticky="e")
         self.btn_subpastas.grid(row=0, column=2, padx=(0, ui_gap), sticky="e")
         self.btn_enviar.grid(row=0, column=3, padx=(0, ui_gap), sticky="e")

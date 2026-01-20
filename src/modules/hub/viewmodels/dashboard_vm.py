@@ -34,14 +34,14 @@ class DashboardCardView:
         label: Texto do label (ex: "Clientes", "Pendências").
         value: Valor numérico do indicador.
         value_text: Texto formatado do valor (pode incluir ícones/warnings).
-        bootstyle: Estilo do card (ex: "info", "success", "danger", "warning").
+        bootstyle: Estilo do card - semantic tag only, not passed to widgets (optional).
         description: Descrição adicional (opcional, para tooltips futuros).
     """
 
     label: str
     value: int
     value_text: str
-    bootstyle: str
+    bootstyle: str | None = None  # Semantic tag only, optional
     description: str = ""
 
 
@@ -195,7 +195,6 @@ class DashboardViewModel:
             label="Clientes",
             value=active_clients,
             value_text=str(active_clients),
-            bootstyle="info",
             description="Clientes ativos (não deletados) na organização",
         )
 
@@ -233,7 +232,7 @@ class DashboardViewModel:
             label="Pendências",
             value=count,
             value_text=value_text,
-            bootstyle=bootstyle,
+            bootstyle=bootstyle,  # Semantic tag only, not passed to widgets
             description=description,
         )
 
@@ -266,7 +265,5 @@ class DashboardViewModel:
         return DashboardCardView(
             label="Tarefas hoje",
             value=count,
-            value_text=str(count),
-            bootstyle=bootstyle,
-            description=description,
+            value_text=str(count),            bootstyle=bootstyle,  # Semantic tag only, not passed to widgets            description=description,
         )

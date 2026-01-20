@@ -5,25 +5,22 @@ import logging
 import tkinter as tk
 from tkinter import font as tkfont
 
-from ttkbootstrap import Style
-
 _log = logging.getLogger(__name__)
 
 DEFAULT_THEME = "flatly"  # pode trocar para "darkly" se preferir escuro
 DEFAULT_SCALING = 1.25  # escala para monitores 125%; ajuste se necessário
 
 
-def init_theme(root: tk.Tk, theme: str = DEFAULT_THEME, scaling: float = DEFAULT_SCALING) -> Style:
+def init_theme(root: tk.Tk, theme: str = DEFAULT_THEME, scaling: float = DEFAULT_SCALING) -> None:
     """
-    Inicializa o tema do ttkbootstrap e ajusta a escala do Tk.
+    Inicializa o tema Tk e ajusta a escala.
+    
+    MICROFASE 31: Removido tema legado (ZERO runtime). Apenas scaling e fontes Tk.
 
     Args:
         root: Janela principal Tk
-        theme: Nome do tema ttkbootstrap (ex: "flatly", "darkly", "cosmo")
+        theme: Nome do tema (mantido por compatibilidade, mas não usado)
         scaling: Fator de escala para DPI (1.0 = 100%, 1.25 = 125%, 1.5 = 150%)
-
-    Returns:
-        Style: Objeto de estilo do ttkbootstrap
     """
     # Ajuste de escala do Tk (pontos -> pixels); ajuda em 125/150% sem distorcer fontes
     try:
@@ -31,7 +28,7 @@ def init_theme(root: tk.Tk, theme: str = DEFAULT_THEME, scaling: float = DEFAULT
     except Exception as exc:  # noqa: BLE001
         _log.debug("Falha ao definir tk scaling: %s", exc)
 
-    style = Style(theme=theme)  # tema ttkbootstrap
+    _log.debug("Tema Tk inicializado (sem temas legados)")
 
     # Configurar fontes via fontes nomeadas (evita parsing ambíguo de "Segoe UI 10")
     # Usar nametofont é seguro para nomes de fonte com espaços (ex: "Segoe UI", "Courier New")
@@ -43,5 +40,3 @@ def init_theme(root: tk.Tk, theme: str = DEFAULT_THEME, scaling: float = DEFAULT
             f.configure(family="Segoe UI", size=size)
     except Exception as exc:  # noqa: BLE001
         _log.debug("Falha ao configurar fontes: %s", exc)
-
-    return style

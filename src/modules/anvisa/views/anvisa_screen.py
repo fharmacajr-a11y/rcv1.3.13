@@ -11,9 +11,9 @@ from datetime import date, datetime
 from tkinter import messagebox
 from typing import Any, Callable, Optional
 
-import ttkbootstrap as ttk
-from ttkbootstrap.constants import BOTH, LEFT, YES, HORIZONTAL, NSEW
-from ttkbootstrap.widgets import DateEntry
+import customtkinter as ctk
+from src.ui.ctk_config import *
+from src.ui.widgets import CTkDatePicker, CTkTableView
 
 from ._anvisa_requests_mixin import AnvisaRequestsMixin
 from ._anvisa_history_popup_mixin import AnvisaHistoryPopupMixin
@@ -31,7 +31,7 @@ from src.ui.window_utils import (
 log = logging.getLogger(__name__)
 
 
-class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersMixin, ttk.Frame):
+class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersMixin, ctk.CTkFrame):
     """Tela ANVISA - Layout dividido com ações e conteúdo.
 
     Layout em duas colunas usando Panedwindow:
@@ -45,7 +45,7 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
         on_test_1: Callback opcional para botão Teste 1
         on_test_2: Callback opcional para botão Teste 2
         on_test_3: Callback opcional para botão Teste 3
-        **kwargs: Argumentos adicionais para ttk.Frame
+        **kwargs: Argumentos adicionais para ctk.CTkFrame
     """
 
     def __init__(
@@ -68,13 +68,13 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
         self._on_test_3 = on_test_3
 
         # Estado da navegação interna
-        self.current_page = ttk.StringVar(value="home")
+        self.current_page = tk.StringVar(value="home")
 
         # StringVar para feedback de última ação
-        self.last_action = ttk.StringVar(value="Nenhuma ação ainda")
+        self.last_action = tk.StringVar(value="Nenhuma ação ainda")
 
         # StringVar para cliente selecionado
-        self.selected_client_var = ttk.StringVar(value="Nenhum cliente selecionado")
+        self.selected_client_var = tk.StringVar(value="Nenhum cliente selecionado")
 
         # Lista local de demandas ANVISA (cache em memória)
         self._requests: list[dict[str, Any]] = []
@@ -90,7 +90,7 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
 
         # Popup de histórico (Toplevel)
         self._history_popup: Optional[tk.Toplevel] = None
-        self._history_tree_popup: Optional[tk.ttk.Treeview] = None
+        self._history_tree_popup: Optional[CTkTableView] = None
         self._history_iid_map: dict[str, str] = {}
 
         # Contexto para menu de botão direito
@@ -125,7 +125,7 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
         self.show_home()
 
     @staticmethod
-    def _lock_treeview_columns(tree: ttk.Treeview) -> None:
+    def _lock_treeview_columns(tree) -> None:
         """Trava redimensionamento e arrasto de colunas da Treeview.
 
         Args:
@@ -153,34 +153,36 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
     def _build_ui(self) -> None:
         """Constrói a interface da tela ANVISA com layout dividido."""
         # Container principal com padding
-        container = ttk.Frame(self, padding=20)
-        container.pack(fill=BOTH, expand=YES)
+        container = ctk.CTkFrame(self)
+        container.pack(fill="both", expand=True, padx=20, pady=20)
 
         # Panedwindow para dividir a tela em duas colunas (50/50)
-        self.paned = ttk.Panedwindow(container, orient=HORIZONTAL)
-        self.paned.pack(fill=BOTH, expand=YES)
+        self.paned = tk.PanedWindow(container, orient="horizontal", sashwidth=5, bg="#d9d9d9")
+        self.paned.pack(fill="both", expand=True)
 
         # COLUNA ESQUERDA: Tabela de demandas + botão no rodapé
-        left_frame = ttk.Frame(self.paned, padding=10)
-        self.paned.add(left_frame, weight=1)
+        left_frame = ctk.CTkFrame(self.paned)
+        self.paned.add(left_frame, width=400)
 
         # Configurar grid do left_frame
         left_frame.rowconfigure(0, weight=1)  # Treeview principal (expande)
         left_frame.rowconfigure(1, weight=0)  # Botões no rodapé
         left_frame.columnconfigure(0, weight=1)
 
-        # Row 0: Labelframe com Treeview (caixinha "Anvisa")
-        list_group = ttk.Labelframe(left_frame, text="Anvisa", padding=(8, 6))
-        list_group.grid(row=0, column=0, sticky=NSEW, pady=(0, 10))
+        # Row 0: Frame com Treeview (caixinha "Anvisa")
+        list_group = ctk.CTkFrame(left_frame)
+        list_group.grid(row=0, column=0, sticky="nsew", pady=(10, 10), padx=10)
+        
+        ctk.CTkLabel(list_group, text="Anvisa", font=("Arial", 12, "bold")).pack(pady=(5, 5))
 
         columns = ("client_id", "razao_social", "cnpj", "request_type", "updated_at")
-        self.tree_requests = tk.ttk.Treeview(
+        self.tree_requests = CTkTableView(
             list_group,
             columns=columns,
             show="headings",
-            selectmode="browse",
             height=15,
-        )
+            zebra=True,
+        )  # TODO: selectmode="browse" -> handle in CTk way
 
         # Cabeçalhos e colunas centralizados
         self.tree_requests.heading("client_id", text="ID", anchor="center")
@@ -195,11 +197,7 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
         self.tree_requests.column("request_type", width=180, anchor="center")
         self.tree_requests.column("updated_at", width=140, anchor="center", stretch=False)
 
-        scrollbar = tk.ttk.Scrollbar(list_group, orient="vertical", command=self.tree_requests.yview)
-        self.tree_requests.configure(yscrollcommand=scrollbar.set)
-
-        self.tree_requests.pack(side="left", fill=BOTH, expand=True)
-        scrollbar.pack(side="right", fill="y")
+        self.tree_requests.pack(side="left", fill="both", expand=True, padx=5, pady=5)
 
         # Bind de eventos na Treeview (garantir bind único)
         self.tree_requests.unbind("<Double-1>")
@@ -227,31 +225,33 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
         self._main_ctx_menu.add_command(label="Excluir", command=self._ctx_delete_request)
 
         # Row 1: Botões Nova e Excluir no rodapé (ações principais)
-        actions_bottom = ttk.Frame(left_frame)
-        actions_bottom.grid(row=1, column=0, sticky="w", pady=(10, 0))
+        actions_bottom = ctk.CTkFrame(left_frame)
+        actions_bottom.grid(row=1, column=0, sticky="w", pady=(10, 10), padx=10)
 
-        self._btn_nova = ttk.Button(
+        self._btn_nova = ctk.CTkButton(
             actions_bottom,
             text="Nova",
-            bootstyle="success",
+            fg_color=("#2E7D32", "#1B5E20"),
+            hover_color=("#1B5E20", "#0D4A11"),
             command=self._on_new_anvisa_clicked,
-            width=10,
+            width=100,
         )
-        self._btn_nova.pack(side=LEFT, padx=(0, 6))
+        self._btn_nova.pack(side="left", padx=(0, 6))
 
-        self._btn_excluir = ttk.Button(
+        self._btn_excluir = ctk.CTkButton(
             actions_bottom,
             text="Excluir",
-            bootstyle="danger",
+            fg_color=("#D32F2F", "#B71C1C"),
+            hover_color=("#B71C1C", "#8B0000"),
             command=self._on_delete_request_clicked,
-            width=10,
+            width=100,
             state="disabled",
         )
-        self._btn_excluir.pack(side=LEFT)
+        self._btn_excluir.pack(side="left")
 
         # COLUNA DIREITA: Conteúdo (será substituído conforme navegação)
-        self.content_frame = ttk.Frame(self.paned, padding=10)
-        self.paned.add(self.content_frame, weight=1)
+        self.content_frame = ctk.CTkFrame(self.paned)
+        self.paned.add(self.content_frame, width=400)
 
         # Agendar centralização do sash após renderização
         self.after(100, self._center_paned_sash)
@@ -270,11 +270,11 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
         self._load_requests_from_cloud()
 
         # Texto informativo centralizado
-        placeholder = ttk.Label(
+        placeholder = ctk.CTkLabel(
             self.content_frame,
             text="Em desenvolvimento.",
             font=("Segoe UI", 11),
-            bootstyle="secondary",
+            text_color=("#757575", "#BDBDBD"),
         )
         placeholder.place(relx=0.5, rely=0.2, anchor="center")
 
@@ -321,7 +321,7 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
         self._clear_content()
 
         # Título da subpágina
-        page_title = ttk.Label(
+        page_title = ctk.CTkLabel(
             self.content_frame,
             text=title,
             font=("Segoe UI", 16, "bold"),  # type: ignore[arg-type]
@@ -330,7 +330,7 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
         page_title.pack(pady=(20, 10))
 
         # Texto informativo
-        info_text = ttk.Label(
+        info_text = ctk.CTkLabel(
             self.content_frame,
             text="Em desenvolvimento.",
             font=("Segoe UI", 11),
@@ -554,51 +554,52 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
         # Aplicar ícone do app
         apply_window_icon(dlg)
 
-        # Container principal (padding menor no topo para subir conteúdo)
-        main_frame = ttk.Frame(dlg, padding=(16, 8, 16, 16))
-        main_frame.pack(fill=BOTH, expand=True)
+        # Container principal (padding via pack ao invés de kwargs)
+        main_frame = ctk.CTkFrame(dlg)
+        main_frame.pack(fill=BOTH, expand=True, padx=16, pady=(8, 16))
 
         # A) Título (menos espaço embaixo)
-        ttk.Label(
+        ctk.CTkLabel(
             main_frame,
             text="Regularização ANVISA",
             font=("Segoe UI", 16, "bold"),  # type: ignore[arg-type]
             bootstyle="primary",
         ).pack(pady=(0, 12))
 
-        # B) Caixinha "Cliente" com 3 campos readonly
-        lf_client = ttk.Labelframe(main_frame, text="Cliente", padding=(12, 10))
+        # B) Caixinha "Cliente" com 3 campos readonly  
+        from src.ui.widgets.ctk_section import CTkSection
+        lf_client = CTkSection(main_frame, title="Cliente")
         lf_client.pack(fill="x", pady=(0, 10))
-        lf_client.columnconfigure(1, weight=0)
-        lf_client.columnconfigure(3, weight=0)
-        lf_client.columnconfigure(5, weight=1)
+        lf_client.content_frame.columnconfigure(1, weight=0)
+        lf_client.content_frame.columnconfigure(3, weight=0)
+        lf_client.content_frame.columnconfigure(5, weight=1)
 
         # Linha 0: ID e CNPJ lado a lado
         client_id = str(client_data.get("id", ""))
         cnpj = client_data.get("cnpj", "")
 
-        ttk.Label(lf_client, text="ID:").grid(row=0, column=0, sticky="w", pady=(0, 8))
+        ctk.CTkLabel(lf_client.content_frame, text="ID:").grid(row=0, column=0, sticky="w", pady=(0, 8))
         id_var = tk.StringVar(value=client_id)
-        e_id = ttk.Entry(lf_client, textvariable=id_var, state="readonly", width=10, justify="left")
+        e_id = ctk.CTkEntry(lf_client.content_frame, textvariable=id_var, state="readonly", width=10, justify="left")
         e_id.grid(row=0, column=1, sticky="w", padx=(8, 20), pady=(0, 8))
 
-        ttk.Label(lf_client, text="CNPJ:").grid(row=0, column=2, sticky="w", pady=(0, 8))
+        ctk.CTkLabel(lf_client.content_frame, text="CNPJ:").grid(row=0, column=2, sticky="w", pady=(0, 8))
         cnpj_var = tk.StringVar(value=cnpj)
-        e_cnpj = ttk.Entry(lf_client, textvariable=cnpj_var, state="readonly", width=20, justify="left")
+        e_cnpj = ctk.CTkEntry(lf_client.content_frame, textvariable=cnpj_var, state="readonly", width=20, justify="left")
         e_cnpj.grid(row=0, column=3, sticky="w", padx=(8, 0), pady=(0, 8))
 
         # Linha 1: Razão Social (ocupa toda largura)
-        ttk.Label(lf_client, text="Razão Social:").grid(row=1, column=0, sticky="w")
+        ctk.CTkLabel(lf_client.content_frame, text="Razão Social:").grid(row=1, column=0, sticky="w")
         razao = client_data.get("razao_social", "")
         razao_var = tk.StringVar(value=razao)
-        e_razao = ttk.Entry(lf_client, textvariable=razao_var, state="readonly")
+        e_razao = ctk.CTkEntry(lf_client.content_frame, textvariable=razao_var, state="readonly")
         e_razao.grid(row=1, column=1, columnspan=5, sticky="ew", padx=(8, 0))
 
         # C) Separator
-        ttk.Separator(main_frame, orient="horizontal").pack(fill="x", pady=(0, 10))
+        ctk.CTkFrame(main_frame, height=2)  # Separador horizontal.pack(fill="x", pady=(0, 10))
 
         # D) Caixinha "Tipo de Regularização"
-        lf_tipo = ttk.Labelframe(main_frame, text="Tipo de Regularização", padding=(12, 10))
+        lf_tipo = CTkSection(main_frame, title="Tipo de Regularização")
         lf_tipo.pack(fill="x", expand=False, pady=(0, 10))
 
         from ..constants import REQUEST_TYPES
@@ -609,7 +610,6 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
         special_type = "Concessão de AE Manipulação"
         from tkinter import font as tkfont
 
-        style = ttk.Style()
         base_font = tkfont.nametofont("TkDefaultFont")
         bold_font = base_font.copy()
         bold_font.configure(weight="bold")
@@ -617,10 +617,8 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
         # Manter referência viva (evita GC)
         dlg._anvisa_bold_font = bold_font  # type: ignore[attr-defined]
 
-        style.configure("AnvisaBold.primary.TRadiobutton", font=bold_font)
-
         # Layout em 2 colunas para reduzir altura
-        types_frame = ttk.Frame(lf_tipo)
+        types_frame = ctk.CTkFrame(lf_tipo.content_frame)
         types_frame.pack(fill="x")
         types_frame.columnconfigure(0, weight=1)
         types_frame.columnconfigure(1, weight=1)
@@ -628,29 +626,28 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
         for i, req_type in enumerate(REQUEST_TYPES):
             r = i // 2
             c = i % 2
-            # Usar estilo em negrito para o tipo especial
-            rb_style = "AnvisaBold.primary.TRadiobutton" if req_type == special_type else "primary.TRadiobutton"
-            ttk.Radiobutton(
+            # CTkRadioButton não suporta style= custom, usar font padrão
+            ctk.CTkRadioButton(
                 types_frame,
                 text=req_type,
                 variable=selected_type,
                 value=req_type,
-                style=rb_style,
             ).grid(row=r, column=c, sticky="w", padx=(0, 18), pady=3)
 
         # E) Caixinha "Detalhes" (prazo OBRIGATÓRIO)
-        lf_details = ttk.Labelframe(main_frame, text="Detalhes", padding=(12, 10))
+        lf_details = CTkSection(main_frame, title="Detalhes")
         lf_details.pack(fill="x", pady=(0, 10))
 
-        # Prazo obrigatório com DateEntry (calendário)
-        ttk.Label(lf_details, text="Prazo *:").grid(row=0, column=0, sticky="w", pady=(0, 6))
+        # Prazo obrigatório com CTkDatePicker (calendário)
+        ctk.CTkLabel(lf_details.content_frame, text="Prazo *:").grid(row=0, column=0, sticky="w", pady=(0, 6))
 
         # Calcular data default baseado no tipo selecionado
         today = date.today()
         default_iso = self._service.default_due_date_iso_for_type(selected_type.get(), today)
         default_date = datetime.strptime(default_iso, "%Y-%m-%d").date()
 
-        due_entry = DateEntry(lf_details, dateformat="%d/%m/%Y", startdate=default_date, popup_title="Selecione a data")
+        due_entry = CTkDatePicker(lf_details.content_frame, date_format="%d/%m/%Y")
+        due_entry.set(default_date.strftime("%d/%m/%Y"))
         due_entry.grid(row=0, column=1, sticky="w", padx=(8, 0), pady=(0, 6))
 
         # Flag para detectar se usuário já editou manualmente o prazo
@@ -659,30 +656,25 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
         def on_date_selected(event=None):
             user_edited_date["value"] = True
 
-        due_entry.bind("<<DateEntrySelected>>", on_date_selected)
+        due_entry.bind("<Return>", on_date_selected)
+        due_entry.bind("<FocusOut>", on_date_selected)
 
         # Atualizar default ao mudar tipo (se usuário não editou manualmente)
         def on_type_changed(*args):
             if not user_edited_date["value"]:
                 new_default_iso = self._service.default_due_date_iso_for_type(selected_type.get(), today)
                 new_default_date = datetime.strptime(new_default_iso, "%Y-%m-%d").date()
-
-                # Fallback para versões sem set_date
-                if hasattr(due_entry, "set_date"):
-                    due_entry.set_date(new_default_date)
-                else:
-                    due_entry.entry.delete(0, "end")
-                    due_entry.entry.insert(0, new_default_date.strftime("%d/%m/%Y"))
+                due_entry.set(new_default_date.strftime("%d/%m/%Y"))
 
         selected_type.trace_add("write", on_type_changed)
 
         # Observações (multi-linha, opcional)
-        ttk.Label(lf_details, text="Observações:").grid(row=1, column=0, sticky="nw", pady=(6, 0))
-        notes_text = tk.Text(lf_details, height=3, width=46, wrap="word")
+        ctk.CTkLabel(lf_details.content_frame, text="Observações:").grid(row=1, column=0, sticky="nw", pady=(6, 0))
+        notes_text = tk.Text(lf_details.content_frame, height=3, width=46, wrap="word")
         notes_text.grid(row=1, column=1, sticky="w", padx=(8, 0), pady=(6, 0))
 
         # F) Botões (mesmo padrão Nova/Excluir: width=10)
-        btn_frame = ttk.Frame(main_frame)
+        btn_frame = ctk.CTkFrame(main_frame)
         btn_frame.pack(fill="x", pady=(10, 0))
 
         result: dict[str, Any] = {"value": None}
@@ -695,12 +687,9 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
             tipo = selected_type.get()
             notes = notes_text.get("1.0", "end").strip()
 
-            # Obter prazo do DateEntry (obrigatório)
+            # Obter prazo do CTkDatePicker (obrigatório)
             try:
                 dt = due_entry.get_date()
-                # Se retornar datetime, pegar apenas date
-                if hasattr(dt, "date"):
-                    dt = dt.date()
                 due_iso = dt.isoformat()
             except Exception as e:
                 log.warning(f"Erro ao obter prazo: {e}")
@@ -727,25 +716,21 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
             result["value"] = None
             dlg.destroy()
 
-        btn_create = ttk.Button(
+        btn_create = ctk.CTkButton(
             btn_frame,
             text="Criar",
-            bootstyle="success",
             width=12,
-            padding=(10, 6),
             command=on_create,
         )
-        btn_create.pack(side="left", padx=(0, 6))
+        btn_create.pack(side="left", padx=(10, 6), pady=6)
 
-        btn_cancel = ttk.Button(
+        btn_cancel = ctk.CTkButton(
             btn_frame,
             text="Cancelar",
-            bootstyle="secondary",
             width=12,
-            padding=(10, 6),
             command=on_cancel,
         )
-        btn_cancel.pack(side="left", padx=(6, 0))
+        btn_cancel.pack(side="left", padx=(6, 10), pady=6)
 
         # Centralizar janela SEM FLASH (altura calculada automaticamente)
         show_centered_no_flash(dlg, self.winfo_toplevel(), width=740, height=None)
@@ -768,12 +753,24 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
             width = self.paned.winfo_width()
 
             if width > 1:
-                # Centralizar sash na metade
-                self.paned.sashpos(0, width // 2)
+                # Verificar se é ttk.PanedWindow (tem sashpos) ou tk.PanedWindow (tem sash_place)
+                if hasattr(self.paned, 'sashpos'):
+                    # TTK PanedWindow
+                    self.paned.sashpos(0, width // 2)
+                elif hasattr(self.paned, 'sash_place'):
+                    # TK PanedWindow
+                    try:
+                        pos = self.paned.sash_coord(0)  # (x, y)
+                        novo_x = width // 2
+                        self.paned.sash_place(0, novo_x, pos[1])
+                    except Exception:
+                        # Se sash_coord falhar, tentar posição padrão
+                        self.paned.sash_place(0, width // 2, 0)
+                
                 self._sash_centered = True
                 log.debug(f"Sash centralizado em {width // 2}px")
         except Exception as e:
-            log.warning(f"Erro ao centralizar sash: {e}")
+            log.debug(f"Erro ao centralizar sash: {e}")  # debug em vez de warning
 
     def _get_main_app(self) -> Optional[Any]:
         """Retorna referência à aplicação principal."""

@@ -8,7 +8,7 @@ import tkinter as tk
 from tkinter import messagebox
 from typing import Any, Callable, Optional
 
-import ttkbootstrap as tb
+from src.ui.ctk_config import ctk
 
 from src.db.domain_types import ClientRow, PasswordRow
 from src.core.app import apply_rc_icon
@@ -20,12 +20,12 @@ from src.ui.window_utils import show_centered
 log = logging.getLogger(__name__)
 
 
-class PasswordDialog(tb.Toplevel):
+class PasswordDialog(ctk.CTkToplevel):
     """Diálogo modal para criação/edição de senha."""
 
     def __init__(
         self,
-        parent: tb.Widget,
+        parent,
         org_id: str,
         user_id: str,
         clients: list[ClientRow],
@@ -98,65 +98,67 @@ class PasswordDialog(tb.Toplevel):
 
     def _build_ui(self) -> None:
         """Constrói a interface do diálogo."""
-        container = tb.Frame(self, padding=20)
-        container.pack(fill="both", expand=True)
+        container = ctk.CTkFrame(self)
+        container.pack(fill="both", expand=True, padx=20, pady=20)
 
         # Cliente
-        tb.Label(container, text="Cliente:").grid(row=0, column=0, sticky="w", pady=5)
-        client_frame = tb.Frame(container)
+        ctk.CTkLabel(container, text="Cliente:").grid(row=0, column=0, sticky="w", pady=5)
+        client_frame = ctk.CTkFrame(container)
         client_frame.grid(row=0, column=1, sticky="ew", pady=5, padx=(10, 0))
 
         self.client_display_var = tk.StringVar()
-        self.client_display_entry = tb.Entry(
+        self.client_display_entry = ctk.CTkEntry(
             client_frame,
             textvariable=self.client_display_var,
             state="readonly",
-            width=40,
+            width=300,
         )
         self.client_display_entry.pack(side="left", fill="x", expand=True)
 
-        self.select_client_button = tb.Button(
+        self.select_client_button = ctk.CTkButton(
             client_frame,
             text="Selecionar...",
-            bootstyle="secondary",
+            fg_color=("#757575", "#616161"),
+            hover_color=("#616161", "#424242"),
             command=self._on_select_client_clicked,
+            width=100,
         )
         self.select_client_button.pack(side="right", padx=(5, 0))
 
         # Serviço
-        tb.Label(container, text="Serviço:").grid(row=1, column=0, sticky="w", pady=5)
+        ctk.CTkLabel(container, text="Serviço:").grid(row=1, column=0, sticky="w", pady=5)
         self.service_var = tk.StringVar()
-        self.service_combo = tb.Combobox(
+        self.service_combo = ctk.CTkComboBox(
             container,
-            textvariable=self.service_var,
+            variable=self.service_var,
             values=["SIFAP", "CRF", "GOV.BR", "E-mail", "Banco", "Outro"],
         )
         self.service_combo.grid(row=1, column=1, sticky="ew", pady=5, padx=(10, 0))
 
         # Usuário/Login
-        tb.Label(container, text="Usuário / Login:").grid(row=2, column=0, sticky="w", pady=5)
+        ctk.CTkLabel(container, text="Usuário / Login:").grid(row=2, column=0, sticky="w", pady=5)
         self.username_var = tk.StringVar()
-        self.username_entry = tb.Entry(container, textvariable=self.username_var)
+        self.username_entry = ctk.CTkEntry(container, textvariable=self.username_var)
         self.username_entry.grid(row=2, column=1, sticky="ew", pady=5, padx=(10, 0))
 
         # Senha
-        tb.Label(container, text="Senha:").grid(row=3, column=0, sticky="w", pady=5)
+        ctk.CTkLabel(container, text="Senha:").grid(row=3, column=0, sticky="w", pady=5)
         self.password_var = tk.StringVar()
-        self.password_entry = tb.Entry(container, textvariable=self.password_var, show="*")
+        self.password_entry = ctk.CTkEntry(container, textvariable=self.password_var, show="*")
         self.password_entry.grid(row=3, column=1, sticky="ew", pady=5, padx=(10, 0))
 
         # Anotações
-        tb.Label(container, text="Anotações:").grid(row=4, column=0, sticky="w", pady=5)
+        ctk.CTkLabel(container, text="Anotações:").grid(row=4, column=0, sticky="w", pady=5)
         self.notes_var = tk.StringVar()
-        self.notes_entry = tb.Entry(container, textvariable=self.notes_var)
+        self.notes_entry = ctk.CTkEntry(container, textvariable=self.notes_var)
         self.notes_entry.grid(row=4, column=1, sticky="ew", pady=5, padx=(10, 0))
 
         # Botões
-        btn_frame = tb.Frame(container)
+        btn_frame = ctk.CTkFrame(container)
         btn_frame.grid(row=5, column=0, columnspan=2, pady=20)
 
-        tb.Button(btn_frame, text="Salvar", bootstyle="success", command=self._save).pack(side="left", padx=5)
-        tb.Button(btn_frame, text="Cancelar", bootstyle="secondary", command=self.destroy).pack(side="left", padx=5)
+        ctk.CTkButton(btn_frame, text="Salvar", fg_color=("#2E7D32", "#1B5E20"), hover_color=("#1B5E20", "#0D4A11"), command=self._save).pack(side="left", padx=5)
+        ctk.CTkButton(btn_frame, text="Cancelar", fg_color=("#757575", "#616161"), hover_color=("#616161", "#424242"), command=self.destroy).pack(side="left", padx=5)
 
         container.columnconfigure(1, weight=1)
 

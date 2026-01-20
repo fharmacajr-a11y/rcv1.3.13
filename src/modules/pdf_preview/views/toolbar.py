@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from src.ui.ctk_config import ctk
+
 import tkinter as tk
-from tkinter import ttk
 from typing import Callable
 
 
-class PdfToolbar(ttk.Frame):
+class PdfToolbar(ctk.CTkFrame):
     """
     Barra superior do PDF Preview:
     - botões de zoom (-, 100%, +)
@@ -35,35 +36,33 @@ class PdfToolbar(ttk.Frame):
         self._on_toggle_text = on_toggle_text
         self.var_text = tk.BooleanVar(master=self, value=False)
 
-        ttk.Button(self, text="\u2212", width=3, command=on_zoom_out).pack(side="left", padx=(8, 0), pady=6)
-        ttk.Button(self, text="100%", command=on_zoom_100).pack(side="left", padx=4, pady=6)
-        ttk.Button(self, text="+", width=3, command=on_zoom_in).pack(side="left", padx=4, pady=6)
-        ttk.Button(self, text="Largura", command=on_fit_width).pack(side="left", padx=8, pady=6)
+        ctk.CTkButton(self, text="\u2212", width=3, command=on_zoom_out).pack(side="left", padx=(8, 0), pady=6)
+        ctk.CTkButton(self, text="100%", command=on_zoom_100).pack(side="left", padx=4, pady=6)
+        ctk.CTkButton(self, text="+", width=3, command=on_zoom_in).pack(side="left", padx=4, pady=6)
+        ctk.CTkButton(self, text="Largura", command=on_fit_width).pack(side="left", padx=8, pady=6)
 
-        self.lbl_page = ttk.Label(self, text="Página 1/1")
+        self.lbl_page = ctk.CTkLabel(self, text="Página 1/1")
         self.lbl_page.pack(side="left", padx=12)
-        self.lbl_zoom = ttk.Label(self, text="100%")
+        self.lbl_zoom = ctk.CTkLabel(self, text="100%")
         self.lbl_zoom.pack(side="left", padx=6)
 
-        self.chk_text = ttk.Checkbutton(self, text="Texto", variable=self.var_text, command=self._handle_toggle_text)
+        self.chk_text = ctk.CTkCheckBox(self, text="Texto", variable=self.var_text, command=self._handle_toggle_text)
         self.chk_text.pack(side="left", padx=12)
 
         # Botões da direita (ordem de pack para visual correto)
-        self.btn_download_pdf = ttk.Button(self, text="Baixar PDF", command=on_download_pdf)
+        self.btn_download_pdf = ctk.CTkButton(self, text="Baixar PDF", command=on_download_pdf)
         self.btn_download_pdf.pack(side="right", padx=8, pady=6)
-        self.btn_download_img = ttk.Button(self, text="Baixar imagem", command=on_download_image)
+        self.btn_download_img = ctk.CTkButton(self, text="Baixar imagem", command=on_download_image)
         self.btn_download_img.pack(side="right", padx=8, pady=6)
 
         # Novo botão Conversor PDF (pack por último para ficar à esquerda dos downloads)
-        self.btn_converter = ttk.Button(self, text="Conversor PDF", command=on_open_converter or (lambda: None))
+        self.btn_converter = ctk.CTkButton(self, text="Conversor PDF", command=on_open_converter or (lambda: None))
         self.btn_converter.pack(side="right", padx=8, pady=6)
 
         # Se callback não fornecido, desabilita botão
         if on_open_converter is None:
-            try:
-                self.btn_converter.state(["disabled"])
-            except Exception:
-                self.btn_converter["state"] = "disabled"
+            from src.ui.widget_state import set_disabled
+            set_disabled(self.btn_converter)
 
     def _handle_toggle_text(self) -> None:
         """Propaga o valor atual do toggle de texto para o callback da view."""

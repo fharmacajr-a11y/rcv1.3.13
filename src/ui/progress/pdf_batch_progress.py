@@ -3,10 +3,10 @@ from __future__ import annotations
 import logging
 import time
 import tkinter as tk
-from tkinter import ttk
 from pathlib import Path
 from typing import Optional
 
+from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
 from src.ui.window_utils import show_centered
 from src.utils.paths import resource_path
 
@@ -38,16 +38,25 @@ class PDFBatchProgressDialog(tk.Toplevel):
         except Exception as exc:  # noqa: BLE001
             _log.debug("Falha ao definir ícone em pdf_batch_progress: %s", exc)
 
-        self.progress = ttk.Progressbar(self, orient="horizontal", length=320, mode="determinate", maximum=100)
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            self.progress = ctk.CTkProgressBar(self, width=320, mode="determinate")
+            self.progress.set(0)
+        else:
+            # Canvas fallback
+            self.progress = tk.Canvas(self, width=320, height=22, bg="#e0e0e0", highlightthickness=0)
+            self.progress._progress_value = 0.0  # type: ignore[attr-defined]
         self.progress.pack(padx=12, pady=(12, 6))
 
-        self.label_subdir = ttk.Label(self, text="Subpasta 0/0")
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            self.label_subdir = ctk.CTkLabel(self, text="Subpasta 0/0")
+            self.label_bytes = ctk.CTkLabel(self, text="0 KB de 0 KB (~0.0%)")
+            self.label_eta = ctk.CTkLabel(self, text="Tempo estimado: 00:00")
+        else:
+            self.label_subdir = tk.Label(self, text="Subpasta 0/0")
+            self.label_bytes = tk.Label(self, text="0 KB de 0 KB (~0.0%)")
+            self.label_eta = tk.Label(self, text="Tempo estimado: 00:00")
         self.label_subdir.pack(padx=12, pady=2)
-
-        self.label_bytes = ttk.Label(self, text="0 KB de 0 KB (~0.0%)")
         self.label_bytes.pack(padx=12, pady=2)
-
-        self.label_eta = ttk.Label(self, text="Tempo estimado: 00:00")
         self.label_eta.pack(padx=12, pady=(2, 12))
 
         self.resizable(False, False)
@@ -85,7 +94,15 @@ class PDFBatchProgressDialog(tk.Toplevel):
         eta_str = f"{minutes:02d}:{seconds:02d}"
 
         try:
-            self.progress["value"] = percent
+            # Atualizar progress bar
+            if HAS_CUSTOMTKINTER and ctk is not None and hasattr(self.progress, 'set'):
+                self.progress.set(percent / 100.0)  # CTk usa 0.0-1.0
+            else:
+                # Canvas fallback
+                self.progress._progress_value = percent / 100.0  # type: ignore[attr-defined]
+                fill_w = int(320 * (percent / 100.0))
+                self.progress.delete("all")
+                self.progress.create_rectangle(0, 0, fill_w, 22, fill="#007bff", outline="")
 
             subdir_name = current_subdir.name if current_subdir else ""
             self.label_subdir.configure(text=f"Subpasta {current_index}/{total_subdirs}: {subdir_name}")

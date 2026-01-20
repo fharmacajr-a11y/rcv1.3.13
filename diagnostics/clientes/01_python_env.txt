@@ -1,0 +1,48 @@
+================================================================================
+EXECUTÁVEL PYTHON
+================================================================================
+Executável: C:\Users\Pichau\AppData\Local\Programs\Python\Python313\python.exe
+Versão: 3.13.7 (tags/v3.13.7:bcee1c3, Aug 14 2025, 14:15:11) [MSC v.1944 64 bit (AMD64)]
+Plataforma: win32
+
+
+================================================================================
+PREFIXOS
+================================================================================
+sys.prefix: C:\Users\Pichau\AppData\Local\Programs\Python\Python313
+sys.base_prefix: C:\Users\Pichau\AppData\Local\Programs\Python\Python313
+sys.exec_prefix: C:\Users\Pichau\AppData\Local\Programs\Python\Python313
+sys.base_exec_prefix: C:\Users\Pichau\AppData\Local\Programs\Python\Python313
+
+
+================================================================================
+SYS.PATH
+================================================================================
+sys.path:
+  [1] C:\Users\Pichau\Desktop\v1.5.42\tools
+  [2] C:\Users\Pichau\AppData\Local\Programs\Python\Python313\python313.zip
+  [3] C:\Users\Pichau\AppData\Local\Programs\Python\Python313\DLLs
+  [4] C:\Users\Pichau\AppData\Local\Programs\Python\Python313\Lib
+  [5] C:\Users\Pichau\AppData\Local\Programs\Python\Python313
+  [6] C:\Users\Pichau\AppData\Local\Programs\Python\Python313\Lib\site-packages
+
+
+================================================================================
+VARIÁVEIS DE AMBIENTE
+================================================================================
+VIRTUAL_ENV: <não definida>
+CONDA_PREFIX: <não definida>
+PYTHONPATH: <não definida>
+PYTHONHOME: <não definida>
+
+
+================================================================================
+CUSTOMTKINTER
+================================================================================
+✅ customtkinter importado com sucesso
+Arquivo: C:\Users\Pichau\AppData\Local\Programs\Python\Python313\Lib\site-packages\customtkinter\__init__.py
+
+Versão (__version__): 5.2.2
+Versão (metadata): 5.2.2
+
+

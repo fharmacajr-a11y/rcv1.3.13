@@ -2,28 +2,63 @@
 """
 State Helpers para Main Window.
 
-Funções puras para cálculos de estado, tema, título e navegação
+Funções puras para cálculos de estado, tema/modo, título e navegação
 sem dependências de Tkinter.
+
+MICROFASE 24+: Migrando de "temas ttkbootstrap" para "modos CTk".
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from typing import Literal
 
 
 # ============================================================================
-# TEMA / ESTILO
+# TEMA / MODO (MICROFASE 24+: CTk modes)
 # ============================================================================
+
+ThemeMode = Literal["light", "dark"]
 
 
 @dataclass(frozen=True)
 class ThemeConfig:
-    """Configuração de tema para aplicação."""
+    """Configuração de tema/modo para aplicação."""
 
-    name: str
+    name: str  # modo: "light"/"dark" ou tema legado
     should_persist: bool
     is_change: bool
+
+
+def migrate_legacy_theme_to_mode(theme_name: str) -> ThemeMode:
+    """Migra nome de tema legado (ttkbootstrap) para modo CTk.
+
+    Args:
+        theme_name: Nome do tema ttkbootstrap (ex: "darkly", "flatly")
+
+    Returns:
+        Modo CTk equivalente ("light" ou "dark")
+
+    Examples:
+        >>> migrate_legacy_theme_to_mode("darkly")
+        'dark'
+
+        >>> migrate_legacy_theme_to_mode("flatly")
+        'light'
+
+        >>> migrate_legacy_theme_to_mode("superhero")
+        'dark'
+    """
+    normalized = theme_name.lower().strip()
+    
+    # Temas escuros -> dark
+    dark_themes = {"darkly", "cyborg", "superhero", "vapor", "solar"}
+    if normalized in dark_themes:
+        return "dark"
+    
+    # Qualquer outro tema -> light (padrão seguro)
+    return "light"
 
 
 def compute_theme_config(
@@ -32,39 +67,83 @@ def compute_theme_config(
     *,
     allow_persistence: bool = True,
 ) -> ThemeConfig | None:
-    """Calcula configuração de tema com base no tema solicitado e atual.
+    """Calcula configuração de tema/modo com base no solicitado e atual.
 
     Args:
-        requested_theme: Tema solicitado pelo usuário ou config
-        current_theme: Tema atualmente ativo
-        allow_persistence: Se deve persistir tema em disco (False em NO_FS mode)
+        requested_theme: Tema/modo solicitado pelo usuário ou config
+        current_theme: Tema/modo atualmente ativo
+        allow_persistence: Se deve persistir em disco (False em NO_FS mode)
 
     Returns:
         ThemeConfig ou None se não houver mudança necessária
 
     Examples:
-        >>> compute_theme_config("darkly", None)
-        ThemeConfig(name='darkly', should_persist=True, is_change=True)
+        >>> compute_theme_config("dark", None)
+        ThemeConfig(name='dark', should_persist=True, is_change=True)
 
-        >>> compute_theme_config("flatly", "flatly")
+        >>> compute_theme_config("light", "light")
         None
 
-        >>> compute_theme_config("darkly", "flatly", allow_persistence=False)
-        ThemeConfig(name='darkly', should_persist=False, is_change=True)
+        >>> compute_theme_config("dark", "light", allow_persistence=False)
+        ThemeConfig(name='dark', should_persist=False, is_change=True)
     """
     # Normalizar inputs
     req = (requested_theme or "").strip()
     cur = (current_theme or "").strip()
 
-    # Se não há tema solicitado ou é igual ao atual, não fazer nada
+    # Se não há solicitado ou é igual ao atual, não fazer nada
     if not req or req == cur:
         return None
 
     return ThemeConfig(
         name=req,
         should_persist=allow_persistence,
-        is_change=(cur != ""),  # True se já havia um tema (mudança)
+        is_change=(cur != ""),  # True se já havia um tema/modo (mudança)
     )
+
+
+def validate_theme_mode(
+    mode: str,
+    *,
+    fallback: ThemeMode = "light",
+) -> ThemeMode:
+    """Valida e normaliza modo de tema.
+
+    Args:
+        mode: Modo a validar (pode ser modo CTk ou tema legado)
+        fallback: Modo padrão se o solicitado não for válido
+
+    Returns:
+        Modo válido: "light" ou "dark"
+
+    Examples:
+        >>> validate_theme_mode("dark")
+        'dark'
+
+        >>> validate_theme_mode("darkly")  # tema legado
+        'dark'
+
+        >>> validate_theme_mode("invalid")
+        'light'
+
+        >>> validate_theme_mode("", fallback="dark")
+        'dark'
+    """
+    normalized = (mode or "").strip().lower()
+
+    if not normalized:
+        return fallback
+
+    # Modos CTk válidos
+    if normalized in ("light", "dark"):
+        return normalized  # type: ignore[return-value]
+    
+    # Fallback para "system" legado
+    if normalized == "system":
+        return "light"
+
+    # Migrar tema legado
+    return migrate_legacy_theme_to_mode(normalized)
 
 
 def validate_theme_name(
@@ -74,6 +153,9 @@ def validate_theme_name(
     fallback: str = "flatly",
 ) -> str:
     """Valida e normaliza nome de tema contra lista de disponíveis.
+
+    DEPRECATED: Use validate_theme_mode() para CTk.
+    Mantido apenas para compatibilidade com código legado ttkbootstrap.
 
     Args:
         theme_name: Nome do tema a validar

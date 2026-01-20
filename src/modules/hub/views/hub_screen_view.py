@@ -11,7 +11,8 @@ import logging
 import tkinter as tk
 from typing import Any, Callable, Protocol
 
-import ttkbootstrap as tb
+from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+import tkinter as tk
 
 from src.modules.hub.viewmodels import DashboardViewState
 from src.modules.hub.views.dashboard_center import build_dashboard_center, build_dashboard_error
@@ -142,8 +143,8 @@ class HubScreenView:
         self.open_sites = open_sites
 
         # Widgets principais (criados em build_layout)
-        self.modules_panel: tb.Labelframe | None = None
-        self.center_spacer: tb.Frame | None = None
+        self.modules_panel: tk.LabelFrame | None = None
+        self.center_spacer: tk.Frame | None = None
         self.dashboard_scroll: Any | None = None
         self.notes_panel: Any | None = None
         self.notes_history: Any | None = None
@@ -198,10 +199,10 @@ class HubScreenView:
         # Helper inline `mk_btn` agora é `make_module_button`
 
         # Painel principal
-        self.modules_panel = tb.Labelframe(self.parent, text=MODULES_TITLE, padding=PAD_OUTER)
+        self.modules_panel = tk.LabelFrame(self.parent, text=MODULES_TITLE, padding=PAD_OUTER)
 
         # BLOCO 1: Cadastros / Acesso
-        frame_cadastros = tb.Labelframe(
+        frame_cadastros = tk.LabelFrame(
             self.modules_panel,
             text=SECTION_CADASTROS_LABEL,
             padding=FRAME_INNER_PADDING,
@@ -217,7 +218,7 @@ class HubScreenView:
         btn_senhas.grid(row=0, column=1, sticky="ew", padx=BTN_GRID_PADX, pady=BTN_GRID_PADY)
 
         # BLOCO 2: Gestão / Auditoria
-        frame_gestao = tb.Labelframe(
+        frame_gestao = tk.LabelFrame(
             self.modules_panel,
             text=SECTION_GESTAO_LABEL,
             padding=FRAME_INNER_PADDING,
@@ -235,7 +236,7 @@ class HubScreenView:
         btn_fluxo_caixa.grid(row=0, column=1, sticky="ew", padx=BTN_GRID_PADX, pady=BTN_GRID_PADY)
 
         # BLOCO 3: Regulatório / Programas
-        frame_regulatorio = tb.Labelframe(
+        frame_regulatorio = tk.LabelFrame(
             self.modules_panel,
             text=SECTION_REGULATORIO_LABEL,
             padding=FRAME_INNER_PADDING,
@@ -253,10 +254,10 @@ class HubScreenView:
     def _build_dashboard_panel(self) -> None:
         """Constrói o painel central para o dashboard (sem scrollbar)."""
         # Container da coluna central
-        self.center_spacer = tb.Frame(self.parent)
+        self.center_spacer = tk.Frame(self.parent)
 
         # Frame normal dentro do container (sem scrollbar)
-        self.dashboard_scroll = tb.Frame(self.center_spacer)
+        self.dashboard_scroll = tk.Frame(self.center_spacer)
         self.dashboard_scroll.pack(fill="both", expand=True)
 
         # Compatibilidade: quem chama espera .content
@@ -300,8 +301,8 @@ class HubScreenView:
 
         empty_state = NotesViewModel().state
 
-        # Cast parent para tb.Frame (parent é sempre Frame no HubScreen)
-        parent_frame = self.parent if isinstance(self.parent, tb.Frame) else tb.Frame(self.parent)
+        # Cast parent para tk.Frame (parent é sempre Frame no HubScreen)
+        parent_frame = self.parent if isinstance(self.parent, tk.Frame) else tk.Frame(self.parent)
 
         self.notes_panel = build_notes_side_panel(
             parent=parent_frame,

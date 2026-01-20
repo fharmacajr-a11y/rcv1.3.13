@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from src.ui.ctk_config import ctk
+
 import logging
 import os
 import tkinter as tk
-from tkinter import ttk
 from typing import Any
 
 from src.ui.window_utils import show_centered
@@ -43,13 +44,13 @@ def show_info(parent: tk.Widget, title: str, message: str) -> None:
     top.transient(parent)
     _apply_icon(top)
 
-    content = ttk.Frame(top, padding=15)
+    content = ctk.CTkFrame(top)  # TODO: padding=15 -> usar padx/pady no pack/grid
     content.pack(fill="both", expand=True)
 
     icon_label = tk.Label(content, bitmap="info")
     icon_label.grid(row=0, column=0, padx=(5, 10), pady=5, sticky="n")
 
-    message_label = ttk.Label(
+    message_label = ctk.CTkLabel(
         content,
         text=message,
         wraplength=360,
@@ -59,7 +60,7 @@ def show_info(parent: tk.Widget, title: str, message: str) -> None:
     message_label.grid(row=0, column=1, padx=(0, 10), pady=5, sticky="w")
     content.columnconfigure(1, weight=1)
 
-    frm = ttk.Frame(content)
+    frm = ctk.CTkFrame(content)
     frm.grid(row=1, column=0, columnspan=2, pady=(10, 0), sticky="e")
 
     def _close(*_: Any) -> None:
@@ -68,7 +69,7 @@ def show_info(parent: tk.Widget, title: str, message: str) -> None:
         except Exception as exc:  # noqa: BLE001
             logger.debug("Falha ao fechar dialogo de info: %s", exc)
 
-    btn = ttk.Button(frm, text="OK", command=_close, bootstyle="primary")
+    btn = ctk.CTkButton(frm, text="OK", command=_close)
     btn.pack(side="right")
 
     top.bind("<Return>", _close)
@@ -94,10 +95,10 @@ def ask_ok_cancel(parent: tk.Widget, title: str, message: str) -> bool:
     top.transient(parent)
     _apply_icon(top)
 
-    content = ttk.Frame(top, padding=15)
+    content = ctk.CTkFrame(top)  # TODO: padding=15 -> usar padx/pady no pack/grid
     content.pack(fill="both", expand=True)
 
-    icon_label = ttk.Label(
+    icon_label = ctk.CTkLabel(
         content,
         text="?",
         foreground="#000000",
@@ -107,7 +108,7 @@ def ask_ok_cancel(parent: tk.Widget, title: str, message: str) -> bool:
     )
     icon_label.grid(row=0, column=0, padx=(5, 12), pady=5, sticky="n")
 
-    message_label = ttk.Label(
+    message_label = ctk.CTkLabel(
         content,
         text=message,
         wraplength=360,
@@ -117,7 +118,7 @@ def ask_ok_cancel(parent: tk.Widget, title: str, message: str) -> bool:
     message_label.grid(row=0, column=1, padx=(0, 10), pady=5, sticky="w")
     content.columnconfigure(1, weight=1)
 
-    frm = ttk.Frame(content)
+    frm = ctk.CTkFrame(content)
     frm.grid(row=1, column=0, columnspan=2, pady=(10, 0), sticky="e")
 
     def _ok(*_: Any) -> None:
@@ -134,11 +135,11 @@ def ask_ok_cancel(parent: tk.Widget, title: str, message: str) -> bool:
         except Exception as exc:  # noqa: BLE001
             logger.debug("Falha ao fechar dialogo OK/Cancelar: %s", exc)
 
-    btns = ttk.Frame(frm)
+    btns = ctk.CTkFrame(frm)
     btns.pack(fill="x")
 
-    ttk.Button(btns, text=OK_LABEL, command=_ok, bootstyle="primary").pack(side="right", padx=(8, 0))
-    ttk.Button(btns, text=CANCEL_LABEL, command=_cancel, bootstyle="secondary-outline").pack(side="right", padx=(0, 5))
+    ctk.CTkButton(btns, text=OK_LABEL, command=_ok).pack(side="right", padx=(8, 0))
+    ctk.CTkButton(btns, text=CANCEL_LABEL, command=_cancel).pack(side="right", padx=(0, 5))
 
     top.bind("<Return>", _ok)
     top.bind("<Escape>", _cancel)

@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import logging
 import tkinter as tk
-from tkinter import TclError, ttk
+from tkinter import TclError
 from typing import Callable, Literal
+
+from src.ui.ctk_config import ctk
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +13,7 @@ TkBindReturn = Literal["break"] | None
 TkCallback = Callable[..., TkBindReturn]
 
 
-class PdfPageView(ttk.Frame):
+class PdfPageView(ctk.CTkFrame):
     """
     Área principal de visualização da página PDF:
     - contém o Canvas e as Scrollbars;
@@ -34,7 +36,7 @@ class PdfPageView(ttk.Frame):
 
         self.canvas = tk.Canvas(self, highlightthickness=0, bg="#f3f3f3")
         self._current_image: tk.PhotoImage | None = None
-        # Usa tk.Scrollbar ao invés de ttk.Scrollbar para evitar crash de
+        # Usa tk.Scrollbar ao invés de ctk.CTkScrollbar para evitar crash de
         # access violation em Python 3.13 + ttkbootstrap (element_create bug)
         vs = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
         self.canvas.configure(yscrollcommand=vs.set)

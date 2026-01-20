@@ -15,7 +15,7 @@ o Pylance reportará erros AQUI primeiro, antes de quebrar o código de produç�
 Criado na Microfase 10 (2026-01-14) para prevenir regressões de tipagem.
 
 Como funciona:
-1. Importa widgets reais (tk/ttk/ctk) como no código de produção
+1. Importa widgets reais (tk/ctk) como no código de produção
 2. Anota variáveis com nosso Protocol (SupportsCgetConfigure)
 3. Atribui instâncias de widgets reais a essas variáveis
 4. Chama métodos esperados (cget, configure, __getitem__)
@@ -38,7 +38,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     # Imports apenas para análise estática (não afetam runtime)
     import tkinter as tk
-    from tkinter import ttk
+    
 
     # CustomTkinter via SSoT
     from src.ui.ctk_config import ctk
@@ -61,20 +61,20 @@ if TYPE_CHECKING:
         _ = btn["state"]  # __getitem__  # noqa: F841
 
     # ========================================================================
-    # TESTE 2: Widgets ttk (themed) devem implementar o Protocol
+    # TESTE 2: Widgets themed devem implementar o Protocol
     # ========================================================================
 
     def _test_ttk_button_implements_protocol() -> None:
-        """Valida que ttk.Button implementa SupportsCgetConfigure."""
-        btn: SupportsCgetConfigure = ttk.Button(None, text="Test")  # type: ignore[arg-type]
+        """Valida que ctk.CTkButton implementa SupportsCgetConfigure."""
+        btn: SupportsCgetConfigure = ctk.CTkButton(None, text="Test")  # type: ignore[arg-type]
 
         _ = btn.cget("state")  # noqa: F841
         btn.configure(state="normal")
         _ = btn["state"]  # noqa: F841
 
     def _test_ttk_label_implements_protocol() -> None:
-        """Valida que ttk.Label implementa SupportsCgetConfigure."""
-        lbl: SupportsCgetConfigure = ttk.Label(None, text="Test")  # type: ignore[arg-type]
+        """Valida que ctk.CTkLabel implementa SupportsCgetConfigure."""
+        lbl: SupportsCgetConfigure = ctk.CTkLabel(None, text="Test")  # type: ignore[arg-type]
 
         _ = lbl.cget("text")  # noqa: F841
         lbl.configure(text="Updated")
@@ -120,7 +120,7 @@ if TYPE_CHECKING:
 
         def save_widget_state(widget: SupportsCgetConfigure) -> str:
             """Função típica que usa o Protocol (como em actionbar_ctk.py)."""
-            # Estas operações devem funcionar para tk/ttk/ctk widgets
+            # Estas operações devem funcionar para tk/ctk widgets
             current = widget.cget("state")
             _ = widget["state"]  # Sintaxe alternativa  # noqa: F841
             return str(current)
@@ -131,7 +131,7 @@ if TYPE_CHECKING:
 
         # Testa com diferentes tipos de widgets
         tk_btn: SupportsCgetConfigure = tk.Button(None, text="TK")  # type: ignore[arg-type]
-        ttk_btn: SupportsCgetConfigure = ttk.Button(None, text="TTK")  # type: ignore[arg-type]
+        ttk_btn: SupportsCgetConfigure = ctk.CTkButton(None, text="Themed")  # type: ignore[arg-type]
 
         # Deve funcionar sem erros de tipo
         _ = save_widget_state(tk_btn)  # noqa: F841

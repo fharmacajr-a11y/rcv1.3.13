@@ -10,10 +10,12 @@ Testa a construção dos componentes visuais do painel central do Hub:
 from __future__ import annotations
 
 import tkinter as tk
+from tkinter import ttk
 from datetime import datetime
+from tkinter import ttk
 
 import pytest
-import ttkbootstrap as tb
+from tests import ui_compat as tb
 
 from src.modules.hub.dashboard_service import DashboardSnapshot
 from src.modules.hub.recent_activity_store import ActivityEvent, get_recent_activity_store
@@ -48,7 +50,7 @@ def tk_root(tk_root_session):
 @pytest.fixture
 def parent_frame(tk_root):
     """Cria um frame pai para testes."""
-    frame = tb.Frame(tk_root)
+    frame = ttk.Frame(tk_root)
     frame.pack()
     yield frame
     # Cleanup
@@ -209,11 +211,11 @@ class TestBuildIndicatorCard:
         """Cria card com valor e label."""
         card = _build_indicator_card(parent_frame, "Clientes ativos", 10)
 
-        # Deve ser um Frame
-        assert isinstance(card, tb.Frame)
+        # Deve ser um Frame (ttk.Frame from real code)
+        assert isinstance(card, (ttk.Frame, tk.Frame))
 
         # Deve ter 2 labels (valor + texto)
-        labels = [w for w in card.winfo_children() if isinstance(w, tb.Label)]
+        labels = [w for w in card.winfo_children() if isinstance(w, tk.Label)]
         assert len(labels) == 2
 
     def test_card_displays_correct_value(self, parent_frame):
@@ -254,15 +256,17 @@ class TestBuildIndicatorCard:
         assert value_label.cget("text") == "5 ⚠"
 
     def test_card_with_bootstyle(self, parent_frame):
-        """Card aplica bootstyle correto."""
-        card = _build_indicator_card(parent_frame, "Alertas", 10, bootstyle="danger")
+        """Card aplica bootstyle correto - bootstyle removed, just verify creation."""
+        # bootstyle is no longer passed to widgets (no ttkbootstrap)
+        card = _build_indicator_card(parent_frame, "Alertas", 10)
 
         # Verifica que o card foi criado
-        assert isinstance(card, tb.Frame)
+        assert isinstance(card, (ttk.Frame, tk.Frame))
 
     def test_card_accepts_custom_bootstyle(self, parent_frame):
-        """Card aceita bootstyle customizado."""
-        card = _build_indicator_card(parent_frame, "Test", 1, bootstyle="danger")
+        """Card aceita bootstyle customizado - bootstyle removed."""
+        # bootstyle is no longer passed to widgets
+        card = _build_indicator_card(parent_frame, "Test", 1)
 
         # Não deve lançar exceção
         assert card is not None
@@ -275,11 +279,11 @@ class TestBuildSectionFrame:
         """Cria seção com título."""
         section, content = _build_section_frame(parent_frame, "Minha Seção")
 
-        # Deve ser um Labelframe
-        assert isinstance(section, tb.Labelframe)
+        # Deve ser um Labelframe (ttk.Labelframe from real code)
+        assert isinstance(section, ttk.Labelframe)
 
         # Content deve ser um Frame
-        assert isinstance(content, tb.Frame)
+        assert isinstance(content, (ttk.Frame, tk.Frame))
 
     def test_section_title_is_set(self, parent_frame):
         """Título da seção é configurado corretamente."""
@@ -394,7 +398,7 @@ class TestBuildDashboardCenter:
         # O widget original deve ter sido removido
         # (deve haver novos widgets, não o original)
         for child in parent_frame.winfo_children():
-            if isinstance(child, tb.Label):
+            if isinstance(child, tk.Label):
                 assert child.cget("text") != "Widget existente"
 
     def test_creates_three_indicator_cards(self, parent_frame, populated_snapshot):
@@ -495,7 +499,7 @@ class TestBuildDashboardCenter:
 
         # Buscar labelframes
         labelframes = []
-        _collect_widgets_by_type(parent_frame, tb.Labelframe, labelframes)
+        _collect_widgets_by_type(parent_frame, ttk.Labelframe, labelframes)
 
         titles = [lf.cget("text") for lf in labelframes]
         assert any("bombando" in t.lower() for t in titles)
@@ -505,7 +509,7 @@ class TestBuildDashboardCenter:
         build_dashboard_center(parent_frame, _snapshot_to_state(empty_snapshot))
 
         labelframes = []
-        _collect_widgets_by_type(parent_frame, tb.Labelframe, labelframes)
+        _collect_widgets_by_type(parent_frame, ttk.Labelframe, labelframes)
 
         titles = [lf.cget("text") for lf in labelframes]
         assert any("vencimento" in t.lower() for t in titles)
@@ -560,7 +564,7 @@ class TestBuildDashboardCenter:
         build_dashboard_center(parent_frame, _snapshot_to_state(empty_snapshot))
 
         labelframes = []
-        _collect_widgets_by_type(parent_frame, tb.Labelframe, labelframes)
+        _collect_widgets_by_type(parent_frame, ttk.Labelframe, labelframes)
 
         # Verificar título via text ou labelwidget (após refatoração PNG)
         titles = []
@@ -606,7 +610,7 @@ class TestBuildDashboardCenter:
         build_dashboard_center(parent_frame, _snapshot_to_state(empty_snapshot))
 
         labelframes = []
-        _collect_widgets_by_type(parent_frame, tb.Labelframe, labelframes)
+        _collect_widgets_by_type(parent_frame, ttk.Labelframe, labelframes)
 
         titles = [lf.cget("text") for lf in labelframes]
         assert any("clientes do dia" in t.lower() for t in titles)
@@ -861,7 +865,7 @@ class TestBuildDashboardError:
         build_dashboard_error(parent_frame)
 
         for child in parent_frame.winfo_children():
-            if isinstance(child, tb.Label):
+            if isinstance(child, tk.Label):
                 assert child.cget("text") != "Widget existente"
 
     def test_shows_default_error_message(self, parent_frame):
@@ -902,7 +906,7 @@ def _collect_label_texts(widget: tk.Widget, texts: list) -> None:
     from tkinter.scrolledtext import ScrolledText
 
     for child in widget.winfo_children():
-        if isinstance(child, (tb.Label, tk.Label)):
+        if isinstance(child, tk.Label):
             text = child.cget("text")
             if text:
                 texts.append(text)
@@ -942,7 +946,7 @@ class TestDashboardCardsSmartColors:
 
         # Verificar que existe um card com bootstyle success (verde)
         frames = []
-        _collect_widgets_by_type(parent_frame, tb.Frame, frames)
+        _collect_widgets_by_type(parent_frame, ttk.Frame, frames)
 
         # Pelo menos um frame deve ter bootstyle success
         # (o card de pendências com 0 deve ser verde)
@@ -977,7 +981,7 @@ class TestDashboardCardsSmartColors:
 
         # Verificar construção sem erros
         frames = []
-        _collect_widgets_by_type(parent_frame, tb.Frame, frames)
+        _collect_widgets_by_type(parent_frame, ttk.Frame, frames)
         assert len(frames) > 0
 
     def test_tarefas_card_warning_when_positive(self, parent_frame):
@@ -1034,7 +1038,7 @@ class TestDashboardHotItemsWithIcons:
 def _find_buttons_recursive(widget) -> list:
     """Encontra recursivamente todos os botões em um widget."""
     buttons = []
-    if isinstance(widget, tb.Button):
+    if isinstance(widget, (ttk.Button, tk.Button)):
         buttons.append(widget)
     for child in widget.winfo_children():
         buttons.extend(_find_buttons_recursive(child))
@@ -1211,3 +1215,5 @@ class TestClientsOfTheDayAnvisaOnlyHiding:
 
         # Deve aparecer o nome do cliente
         assert any("Farmácia ABC" in t for t in texts)
+
+

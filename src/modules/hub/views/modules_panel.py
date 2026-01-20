@@ -1,3 +1,10 @@
+from __future__ import annotations
+
+from src.ui.ctk_config import ctk
+from src.ui.ui_tokens import (
+    APP_BG, SURFACE_DARK, SURFACE, TITLE_FONT, TEXT_PRIMARY, CARD_RADIUS
+)
+
 # -*- coding: utf-8 -*-
 """Módulos/Quick Actions panel view builder.
 
@@ -5,18 +12,10 @@ Este módulo contém apenas lógica de UI para construir o painel de módulos/at
 Não acessa diretamente ViewModels ou Controllers - recebe state e callbacks.
 """
 
-from __future__ import annotations
-
 import tkinter as tk
 from typing import TYPE_CHECKING, Callable
 
-import ttkbootstrap as tb
-
-# Import de ToolTip com fallback para compatibilidade
-try:
-    from ttkbootstrap.widgets.tooltip import ToolTip
-except ImportError:
-    from ttkbootstrap.tooltip import ToolTip  # type: ignore[no-redef]
+from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
 
 from src.modules.hub.constants import (
     MODULES_TITLE,
@@ -27,11 +26,41 @@ if TYPE_CHECKING:
     from src.modules.hub.viewmodels import QuickActionsViewState
 
 
+# Tooltip simples (fallback sem ttkbootstrap)
+class ToolTip:
+    """Tooltip simples para widgets Tkinter."""
+    def __init__(self, widget, text="", wraplength=200):
+        self.widget = widget
+        self.text = text
+        self.wraplength = wraplength
+        self.tipwindow = None
+        self.widget.bind("<Enter>", self._on_enter)
+        self.widget.bind("<Leave>", self._on_leave)
+
+    def _on_enter(self, event=None):
+        if self.tipwindow or not self.text:
+            return
+        x = self.widget.winfo_rootx() + 20
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 5
+        self.tipwindow = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry(f"+{x}+{y}")
+        label = tk.Label(tw, text=self.text, justify=tk.LEFT,
+                        background="#ffffe0", relief=tk.SOLID, borderwidth=1,
+                        wraplength=self.wraplength, padx=4, pady=2)
+        label.pack()
+
+    def _on_leave(self, event=None):
+        if self.tipwindow:
+            self.tipwindow.destroy()
+            self.tipwindow = None
+
+
 def build_modules_panel(
     parent: tk.Misc,
     state: "QuickActionsViewState",
     on_action_click: Callable[[str], None],
-) -> tb.Labelframe:
+) -> tk.LabelFrame:
     """Constrói o painel de módulos (menu vertical à esquerda) com Quick Actions.
 
     Args:
@@ -42,10 +71,37 @@ def build_modules_panel(
     Returns:
         O Labelframe do painel de módulos.
     """
-    modules_panel = tb.Labelframe(parent, text=MODULES_TITLE, padding=PAD_OUTER)
+    # MICROFASE 35: Padrão consistente - card cinza sem borda
+    modules_panel = ctk.CTkFrame(
+        parent,
+        fg_color=SURFACE_DARK,
+        bg_color=APP_BG,
+        border_width=0,
+        corner_radius=CARD_RADIUS,
+    )
+    
+    # Título do painel
+    title_label = ctk.CTkLabel(
+        modules_panel,
+        text=MODULES_TITLE,
+        font=TITLE_FONT,
+        text_color=TEXT_PRIMARY,
+        fg_color="transparent"
+    )
+    title_label.pack(anchor="w", padx=14, pady=(12, 6))
+    
+    # Frame interno branco para conteúdo
+    content_frame = ctk.CTkFrame(
+        modules_panel,
+        fg_color=SURFACE,
+        corner_radius=max(10, CARD_RADIUS - 4),
+        border_width=0,
+        bg_color=SURFACE_DARK
+    )
+    content_frame.pack(fill="both", expand=True, padx=14, pady=(0, 12))
 
     # Construir os atalhos agrupados por categoria
-    _build_quick_actions_by_category(modules_panel, state, on_action_click)
+    _build_quick_actions_by_category(content_frame, state, on_action_click)
 
     return modules_panel
 
@@ -92,11 +148,7 @@ def _build_quick_actions_by_category(
 
         # Criar labelframe para o bloco
         pady = (0, 8) if idx < len(sorted_categories) - 1 else (0, 0)
-        frame_category = tb.Labelframe(
-            parent_frame,
-            text=title,
-            padding=(8, 6),
-        )
+        frame_category = ctk.CTkFrame(parent_frame)  # TODO: text=title, padding=(8, 6) -> usar CTkLabel + pack/grid
         frame_category.pack(fill="x", pady=pady)
         frame_category.columnconfigure(0, weight=1)
         frame_category.columnconfigure(1, weight=1)
@@ -106,11 +158,10 @@ def _build_quick_actions_by_category(
             col = row_idx % 2
             row = row_idx // 2
 
-            btn = tb.Button(
+            btn = tk.Button(
                 frame_category,
                 text=action.label,
                 command=lambda a_id=action.id: on_action_click(a_id),
-                bootstyle=action.bootstyle or "secondary",
             )
 
             if not action.is_enabled:

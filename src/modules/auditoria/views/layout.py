@@ -1,10 +1,11 @@
-"""Helpers for building the Auditoria UI layout."""
-
 from __future__ import annotations
+
+from src.ui.ctk_config import ctk
+
+"""Helpers for building the Auditoria UI layout."""
 
 import logging
 import tkinter as tk
-from tkinter import ttk
 from typing import TYPE_CHECKING, Optional
 
 from .components import AuditoriaListPanel, AuditoriaToolbar
@@ -47,7 +48,7 @@ def build_auditoria_ui(frame: "AuditoriaFrame") -> None:
     frame.combo_cliente = toolbar.combo_cliente
     frame.cmb_cliente = toolbar.combo_cliente
 
-    frame.sep_top = ttk.Separator(frame, orient="horizontal")
+    frame.sep_top = ctk.CTkFrame(frame, height=2)  # Separador horizontal
     frame.sep_top.grid(row=1, column=0, sticky="ew", padx=ui_padx, pady=(0, ui_gap))
 
     list_panel = AuditoriaListPanel(

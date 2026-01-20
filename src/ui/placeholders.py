@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import logging
+import tkinter as tk
 import tkinter.font as tkfont
 from typing import Protocol, Type
 
-import ttkbootstrap as tb
+from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
 
 __all__ = ["PlaceholderType"]
 
@@ -17,28 +18,40 @@ class _BackCb(Protocol):
     def __call__(self) -> None: ...
 
 
-class _BasePlaceholder(tb.Frame):
+class _BasePlaceholder(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame):  # type: ignore[misc]
     title: str = "Em breve"
 
     def __init__(self, master, *, on_back: _BackCb | None = None, **_):
         super().__init__(master)
 
-        header_font = tkfont.nametofont("TkDefaultFont").copy()
-        header_font.configure(size=16, weight="bold")
+        # Configurar fonte para CTk e tk
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            header_font = ("Arial", 16, "bold")  # CTk aceita tuplas
+        else:
+            header_font = tkfont.nametofont("TkDefaultFont").copy()
+            header_font.configure(size=16, weight="bold")
 
-        top = tb.Frame(self)
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            top = ctk.CTkFrame(self, fg_color="transparent")
+            center = ctk.CTkFrame(self, fg_color="transparent")
+        else:
+            top = tk.Frame(self)
+            center = tk.Frame(self)
+        
         top.pack(fill="x", padx=10, pady=(10, 0))
-
-        center = tb.Frame(self)
         center.pack(expand=True, fill="both")
 
-        header = tb.Label(center, text=self.title, font=header_font)
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            header = ctk.CTkLabel(center, text=self.title, font=header_font)
+            desc = ctk.CTkLabel(center, text="Funcionalidade em desenvolvimento.")
+            btn = ctk.CTkButton(center, text="Voltar")
+        else:
+            header = tk.Label(center, text=self.title, font=header_font)
+            desc = tk.Label(center, text="Funcionalidade em desenvolvimento.")
+            btn = tk.Button(center, text="Voltar")
+        
         header.pack(pady=(0, 6))
-
-        desc = tb.Label(center, text="Funcionalidade em desenvolvimento.")
         desc.pack(pady=(0, 16))
-
-        btn = tb.Button(center, text="Voltar", bootstyle="secondary")
         btn.pack()
 
         if callable(on_back):
@@ -82,12 +95,17 @@ except NameError:
         ComingSoonScreen = _BasePlaceholder  # type: ignore[name-defined]
     except Exception:
 
-        class ComingSoonScreen(tb.Frame):
+        class ComingSoonScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame):  # type: ignore[misc]
             def __init__(self, master=None, text: str = "Em breve...", **kwargs):
                 super().__init__(master, **kwargs)
-                container = tb.Frame(self)
-                container.pack(fill="both", expand=True, padx=24, pady=24)
-                title = tb.Label(container, text=text)
+                if HAS_CUSTOMTKINTER and ctk is not None:
+                    container = ctk.CTkFrame(self)
+                    container.pack(fill="both", expand=True, padx=24, pady=24)
+                    title = ctk.CTkLabel(container, text=text)
+                else:
+                    container = tk.Frame(self)
+                    container.pack(fill="both", expand=True, padx=24, pady=24)
+                    title = tk.Label(container, text=text)
                 title.pack(anchor="center", pady=8)
 
 

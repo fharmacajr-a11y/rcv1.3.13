@@ -1,0 +1,50 @@
+================================================================================
+DIAGNÓSTICO 09: RESUMO CONSOLIDADO - COBERTURA GLOBAL DO APP
+================================================================================
+
+[1. AMBIENTE]
+
+✓ Python da .venv: .venv\Scripts\python.exe
+
+✓ customtkinter na .venv: OK (versão 5.2.2)
+
+
+[2. COMANDO DE COBERTURA GLOBAL]
+
+Comando: pytest tests/modules/clientes/ --cov=src -v (modo rápido)
+
+✓ Execução: CONCLUÍDA (exit code 1)
+
+
+[3. COLETA DE tests/modules/clientes]
+
+✓ Status: DETECTADO na coleta (--collect-only)
+✓ Arquivos coletados: 22
+
+
+[4. EXECUÇÃO DE tests/modules/clientes]
+
+✓ Status: EXECUTADO (encontrado no stdout)
+✓ Ocorrências no log: ~68
+
+Resumo pytest: 137 passed, 1 xfailed, 3 warnings in 44.05s
+
+
+[5. ARTEFATOS DE COBERTURA GERADOS]
+
+✓ htmlcov/index.html: GERADO
+✗ coverage.json: NÃO ENCONTRADO
+✓ reports/coverage.json: GERADO
+
+
+[6. CONCLUSÃO FINAL]
+
+✅ TUDO OK:
+  ✓ customtkinter instalado na .venv
+  ✓ tests/modules/clientes coletado
+  ✓ tests/modules/clientes EXECUTADO
+  ✓ Artefatos de cobertura gerados
+
+🎯 A cobertura global DO APP inclui módulos Clientes!
+
+================================================================================

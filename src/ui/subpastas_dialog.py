@@ -8,18 +8,19 @@ from __future__ import annotations
 
 import logging
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import messagebox
 from typing import Optional
 
+from src.ui.ctk_config import ctk
 from src.utils.subfolders import sanitize_subfolder_name
 from src.ui.window_utils import show_centered
 
 logger = logging.getLogger(__name__)
 
 
-class SubpastaDialog(tk.Toplevel):
+class SubpastaDialog(ctk.CTkToplevel):
     """
-    Diálogo mínimo que lista objetos de um prefixo do Storage usando Treeview.
+    Diálogo mínimo que lista objetos de um prefixo do Storage.
 
     Permite ao usuário escolher uma subpasta ou criar uma nova.
     """
@@ -41,54 +42,44 @@ class SubpastaDialog(tk.Toplevel):
         self.result: Optional[str] = None
         self.prefix = prefix
         self.bucket = bucket
+        self._buttons: dict[str, ctk.CTkButton] = {}
 
         # Frame principal
-        main_frame = ttk.Frame(self, padding=10)
-        main_frame.pack(fill="both", expand=True)
+        main_frame = ctk.CTkFrame(self)
+        main_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
         # Label de instrução
-        ttk.Label(
+        ctk.CTkLabel(
             main_frame,
             text="Digite o nome da subpasta ou selecione uma existente:",
         ).pack(anchor="w", pady=(0, 5))
 
         # Entry para nome da subpasta
-        entry_frame = ttk.Frame(main_frame)
+        entry_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         entry_frame.pack(fill="x", pady=(0, 10))
 
-        ttk.Label(entry_frame, text="Subpasta:").pack(side="left", padx=(0, 5))
+        ctk.CTkLabel(entry_frame, text="Subpasta:").pack(side="left", padx=(0, 5))
         self.var = tk.StringVar(value=default or "")
-        self.entry = ttk.Entry(entry_frame, textvariable=self.var)
+        self.entry = ctk.CTkEntry(entry_frame, textvariable=self.var)
         self.entry.pack(side="left", fill="x", expand=True)
 
-        # Frame para Treeview (lista de subpastas existentes)
-        tree_frame = ttk.Frame(main_frame)
-        tree_frame.pack(fill="both", expand=True, pady=(0, 10))
+        # Frame para lista de subpastas existentes
+        list_frame = ctk.CTkFrame(main_frame)
+        list_frame.pack(fill="both", expand=True, pady=(0, 10))
 
-        ttk.Label(tree_frame, text="Subpastas existentes (clique duplo para selecionar):").pack(anchor="w", pady=(0, 5))
+        ctk.CTkLabel(list_frame, text="Subpastas existentes (clique para selecionar):").pack(anchor="w", pady=(0, 5))
 
-        # Scrollbar e Treeview
-        tree_scroll = ttk.Scrollbar(tree_frame)
-        tree_scroll.pack(side="right", fill="y")
-
-        self.tree = ttk.Treeview(
-            tree_frame,
-            columns=("nome",),
-            show="tree",
-            yscrollcommand=tree_scroll.set,
-        )
-        self.tree.pack(side="left", fill="both", expand=True)
-        tree_scroll.config(command=self.tree.yview)
-
-        self.tree.bind("<Double-Button-1>", self._on_tree_double_click)
+        # ScrollableFrame para lista de botões
+        self.scroll_frame = ctk.CTkScrollableFrame(list_frame, height=200)
+        self.scroll_frame.pack(fill="both", expand=True)
 
         # Botões
-        btn_frame = ttk.Frame(main_frame)
+        btn_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         btn_frame.pack(fill="x")
 
-        ttk.Button(btn_frame, text="OK", command=self._ok).pack(side="left", padx=(0, 5))
-        ttk.Button(btn_frame, text="Cancelar", command=self._cancel).pack(side="left", padx=(0, 5))
-        ttk.Button(btn_frame, text="Atualizar Lista", command=self._load_subpastas).pack(side="left")
+        ctk.CTkButton(btn_frame, text="OK", command=self._ok, width=80).pack(side="left", padx=(0, 5))
+        ctk.CTkButton(btn_frame, text="Cancelar", command=self._cancel, width=100).pack(side="left", padx=(0, 5))
+        ctk.CTkButton(btn_frame, text="Atualizar Lista", command=self._load_subpastas, width=120).pack(side="left")
 
         # Bindings
         self.bind("<Return>", lambda e: self._ok())
@@ -113,10 +104,6 @@ class SubpastaDialog(tk.Toplevel):
             from src.adapters.storage.api import list_files, using_storage_backend
             from src.adapters.storage.supabase_storage import SupabaseStorageAdapter
 
-            # Limpa tree
-            for item in self.tree.get_children():
-                self.tree.delete(item)
-
             adapter = SupabaseStorageAdapter(bucket=self.bucket)
 
             with using_storage_backend(adapter):
@@ -133,9 +120,21 @@ class SubpastaDialog(tk.Toplevel):
                         subpasta = rel.split("/")[0]
                         subpastas.add(subpasta)
 
-            # Adiciona ao tree
+            # Limpa botões antigos
+            for btn in self._buttons.values():
+                btn.destroy()
+            self._buttons.clear()
+
+            # Adiciona botões para cada subpasta
             for subpasta in sorted(subpastas):
-                self.tree.insert("", "end", text=subpasta, values=(subpasta,))
+                btn = ctk.CTkButton(
+                    self.scroll_frame,
+                    text=subpasta,
+                    command=lambda s=subpasta: self._select_subpasta(s),
+                    anchor="w",
+                )
+                btn.pack(fill="x", padx=5, pady=2)
+                self._buttons[subpasta] = btn
 
             logger.info("Carregadas %d subpastas do prefixo %s", len(subpastas), self.prefix)
 
@@ -147,14 +146,11 @@ class SubpastaDialog(tk.Toplevel):
                 parent=self,
             )
 
-    def _on_tree_double_click(self, event):
-        """Seleciona a subpasta clicada."""
-        selection = self.tree.selection()
-        if selection:
-            item = selection[0]
-            nome = self.tree.item(item, "text")
-            self.var.set(nome)
-            self._ok()
+    def _select_subpasta(self, subpasta: str):
+        """Seleciona subpasta ao clicar no botão."""
+        if subpasta:
+            self.var.set(subpasta)
+            self.entry.focus_set()
 
     def _ok(self):
         raw = (self.var.get() or "").strip()

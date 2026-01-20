@@ -7,6 +7,8 @@ para permitir que a classe principal fique <= 650 LOC (idealmente <= 550).
 
 Cada função recebe 'app' como primeiro argumento para evitar dependências circulares.
 O MainWindow mantém wrappers de 1-3 linhas que delegam para essas funções.
+
+MICROFASE 24+: Migrado para usar ThemeManager global quando CTk disponível.
 """
 
 from __future__ import annotations
@@ -18,7 +20,12 @@ import tkinter as tk
 from tkinter import messagebox
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
-import ttkbootstrap as tb
+# CustomTkinter: fonte única centralizada (Microfase 23 - SSoT)
+from src.ui.ctk_config import HAS_CUSTOMTKINTER
+
+# ttkbootstrap foi REMOVIDO - CustomTkinter é obrigatório agora
+# if not HAS_CUSTOMTKINTER:
+#     import ttkbootstrap as tb
 
 if TYPE_CHECKING:
     from .main_window import App
@@ -144,55 +151,65 @@ def apply_online_state(app: App, is_online: Optional[bool]) -> None:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# THEME MANAGEMENT
+# THEME MANAGEMENT (MICROFASE 24+: Migrado para ThemeManager)
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-def set_theme(app: App, new_theme: str) -> None:
-    """Troca o tema da aplicação."""
-    from src.modules.main_window.views.state_helpers import compute_theme_config
-    from src.utils.themes import apply_combobox_style, save_theme
+def set_theme(app: App, new_theme_or_mode: str) -> None:
+    """Troca o tema/modo da aplicação.
 
-    no_fs = os.getenv("RC_NO_LOCAL_FS") == "1"
+    MICROFASE 26: CustomTkinter é obrigatório (ttkbootstrap removido).
 
-    # Usar helper para calcular configuração de tema
-    config = compute_theme_config(
-        new_theme,  # requested_theme
-        app.tema_atual,  # current_theme
-        allow_persistence=not no_fs,
-    )
+    Args:
+        app: Instância do App
+        new_theme_or_mode: Modo CTk ("light"/"dark")
+    """
+    if HAS_CUSTOMTKINTER:
+        _set_theme_ctk(app, new_theme_or_mode)
+    else:
+        log.warning("CustomTkinter não disponível - tema não aplicado")
 
-    if config is None:
-        return  # Sem mudança necessária
 
-    # Obter instância única de Style (reutilizar para evitar recriar)
-    # Usar __dict__ ao invés de hasattr para evitar recursão infinita com Tk.__getattr__
-    if "_style" not in app.__dict__:
-        app._style = tb.Style()
-    app_style = app._style
+def _set_theme_ctk(app: App, mode: str) -> None:
+    """Aplica tema usando ThemeManager (CustomTkinter)."""
+    from src.modules.main_window.views.state_helpers import validate_theme_mode
+    from src.ui.theme_manager import theme_manager
 
-    # Aplicar monkey patch no element_create UMA vez
-    patch_style_element_create(app_style)
+    # Validar e normalizar modo (pode converter tema legado)
+    validated_mode = validate_theme_mode(mode, fallback="light")
 
     try:
-        app_style.theme_use(config.name)
-        # Re-aplicar ajustes de combobox
-        apply_combobox_style(app_style)
-        app.tema_atual = config.name
-        if config.should_persist:
-            save_theme(config.name)
+        # Aplicar modo via ThemeManager global
+        theme_manager.set_mode(validated_mode)
+
+        # Atualizar estado do app
+        app.tema_atual = validated_mode
+
+        # Notificar listener se existir
         try:
-            if app._theme_listener:
-                app._theme_listener(config.name)
+            if hasattr(app, "_theme_listener") and app._theme_listener:
+                app._theme_listener(validated_mode)
         except Exception as exc:  # noqa: BLE001
             log.debug("Falha ao notificar theme_listener: %s", exc)
-    except Exception as exc:
-        msg = str(exc)
-        if "Duplicate element" in msg and "Combobox" in msg:
-            log.debug("Ignorando erro duplicado de Combobox em theme_use: %s", msg)
-            return
-        log.exception("Falha ao trocar tema: %s", exc)
-        messagebox.showerror("Erro", f"Falha ao trocar tema: {exc}", parent=app)
+
+        log.info(f"Modo de tema aplicado via ThemeManager: {validated_mode}")
+    except Exception:
+        log.exception(f"Falha ao aplicar modo via ThemeManager: {mode}")
+        messagebox.showerror(
+            "Erro",
+            f"Falha ao aplicar modo de tema: {mode}",
+            parent=app,
+        )
+
+
+def _set_theme_legacy(app: App, theme: str) -> None:
+    """Aplica tema usando sistema legado (ttkbootstrap).
+
+    ⚠️ MICROFASE 26: PODE SER REMOVIDO.
+    ttkbootstrap foi completamente removido do projeto.
+    Mantido apenas para referência histórica.
+    """
+    log.warning("_set_theme_legacy chamado mas ttkbootstrap foi removido")
 
 
 def patch_style_element_create(style: tb.Style) -> None:
@@ -201,7 +218,7 @@ def patch_style_element_create(style: tb.Style) -> None:
     'Duplicate element Combobox.*' gerados pelo ttkbootstrap
     ao recriar elementos ao trocar de tema.
     """
-    # try to get internal ttk.Style
+    # try to get internal Style instance
     internal_style = getattr(style, "style", None)
     target = internal_style if internal_style is not None else style
 
@@ -524,8 +541,19 @@ def open_clients_picker(
 
 
 def destroy_window(app: App) -> None:
-    """Limpeza e destruição do MainWindow."""
+    """Limpeza e destruição do MainWindow.
+
+    MICROFASE 24.1: Shutdown limpo com cancelamento de after jobs.
+    """
     from src.utils.theme_manager import theme_manager
+
+    # MICROFASE 24.1: Idempotência - evitar duplo cleanup
+    if getattr(app, "_is_destroying", False):
+        log.debug("destroy_window já em execução, pulando")
+        return
+
+    app._is_destroying = True  # type: ignore[attr-defined]
+    log.info("Iniciando shutdown limpo do MainWindow")
 
     # P2-MF3C: Parar todos os pollers (notificações, health, status)
     if hasattr(app, "_pollers"):
@@ -543,6 +571,7 @@ def destroy_window(app: App) -> None:
             log.debug("Falha ao parar StatusMonitor: %s", exc)
         finally:
             app._status_monitor = None
+
     if getattr(app, "_theme_listener", None):
         try:
             listener = getattr(app, "_theme_listener", None)
@@ -550,6 +579,15 @@ def destroy_window(app: App) -> None:
                 theme_manager.remove_listener(listener)
         except Exception as exc:  # noqa: BLE001
             log.debug("Falha ao remover theme_listener: %s", exc)
+
+    # MICROFASE 24.1: Cancelar todos os after jobs pendentes
+    try:
+        from src.ui.shutdown import cancel_all_after_jobs
+
+        cancelled = cancel_all_after_jobs(app)
+        log.info("Cancelados %d after jobs pendentes", cancelled)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Falha ao cancelar after jobs: %s", exc)
 
     # Chamar super().destroy() no contexto do MainWindow
     # Nota: não podemos chamar super() aqui pois estamos fora da classe
@@ -615,7 +653,7 @@ def get_user_cached(app: App) -> Optional[dict[str, Any]]:
 
 
 def confirm_exit(app: App, *_) -> None:
-    """Confirmação de saída da aplicação."""
+    """Confirmação de saída da aplicação com shutdown limpo."""
     try:
         confirm = messagebox.askokcancel(
             "Sair",
@@ -628,6 +666,34 @@ def confirm_exit(app: App, *_) -> None:
 
     if confirm:
         try:
+            # SHUTDOWN FIX: Setar flag de fechamento PRIMEIRO
+            app._closing = True
+
+            # Para lifecycle do HubScreen se existir
+            if hasattr(app, "_hub_screen_instance") and app._hub_screen_instance:
+                try:
+                    if hasattr(app._hub_screen_instance, "_lifecycle"):
+                        app._hub_screen_instance._lifecycle.stop()
+                        log.debug("HubScreen lifecycle parado")
+                except Exception as exc:  # noqa: BLE001
+                    log.debug("Erro ao parar HubScreen lifecycle: %s", exc)
+
+            # Para pollers do main_window se existir
+            if hasattr(app, "_pollers") and app._pollers:
+                try:
+                    app._pollers.stop()
+                    log.debug("Main window pollers parados")
+                except Exception as exc:  # noqa: BLE001
+                    log.debug("Erro ao parar main_window pollers: %s", exc)
+
+            # Cancelar after jobs antes de destruir
+            from src.ui.shutdown import cancel_all_after_jobs
+
+            cancelled = cancel_all_after_jobs(app)
+            log.debug("Shutdown limpo: %d after jobs cancelados", cancelled)
+
+            # Quit e destroy
+            app.quit()
             app.destroy()
         except Exception as exc:  # noqa: BLE001
             log.exception("Erro ao destruir janela: %s", exc)

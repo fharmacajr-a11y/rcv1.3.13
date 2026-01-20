@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from src.ui.ctk_config import ctk
+
 """View principal do módulo Clientes.
 
 Por enquanto este módulo apenas reexporta a tela legada
@@ -8,8 +12,6 @@ A ideia é que, no futuro, qualquer ajuste visual do módulo
 Clientes seja feito aqui, sem precisar mexer em `app_gui.py`
 ou no roteador.
 """
-
-from __future__ import annotations
 
 import logging
 import tkinter as tk
@@ -29,13 +31,6 @@ try:
     from src.modules.clientes.appearance import ClientesThemeManager
 except ImportError:
     ClientesThemeManager = None  # type: ignore[assignment,misc]
-
-try:
-    import ttkbootstrap as tb
-except Exception:
-    from tkinter import ttk
-
-    tb = ttk  # type: ignore[assignment]
 
 log = logging.getLogger(__name__)
 
@@ -60,12 +55,11 @@ class ClientesFrame(MainScreenFrame):
         if ClientesThemeManager is not None:
             try:
                 self._theme_manager = ClientesThemeManager()
-                # Carrega e aplica modo salvo
+                # Carrega modo salvo (não aplicar diretamente)
                 mode = self._theme_manager.load_mode()
-                # Aplica o tema ANTES de construir widgets (será reaplicado depois com style)
-                if HAS_CUSTOMTKINTER and ctk is not None:
-                    ctk.set_appearance_mode(mode)
                 log.info(f"Theme manager inicializado: modo {mode}")
+                # NÃO usar ctk.set_appearance_mode aqui (viola SSoT)
+                # O GlobalThemeManager já inicializou o tema no bootstrap
             except Exception:
                 log.exception("Erro ao inicializar theme manager")
                 self._theme_manager = None
@@ -80,10 +74,7 @@ class ClientesFrame(MainScreenFrame):
         # Após UI construída, aplica estilos e insere toggle
         if self._theme_manager is not None:
             try:
-                # Obtém style do ttkbootstrap
-                style = tb.Style()
-                # Aplica o tema aos estilos específicos do Clientes
-                self._theme_manager.apply(self._theme_manager.current_mode, style)
+                # MICROFASE 31: Removido Style legado (ZERO em runtime)
                 # Insere toggle na toolbar
                 self._insert_theme_toggle()
                 # Aplica cores aos widgets já criados
@@ -99,16 +90,8 @@ class ClientesFrame(MainScreenFrame):
             return
 
         try:
-            # Determina classe de Frame (ttkbootstrap ou ttk)
-            try:
-                FrameCls = tb.Frame  # type: ignore[misc]  # noqa: N806
-            except Exception:
-                from tkinter import ttk
-
-                FrameCls = ttk.Frame  # type: ignore[misc,assignment]  # noqa: N806
-
-            # Container para o toggle à direita da toolbar (sem bg, usa ttk)
-            toggle_container = FrameCls(self.toolbar.frame)
+            # Container para o toggle à direita da toolbar (usa tk.Frame simples)
+            toggle_container = tk.Frame(self.toolbar.frame)
             toggle_container.pack(side="right", padx=10)
 
             # Switch customtkinter
@@ -131,13 +114,16 @@ class ClientesFrame(MainScreenFrame):
             log.exception("Erro ao inserir toggle de tema")
 
     def _on_theme_toggle(self) -> None:
-        """Callback quando usuário alterna o toggle."""
+        """Callback quando usuário alterna o toggle.
+        
+        MICROFASE 31: Removido Style legado (ZERO em runtime).
+        """
         if self._theme_manager is None:
             return
 
         try:
-            style = tb.Style()
-            new_mode = self._theme_manager.toggle(style)
+            # Alterna modo sem Style legado
+            new_mode = self._theme_manager.toggle(None)
             log.info(f"Tema alternado para: {new_mode}")
 
             # Atualiza texto do switch
@@ -169,7 +155,7 @@ class ClientesFrame(MainScreenFrame):
         """Aplica cores do tema aos widgets tk do módulo.
 
         IMPORTANTE: Widgets CustomTkinter não suportam 'bg', usam 'fg_color'.
-        Este método só atualiza widgets Tk/ttk tradicionais.
+        Este método só atualiza widgets Tk tradicionais.
         Para widgets CTk, use refresh_colors() específico.
         """
         if self._theme_manager is None:
@@ -179,12 +165,11 @@ class ClientesFrame(MainScreenFrame):
             palette = self._theme_manager.get_palette()
 
             # Atualiza backgrounds de frames tk.Frame locais
-            # (não ttkbootstrap.Frame, apenas tk.Frame puro)
             # SKIP widgets CustomTkinter (não suportam 'bg')
             for widget_name in dir(self):
                 if widget_name.startswith("_"):
                     widget = getattr(self, widget_name, None)
-                    if isinstance(widget, tk.Frame) and not isinstance(widget, tb.Frame):  # type: ignore[arg-type]
+                    if isinstance(widget, tk.Frame):
                         # Skip se for widget CustomTkinter
                         if widget.__class__.__module__.startswith("customtkinter"):
                             continue
@@ -236,31 +221,28 @@ class ClientesFrame(MainScreenFrame):
             log.exception("Erro ao aplicar tema aos widgets")
 
     def _reapply_treeview_colors(self) -> None:
-        """Re-aplica cores zebra na Treeview após mudança de tema."""
+        """Re-aplica cores zebra na Treeview após mudança de tema.
+        
+        MICROFASE 31: Simplificado - apenas tags, sem Style legado.
+        """
         if self._theme_manager is None:
             return
 
         try:
-            from src.ui.components.lists import (
-                reapply_clientes_treeview_style,
-                reapply_clientes_treeview_tags,
-            )
+            from src.ui.components.lists import reapply_clientes_treeview_tags
 
-            palette = self._theme_manager.get_palette()
-            style = tb.Style()
-
-            # Re-aplica estilos
-            even_bg, odd_bg = reapply_clientes_treeview_style(
-                style,
-                base_bg=palette["tree_bg"],
-                base_fg=palette["tree_fg"],
-                field_bg=palette["tree_field_bg"],
-                heading_bg=palette["tree_heading_bg"],
-                heading_fg=palette["tree_heading_fg"],
-                heading_bg_active=palette.get("tree_heading_bg_active", palette["tree_heading_bg"]),
-                selected_bg=palette["tree_selected_bg"],
-                selected_fg=palette["tree_selected_fg"],
-            )
+            # Detectar modo atual e calcular cores zebra
+            appearance_mode = ctk.get_appearance_mode()  # "Light" ou "Dark"
+            is_dark = appearance_mode == "Dark"
+            
+            if is_dark:
+                even_bg = "#2b2b2b"
+                odd_bg = "#3c3c3c"
+                fg = "#ffffff"
+            else:
+                even_bg = "#ffffff"
+                odd_bg = "#e8e8e8"
+                fg = "#000000"
 
             # Re-aplica tags
             if hasattr(self, "client_list"):
@@ -268,7 +250,7 @@ class ClientesFrame(MainScreenFrame):
                     self.client_list,
                     even_bg,
                     odd_bg,
-                    fg=palette["tree_fg"],
+                    fg=fg,
                 )
 
         except Exception:

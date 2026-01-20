@@ -9,14 +9,13 @@ import logging
 import threading
 import time
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import messagebox
 from typing import Any, Dict, Optional
-
-import ttkbootstrap as tb
 
 from src.db.domain_types import ClientRow
 from src.ui.components.progress_dialog import BusyDialog
 from src.ui.window_utils import show_centered
+from src.ui.widgets import CTkTableView
 
 
 def _get_field(row: Any, key: str, default: str = "") -> str:
@@ -91,35 +90,36 @@ class ClientPicker(tk.Toplevel):
     def _build_ui(self) -> None:
         """Constroi interface do modal."""
         # Frame principal
-        main = tb.Frame(self, padding=10)
-        main.pack(fill="both", expand=True)
+        main = tk.Frame(self)
+        main.pack(fill="both", expand=True, padx=10, pady=10)
 
         # Frame de busca
-        search_frame = tb.Frame(main)
+        search_frame = tk.Frame(main)
         search_frame.pack(fill="x", pady=(0, 10))
 
-        tb.Label(search_frame, text="Buscar:").pack(side="left", padx=(0, 5))
+        tk.Label(search_frame, text="Buscar:").pack(side="left", padx=(0, 5))
 
-        self.entry_search = tb.Entry(search_frame, width=40)
+        self.entry_search = tk.Entry(search_frame, width=40)
         self.entry_search.pack(side="left", fill="x", expand=True, padx=5)
         self.entry_search.insert(0, self._search_placeholder)
         self.entry_search.bind("<FocusIn>", self._clear_placeholder)
         self.entry_search.bind("<Return>", lambda e: self._do_search())
         self.entry_search.bind("<KeyRelease>", self._on_key_release)
 
-        self.search_button = tb.Button(search_frame, text="Buscar", command=self._do_search, bootstyle="primary")
+        self.search_button = tk.Button(search_frame, text="Buscar", command=self._do_search)
         self.search_button.pack(side="left", padx=5)
 
         # Treeview
-        tree_frame = tb.Frame(main)
+        tree_frame = tk.Frame(main)
         tree_frame.pack(fill="both", expand=True, pady=(0, 10), padx=(10, 10))
 
-        self.tree = ttk.Treeview(
+        self.tree = CTkTableView(
             tree_frame,
             columns=("id", "razao_social", "cnpj", "nome"),
             show="headings",
-            selectmode="browse",
+            # selectmode="browse" handled internally  
             height=15,
+            zebra=True,
         )
 
         # Ordem fixa pedida: ID | Razao Social | CNPJ | Nome
@@ -141,17 +141,12 @@ class ClientPicker(tk.Toplevel):
 
         self.tree.pack(fill="both", expand=True)
 
-        # Scroller
-        scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
-        scrollbar.pack(side="right", fill="y")
-        self.tree.configure(yscrollcommand=scrollbar.set)
-
         # Rodape com botoes
-        footer = tb.Frame(main)
+        footer = tk.Frame(main)
         footer.pack(fill="x", pady=(10, 0))
 
-        tb.Button(footer, text="Selecionar", command=self._confirm, bootstyle="success").pack(side="right", padx=5)
-        tb.Button(footer, text="Cancelar", command=self._cancel, bootstyle="secondary").pack(side="right")
+        tk.Button(footer, text="Selecionar", command=self._confirm).pack(side="right", padx=5)
+        tk.Button(footer, text="Cancelar", command=self._cancel).pack(side="right")
 
     def _clear_placeholder(self, event) -> None:
         """Limpa placeholder ao focar entry."""
@@ -308,9 +303,7 @@ class ClientPicker(tk.Toplevel):
     def _fill_table(self, results: list[ClientRow]) -> None:
         """Preenche Treeview com resultados."""
         t0 = time.perf_counter()
-        children = self.tree.get_children()
-        if children:
-            self.tree.delete(*children)
+        self.tree.clear()
 
         rows: list[Any] = list(results or [])
         self._clients_data = rows
@@ -338,18 +331,17 @@ class ClientPicker(tk.Toplevel):
                 "",
                 "end",
                 iid=str(rid) if rid else "",
-                values=(rid, razao, cnpj_fmt, nome),
+                values=[rid, razao, cnpj_fmt, nome],
             )
         log.info("Senhas: treeview clientes populada em %.3fs (%s linhas)", time.perf_counter() - t0, len(sorted_rows))
 
     def _confirm(self) -> None:
         """Confirma selecao e fecha modal."""
-        selection = self.tree.selection()
-        if not selection:
+        item = self.tree.get_selected_iid()
+        if not item:
             messagebox.showwarning("Atencao", "Selecione um cliente primeiro.", parent=self)
             return
 
-        item = selection[0]
         try:
             client_id = int(item)
         except (ValueError, TypeError):

@@ -6,6 +6,9 @@ Mantido apenas como referência histórica.
 NOVO CÓDIGO DEVE USAR:
   - Menu específico de cada módulo em src.modules.*/views/
   - Ou componentes de menu em src.ui.components/
+
+MICROFASE 24: Removido seletor de temas legado.
+Agora usa apenas toggle Light/Dark via CustomTkinter.
 """
 
 # gui/menu_bar.py
@@ -14,35 +17,9 @@ from __future__ import annotations
 import logging
 import tkinter as tk
 from tkinter import messagebox
-from typing import Callable, Iterable, Optional
+from typing import Callable, Optional
 
 _log = logging.getLogger(__name__)
-
-
-def _available_themes() -> Iterable[str]:
-    try:
-        from src.utils import theme_manager as tm
-
-        names = getattr(tm, "available_themes", None)
-        if callable(names):
-            return list(names())  # pyright: ignore[reportArgumentType]
-        names = getattr(tm, "THEMES", None)
-        if isinstance(names, (list, tuple, set)):
-            return list(names)  # pyright: ignore[reportArgumentType]
-    except Exception as exc:  # noqa: BLE001
-        _log.debug("Falha ao obter temas disponíveis: %s", exc)
-    return [
-        "flatly",
-        "cosmo",
-        "darkly",
-        "litera",
-        "morph",
-        "pulse",
-        "sandstone",
-        "solar",
-        "superhero",
-        "yeti",
-    ]
 
 
 class AppMenuBar(tk.Menu):
@@ -53,13 +30,18 @@ class AppMenuBar(tk.Menu):
         on_home: Optional[Callable[[], None]] = None,
         on_refresh: Optional[Callable[[], None]] = None,
         on_quit: Optional[Callable[[], None]] = None,
-        on_change_theme: Optional[Callable[[str], None]] = None,
+        on_toggle_theme: Optional[Callable[[], None]] = None,
     ) -> None:
+        """Inicializa o menu bar.
+
+        MICROFASE 24: Substituído on_change_theme(name) por on_toggle_theme()
+        para alternar entre light/dark apenas.
+        """
         super().__init__(master, tearoff=False)
         self._on_home = on_home
         self._on_refresh = on_refresh
         self._on_quit = on_quit
-        self._on_change_theme = on_change_theme
+        self._on_toggle_theme = on_toggle_theme
 
         # Opções
         menu_arquivo = tk.Menu(self, tearoff=False)
@@ -70,18 +52,12 @@ class AppMenuBar(tk.Menu):
         self.add_cascade(label="Opções", menu=menu_arquivo)
         self._menu_arquivo = menu_arquivo
 
-        # Exibir > Tema
+        # Exibir > Alternar Tema (Light/Dark)
         menu_exibir = tk.Menu(self, tearoff=False)
-        self._theme_var = tk.StringVar(value="")
-        menu_tema = tk.Menu(menu_exibir, tearoff=False)
-        for name in _available_themes():
-            menu_tema.add_radiobutton(
-                label=name,
-                value=name,
-                variable=self._theme_var,
-                command=lambda n=name: self._handle_change_theme(n),
-            )
-        menu_exibir.add_cascade(label="Tema", menu=menu_tema)
+        menu_exibir.add_command(
+            label="Alternar Tema (Light/Dark)",
+            command=self._safe(self._on_toggle_theme),
+        )
         self.add_cascade(label="Exibir", menu=menu_exibir)
 
         # Ajuda
@@ -98,11 +74,10 @@ class AppMenuBar(tk.Menu):
         except Exception as exc:  # noqa: BLE001
             _log.debug("Falha ao anexar menu: %s", exc)
 
+    # MICROFASE 24: refresh_theme agora é no-op (compatibilidade)
     def refresh_theme(self, current: Optional[str]) -> None:
-        try:
-            self._theme_var.set(current or "")
-        except Exception as exc:  # noqa: BLE001
-            _log.debug("Falha ao atualizar tema: %s", exc)
+        """Mantido para compatibilidade, mas não faz nada (tema gerenciado por CustomTkinter)."""
+        pass
 
     def set_is_hub(self, is_hub: bool) -> None:
         self._is_hub = bool(is_hub)
@@ -118,14 +93,6 @@ class AppMenuBar(tk.Menu):
                     _log.debug("Falha ao executar callback de menu: %s", exc)
 
         return _wrap
-
-    def _handle_change_theme(self, name: str) -> None:
-        if callable(self._on_change_theme):
-            try:
-                self._on_change_theme(name)
-            except Exception as exc:  # noqa: BLE001
-                _log.debug("Falha ao mudar tema para %s: %s", name, exc)
-        self.refresh_theme(name)
 
     def _about(self) -> None:
         try:

@@ -1,19 +1,24 @@
-# -*- coding: utf-8 -*-
-"""Componente de botão de notificações com badge."""
-
 from __future__ import annotations
 
+from src.ui.ctk_config import ctk
+
+# -*- coding: utf-8 -*-
+"""Componente de botão de notificações com badge.
+
+MICROFASE 24: Migrado para CustomTkinter.
+"""
+
 import logging
-import tkinter as tk
-from tkinter import ttk
 from typing import TYPE_CHECKING, Callable, Optional
 
-import ttkbootstrap as tb
+from PIL import Image
 
+# CustomTkinter: fonte única centralizada (Microfase 23 - SSoT)
+from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
 from src.utils.resource_path import resource_path
 
 if TYPE_CHECKING:
-    from tkinter import PhotoImage
+    from PIL.Image import Image as PILImage
 
 _log = logging.getLogger(__name__)
 
@@ -28,12 +33,14 @@ _ICON_TARGET_SIZE = 16
 _CONTAINER_SIZE = 32
 
 
-class NotificationsButton(ttk.Frame):
+class NotificationsButton(ctk.CTkFrame):
     """Botão de notificações com badge de contador.
 
     Responsável apenas por:
     - Exibir botão de notificações (ícone sino ou fallback 🔔)
     - Mostrar/ocultar badge com contador de não lidas
+
+    MICROFASE 24: Usa CTkButton ao invés de ttkbootstrap.
     """
 
     def __init__(
@@ -51,7 +58,8 @@ class NotificationsButton(ttk.Frame):
         super().__init__(master, **kwargs)
         self._on_click = on_click
         self._count = 0
-        self._icon_img: Optional[PhotoImage] = None
+        self._icon_img: Optional[ctk.CTkImage] = None
+        self._icon_pil: Optional[PILImage] = None
 
         # Fixar tamanho do container para não encolher topbar
         self.configure(width=_CONTAINER_SIZE, height=_CONTAINER_SIZE)
@@ -60,42 +68,48 @@ class NotificationsButton(ttk.Frame):
         # Construir UI
         self._build_ui()
 
-    def _load_icon(self) -> Optional[tk.PhotoImage]:
+    def _load_icon(self) -> Optional[ctk.CTkImage]:
         """Carrega ícone PNG do sino com fallback.
 
         Tenta múltiplos caminhos (sem acento preferencial, com acento fallback).
         Redimensiona dinamicamente para _ICON_TARGET_SIZE se necessário.
 
         Returns:
-            PhotoImage se sucesso, None se falhar
+            CTkImage se sucesso, None se falhar
         """
+        if not HAS_CUSTOMTKINTER or ctk is None:
+            return None
+
         for icon_path in _ICON_PATHS:
             try:
                 icon_full_path = resource_path(icon_path)
-                img = tk.PhotoImage(file=icon_full_path)
+                img = Image.open(icon_full_path)
+
+                # Manter referência PIL para evitar GC
+                self._icon_pil = img
 
                 # Escala dinâmica: só reduzir se maior que target
-                w, h = img.width(), img.height()
+                w, h = img.width, img.height
                 target = _ICON_TARGET_SIZE
 
                 if w > target or h > target:
-                    fx = max(1, w // target)
-                    fy = max(1, h // target)
-                    img = img.subsample(fx, fy)
+                    img = img.copy()
+                    img.thumbnail((target, target), Image.Resampling.LANCZOS)
+                    self._icon_pil = img
                     _log.debug(
-                        "[NotificationsButton] Ícone redimensionado: %dx%d -> %dx%d (subsample %d,%d)",
+                        "[NotificationsButton] Ícone redimensionado: %dx%d -> %dx%d",
                         w,
                         h,
-                        img.width(),
-                        img.height(),
-                        fx,
-                        fy,
+                        img.width,
+                        img.height,
                     )
                 else:
                     _log.debug("[NotificationsButton] Ícone já no tamanho adequado: %dx%d", w, h)
 
+                # Criar CTkImage
+                ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(img.width, img.height))
                 _log.debug("[NotificationsButton] Ícone carregado: %s", icon_full_path)
-                return img
+                return ctk_img
 
             except Exception as exc:  # noqa: BLE001
                 _log.debug("[NotificationsButton] Falha ao carregar %s: %s", icon_path, exc)
@@ -106,38 +120,35 @@ class NotificationsButton(ttk.Frame):
 
     def _build_ui(self) -> None:
         """Constrói a interface do botão."""
-        # Tentar carregar ícone PNG
-        self._icon_img = self._load_icon()
+        if not HAS_CUSTOMTKINTER or ctk is None:
+            _log.warning("CustomTkinter não disponível, botão de notificações não criado")
+            return
 
-        # Botão de notificações (ícone ou fallback)
-        if self._icon_img:
-            self.btn_notifications = tb.Button(
-                self,
-                image=self._icon_img,
-                text="",
-                command=self._handle_click,
-                bootstyle="link",
-                takefocus=False,
-            )
-        else:
-            self.btn_notifications = tb.Button(
-                self,
-                text="🔔",
-                command=self._handle_click,
-                bootstyle="info",
-                width=3,
-            )
+        # Tentar carregar ícone PNG
+        # TEMPORÁRIO: desabilitar ícones por problema de pyimage
+        # self._icon_img = self._load_icon()
+        self._icon_img = None
+
+        # Botão de notificações (emoji como fallback seguro)
+        self.btn_notifications = ctk.CTkButton(
+            self,
+            text="🔔",
+            command=self._handle_click,
+            width=28,
+            height=28,
+        )
         # Centralizar botão no container usando place
         self.btn_notifications.place(relx=0.5, rely=0.5, anchor="center")
 
         # Badge com contador (posicionado no canto superior direito)
-        self._lbl_badge = ttk.Label(
+        self._lbl_badge = ctk.CTkLabel(
             self,
             text="",
-            foreground="white",
-            background="#dc3545",
+            text_color="white",  # foreground -> text_color
+            fg_color="#dc3545",  # background -> fg_color
             font=("Arial", 8, "bold"),
-            padding=(3, 0),
+            width=20,  # padding equivalente via width/height
+            height=16,
         )
         # Badge começa oculto
         # Não usar pack/grid - será posicionado com place quando necessário

@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import time
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from src.modules.hub.services.hub_async_tasks_service import (
     _update_dashboard_ui_from_state,
@@ -829,17 +829,14 @@ def test_load_dashboard_data_async_no_org_id_creates_waiting_label(monkeypatch):
     dashboard_view.dashboard_scroll = fake_scroll
     controller.view._dashboard_view = dashboard_view
 
-    # Mock ttkbootstrap.Label
-    fake_tb = MagicMock()
+    # Mock tk.Label (no longer using ttkbootstrap)
     fake_label = MagicMock()
-    fake_tb.Label.return_value = fake_label
-    monkeypatch.setitem(__import__("sys").modules, "ttkbootstrap", fake_tb)
+    with patch("tkinter.Label", return_value=fake_label) as mock_label:
+        load_dashboard_data_async(controller)
 
-    load_dashboard_data_async(controller)
-
-    # Deve ter criado label de aguardo
-    assert fake_tb.Label.called
-    assert fake_label.pack.called
+        # Deve ter criado label de aguardo
+        assert mock_label.called
+        assert fake_label.pack.called
 
 
 def test_load_notes_data_async_error_render_error_exception_handled(monkeypatch):

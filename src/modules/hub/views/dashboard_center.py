@@ -1,3 +1,14 @@
+from __future__ import annotations
+
+from src.ui.ctk_config import ctk
+from src.ui.ui_tokens import (
+    APP_BG, SURFACE, SURFACE_DARK, INNER_SURFACE, BORDER, SEP,
+    TEXT_PRIMARY, TEXT_MUTED,
+    FONT_TITLE, FONT_SECTION, FONT_BODY, FONT_BODY_SM, BODY_FONT, TITLE_FONT,
+    FONT_KPI_VALUE, FONT_KPI_LABEL,
+    CARD_RADIUS,
+)
+
 # -*- coding: utf-8 -*-
 """Dashboard center panel builder for HubScreen.
 
@@ -5,16 +16,15 @@ Builds the central dashboard panel with operational indicators,
 hot items, and upcoming deadlines.
 """
 
-from __future__ import annotations
-
 import logging
 import re
 import tkinter as tk
+from tkinter.constants import X, BOTH, LEFT, W, E, N, S
 from tkinter.scrolledtext import ScrolledText
 from typing import TYPE_CHECKING, Any, Callable
+from PIL import Image
 
-import ttkbootstrap as tb
-from ttkbootstrap.constants import BOTH, LEFT, W, X
+from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
 
 # ORG-005: Constantes e funções puras extraídas
 from src.modules.hub.views.dashboard_center_constants import (
@@ -38,7 +48,28 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Cache global de ícones PNG do Hub (para não perder referência)
-_HUB_ICON_CACHE: dict[str, tk.PhotoImage] = {}
+_HUB_ICON_CACHE: dict[str, Any] = {}  # type: ignore[type-arg]
+
+
+# ============================================================================
+# FUNÇÕES HELPER PARA TYPING E CTk COMPATIBILITY
+# ============================================================================
+
+def get_inner_text_widget(textbox: Any) -> tk.Text:
+    """Helper para acessar widget Text interno do CTkTextbox."""
+    return textbox._textbox  # type: ignore[attr-defined]
+
+
+def configure_textbox_readonly(textbox: Any) -> None:
+    """Configura CTkTextbox como read-only sem usar .config diretamente."""
+    inner = get_inner_text_widget(textbox)
+    inner.configure(state="disabled")
+
+
+def configure_textbox_editable(textbox: Any) -> None:
+    """Configura CTkTextbox como editável."""
+    inner = get_inner_text_widget(textbox)
+    inner.configure(state="normal")
 
 
 # ============================================================================
@@ -46,23 +77,23 @@ _HUB_ICON_CACHE: dict[str, tk.PhotoImage] = {}
 # ============================================================================
 
 
-def _get_hub_icon(name: str, rel_path: str, master: tk.Misc | None = None) -> tk.PhotoImage | None:
+def _get_hub_icon(name: str, rel_path: str, master: tk.Misc | None = None) -> Any:  # type: ignore[type-arg]
     """Carrega ícone PNG do Hub com cache.
 
     Args:
         name: Nome identificador do ícone (para cache).
         rel_path: Caminho relativo do asset (ex: 'assets/modulos/hub/radar.png').
-        master: Widget master para o PhotoImage (opcional).
+        master: Widget master para o CTkImage (opcional).
 
     Returns:
-        PhotoImage ou None se falhar.
+        CTkImage ou None se falhar.
     """
     if name in _HUB_ICON_CACHE:
         return _HUB_ICON_CACHE[name]
 
     try:
         abs_path = resource_path(rel_path)
-        img = tk.PhotoImage(file=abs_path, master=master)
+        img = ctk.CTkImage(light_image=Image.open(abs_path), dark_image=Image.open(abs_path))  # type: ignore[attr-defined]
         _HUB_ICON_CACHE[name] = img
         return img
     except Exception:
@@ -70,17 +101,17 @@ def _get_hub_icon(name: str, rel_path: str, master: tk.Misc | None = None) -> tk
         return None
 
 
-def _clear_children(parent: tb.Frame) -> None:
+def _clear_children(parent: Any) -> None:  # tk.Frame | ctk.CTkFrame
     """Remove todos os widgets filhos de um frame."""
-    for child in parent.winfo_children():
+    for child in parent.winfo_children():  # type: ignore[attr-defined]
         child.destroy()
 
 
 def _render_text_with_status_highlight(
-    parent: tb.Frame,
+    parent: tk.Frame,
     text: str,
     font: tuple[str, int] | None = None,
-    justify: str = LEFT,
+    justify: str = "left",
     wraplength: int = 900,
 ) -> None:
     """Renderiza texto com destaque colorido para status específicos.
@@ -116,13 +147,13 @@ def _render_text_with_status_highlight(
             status_content = match.group(1).strip()  # Ex: "Atrasada 1d"
             normalized_status = f"({status_content})"  # Ex: "(Atrasada 1d)"
 
-            # Determinar bootstyle baseado no conteúdo
+            # Determinar cor baseado no conteúdo
             if "atrasada" in status_content.lower():
-                bootstyle = "danger"  # vermelho
+                fg_color = "red"  # vermelho
             elif "hoje" in status_content.lower():
-                bootstyle = "info"  # azul
+                fg_color = "blue"  # azul
             else:
-                bootstyle = None  # padrão
+                fg_color = None  # padrão
 
             # Dividir a linha em 3 partes: prefixo, status, sufixo
             idx_start = match.start()
@@ -131,69 +162,114 @@ def _render_text_with_status_highlight(
             suffix = line[idx_end:]
 
             # Criar frame para a linha
-            line_frame = tb.Frame(parent)
-            line_frame.pack(anchor=W, pady=1)
+            if HAS_CUSTOMTKINTER and ctk is not None:
+                line_frame = ctk.CTkFrame(parent)
+            else:
+                line_frame = tk.Frame(parent)
+            line_frame.pack(anchor="w", pady=1)
 
             # Label para o prefixo (normal)
             if prefix:
-                lbl_prefix = tb.Label(
-                    line_frame,
-                    text=prefix,
-                    font=font or SECTION_ITEM_FONT,
-                )
-                lbl_prefix.pack(side=LEFT)
+                if HAS_CUSTOMTKINTER and ctk is not None:
+                    lbl_prefix = ctk.CTkLabel(
+                        line_frame,
+                        text=prefix,
+                        font=font or SECTION_ITEM_FONT,
+                    )
+                else:
+                    lbl_prefix = tk.Label(  # type: ignore[attr-defined]
+                        line_frame,
+                        text=prefix,
+                        font=font or SECTION_ITEM_FONT,
+                    )
+                lbl_prefix.pack(side="left")
 
             # Label para o status (colorido e normalizado)
-            lbl_status = tb.Label(
-                line_frame,
-                text=normalized_status,
-                font=font or SECTION_ITEM_FONT,
-                bootstyle=bootstyle,
-            )
-            lbl_status.pack(side=LEFT)
+            if HAS_CUSTOMTKINTER and ctk is not None:
+                lbl_status = ctk.CTkLabel(
+                    line_frame,
+                    text=normalized_status,
+                    font=font or SECTION_ITEM_FONT,
+                    text_color=fg_color if fg_color else None,
+                )
+            else:
+                lbl_status = tk.Label(  # type: ignore[attr-defined]
+                    line_frame,
+                    text=normalized_status,
+                    font=font or SECTION_ITEM_FONT,
+                    fg=fg_color if fg_color else "black",
+                )
+            lbl_status.pack(side="left")
 
             # Label para o sufixo (normal)
             if suffix:
-                lbl_suffix = tb.Label(
-                    line_frame,
-                    text=suffix,
-                    font=font or SECTION_ITEM_FONT,
-                )
-                lbl_suffix.pack(side=LEFT)
+                if HAS_CUSTOMTKINTER and ctk is not None:
+                    lbl_suffix = ctk.CTkLabel(
+                        line_frame,
+                        text=suffix,
+                        font=font or SECTION_ITEM_FONT,
+                    )
+                else:
+                    lbl_suffix = tk.Label(  # type: ignore[attr-defined]
+                        line_frame,
+                        text=suffix,
+                        font=font or SECTION_ITEM_FONT,
+                    )
+                lbl_suffix.pack(side="left")
         else:
             # Linha sem status - renderizar normalmente
-            lbl = tb.Label(
-                parent,
-                text=line,
-                font=font or SECTION_ITEM_FONT,
-                justify=justify,
-                wraplength=wraplength,
-            )
-            lbl.pack(anchor=W, pady=1)
+            if HAS_CUSTOMTKINTER and ctk is not None:
+                lbl = ctk.CTkLabel(
+                    parent,
+                    text=line,
+                    font=font or SECTION_ITEM_FONT,
+                    justify=justify,
+                    wraplength=wraplength,
+                )
+            else:
+                lbl = tk.Label(  # type: ignore[attr-defined]
+                    parent,
+                    text=line,
+                    font=font or SECTION_ITEM_FONT,
+                    justify=justify,
+                    wraplength=wraplength,
+                )
+            lbl.pack(anchor="w", pady=1)
 
 
 def _build_scrollable_text_list(
-    parent: tb.Frame,
+    parent: tk.Frame,
     *,
     height_lines: int = 5,
-) -> ScrolledText:
-    """Cria widget ScrolledText para lista rolável.
+) -> ScrolledText | ctk.CTkTextbox:
+    """Cria widget scrollável para lista rolável.
 
     Args:
-        parent: Frame pai onde o ScrolledText será criado.
+        parent: Frame pai onde o widget será criado.
         height_lines: Altura do widget em linhas (padrão 5).
 
     Returns:
-        Widget ScrolledText configurado.
+        Widget ScrolledText ou CTkTextbox configurado.
     """
-    text_widget = ScrolledText(
-        parent,
-        height=height_lines,
-        wrap="word",
-        font=SECTION_ITEM_FONT,
-        state="disabled",
-    )
-
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        text_widget = ctk.CTkTextbox(
+            parent,
+            height=height_lines * 20,  # Aproximação: 20px por linha
+            wrap="word",
+            font=SECTION_ITEM_FONT,
+        )
+        # Para CTkTextbox, configurar como read-only usando helper
+        from src.ui.ctk_text_compat import configure_text_readonly
+        configure_text_readonly(text_widget)
+    else:
+        text_widget = ScrolledText(
+            parent,
+            height=height_lines,
+            wrap="word",
+            font=SECTION_ITEM_FONT,
+            state="disabled",
+        )
+    
     # Dar foco ao passar mouse (para scroll funcionar no Windows)
     text_widget.bind("<Enter>", lambda e: text_widget.focus_set())
 
@@ -201,7 +277,7 @@ def _build_scrollable_text_list(
 
 
 def _render_lines_with_status_highlight(
-    text_widget: ScrolledText,
+    text_widget: ScrolledText | ctk.CTkTextbox,
     lines: list[str],
 ) -> None:
     """Renderiza linhas no Text widget com tags para colorir status.
@@ -211,19 +287,31 @@ def _render_lines_with_status_highlight(
     - "Hoje" => azul (#0d6efd)
 
     Args:
-        text_widget: Widget Text/ScrolledText onde renderizar.
+        text_widget: Widget Text/ScrolledText/CTkTextbox onde renderizar.
         lines: Lista de strings (uma por linha) a serem exibidas.
     """
+    from src.ui.ctk_text_compat import get_inner_text_widget, configure_text_readonly
+    
+    # Para CTkTextbox, usar widget interno para operações de texto/tags
+    inner_widget = get_inner_text_widget(text_widget)
+    
     # Configurar tags para colorização
-    text_widget.tag_configure("status_overdue", foreground="#dc3545")  # vermelho
-    text_widget.tag_configure("status_today", foreground="#0d6efd")  # azul
+    inner_widget.tag_configure("status_overdue", foreground="#dc3545")  # type: ignore[attr-defined]
+    inner_widget.tag_configure("status_today", foreground="#0d6efd")  # type: ignore[attr-defined]
 
-    # Inserir texto
-    text_widget.configure(state="normal")
-    text_widget.delete("1.0", "end")
+    # Desabilitar read-only temporariamente para edição
+    if hasattr(text_widget, '_textbox'):
+        # CTkTextbox: desabilitar binds temporariamente
+        inner_widget.unbind("<Key>")  # type: ignore[attr-defined]
+        inner_widget.unbind("<<Paste>>")  # type: ignore[attr-defined]
+    else:
+        # ScrolledText: usar configure normal
+        text_widget.configure(state="normal")  # type: ignore[attr-defined]
+    
+    inner_widget.delete("1.0", "end")
 
     full_text = "\n".join(lines)
-    text_widget.insert("1.0", full_text)
+    inner_widget.insert("1.0", full_text)
 
     # Aplicar tags usando search (robusto para multi-linha)
     # Padrão 1: "Atrasada Xd" (captura "Atrasada 1d", "Atrasada 2d", etc.)
@@ -234,15 +322,15 @@ def _render_lines_with_status_highlight(
     # Colorir "Atrasada Xd"
     idx = "1.0"
     while True:
-        pos = text_widget.search(pattern_overdue, idx, "end", regexp=True)
+        pos = inner_widget.search(pattern_overdue, idx, "end", regexp=True)  # type: ignore[attr-defined]
         if not pos:
             break
-        match_text = text_widget.get(pos, f"{pos} lineend")
+        match_text = inner_widget.get(pos, f"{pos} lineend")
         match_obj = re.match(pattern_overdue, match_text)
         if match_obj:
             end_offset = f"+{len(match_obj.group(0))}c"
             end_pos = f"{pos}{end_offset}"
-            text_widget.tag_add("status_overdue", pos, end_pos)
+            inner_widget.tag_add("status_overdue", pos, end_pos)  # type: ignore[attr-defined]
             idx = end_pos
         else:
             idx = f"{pos}+1c"
@@ -250,27 +338,33 @@ def _render_lines_with_status_highlight(
     # Colorir "Hoje"
     idx = "1.0"
     while True:
-        pos = text_widget.search(pattern_today, idx, "end", regexp=True)
+        pos = inner_widget.search(pattern_today, idx, "end", regexp=True)  # type: ignore[attr-defined]
         if not pos:
             break
-        match_text = text_widget.get(pos, f"{pos} lineend")
+        match_text = inner_widget.get(pos, f"{pos} lineend")
         match_obj = re.search(pattern_today, match_text)
         if match_obj:
             end_offset = f"+{len(match_obj.group(0))}c"
             end_pos = f"{pos}{end_offset}"
-            text_widget.tag_add("status_today", pos, end_pos)
+            inner_widget.tag_add("status_today", pos, end_pos)  # type: ignore[attr-defined]
             idx = end_pos
         else:
             idx = f"{pos}+1c"
 
     # Voltar para read-only
-    text_widget.configure(state="disabled")
+    if hasattr(text_widget, '_textbox'):
+        # CTkTextbox: reconfigurar como read-only
+        configure_text_readonly(text_widget)
+    else:
+        # ScrolledText: usar state disabled
+        text_widget.configure(state="disabled")  # type: ignore[attr-defined]
+        
     # Garantir que está no topo
-    text_widget.see("1.0")
+    inner_widget.see("1.0")  # type: ignore[attr-defined]
 
 
 def _build_scrollable_status_list(
-    parent: tb.Frame,
+    parent: tk.Frame,
     lines: list[str],
     height: int = 7,
 ) -> None:
@@ -284,32 +378,59 @@ def _build_scrollable_status_list(
         height: Altura do widget em linhas (padrão 7).
     """
     text_widget = _build_scrollable_text_list(parent, height_lines=height)
-    text_widget.pack(fill=BOTH, expand=True)
+    text_widget.pack(fill="both", expand=True)
     _render_lines_with_status_highlight(text_widget, lines)
 
 
 def _build_indicator_card(
-    parent: tb.Frame,
+    parent: tk.Frame,
     label: str,
     value: int | float,
-    bootstyle: str = "primary",
     value_text: str | None = None,  # Texto customizado para o valor (com ícones, etc.)
     on_click: Callable[[], None] | None = None,  # Callback ao clicar no card
-) -> tb.Frame:
+    card_color: str | tuple[str, str] | None = None,  # MICROFASE 35: cor do card
+) -> Any:  # tk.Frame | ctk.CTkFrame
     """Constrói um card de indicador com valor e label.
 
     Args:
         parent: Frame pai onde o card será criado.
         label: Texto descritivo do indicador.
         value: Valor numérico a ser exibido.
-        bootstyle: Estilo do card (primary, success, warning, danger, etc.).
         value_text: Texto customizado para exibir no lugar do valor (ex: "2 ⚠").
         on_click: Callback opcional quando o card é clicado (navegação contextual).
+        card_color: Cor de fundo do card (para cards KPI coloridos).
 
     Returns:
         Frame contendo o card criado.
     """
-    card = tb.Frame(parent, bootstyle=bootstyle, padding=(CARD_PAD_X, CARD_PAD_Y))
+    # MICROFASE 35: Definir cores baseado no label para KPI cards
+    if card_color is None:
+        label_lower = label.lower()
+        if "cliente" in label_lower:
+            card_color = ("#3b82f6", "#2563eb")  # Azul
+        elif "pendências" in label_lower or "pendencia" in label_lower:
+            card_color = ("#ef4444", "#dc2626")  # Vermelho
+        elif "tarefa" in label_lower:
+            card_color = ("#f97316", "#ea580c")  # Laranja
+        else:
+            card_color = ("#ffffff", "#1f2937")  # Branco/escuro padrão
+    
+    # Determinar cor do texto baseado na cor do card
+    is_colored_card = card_color not in [("#ffffff", "#1f2937"), ("#ffffff", "#141414"), "transparent"]
+    text_color = "#ffffff" if is_colored_card else ("#1f2937", "#f3f4f6")
+    
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        card = ctk.CTkFrame(
+            parent,
+            fg_color=card_color,
+            bg_color=APP_BG,  # MICROFASE 35: evita vazamento nos cantos
+            corner_radius=10,
+            border_width=0 if is_colored_card else 1,
+            border_color=BORDER,
+        )
+    else:
+        card = ctk.CTkFrame(parent)
+    card.pack(padx=CARD_PAD_X, pady=CARD_PAD_Y)
 
     # Tornar card clicável se callback fornecido
     if on_click is not None:
@@ -321,26 +442,42 @@ def _build_indicator_card(
     display_text = (
         value_text if value_text is not None else (str(int(value)) if isinstance(value, float) else str(value))
     )
-    value_label = tb.Label(
-        card,
-        text=display_text,
-        font=CARD_VALUE_FONT,
-        bootstyle=f"{bootstyle}-inverse",
-    )
-    value_label.pack(anchor="center")
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        value_label = ctk.CTkLabel(
+            card,
+            text=display_text,
+            font=FONT_KPI_VALUE,
+            text_color=text_color,
+            fg_color="transparent",
+        )
+    else:
+        value_label = tk.Label(  # type: ignore[attr-defined]
+            card,
+            text=display_text,
+            font=FONT_KPI_VALUE,
+        )
+    value_label.pack(anchor="center", pady=(12, 4))
 
     # Propagar evento de clique para labels também
     if on_click is not None:
         value_label.bind("<Button-1>", lambda e: on_click())
 
     # Label descritivo
-    text_label = tb.Label(
-        card,
-        text=label,
-        font=CARD_LABEL_FONT,
-        bootstyle=f"{bootstyle}-inverse",
-    )
-    text_label.pack(anchor="center")
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        text_label = ctk.CTkLabel(
+            card,
+            text=label,
+            font=FONT_KPI_LABEL,
+            text_color=text_color,
+            fg_color="transparent",
+        )
+    else:
+        text_label = tk.Label(  # type: ignore[attr-defined]
+            card,
+            text=label,
+            font=CARD_LABEL_FONT,
+        )
+    text_label.pack(anchor="center", pady=(0, 8))
 
     # Propagar evento de clique para labels também
     if on_click is not None:
@@ -349,10 +486,65 @@ def _build_indicator_card(
     return card
 
 
-def _build_section_frame(
-    parent: tb.Frame,
+def build_section_card(
+    parent: tk.Frame,
     title: str,
-) -> tuple[tb.Labelframe, tb.Frame]:
+    *,
+    corner: int = 16
+) -> tuple[Any, Any]:  # (outer_frame, inner_frame)
+    """Builder único padrão para cards do Hub.
+    
+    Args:
+        parent: Frame pai
+        title: Título do card
+        corner: Raio dos cantos do card externo
+        
+    Returns:
+        Tupla (outer_frame, inner_frame) - usar inner_frame como container de conteúdo
+    """
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        # Card externo cinza
+        outer = ctk.CTkFrame(
+            parent,
+            fg_color=SURFACE_DARK,
+            corner_radius=corner,
+            border_width=0,
+            bg_color=APP_BG
+        )
+        
+        # Título/header
+        title_label = ctk.CTkLabel(
+            outer,
+            text=title,
+            font=TITLE_FONT,
+            text_color=TEXT_PRIMARY,
+            fg_color="transparent"
+        )
+        title_label.pack(anchor="w", padx=14, pady=(12, 6))
+        
+        # Frame interno branco/escuro para conteúdo
+        inner = ctk.CTkFrame(
+            outer,
+            fg_color=SURFACE,
+            corner_radius=max(10, corner - 4),
+            border_width=0,
+            bg_color=SURFACE_DARK
+        )
+        inner.pack(fill="both", expand=True, padx=14, pady=(0, 12))
+        
+        return outer, inner
+    else:
+        # Fallback
+        outer = ctk.CTkFrame(parent)
+        inner = ctk.CTkFrame(outer)
+        inner.pack(fill="both", expand=True)
+        return outer, inner
+
+
+def _build_section_frame(
+    parent: tk.Frame,
+    title: str,
+) -> tuple[Any, Any]:  # (section_frame, content_frame)
     """Constrói um frame de seção com título.
 
     Args:
@@ -362,12 +554,76 @@ def _build_section_frame(
     Returns:
         Tupla (section_frame, content_frame) para adicionar conteúdo.
     """
-    section = tb.Labelframe(parent, text=title, padding=10)
-
-    content = tb.Frame(section)
-    content.pack(fill=X)
+    # MICROFASE 35: Seções com fundo cinza escuro sem borda
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        section = ctk.CTkFrame(
+            parent,
+            fg_color=SURFACE_DARK,
+            bg_color=APP_BG,  # MICROFASE 35: evita vazamento nos cantos
+            border_width=0,
+            corner_radius=CARD_RADIUS,
+        )
+        
+        # Título da seção - usando novo token TITLE_FONT
+        title_label = ctk.CTkLabel(
+            section,
+            text=title,
+            font=TITLE_FONT,
+            text_color=TEXT_PRIMARY,
+            fg_color="transparent",
+        )
+        title_label.pack(anchor="w", padx=12, pady=(12, 6))
+        
+        content = ctk.CTkFrame(section, fg_color="transparent")
+    else:
+        # Fallback: usar CTkFrame sem estilo especial
+        section = ctk.CTkFrame(parent)
+        content = ctk.CTkFrame(section, fg_color="transparent")
+    content.pack(fill=X, padx=12, pady=(0, 12))
 
     return section, content
+
+
+def _build_inner_content_area(
+    content_parent: tk.Frame,
+    height: int = 180,
+    **textbox_kwargs
+) -> Any:  # ctk.CTkTextbox | tk.ScrolledText
+    """Constrói área interna de conteúdo branca/escura para textbox/lista.
+    
+    Args:
+        content_parent: Frame pai (vem de _build_section_frame)
+        height: Altura do textbox
+        **textbox_kwargs: Argumentos adicionais para CTkTextbox
+    
+    Returns:
+        CTkTextbox configurado com padrão uniforme
+    """
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        # Textbox direto sem frame adicional
+        textbox = ctk.CTkTextbox(
+            content_parent,
+            height=height,
+            wrap="word",
+            font=BODY_FONT,
+            fg_color=SURFACE,
+            text_color=TEXT_PRIMARY,
+            **textbox_kwargs
+        )
+        textbox.pack(fill="both", expand=True, padx=8, pady=6)
+        
+        # Ajustar padding interno e line spacing
+        try:
+            textbox._textbox.configure(padx=8, pady=6)  # type: ignore[attr-defined]
+            textbox._textbox.configure(spacing1=2, spacing3=6)  # type: ignore[attr-defined]
+        except (AttributeError, Exception):
+            pass
+            
+        return textbox
+    else:
+        # Fallback
+        from tkinter.scrolledtext import ScrolledText
+        return ScrolledText(content_parent, height=height//15, wrap="word")  # type: ignore[return-value]
 
 
 # ORG-005: Funções de formatação movidas para dashboard_center_pure.py
@@ -375,7 +631,7 @@ def _build_section_frame(
 
 
 def _build_risk_radar_section(
-    parent: tb.Frame,
+    parent: tk.Frame,
     radar: dict[str, dict[str, Any]],
 ) -> None:
     """Constrói a seção do radar de riscos regulatórios.
@@ -384,30 +640,31 @@ def _build_risk_radar_section(
         parent: Frame pai onde a seção será construída.
         radar: Dicionário com 3 quadrantes (ANVISA, SNGPC, SIFAP).
     """
-    # Criar Labelframe sem text (usaremos labelwidget com PNG)
-    section = tb.Labelframe(parent, padding=10)
-
-    # Criar label customizado com ícone PNG
-    radar_icon = _get_hub_icon("radar", "assets/modulos/hub/radar.png", master=parent)
-    title_label = tb.Label(section, text="Radar de riscos regulatórios")
-    if radar_icon:
-        title_label.configure(image=radar_icon, compound="left")
-    section.configure(labelwidget=title_label)
-
-    section.pack(fill=X, pady=(0, 15))
-
-    content = tb.Frame(section)
-    content.pack(fill=X)
+    # Usar builder padrão
+    section, inner_content = build_section_card(parent, "📡 Radar de riscos regulatórios")
+    section.pack(fill=X, pady=(0, 16))
 
     # Grid 1x3 para os quadrantes (uma linha com 3 colunas)
-    grid_frame = tb.Frame(content)
-    grid_frame.pack(fill=X)
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        grid_frame = ctk.CTkFrame(inner_content, fg_color="transparent")
+    else:
+        # Fallback
+        grid_frame = ctk.CTkFrame(inner_content, fg_color="transparent")
+    grid_frame.pack(fill=X, padx=8, pady=6)
 
     quadrants = [
         ("ANVISA", 0, 0),
         ("Farmácia Popular", 0, 1),
         ("SIFAP", 0, 2),
     ]
+
+    # MICROFASE 35: Cores para cada status
+    color_map = {
+        "green": ("#22c55e", "#16a34a"),  # Verde
+        "yellow": ("#eab308", "#ca8a04"),  # Amarelo
+        "red": ("#ef4444", "#dc2626"),  # Vermelho
+        "disabled": ("#9ca3af", "#6b7280"),  # Cinza
+    }
 
     for name, row, col in quadrants:
         data = radar.get(name, {"pending": 0, "overdue": 0, "status": "green", "enabled": True})
@@ -416,45 +673,60 @@ def _build_risk_radar_section(
         status = data.get("status", "green")
         enabled = bool(data.get("enabled", True))
 
-        # Map status to bootstyle
-        bootstyle_map = {
-            "green": "success",
-            "yellow": "warning",
-            "red": "danger",
-            "disabled": "secondary",
-        }
-
         # If disabled, override to secondary style
         if not enabled:
-            bootstyle = "secondary"
+            bg_color = color_map["disabled"]
             text = "Desativado"
         else:
-            bootstyle = bootstyle_map.get(status, "secondary")
+            bg_color = color_map.get(status, color_map["disabled"])
             text = f"Pendentes: {pending} – Atrasadas: {overdue}"
 
-        # Create quadrant frame
-        quad_frame = tb.Frame(grid_frame, bootstyle=bootstyle, padding=10)
+        # Create quadrant frame - MICROFASE 35: colorido
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            quad_frame = ctk.CTkFrame(
+                grid_frame,
+                fg_color=bg_color,
+                corner_radius=8,
+            )
+        else:
+            quad_frame = ctk.CTkFrame(grid_frame)
         quad_frame.grid(row=row, column=col, padx=5, pady=5, sticky="nsew")
 
-        # Quadrant name
+        # Quadrant name - texto branco
         name_font: Any = ("Segoe UI", 10, "bold")
-        lbl_name = tb.Label(
-            quad_frame,
-            text=name,
-            font=name_font,
-            bootstyle=f"{bootstyle}-inverse",
-        )
-        lbl_name.pack(anchor="center")
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            lbl_name = ctk.CTkLabel(
+                quad_frame,
+                text=name,
+                font=name_font,
+                text_color="#ffffff",
+                fg_color="transparent",
+            )
+        else:
+            lbl_name = tk.Label(  # type: ignore[attr-defined]
+                quad_frame,
+                text=name,
+                font=name_font,
+            )
+        lbl_name.pack(anchor="center", pady=(8, 2))
 
-        # Counts
+        # Counts - texto branco
         counts_font: tuple[str, int] = ("Segoe UI", 9)
-        lbl_counts = tb.Label(
-            quad_frame,
-            text=text,
-            font=counts_font,
-            bootstyle=f"{bootstyle}-inverse",
-        )
-        lbl_counts.pack(anchor="center")
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            lbl_counts = ctk.CTkLabel(
+                quad_frame,
+                text=text,
+                font=counts_font,
+                text_color="#ffffff",
+                fg_color="transparent",
+            )
+        else:
+            lbl_counts = tk.Label(  # type: ignore[attr-defined]
+                quad_frame,
+                text=text,
+                font=counts_font,
+            )
+        lbl_counts.pack(anchor="center", pady=(0, 8))
 
     # Configure grid weights for equal sizing (3 colunas)
     grid_frame.columnconfigure(0, weight=1)
@@ -463,7 +735,7 @@ def _build_risk_radar_section(
 
 
 def _build_recent_activity_section(
-    parent: tb.Frame,
+    parent: tk.Frame,
     _activities: list[dict[str, Any]],
     *,
     _on_view_all: Callable[[], None] | None = None,
@@ -485,80 +757,104 @@ def _build_recent_activity_section(
     from src.modules.hub.async_runner import HubAsyncRunner
     from src.utils.auth_utils import resolve_org_id
 
-    section, content = _build_section_frame(parent, title="📋 Atividade recente da equipe")
-    section.pack(fill=X, pady=(0, 15))
+    # Usar builder padrão
+    section, inner_content = build_section_card(parent, "📋 Atividade recente da equipe")
+    section.pack(fill=X, pady=(0, 16))
 
-    # Criar ScrolledText read-only
-    activity_text = ScrolledText(
-        content,
-        height=8,
-        wrap="word",
-        font=("Segoe UI", 9),
-        bg="#f8f9fa",
-        relief="flat",
-        padx=8,
-        pady=8,
-    )
-    activity_text.pack(fill=BOTH, expand=True)
+    # Criar textbox direto no inner content
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        activity_text = ctk.CTkTextbox(
+            inner_content,
+            height=180,
+            wrap="word",
+            font=BODY_FONT,
+            fg_color=SURFACE,
+            text_color=TEXT_PRIMARY,
+        )
+        activity_text.pack(fill=BOTH, expand=True, padx=8, pady=6)
+        
+        # Ajustar padding interno e line spacing
+        try:
+            activity_text._textbox.configure(padx=8, pady=6)  # type: ignore[attr-defined]
+            activity_text._textbox.configure(spacing1=2, spacing3=6)  # type: ignore[attr-defined]
+        except (AttributeError, Exception):
+            pass
+    
+    # Configurar função de atualização baseada no tipo
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        # Para CTkTextbox, usar métodos diferentes
+        def set_activity_text(full_text: str) -> None:
+            """Atualiza o conteúdo do CTkTextbox."""
+            configure_textbox_editable(activity_text)
+            activity_text.delete("1.0", "end")
+            if full_text:
+                activity_text.insert("1.0", full_text)
+            else:
+                activity_text.insert("1.0", "Nenhuma atividade recente.")
+            configure_textbox_readonly(activity_text)
 
-    # Configurar tags para colorir ações específicas
-    # Tag para "REGULARIZAÇÃO CANCELADA" (vermelho + bold)
+    # Configurar tags para colorir ações específicas (apenas para ScrolledText)
+    # MICROFASE 35: CTkTextbox não suporta tags, então pulamos colorização inline
     bold_font = ("Segoe UI", 9, "bold")
+    
+    if not (HAS_CUSTOMTKINTER and ctk is not None):
+        # Tags apenas para ScrolledText (fallback)
+        inner_text = get_inner_text_widget(activity_text)
+        inner_text.tag_configure(
+            "status_cancelada",
+            foreground="#dc3545",  # Vermelho (danger)
+            font=bold_font,
+        )
 
-    activity_text.tag_configure(
-        "status_cancelada",
-        foreground="#dc3545",  # Vermelho (danger)
-        font=bold_font,
-    )
+        inner_text.tag_configure(
+            "status_concluida",
+            foreground="#28a745",  # Verde (success)
+            font=bold_font,
+        )
 
-    # Tag para "REGULARIZAÇÃO CONCLUÍDA" (verde + bold)
-    activity_text.tag_configure(
-        "status_concluida",
-        foreground="#28a745",  # Verde (success)
-        font=bold_font,
-    )
+        # Função helper para atualizar o texto com colorização
+        def set_activity_text(full_text: str) -> None:
+            """Atualiza o conteúdo do ScrolledText com colorização de ações.
 
-    # Função helper para atualizar o texto com colorização
-    def set_activity_text(full_text: str) -> None:
-        """Atualiza o conteúdo do ScrolledText com colorização de ações.
+            Cada entrada agora tem 2 linhas, separadas por linha em branco.
+            Usa Text.search() para aplicar tags de forma robusta.
+            """
+            configure_textbox_editable(activity_text)
+            activity_text.delete("1.0", "end")
 
-        Cada entrada agora tem 2 linhas, separadas por linha em branco.
-        Usa Text.search() para aplicar tags de forma robusta.
-        """
-        activity_text.config(state="normal")
-        activity_text.delete("1.0", "end")
+            # Inserir texto completo
+            if full_text:
+                # Cada entrada já vem com \n interno (2 linhas)
+                # Adicionar \n\n entre entradas
+                entries = full_text.split("\n\n") if "\n\n" in full_text else [full_text]
+                for i, entry in enumerate(entries):
+                    activity_text.insert("end", entry)
+                    # Adicionar linha em branco entre entradas (exceto última)
+                    if i < len(entries) - 1:
+                        activity_text.insert("end", "\n\n")
+            else:
+                activity_text.insert("end", "Nenhuma atividade recente.")
 
-        # Inserir texto completo
-        if full_text:
-            # Cada entrada já vem com \n interno (2 linhas)
-            # Adicionar \n\n entre entradas
-            entries = full_text.split("\n\n") if "\n\n" in full_text else [full_text]
-            for i, entry in enumerate(entries):
-                activity_text.insert("end", entry)
-                # Adicionar linha em branco entre entradas (exceto última)
-                if i < len(entries) - 1:
-                    activity_text.insert("end", "\n\n")
-        else:
-            activity_text.insert("end", "Nenhuma atividade recente.")
+            # Aplicar tags usando Text.search() para robustez
+            def apply_status_tags(needle: str, tag: str) -> None:
+                """Aplica tag em todas as ocorrências de needle."""
+                inner = get_inner_text_widget(activity_text)
+                idx = "1.0"
+                while True:
+                    pos = inner.search(needle, idx, stopindex="end")  # type: ignore[attr-defined]
+                    if not pos:
+                        break
+                    end_pos = f"{pos}+{len(needle)}c"
+                    inner.tag_add(tag, pos, end_pos)  # type: ignore[attr-defined]
+                    idx = end_pos
 
-        # Aplicar tags usando Text.search() para robustez
-        def apply_status_tags(needle: str, tag: str) -> None:
-            """Aplica tag em todas as ocorrências de needle."""
-            idx = "1.0"
-            while True:
-                pos = activity_text.search(needle, idx, stopindex="end")
-                if not pos:
-                    break
-                end_pos = f"{pos}+{len(needle)}c"
-                activity_text.tag_add(tag, pos, end_pos)
-                idx = end_pos
+            # Aplicar tags para ações específicas
+            apply_status_tags("REGULARIZAÇÃO CANCELADA", "status_cancelada")
+            apply_status_tags("REGULARIZAÇÃO CONCLUÍDA", "status_concluida")
 
-        # Aplicar tags para ações específicas
-        apply_status_tags("REGULARIZAÇÃO CANCELADA", "status_cancelada")
-        apply_status_tags("REGULARIZAÇÃO CONCLUÍDA", "status_concluida")
-
-        activity_text.config(state="disabled")
-        activity_text.see("end")  # Auto-scroll para o final
+            configure_textbox_readonly(activity_text)
+            inner = get_inner_text_widget(activity_text)
+            inner.see("end")  # type: ignore[attr-defined]
 
     # Função para renderizar atividades do store
     def render_activity() -> None:
@@ -610,7 +906,7 @@ def _build_recent_activity_section(
 
 
 def build_dashboard_center(
-    parent: tb.Frame,
+    parent: tk.Frame,
     state: "DashboardViewState",
     *,
     on_new_task: Callable[[], None] | None = None,
@@ -658,14 +954,23 @@ def build_dashboard_center(
     # Limpar widgets existentes
     _clear_children(parent)
 
-    # Container principal com padding
-    main_container = tb.Frame(parent, padding=10)
-    main_container.pack(fill=BOTH, expand=True)
+    # Container principal sem padding - MICROFASE 35: fundo transparente
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        main_container = ctk.CTkFrame(parent, fg_color="transparent")
+    else:
+        # Fallback
+        main_container = ctk.CTkFrame(parent, fg_color="transparent")
+    main_container.pack(fill=BOTH, expand=True, padx=10, pady=10)
 
     # -------------------------------------------------------------------------
     # 1. LINHA DE CARDS DE INDICADORES (usando DashboardCardView do state)
     # -------------------------------------------------------------------------
-    cards_frame = tb.Frame(main_container)
+    # MICROFASE 35: Usar CTkFrame transparente
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        cards_frame = ctk.CTkFrame(main_container, fg_color="transparent")
+    else:
+        # Fallback
+        cards_frame = ctk.CTkFrame(main_container, fg_color="transparent")
     cards_frame.pack(fill=X, pady=(0, 15))
 
     # Card: Clientes ativos (consome state.card_clientes)
@@ -674,7 +979,6 @@ def build_dashboard_center(
             cards_frame,
             label=state.card_clientes.label,
             value=state.card_clientes.value,
-            bootstyle=state.card_clientes.bootstyle,
             value_text=state.card_clientes.value_text,
             on_click=(lambda s=state: on_card_clients_click(s)) if on_card_clients_click else None,
         )
@@ -686,7 +990,6 @@ def build_dashboard_center(
             cards_frame,
             label=state.card_pendencias.label,
             value=state.card_pendencias.value,
-            bootstyle=state.card_pendencias.bootstyle,
             value_text=state.card_pendencias.value_text,
             on_click=(lambda s=state: on_card_pendencias_click(s)) if on_card_pendencias_click else None,
         )
@@ -698,7 +1001,6 @@ def build_dashboard_center(
             cards_frame,
             label=state.card_tarefas.label,
             value=state.card_tarefas.value,
-            bootstyle=state.card_tarefas.bootstyle,
             value_text=state.card_tarefas.value_text,
             on_click=(lambda s=state: on_card_tarefas_click(s)) if on_card_tarefas_click else None,
         )
@@ -722,52 +1024,53 @@ def build_dashboard_center(
 
         if not snapshot.hot_items:
             # Nenhum alerta
-            lbl_no_hot = tb.Label(
-                hot_content,
-                text=MSG_NO_HOT_ITEMS,
-                font=SECTION_ITEM_FONT,
-            )
+            if HAS_CUSTOMTKINTER and ctk is not None:
+                lbl_no_hot = ctk.CTkLabel(
+                    hot_content,
+                    text=MSG_NO_HOT_ITEMS,
+                    font=SECTION_ITEM_FONT,
+                )
+            else:
+                lbl_no_hot = tk.Label(  # type: ignore[attr-defined]
+                    hot_content,
+                    text=MSG_NO_HOT_ITEMS,
+                    font=SECTION_ITEM_FONT,
+                )
             lbl_no_hot.pack(anchor=W, pady=2)
         else:
             # Exibir cada hot_item com prefixo de alerta
             for item in snapshot.hot_items:
-                lbl_item = tb.Label(
-                    hot_content,
-                    text=f"⚠ {item}",  # Adiciona ícone de alerta
-                    font=SECTION_ITEM_FONT,
-                    bootstyle="danger",
-                )
+                if HAS_CUSTOMTKINTER and ctk is not None:
+                    lbl_item = ctk.CTkLabel(
+                        hot_content,
+                        text=f"⚠ {item}",  # Adiciona ícone de alerta
+                        font=SECTION_ITEM_FONT,
+                        text_color=("#dc2626", "#fca5a5"),  # Vermelho
+                        fg_color="transparent",
+                    )
+                else:
+                    lbl_item = tk.Label(  # type: ignore[attr-defined]
+                        hot_content,
+                        text=f"⚠ {item}",
+                        font=SECTION_ITEM_FONT,
+                    )
                 lbl_item.pack(anchor=W, pady=2)
 
     # -------------------------------------------------------------------------
     # 2.1. BLOCO "TAREFAS PENDENTES" (rolagem habilitada)
     # -------------------------------------------------------------------------
     # Ajustar título e mensagem vazia baseado no modo ANVISA-only
+    # Definir título baseado no modo
     if snapshot.anvisa_only:
-        tasks_title_text = "ANVISA – Tarefas de hoje"
+        tasks_title_text = "🗂️ ANVISA – Tarefas de hoje"
         tasks_empty_msg = "Nenhuma tarefa ANVISA para hoje."
     else:
-        tasks_title_text = "Tarefas pendentes"
+        tasks_title_text = "🗂️ Tarefas pendentes"
         tasks_empty_msg = "Nenhuma tarefa pendente no momento."
 
-    # Criar Labelframe sem text (usaremos labelwidget com PNG)
-    tasks_section = tb.Labelframe(main_container, padding=10)
-
-    # Criar label customizado com ícone PNG
-    tasks_icon = _get_hub_icon(
-        "tasks_checklist",
-        "assets/modulos/hub/lista-de-verificacao-de-tarefas.png",
-        master=main_container,
-    )
-    tasks_title_label = tb.Label(tasks_section, text=tasks_title_text)
-    if tasks_icon:
-        tasks_title_label.configure(image=tasks_icon, compound="left")
-    tasks_section.configure(labelwidget=tasks_title_label)
-
-    tasks_section.pack(fill=X, pady=(0, 15))
-
-    tasks_content = tb.Frame(tasks_section)
-    tasks_content.pack(fill=X, expand=True)
+    # Usar builder padrão
+    tasks_section, tasks_inner = build_section_card(main_container, tasks_title_text)
+    tasks_section.pack(fill=X, pady=(0, 16))
 
     # Separar deadlines em today (prazo <= hoje) e future (prazo > hoje)
     from datetime import date as date_type
@@ -821,16 +1124,49 @@ def build_dashboard_center(
             all_today_items.append(deadline)
             existing_keys.add(key)
 
-    # Renderizar tarefas de hoje com ScrolledText
+    # Renderizar tarefas no inner content
     if not all_today_items:
-        # Nenhuma tarefa pendente
-        lbl_no_tasks = tb.Label(
-            tasks_content,
-            text=tasks_empty_msg,
-            font=SECTION_ITEM_FONT,
-        )
-        lbl_no_tasks.pack(anchor=W, pady=2)
+        # Nenhuma tarefa pendente 
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            lbl_no_tasks = ctk.CTkLabel(
+                tasks_inner,
+                text=tasks_empty_msg,
+                font=BODY_FONT,
+                text_color=TEXT_MUTED,
+                fg_color="transparent",
+            )
+            lbl_no_tasks.pack(pady=20)
+        else:
+            lbl_no_tasks = tk.Label(  # type: ignore[attr-defined]
+                tasks_inner,
+                text=tasks_empty_msg,
+                font=BODY_FONT,
+            )
+            lbl_no_tasks.pack(pady=20)
     else:
+        # Criar textbox de tarefas
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            tasks_textbox = ctk.CTkTextbox(
+                tasks_inner,
+                height=120,
+                wrap="word",
+                font=BODY_FONT,
+                fg_color=SURFACE,
+                text_color=TEXT_PRIMARY,
+            )
+            tasks_textbox.pack(fill=BOTH, expand=True, padx=8, pady=6)
+            
+            # Ajustar padding interno e line spacing
+            try:
+                tasks_textbox._textbox.configure(padx=8, pady=6)  # type: ignore[attr-defined]
+                tasks_textbox._textbox.configure(spacing1=2, spacing3=6)  # type: ignore[attr-defined]
+            except (AttributeError, Exception):
+                pass
+        else:
+            from tkinter.scrolledtext import ScrolledText
+            tasks_textbox = ScrolledText(tasks_inner, height=8, wrap="word")
+            tasks_textbox.pack(fill=BOTH, expand=True)
+        
         # Agrupar tarefas por cliente
         task_blocks = group_tasks_for_display(
             all_today_items,
@@ -838,12 +1174,17 @@ def build_dashboard_center(
             max_items_per_client=3,
         )
 
-        # Criar ScrolledText para renderizar
-        text_today = _build_scrollable_text_list(tasks_content, height_lines=5)
-        text_today.pack(fill=X, expand=False, pady=2)
-
-        # Renderizar com destaque de cores
-        _render_lines_with_status_highlight(text_today, task_blocks)
+        # Renderizar tarefas no textbox
+        tasks_text = "\n\n".join(task_blocks) if task_blocks else tasks_empty_msg
+        
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            tasks_textbox.configure(state="normal")
+            tasks_textbox.delete("1.0", "end")
+            tasks_textbox.insert("1.0", tasks_text)
+            tasks_textbox.configure(state="disabled")
+        else:
+            tasks_textbox.delete("1.0", "end")
+            tasks_textbox.insert("1.0", tasks_text)
 
     # -------------------------------------------------------------------------
     # 2.2. BLOCO "CLIENTES DO DIA" (oculto em ANVISA-only)
@@ -860,11 +1201,20 @@ def build_dashboard_center(
 
         if not snapshot.clients_of_the_day:
             # Nenhum cliente com obrigação hoje
-            lbl_no_clients = tb.Label(
-                clients_content,
-                text=clients_empty_msg,
-                font=SECTION_ITEM_FONT,
-            )
+            if HAS_CUSTOMTKINTER and ctk is not None:
+                lbl_no_clients = ctk.CTkLabel(
+                    clients_content,
+                    text=clients_empty_msg,
+                    font=SECTION_ITEM_FONT,
+                    text_color=("#6b7280", "#9ca3af"),
+                    fg_color="transparent",
+                )
+            else:
+                lbl_no_clients = tk.Label(  # type: ignore[attr-defined]
+                    clients_content,
+                    text=clients_empty_msg,
+                    font=SECTION_ITEM_FONT,
+                )
             lbl_no_clients.pack(anchor=W, pady=2)
         else:
             # Exibir cada cliente
@@ -873,11 +1223,20 @@ def build_dashboard_center(
                 kinds = item.get("obligation_kinds") or []
                 kinds_str = ", ".join(kinds) if kinds else "obrigação"
                 text = f"{client_name} – {kinds_str}"
-                lbl_client = tb.Label(
-                    clients_content,
-                    text=text,
-                    font=SECTION_ITEM_FONT,
-                )
+                if HAS_CUSTOMTKINTER and ctk is not None:
+                    lbl_client = ctk.CTkLabel(
+                        clients_content,
+                        text=text,
+                        font=SECTION_ITEM_FONT,
+                        text_color=("#1f2937", "#f3f4f6"),
+                        fg_color="transparent",
+                    )
+                else:
+                    lbl_client = tk.Label(  # type: ignore[attr-defined]
+                        clients_content,
+                        text=text,
+                        font=SECTION_ITEM_FONT,
+                    )
                 lbl_client.pack(anchor=W, pady=2)
 
     # -------------------------------------------------------------------------
@@ -891,21 +1250,54 @@ def build_dashboard_center(
         deadlines_title = "📅 Próximos vencimentos"
         deadlines_empty_msg = MSG_NO_UPCOMING
 
-    deadlines_section, deadlines_content = _build_section_frame(
+    # Usar builder padrão
+    deadlines_section, deadlines_inner = build_section_card(
         main_container,
-        title=deadlines_title,
+        deadlines_title,
     )
     deadlines_section.pack(fill=X, pady=(0, 10))
 
     if not future_deadlines:
         # Nenhum vencimento futuro
-        lbl_no_deadlines = tb.Label(
-            deadlines_content,
-            text=deadlines_empty_msg,
-            font=SECTION_ITEM_FONT,
-        )
-        lbl_no_deadlines.pack(anchor=W, pady=2)
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            lbl_no_deadlines = ctk.CTkLabel(
+                deadlines_inner,
+                text=deadlines_empty_msg,
+                font=BODY_FONT,
+                text_color=TEXT_MUTED,
+                fg_color="transparent",
+            )
+        else:
+            lbl_no_deadlines = tk.Label(  # type: ignore[attr-defined]
+                deadlines_inner,
+                text=deadlines_empty_msg,
+                font=BODY_FONT,
+            )
+        lbl_no_deadlines.pack(pady=20)
     else:
+        # Criar textbox para prazos
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            deadlines_textbox = ctk.CTkTextbox(
+                deadlines_inner,
+                height=140,
+                wrap="word",
+                font=BODY_FONT,
+                fg_color=SURFACE,
+                text_color=TEXT_PRIMARY,
+            )
+            deadlines_textbox.pack(fill=BOTH, expand=True, padx=8, pady=6)
+            
+            # Ajustar padding interno e line spacing
+            try:
+                deadlines_textbox._textbox.configure(padx=8, pady=6)
+                deadlines_textbox._textbox.configure(spacing1=2, spacing3=6)
+            except (AttributeError, Exception):
+                pass
+        else:
+            from tkinter.scrolledtext import ScrolledText
+            deadlines_textbox = ScrolledText(deadlines_inner, height=8, wrap="word")
+            deadlines_textbox.pack(fill=BOTH, expand=True)
+
         # Agrupar prazos por cliente (limite aumentado para 50 com scroll)
         deadline_blocks = group_deadlines_for_display(
             future_deadlines,
@@ -914,8 +1306,17 @@ def build_dashboard_center(
             hide_kind=snapshot.anvisa_only,  # No ANVISA-only, esconde 'kind' (redundante)
         )
 
-        # Renderizar com ScrolledText (colorização automática de status)
-        _build_scrollable_status_list(deadlines_content, deadline_blocks, height=7)
+        # Renderizar prazos no textbox
+        deadlines_text = "\n".join(deadline_blocks) if deadline_blocks else deadlines_empty_msg
+        
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            deadlines_textbox.configure(state="normal")
+            deadlines_textbox.delete("1.0", "end")
+            deadlines_textbox.insert("1.0", deadlines_text)
+            deadlines_textbox.configure(state="disabled")
+        else:
+            deadlines_textbox.delete("1.0", "end")
+            deadlines_textbox.insert("1.0", deadlines_text)
 
     # -------------------------------------------------------------------------
     # 3.1. BLOCO "ATIVIDADE RECENTE DA EQUIPE" (movido para depois dos prazos)
@@ -928,7 +1329,7 @@ def build_dashboard_center(
     )
 
 
-def build_dashboard_error(parent: tb.Frame, message: str | None = None) -> None:
+def build_dashboard_error(parent: tk.Frame, message: str | None = None) -> None:
     """Constrói uma mensagem de erro amigável no painel central.
 
     Args:
@@ -939,25 +1340,54 @@ def build_dashboard_error(parent: tb.Frame, message: str | None = None) -> None:
 
     error_msg = message or "Não foi possível carregar o dashboard agora. Tente novamente mais tarde."
 
-    container = tb.Frame(parent, padding=20)
-    container.pack(fill=BOTH, expand=True)
+    # MICROFASE 35: Container com estilo CTk
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        container = ctk.CTkFrame(
+            parent,
+            fg_color=SURFACE_DARK,
+            bg_color=APP_BG,  # MICROFASE 35: evita vazamento nos cantos
+            border_width=0,
+            corner_radius=CARD_RADIUS,
+        )
+    else:
+        container = ctk.CTkFrame(parent)
+    container.pack(fill=BOTH, expand=True, padx=20, pady=20)
 
     # Ícone de erro
     icon_font: Any = ("Segoe UI", 32)
-    lbl_icon = tb.Label(
-        container,
-        text="⚠️",
-        font=icon_font,
-    )
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        lbl_icon = ctk.CTkLabel(
+            container,
+            text="⚠️",
+            font=icon_font,
+            fg_color="transparent",
+        )
+    else:
+        lbl_icon = tk.Label(  # type: ignore[attr-defined]
+            container,
+            text="⚠️",
+            font=icon_font,
+        )
     lbl_icon.pack(pady=(20, 10))
 
     # Mensagem
     msg_font: Any = ("Segoe UI", 11)
-    lbl_msg = tb.Label(
-        container,
-        text=error_msg,
-        font=msg_font,
-        wraplength=300,
-        justify="center",
-    )
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        lbl_msg = ctk.CTkLabel(
+            container,
+            text=error_msg,
+            font=msg_font,
+            wraplength=300,
+            justify="center",
+            text_color=("#dc2626", "#fca5a5"),
+            fg_color="transparent",
+        )
+    else:
+        lbl_msg = tk.Label(  # type: ignore[attr-defined]
+            container,
+            text=error_msg,
+            font=msg_font,
+            wraplength=300,
+            justify="center",
+        )
     lbl_msg.pack(pady=10)

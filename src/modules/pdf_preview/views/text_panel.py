@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from src.ui.ctk_config import ctk
+
 import logging
 import tkinter as tk
-from tkinter import ttk
 from tkinter.scrolledtext import ScrolledText
 from typing import Callable
 
@@ -11,7 +12,7 @@ from src.ui.search_nav import SearchNavigator
 logger = logging.getLogger(__name__)
 
 
-class PdfTextPanel(ttk.Frame):
+class PdfTextPanel(ctk.CTkFrame):
     """
     Painel de texto/OCR:
     - contém o widget Text/ScrolledText;

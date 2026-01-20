@@ -10,14 +10,19 @@ REFATORAÇÃO P2 (Microfase 1):
 from __future__ import annotations
 
 import logging
+import tkinter as tk
 from typing import Any, Callable, Optional
 
-import ttkbootstrap as tb
+from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+from src.ui.ui_tokens import APP_BG
 
 from src.ui.components.topbar_actions import TopbarActions
 from src.ui.components.topbar_nav import TopbarNav
 
 _log = logging.getLogger(__name__)
+
+# Classe base dinâmica: CTkFrame se CTk disponível, senão tk.Frame
+BaseTopBar = ctk.CTkFrame if (HAS_CUSTOMTKINTER and ctk is not None) else tk.Frame
 
 
 class _NavCallbacks:
@@ -80,10 +85,11 @@ class _ActionsCallbacks:
         return False
 
 
-class TopBar(tb.Frame):
+class TopBar(BaseTopBar):
     """Barra superior compositor - monta TopbarNav e TopbarActions.
 
     Mantém interface pública compatível para não quebrar main_window.py.
+    Usa CTkFrame quando CustomTkinter disponível, tk.Frame como fallback.
     """
 
     def __init__(
@@ -114,7 +120,13 @@ class TopBar(tb.Frame):
             on_delete_notification_for_me: Callback para excluir notificação (só para o usuário)
             on_delete_all_notifications_for_me: Callback para excluir todas notificações (só para o usuário)
         """
-        super().__init__(master, **kwargs)
+        # Configurar cores baseado na classe base
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            # Modo CTk: fundo branco, sem cantos arredondados
+            super().__init__(master, fg_color=APP_BG, corner_radius=0, **kwargs)
+        else:
+            # Modo tk.Frame: fundo branco
+            super().__init__(master, bg=APP_BG[0], **kwargs)
 
         # Guardar callbacks
         self._on_home = on_home
@@ -128,7 +140,10 @@ class TopBar(tb.Frame):
         self._on_delete_all_notifications_for_me = on_delete_all_notifications_for_me
 
         # Container principal
-        container = tb.Frame(self)
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            container = ctk.CTkFrame(self, fg_color="transparent")
+        else:
+            container = tk.Frame(self, bg=APP_BG[0])
         container.pack(fill="x", expand=True)
 
         # Criar componentes

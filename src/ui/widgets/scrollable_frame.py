@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from src.ui.ctk_config import ctk
+
 # -*- coding: utf-8 -*-
 """ScrollableFrame widget para conteúdo rolável usando Canvas.
 
@@ -5,18 +9,14 @@ Fornece um frame com barra de rolagem vertical automática,
 ideal para conteúdo que pode exceder a altura da janela.
 """
 
-from __future__ import annotations
-
 import tkinter as tk
 from typing import TYPE_CHECKING
-
-import ttkbootstrap as tb
 
 if TYPE_CHECKING:
     from tkinter import Event
 
 
-class ScrollableFrame(tb.Frame):
+class ScrollableFrame(tk.Frame):
     """Frame com barra de rolagem vertical automática.
 
     Usa Canvas + Frame interno para permitir conteúdo rolável.
@@ -32,7 +32,7 @@ class ScrollableFrame(tb.Frame):
         >>> scroll.pack(fill="both", expand=True)
         >>>
         >>> # Adicionar widgets ao frame interno
-        >>> label = tb.Label(scroll.content, text="Conteúdo")
+        >>> label = tk.Label(scroll.content, text="Conteúdo")
         >>> label.pack()
     """
 
@@ -41,8 +41,8 @@ class ScrollableFrame(tb.Frame):
 
         Args:
             parent: Widget pai.
-            *args: Argumentos posicionais para tb.Frame.
-            **kwargs: Argumentos nomeados para tb.Frame.
+            *args: Argumentos posicionais para tk.Frame.
+            **kwargs: Argumentos nomeados para tk.Frame.
         """
         super().__init__(parent, *args, **kwargs)
 
@@ -61,15 +61,14 @@ class ScrollableFrame(tb.Frame):
         )
 
         # Barra de rolagem vertical
-        self.vscrollbar = tb.Scrollbar(
+        self.vscrollbar = ctk.CTkScrollbar(
             self,
-            orient="vertical",
             command=self.canvas.yview,
         )
         self.canvas.configure(yscrollcommand=self.vscrollbar.set)
 
         # Frame interno onde o conteúdo será adicionado
-        self.content = tb.Frame(self.canvas)
+        self.content = tk.Frame(self.canvas)
 
         # Criar janela no canvas para o frame de conteúdo
         self._canvas_window = self.canvas.create_window(

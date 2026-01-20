@@ -7,20 +7,18 @@ Podem ser testadas isoladamente sem mockar widgets.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 if TYPE_CHECKING:
     import tkinter as tk
 
-    import ttkbootstrap as tb
-
 
 def make_module_button(
-    parent: tk.Misc,
+    parent: Any,  # tk.Misc
     text: str,
     command: Callable[[], None] | None = None,
-    bootstyle: str = "secondary",
-) -> tb.Button:
+    **kwargs: Any,
+) -> Any:  # CTkButton or tk.Button
     """Cria um botão de módulo com estilo consistente.
 
     Helper puro para criação de botões do painel de módulos.
@@ -30,18 +28,21 @@ def make_module_button(
         parent: Widget pai onde o botão será criado
         text: Texto do botão
         command: Callback do botão (opcional)
-        bootstyle: Estilo ttkbootstrap (padrão: "secondary")
+        **kwargs: Argumentos adicionais (ignorados para compatibilidade)
 
     Returns:
-        tb.Button configurado
+        CTkButton or tk.Button configurado
 
     Examples:
-        >>> btn = make_module_button(frame, "Clientes", open_clientes, "primary")
+        >>> btn = make_module_button(frame, "Clientes", open_clientes)
         >>> btn.grid(row=0, column=0)
     """
-    import ttkbootstrap as tb
+    from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+    import tkinter as tk
 
-    return tb.Button(parent, text=text, command=command, bootstyle=bootstyle)
+    if HAS_CUSTOMTKINTER and ctk is not None:
+        return ctk.CTkButton(parent, text=text, command=command)
+    return tk.Button(parent, text=text, command=command)
 
 
 def extract_time_from_timestamp(timestamp: str) -> str:

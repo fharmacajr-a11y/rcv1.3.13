@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import ttk
-from typing import Callable, Iterable, Optional, Tuple
+from typing import Callable, Iterable, Optional, Tuple, Any
 
 # CustomTkinter (fonte centralizada)
 from src.ui.ctk_config import ctk
+
+# CTkTreeview para hierarquia de arquivos (vendorizado - MICROFASE 32)
+from src.third_party.ctktreeview import CTkTreeview
 
 
 class FileList(ctk.CTkFrame):  # type: ignore[misc]
@@ -34,8 +36,8 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
 
-        # Estrutura de colunas para árvore hierárquica (ttk.Treeview mantido)
-        self.tree = ttk.Treeview(self, columns=("type",), show="tree headings", selectmode="browse")
+        # Estrutura de colunas para árvore hierárquica (CTkTreeview)
+        self.tree = CTkTreeview(self, columns=("type",), show="tree headings")  # selectmode browse default
 
         # Configuração dos headings
         self.tree.heading("#0", text="Nome do arquivo/pasta", anchor="w")
@@ -47,11 +49,11 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
 
         self.tree.grid(row=0, column=0, sticky="nsew")
 
-        # Scrollbars vertical e horizontal (manter ttk, compatível com Treeview)
-        scroll_y = ttk.Scrollbar(self, orient="vertical", command=self.tree.yview)
+        # Scrollbars vertical e horizontal
+        scroll_y = ctk.CTkScrollbar(self, command=self.tree.yview)
         scroll_y.grid(row=0, column=1, sticky="ns")
 
-        scroll_x = ttk.Scrollbar(self, orient="horizontal", command=self.tree.xview)
+        scroll_x = ctk.CTkScrollbar(self, orient="horizontal", command=self.tree.xview)
         scroll_x.grid(row=1, column=0, sticky="ew")
 
         self.tree.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
@@ -70,11 +72,11 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
         self.tree.bind("<Button-3>", self._on_right_click)
 
     @staticmethod
-    def _lock_treeview_columns(tree: ttk.Treeview) -> None:
+    def _lock_treeview_columns(tree: Any) -> None:
         """Trava redimensionamento e arrasto de colunas da Treeview.
 
         Args:
-            tree: Treeview para travar colunas
+            tree: CTkTreeview para travar colunas
         """
         from typing import Any
 

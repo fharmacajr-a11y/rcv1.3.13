@@ -5,11 +5,12 @@ from __future__ import annotations
 import logging
 import time
 import tkinter as tk
-from tkinter import ttk
+
 from typing import Callable, Protocol
 
 from src.ui.components.progress_dialog import ProgressDialog
 from src.ui.window_utils import show_centered
+from src.ui.widgets import CTkTableView
 
 logger = logging.getLogger(__name__)
 
@@ -136,72 +137,77 @@ class DuplicatesDialog(tk.Toplevel):
         self.apply_once: bool = True
 
         msg = f"Encontrados {duplicates_count} arquivo(s) duplicado(s).\nEscolha como proceder:"
-        ttk.Label(self, text=msg, font=("-size", 10), wraplength=520).pack(padx=20, pady=(20, 10))
+        ctk.CTkLabel(self, text=msg, font=("-size", 10), wraplength=520).pack(padx=20, pady=(20, 10))
 
-        frame_sample = ttk.LabelFrame(self, text="Amostra (até 20 arquivos)", padding=10)
-        frame_sample.pack(padx=20, pady=(0, 12), fill="both", expand=True)
+        # Frame amostra com label
+        sample_container = ctk.CTkFrame(self)
+        sample_container.pack(padx=20, pady=(0, 12), fill="both", expand=True)
+        ctk.CTkLabel(sample_container, text="Amostra (até 20 arquivos)", font=("-size", 10, "bold")).pack(anchor="w", padx=8, pady=(4, 2))
+        frame_sample = ctk.CTkFrame(sample_container)
+        frame_sample.pack(padx=8, pady=(0, 8), fill="both", expand=True)
 
-        tree_frame = ttk.Frame(frame_sample)
+        tree_frame = ctk.CTkFrame(frame_sample)
         tree_frame.pack(fill="both", expand=True)
 
         height = min(len(sample_names[:20]), 10)
-        self.tree_sample = ttk.Treeview(
-            tree_frame, columns=("arquivo",), show="tree headings", height=height, selectmode="none"
+        self.tree_sample = CTkTableView(
+            tree_frame, columns=("arquivo",), show="tree headings", height=height, selectmode="none", zebra=True
         )
         self.tree_sample.heading("#0", text="")
         self.tree_sample.heading("arquivo", text="Arquivo", anchor="w")
         self.tree_sample.column("#0", width=0, stretch=False)
         self.tree_sample.column("arquivo", width=500, anchor="w", stretch=True)
 
-        scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree_sample.yview)
-        self.tree_sample.configure(yscrollcommand=scrollbar.set)
         self.tree_sample.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
 
         for name in sample_names[:20]:
-            self.tree_sample.insert("", "end", values=(name,))
+            self.tree_sample.insert("", "end", values=[name])
         if len(sample_names) > 20:
             remaining = len(sample_names) - 20
-            self.tree_sample.insert("", "end", values=(f"... e mais {remaining} arquivo(s)",))
+            self.tree_sample.insert("", "end", values=[f"... e mais {remaining} arquivo(s)"])
 
         self.var_apply_once = tk.BooleanVar(value=True)
-        ttk.Checkbutton(
+        ctk.CTkCheckBox(
             self,
             text="Não aplicar só a este envio (não lembrar esta escolha)",
             variable=self.var_apply_once,
         ).pack(padx=20, pady=(0, 12), anchor="w")
 
-        frame_opts = ttk.LabelFrame(self, text="Estratégia", padding=10)
-        frame_opts.pack(padx=20, pady=(0, 16), fill="x")
+        # Frame estratégia com label
+        opts_container = ctk.CTkFrame(self)
+        opts_container.pack(padx=20, pady=(0, 10), fill="x")
+        ctk.CTkLabel(opts_container, text="Estratégia", font=("-size", 10, "bold")).pack(anchor="w", padx=8, pady=(4, 2))
+        frame_opts = ctk.CTkFrame(opts_container)
+        frame_opts.pack(padx=8, pady=(0, 8), fill="x")
 
         self.var_strategy = tk.StringVar(value="skip")
 
-        ttk.Radiobutton(
+        ctk.CTkRadioButton(
             frame_opts,
             text="Pular duplicatas (não envia arquivos que já existem)",
             variable=self.var_strategy,
             value="skip",
         ).pack(anchor="w", pady=2)
-        ttk.Radiobutton(
+        ctk.CTkRadioButton(
             frame_opts,
             text="Substituir duplicatas (sobrescrever com novos arquivos)",
             variable=self.var_strategy,
             value="replace",
         ).pack(anchor="w", pady=2)
-        ttk.Radiobutton(
+        ctk.CTkRadioButton(
             frame_opts,
             text="Renomear duplicatas (sufixo arquivo (2).pdf)",
             variable=self.var_strategy,
             value="rename",
         ).pack(anchor="w", pady=2)
 
-        frame_buttons = ttk.Frame(self)
+        frame_buttons = ctk.CTkFrame(self)
         frame_buttons.pack(padx=20, pady=(0, 20))
 
-        btn_ok = ttk.Button(frame_buttons, text="OK", command=self._on_ok, width=12)
+        btn_ok = ctk.CTkButton(frame_buttons, text="OK", command=self._on_ok, width=12)
         btn_ok.pack(side="left", padx=5)
 
-        ttk.Button(frame_buttons, text="Cancelar", command=self._on_cancel, width=12).pack(side="left", padx=5)
+        ctk.CTkButton(frame_buttons, text="Cancelar", command=self._on_cancel, width=12).pack(side="left", padx=5)
 
         try:
             self.update_idletasks()

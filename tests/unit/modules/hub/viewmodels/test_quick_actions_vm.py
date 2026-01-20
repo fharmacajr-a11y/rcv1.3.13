@@ -165,17 +165,22 @@ class TestQuickActionsViewModel:
             assert action.description is not None
             assert len(action.description) > 0
 
-    def test_build_state_has_bootstyles(self, vm):
-        """Deve incluir bootstyles para cada atalho."""
+    def test_build_state_has_metadata(self, vm):
+        """Deve incluir metadata completa para cada atalho."""
         state = vm.build_state()
 
+        # Verificar que actions têm campos obrigatórios
         for action in state.actions:
-            assert action.bootstyle is not None
+            assert action.id is not None
+            assert action.label is not None
+            assert action.category is not None
+            # bootstyle é opcional (tag semântica apenas, não passado para widgets)
 
-        # Verificar estilos específicos (conforme definido no ViewModel)
+        # Verificar IDs específicos existem
         actions_map = {a.id: a for a in state.actions}
-        assert actions_map["clientes"].bootstyle == "info"
-        assert actions_map["senhas"].bootstyle == "warning"
-        assert actions_map["auditoria"].bootstyle == "danger"
-        assert actions_map["fluxo_caixa"].bootstyle == "success"
-        assert actions_map["anvisa"].bootstyle == "secondary"
+        assert "clientes" in actions_map
+        assert "senhas" in actions_map
+        assert "auditoria" in actions_map
+        assert "fluxo_caixa" in actions_map
+        # bootstyle não mais validado (tag semântica opcional)
+

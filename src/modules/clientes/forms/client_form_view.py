@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from src.ui.ctk_config import ctk
+
 # -*- coding: utf-8 -*-
 """View pura para o formulário de cliente.
 
@@ -7,17 +11,9 @@ sem lógica de negócio. Seguindo padrão MVC/MVVM para separação de responsab
 Refatoração: MICROFASE-11 (Divisão em 4 componentes)
 """
 
-from __future__ import annotations
-
 import logging
 import tkinter as tk
-from tkinter import ttk
 from typing import Any, Protocol
-
-try:
-    import ttkbootstrap as tb  # noqa: F401 - Fallback disponível
-except Exception:
-    tb = ttk  # type: ignore
 
 from src.modules.clientes.components.helpers import STATUS_CHOICES
 from src.ui.window_utils import show_centered
@@ -109,11 +105,11 @@ class ClientFormView:
         self.ents: dict[str, tk.Widget] = {}
         self.status_var: tk.StringVar | None = None
         self.internal_vars: dict[str, tk.StringVar] = {}
-        self.internal_entries: dict[str, ttk.Entry] = {}
+        self.internal_entries: dict[str, ctk.CTkEntry] = {}
 
         # Referências a botões para controle de estado
-        self.btn_upload: ttk.Button | None = None
-        self.btn_cartao_cnpj: ttk.Button | None = None
+        self.btn_upload: ctk.CTkButton | None = None
+        self.btn_cartao_cnpj: ctk.CTkButton | None = None
 
         # Criar a janela
         self._create_window(transient=transient)
@@ -159,15 +155,15 @@ class ClientFormView:
             raise RuntimeError("Window not created")
 
         # Frame principal
-        main_frame = ttk.Frame(self.window, padding=(8, 8, 8, 2))
-        main_frame.grid(row=0, column=0, sticky="nsew")
+        main_frame = ctk.CTkFrame(self.window)
+        main_frame.grid(row=0, column=0, sticky="nsew", padx=8, pady=(8, 2))
         self.window.columnconfigure(0, weight=1)
         self.window.rowconfigure(0, weight=1)
 
         # Divisão esquerda/direita
-        left_frame = ttk.Frame(main_frame)
-        sep = ttk.Separator(main_frame, orient="vertical")
-        right_frame = ttk.Frame(main_frame)
+        left_frame = ctk.CTkFrame(main_frame)
+        sep = ctk.CTkFrame(main_frame, width=2)  # Separador vertical
+        right_frame = ctk.CTkFrame(main_frame)
 
         main_frame.columnconfigure(0, weight=3)
         main_frame.columnconfigure(1, weight=0)
@@ -257,36 +253,36 @@ class ClientFormView:
         right_row = 0
 
         # Endereço
-        ttk.Label(parent, text="Endereço (interno):").grid(row=right_row, column=0, sticky="w", padx=6, pady=(5, 0))
+        ctk.CTkLabel(parent, text="Endereço (interno):").grid(row=right_row, column=0, sticky="w", padx=6, pady=(5, 0))
         right_row += 1
-        ent_endereco = ttk.Entry(parent, textvariable=addr_endereco_var)
+        ent_endereco = ctk.CTkEntry(parent, textvariable=addr_endereco_var)
         ent_endereco.grid(row=right_row, column=0, padx=6, pady=(0, 5), sticky="ew")
         self.ents["Endereço (interno):"] = ent_endereco
         self.internal_entries["Endereço (interno):"] = ent_endereco
         right_row += 1
 
         # Bairro
-        ttk.Label(parent, text="Bairro (interno):").grid(row=right_row, column=0, sticky="w", padx=6, pady=(0, 0))
+        ctk.CTkLabel(parent, text="Bairro (interno):").grid(row=right_row, column=0, sticky="w", padx=6, pady=(0, 0))
         right_row += 1
-        ent_bairro = ttk.Entry(parent, textvariable=addr_bairro_var)
+        ent_bairro = ctk.CTkEntry(parent, textvariable=addr_bairro_var)
         ent_bairro.grid(row=right_row, column=0, padx=6, pady=(0, 5), sticky="ew")
         self.ents["Bairro (interno):"] = ent_bairro
         self.internal_entries["Bairro (interno):"] = ent_bairro
         right_row += 1
 
         # Cidade
-        ttk.Label(parent, text="Cidade (interno):").grid(row=right_row, column=0, sticky="w", padx=6, pady=(0, 0))
+        ctk.CTkLabel(parent, text="Cidade (interno):").grid(row=right_row, column=0, sticky="w", padx=6, pady=(0, 0))
         right_row += 1
-        ent_cidade = ttk.Entry(parent, textvariable=addr_cidade_var)
+        ent_cidade = ctk.CTkEntry(parent, textvariable=addr_cidade_var)
         ent_cidade.grid(row=right_row, column=0, padx=6, pady=(0, 5), sticky="ew")
         self.ents["Cidade (interno):"] = ent_cidade
         self.internal_entries["Cidade (interno):"] = ent_cidade
         right_row += 1
 
         # CEP
-        ttk.Label(parent, text="CEP (interno):").grid(row=right_row, column=0, sticky="w", padx=6, pady=(0, 0))
+        ctk.CTkLabel(parent, text="CEP (interno):").grid(row=right_row, column=0, sticky="w", padx=6, pady=(0, 0))
         right_row += 1
-        ent_cep = ttk.Entry(parent, textvariable=addr_cep_var)
+        ent_cep = ctk.CTkEntry(parent, textvariable=addr_cep_var)
         ent_cep.grid(row=right_row, column=0, padx=6, pady=(0, 5), sticky="ew")
         self.ents["CEP (interno):"] = ent_cep
         self.internal_entries["CEP (interno):"] = ent_cep
@@ -306,7 +302,7 @@ class ClientFormView:
         if not self.window:
             return
 
-        btns = ttk.Frame(self.window)
+        btns = ctk.CTkFrame(self.window)
         btns.grid(row=1, column=0, columnspan=3, sticky="w", pady=10, padx=10)
 
         # Criar barra de botões usando builder

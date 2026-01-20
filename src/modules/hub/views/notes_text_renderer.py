@@ -34,23 +34,28 @@ def _configure_text_widget_tags(text_widget: Any) -> None:
     - note_block: espaçamento entre blocos
 
     Args:
-        text_widget: Widget tk.Text onde as tags serão configuradas
+        text_widget: Widget tk.Text ou CTkTextbox onde as tags serão configuradas
     """
     try:
+        from src.ui.ctk_text_compat import get_inner_text_widget
+        
+        # Para CTkTextbox, usar widget interno para tag_configure
+        inner_widget = get_inner_text_widget(text_widget)
+        
         # Timestamp: fonte menor, cinza claro
-        text_widget.tag_configure("note_ts", foreground="#999999", font=("", 9))
+        inner_widget.tag_configure("note_ts", foreground="#999999", font=("", 9))
 
         # Autor: negrito, fonte normal
-        text_widget.tag_configure("note_author", font=("", 10, "bold"))
+        inner_widget.tag_configure("note_author", font=("", 10, "bold"))
 
         # Corpo: wrap word, sem margem
-        text_widget.tag_configure("note_body", wrap="word", lmargin1=0, lmargin2=0)
+        inner_widget.tag_configure("note_body", wrap="word", lmargin1=0, lmargin2=0)
 
         # Mensagem apagada: itálico, cinza, sem margem
-        text_widget.tag_configure("note_deleted", foreground="#999999", font=("", 10, "italic"), lmargin1=0, lmargin2=0)
+        inner_widget.tag_configure("note_deleted", foreground="#999999", font=("", 10, "italic"), lmargin1=0, lmargin2=0)
 
         # Espaçamento entre blocos (respiro entre mensagens)
-        text_widget.tag_configure("note_block", spacing3=12)
+        inner_widget.tag_configure("note_block", spacing3=12)
     except Exception as exc:
         logger.debug(f"Erro ao configurar tags do widget: {exc}")
 
@@ -152,13 +157,18 @@ def render_notes_text(
         # Tag única para esta nota (para identificar no menu de contexto)
         note_tag = f"noteid_{note_id}"
 
+        from src.ui.ctk_text_compat import get_inner_text_widget
+        
+        # Para CTkTextbox, usar widget interno para operações de insert
+        inner_widget = get_inner_text_widget(text_widget)
+
         # === Linha 1: Cabeçalho (TIMESTAMP - AUTOR:) ===
 
         # 1. Inserir timestamp com tag "note_ts"
-        text_widget.insert("end", timestamp_str, ("note_ts", note_tag))
+        inner_widget.insert("end", timestamp_str, ("note_ts", note_tag))
 
         # 2. Inserir " - " (separador)
-        text_widget.insert("end", " - ", (note_tag,))
+        inner_widget.insert("end", " - ", (note_tag,))
 
         # 3. Inserir autor com tag de cor (se disponível) + negrito
         author_color_tag = None
@@ -169,21 +179,21 @@ def render_notes_text(
                 logger.debug(f"Erro ao obter tag de autor: {exc}")
 
         if author_color_tag:
-            text_widget.insert("end", author_name, (author_color_tag, "note_author", note_tag))
+            inner_widget.insert("end", author_name, (author_color_tag, "note_author", note_tag))
         else:
-            text_widget.insert("end", author_name, ("note_author", note_tag))
+            inner_widget.insert("end", author_name, ("note_author", note_tag))
 
         # 4. Inserir ":" + quebra de linha
-        text_widget.insert("end", ":\n", (note_tag,))
+        inner_widget.insert("end", ":\n", (note_tag,))
 
         # === Linha 2: Corpo da mensagem ===
         if is_deleted:
-            text_widget.insert("end", body_text, ("note_deleted", note_tag))
+            inner_widget.insert("end", body_text, ("note_deleted", note_tag))
         else:
-            text_widget.insert("end", body_text, ("note_body", note_tag))
+            inner_widget.insert("end", body_text, ("note_body", note_tag))
 
         # === Separação entre mensagens (linha em branco) ===
-        text_widget.insert("end", "\n\n", ("note_block", note_tag))
+        inner_widget.insert("end", "\n\n", ("note_block", note_tag))
 
     # Desabilitar edição
     text_widget.configure(state="disabled")

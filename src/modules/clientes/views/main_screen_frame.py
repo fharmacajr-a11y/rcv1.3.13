@@ -11,14 +11,10 @@ from __future__ import annotations
 import logging
 import tkinter as tk
 from tkinter import messagebox
-from typing import Any, Callable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
 
-try:
-    import ttkbootstrap as tb
-except Exception:
-    from tkinter import ttk
-
-    tb = ttk  # fallback
+if TYPE_CHECKING:
+    from src.modules.clientes.column_manager import ColumnControlsLayout, ColumnManager
 
 from src.modules.clientes.controllers.batch_operations import BatchOperationsCoordinator
 from src.modules.clientes.controllers.connectivity import ClientesConnectivityController
@@ -50,7 +46,7 @@ class MainScreenFrame(
     MainScreenEventsMixin,
     MainScreenDataflowMixin,
     MainScreenBatchMixin,
-    tb.Frame,  # pyright: ignore[reportGeneralTypeIssues]
+    tk.Frame,  # pyright: ignore[reportGeneralTypeIssues]
 ):
     """Frame da tela principal (lista de clientes + ações).
 
@@ -75,7 +71,54 @@ class MainScreenFrame(
         on_upload_folder: Callable[[], None] | None = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(master, **kwargs)  # pyright: ignore[reportCallIssue] - tb.Frame aceita master posicional
+        super().__init__(master, **kwargs)  # pyright: ignore[reportCallIssue] - tk.Frame aceita master posicional
+
+        # Declarações de atributos UI (inicializados depois via builders)
+        self.toolbar: Any = None
+        self.footer: Any = None
+        self.tree: Any = None
+        self.client_list: Any = None
+        self.client_list_container: tk.Frame = None  # type: ignore[assignment]
+        self.clients_scrollbar: Any = None
+        self.var_busca: tk.StringVar = None  # type: ignore[assignment]
+        self.var_ordem: tk.StringVar = None  # type: ignore[assignment]
+        self.var_status: tk.StringVar = None  # type: ignore[assignment]
+        self.status_filter: Any = None
+        self.entry_busca: Any = None
+        self.btn_lixeira: Any = None
+        self.status_menu: Optional[tk.Menu] = None
+        self.columns_align_bar: tk.Frame = None  # type: ignore[assignment]
+        self._cols_separator: ctk.CTkFrame = None  # type: ignore[assignment]
+        self._col_order: list[str] = []
+        self._col_ctrls: dict[str, Any] = {}
+        self._col_content_visible: dict[str, tk.BooleanVar] = {}
+        self._column_manager: ColumnManager = None  # type: ignore[assignment]
+        self._column_controls_layout: ColumnControlsLayout = None  # type: ignore[assignment]
+        self._col_controls_after_id: Optional[str] = None
+        self._user_key: str = ""
+        self._pick_banner_frame: Any = None
+        self._pick_label: Optional[Any] = None
+        self._pick_cancel_button: Optional[Any] = None
+        self._pick_banner_default_text: str = ""
+        self.clients_count_var: Any = None
+        self.status_var_dot: Any = None
+        self.status_var_text: Any = None
+        self.status_dot: Optional[Any] = None
+        self.status_lbl: Optional[Any] = None
+        self._switch_tree: Optional[Any] = None  # Legado, não usado
+        self._switch_cells: dict[str, Any] = {}
+        self._switch_job: Optional[str] = None
+        self._switchbar_bound: bool = False
+        self._render_job_id: Optional[str] = None
+        self.btn_novo: Any = None
+        self.btn_editar: Any = None
+        self.btn_subpastas: Any = None
+        self.btn_excluir: Any = None
+        self.btn_batch_delete: Any = None
+        self.btn_batch_restore: Any = None
+        self.btn_batch_export: Any = None
+        self.btn_select: Any = None
+        self._col_controls_bound: bool = False
 
         # Atributos básicos (callbacks e configuração)
         self.app: Any | None = app
@@ -213,7 +256,7 @@ class MainScreenFrame(
             except Exception as exc:  # noqa: BLE001
                 log.debug("Erro ao reabilitar menus da topbar no destroy: %s", exc)
 
-        # Chama o destroy original do ttk.Frame
+        # Chama o destroy original do ctk.CTkFrame
         super().destroy()
 
     def set_uploading(self, busy: bool) -> None:

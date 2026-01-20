@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from src.ui.ctk_config import ctk
+
 # -*- coding: utf-8 -*-
 """Facade para formulário de cliente.
 
@@ -7,11 +11,8 @@ lógica para os componentes separados (View, Controller, State, Actions).
 Refatoração: MICROFASE-11 (Divisão em 4 componentes - Facade)
 """
 
-from __future__ import annotations
-
 import logging
 import tkinter as tk
-from tkinter import ttk
 from typing import Any
 
 # Re-exports para compatibilidade (importados aqui para evitar E402)
@@ -69,7 +70,7 @@ log = logger
 ClientRow = tuple[Any, ...]
 FormPreset = dict[str, str]
 EntryMap = dict[str, tk.Widget]
-UploadButtonRef = ttk.Button | None
+UploadButtonRef = ctk.CTkButton | None
 
 
 # =============================================================================
@@ -251,7 +252,7 @@ def form_cliente(
         logger.debug("Usando ClientFormViewCTK (CustomTkinter)")
         view = ClientFormViewCTK(parent=self, handlers=handlers)  # type: ignore[assignment]
     else:
-        logger.debug("Usando ClientFormView (ttk/ttkbootstrap - fallback)")
+        logger.debug("Usando ClientFormView (legado - fallback)")
         view = ClientFormView(parent=self, handlers=handlers)
     view_ref[0] = view
 

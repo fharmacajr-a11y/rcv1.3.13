@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import logging
 import tkinter as tk
-from tkinter import ttk as tkttk
 from typing import Any
 
-import ttkbootstrap as ttk
-from ttkbootstrap.constants import BOTH, LEFT
+import customtkinter as ctk
+from src.ui.ctk_config import *
+from src.ui.widgets import CTkTableView
 
 from src.ui.window_utils import (
     apply_window_icon,
@@ -71,32 +71,32 @@ class AnvisaHistoryPopupMixin:
         self._history_popup.protocol("WM_DELETE_WINDOW", on_close)  # type: ignore[attr-defined]
 
         # Container principal
-        main_frame = ttk.Frame(self._history_popup, padding=10)  # type: ignore[attr-defined]
-        main_frame.pack(fill=BOTH, expand=True)
+        main_frame = ctk.CTkFrame(self._history_popup)  # type: ignore[attr-defined]
+        main_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
         # Header
         cnpj_fmt = self._format_cnpj(cnpj)  # type: ignore[attr-defined]
         header_text = f"Farmácia: {razao} | CNPJ: {cnpj_fmt}"
-        header_label = ttk.Label(
+        header_label = ctk.CTkLabel(
             main_frame,
             text=header_text,
-            font=("Segoe UI", 10, "bold"),  # type: ignore[arg-type]
-            bootstyle="primary",
+            font=("Segoe UI", 10, "bold"),
+            text_color=("#1976D2", "#64B5F6"),
         )
         header_label.pack(pady=(0, 10))
 
         # Frame para Treeview + Scrollbar
-        tree_frame = ttk.Frame(main_frame)
-        tree_frame.pack(fill=BOTH, expand=True, pady=(0, 10))
+        tree_frame = ctk.CTkFrame(main_frame)
+        tree_frame.pack(fill="both", expand=True, pady=(0, 10))
 
         # Treeview
         history_cols = ("tipo", "status", "criada_em", "atualizada_em")
-        self._history_tree_popup = tkttk.Treeview(  # type: ignore[attr-defined]
+        self._history_tree_popup = CTkTableView(  # type: ignore[attr-defined]
             tree_frame,
             columns=history_cols,
             show="headings",
-            selectmode="browse",
-        )
+            zebra=True,
+        )  # TODO: selectmode="browse" -> handle in CTk way
 
         self._history_tree_popup.heading("tipo", text="Tipo", anchor="w")  # type: ignore[attr-defined]
         self._history_tree_popup.heading("status", text="Status", anchor="center")  # type: ignore[attr-defined]
@@ -108,11 +108,7 @@ class AnvisaHistoryPopupMixin:
         self._history_tree_popup.column("criada_em", width=120, anchor="center", stretch=False)  # type: ignore[attr-defined]
         self._history_tree_popup.column("atualizada_em", width=140, anchor="center", stretch=False)  # type: ignore[attr-defined]
 
-        scrollbar = tkttk.Scrollbar(tree_frame, orient="vertical", command=self._history_tree_popup.yview)  # type: ignore[attr-defined]
-        self._history_tree_popup.configure(yscrollcommand=scrollbar.set)  # type: ignore[attr-defined]
-
         self._history_tree_popup.pack(side="left", fill=BOTH, expand=True)  # type: ignore[attr-defined]
-        scrollbar.pack(side="right", fill="y")
 
         # Travar redimensionamento de colunas (permite override via _lock_history_tree_columns)
         lock_cols = getattr(self, "_lock_history_tree_columns", None)
@@ -134,49 +130,46 @@ class AnvisaHistoryPopupMixin:
         self._history_tree_popup.bind("<Delete>", _handle_delete_key_popup)  # type: ignore[attr-defined]
 
         # Painel de detalhes (Prazo + Observações)
-        details_frame = ttk.Labelframe(main_frame, text="Detalhes", padding=10)
+        details_frame = ctk.CTkFrame(main_frame)  # TODO: text="Detalhes" -> usar CTkLabel separado  # TODO: padding=10 -> usar padx/pady no pack/grid
         details_frame.pack(fill="x", pady=(0, 10))
         details_frame.columnconfigure(1, weight=1)
 
         self._history_due_var = tk.StringVar(value="-")  # type: ignore[attr-defined]
         self._history_notes_var = tk.StringVar(value="-")  # type: ignore[attr-defined]
 
-        ttk.Label(details_frame, text="Prazo:").grid(row=0, column=0, sticky="w")
-        ttk.Label(details_frame, textvariable=self._history_due_var).grid(row=0, column=1, sticky="w", padx=(8, 0))
+        ctk.CTkLabel(details_frame, text="Prazo:").grid(row=0, column=0, sticky="w")
+        ctk.CTkLabel(details_frame, textvariable=self._history_due_var).grid(row=0, column=1, sticky="w", padx=(8, 0))
 
-        ttk.Label(details_frame, text="Observações:").grid(row=1, column=0, sticky="nw", pady=(6, 0))
-        lbl_notes = ttk.Label(details_frame, textvariable=self._history_notes_var, justify="left")
+        ctk.CTkLabel(details_frame, text="Observações:").grid(row=1, column=0, sticky="nw", pady=(6, 0))
+        lbl_notes = ctk.CTkLabel(details_frame, textvariable=self._history_notes_var, justify="left")
         lbl_notes.grid(row=1, column=1, sticky="w", padx=(8, 0), pady=(6, 0))
         lbl_notes.configure(wraplength=650)
 
         # Barra inferior com botões
-        buttons_frame = ttk.Frame(main_frame)
+        buttons_frame = ctk.CTkFrame(main_frame)
         buttons_frame.pack(fill="x", pady=(5, 0))
 
-        self._btn_finalizar = ttk.Button(  # type: ignore[attr-defined]
+        self._btn_finalizar = ctk.CTkButton(  # type: ignore[attr-defined]
             buttons_frame,
             text="Finalizar Demanda",
-            bootstyle="warning",
             command=lambda: self._finalizar_demanda(client_id),  # type: ignore[attr-defined]
             width=18,
             state="disabled",
         )
         self._btn_finalizar.pack(side=LEFT, padx=(0, 5))  # type: ignore[attr-defined]
 
-        self._btn_cancelar = ttk.Button(  # type: ignore[attr-defined]
+        self._btn_cancelar = ctk.CTkButton(  # type: ignore[attr-defined]
             buttons_frame,
             text="Cancelar",
-            bootstyle="secondary",
             command=lambda: self._cancelar_demanda(client_id),  # type: ignore[attr-defined]
             width=12,
             state="disabled",
         )
         self._btn_cancelar.pack(side=LEFT, padx=(0, 5))  # type: ignore[attr-defined]
 
-        self._btn_excluir_popup = ttk.Button(  # type: ignore[attr-defined]
+        self._btn_excluir_popup = ctk.CTkButton(  # type: ignore[attr-defined]
             buttons_frame,
             text="Excluir",
-            bootstyle="danger",
             command=lambda: self._excluir_demanda_popup(client_id),  # type: ignore[attr-defined]
             width=12,
             state="disabled",
@@ -184,10 +177,9 @@ class AnvisaHistoryPopupMixin:
         self._btn_excluir_popup.pack(side=LEFT, padx=(0, 5))  # type: ignore[attr-defined]
 
         # Botão Fechar à direita
-        ttk.Button(
+        ctk.CTkButton(
             buttons_frame,
             text="Fechar",
-            bootstyle="secondary",
             command=on_close,
             width=12,
         ).pack(side="right")
@@ -226,15 +218,14 @@ class AnvisaHistoryPopupMixin:
             header_text = f"Farmácia: {razao} | CNPJ: {cnpj_fmt}"
             # Procurar e atualizar label do header
             for widget in self._history_popup.winfo_children():  # type: ignore[attr-defined]
-                if isinstance(widget, ttk.Frame):
+                if isinstance(widget, ctk.CTkFrame):
                     for child in widget.winfo_children():
-                        if isinstance(child, ttk.Label) and "Farmácia:" in child.cget("text"):
+                        if isinstance(child, ctk.CTkLabel) and "Farmácia:" in child.cget("text"):
                             child.configure(text=header_text)
                             break
 
         # Limpar tree
-        for item in self._history_tree_popup.get_children():  # type: ignore[attr-defined]
-            self._history_tree_popup.delete(item)  # type: ignore[attr-defined]
+        self._history_tree_popup.clear()  # type: ignore[attr-defined]
         self._history_iid_map.clear()  # type: ignore[attr-defined]
 
         # Carregar demandas
@@ -245,7 +236,7 @@ class AnvisaHistoryPopupMixin:
             self._history_tree_popup.insert(  # type: ignore[attr-defined]
                 "",
                 "end",
-                values=("Sem demandas", "", "", ""),
+                values=["Sem demandas", "", "", ""],
             )
             return
 
@@ -263,7 +254,7 @@ class AnvisaHistoryPopupMixin:
                 "",
                 "end",
                 iid=dem_id,  # Usar request_id como iid para fácil seleção
-                values=(row["tipo"], row["status_humano"], row["criada_em"], row["atualizada_em"]),
+                values=[row["tipo"], row["status_humano"], row["criada_em"], row["atualizada_em"]],
             )
 
             # Mapear iid -> demanda_id
@@ -286,8 +277,8 @@ class AnvisaHistoryPopupMixin:
         if not self._history_tree_popup:  # type: ignore[attr-defined]
             return
 
-        selection = self._history_tree_popup.selection()  # type: ignore[attr-defined]
-        if not selection or selection[0] == "":
+        item_id = self._history_tree_popup.get_selected_iid()  # type: ignore[attr-defined]
+        if not item_id:
             # Nenhuma seleção válida
             if hasattr(self, "_btn_finalizar"):
                 self._btn_finalizar.configure(state="disabled")  # type: ignore[attr-defined]
@@ -303,7 +294,7 @@ class AnvisaHistoryPopupMixin:
             return
 
         # Verificar se item selecionado é "Sem demandas"
-        item = self._history_tree_popup.item(selection[0])  # type: ignore[attr-defined]
+        item = self._history_tree_popup.item(item_id)  # type: ignore[attr-defined]
         values = item["values"]
 
         if not values or values[0] == "Sem demandas":
