@@ -66,20 +66,6 @@ repos:
         types_or: [python, pyi]
 
   # ---------------------------------------------------------------------------
-  # BANDIT - Análise de Segurança Python
-  # ---------------------------------------------------------------------------
-  - repo: https://github.com/PyCQA/bandit
-    rev: 1.8.0
-    hooks:
-      - id: bandit
-        name: Bandit Security Scan
-        args: [-c, .bandit, -r, src]
-        exclude: ^(tests/|src/third_party/|src/modules/clientes/forms/_archived/)
-        description: |
-          Análise de segurança Python (vulnerabilidades, padrões inseguros).
-          Configuração: .bandit
-
-  # ---------------------------------------------------------------------------
   # VERIFICAÇÕES PYTHON ESPECÍFICAS
   # ---------------------------------------------------------------------------
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -149,6 +135,17 @@ repos:
         stages: [pre-push]
         description: |
           Smoke test básico da UI CustomTkinter (apenas pre-push para não bloquear commits rápidos).
+
+      - id: bandit-security-scan
+        name: Bandit Security Scan (UTF-8 safe)
+        language: system
+        entry: python -X utf8 -m bandit -c .bandit -r src
+        types: [python]
+        pass_filenames: false
+        exclude: ^(tests/|src/third_party/|src/modules/clientes/forms/_archived/)
+        description: |
+          Análise de segurança Python com UTF-8 mode (resolve UnicodeEncodeError no Windows).
+          Usa python -X utf8 para forçar encoding UTF-8 independente do locale do sistema.
 
 # ============================================================================
 # CONFIGURAÇÕES GLOBAIS

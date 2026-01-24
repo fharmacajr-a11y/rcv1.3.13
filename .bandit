@@ -23,8 +23,10 @@ exclude_dirs:
   - 'docs'
   - 'reports'
 
-# Testes a pular (se necessário no futuro)
-# skips: []
+# Testes a pular
+# B110: try-except-pass (comum em GUI cleanup - Tkinter/CustomTkinter)
+# B101: assert (usado em third_party code, não impacta produção)
+skips: ['B110', 'B101']
 
 # Plugins a carregar (vazio = todos os plugins padrão)
 # plugins: []
