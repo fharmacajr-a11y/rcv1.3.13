@@ -33,7 +33,7 @@ def register_main_window_screens(router: ScreenRouter, app: App) -> None:
     from src.modules.anvisa import AnvisaScreen
     from src.modules.auditoria import AuditoriaFrame
     from src.modules.cashflow import CashflowFrame
-    from src.modules.clientes import ClientesFrame, DEFAULT_ORDER_LABEL, ORDER_CHOICES
+    from src.modules.clientes_v2 import ClientesV2Frame
     from src.modules.notas import HubFrame
     from src.modules.passwords import PasswordsFrame
     from src.modules.sites import SitesScreen
@@ -63,56 +63,17 @@ def register_main_window_screens(router: ScreenRouter, app: App) -> None:
 
     router.register("hub", _create_hub, cache=True)
 
-    # Main (Clientes) - criar nova instância sempre
+    # Main (Clientes) - ClientesV2 moderna (cache=True)
     def _create_main() -> Any:
-        frame = ClientesFrame(
-            app._content_container,
-            app=app,
-            on_new=app.novo_cliente,
-            on_edit=app.editar_cliente,
-            on_delete=app._excluir_cliente,
-            on_upload=app.enviar_para_supabase,
-            on_open_subpastas=app.open_client_storage_subfolders,
-            on_open_lixeira=app.abrir_lixeira,
-            on_obrigacoes=app.abrir_obrigacoes_cliente,
-            order_choices=ORDER_CHOICES,
-            default_order_label=DEFAULT_ORDER_LABEL,
-            on_upload_folder=app.enviar_pasta_supabase,
+        _log.info("🆕 [ClientesV2] Carregando tela Clientes (versão moderna)")
+        frame = ClientesV2Frame(
+            parent=app._content_container,
         )
         app._main_frame_ref = frame  # Manter referência legacy
-
-        # FIX: Carregamento assíncrono para evitar travamento da UI
-        # Agenda com after(1) para garantir que o primeiro paint aconteça
-        def _safe_load_async() -> None:
-            try:
-                if not frame.winfo_exists():
-                    return
-                # Usar carregar_async() que não trava a UI
-                frame.carregar_async()
-            except AttributeError:
-                # Fallback se carregar_async não existir (backwards compatibility)
-                _log.warning("carregar_async não disponível, usando carregar() síncrono")
-                try:
-                    frame.carregar()
-                except Exception:
-                    _log.exception("Clientes: erro em carregar() (fallback).")
-            except Exception:
-                _log.exception("Clientes: erro em carregar_async().")
-
-        # Agendar para após o primeiro paint (after(1) garante que UI seja mostrada primeiro)
-        try:
-            frame.after(1, _safe_load_async)
-        except Exception:
-            # Fallback ultra seguro (se after falhar)
-            _log.exception("Clientes: falha ao agendar carregamento; usando fallback síncrono.")
-            try:
-                frame.carregar()
-            except Exception:
-                _log.exception("Clientes: erro ao carregar lista (fallback).")
-
+        app.force_redraw = frame.force_redraw  # Registrar callback de redesenho
         return frame
 
-    router.register("main", _create_main, cache=False)
+    router.register("main", _create_main, cache=True)
 
     # Passwords (singleton cacheado)
     def _create_passwords() -> Any:

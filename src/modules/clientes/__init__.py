@@ -1,4 +1,8 @@
-"""Módulo Clientes - tela principal e serviços de clientes."""
+"""Módulo Clientes - serviços compartilhados (service, viewmodel, export).
+
+A UI principal está em src.modules.clientes_v2 (ClientesV2Frame).
+Este módulo mantém apenas código compartilhado/reutilizável.
+"""
 
 from __future__ import annotations
 
@@ -11,12 +15,8 @@ from .service import (
     salvar_cliente_a_partir_do_form,
     listar_clientes_na_lixeira,
 )
-from .view import ClientesFrame, DEFAULT_ORDER_LABEL, ORDER_CHOICES
 
 __all__ = [
-    "ClientesFrame",
-    "DEFAULT_ORDER_LABEL",
-    "ORDER_CHOICES",
     "ClienteCNPJDuplicadoError",
     "checar_duplicatas_para_form",
     "mover_cliente_para_lixeira",
