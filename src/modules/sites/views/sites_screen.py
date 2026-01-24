@@ -147,6 +147,7 @@ class SitesScreen(ctk.CTkFrame):
         for row_index, category in enumerate(CATEGORIES):
             # Usar CTkSection para substituir LabelFrame pattern
             from src.ui.widgets.ctk_section import CTkSection
+
             category_frame = CTkSection(content, title=category.name)
             category_frame.grid(row=row_index, column=0, sticky="n", pady=(0, 12))
             category_frame.content_frame.columnconfigure(0, weight=1)

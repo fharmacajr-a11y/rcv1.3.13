@@ -90,11 +90,11 @@ python main.py
 # src/ui/tk_root_guard.py
 def enable_strict_mode():
     tk.NoDefaultRoot()  ← Desabilita root implícita
-    
+
 # Qualquer código que tente usar root implícita agora falha:
-widget = ttk.Label()  ❌ RuntimeError: No master specified and tkinter 
+widget = ttk.Label()  ❌ RuntimeError: No master specified and tkinter
                           default root has been disabled
-                          
+
 # Forçado a passar master:
 widget = ttk.Label(master=app)  ✅ OK
 ```
@@ -160,17 +160,17 @@ print(f"Cancelados: {cancelled} jobs")
     [ ] Login funciona
     [ ] Hub carrega
     [ ] NENHUMA janela "tk" extra aparece  ← 🎯 CRÍTICO
-    
+
 [ ] 3. Testar toggle tema:
     [ ] Ctrl+T alterna light/dark
     [ ] Treeview mantém legibilidade
     [ ] Sem erros no console
-    
+
 [ ] 4. Testar navegação:
     [ ] Hub → Clientes
     [ ] Clientes → Uploads
     [ ] Uploads → Hub
-    
+
 [ ] 5. Fechar app:
     [ ] Clicar X ou Alt+F4
     [ ] Console NÃO mostra:
@@ -178,7 +178,7 @@ print(f"Cancelados: {cancelled} jobs")
         ❌ "can't delete Tcl command"
         ❌ TclError
     [ ] App fecha limpo  ← 🎯 CRÍTICO
-    
+
 [ ] 6. Modo estrito (opcional):
     [ ] set RC_STRICT_TK_ROOT=1
     [ ] python main.py

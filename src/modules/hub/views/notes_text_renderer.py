@@ -38,10 +38,10 @@ def _configure_text_widget_tags(text_widget: Any) -> None:
     """
     try:
         from src.ui.ctk_text_compat import get_inner_text_widget
-        
+
         # Para CTkTextbox, usar widget interno para tag_configure
         inner_widget = get_inner_text_widget(text_widget)
-        
+
         # Timestamp: fonte menor, cinza claro
         inner_widget.tag_configure("note_ts", foreground="#999999", font=("", 9))
 
@@ -52,7 +52,9 @@ def _configure_text_widget_tags(text_widget: Any) -> None:
         inner_widget.tag_configure("note_body", wrap="word", lmargin1=0, lmargin2=0)
 
         # Mensagem apagada: itálico, cinza, sem margem
-        inner_widget.tag_configure("note_deleted", foreground="#999999", font=("", 10, "italic"), lmargin1=0, lmargin2=0)
+        inner_widget.tag_configure(
+            "note_deleted", foreground="#999999", font=("", 10, "italic"), lmargin1=0, lmargin2=0
+        )
 
         # Espaçamento entre blocos (respiro entre mensagens)
         inner_widget.tag_configure("note_block", spacing3=12)
@@ -158,7 +160,7 @@ def render_notes_text(
         note_tag = f"noteid_{note_id}"
 
         from src.ui.ctk_text_compat import get_inner_text_widget
-        
+
         # Para CTkTextbox, usar widget interno para operações de insert
         inner_widget = get_inner_text_widget(text_widget)
 

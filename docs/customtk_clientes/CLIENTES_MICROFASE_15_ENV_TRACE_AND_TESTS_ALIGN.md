@@ -164,7 +164,7 @@ monkeypatch.setattr(
 ```python
 def test_toolbar_ctk_fallback_when_customtkinter_missing(tk_root, monkeypatch):
     # ... força HAS_CUSTOMTKINTER = False
-    
+
     # Mock create_search_controls para evitar TclError de imagem
     mock_controls = Mock()
     mock_controls.frame = tk.Frame(tk_root)
@@ -173,15 +173,15 @@ def test_toolbar_ctk_fallback_when_customtkinter_missing(tk_root, monkeypatch):
     mock_controls.status_combobox = tk.Entry(mock_controls.frame)
     mock_controls.lixeira_button = None
     mock_controls.obrigacoes_button = None
-    
+
     def fake_create_search_controls(*args, **kwargs):
         return mock_controls
-    
+
     monkeypatch.setattr(
         "src.modules.clientes.views.toolbar_ctk.create_search_controls",
         fake_create_search_controls
     )
-    
+
     # Agora toolbar.CTk() não explode
     toolbar = ClientesToolbarCtk(tk_root, ...)
 ```
@@ -200,7 +200,7 @@ def test_toolbar_ctk_fallback_when_customtkinter_missing(tk_root, monkeypatch):
 
 1. **pytest.ini**: `testpaths = tests`
    - Roda **todos** os testes em `tests/` (sem separar unit vs modules)
-   
+
 2. **pytest_cov.ini**: `testpaths = tests`
    - Cobertura global também roda **todos** os testes em `tests/`
 

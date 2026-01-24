@@ -366,7 +366,7 @@ Scripts prontos para integração em CI:
 # .github/workflows/validate-ui.yml (exemplo)
 - name: Validar Políticas UI/Theme
   run: python scripts/validate_ui_theme_policy.py
-  
+
 - name: Smoke Test UI
   run: python scripts/smoke_ui.py
 ```

@@ -231,10 +231,10 @@ MIT License (baixado de upstream GitHub)
 def check_icecream_imports(files: list[Path]) -> list[Violation]:
     """Valida que icecream não é usado em src/ de produção (MICROFASE 32)."""
     violations = []
-    
+
     # Regex: from icecream import | import icecream
     pattern = re.compile(r"^\s*(from\s+icecream\s+import|import\s+icecream)\b")
-    
+
     for file in files:
         try:
             with open(file, "r", encoding="utf-8") as f:
@@ -250,7 +250,7 @@ def check_icecream_imports(files: list[Path]) -> list[Violation]:
                         ))
         except Exception:
             pass
-    
+
     return violations
 ```
 

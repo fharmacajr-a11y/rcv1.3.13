@@ -136,7 +136,7 @@ def reapply_clientes_treeview_style(
     selected_fg: str,
 ) -> tuple[str, str]:
     """Reaplica estilos da Treeview de Clientes.
-    
+
     Args:
         style: Instância de tb.Style
         base_bg: Cor de fundo base
@@ -146,7 +146,7 @@ def reapply_clientes_treeview_style(
         heading_fg: Cor de texto dos cabeçalhos
         selected_bg: Cor de fundo da seleção
         selected_fg: Cor de texto da seleção
-    
+
     Returns:
         Tupla (even_bg, odd_bg) para uso nas tags zebra
     """
@@ -170,7 +170,7 @@ def reapply_clientes_treeview_tags(
     fg: str = "",
 ) -> None:
     """Reaplica tags de zebra na Treeview.
-    
+
     Args:
         tree: Widget Treeview
         even_bg: Cor de fundo para linhas pares

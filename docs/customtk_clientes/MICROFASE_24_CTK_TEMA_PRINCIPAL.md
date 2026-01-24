@@ -70,7 +70,7 @@ class App(ctk.CTk if HAS_CUSTOMTKINTER else tk.Tk):  # type: ignore[misc]
     def __init__(self, start_hidden: bool = False) -> None:
         # Inicializar theme manager ANTES de criar widgets
         global_theme_manager.initialize()
-        
+
         # Usar CTk como base principal
         if HAS_CUSTOMTKINTER and ctk is not None:
             ctk.CTk.__init__(self)
@@ -78,7 +78,7 @@ class App(ctk.CTk if HAS_CUSTOMTKINTER else tk.Tk):  # type: ignore[misc]
         else:
             tk.Tk.__init__(self)
             self._using_customtkinter = False
-            
+
         # ttk fixado em "clam" para estabilidade
         if not self._using_customtkinter:
             style = ttk.Style()
@@ -185,7 +185,7 @@ def build_main_window_layout(
     app_style = tb.Style()
     app_style.theme_use(theme_name)
     apply_combobox_style(app_style)
-    
+
     # Container usando tb.Frame
     content_container = tb.Frame(app)
 ```
@@ -201,7 +201,7 @@ def build_main_window_layout(
 ) -> MainWindowLayoutRefs:
     # Tema gerenciado por CustomTkinter globalmente
     # (nada a fazer aqui)
-    
+
     # Container usando tk.Frame simples
     content_container = tk.Frame(app)
 ```

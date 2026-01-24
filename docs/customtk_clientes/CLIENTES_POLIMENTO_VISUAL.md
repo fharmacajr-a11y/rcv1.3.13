@@ -42,7 +42,7 @@ Implementadas correções visuais no módulo Clientes para eliminar "fundo branc
 def _create_surface_container(self, master: tk.Misc) -> None:
     """Cria frame surface dedicado para evitar 'fundo branco' vazando."""
     palette = self._theme_manager.get_palette()
-    
+
     if HAS_CUSTOMTKINTER and ctk is not None:
         surface_color = (palette["bg"], palette["bg"])
         self._surface_frame = ctk.CTkFrame(
@@ -52,7 +52,7 @@ def _create_surface_container(self, master: tk.Misc) -> None:
         )
     else:
         self._surface_frame = tk.Frame(master, bg=palette["bg"])
-    
+
     self._surface_frame.pack(fill="both", expand=True)
 ```
 

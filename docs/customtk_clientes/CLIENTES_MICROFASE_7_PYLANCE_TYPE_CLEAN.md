@@ -215,12 +215,12 @@ class CTkNovoWidget(CTkBaseClass):
         # Parâmetros específicos
         **kwargs: Any,
     ) -> None: ...
-    
+
     # Métodos de layout obrigatórios
     def pack(self, **kwargs: Any) -> None: ...
     def grid(self, **kwargs: Any) -> None: ...
     def place(self, **kwargs: Any) -> None: ...
-    
+
     # Métodos específicos usados no projeto
     def metodo_especifico(self, param: str) -> None: ...
 ```
@@ -234,7 +234,7 @@ Se o Pylance reclamar de um método que existe mas não está no stub:
 ```python
 class CTkButton(CTkBaseClass):
     # ... código existente ...
-    
+
     def novo_metodo(self, param: str) -> None: ...  # ← Adicionar aqui
 ```
 

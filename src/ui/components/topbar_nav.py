@@ -1,14 +1,14 @@
-from __future__ import annotations
-
-from src.ui.ctk_config import ctk
-
-from src.ui.ui_tokens import SURFACE_DARK
-
 # -*- coding: utf-8 -*-
 """Componente de navegação da TopBar (botões principais à esquerda).
 
 MICROFASE 24: Migrado para CustomTkinter.
 """
+
+from __future__ import annotations
+
+from src.ui.ctk_config import ctk
+
+from src.ui.ui_tokens import SURFACE_DARK
 
 import logging
 import os
@@ -17,7 +17,7 @@ from typing import Protocol
 from PIL import Image
 
 # CustomTkinter: fonte única centralizada (Microfase 23 - SSoT)
-from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+from src.ui.ctk_config import HAS_CUSTOMTKINTER
 from src.utils.resource_path import resource_path
 
 _log = logging.getLogger(__name__)
@@ -76,7 +76,7 @@ class TopbarNav(ctk.CTkFrame):
             super().__init__(master, fg_color=SURFACE_DARK, corner_radius=0, **kwargs)
         else:
             super().__init__(master, bg=SURFACE_DARK[0], **kwargs)
-            
+
         self._callbacks = callbacks
 
         # Referências de imagens (IMPORTANTE: manter para evitar GC)

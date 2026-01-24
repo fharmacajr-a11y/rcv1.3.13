@@ -261,4 +261,3 @@ class TestNotesCallbacks:
         panel = build_notes_panel(parent_frame, sample_notes_state, on_toggle_done_click=on_done)
 
         assert panel is not None
-

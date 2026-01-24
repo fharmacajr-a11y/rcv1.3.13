@@ -1,12 +1,12 @@
-from __future__ import annotations
-
-from src.ui.ctk_config import ctk
-
 # -*- coding: utf-8 -*-
 """Componente de botão de notificações com badge.
 
 MICROFASE 24: Migrado para CustomTkinter.
 """
+
+from __future__ import annotations
+
+from src.ui.ctk_config import ctk
 
 import logging
 from typing import TYPE_CHECKING, Callable, Optional
@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Callable, Optional
 from PIL import Image
 
 # CustomTkinter: fonte única centralizada (Microfase 23 - SSoT)
-from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+from src.ui.ctk_config import HAS_CUSTOMTKINTER
 from src.utils.resource_path import resource_path
 
 if TYPE_CHECKING:

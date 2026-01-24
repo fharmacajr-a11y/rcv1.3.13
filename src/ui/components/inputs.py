@@ -310,7 +310,6 @@ def create_search_controls(
     else:
         order_combobox = ctk.CTkComboBox(
             frame,
-
             values=list(order_choices),
             state="readonly",
             width=28,

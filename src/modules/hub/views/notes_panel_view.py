@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable
 
-from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
 import tkinter as tk
 
 from src.modules.hub.panels import build_notes_panel

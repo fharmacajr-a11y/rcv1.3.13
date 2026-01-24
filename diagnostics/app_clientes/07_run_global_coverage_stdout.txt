@@ -43,7 +43,7 @@ tests\modules\clientes\test_clientes_layout_polish_smoke.py:276: in test_toolbar
     assert (
 E   AssertionError: corner_radius deve ser igual: wrapper=6, entry=5
 E   assert '6' == '5'
-E     
+E
 E     - 5
 E     + 6
 ============================== warnings summary ===============================

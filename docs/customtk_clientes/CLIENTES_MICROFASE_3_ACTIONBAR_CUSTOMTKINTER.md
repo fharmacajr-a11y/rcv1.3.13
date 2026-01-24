@@ -37,14 +37,14 @@ Esta microfase migra a barra inferior de ações do módulo Clientes (botões: N
 ```python
 def update_state(self, has_selection: bool) -> None:
     """Habilita/desabilita botões com base na seleção da Treeview.
-    
+
     - Novo Cliente: sempre "normal"
     - Editar/Arquivos/Excluir: "normal" se has_selection=True, senão "disabled"
     """
 
 def refresh_colors(self, theme_manager: ClientesThemeManager) -> None:
     """Atualiza cores da actionbar quando tema muda.
-    
+
     - Aplica fg_color do frame principal
     - Atualiza botão Editar (secundário muda com tema)
     - Não toca nos botões com cores fixas (verde, azul, vermelho)
@@ -62,7 +62,7 @@ def leave_pick_mode(self) -> None:
 ```python
 def _build_fallback_actionbar(self) -> None:
     """Constrói actionbar legada quando CustomTkinter não disponível.
-    
+
     Usa create_footer_buttons() do src.ui.components.
     """
 ```
@@ -88,9 +88,9 @@ except ImportError:
 ```python
 def build_footer(frame: MainScreenFrame) -> None:
     """Cria o footer com ações CRUD e batch operations."""
-    
+
     # [... callbacks _handle_new, _handle_edit, _handle_subpastas ...]
-    
+
     theme_manager = getattr(frame, "_theme_manager", None)
 
     if USE_CTK_ACTIONBAR and ClientesActionBarCtk is not None:
@@ -129,14 +129,14 @@ def build_footer(frame: MainScreenFrame) -> None:
 ```python
 def _update_main_buttons_state(self, *_: Any) -> None:
     """Atualiza o estado dos botões principais (MS-32: via controller headless)."""
-    
+
     selection_snapshot = self._build_selection_snapshot()
     # [... computar button_states via controller ...]
-    
+
     # Configurar botões legados (ttk)
     self.btn_editar.configure(state=("normal" if button_states.editar else "disabled"))
     # [...]
-    
+
     # Microfase 3: Atualiza actionbar CustomTkinter se disponível
     if hasattr(self, "footer") and hasattr(self.footer, "update_state"):
         self.footer.update_state(has_selection=selection_snapshot.has_selection)
@@ -158,7 +158,7 @@ def _update_main_buttons_state(self, *_: Any) -> None:
 def _on_theme_toggle(self) -> None:
     """Callback quando usuário alterna o toggle."""
     # [... toggle tema e atualizar texto do switch ...]
-    
+
     # Atualiza cores da toolbar CustomTkinter (Microfase 2)
     if hasattr(self.toolbar, "refresh_colors"):
         self.toolbar.refresh_colors(self._theme_manager)
@@ -231,14 +231,14 @@ pytest tests/modules/clientes/ -v --tb=short
 def test_actionbar_buttons_change_state(tk_root):
     """Testa se botões mudam state conforme update_state()."""
     actionbar = ClientesActionBarCtk(tk_root, ...)
-    
+
     # Sem seleção
     actionbar.update_state(has_selection=False)
     assert actionbar.btn_novo.cget("state") == "normal"
     assert actionbar.btn_editar.cget("state") == "disabled"
     assert actionbar.btn_subpastas.cget("state") == "disabled"
     assert actionbar.btn_excluir.cget("state") == "disabled"
-    
+
     # Com seleção
     actionbar.update_state(has_selection=True)
     assert actionbar.btn_novo.cget("state") == "normal"

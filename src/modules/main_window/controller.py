@@ -164,11 +164,11 @@ def _show_main(app: Any) -> Any:
 
     # ClientesV2 não precisa de todos esses callbacks (auto-contido)
     frame = app.show_frame(ClientesV2Frame)
-    
+
     if isinstance(frame, ClientesV2Frame):
         app._main_frame_ref = frame
-        app.force_redraw = getattr(frame, 'force_redraw', None)
-    
+        app.force_redraw = getattr(frame, "force_redraw", None)
+
     app._main_loaded = True
     # ClientesV2 carrega automaticamente na inicialização
     return frame

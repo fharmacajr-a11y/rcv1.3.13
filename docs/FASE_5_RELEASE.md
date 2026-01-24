@@ -22,7 +22,7 @@
 
 #### Problema
 ```
-UnicodeEncodeError: 'charmap' codec can't encode character '\u2705' 
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2705'
 in position 2000: character maps to <undefined>
 ```
 
@@ -64,7 +64,7 @@ skips: ['B110', 'B101']
 - **B110 (try-except-pass):** 17 ocorrências
   - Contexto: GUI cleanup (Tkinter/CustomTkinter)
   - Padrão esperado: `after_cancel()`, `destroy()`, `grab_release()`
-  
+
 - **B101 (assert):** 3 ocorrências
   - Contexto: Third-party code (CTkTreeview)
   - Não compilado em produção com `-O`
@@ -171,11 +171,11 @@ steps:
   - name: Security Scan
     run: |
       python -X utf8 -m bandit -r src -c .bandit
-  
+
   - name: Lint
     run: |
       ruff check . --fix
-  
+
   - name: Test
     run: |
       pytest -v --tb=short

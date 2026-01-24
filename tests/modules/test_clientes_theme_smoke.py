@@ -101,7 +101,7 @@ def test_create_search_controls_with_palette():
 
         assert controls is not None
         assert controls.frame is not None
-        
+
         # Fix Microfase 19.2: Garantir que widgets são processados antes de destruir
         root.update_idletasks()
 

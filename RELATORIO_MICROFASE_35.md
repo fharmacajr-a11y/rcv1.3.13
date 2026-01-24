@@ -73,7 +73,7 @@ except ImportError:
             raise ImportError(
                 "CTkTable não está instalado. Instale com: pip install CTkTable"
             )
-    
+
     CTkTable = _CTkTableStub  # type: ignore[assignment, misc]
 ```
 
@@ -96,7 +96,7 @@ class TkInfoMixin(Protocol):
     def winfo_reqwidth(self) -> int: ...
     # ... outros métodos
 
-@runtime_checkable 
+@runtime_checkable
 class TkToplevelMixin(Protocol):
     """Protocol para toplevels que possuem métodos de janela do Tkinter."""
     def withdraw(self) -> None: ...

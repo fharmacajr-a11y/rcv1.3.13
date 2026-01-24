@@ -4,8 +4,6 @@
 from __future__ import annotations
 
 import logging
-import tkinter as tk
-import tkinter.font as tkfont
 from tkinter import messagebox
 from typing import Callable, Optional
 

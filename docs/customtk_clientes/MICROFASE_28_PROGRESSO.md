@@ -309,7 +309,7 @@ Arquivos migrados via script:
 1. **Migrar 12 Treeviews manualmente** (est. 3-4 horas)
    - Começar por lists.py (maior impacto)
    - Seguir com file_list, notifications_popup, passwords_screen
-   
+
 2. **Trocar AutocompleteEntry legado** (est. 30min)
    - Buscar: `rg -l "AutocompleteEntry" src --type py`
    - Substituir por CTkAutocompleteEntry

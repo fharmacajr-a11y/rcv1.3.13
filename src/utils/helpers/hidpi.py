@@ -32,6 +32,7 @@ def configure_hidpi_support(root: "tk.Tk | None" = None, scaling: float | None =
         if root is None:
             try:
                 import ctypes
+
                 ctypes.windll.shcore.SetProcessDpiAwareness(2)  # PROCESS_PER_MONITOR_DPI_AWARE
             except Exception as exc:
                 log.debug("HiDPI ja configurado ou indisponivel (Windows)", exc_info=exc)

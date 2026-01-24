@@ -8,7 +8,7 @@ garantindo que elas são realmente testáveis isoladamente sem dependências de 
 from __future__ import annotations
 
 from datetime import date, datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -289,7 +289,7 @@ def test_make_module_button_with_mock(tk_root):
     # Validações
     assert isinstance(result, tk.Button), "Deve retornar um tk.Button"
     assert result.cget("text") == "Clientes"
-    
+
     # Testar comando
     result.invoke()
     mock_command.assert_called_once()

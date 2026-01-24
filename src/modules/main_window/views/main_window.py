@@ -1,5 +1,3 @@
-from src.ui.ctk_config import ctk
-
 # -*- coding: utf-8 -*-
 """
 Main Application Window (App class).
@@ -95,7 +93,7 @@ import tkinter as tk
 from typing import Any, Callable, Optional
 
 # CustomTkinter: fonte única centralizada (Microfase 23 - SSoT)
-from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+from src.ui.ctk_config import HAS_CUSTOMTKINTER
 
 # Importar novo theme_manager (Microfase 24)
 from src.ui.theme_manager import theme_manager as global_theme_manager

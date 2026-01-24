@@ -1,10 +1,3 @@
-from __future__ import annotations
-
-from src.ui.ctk_config import ctk
-from src.ui.ui_tokens import (
-    APP_BG, SURFACE_DARK, SURFACE, TITLE_FONT, TEXT_PRIMARY, CARD_RADIUS
-)
-
 # -*- coding: utf-8 -*-
 """Módulos/Quick Actions panel view builder.
 
@@ -12,14 +5,17 @@ Este módulo contém apenas lógica de UI para construir o painel de módulos/at
 Não acessa diretamente ViewModels ou Controllers - recebe state e callbacks.
 """
 
+from __future__ import annotations
+
 import tkinter as tk
 from typing import TYPE_CHECKING, Callable
 
-from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+from src.ui.ctk_config import ctk
+from src.ui.ui_tokens import APP_BG, SURFACE_DARK, SURFACE, TITLE_FONT, TEXT_PRIMARY, CARD_RADIUS
+
 
 from src.modules.hub.constants import (
     MODULES_TITLE,
-    PAD_OUTER,
 )
 
 if TYPE_CHECKING:
@@ -29,6 +25,7 @@ if TYPE_CHECKING:
 # Tooltip simples (fallback sem ttkbootstrap)
 class ToolTip:
     """Tooltip simples para widgets Tkinter."""
+
     def __init__(self, widget, text="", wraplength=200):
         self.widget = widget
         self.text = text
@@ -45,9 +42,17 @@ class ToolTip:
         self.tipwindow = tw = tk.Toplevel(self.widget)
         tw.wm_overrideredirect(True)
         tw.wm_geometry(f"+{x}+{y}")
-        label = tk.Label(tw, text=self.text, justify=tk.LEFT,
-                        background="#ffffe0", relief=tk.SOLID, borderwidth=1,
-                        wraplength=self.wraplength, padx=4, pady=2)
+        label = tk.Label(
+            tw,
+            text=self.text,
+            justify=tk.LEFT,
+            background="#ffffe0",
+            relief=tk.SOLID,
+            borderwidth=1,
+            wraplength=self.wraplength,
+            padx=4,
+            pady=2,
+        )
         label.pack()
 
     def _on_leave(self, event=None):
@@ -79,24 +84,16 @@ def build_modules_panel(
         border_width=0,
         corner_radius=CARD_RADIUS,
     )
-    
+
     # Título do painel
     title_label = ctk.CTkLabel(
-        modules_panel,
-        text=MODULES_TITLE,
-        font=TITLE_FONT,
-        text_color=TEXT_PRIMARY,
-        fg_color="transparent"
+        modules_panel, text=MODULES_TITLE, font=TITLE_FONT, text_color=TEXT_PRIMARY, fg_color="transparent"
     )
     title_label.pack(anchor="w", padx=14, pady=(12, 6))
-    
+
     # Frame interno branco para conteúdo
     content_frame = ctk.CTkFrame(
-        modules_panel,
-        fg_color=SURFACE,
-        corner_radius=max(10, CARD_RADIUS - 4),
-        border_width=0,
-        bg_color=SURFACE_DARK
+        modules_panel, fg_color=SURFACE, corner_radius=max(10, CARD_RADIUS - 4), border_width=0, bg_color=SURFACE_DARK
     )
     content_frame.pack(fill="both", expand=True, padx=14, pady=(0, 12))
 
@@ -144,7 +141,7 @@ def _build_quick_actions_by_category(
     # Criar blocos para cada categoria
     for idx, category in enumerate(sorted_categories):
         actions = actions_by_category[category]
-        title = category_titles.get(category, category.title())
+        category_titles.get(category, category.title())
 
         # Criar labelframe para o bloco
         pady = (0, 8) if idx < len(sorted_categories) - 1 else (0, 0)

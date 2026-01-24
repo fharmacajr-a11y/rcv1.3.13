@@ -78,7 +78,6 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
         Args:
             tree: CTkTreeview para travar colunas
         """
-        from typing import Any
 
         # Bloquear resize manual via separator
         def block_separator(event: Any) -> str:

@@ -1,6 +1,3 @@
-from src.ui.ctk_config import ctk
-from src.ui.ui_tokens import APP_BG, SURFACE_DARK, TITLE_FONT, CARD_RADIUS, TEXT_PRIMARY
-
 """View do painel de Quick Actions (módulos) do Hub.
 
 Extraído de HubScreen na MF-25 para reduzir o tamanho do monolito.
@@ -9,9 +6,10 @@ esquerdo com os botões de acesso rápido aos módulos.
 """
 
 from typing import Any, Callable, Optional
-
-from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
 import tkinter as tk
+
+from src.ui.ctk_config import ctk, HAS_CUSTOMTKINTER
+from src.ui.ui_tokens import APP_BG, SURFACE_DARK, TITLE_FONT, CARD_RADIUS, TEXT_PRIMARY
 
 
 class HubQuickActionsView:
@@ -77,10 +75,6 @@ class HubQuickActionsView:
             O frame principal do painel de Quick Actions (pronto para ser anexado ao layout)
         """
         from src.modules.hub.constants import (
-            HUB_BTN_STYLE_AUDITORIA,
-            HUB_BTN_STYLE_CLIENTES,
-            HUB_BTN_STYLE_FLUXO_CAIXA,
-            HUB_BTN_STYLE_SENHAS,
             MODULES_TITLE,
             PAD_OUTER,
         )
@@ -112,7 +106,7 @@ class HubQuickActionsView:
             )
         else:
             self.modules_panel = ctk.CTkFrame(self._parent)
-        
+
         # Container interno com title - fonte maior
         title_label = ctk.CTkLabel(
             self.modules_panel,
@@ -121,7 +115,7 @@ class HubQuickActionsView:
             text_color=TEXT_PRIMARY,
         )
         title_label.pack(fill="x", padx=PAD_OUTER, pady=(PAD_OUTER, 4))
-        
+
         # Container de conteúdo com padding
         content_container = ctk.CTkFrame(self.modules_panel, fg_color="transparent")
         content_container.pack(fill="both", expand=True, padx=PAD_OUTER, pady=(0, PAD_OUTER))
@@ -135,7 +129,7 @@ class HubQuickActionsView:
             text_color=("#374151", "#d1d5db"),
         )
         lbl_cadastros.pack(fill="x", pady=(8, 2))
-        
+
         # Frame de conteúdo - transparente para manter fundo do painel
         frame_cadastros = ctk.CTkFrame(content_container, fg_color="transparent")
         frame_cadastros.pack(fill="x", padx=8, pady=(0, 8))
@@ -157,7 +151,7 @@ class HubQuickActionsView:
             text_color=("#374151", "#d1d5db"),
         )
         lbl_gestao.pack(fill="x", pady=(0, 2))
-        
+
         # Frame de conteúdo - transparente para manter fundo do painel
         frame_gestao = ctk.CTkFrame(content_container, fg_color="transparent")
         frame_gestao.pack(fill="x", padx=8, pady=(0, 8))
@@ -179,7 +173,7 @@ class HubQuickActionsView:
             text_color=("#374151", "#d1d5db"),
         )
         lbl_regulatorio.pack(fill="x", pady=(0, 2))
-        
+
         # Frame de conteúdo - transparente para manter fundo do painel
         frame_regulatorio = ctk.CTkFrame(content_container, fg_color="transparent")
         frame_regulatorio.pack(fill="x", padx=8, pady=(0, 0))

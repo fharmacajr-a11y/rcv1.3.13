@@ -218,7 +218,7 @@ target-version = "py313"
 def check_ttk_in_comments(files: list[Path]) -> list[Violation]:
     """Valida que 'ttk' não aparece nem em comentários (MICROFASE 33 - polish)."""
     pattern = re.compile(r"\bttk\b|\btkinter\.ttk\b", re.IGNORECASE)
-    
+
     # Whitelist: vendor é permitido (herda de ttk.Treeview)
     whitelist = [Path("src/third_party/ctktreeview/treeview.py")]
 ```
@@ -234,7 +234,7 @@ def check_vcs_deps_without_pin() -> list[Violation]:
     """Valida que dependências VCS têm commit hash (MICROFASE 33 - reproducibility)."""
     # Regex: git+ URL sem @commit_hash
     pattern = re.compile(r"git\+https?://[^\s@]+(?:\.git)?(?:\s|$)")
-    
+
     # Verifica requirements.txt e pyproject.toml
 ```
 
@@ -248,13 +248,13 @@ def check_vcs_deps_without_pin() -> list[Violation]:
 def check_vendor_has_license(src_dir: Path) -> list[Violation]:
     """Valida que código vendorizado tem LICENSE (MICROFASE 33 - compliance)."""
     vendor_dir = src_dir / "third_party"
-    
+
     # Para cada subdiretório, exigir:
     # 1. LICENSE (compliance legal)
     # 2. README.md com commit hash + upstream (reproducibility)
 ```
 
-**Justificativa:** 
+**Justificativa:**
 - LICENSE: Compliance com MIT/Apache/BSD (atribuição obrigatória)
 - README.md: Rastreabilidade (commit hash + upstream para auditorias)
 

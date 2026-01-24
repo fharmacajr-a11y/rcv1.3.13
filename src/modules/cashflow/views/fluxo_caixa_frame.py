@@ -80,7 +80,7 @@ class CashflowFrame(ctk.CTkFrame):
             height=18,
             zebra=True,
         )
-        
+
         self.tree.pack(fill="both", expand=True, padx=8, pady=4)
 
         headers = {

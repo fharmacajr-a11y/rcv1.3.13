@@ -26,7 +26,7 @@ SPLASH_W = 480
 SPLASH_H = 320
 
 CARD_GRAY = ("#e2e2e2", "#242424")
-SEP_COLOR = ("#d0d0d0", "#4a4a4a")   # mais claro no light; no dark continua visível
+SEP_COLOR = ("#d0d0d0", "#4a4a4a")  # mais claro no light; no dark continua visível
 
 CARD_RADIUS = 22
 PADX = 28
@@ -82,13 +82,13 @@ def _compute_remaining_ms(created_at: float, now: float, min_duration_ms: int) -
 def show_splash(root: tk.Misc, min_ms: int = SPLASH_MIN_DURATION_MS) -> tk.Toplevel:
     # Criar invisível para evitar "piscada" no 0,0
     _perf_start = time.perf_counter()
-    
+
     # Usar CTkToplevel se disponível, senão tk.Toplevel
     if HAS_CUSTOMTKINTER and ctk is not None:
         splash = ctk.CTkToplevel(root)  # type: ignore[assignment]
     else:
         splash = tk.Toplevel(root)
-    
+
     splash.withdraw()
     splash.overrideredirect(True)
     splash.attributes("-topmost", True)
@@ -102,7 +102,7 @@ def show_splash(root: tk.Misc, min_ms: int = SPLASH_MIN_DURATION_MS) -> tk.Tople
     if HAS_CUSTOMTKINTER and ctk is not None:
         splash.geometry(f"{SPLASH_W}x{SPLASH_H}")
         splash.resizable(False, False)
-        
+
         # Tentar ativar transparência de cantos (Windows)
         try:
             splash.configure(fg_color=TRANSPARENT_KEY)
@@ -142,8 +142,6 @@ def show_splash(root: tk.Misc, min_ms: int = SPLASH_MIN_DURATION_MS) -> tk.Tople
         content = tk.Frame(splash)
         content.pack(fill="both", expand=True, padx=20, pady=20)
 
-    row = 0
-
     # Logo RC (se existir PNG)
     logo_path = _find_logo_path()
     if logo_path:
@@ -154,7 +152,7 @@ def show_splash(root: tk.Misc, min_ms: int = SPLASH_MIN_DURATION_MS) -> tk.Tople
                 rw, rh = _fit(pil.size[0], pil.size[1], LOGO_MAX_W, LOGO_MAX_H)
                 logo_img = ctk.CTkImage(light_image=pil, dark_image=pil, size=(rw, rh))
                 splash._logo_img = logo_img  # manter referência
-                
+
                 logo_label = ctk.CTkLabel(content, image=logo_img, text="")
                 logo_label.pack(pady=(0, 10))
             else:
@@ -181,15 +179,13 @@ def show_splash(root: tk.Misc, min_ms: int = SPLASH_MIN_DURATION_MS) -> tk.Tople
 
     # Textos + separador (título maior + separador mais cinza)
     if HAS_CUSTOMTKINTER and ctk is not None:
-        title = ctk.CTkLabel(content, text=f"Gestor de Clientes {APP_VERSION}",
-                           font=("Segoe UI", 14, "bold"))
+        title = ctk.CTkLabel(content, text=f"Gestor de Clientes {APP_VERSION}", font=("Segoe UI", 14, "bold"))
         title.pack(pady=(0, 10))
 
         sep = ctk.CTkFrame(content, height=1, corner_radius=0, fg_color=("#e6e6e6", "#3a3a3a"))
         sep.pack(fill="x", padx=110, pady=(0, 12))
 
-        msg = ctk.CTkLabel(content, text="Carregando, por favor aguarde...",
-                         font=("Segoe UI", 12))
+        msg = ctk.CTkLabel(content, text="Carregando, por favor aguarde...", font=("Segoe UI", 12))
         msg.pack(pady=(0, 14))
     else:
         title = tk.Label(
@@ -198,10 +194,10 @@ def show_splash(root: tk.Misc, min_ms: int = SPLASH_MIN_DURATION_MS) -> tk.Tople
             font=("", 11, "bold"),  # pyright: ignore[reportArgumentType]
         )
         title.pack(pady=(0, 10))
-        
+
         sep = tk.Frame(content, height=2, bg="#cccccc")
         sep.pack(fill="x", pady=(0, 12))
-        
+
         msg = tk.Label(
             content,
             text="Carregando, por favor aguarde...",
@@ -216,29 +212,29 @@ def show_splash(root: tk.Misc, min_ms: int = SPLASH_MIN_DURATION_MS) -> tk.Tople
         bar = ctk.CTkProgressBar(content, mode="determinate", height=PROG_H, corner_radius=8)
         bar.set(0.0)
         bar.pack(fill="x", pady=(0, 0))
-        
+
         # Atualização manual usando after (NÃO usar bar.start())
         splash._pb = 0.0  # type: ignore[attr-defined]
         delay_ms = 50
         min_ms = 5000
         step = delay_ms / float(min_ms)
-        
+
         def tick() -> None:
             try:
                 if not splash.winfo_exists():
                     return
             except Exception:
                 return
-            
+
             splash._pb = min(1.0, splash._pb + step)  # type: ignore[attr-defined]
             try:
                 bar.set(splash._pb)  # type: ignore[attr-defined]
             except Exception:
                 return
-            
+
             if splash._pb < 1.0:  # type: ignore[attr-defined]
                 splash.after(delay_ms, tick)
-        
+
         tick()
     else:
         # Fallback Canvas para tk puro
@@ -315,7 +311,7 @@ def show_splash(root: tk.Misc, min_ms: int = SPLASH_MIN_DURATION_MS) -> tk.Tople
             splash.attributes("-topmost", False)
         except Exception as exc:  # noqa: BLE001
             _log.debug("Falha ao remover topmost em splash: %s", exc)
-        
+
         # Fechar splash - completar barra antes de destruir
         try:
             bar = getattr(splash, "progress", None)
@@ -324,7 +320,7 @@ def show_splash(root: tk.Misc, min_ms: int = SPLASH_MIN_DURATION_MS) -> tk.Tople
         except Exception:
             pass
             pass
-        
+
         _cancel_job("_progress_job")
         _cancel_job("_close_job")
         splash.destroy()

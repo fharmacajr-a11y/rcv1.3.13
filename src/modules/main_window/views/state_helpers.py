@@ -51,12 +51,12 @@ def migrate_legacy_theme_to_mode(theme_name: str) -> ThemeMode:
         'dark'
     """
     normalized = theme_name.lower().strip()
-    
+
     # Temas escuros -> dark
     dark_themes = {"darkly", "cyborg", "superhero", "vapor", "solar"}
     if normalized in dark_themes:
         return "dark"
-    
+
     # Qualquer outro tema -> light (padrão seguro)
     return "light"
 
@@ -137,7 +137,7 @@ def validate_theme_mode(
     # Modos CTk válidos
     if normalized in ("light", "dark"):
         return normalized  # type: ignore[return-value]
-    
+
     # Fallback para "system" legado
     if normalized == "system":
         return "light"

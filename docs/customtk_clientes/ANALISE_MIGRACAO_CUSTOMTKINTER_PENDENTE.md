@@ -509,7 +509,7 @@ class HubScreen(tb.Frame):  # ❌ Migrar para CTkFrame
 
 1. `src/modules/passwords/views/passwords_screen.py`
    - Usa: `tb.Frame`, `tb.Label`, `tb.Entry`, `tb.Combobox`, `tb.Labelframe`, `tb.Button`
-   
+
 2. `src/modules/passwords/views/password_dialog.py`
    - Usa: `tb.Toplevel`, `tb.Frame`, `tb.Label`, `tb.Entry`, `tb.Button`, `tb.Combobox`
 
@@ -1079,7 +1079,7 @@ Após migração de cada módulo, documentar:
    - Valida ausência de ttkbootstrap no código
    - Suporta modo estrito (valida até comentários)
    - Detecta: imports, widgets `tb.*`, parâmetros `bootstyle=`
-   
+
 2. **`scripts/validate_ctk_policy.py`** ✅ Existente
    - Valida conformidade com SSoT policy
    - Garante imports apenas via `src.ui.ctk_config`

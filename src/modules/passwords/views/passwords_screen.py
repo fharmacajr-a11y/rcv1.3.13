@@ -37,7 +37,7 @@ class PasswordsScreen(ctk.CTkFrame):
         **kwargs,
     ) -> None:
         super().__init__(master, **kwargs)
-        
+
         # Aplicar padding via geometry manager (pack/grid) dependendo do uso
 
         self.main_window = main_window
@@ -106,7 +106,7 @@ class PasswordsScreen(ctk.CTkFrame):
             values=["Todos", "SIFAP", "CRF", "GOV.BR", "E-mail", "Banco", "Outro"],
             state="readonly",
             width=150,
-            command=lambda _: self._on_search_changed()
+            command=lambda _: self._on_search_changed(),
         )
         self.service_filter_combo.grid(row=0, column=3, sticky="w", padx=(0, 0), pady=4)
 
@@ -117,7 +117,7 @@ class PasswordsScreen(ctk.CTkFrame):
         # ===== Lista única de Clientes com Senhas (FIX-SENHAS-002) =====
         clients_frame = ctk.CTkFrame(self)
         clients_frame.pack(fill="both", expand=True, pady=(0, 10))
-        
+
         # Label do frame
         ctk.CTkLabel(clients_frame, text="Clientes com Senhas", font=("Arial", 12, "bold")).pack(pady=(5, 5))
 
@@ -126,23 +126,10 @@ class PasswordsScreen(ctk.CTkFrame):
 
         # FIX-SENHAS-006: Colunas idênticas à tela de Clientes + Qtd. Senhas e Serviços
         clients_columns = ["id", "razao_social", "cnpj", "nome", "whatsapp", "qtd_senhas", "servicos"]
-        self.tree_clients = CTkTableView(
-            clients_table_frame,
-            columns=clients_columns,
-            height=15,
-            zebra=True
-        )
-        
+        self.tree_clients = CTkTableView(clients_table_frame, columns=clients_columns, height=15, zebra=True)
+
         # Cabeçalhos
-        self.tree_clients.set_columns([
-            "ID",
-            "Razão Social",
-            "CNPJ",
-            "Nome",
-            "WhatsApp",
-            "Qtd. Senhas",
-            "Serviços"
-        ])
+        self.tree_clients.set_columns(["ID", "Razão Social", "CNPJ", "Nome", "WhatsApp", "Qtd. Senhas", "Serviços"])
 
         # Double-click abre o diálogo de senhas do cliente
         self.tree_clients.bind("<Double-Button-1>", lambda e: self._on_manage_client_passwords_clicked())

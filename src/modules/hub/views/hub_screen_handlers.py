@@ -45,7 +45,7 @@ def setup_bindings(screen: HubScreen) -> None:
             root = screen.winfo_toplevel()
         except Exception:
             root = screen
-        
+
         # Ctrl+D para diagnóstico - use bind on root instead of bind_all
         root.bind("<Control-d>", screen._show_debug_info)
         root.bind("<Control-D>", screen._show_debug_info)

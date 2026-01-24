@@ -19,7 +19,7 @@ log = logging.getLogger(__name__)
 
 class CTkAutocompleteEntry(ctk.CTkFrame):
     """Entry com autocomplete dropdown (100% CustomTkinter).
-    
+
     API:
         entry.get() - Retorna texto do entry
         entry.set(text) - Define texto do entry
@@ -27,7 +27,7 @@ class CTkAutocompleteEntry(ctk.CTkFrame):
         entry.on_pick - Callback quando item é selecionado
         entry.bind(event, fn) - Bind de eventos no entry interno
         entry.focus() - Foca no entry
-    
+
     Uso:
         entry = CTkAutocompleteEntry(parent)
         entry.set_suggester(lambda text: [{"label": "Item", "data": {...}}])
@@ -42,7 +42,7 @@ class CTkAutocompleteEntry(ctk.CTkFrame):
         **kwargs: Any,
     ) -> None:
         """Inicializa CTkAutocompleteEntry.
-        
+
         Args:
             master: Widget pai
             placeholder: Texto placeholder
@@ -50,7 +50,7 @@ class CTkAutocompleteEntry(ctk.CTkFrame):
             **kwargs: Argumentos para CTkFrame
         """
         super().__init__(master, **kwargs)
-        
+
         # Estado interno
         self._suggester: Optional[Callable[[str], list[dict[str, Any]]]] = None
         self._suggestions: list[dict[str, Any]] = []
@@ -60,7 +60,7 @@ class CTkAutocompleteEntry(ctk.CTkFrame):
         self._debounce_id: Optional[str] = None
         self._debounce_ms: int = 300
         self.on_pick: Optional[Callable[[dict[str, Any]], None]] = None
-        
+
         # Entry principal
         self.entry = ctk.CTkEntry(
             self,
@@ -68,7 +68,7 @@ class CTkAutocompleteEntry(ctk.CTkFrame):
             width=width,
         )
         self.entry.pack(fill="x", expand=True)
-        
+
         # Binds
         self.entry.bind("<KeyRelease>", self._on_key_release)
         self.entry.bind("<Down>", self._on_down)
@@ -111,7 +111,7 @@ class CTkAutocompleteEntry(ctk.CTkFrame):
 
     def set_suggester(self, fn: Callable[[str], list[dict[str, Any]]]) -> None:
         """Define função que retorna sugestões.
-        
+
         Args:
             fn: Função que recebe texto e retorna lista de dicts com 'label' e 'data'
         """
@@ -122,39 +122,39 @@ class CTkAutocompleteEntry(ctk.CTkFrame):
         # Ignorar teclas de navegação
         if event.keysym in ("Down", "Up", "Return", "Escape", "Left", "Right", "Home", "End"):
             return
-        
+
         # Cancelar debounce anterior
         if self._debounce_id:
             self.after_cancel(self._debounce_id)
-        
+
         # Agendar busca
         self._debounce_id = self.after(self._debounce_ms, self._fetch_suggestions)
 
     def _fetch_suggestions(self) -> None:
         """Busca sugestões e exibe dropdown."""
         text = self.get().strip()
-        
+
         # Menos de 2 caracteres: fechar
         if len(text) < 2:
             self._close_dropdown()
             return
-        
+
         # Sem suggester
         if not self._suggester:
             return
-        
+
         # Buscar
         try:
             self._suggestions = self._suggester(text)
         except Exception as e:
             log.error(f"Erro ao buscar sugestões: {e}")
             self._suggestions = []
-        
+
         # Sem sugestões: fechar
         if not self._suggestions:
             self._close_dropdown()
             return
-        
+
         # Exibir
         self._show_dropdown()
 
@@ -163,12 +163,12 @@ class CTkAutocompleteEntry(ctk.CTkFrame):
         # Criar dropdown se não existir
         if not self._dropdown:
             self._create_dropdown()
-        
+
         # Limpar frame
         if self._dropdown_frame:
             for widget in cast(TkInfoMixin, self._dropdown_frame).winfo_children():
                 cast(Any, widget).destroy()  # destroy disponível em runtime para todos widgets Tk
-        
+
         # Adicionar sugestões
         for idx, item in enumerate(self._suggestions):
             label = item.get("label", "")
@@ -181,7 +181,7 @@ class CTkAutocompleteEntry(ctk.CTkFrame):
                 hover_color=("gray85", "gray25"),
             )
             btn.pack(fill="x", padx=2, pady=1)
-        
+
         # Posicionar e mostrar
         self._position_dropdown()
         if self._dropdown:
@@ -192,7 +192,7 @@ class CTkAutocompleteEntry(ctk.CTkFrame):
         self._dropdown = ctk.CTkToplevel(self)
         cast(TkToplevelMixin, self._dropdown).withdraw()
         cast(TkToplevelMixin, self._dropdown).overrideredirect(True)
-        
+
         # Frame scrollável
         self._dropdown_frame = ctk.CTkScrollableFrame(
             self._dropdown,
@@ -205,16 +205,16 @@ class CTkAutocompleteEntry(ctk.CTkFrame):
         """Posiciona dropdown abaixo do entry."""
         if not self._dropdown:
             return
-        
+
         # Atualizar geometria
         self.update_idletasks()
-        
+
         # Posição do entry
         entry_info = cast(TkInfoMixin, self.entry)
         x = entry_info.winfo_rootx()
         y = entry_info.winfo_rooty() + entry_info.winfo_height()
         w = self.entry.winfo_width()
-        
+
         # Posicionar dropdown
         self._dropdown.geometry(f"{w}x200+{x}+{y}")
 
@@ -228,17 +228,17 @@ class CTkAutocompleteEntry(ctk.CTkFrame):
         """Seleciona sugestão por índice."""
         if 0 <= index < len(self._suggestions):
             item = self._suggestions[index]
-            
+
             # Atualizar entry
             self.set(item.get("label", ""))
-            
+
             # Chamar callback
             if self.on_pick:
                 try:
                     self.on_pick(item)
                 except Exception as e:
                     log.error(f"Erro em on_pick: {e}")
-            
+
             # Fechar dropdown
             self._close_dropdown()
 
@@ -283,14 +283,14 @@ class CTkAutocompleteEntry(ctk.CTkFrame):
         # Cancelar debounce
         if self._debounce_id:
             self.after_cancel(self._debounce_id)
-        
+
         # Destruir dropdown
         if self._dropdown:
             try:
                 self._dropdown.destroy()
             except Exception:
                 pass
-        
+
         # Destruir frame pai
         super().destroy()
 

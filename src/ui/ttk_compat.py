@@ -26,4 +26,3 @@ def apply_ttk_treeview_theme(*args: Any, **kwargs: Any) -> None:
 def apply_ttk_widgets_theme(*args: Any, **kwargs: Any) -> None:
     """Stub legado - não faz nada (widgets legados removidos)."""
     log.warning("apply_ttk_widgets_theme chamado mas widgets legados foram removidos (MICROFASE 31)")
-

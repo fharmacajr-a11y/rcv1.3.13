@@ -142,12 +142,9 @@ def apply_global_theme(mode: ThemeMode, color: ColorTheme) -> None:
 
     try:
         # Mapear para valores aceitos pelo CustomTkinter (capitalizados)
-        ctk_mode_map = {
-            "light": "Light",
-            "dark": "Dark"
-        }
+        ctk_mode_map = {"light": "Light", "dark": "Dark"}
         ctk_mode = ctk_mode_map.get(mode, "Light")
-        
+
         # Aplicar appearance mode
         ctk.set_appearance_mode(ctk_mode)
         log.info(f"CustomTkinter appearance mode aplicado: {ctk_mode} (from {mode})")
@@ -174,7 +171,7 @@ def toggle_appearance_mode() -> ThemeMode:
         Novo modo de aparência
     """
     current_mode, current_color = load_theme_config()
-    
+
     # Ciclo: light -> dark -> light
     mode_cycle = {"light": "dark", "dark": "light"}
     new_mode: ThemeMode = mode_cycle[current_mode]
@@ -221,10 +218,10 @@ def set_color_theme(color: ColorTheme) -> None:
 
 def resolve_effective_mode(mode: ThemeMode) -> Literal["light", "dark"]:
     """Resolve o modo efetivo (light ou dark) a partir do modo configurado.
-    
+
     Args:
         mode: Modo configurado ("light" ou "dark")
-        
+
     Returns:
         Modo efetivo: "light" ou "dark"
     """
@@ -250,14 +247,14 @@ class GlobalThemeManager:
         """
         self._master_ref = master
         log.debug("Master definido no GlobalThemeManager")
-        
+
         # MICROFASE 31: Removido ttk_compat (ZERO widgets legados)
 
     def initialize(self) -> None:
         """Inicializa o tema no startup da aplicação.
 
         Deve ser chamado ANTES de criar qualquer widget CustomTkinter.
-        
+
         IMPORTANTE: NÃO aplica temas legados aqui - apenas CustomTkinter.
         Temas legados serão aplicados quando set_master() for chamado.
         """

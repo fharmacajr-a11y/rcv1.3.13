@@ -1,8 +1,3 @@
-from __future__ import annotations
-
-from src.ui.ctk_config import ctk
-from src.ui.ui_tokens import SURFACE_DARK
-
 # -*- coding: utf-8 -*-
 """Componente de ações da TopBar - compositor para NotificationsButton e NotificationsPopup.
 
@@ -11,6 +6,11 @@ REFATORAÇÃO P2 (Microfase 2 → MF3):
 - P2-MF3: adiciona controller headless para apresentação de notificações
 - UI agora consome ViewModels do controller
 """
+
+from __future__ import annotations
+
+from src.ui.ctk_config import ctk
+from src.ui.ui_tokens import SURFACE_DARK
 
 import logging
 from typing import Any, Protocol

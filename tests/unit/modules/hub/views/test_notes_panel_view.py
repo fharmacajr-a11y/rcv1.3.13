@@ -196,4 +196,3 @@ class TestBuildNotesSidePanel:
         # Testar callback de adicionar
         panel.btn_add_note.invoke()
         mock_add.assert_called_once()
-

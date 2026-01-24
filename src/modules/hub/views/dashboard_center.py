@@ -1,14 +1,3 @@
-from __future__ import annotations
-
-from src.ui.ctk_config import ctk
-from src.ui.ui_tokens import (
-    APP_BG, SURFACE, SURFACE_DARK, INNER_SURFACE, BORDER, SEP,
-    TEXT_PRIMARY, TEXT_MUTED,
-    FONT_TITLE, FONT_SECTION, FONT_BODY, FONT_BODY_SM, BODY_FONT, TITLE_FONT,
-    FONT_KPI_VALUE, FONT_KPI_LABEL,
-    CARD_RADIUS,
-)
-
 # -*- coding: utf-8 -*-
 """Dashboard center panel builder for HubScreen.
 
@@ -16,22 +5,38 @@ Builds the central dashboard panel with operational indicators,
 hot items, and upcoming deadlines.
 """
 
+from __future__ import annotations
+
 import logging
 import re
 import tkinter as tk
-from tkinter.constants import X, BOTH, LEFT, W, E, N, S
+from tkinter.constants import X, BOTH, LEFT, W
 from tkinter.scrolledtext import ScrolledText
 from typing import TYPE_CHECKING, Any, Callable
+
+from src.ui.ctk_config import ctk
+from src.ui.ui_tokens import (
+    APP_BG,
+    SURFACE,
+    SURFACE_DARK,
+    BORDER,
+    TEXT_PRIMARY,
+    TEXT_MUTED,
+    BODY_FONT,
+    TITLE_FONT,
+    FONT_KPI_VALUE,
+    FONT_KPI_LABEL,
+    CARD_RADIUS,
+)
 from PIL import Image
 
-from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+from src.ui.ctk_config import HAS_CUSTOMTKINTER
 
 # ORG-005: Constantes e funções puras extraídas
 from src.modules.hub.views.dashboard_center_constants import (
     CARD_LABEL_FONT,
     CARD_PAD_X,
     CARD_PAD_Y,
-    CARD_VALUE_FONT,
     MSG_NO_HOT_ITEMS,
     MSG_NO_UPCOMING,
     SECTION_ITEM_FONT,
@@ -54,6 +59,7 @@ _HUB_ICON_CACHE: dict[str, Any] = {}  # type: ignore[type-arg]
 # ============================================================================
 # FUNÇÕES HELPER PARA TYPING E CTk COMPATIBILITY
 # ============================================================================
+
 
 def get_inner_text_widget(textbox: Any) -> tk.Text:
     """Helper para acessar widget Text interno do CTkTextbox."""
@@ -260,6 +266,7 @@ def _build_scrollable_text_list(
         )
         # Para CTkTextbox, configurar como read-only usando helper
         from src.ui.ctk_text_compat import configure_text_readonly
+
         configure_text_readonly(text_widget)
     else:
         text_widget = ScrolledText(
@@ -269,7 +276,7 @@ def _build_scrollable_text_list(
             font=SECTION_ITEM_FONT,
             state="disabled",
         )
-    
+
     # Dar foco ao passar mouse (para scroll funcionar no Windows)
     text_widget.bind("<Enter>", lambda e: text_widget.focus_set())
 
@@ -291,23 +298,23 @@ def _render_lines_with_status_highlight(
         lines: Lista de strings (uma por linha) a serem exibidas.
     """
     from src.ui.ctk_text_compat import get_inner_text_widget, configure_text_readonly
-    
+
     # Para CTkTextbox, usar widget interno para operações de texto/tags
     inner_widget = get_inner_text_widget(text_widget)
-    
+
     # Configurar tags para colorização
     inner_widget.tag_configure("status_overdue", foreground="#dc3545")  # type: ignore[attr-defined]
     inner_widget.tag_configure("status_today", foreground="#0d6efd")  # type: ignore[attr-defined]
 
     # Desabilitar read-only temporariamente para edição
-    if hasattr(text_widget, '_textbox'):
+    if hasattr(text_widget, "_textbox"):
         # CTkTextbox: desabilitar binds temporariamente
         inner_widget.unbind("<Key>")  # type: ignore[attr-defined]
         inner_widget.unbind("<<Paste>>")  # type: ignore[attr-defined]
     else:
         # ScrolledText: usar configure normal
         text_widget.configure(state="normal")  # type: ignore[attr-defined]
-    
+
     inner_widget.delete("1.0", "end")
 
     full_text = "\n".join(lines)
@@ -352,13 +359,13 @@ def _render_lines_with_status_highlight(
             idx = f"{pos}+1c"
 
     # Voltar para read-only
-    if hasattr(text_widget, '_textbox'):
+    if hasattr(text_widget, "_textbox"):
         # CTkTextbox: reconfigurar como read-only
         configure_text_readonly(text_widget)
     else:
         # ScrolledText: usar state disabled
         text_widget.configure(state="disabled")  # type: ignore[attr-defined]
-        
+
     # Garantir que está no topo
     inner_widget.see("1.0")  # type: ignore[attr-defined]
 
@@ -414,11 +421,11 @@ def _build_indicator_card(
             card_color = ("#f97316", "#ea580c")  # Laranja
         else:
             card_color = ("#ffffff", "#1f2937")  # Branco/escuro padrão
-    
+
     # Determinar cor do texto baseado na cor do card
     is_colored_card = card_color not in [("#ffffff", "#1f2937"), ("#ffffff", "#141414"), "transparent"]
     text_color = "#ffffff" if is_colored_card else ("#1f2937", "#f3f4f6")
-    
+
     if HAS_CUSTOMTKINTER and ctk is not None:
         card = ctk.CTkFrame(
             parent,
@@ -487,51 +494,32 @@ def _build_indicator_card(
 
 
 def build_section_card(
-    parent: tk.Frame,
-    title: str,
-    *,
-    corner: int = 16
+    parent: tk.Frame, title: str, *, corner: int = 16
 ) -> tuple[Any, Any]:  # (outer_frame, inner_frame)
     """Builder único padrão para cards do Hub.
-    
+
     Args:
         parent: Frame pai
         title: Título do card
         corner: Raio dos cantos do card externo
-        
+
     Returns:
         Tupla (outer_frame, inner_frame) - usar inner_frame como container de conteúdo
     """
     if HAS_CUSTOMTKINTER and ctk is not None:
         # Card externo cinza
-        outer = ctk.CTkFrame(
-            parent,
-            fg_color=SURFACE_DARK,
-            corner_radius=corner,
-            border_width=0,
-            bg_color=APP_BG
-        )
-        
+        outer = ctk.CTkFrame(parent, fg_color=SURFACE_DARK, corner_radius=corner, border_width=0, bg_color=APP_BG)
+
         # Título/header
-        title_label = ctk.CTkLabel(
-            outer,
-            text=title,
-            font=TITLE_FONT,
-            text_color=TEXT_PRIMARY,
-            fg_color="transparent"
-        )
+        title_label = ctk.CTkLabel(outer, text=title, font=TITLE_FONT, text_color=TEXT_PRIMARY, fg_color="transparent")
         title_label.pack(anchor="w", padx=14, pady=(12, 6))
-        
+
         # Frame interno branco/escuro para conteúdo
         inner = ctk.CTkFrame(
-            outer,
-            fg_color=SURFACE,
-            corner_radius=max(10, corner - 4),
-            border_width=0,
-            bg_color=SURFACE_DARK
+            outer, fg_color=SURFACE, corner_radius=max(10, corner - 4), border_width=0, bg_color=SURFACE_DARK
         )
         inner.pack(fill="both", expand=True, padx=14, pady=(0, 12))
-        
+
         return outer, inner
     else:
         # Fallback
@@ -563,7 +551,7 @@ def _build_section_frame(
             border_width=0,
             corner_radius=CARD_RADIUS,
         )
-        
+
         # Título da seção - usando novo token TITLE_FONT
         title_label = ctk.CTkLabel(
             section,
@@ -573,7 +561,7 @@ def _build_section_frame(
             fg_color="transparent",
         )
         title_label.pack(anchor="w", padx=12, pady=(12, 6))
-        
+
         content = ctk.CTkFrame(section, fg_color="transparent")
     else:
         # Fallback: usar CTkFrame sem estilo especial
@@ -585,17 +573,15 @@ def _build_section_frame(
 
 
 def _build_inner_content_area(
-    content_parent: tk.Frame,
-    height: int = 180,
-    **textbox_kwargs
+    content_parent: tk.Frame, height: int = 180, **textbox_kwargs
 ) -> Any:  # ctk.CTkTextbox | tk.ScrolledText
     """Constrói área interna de conteúdo branca/escura para textbox/lista.
-    
+
     Args:
         content_parent: Frame pai (vem de _build_section_frame)
         height: Altura do textbox
         **textbox_kwargs: Argumentos adicionais para CTkTextbox
-    
+
     Returns:
         CTkTextbox configurado com padrão uniforme
     """
@@ -608,22 +594,23 @@ def _build_inner_content_area(
             font=BODY_FONT,
             fg_color=SURFACE,
             text_color=TEXT_PRIMARY,
-            **textbox_kwargs
+            **textbox_kwargs,
         )
         textbox.pack(fill="both", expand=True, padx=8, pady=6)
-        
+
         # Ajustar padding interno e line spacing
         try:
             textbox._textbox.configure(padx=8, pady=6)  # type: ignore[attr-defined]
             textbox._textbox.configure(spacing1=2, spacing3=6)  # type: ignore[attr-defined]
         except (AttributeError, Exception):
             pass
-            
+
         return textbox
     else:
         # Fallback
         from tkinter.scrolledtext import ScrolledText
-        return ScrolledText(content_parent, height=height//15, wrap="word")  # type: ignore[return-value]
+
+        return ScrolledText(content_parent, height=height // 15, wrap="word")  # type: ignore[return-value]
 
 
 # ORG-005: Funções de formatação movidas para dashboard_center_pure.py
@@ -752,7 +739,6 @@ def _build_recent_activity_section(
         on_view_all: Callback opcional para visualizar todas as atividades.
         tk_root: Widget Tkinter root para async runner (opcional).
     """
-    from tkinter.scrolledtext import ScrolledText
     from src.modules.hub.recent_activity_store import get_recent_activity_store
     from src.modules.hub.async_runner import HubAsyncRunner
     from src.utils.auth_utils import resolve_org_id
@@ -772,14 +758,14 @@ def _build_recent_activity_section(
             text_color=TEXT_PRIMARY,
         )
         activity_text.pack(fill=BOTH, expand=True, padx=8, pady=6)
-        
+
         # Ajustar padding interno e line spacing
         try:
             activity_text._textbox.configure(padx=8, pady=6)  # type: ignore[attr-defined]
             activity_text._textbox.configure(spacing1=2, spacing3=6)  # type: ignore[attr-defined]
         except (AttributeError, Exception):
             pass
-    
+
     # Configurar função de atualização baseada no tipo
     if HAS_CUSTOMTKINTER and ctk is not None:
         # Para CTkTextbox, usar métodos diferentes
@@ -796,7 +782,7 @@ def _build_recent_activity_section(
     # Configurar tags para colorir ações específicas (apenas para ScrolledText)
     # MICROFASE 35: CTkTextbox não suporta tags, então pulamos colorização inline
     bold_font = ("Segoe UI", 9, "bold")
-    
+
     if not (HAS_CUSTOMTKINTER and ctk is not None):
         # Tags apenas para ScrolledText (fallback)
         inner_text = get_inner_text_widget(activity_text)
@@ -1126,7 +1112,7 @@ def build_dashboard_center(
 
     # Renderizar tarefas no inner content
     if not all_today_items:
-        # Nenhuma tarefa pendente 
+        # Nenhuma tarefa pendente
         if HAS_CUSTOMTKINTER and ctk is not None:
             lbl_no_tasks = ctk.CTkLabel(
                 tasks_inner,
@@ -1155,7 +1141,7 @@ def build_dashboard_center(
                 text_color=TEXT_PRIMARY,
             )
             tasks_textbox.pack(fill=BOTH, expand=True, padx=8, pady=6)
-            
+
             # Ajustar padding interno e line spacing
             try:
                 tasks_textbox._textbox.configure(padx=8, pady=6)  # type: ignore[attr-defined]
@@ -1164,9 +1150,10 @@ def build_dashboard_center(
                 pass
         else:
             from tkinter.scrolledtext import ScrolledText
+
             tasks_textbox = ScrolledText(tasks_inner, height=8, wrap="word")
             tasks_textbox.pack(fill=BOTH, expand=True)
-        
+
         # Agrupar tarefas por cliente
         task_blocks = group_tasks_for_display(
             all_today_items,
@@ -1176,7 +1163,7 @@ def build_dashboard_center(
 
         # Renderizar tarefas no textbox
         tasks_text = "\n\n".join(task_blocks) if task_blocks else tasks_empty_msg
-        
+
         if HAS_CUSTOMTKINTER and ctk is not None:
             tasks_textbox.configure(state="normal")
             tasks_textbox.delete("1.0", "end")
@@ -1286,7 +1273,7 @@ def build_dashboard_center(
                 text_color=TEXT_PRIMARY,
             )
             deadlines_textbox.pack(fill=BOTH, expand=True, padx=8, pady=6)
-            
+
             # Ajustar padding interno e line spacing
             try:
                 deadlines_textbox._textbox.configure(padx=8, pady=6)
@@ -1295,6 +1282,7 @@ def build_dashboard_center(
                 pass
         else:
             from tkinter.scrolledtext import ScrolledText
+
             deadlines_textbox = ScrolledText(deadlines_inner, height=8, wrap="word")
             deadlines_textbox.pack(fill=BOTH, expand=True)
 
@@ -1308,7 +1296,7 @@ def build_dashboard_center(
 
         # Renderizar prazos no textbox
         deadlines_text = "\n".join(deadline_blocks) if deadline_blocks else deadlines_empty_msg
-        
+
         if HAS_CUSTOMTKINTER and ctk is not None:
             deadlines_textbox.configure(state="normal")
             deadlines_textbox.delete("1.0", "end")

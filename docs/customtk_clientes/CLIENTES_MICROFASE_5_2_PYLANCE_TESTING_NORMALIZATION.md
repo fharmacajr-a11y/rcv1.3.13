@@ -206,7 +206,7 @@ markers =
 ```diff
 [pytest]
 testpaths = tests
-addopts = 
+addopts =
     --strict-markers
     --ignore=scripts/visual
     --ignore=test_apply_theme_fix.py
@@ -223,7 +223,7 @@ markers =
 ```ini
 [pytest]
 testpaths = tests
-addopts = 
+addopts =
     --strict-markers
     --ignore=scripts/visual
     --ignore=test_apply_theme_fix.py

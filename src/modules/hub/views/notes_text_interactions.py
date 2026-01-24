@@ -61,10 +61,10 @@ def install_notes_context_menu(
         """
         try:
             from src.ui.ctk_text_compat import get_inner_text_widget
-            
+
             # Para CTkTextbox, usar widget interno para operações de index/tags
             inner_widget = get_inner_text_widget(text_widget)
-            
+
             index = inner_widget.index(f"@{x},{y}")
             tags = inner_widget.tag_names(index)
 
@@ -160,7 +160,7 @@ def install_notes_context_menu(
         """Copia seleção atual do widget."""
         try:
             from src.ui.ctk_text_compat import get_inner_text_widget
-            
+
             # Para CTkTextbox, usar widget interno para selection_get
             inner_widget = get_inner_text_widget(text_widget)
             selected_text = inner_widget.selection_get()
@@ -203,7 +203,7 @@ def install_notes_context_menu(
             # Menu reduzido: apenas copiar seleção (se houver)
             try:
                 from src.ui.ctk_text_compat import get_inner_text_widget
-                
+
                 # Para CTkTextbox, usar widget interno para selection_get
                 inner_widget = get_inner_text_widget(text_widget)
                 inner_widget.selection_get()
@@ -223,7 +223,7 @@ def install_notes_context_menu(
     # Bind do menu de contexto
     # Windows/Linux: Button-3 (botão direito)
     from src.ui.ctk_text_compat import get_inner_text_widget
-    
+
     # Para CTkTextbox, usar widget interno para bind de eventos
     inner_widget = get_inner_text_widget(text_widget)
     inner_widget.bind("<Button-3>", _show_context_menu)

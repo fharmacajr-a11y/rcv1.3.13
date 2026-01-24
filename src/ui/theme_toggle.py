@@ -26,6 +26,7 @@ def toggle_theme(style_or_app: object = None) -> str:
     """
     if HAS_CUSTOMTKINTER:
         from src.ui.theme_manager import theme_manager
+
         new_mode = theme_manager.toggle_mode()
         return new_mode
     # CustomTkinter é obrigatório - sem fallback
@@ -40,6 +41,7 @@ def get_mode() -> str:
     """
     if HAS_CUSTOMTKINTER:
         from src.ui.theme_manager import theme_manager
+
         return theme_manager.get_current_mode()
     # CustomTkinter é obrigatório - sem fallback
     return "light"
@@ -53,9 +55,10 @@ def set_mode(mode: Literal["light", "dark"]) -> None:
     """
     # Fallback para "light" se modo inválido (ex: "system" legado)
     valid_mode: Literal["light", "dark"] = "light" if mode not in ["light", "dark"] else mode
-    
+
     if HAS_CUSTOMTKINTER:
         from src.ui.theme_manager import theme_manager
+
         theme_manager.set_mode(valid_mode)  # type: ignore[arg-type]
     # CustomTkinter é obrigatório - sem fallback
 
@@ -68,6 +71,7 @@ def get_effective_mode() -> Literal["light", "dark"]:
     """
     if HAS_CUSTOMTKINTER:
         from src.ui.theme_manager import theme_manager
+
         return theme_manager.get_effective_mode()
     else:
         mode = get_mode()
@@ -94,9 +98,24 @@ def get_available_themes() -> list[str]:
     else:
         # Lista completa de temas ttkbootstrap para compatibilidade
         return [
-            "cosmo", "flatly", "journal", "litera", "lumen", "minty",
-            "pulse", "sandstone", "united", "yeti", "morph", "simplex",
-            "cerulean", "solar", "superhero", "darkly", "cyborg", "vapor",
+            "cosmo",
+            "flatly",
+            "journal",
+            "litera",
+            "lumen",
+            "minty",
+            "pulse",
+            "sandstone",
+            "united",
+            "yeti",
+            "morph",
+            "simplex",
+            "cerulean",
+            "solar",
+            "superhero",
+            "darkly",
+            "cyborg",
+            "vapor",
         ]
 
 
@@ -111,7 +130,7 @@ def is_dark_theme(theme_name: str) -> bool:
     """
     # Normalizar
     name = theme_name.lower().strip()
-    
+
     # Modos CustomTkinter
     if name == "dark":
         return True
@@ -119,7 +138,7 @@ def is_dark_theme(theme_name: str) -> bool:
         return False
     elif name == "system":  # Fallback legado
         return False
-    
+
     # Temas ttkbootstrap legados
     darks = {"darkly", "cyborg", "superhero", "vapor", "solar"}
     return name in darks

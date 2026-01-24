@@ -11,8 +11,6 @@ import logging
 import tkinter as tk
 from typing import Any, Callable, Protocol
 
-from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
-import tkinter as tk
 
 from src.modules.hub.viewmodels import DashboardViewState
 from src.modules.hub.views.dashboard_center import build_dashboard_center, build_dashboard_error

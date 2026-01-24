@@ -7,8 +7,8 @@ Meta: 100% coverage (statements + branches).
 
 from __future__ import annotations
 
-from typing import Any, cast
-from unittest.mock import MagicMock, patch
+from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -102,10 +102,11 @@ def find_labelframes(root: FakeWidget) -> list[FakeLabelframe]:
 @pytest.fixture
 def fake_parent(tk_root):
     """Parent real (ttk.Frame) para testes, ao invés de FakeWidget.
-    
+
     Usar tk_root real elimina AttributeError de _last_child_ids e .tk.
     """
     from tkinter import ttk
+
     return ttk.Frame(tk_root)
 
 
@@ -165,9 +166,7 @@ class TestInit:
 class TestBuild:
     """Testes do método build()."""
 
-    def test_build_creates_panel_and_returns_it(
-        self, fake_parent, mock_callbacks: dict[str, MagicMock]
-    ) -> None:
+    def test_build_creates_panel_and_returns_it(self, fake_parent, mock_callbacks: dict[str, MagicMock]) -> None:
         """build() cria modules_panel e retorna ele."""
         from src.modules.hub.views import hub_quick_actions_view
 
@@ -179,9 +178,7 @@ class TestBuild:
         # Validar comportamento ao invés de tipo exato
         assert hasattr(result, "winfo_children")
 
-    def test_build_panel_has_correct_title_and_padding(
-        self, fake_parent, mock_callbacks: dict[str, MagicMock]
-    ) -> None:
+    def test_build_panel_has_correct_title_and_padding(self, fake_parent, mock_callbacks: dict[str, MagicMock]) -> None:
         """build() cria painel principal com título correto."""
         from src.modules.hub.views import hub_quick_actions_view
         from src.modules.hub.constants import MODULES_TITLE
@@ -212,6 +209,7 @@ class TestBuild:
         """build() cria blocos (bootstyle é semântico, não é passado ao widget)."""
         from src.modules.hub.views import hub_quick_actions_view
         from tkinter import ttk
+
         view = hub_quick_actions_view.HubQuickActionsView(fake_parent, **mock_callbacks)
         view.build()
 
@@ -285,9 +283,7 @@ class TestButtons:
         expected = {"Clientes", "Senhas", "Auditoria", "Fluxo de Caixa", "Anvisa", "Farmácia Popular"}
         assert button_texts == expected
 
-    def test_button_bootstyles_are_correct(
-        self, fake_parent, mock_callbacks: dict[str, MagicMock]
-    ) -> None:
+    def test_button_bootstyles_are_correct(self, fake_parent, mock_callbacks: dict[str, MagicMock]) -> None:
         """bootstyle NÃO é passado ao widget (apenas semântico)."""
         from src.modules.hub.views import hub_quick_actions_view
 
@@ -297,9 +293,7 @@ class TestButtons:
         # Teste passa: apenas verificar que build() não falha
         assert view.modules_panel is not None
 
-    def test_button_invoke_calls_correct_callback(
-        self, fake_parent, mock_callbacks: dict[str, MagicMock]
-    ) -> None:
+    def test_button_invoke_calls_correct_callback(self, fake_parent, mock_callbacks: dict[str, MagicMock]) -> None:
         """Invocar botão chama callback correto."""
         from src.modules.hub.views import hub_quick_actions_view
         import tkinter as tk
@@ -396,4 +390,3 @@ class TestModuleStructure:
 
         assert HubQuickActionsView.__doc__ is not None
         assert "Quick Actions" in HubQuickActionsView.__doc__
-

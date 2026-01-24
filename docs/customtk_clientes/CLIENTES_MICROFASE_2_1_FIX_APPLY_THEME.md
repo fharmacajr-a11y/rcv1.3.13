@@ -44,7 +44,7 @@ for child in controls_frame.winfo_children():
     # Skip se for widget CustomTkinter
     if child.__class__.__module__.startswith("customtkinter"):
         continue  # ✅ Não tenta aplicar 'bg'
-    
+
     if isinstance(child, tk.Frame):
         try:
             child.configure(bg=palette["bg"])
@@ -212,7 +212,7 @@ for child in controls_frame.winfo_children():
 for child in controls_frame.winfo_children():
     if child.__class__.__module__.startswith("customtkinter"):
         continue  # Não tenta aplicar 'bg'
-    
+
     if isinstance(child, tk.Frame):
         try:
             child.configure(bg=palette["bg"])

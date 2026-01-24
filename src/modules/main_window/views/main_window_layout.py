@@ -1,8 +1,3 @@
-from __future__ import annotations
-
-from src.ui.ctk_config import ctk
-from src.ui.ui_tokens import APP_BG, SEP
-
 # -*- coding: utf-8 -*-
 """
 Main Window Layout Builder.
@@ -17,11 +12,16 @@ MICROFASE 24: Removido sistema de múltiplos temas ttkbootstrap.
 Agora usa CustomTkinter como sistema principal de temas (light/dark).
 """
 
+from __future__ import annotations
+
 import logging
 import os
 import tkinter as tk
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+
+from src.ui.ctk_config import ctk
+from src.ui.ui_tokens import APP_BG, SEP
 
 from src.ui.topbar import TopBar
 from src.ui.menu_bar import AppMenuBar

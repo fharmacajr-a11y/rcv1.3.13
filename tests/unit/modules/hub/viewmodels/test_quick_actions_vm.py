@@ -183,4 +183,3 @@ class TestQuickActionsViewModel:
         assert "auditoria" in actions_map
         assert "fluxo_caixa" in actions_map
         # bootstyle não mais validado (tag semântica opcional)
-

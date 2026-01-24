@@ -94,17 +94,17 @@ Método expandido para aplicar cores dinamicamente quando tema muda:
 ```python
 def refresh_colors(self, theme_manager: ClientesThemeManager) -> None:
     palette = theme_manager.get_palette()
-    
+
     # Atualiza frame principal
     self.configure(fg_color=toolbar_bg)
-    
+
     # Atualiza Entry
     self.entry_busca.configure(
         fg_color=input_bg,
         text_color=text_color,
         border_color=input_border,
     )
-    
+
     # Atualiza OptionMenus
     self.order_combobox.configure(
         fg_color=dropdown_bg,

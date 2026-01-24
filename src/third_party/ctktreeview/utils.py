@@ -5,8 +5,10 @@ import sys as _sys
 if TYPE_CHECKING:
     from typing import Any
 
+
 def grid(widget, *args, **kw):
     widget.grid(*args, **kw)
+
 
 def is_iterable(obj: Any) -> bool:
     try:
@@ -14,6 +16,7 @@ def is_iterable(obj: Any) -> bool:
     except:
         return False
     return True
+
 
 def error(fmt: str, *args):
     print(fmt % args, file=_sys.stderr)

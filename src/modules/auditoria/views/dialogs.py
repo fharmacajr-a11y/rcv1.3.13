@@ -142,7 +142,9 @@ class DuplicatesDialog(tk.Toplevel):
         # Frame amostra com label
         sample_container = ctk.CTkFrame(self)
         sample_container.pack(padx=20, pady=(0, 12), fill="both", expand=True)
-        ctk.CTkLabel(sample_container, text="Amostra (até 20 arquivos)", font=("-size", 10, "bold")).pack(anchor="w", padx=8, pady=(4, 2))
+        ctk.CTkLabel(sample_container, text="Amostra (até 20 arquivos)", font=("-size", 10, "bold")).pack(
+            anchor="w", padx=8, pady=(4, 2)
+        )
         frame_sample = ctk.CTkFrame(sample_container)
         frame_sample.pack(padx=8, pady=(0, 8), fill="both", expand=True)
 
@@ -176,7 +178,9 @@ class DuplicatesDialog(tk.Toplevel):
         # Frame estratégia com label
         opts_container = ctk.CTkFrame(self)
         opts_container.pack(padx=20, pady=(0, 10), fill="x")
-        ctk.CTkLabel(opts_container, text="Estratégia", font=("-size", 10, "bold")).pack(anchor="w", padx=8, pady=(4, 2))
+        ctk.CTkLabel(opts_container, text="Estratégia", font=("-size", 10, "bold")).pack(
+            anchor="w", padx=8, pady=(4, 2)
+        )
         frame_opts = ctk.CTkFrame(opts_container)
         frame_opts.pack(padx=8, pady=(0, 8), fill="x")
 

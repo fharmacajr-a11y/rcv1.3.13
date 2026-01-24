@@ -94,20 +94,15 @@ class AuditoriaListPanel(ctk.CTkFrame):
         on_delete: Optional[Callable[[], None]] = None,
     ) -> None:
         super().__init__(master)  # CTkFrame não suporta text/padding
-        
+
         # Header manual (CTkFrame não suporta text)
-        self.header = ctk.CTkLabel(
-            self, 
-            text="Auditorias recentes", 
-            font=("Arial", 12, "bold"),
-            anchor="w"
-        )
+        self.header = ctk.CTkLabel(self, text="Auditorias recentes", font=("Arial", 12, "bold"), anchor="w")
         self.header.grid(row=0, column=0, sticky="ew", padx=6, pady=(4, 2))
-        
+
         # Body container
         self.body = ctk.CTkFrame(self, fg_color="transparent")
         self.body.grid(row=1, column=0, sticky="nsew", padx=6, pady=(0, 6))
-        
+
         # Configurar weights
         self.columnconfigure(0, weight=1)
         self.rowconfigure(1, weight=1)
@@ -148,7 +143,7 @@ class AuditoriaListPanel(ctk.CTkFrame):
 
         self.actions_frame = ctk.CTkFrame(self.body)
         self.actions_frame.grid(row=2, column=0, sticky="ew", pady=ui_pady)
-        
+
         # Ajustar rowconfigure do body para incluir a nova linha
         self.body.rowconfigure(2, weight=0)
 
@@ -159,7 +154,9 @@ class AuditoriaListPanel(ctk.CTkFrame):
         def _wrap(cb: Optional[Callable[[], None]]) -> Callable[[], None]:
             return (lambda: cb()) if cb else (lambda: None)
 
-        self.btn_iniciar = ctk.CTkButton(self.actions_frame, text="Iniciar auditoria", command=_wrap(on_start_auditoria))
+        self.btn_iniciar = ctk.CTkButton(
+            self.actions_frame, text="Iniciar auditoria", command=_wrap(on_start_auditoria)
+        )
         self.btn_subpastas = ctk.CTkButton(
             self.actions_frame,
             text="Ver subpastas",

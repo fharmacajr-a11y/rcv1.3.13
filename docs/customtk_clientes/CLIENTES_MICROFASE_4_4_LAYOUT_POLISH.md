@@ -546,16 +546,16 @@ python -m pytest tests/modules/clientes/ -v
     "tests"
   ],
   "python.testing.unittestEnabled": false,
-  
+
   // Prevenir Test Explorer de abrir sozinho
   "testing.openTesting": "neverOpen",
-  
+
   // Desabilitar auto discovery on save
   "testing.autoTestDiscoverOnSaveEnabled": false,
-  
+
   // Desabilitar auto run após compilação
   "testing.automaticallyOpenPeekView": "never",
-  
+
   // Excluir diretórios desnecessários do watcher
   "files.watcherExclude": {
     "**/.venv/**": true,
@@ -659,11 +659,11 @@ except ImportError:
 class MyWidget(ctk.CTkFrame if HAS_CUSTOMTKINTER else tk.Frame):
     def __init__(self, master):
         super().__init__(master)
-        
+
         if not HAS_CUSTOMTKINTER:
             self._build_fallback()
             return
-        
+
         # Código CustomTkinter aqui
 ```
 

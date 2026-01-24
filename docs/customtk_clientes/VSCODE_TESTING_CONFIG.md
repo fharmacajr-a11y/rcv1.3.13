@@ -27,12 +27,12 @@ Crie ou edite `.vscode/settings.json` na raiz do projeto:
     "python.testing.pytestEnabled": true,
     "python.testing.unittestEnabled": false,
     "python.testing.autoTestDiscoverOnSaveEnabled": false,
-    
+
     // ===== VS CODE TESTING UI =====
     "testing.openTesting": "neverOpen",
     "testing.automaticallyOpenPeekView": "never",
     "testing.automaticallyOpenPeekViewDuringAutoRun": false,
-    
+
     // ===== OUTRAS CONFIGURAÇÕES ÚTEIS =====
     "python.analysis.typeCheckingMode": "basic",
     "python.analysis.autoImportCompletions": true,

@@ -112,7 +112,7 @@ def test_toolbar_ctk_fallback():
                 # Deve funcionar via fallback
                 assert toolbar is not None
                 assert hasattr(toolbar, "var_busca")
-                
+
                 # Fix Microfase 19.2: Garantir que widgets são processados antes de destruir
                 root.update_idletasks()
 

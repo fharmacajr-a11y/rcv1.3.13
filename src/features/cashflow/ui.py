@@ -150,10 +150,10 @@ class CashflowWindow(ctk.CTkToplevel):
     def _reload_tree(self, rows: list[dict]) -> None:
         if not self._guard_widgets():
             return
-        
+
         # Limpar tabela
         self.tree.clear()
-        
+
         # Adicionar linhas
         table_rows = []
         for r in rows:
@@ -161,7 +161,7 @@ class CashflowWindow(ctk.CTkToplevel):
             if tipo_raw is None:
                 tipo_raw = ""  # fallback para tipo ausente
             tipo_label = self.TYPE_CODE_TO_LABEL.get(tipo_raw, tipo_raw)
-            
+
             row_data = [
                 r.get("date") or "",
                 tipo_label,
@@ -171,10 +171,10 @@ class CashflowWindow(ctk.CTkToplevel):
                 r.get("account", ""),
             ]
             table_rows.append(row_data)
-            
+
             # Guardar ID na linha para uso em edit/delete
             # (CTkTableView não tem conceito de IID, usar índice)
-        
+
         self.tree.set_rows(table_rows)
         self._row_ids = [r.get("id") or "" for r in rows]  # Guardar IDs separadamente
 
@@ -266,7 +266,7 @@ class CashflowWindow(ctk.CTkToplevel):
         item = self.tree.get_selected_row()
         if not item:
             return
-        
+
         current = {
             "id": iid,
             "date": item[0],

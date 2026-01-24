@@ -8,7 +8,6 @@ from tkinter import ttk
 
 import pytest
 
-from tests import ui_compat as tb
 
 from src.modules.hub.viewmodels.quick_actions_vm import (
     QuickActionItemView,
@@ -109,6 +108,7 @@ class TestBuildModulesPanel:
 
         # Contar botões criados
         import tkinter as tk
+
         all_buttons = []
         for child in panel.winfo_children():
             if isinstance(child, ttk.Labelframe):
@@ -147,6 +147,7 @@ class TestBuildModulesPanel:
 
         # Encontrar botões
         import tkinter as tk
+
         buttons = []
         for child in panel.winfo_children():
             if isinstance(child, ttk.Labelframe):
@@ -178,6 +179,7 @@ class TestBuildModulesPanel:
 
         # Encontrar botão
         import tkinter as tk
+
         button = None
         for child in panel.winfo_children():
             if isinstance(child, ttk.Labelframe):
@@ -211,4 +213,3 @@ class TestBuildModulesPanel:
         children = list(panel.winfo_children())
         labelframes = [w for w in children if isinstance(w, ttk.Labelframe)]
         assert len(labelframes) == 0
-

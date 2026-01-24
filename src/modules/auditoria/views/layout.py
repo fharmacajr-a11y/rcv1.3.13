@@ -1,12 +1,12 @@
-from __future__ import annotations
-
-from src.ui.ctk_config import ctk
-
 """Helpers for building the Auditoria UI layout."""
+
+from __future__ import annotations
 
 import logging
 import tkinter as tk
 from typing import TYPE_CHECKING, Optional
+
+from src.ui.ctk_config import ctk
 
 from .components import AuditoriaListPanel, AuditoriaToolbar
 

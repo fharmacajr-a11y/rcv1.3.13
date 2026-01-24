@@ -7,7 +7,7 @@ import tkinter as tk
 import tkinter.font as tkfont
 from typing import Any, Callable
 
-from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+from src.ui.ctk_config import ctk
 
 from src.config.constants import (
     COL_CNPJ_WIDTH,
@@ -79,7 +79,7 @@ def reapply_clientes_treeview_tags(
     """Reaplica tags de zebra (even/odd) na Treeview do módulo Clientes.
 
     Esta função é idempotente e pode ser chamada sempre que o tema muda.
-    
+
     MICROFASE 31: Simplificado - apenas tags, sem Style legado.
 
     Args:
@@ -102,8 +102,8 @@ def reapply_clientes_treeview_tags(
 
 def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
     """Converte cor hex para RGB."""
-    hex_color = hex_color.lstrip('#')
-    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))  # type: ignore[return-value]
+    hex_color = hex_color.lstrip("#")
+    return tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))  # type: ignore[return-value]
 
 
 def _rgb_to_hex(r: int, g: int, b: int) -> str:
@@ -167,9 +167,9 @@ def _adjust_lightness(hex_color: str, delta: float) -> str:
 
 def _get_zebra_colors() -> tuple[str, str]:
     """Calcula cores para zebra striping baseado no modo CTk atual.
-    
+
     MICROFASE 31: Substituiu _configure_clients_treeview_style (que usava Style legado).
-    
+
     Returns:
         Tupla (even_bg, odd_bg) com cores de fundo para zebra striping.
     """
@@ -179,17 +179,17 @@ def _get_zebra_colors() -> tuple[str, str]:
         is_dark = appearance_mode == "Dark"
     except Exception:
         is_dark = False  # fallback para modo claro
-    
+
     # Cores base para zebra striping
     if is_dark:
         # Modo escuro: fundo escuro + alternado mais claro
         even_bg = "#2b2b2b"  # cinza escuro
-        odd_bg = "#3c3c3c"   # cinza levemente mais claro
+        odd_bg = "#3c3c3c"  # cinza levemente mais claro
     else:
         # Modo claro: fundo branco + alternado cinza
         even_bg = "#ffffff"  # branco
-        odd_bg = "#e8e8e8"   # cinza claro
-    
+        odd_bg = "#e8e8e8"  # cinza claro
+
     return even_bg, odd_bg
 
 
@@ -202,7 +202,7 @@ def create_clients_treeview(
     on_click: Callable[[Any], Any] | None,
 ) -> Any:
     """Create the main clients Treeview configured with column widths and bindings.
-    
+
     MICROFASE 31: Migrado para CTkTreeview (ZERO widgets legados).
     """
     # Definição das colunas: (key, heading, width, minwidth, stretch)

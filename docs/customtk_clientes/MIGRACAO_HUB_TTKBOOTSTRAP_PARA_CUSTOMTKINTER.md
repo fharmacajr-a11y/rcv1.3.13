@@ -108,7 +108,7 @@ from tests import ui_compat as tb
     ```python
     # ANTES
     super().__init__(master, padding=0, **kwargs)
-    
+
     # DEPOIS
     super().__init__(master, **kwargs)  # CTkFrame não aceita padding
     ```
@@ -126,7 +126,7 @@ from tests import ui_compat as tb
     ```python
     # ANTES
     self.modules_panel = tk.LabelFrame(self._parent, text=MODULES_TITLE, padding=PAD_OUTER)
-    
+
     # DEPOIS
     self.modules_panel = ttk.Labelframe(self._parent, text=MODULES_TITLE, padding=PAD_OUTER)
     ```
@@ -135,7 +135,7 @@ from tests import ui_compat as tb
     ```python
     # ANTES
     mk_btn(frame, "Clientes", callback, HUB_BTN_STYLE_CLIENTES)
-    
+
     # DEPOIS
     mk_btn(frame, "Clientes", callback)  # mk_btn aceita só 3 args
     ```
@@ -147,7 +147,7 @@ from tests import ui_compat as tb
     ```python
     # ANTES
     screen.bind_all("<Control-d>", screen._show_debug_info)
-    
+
     # DEPOIS
     try:
         root = screen.winfo_toplevel()
@@ -232,7 +232,7 @@ from tests import ui_compat as tb
      ```python
      # ANTES
      assert card.bootstyle == "info"
-     
+
      # DEPOIS
      # bootstyle não mais definido (era tag ttkbootstrap)
      ```
@@ -247,7 +247,7 @@ from tests import ui_compat as tb
      @patch("src.modules.hub.views.hub_dialogs.tb.Label")
      @patch("src.modules.hub.views.hub_dialogs.tb.Scrollbar")
      @patch("src.modules.hub.views.hub_dialogs.tb.Button")
-     
+
      # DEPOIS
      @patch("src.modules.hub.views.hub_dialogs.tk.Frame")
      @patch("src.modules.hub.views.hub_dialogs.tk.Label")
@@ -262,7 +262,7 @@ from tests import ui_compat as tb
      ```python
      # ANTES
      monkeypatch.setattr("ttkbootstrap.Label", fake_label)
-     
+
      # DEPOIS
      with patch("tkinter.Label", return_value=fake_label) as mock_label:
      ```
@@ -275,7 +275,7 @@ from tests import ui_compat as tb
      ```python
      # ANTES
      with patch.object(hub_quick_actions_view, "tb") as mock_tb:
-     
+
      # DEPOIS
      with patch.object(hub_quick_actions_view, "tb", create=True) as mock_tb:
      ```
@@ -490,7 +490,7 @@ with patch.object(hub_quick_actions_view, "tb", create=True) as mock_tb:
 - `tests/unit/modules/hub/views/test_hub_quick_actions_view_mf62.py` (Solução B)
 - `tests/unit/modules/hub/views/test_modules_panel_mf59.py` (Solução B)
 
-**Regra**: 
+**Regra**:
 - Preferir mockar widgets reais (tk.Frame, ttk.Label)
 - Usar `create=True` só quando teste legado não pode ser reescrito
 
@@ -757,7 +757,7 @@ button = tk.Button(parent, text=data.label)  # Sem bootstyle=
 - -15 erros de compilação eliminados
 - 94.5% de cobertura de testes
 
-**Próxima IA que for trabalhar neste código**: 
+**Próxima IA que for trabalhar neste código**:
 Este documento contém todo o contexto necessário para entender a migração. Consulte:
 1. Seção "Arquitetura da Solução" para entender o SSoT
 2. Seção "Problemas Encontrados e Soluções" para evitar reintroduzir bugs

@@ -147,7 +147,8 @@ class TestBuildIndicatorCardClickable:
         # Invocar o binding manualmente
         # Pegar a função bound e chamá-la
         from unittest.mock import Mock
-        event = Mock()
+
+        Mock()
         # Tkinter armazena bindings como strings de comandos Tcl
         # Vamos apenas invocar o callback diretamente (já que sabemos que está bound)
         mock_callback()
@@ -400,5 +401,3 @@ class TestCardClickableEdgeCases:
 
         # Não deve ter erro (sem callback para chamar)
         assert True  # Se chegou aqui, passou
-
-

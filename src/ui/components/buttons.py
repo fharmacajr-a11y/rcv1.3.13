@@ -7,7 +7,7 @@ import tkinter as tk
 from dataclasses import dataclass
 from typing import Any, Callable, Optional, TYPE_CHECKING
 
-from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+from src.ui.ctk_config import HAS_CUSTOMTKINTER
 
 if TYPE_CHECKING:
     # Para type hints sem quebrar em runtime
@@ -75,7 +75,9 @@ def create_footer_buttons(
     btn_excluir: Optional[Any] = None
     if on_excluir is not None:
         if HAS_CUSTOMTKINTER and ctk is not None:
-            btn_excluir = ctk.CTkButton(frame, text="Excluir", command=on_excluir, fg_color="#dc3545", hover_color="#c82333")
+            btn_excluir = ctk.CTkButton(
+                frame, text="Excluir", command=on_excluir, fg_color="#dc3545", hover_color="#c82333"
+            )
         else:
             btn_excluir = tk.Button(frame, text="Excluir", command=on_excluir, bg="#dc3545", fg="white")
         btn_excluir.grid(row=0, column=3, padx=5, pady=5, sticky="w")
@@ -102,9 +104,13 @@ def create_footer_buttons(
 
         if on_batch_delete is not None:
             if HAS_CUSTOMTKINTER and ctk is not None:
-                btn_batch_delete = ctk.CTkButton(frame, text="Excluir em Lote", command=on_batch_delete, fg_color="#dc3545", hover_color="#c82333")
+                btn_batch_delete = ctk.CTkButton(
+                    frame, text="Excluir em Lote", command=on_batch_delete, fg_color="#dc3545", hover_color="#c82333"
+                )
             else:
-                btn_batch_delete = tk.Button(frame, text="Excluir em Lote", command=on_batch_delete, bg="#dc3545", fg="white")
+                btn_batch_delete = tk.Button(
+                    frame, text="Excluir em Lote", command=on_batch_delete, bg="#dc3545", fg="white"
+                )
             btn_batch_delete.grid(row=0, column=next_column, padx=5, pady=5, sticky="w")
             next_column += 1
 

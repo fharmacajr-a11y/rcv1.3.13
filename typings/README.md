@@ -50,7 +50,7 @@ class NovoWidget(CTkBaseClass):
         # Parâmetros específicos
         **kwargs: Any,
     ) -> None: ...
-    
+
     def pack(self, **kwargs: Any) -> None: ...
     def grid(self, **kwargs: Any) -> None: ...
     # Outros métodos usados no projeto
@@ -66,7 +66,7 @@ Se o Pylance reclamar de um método que existe mas não está no stub:
 ```python
 class CTkButton(CTkBaseClass):
     # ... código existente ...
-    
+
     def novo_metodo(self, param: str) -> None: ...  # Adicionar aqui
 ```
 

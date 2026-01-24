@@ -121,7 +121,7 @@ self._pick_prev_states: dict[Any, str] = {}  # Any para compatibilidade
 
 def _iter_pick_buttons(self) -> list[Any]:
     """Lista botões da actionbar para pick mode.
-    
+
     Retorna Any para compatibilidade entre tk.Widget e ctk.CTkButton (Microfase 8).
     """
     ...

@@ -109,15 +109,15 @@ def test_actionbar_fallback_when_ctk_unavailable(tk_root, monkeypatch):
 )
 def test_actionbar_fallback_when_ctk_unavailable(tk_root, monkeypatch):
     """[OBSOLETO] Testa fallback quando CustomTkinter não disponível.
-    
+
     HISTÓRICO:
     Este teste era relevante quando CustomTkinter era opcional.
     Desde a Microfase 3, CustomTkinter tornou-se dependência obrigatória.
-    
+
     PROBLEMA:
     Mock de sys.modules["customtkinter"] = None causava erro:
     "ModuleNotFoundError: __import__ halted; None in sys.modules"
-    
+
     DECISÃO:
     Marcado como skip permanente (Microfase 19.4).
     Código preservado abaixo como referência histórica.
@@ -265,8 +265,8 @@ O decorator tem docstring explicando:
 Todos os 38 testes afetados pelo bug Python 3.13 agora mostram a **mesma reason**:
 
 ```
-Tkinter/ttkbootstrap + pytest em Python 3.13 no Windows pode causar 
-'Windows fatal exception: access violation' (bug do runtime CPython, 
+Tkinter/ttkbootstrap + pytest em Python 3.13 no Windows pode causar
+'Windows fatal exception: access violation' (bug do runtime CPython,
 ver issues #125179 e #118973)
 ```
 
@@ -337,7 +337,7 @@ Quando o bug CPython for corrigido, seguir esta ordem:
    ```bash
    # Comentar temporariamente o decorator
    # SKIP_PY313_TKINTER = pytest.mark.skipif(False, reason="...")
-   
+
    # Rodar testes que antes falhavam
    python -m pytest tests/modules/test_clientes_theme_smoke.py::test_create_search_controls_with_palette -v
    ```

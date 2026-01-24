@@ -11,8 +11,7 @@ from datetime import date, datetime
 from tkinter import messagebox
 from typing import Any, Callable, Optional
 
-import customtkinter as ctk
-from src.ui.ctk_config import *
+from src.ui.ctk_config import ctk
 from src.ui.widgets import CTkDatePicker, CTkTableView
 
 from ._anvisa_requests_mixin import AnvisaRequestsMixin
@@ -172,7 +171,7 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
         # Row 0: Frame com Treeview (caixinha "Anvisa")
         list_group = ctk.CTkFrame(left_frame)
         list_group.grid(row=0, column=0, sticky="nsew", pady=(10, 10), padx=10)
-        
+
         ctk.CTkLabel(list_group, text="Anvisa", font=("Arial", 12, "bold")).pack(pady=(5, 5))
 
         columns = ("client_id", "razao_social", "cnpj", "request_type", "updated_at")
@@ -566,8 +565,9 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
             bootstyle="primary",
         ).pack(pady=(0, 12))
 
-        # B) Caixinha "Cliente" com 3 campos readonly  
+        # B) Caixinha "Cliente" com 3 campos readonly
         from src.ui.widgets.ctk_section import CTkSection
+
         lf_client = CTkSection(main_frame, title="Cliente")
         lf_client.pack(fill="x", pady=(0, 10))
         lf_client.content_frame.columnconfigure(1, weight=0)
@@ -585,7 +585,9 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
 
         ctk.CTkLabel(lf_client.content_frame, text="CNPJ:").grid(row=0, column=2, sticky="w", pady=(0, 8))
         cnpj_var = tk.StringVar(value=cnpj)
-        e_cnpj = ctk.CTkEntry(lf_client.content_frame, textvariable=cnpj_var, state="readonly", width=20, justify="left")
+        e_cnpj = ctk.CTkEntry(
+            lf_client.content_frame, textvariable=cnpj_var, state="readonly", width=20, justify="left"
+        )
         e_cnpj.grid(row=0, column=3, sticky="w", padx=(8, 0), pady=(0, 8))
 
         # Linha 1: Razão Social (ocupa toda largura)
@@ -607,7 +609,6 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
         selected_type = tk.StringVar(value=REQUEST_TYPES[0])
 
         # Configurar estilo para radiobutton em negrito (tipo especial)
-        special_type = "Concessão de AE Manipulação"
         from tkinter import font as tkfont
 
         base_font = tkfont.nametofont("TkDefaultFont")
@@ -754,10 +755,10 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
 
             if width > 1:
                 # Verificar se é ttk.PanedWindow (tem sashpos) ou tk.PanedWindow (tem sash_place)
-                if hasattr(self.paned, 'sashpos'):
+                if hasattr(self.paned, "sashpos"):
                     # TTK PanedWindow
                     self.paned.sashpos(0, width // 2)
-                elif hasattr(self.paned, 'sash_place'):
+                elif hasattr(self.paned, "sash_place"):
                     # TK PanedWindow
                     try:
                         pos = self.paned.sash_coord(0)  # (x, y)
@@ -766,7 +767,7 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
                     except Exception:
                         # Se sash_coord falhar, tentar posição padrão
                         self.paned.sash_place(0, width // 2, 0)
-                
+
                 self._sash_centered = True
                 log.debug(f"Sash centralizado em {width // 2}px")
         except Exception as e:

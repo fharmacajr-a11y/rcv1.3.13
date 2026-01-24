@@ -151,7 +151,7 @@ O script [tools/verify_app_clientes_coverage_env.py](../../tools/verify_app_clie
 - **Redefinição de `HAS_CUSTOMTKINTER`**:
   - Procura por múltiplas atribuições `HAS_CUSTOMTKINTER =` no mesmo arquivo
   - Locais: `tests/modules/clientes/**/*.py`, `tests/unit/modules/clientes/**/*.py`
-  
+
 - **Uso de `.reconfigure()` sem cast**:
   - Procura por `.reconfigure(` em `tools/**/*.py`
   - Causa: `sys.stdout` tipado como `TextIO` (abstrato), mas runtime é `TextIOWrapper`
@@ -565,7 +565,7 @@ python -m pytest --collect-only tests/modules/clientes/ -q
    ```powershell
    # Windows
    icacls diagnostics
-   
+
    # Linux/Mac
    ls -la diagnostics
    ```
@@ -743,7 +743,7 @@ pytest -c pytest_cov.ini
 - **⏱️ Tempo:** 6876.29s ≈ **1h 55min**
 
 **Testes Falhados (5):**
-1. `test_toolbar_search_wrapper_corner_matches_entry` 
+1. `test_toolbar_search_wrapper_corner_matches_entry`
    - Erro: corner_radius divergente (wrapper=6, entry=5)
    - Arquivo: [tests/modules/clientes/test_clientes_layout_polish_smoke.py](../../tests/modules/clientes/test_clientes_layout_polish_smoke.py#L276)
 
@@ -792,4 +792,3 @@ pytest -c pytest_cov.ini
 - customtkinter AUSENTE: Instalar na .venv
 - tests/modules NÃO executado: Verificar diagnósticos 03-04 do Script 1
 - Artefatos NÃO gerados: Verificar stderr (diagnóstico 08)
-

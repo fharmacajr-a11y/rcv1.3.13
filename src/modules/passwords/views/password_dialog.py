@@ -157,8 +157,20 @@ class PasswordDialog(ctk.CTkToplevel):
         btn_frame = ctk.CTkFrame(container)
         btn_frame.grid(row=5, column=0, columnspan=2, pady=20)
 
-        ctk.CTkButton(btn_frame, text="Salvar", fg_color=("#2E7D32", "#1B5E20"), hover_color=("#1B5E20", "#0D4A11"), command=self._save).pack(side="left", padx=5)
-        ctk.CTkButton(btn_frame, text="Cancelar", fg_color=("#757575", "#616161"), hover_color=("#616161", "#424242"), command=self.destroy).pack(side="left", padx=5)
+        ctk.CTkButton(
+            btn_frame,
+            text="Salvar",
+            fg_color=("#2E7D32", "#1B5E20"),
+            hover_color=("#1B5E20", "#0D4A11"),
+            command=self._save,
+        ).pack(side="left", padx=5)
+        ctk.CTkButton(
+            btn_frame,
+            text="Cancelar",
+            fg_color=("#757575", "#616161"),
+            hover_color=("#616161", "#424242"),
+            command=self.destroy,
+        ).pack(side="left", padx=5)
 
         container.columnconfigure(1, weight=1)
 

@@ -1,13 +1,13 @@
-from __future__ import annotations
-
-from src.ui.ctk_config import ctk
-
 # -*- coding: utf-8 -*-
 """ScrollableFrame widget para conteúdo rolável usando Canvas.
 
 Fornece um frame com barra de rolagem vertical automática,
 ideal para conteúdo que pode exceder a altura da janela.
 """
+
+from __future__ import annotations
+
+from src.ui.ctk_config import ctk
 
 import tkinter as tk
 from typing import TYPE_CHECKING

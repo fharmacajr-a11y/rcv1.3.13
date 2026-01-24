@@ -12,7 +12,6 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
 from datetime import datetime
-from tkinter import ttk
 
 import pytest
 from tests import ui_compat as tb
@@ -1215,5 +1214,3 @@ class TestClientsOfTheDayAnvisaOnlyHiding:
 
         # Deve aparecer o nome do cliente
         assert any("Farmácia ABC" in t for t in texts)
-
-

@@ -39,17 +39,17 @@ def set_text_readonly(textbox: "Any", value: str) -> None:
     try:
         # Habilitar edição temporariamente
         textbox.configure(state="normal")
-        
+
         # Limpar conteúdo existente
         # CTkTextbox usa "0.0" ou "1.0" - ambos funcionam
         textbox.delete("0.0", "end")
-        
+
         # Inserir novo conteúdo
         textbox.insert("0.0", value)
-        
+
         # Voltar para read-only
         textbox.configure(state="disabled")
-        
+
     except Exception as exc:
         log.debug("Falha ao atualizar textbox read-only: %s", exc)
 
@@ -66,10 +66,10 @@ def append_text_readonly(textbox: "Any", value: str, scroll_to_end: bool = True)
         textbox.configure(state="normal")
         textbox.insert("end", value)
         textbox.configure(state="disabled")
-        
+
         if scroll_to_end:
             textbox.see("end")
-            
+
     except Exception as exc:
         log.debug("Falha ao adicionar texto ao textbox: %s", exc)
 

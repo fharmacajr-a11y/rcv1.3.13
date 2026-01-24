@@ -95,7 +95,7 @@ class PDFBatchProgressDialog(tk.Toplevel):
 
         try:
             # Atualizar progress bar
-            if HAS_CUSTOMTKINTER and ctk is not None and hasattr(self.progress, 'set'):
+            if HAS_CUSTOMTKINTER and ctk is not None and hasattr(self.progress, "set"):
                 self.progress.set(percent / 100.0)  # CTk usa 0.0-1.0
             else:
                 # Canvas fallback

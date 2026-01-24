@@ -72,7 +72,7 @@ pip install icecream  # dependência
 ```python
 class CTkSplitPane(ctk.CTkFrame):
     """Container com 2 panes e sash arrastável."""
-    
+
     Features:
     - Orient horizontal/vertical
     - Sash arrastável com cursor adequado
@@ -115,7 +115,7 @@ class CTkSplitPane(ctk.CTkFrame):
 ```python
 def check_ttk_widgets(files, src_dir):
     """Valida que widgets ttk simples não existem em runtime."""
-    # Bloqueia: ttk.Frame, Label, Button, Entry, Combobox, 
+    # Bloqueia: ttk.Frame, Label, Button, Entry, Combobox,
     #           Checkbutton, Radiobutton, Scale, Progressbar,
     #           Scrollbar, Separator, Labelframe, Notebook, Spinbox
     # Permite: ttk.Style (styling legítimo)

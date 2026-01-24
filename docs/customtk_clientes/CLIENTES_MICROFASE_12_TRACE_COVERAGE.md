@@ -374,10 +374,10 @@ Para cada gap, perguntar:
 # Exemplo: Cobrir gap de has_selection=False
 def test_actionbar_update_state_without_selection(tk_root):
     actionbar = ClientesActionBarCtk(...)
-    
+
     # Testa branch else não coberto
     actionbar.update_state(has_selection=False)
-    
+
     assert actionbar.btn_editar.cget("state") == "disabled"
     assert actionbar.btn_excluir.cget("state") == "disabled"
 ```

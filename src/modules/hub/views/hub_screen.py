@@ -126,11 +126,11 @@ class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame): 
         # Don't pass padding to super().__init__ - CTkFrame doesn't support it
         # Use pack/grid padding instead if needed
         super().__init__(master, **kwargs)
-        
+
         # MICROFASE 35: Configurar fg_color para evitar fundo cinza
         if HAS_CUSTOMTKINTER and ctk is not None:
             self.configure(fg_color=APP_BG)
-        
+
         # Flag para evitar destroy duplo
         self._destroy_called = False
 
@@ -828,16 +828,16 @@ class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame): 
         # Verificar se widget ainda existe e não foi destruído
         if self._destroy_called:
             return
-            
+
         try:
             if not self.winfo_exists():
                 return
         except tk.TclError:
             return
-            
+
         # Marcar como destruído
         self._destroy_called = True
-        
+
         try:
             # Parar lifecycle interno (compatibilidade)
             if hasattr(self, "_lifecycle") and self._lifecycle is not None:

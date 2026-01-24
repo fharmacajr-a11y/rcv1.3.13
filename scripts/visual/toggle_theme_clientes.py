@@ -10,7 +10,6 @@ AVISO: Este script abre uma GUI. NÃO execute via pytest.
 """
 
 import sys
-import tkinter as tk
 from pathlib import Path
 
 # Adiciona raiz ao path
@@ -22,20 +21,20 @@ def main():
     try:
         import ttkbootstrap as tb
         from src.modules.clientes.view import ClientesFrame
-        
+
         print("✓ Imports bem-sucedidos")
-        
+
         # Cria janela de teste
         root = tb.Window(themename="litera")
         root.title("Teste Toggle Tema - Módulo Clientes")
         root.geometry("1000x600")
-        
+
         print("✓ Janela criada")
-        
+
         # Callbacks mock (para não precisar de todo o app)
         def mock_callback():
             print("  Mock callback chamado")
-        
+
         # Cria ClientesFrame
         print("✓ Criando ClientesFrame...")
         try:
@@ -51,22 +50,23 @@ def main():
             )
             frame.pack(fill="both", expand=True)
             print("✓ ClientesFrame criado com sucesso")
-            
+
             # Verifica se o toggle foi inserido
-            if hasattr(frame, '_theme_switch') and frame._theme_switch is not None:
+            if hasattr(frame, "_theme_switch") and frame._theme_switch is not None:
                 print("✓ Toggle de tema inserido com sucesso!")
                 if frame._theme_manager is not None:
                     print(f"  Modo atual: {frame._theme_manager.current_mode}")
                 print(f"  Switch text: {frame._theme_switch.cget('text')}")
             else:
                 print("⚠ Toggle não foi inserido (CustomTkinter pode não estar disponível)")
-            
+
         except Exception as e:
             print(f"✗ Erro ao criar ClientesFrame: {e}")
             import traceback
+
             traceback.print_exc()
             sys.exit(1)
-        
+
         print("\n" + "=" * 60)
         print("Janela de teste aberta. Verifique:")
         print("1. O toggle aparece à direita da toolbar")
@@ -74,11 +74,11 @@ def main():
         print("3. Clique no toggle para alternar")
         print("4. Feche a janela quando terminar")
         print("=" * 60 + "\n")
-        
+
         root.mainloop()
-        
+
         print("\n✓ Teste concluído!")
-        
+
     except ImportError as e:
         print(f"✗ Erro de import: {e}")
         print("\nVerifique se as dependências estão instaladas:")
@@ -87,6 +87,7 @@ def main():
     except Exception as e:
         print(f"✗ Erro: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

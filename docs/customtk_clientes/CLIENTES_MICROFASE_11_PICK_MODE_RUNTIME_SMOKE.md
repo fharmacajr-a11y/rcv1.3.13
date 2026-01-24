@@ -112,7 +112,7 @@ assert restored_state == initial_state
 ```python
 for btn in pick_buttons:
     assert hasattr(btn, "configure"), "API quebrada!"
-    
+
     if HAS_CUSTOMTKINTER:
         assert hasattr(btn, "cget"), "Stub de CTk quebrado!"
         state = btn.cget("state")  # Runtime call
@@ -142,10 +142,10 @@ for btn in pick_buttons:
 for cycle in range(1, 4):
     actionbar.enter_pick_mode()
     assert btn.cget("state") == "disabled"
-    
+
     actionbar.leave_pick_mode()
     assert btn.cget("state") == initial_state
-    
+
     # CRÍTICO: cache interno deve ser limpo
     assert len(actionbar._pick_prev_states) == 0
 ```

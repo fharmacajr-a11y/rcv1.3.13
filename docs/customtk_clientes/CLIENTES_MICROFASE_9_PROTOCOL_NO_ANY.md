@@ -46,13 +46,13 @@ from typing import Any, Protocol
 
 class SupportsCgetConfigure(Protocol):
     """Protocol para widgets que suportam cget/configure (structural subtyping).
-    
+
     Widgets compatíveis:
     - tk.Button, tk.Label, tk.Entry, etc. (tkinter padrão)
     - ttk.Button, ttk.Label, ttk.Entry, etc. (themed widgets)
     - ctk.CTkButton, ctk.CTkLabel, ctk.CTkEntry, etc. (customtkinter)
     """
-    
+
     def cget(self, key: str) -> Any: ...
     def configure(self, **kwargs: Any) -> Any: ...
     def __getitem__(self, key: str) -> Any: ...  # Suporta widget["key"]

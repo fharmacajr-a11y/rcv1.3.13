@@ -100,15 +100,16 @@ repos:
         language: pygrep
         entry: '^\s*(import\s+customtkinter|from\s+customtkinter\s+import)'
         types: [python]
-        exclude: ^src/ui/ctk_config\.py$
+        exclude: ^(src/ui/ctk_config\.py|src/third_party/ctktreeview/treeview\.py)$
         description: |
           CustomTkinter deve ser importado apenas via src/ui/ctk_config.py (Single Source of Truth).
           Use: from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+          Exceção: vendor code (third_party/) pode ter import direto.
 
       - id: validate-ui-theme-policy
         name: Validar política UI/Theme (SSoT + sem root implícita)
         language: system
-        entry: python scripts/validate_ui_theme_policy.py
+        entry: python -X utf8 scripts/validate_ui_theme_policy.py
         types: [python]
         pass_filenames: false
         description: |
@@ -116,6 +117,7 @@ repos:
           - SSoT: set_appearance_mode apenas em theme_manager.py
           - Sem root implícita: ttk.Style(master=)
           - Zero ttkbootstrap imports executáveis
+          - UTF-8 safe: usa python -X utf8 para evitar UnicodeEncodeError no Windows
 
       - id: compileall-check
         name: Validar sintaxe Python (compileall)

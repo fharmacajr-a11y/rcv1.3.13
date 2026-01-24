@@ -12,7 +12,7 @@ Eliminada definitivamente a janela "tk" extra e corrigidos os erros de shutdown 
 
 ### Problemas Identificados e Corrigidos
 
-#### 1. **Janela "tk" Fantasma** 
+#### 1. **Janela "tk" Fantasma**
 **Causa raiz:** `ttk.Style()` criado sem passar `master` em `src/ui/ttk_compat.py:66`
 
 Quando `ttk.Style()` é instanciado sem master e não existe root ainda, o Tkinter cria automaticamente uma root implícita, resultando na janela "tk" vazia.

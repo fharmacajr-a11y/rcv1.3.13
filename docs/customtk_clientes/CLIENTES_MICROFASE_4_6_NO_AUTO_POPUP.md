@@ -47,7 +47,7 @@ Durante a coleta automática de testes (pytest discovery e VS Code Test Explorer
        root = tk.Tk()
        # ...
        root.mainloop()
-   
+
    if __name__ == "__main__":
        main()
    ```

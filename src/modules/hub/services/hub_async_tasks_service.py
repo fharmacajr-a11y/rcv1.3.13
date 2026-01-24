@@ -55,7 +55,6 @@ def load_dashboard_data_async(controller: "HubScreenController") -> None:
         try:
             if hasattr(controller.view, "_dashboard_view") and controller.view._dashboard_view:
                 # Criar uma mensagem temporária
-                from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
                 import tkinter as tk
 
                 dashboard_view = controller.view._dashboard_view

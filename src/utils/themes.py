@@ -55,27 +55,27 @@ _CACHED_MTIME: float | None = None
 
 def get_tb_style_safe(widget: Any = None, theme: str | None = None) -> Any:
     """Retorna ttkbootstrap.Style SEM criar root implícita.
-    
+
     CODEC: Helper seguro CORRETO conforme especificação final.
-    
+
     IMPORTANTE: tb.Style(widget) NÃO é API válida! Style.__init__ recebe "theme" string.
-    
+
     Regras corretas:
     1) Se widget tiver atributo .style (ttkbootstrap.Window): usar widget.style
     2) Senão: usar Style.get_instance() (singleton)
     3) Só criar Style() se tk._default_root já existir (nunca criar Tk fantasma)
     4) Se theme fornecido: aplicar style.theme_use(theme)
-    
+
     Args:
         widget: Widget/janela (ttkbootstrap.Window) que pode ter .style
         theme: Tema opcional para aplicar
-        
+
     Returns:
         Instância de Style ou None se não puder criar com segurança
     """
     if tb is None or TtkBootstrapStyle is None:
         return None
-    
+
     # Regra 1: Se widget tem .style (ttkbootstrap.Window), reutilizar
     if widget is not None and hasattr(widget, "style"):
         style = widget.style
@@ -85,7 +85,7 @@ def get_tb_style_safe(widget: Any = None, theme: str | None = None) -> Any:
             except Exception:
                 logging.exception("Falha ao aplicar theme via widget.style")
         return style
-    
+
     # Regra 2: Tentar singleton Style.get_instance()
     try:
         if hasattr(TtkBootstrapStyle, "get_instance"):
@@ -99,13 +99,14 @@ def get_tb_style_safe(widget: Any = None, theme: str | None = None) -> Any:
                 return style
     except Exception:
         pass
-    
+
     # Regra 3: Só criar Style() se root já existir
     try:
         import tkinter as tk
+
         if tk._default_root is None:  # type: ignore[attr-defined]
             return None  # NÃO criar Tk fantasma
-        
+
         # Root existe: seguro criar Style
         # CORRETO: Style(theme=theme) pois __init__ recebe theme como string
         if theme:
@@ -198,7 +199,7 @@ def toggle_theme(app: Any | None = None) -> str:
     novo = ALT_THEME if atual == DEFAULT_THEME else DEFAULT_THEME
 
     # Aplica no ttkbootstrap se disponivel (usando helper seguro)
-    style = get_tb_style_safe(widget=app, theme=novo)
+    get_tb_style_safe(widget=app, theme=novo)
     # Se style foi obtido, o theme já foi aplicado pelo helper
     # Senão, continua sem problema (modo headless ou CTk-only)
 
@@ -294,6 +295,6 @@ def apply_theme(win: Any, *, theme: str | None = None) -> None:
     """Aplica o tema carregado a uma janela/toplevel usando ttkbootstrap, se disponivel."""
     if tb is None:
         return
-    
+
     # CODEC: Usar helper seguro (theme já é aplicado internamente)
     get_tb_style_safe(widget=win, theme=theme or load_theme())

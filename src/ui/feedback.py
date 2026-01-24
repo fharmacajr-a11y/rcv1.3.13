@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 import tkinter as tk
 from tkinter import messagebox
-from typing import TYPE_CHECKING, Any, Callable, Literal, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Callable, Literal, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from src.ui.components.progress_dialog import BusyDialog as _BusyDialogType

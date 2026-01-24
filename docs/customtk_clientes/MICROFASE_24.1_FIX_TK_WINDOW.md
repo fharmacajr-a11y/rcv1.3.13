@@ -75,7 +75,7 @@ def initialize(self) -> None:
 ```python
 def initialize(self) -> None:
     """Inicializa tema no startup.
-    
+
     IMPORTANTE: NÃO aplica ttk aqui - apenas CustomTkinter.
     ttk será aplicado quando set_master() for chamado.
     """
@@ -100,7 +100,7 @@ def set_master(self, master: tk.Misc) -> None:
     """Define master e APLICA ttk_compat imediatamente."""
     self._master_ref = master
     log.debug("Master definido no GlobalThemeManager")
-    
+
     # Aplicar ttk_compat AGORA que temos master
     try:
         from src.ui.ttk_compat import apply_ttk_widgets_theme

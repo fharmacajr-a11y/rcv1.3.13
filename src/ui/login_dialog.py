@@ -93,7 +93,7 @@ class LoginDialog(tk.Toplevel):
                 anchor="w",
             )
         self.email_label.grid(row=0, column=0, sticky="w", padx=8, pady=(8, 2))
-        
+
         if HAS_CUSTOMTKINTER and ctk is not None:
             self.email_entry = ctk.CTkEntry(self, textvariable=self.email_var, width=280)
         else:
@@ -117,7 +117,7 @@ class LoginDialog(tk.Toplevel):
                 anchor="w",
             )
         self.pass_label.grid(row=2, column=0, sticky="w", padx=8, pady=(8, 2))
-        
+
         if HAS_CUSTOMTKINTER and ctk is not None:
             self.pass_entry = ctk.CTkEntry(self, textvariable=self.pass_var, width=280, show="•")
         else:

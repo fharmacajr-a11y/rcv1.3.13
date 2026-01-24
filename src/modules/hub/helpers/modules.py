@@ -27,7 +27,7 @@ from typing import Optional
 @dataclass(frozen=True)
 class ModuleButton:
     """Configuração de um botão de módulo no Hub.
-    
+
     Note: bootstyle is kept as optional semantic tag for backward compatibility
     with tests, but is NOT used to style actual widgets (no ttkbootstrap).
     """

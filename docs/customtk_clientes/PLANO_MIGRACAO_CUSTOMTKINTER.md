@@ -661,7 +661,7 @@ from src.ui.theme_manager import theme_manager
 def get_button_color(style: str) -> tuple[str, str]:
     """Retorna (cor_light, cor_dark) baseado no bootstyle legacy."""
     mode = theme_manager.get_current_mode()
-    
+
     colors = {
         "primary": ("#1f77b4", "#1f77b4"),     # azul
         "secondary": ("#6c757d", "#6c757d"),   # cinza
@@ -670,7 +670,7 @@ def get_button_color(style: str) -> tuple[str, str]:
         "warning": ("#ffc107", "#ffc107"),     # amarelo
         "info": ("#17a2b8", "#17a2b8"),        # ciano
     }
-    
+
     return colors.get(style, colors["primary"])
 
 # Uso:

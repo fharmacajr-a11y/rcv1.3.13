@@ -627,7 +627,7 @@ for key, heading, _, _, _ in columns:
      BTN_CORNER = 6
      BTN_PADX = 8
      BTN_PADY = 10
-     
+
      # Inputs padrão
      INPUT_HEIGHT = 32
      INPUT_CORNER = 6

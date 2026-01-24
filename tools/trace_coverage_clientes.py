@@ -33,12 +33,13 @@ if TYPE_CHECKING:
 # HELPER: RECONFIGURE UTF-8 (FIX PYLANCE)
 # ============================================================================
 
+
 def _reconfigure_utf8_if_possible(stream: TextIO) -> None:
     """Configura stream para UTF-8 se possível (evita UnicodeEncodeError no Windows).
-    
+
     Pyright/Pylance: sys.stdout é TextIO em typing, mas em runtime normalmente
     é TextIOWrapper que tem método reconfigure(). Este helper faz cast seguro.
-    
+
     Args:
         stream: Stream a ser reconfigurado (sys.stdout ou sys.stderr)
     """
@@ -80,6 +81,7 @@ TEST_PATH = "tests/modules/clientes/"
 # FUNÇÕES AUXILIARES
 # ============================================================================
 
+
 def setup_environment() -> None:
     """Configura ambiente para execução."""
     # Adiciona raiz do projeto ao sys.path (permite imports absolutos)
@@ -97,7 +99,7 @@ def setup_environment() -> None:
 
 def create_tracer() -> trace_module.Trace:
     """Cria instância do Trace configurada.
-    
+
     Returns:
         Tracer configurado para contar execuções sem logging verboso.
     """
@@ -125,10 +127,10 @@ def create_tracer() -> trace_module.Trace:
 
 def run_tests_with_trace(tracer: trace_module.Trace) -> int:
     """Executa pytest com trace ativo.
-    
+
     Args:
         tracer: Instância do Trace configurada.
-        
+
     Returns:
         Exit code do pytest (0 = sucesso, >0 = falhas).
     """
@@ -151,7 +153,7 @@ def run_tests_with_trace(tracer: trace_module.Trace) -> int:
             "-q",  # Quiet mode (menos verbose)
             "--tb=short",  # Traceback curto em caso de erro
             "-v",  # Verbose para mostrar progresso
-        ]
+        ],
     )
 
     print()
@@ -164,7 +166,7 @@ def run_tests_with_trace(tracer: trace_module.Trace) -> int:
 
 def generate_coverage_report(tracer: trace_module.Trace) -> None:
     """Gera relatórios de cobertura anotados (.cover).
-    
+
     Args:
         tracer: Instância do Trace com dados de execução.
     """
@@ -225,9 +227,10 @@ def list_generated_reports() -> None:
 # MAIN
 # ============================================================================
 
+
 def main() -> int:
     """Execução principal do script.
-    
+
     Returns:
         Exit code (0 = sucesso, >0 = erro).
     """

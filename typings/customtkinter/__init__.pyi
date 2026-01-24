@@ -19,7 +19,7 @@ Corner = Literal["topleft", "topright", "bottomleft", "bottomright"]
 @runtime_checkable
 class CTkBaseClass(Protocol):
     """Base protocol for CustomTkinter widgets.
-    
+
     Este protocol define a interface comum de todos os widgets CustomTkinter,
     garantindo compatibilidade com SupportsCgetConfigure (Microfase 9) e
     prevenindo regressões de tipagem (Microfase 10).

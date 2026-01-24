@@ -143,7 +143,7 @@ if search_icon is not None:
 def test_form_cliente_creates_toplevel_window():
     """Testa que form_cliente() inicia sem exceptions graves."""
     # ... patches simplificados ...
-    
+
     # Se Toplevel foi criado, withdraw deve ter sido chamado
     if mock_toplevel_class.called:
         assert mocks["toplevel"].withdraw.called, "withdraw() não foi chamado"

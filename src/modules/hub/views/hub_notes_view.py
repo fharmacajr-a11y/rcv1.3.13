@@ -12,7 +12,6 @@ import logging
 from tkinter import TclError
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
-from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
 import tkinter as tk
 
 from src.modules.hub.colors import _ensure_author_tag

@@ -10,7 +10,7 @@ Conteúdo RAW:
     "python.analysis.indexing": true,
     "python.analysis.autoImportCompletions": true,
     "python.analysis.diagnosticMode": "workspace",
-    
+
     // Configuração de testes
     "python.testing.pytestEnabled": true,
     "python.testing.cwd": "${workspaceFolder}",
@@ -18,12 +18,12 @@ Conteúdo RAW:
         "-c",
         "pytest.ini"
     ],
-    
+
     // MICROFASE 4.6: Desabilitar auto-discovery de testes e popups
     // Evita que scripts visuais abram janelas durante collection
     "python.testing.autoTestDiscoverOnSaveEnabled": false,
     "testing.automaticallyOpenTestResults": "neverOpen",
-    
+
     "chat.tools.terminal.autoApprove": {
         "cd": true,
         "echo": true,
@@ -170,5 +170,3 @@ venvPath: .
 venv: .venv
 pythonVersion: 3.13
 typeCheckingMode: basic
-
-

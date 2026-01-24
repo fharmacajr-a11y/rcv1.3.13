@@ -37,7 +37,7 @@ class _BasePlaceholder(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkF
         else:
             top = tk.Frame(self)
             center = tk.Frame(self)
-        
+
         top.pack(fill="x", padx=10, pady=(10, 0))
         center.pack(expand=True, fill="both")
 
@@ -49,7 +49,7 @@ class _BasePlaceholder(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkF
             header = tk.Label(center, text=self.title, font=header_font)
             desc = tk.Label(center, text="Funcionalidade em desenvolvimento.")
             btn = tk.Button(center, text="Voltar")
-        
+
         header.pack(pady=(0, 6))
         desc.pack(pady=(0, 16))
         btn.pack()

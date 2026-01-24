@@ -51,7 +51,7 @@ def print_header() -> None:
 
 def create_tracer() -> trace_module.Trace:
     """Cria instância do Trace configurada.
-    
+
     Returns:
         Tracer configurado para contar execuções sem logging verboso.
     """
@@ -79,10 +79,10 @@ def create_tracer() -> trace_module.Trace:
 
 def run_tests_with_trace(tracer: trace_module.Trace) -> int:
     """Executa pytest com trace ativo.
-    
+
     Args:
         tracer: Instância do Trace configurada.
-        
+
     Returns:
         Exit code do pytest (0 = sucesso, >0 = falhas).
     """
@@ -105,7 +105,7 @@ def run_tests_with_trace(tracer: trace_module.Trace) -> int:
             "-q",  # Quiet mode (menos verbose)
             "--tb=short",  # Traceback curto em caso de erro
             "-v",  # Verbose para mostrar progresso
-        ]
+        ],
     )
 
     print()
@@ -118,7 +118,7 @@ def run_tests_with_trace(tracer: trace_module.Trace) -> int:
 
 def generate_coverage_report_safe(tracer: trace_module.Trace) -> None:
     """Gera relatórios de cobertura anotados (.cover) de forma segura.
-    
+
     Args:
         tracer: Instância do Trace com dados de execução.
     """
@@ -131,12 +131,12 @@ def generate_coverage_report_safe(tracer: trace_module.Trace) -> None:
     # Filtrar apenas arquivos que existem
     counts = results.counts
     filtered_counts = {}
-    
+
     for key in counts:
         filepath, _ = key
         if Path(filepath).exists():
             filtered_counts[key] = counts[key]
-    
+
     # Substituir counts por versão filtrada
     results.counts = filtered_counts
 

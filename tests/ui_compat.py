@@ -19,37 +19,37 @@ from typing import Any
 
 class Frame(ttk.Frame):
     """Frame alias using ttk.Frame (supports padding)."""
-    
+
     def __init__(self, master: Any = None, **kwargs: Any) -> None:
         # Ignore bootstyle if passed (for backward compat with old tests)
-        kwargs.pop('bootstyle', None)
+        kwargs.pop("bootstyle", None)
         super().__init__(master, **kwargs)
 
 
 class Label(tk.Label):  # type: ignore[misc]
     """Label alias using tk.Label."""
-    
+
     def __init__(self, master: Any = None, **kwargs: Any) -> None:
         # Ignore bootstyle if passed
-        kwargs.pop('bootstyle', None)
+        kwargs.pop("bootstyle", None)
         super().__init__(master, **kwargs)
 
 
 class Button(ttk.Button):
     """Button alias using ttk.Button."""
-    
+
     def __init__(self, master: Any = None, **kwargs: Any) -> None:
         # Ignore bootstyle if passed
-        kwargs.pop('bootstyle', None)
+        kwargs.pop("bootstyle", None)
         super().__init__(master, **kwargs)
 
 
 class Labelframe(ttk.LabelFrame):  # type: ignore[misc]
     """Labelframe alias using ttk.LabelFrame (supports padding)."""
-    
+
     def __init__(self, master: Any = None, **kwargs: Any) -> None:
         # Ignore bootstyle if passed
-        kwargs.pop('bootstyle', None)
+        kwargs.pop("bootstyle", None)
         super().__init__(master, **kwargs)
 
 
@@ -59,10 +59,10 @@ LabelFrame = Labelframe
 
 class Toplevel(tk.Toplevel):  # type: ignore[misc]
     """Toplevel alias using tk.Toplevel."""
-    
+
     def __init__(self, master: Any = None, **kwargs: Any) -> None:
         # Ignore bootstyle if passed
-        kwargs.pop('bootstyle', None)
+        kwargs.pop("bootstyle", None)
         super().__init__(master, **kwargs)
 
 
@@ -70,4 +70,3 @@ class Toplevel(tk.Toplevel):  # type: ignore[misc]
 Treeview = ttk.Treeview
 Scrollbar = ttk.Scrollbar
 Separator = ttk.Separator  # type: ignore[misc]
-

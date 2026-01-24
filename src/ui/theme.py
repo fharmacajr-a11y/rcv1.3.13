@@ -14,7 +14,7 @@ DEFAULT_SCALING = 1.25  # escala para monitores 125%; ajuste se necessário
 def init_theme(root: tk.Tk, theme: str = DEFAULT_THEME, scaling: float = DEFAULT_SCALING) -> None:
     """
     Inicializa o tema Tk e ajusta a escala.
-    
+
     MICROFASE 31: Removido tema legado (ZERO runtime). Apenas scaling e fontes Tk.
 
     Args:

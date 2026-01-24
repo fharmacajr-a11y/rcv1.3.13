@@ -23,11 +23,11 @@ EXEMPLO DE USO:
     def _on_closing():
         # 1) Setar flag de fechamento
         self._closing = True
-        
+
         # 2) Cancelar all after jobs
         from src.ui.shutdown import cancel_all_after_jobs
         cancel_all_after_jobs(self.root)
-        
+
         # 3) Fechar normalmente
         self.root.quit()
         self.root.destroy()
@@ -151,11 +151,11 @@ def install_clean_shutdown(root: tk.Tk | tk.Toplevel, on_closing: callable | Non
 
     Exemplo:
         >>> from src.ui.shutdown import install_clean_shutdown
-        >>> 
+        >>>
         >>> def my_cleanup():
         >>>     print("Salvando dados...")
         >>>     return True  # Continuar com shutdown
-        >>> 
+        >>>
         >>> install_clean_shutdown(root, my_cleanup)
     """
 

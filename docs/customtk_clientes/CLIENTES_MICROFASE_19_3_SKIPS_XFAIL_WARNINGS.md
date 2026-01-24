@@ -123,7 +123,7 @@ def test_linux_specific_feature():
 - Teste de fallback não faz mais sentido no contexto atual
 - Mock é complexo e quebraria imports
 
-**Recomendação:** 
+**Recomendação:**
 ```python
 # Opção 1: Remover o teste (mais simples)
 # - CustomTkinter é obrigatório, fallback não é mais relevante
@@ -155,15 +155,15 @@ def test_linux_specific_feature():
 
 **Mensagem:**
 ```
-Using `@model_validator` with mode='after' on a classmethod is deprecated. 
-Instead, use an instance method. 
-See https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator. 
+Using `@model_validator` with mode='after' on a classmethod is deprecated.
+Instead, use an instance method.
+See https://docs.pydantic.dev/2.12/concepts/validators/#model-after-validator.
 Deprecated in Pydantic V2.12 to be removed in V3.0.
 ```
 
 **Causa:** Biblioteca `pyiceberg` usa API deprecated do Pydantic 2.12+
 
-**Ação sugerida:** 
+**Ação sugerida:**
 ✅ **IGNORAR** (já configurado no `pytest.ini`):
 ```ini
 filterwarnings =
@@ -199,7 +199,7 @@ def test_something():
 
 **Causa:** Markers usados mas apontando para arquivo fora do workspace atual
 
-**Status:** ✅ **JÁ RESOLVIDO** 
+**Status:** ✅ **JÁ RESOLVIDO**
 
 O `pytest.ini` **JÁ TEM** os markers registrados (linhas 28-32):
 ```ini
@@ -243,7 +243,7 @@ Esses arquivos estão usando o `pytest.ini` do workspace atual, mas estão fora 
 
 **Causa:** Refatoração de estrutura de pastas — warnings intencionais para migration path
 
-**Ação sugerida:** 
+**Ação sugerida:**
 🔧 **Opções:**
 
 1. **Manter warnings** (recomendado): São avisos úteis durante migração gradual

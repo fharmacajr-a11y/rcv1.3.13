@@ -11,10 +11,10 @@ MODO ESTRITO:
 
 USO:
     from src.ui.tk_root_guard import enable_strict_mode, check_multiple_roots
-    
+
     # No startup (após importar tkinter, antes de criar widgets):
     enable_strict_mode()
-    
+
     # Durante runtime (opcional, para debug):
     check_multiple_roots(app)
 """
@@ -33,10 +33,10 @@ _STRICT_MODE_ENABLED = False
 
 def enable_strict_mode() -> None:
     """Ativa modo estrito: NoDefaultRoot para forçar erro ao usar root implícita.
-    
+
     Deve ser chamado APÓS importar tkinter mas ANTES de criar qualquer widget.
     Se RC_STRICT_TK_ROOT=1, ativa automaticamente.
-    
+
     Exemplo:
         >>> import tkinter as tk
         >>> from src.ui.tk_root_guard import enable_strict_mode
@@ -44,11 +44,11 @@ def enable_strict_mode() -> None:
         >>> # Agora qualquer tentativa de usar default root vai gerar erro
     """
     global _STRICT_MODE_ENABLED
-    
+
     if _STRICT_MODE_ENABLED:
         log.debug("Modo estrito já ativado")
         return
-    
+
     try:
         # NoDefaultRoot() desabilita a criação automática de root
         tk.NoDefaultRoot()
@@ -60,13 +60,13 @@ def enable_strict_mode() -> None:
 
 def check_multiple_roots(root: Optional[tk.Tk] = None) -> int:
     """Verifica se há múltiplas janelas toplevel e log warning.
-    
+
     Args:
         root: Janela principal esperada. Se None, tenta usar _default_root.
-    
+
     Returns:
         Número de toplevels encontradas
-        
+
     Exemplo:
         >>> from src.ui.tk_root_guard import check_multiple_roots
         >>> count = check_multiple_roots(app)
@@ -79,25 +79,23 @@ def check_multiple_roots(root: Optional[tk.Tk] = None) -> int:
         except Exception:
             log.debug("Não foi possível obter _default_root")
             return 0
-    
+
     if root is None:
         log.debug("Root é None, não é possível verificar toplevels")
         return 0
-    
+
     try:
         # Obter todas as toplevels
         toplevels = [root]
         for child in root.winfo_children():
             if isinstance(child, (tk.Toplevel, tk.Tk)):
                 toplevels.append(child)
-        
+
         count = len(toplevels)
-        
+
         if count > 1:
             log.warning(
-                "Múltiplas toplevels detectadas: %d janelas! "
-                "Isso pode causar janela 'tk' indesejada.",
-                count
+                "Múltiplas toplevels detectadas: %d janelas! " "Isso pode causar janela 'tk' indesejada.", count
             )
             # Log detalhes em debug
             if log.isEnabledFor(logging.DEBUG):
@@ -109,9 +107,9 @@ def check_multiple_roots(root: Optional[tk.Tk] = None) -> int:
                         log.debug("  Toplevel #%d: <erro ao obter título>", i)
         else:
             log.debug("Apenas 1 toplevel detectada (esperado)")
-        
+
         return count
-        
+
     except Exception as exc:
         log.debug("Falha ao verificar toplevels: %s", exc)
         return 0

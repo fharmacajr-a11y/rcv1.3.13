@@ -339,9 +339,11 @@ class PdfViewerWin(tk.Toplevel):
             self._pane_right_added = False
             self.var_show_text.set(False)
             from src.ui.widget_state import set_disabled
+
             set_disabled(self.chk_text)
         else:
             from src.ui.widget_state import set_normal
+
             set_normal(self.chk_text)
         self._update_page_label(0)
 
@@ -394,6 +396,7 @@ class PdfViewerWin(tk.Toplevel):
         self.text_panel.clear()
         try:
             from src.ui.widget_state import set_disabled
+
             set_disabled(self.chk_text)
         except Exception as exc:  # noqa: BLE001
             logger.debug("Falha ao desabilitar toggle de texto no estado vazio do PDF viewer: %s", exc)
@@ -1015,7 +1018,7 @@ class PdfViewerWin(tk.Toplevel):
         pdf_enabled, img_enabled = calculate_button_states(is_pdf=is_pdf, is_image=is_image)
 
         from src.ui.widget_state import set_enabled
-        
+
         if self.btn_download_pdf is not None:
             set_enabled(self.btn_download_pdf, pdf_enabled)
         if self.btn_download_img is not None:

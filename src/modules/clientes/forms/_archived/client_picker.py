@@ -117,7 +117,7 @@ class ClientPicker(tk.Toplevel):
             tree_frame,
             columns=("id", "razao_social", "cnpj", "nome"),
             show="headings",
-            # selectmode="browse" handled internally  
+            # selectmode="browse" handled internally
             height=15,
             zebra=True,
         )

@@ -35,7 +35,7 @@ Após eliminar todos os erros do Pylance nas Microfases 7-9, precisávamos:
 @runtime_checkable
 class CTkBaseClass(Protocol):
     """Protocolo base para widgets CustomTkinter com métodos de configuração."""
-    
+
     def cget(self, attribute_name: str) -> Any: ...
     def configure(self, **kwargs: Any) -> dict[str, tuple[str, str, str, Any, Any]] | None: ...
     def __getitem__(self, key: str) -> Any:
@@ -71,13 +71,13 @@ if TYPE_CHECKING:  # ← Todo código dentro desta condição
     import tkinter as tk
     from tkinter import ttk
     import customtkinter as ctk
-    
+
     from src.modules.clientes._typing_widgets import SupportsCgetConfigure
-    
+
     # Testes de conformidade
     def _test_ctk_button_implements_protocol() -> None:
         btn: SupportsCgetConfigure = ctk.CTkButton(None, text="Test")
-        
+
         # Se stub quebrar, estas linhas causarão erro do Pylance
         state = btn.cget("state")
         btn.configure(state="normal")

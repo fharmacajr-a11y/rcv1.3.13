@@ -57,7 +57,7 @@ from typing import TextIO, cast
 
 def _reconfigure_utf8_if_possible(stream: TextIO) -> None:
     """Configura stream para UTF-8 se possível (evita UnicodeEncodeError no Windows).
-    
+
     Pyright/Pylance: sys.stdout é TextIO em typing, mas em runtime normalmente
     é TextIOWrapper que tem método reconfigure(). Este helper faz cast seguro.
     """
@@ -289,7 +289,7 @@ python tools/diagnose_clientes_env_and_coverage.py
 4. Abrir [tests/modules/clientes/test_clientes_footer_disabled_state.py](../tests/modules/clientes/test_clientes_footer_disabled_state.py)
 5. Checar painel "Problems" (Ctrl+Shift+M)
 
-**Esperado**: 
+**Esperado**:
 - ✅ 0 erros de Pylance em todos os 4 arquivos
 - ✅ `sys.stdout.reconfigure` não reclama mais
 - ✅ `HAS_CUSTOMTKINTER` não reclama de redefinição

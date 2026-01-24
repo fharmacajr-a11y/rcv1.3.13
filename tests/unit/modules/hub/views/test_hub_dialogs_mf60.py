@@ -544,4 +544,3 @@ class TestImportStructure:
         """Verificar que módulo tem docstring."""
         assert hub_dialogs.__doc__ is not None
         assert "HubDialogs" in hub_dialogs.__doc__
-

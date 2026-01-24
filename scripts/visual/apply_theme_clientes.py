@@ -22,28 +22,29 @@ def main():
         import tkinter as tk
         from src.modules.clientes.view import ClientesFrame
         from src.modules.clientes.views.toolbar_ctk import HAS_CUSTOMTKINTER
-        
+
         print("=" * 70)
         print("TESTE: Aplicação de Tema Sem Crash (Microfase 2.1)")
         print("=" * 70)
-        
+
         if not HAS_CUSTOMTKINTER:
             print("⚠ CustomTkinter não disponível")
             print("Este teste só é relevante com CustomTkinter instalado")
             sys.exit(0)
-        
+
         print("✓ CustomTkinter disponível")
-        
+
         # Cria janela
         root = tk.Tk()
         root.title("Teste Manual - Apply Theme Fix")
         root.geometry("1200x600")
-        
+
         print("✓ Janela criada")
-        
+
         # Callbacks mock
-        mock_cb = lambda *args, **kwargs: None
-        
+        def mock_cb(*args, **kwargs):
+            return None
+
         print("✓ Criando ClientesFrame...")
         try:
             frame = ClientesFrame(
@@ -64,7 +65,7 @@ def main():
                 root.destroy()
                 sys.exit(1)
             raise
-        
+
         print("✓ Testando _apply_theme_to_widgets()...")
         try:
             frame._apply_theme_to_widgets()
@@ -75,7 +76,7 @@ def main():
                 root.destroy()
                 sys.exit(1)
             raise
-        
+
         print("\n" + "=" * 70)
         print("TESTE INTERATIVO:")
         print("1. Observe a toolbar CustomTkinter (visual moderno)")
@@ -84,10 +85,10 @@ def main():
         print("4. Cores da toolbar devem mudar")
         print("5. Feche a janela quando terminar")
         print("=" * 70 + "\n")
-        
+
         # Contador de toggles
         toggle_count = [0]
-        
+
         def on_window_close():
             print(f"\n✓ Janela fechada após {toggle_count[0]} toggles")
             if toggle_count[0] > 0:
@@ -96,9 +97,10 @@ def main():
             print("RESULTADO: ✅ TESTE PASSOU - Nenhum ValueError de 'bg'")
             print("=" * 70)
             root.destroy()
-        
+
         # Hook para contar toggles
         original_toggle = frame._on_theme_toggle
+
         def counting_toggle():
             toggle_count[0] += 1
             print(f"  → Toggle #{toggle_count[0]}: alterando tema...")
@@ -112,12 +114,12 @@ def main():
                     root.destroy()
                     sys.exit(1)
                 raise
-        
+
         frame._on_theme_toggle = counting_toggle
-        
+
         root.protocol("WM_DELETE_WINDOW", on_window_close)
         root.mainloop()
-        
+
     except ImportError as e:
         print(f"✗ Erro de import: {e}")
         print("\nInstale as dependências:")
@@ -126,6 +128,7 @@ def main():
     except Exception as e:
         print(f"✗ Erro: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

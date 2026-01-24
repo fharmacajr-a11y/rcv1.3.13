@@ -117,10 +117,11 @@ def fake_tb_module():
 @pytest.fixture
 def fake_parent(tk_root):
     """Widget pai real (ttk.Frame) ao invés de FakeFrame.
-    
+
     Usar tk_root real elimina AttributeError de .tk attribute.
     """
     from tkinter import ttk
+
     return ttk.Frame(tk_root)
 
 
@@ -193,14 +194,14 @@ class TestBuildModulesPanel:
         )
 
         # Verificar que retorna um Labelframe
-        assert isinstance(result, ttk.Labelframe) or hasattr(result, 'winfo_children')
+        assert isinstance(result, ttk.Labelframe) or hasattr(result, "winfo_children")
 
     def test_build_calls_build_quick_actions(self, fake_parent, sample_actions_state, mock_action_callback):
         """Testa que build_modules_panel chama _build_quick_actions_by_category."""
         from src.modules.hub.views import modules_panel
 
         with patch.object(modules_panel, "_build_quick_actions_by_category") as mock_build:
-            result = modules_panel.build_modules_panel(
+            modules_panel.build_modules_panel(
                 parent=fake_parent,
                 state=sample_actions_state,
                 on_action_click=mock_action_callback,
@@ -716,4 +717,3 @@ class TestEdgeCases:
         # Verificar que labelframes foram criados
         labelframes = [w for w in fake_parent.winfo_children() if isinstance(w, ttk.Labelframe)]
         assert len(labelframes) > 0
-

@@ -64,10 +64,10 @@ def _ensure_author_tag(text_widget, email: str, tag_cache: Optional[Dict[str, st
     try:
         # Se já existir no widget, não recrie — apenas reutilize
         from src.ui.ctk_text_compat import get_inner_text_widget
-        
+
         # Para CTkTextbox, usar widget interno para tag_configure
         inner_widget = get_inner_text_widget(text_widget)
-        
+
         if tag_name not in inner_widget.tag_names():
             color = _author_color(email)
             # Aplica foreground com fonte padrão

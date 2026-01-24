@@ -7,7 +7,6 @@ import tkinter as tk
 from typing import Callable
 
 from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
-from src.ui.theme_toggle import is_dark_theme
 from src.ui.win_titlebar import set_immersive_dark_mode
 from src.ui.window_utils import show_centered
 from src.utils.resource_path import resource_path
@@ -93,9 +92,9 @@ class BusyDialog(tk.Toplevel):
         try:
             self._det_total = max(int(total), 1)
             self._det_value = 0
-            if hasattr(self._pb, 'stop'):
+            if hasattr(self._pb, "stop"):
                 self._pb.stop()
-            if HAS_CUSTOMTKINTER and ctk is not None and hasattr(self._pb, 'set'):
+            if HAS_CUSTOMTKINTER and ctk is not None and hasattr(self._pb, "set"):
                 self._pb.configure(mode="determinate")
                 self._pb.set(0)
             else:
@@ -108,7 +107,7 @@ class BusyDialog(tk.Toplevel):
         try:
             if self._det_total:
                 self._det_value = min(self._det_total, self._det_value + inc)
-                if HAS_CUSTOMTKINTER and ctk is not None and hasattr(self._pb, 'set'):
+                if HAS_CUSTOMTKINTER and ctk is not None and hasattr(self._pb, "set"):
                     # CTkProgressBar usa valores 0.0 a 1.0
                     progress_fraction = self._det_value / self._det_total
                     self._pb.set(progress_fraction)
@@ -255,9 +254,13 @@ class ProgressDialog(tk.Toplevel):
         # Botão Cancelar: canto direito, vermelho
         if can_cancel:
             if HAS_CUSTOMTKINTER and ctk is not None:
-                self._cancel_button = ctk.CTkButton(body, text="Cancelar", command=self._handle_cancel, fg_color="#dc3545", hover_color="#c82333")
+                self._cancel_button = ctk.CTkButton(
+                    body, text="Cancelar", command=self._handle_cancel, fg_color="#dc3545", hover_color="#c82333"
+                )
             else:
-                self._cancel_button = tk.Button(body, text="Cancelar", command=self._handle_cancel, bg="#dc3545", fg="white")
+                self._cancel_button = tk.Button(
+                    body, text="Cancelar", command=self._handle_cancel, bg="#dc3545", fg="white"
+                )
             self._cancel_button.grid(row=3, column=1, sticky="e", pady=(8, 0))
 
         # Forçar altura exata para evitar espaço branco extra
@@ -310,7 +313,7 @@ class ProgressDialog(tk.Toplevel):
     def set_progress(self, fraction: float | None) -> None:
         """Atualiza a barra de progresso. Use None para modo indeterminado."""
         try:
-            if HAS_CUSTOMTKINTER and ctk is not None and hasattr(self._progress, 'set'):
+            if HAS_CUSTOMTKINTER and ctk is not None and hasattr(self._progress, "set"):
                 # CTkProgressBar
                 if fraction is None:
                     if not self._indeterminate:

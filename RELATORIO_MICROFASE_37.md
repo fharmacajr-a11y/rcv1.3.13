@@ -8,7 +8,7 @@ O HUB estava com aparência inconsistente porque misturava widgets Tkinter puros
 
 ## ARQUIVOS MODIFICADOS
 
-### 1. **Helper de Compatibilidade** 
+### 1. **Helper de Compatibilidade**
 #### `src/ui/ctk_text_compat.py` [CRIADO]
 - **Função**: `get_inner_text_widget()` - acessa widget interno do CTkTextbox para operações que não existem na API externa
 - **Função**: `configure_text_readonly()` - configura read-only sem usar `state='disabled'` que não existe no CTkTextbox
@@ -36,7 +36,7 @@ O HUB estava com aparência inconsistente porque misturava widgets Tkinter puros
 #### `src/modules/hub/views/dashboard_center.py`
 - ✅ **_build_indicator_card()**: `value_label` e `text_label` convertidos para `CTkLabel`
 - ✅ **_build_section_frame()**: `content_frame` usa `CTkFrame(fg_color="transparent")`
-- ✅ **_build_scrollable_text_list()**: Substituído `ScrolledText` por `CTkTextbox` 
+- ✅ **_build_scrollable_text_list()**: Substituído `ScrolledText` por `CTkTextbox`
 - ✅ **_render_lines_with_status_highlight()**: Atualizada para usar helper de compatibilidade
 - ✅ **Labels de estado vazio**: Corrigidos para usar `CTkLabel` (lbl_no_hot, lbl_no_tasks, etc.)
 - **Resultado**: Cards e seções do dashboard com aparência uniforme CTk
@@ -88,7 +88,7 @@ inner_widget.tag_configure(...)  # etc
 ## VALIDAÇÃO REALIZADA ✅
 1. ✅ **Compilação**: `python -m compileall -q src` - sem erros
 2. ✅ **Execução**: App inicia e maximiza corretamente
-3. ✅ **HUB Visual**: 
+3. ✅ **HUB Visual**:
    - Painel "Módulos" com botões CTkButton uniformes
    - "Anotações Compartilhadas" com CTkTextbox visual CTk
    - Dashboard com cards/labels consistentes

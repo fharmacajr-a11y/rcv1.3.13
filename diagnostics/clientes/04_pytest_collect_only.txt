@@ -462,4 +462,3 @@ tests/utils/test_prefs.py: 48
 tests/utils/test_text_utils.py: 25
 tests/utils/test_themes.py: 8
 tests/utils/test_typing_helpers.py: 6
-

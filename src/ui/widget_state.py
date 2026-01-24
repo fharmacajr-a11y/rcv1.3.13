@@ -1,7 +1,7 @@
 """Helper para gerenciar estados de widgets de forma compatível entre CTk e TTK.
 
 Resolve diferenças entre:
-- CTk widgets: usam .configure(state="normal"/"disabled") 
+- CTk widgets: usam .configure(state="normal"/"disabled")
 - TTK widgets: usam .state(["!disabled"]/["disabled"])
 - TK widgets: usam widget["state"] = "normal"/"disabled"
 """
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def set_enabled(widget: Any, enabled: bool, *, readonly: bool = False) -> None:
     """Define o estado de um widget de forma compatível entre CTk, TTK e TK.
-    
+
     Args:
         widget: Widget a ser configurado
         enabled: Se True, widget fica habilitado; se False, desabilitado
@@ -28,17 +28,17 @@ def set_enabled(widget: Any, enabled: bool, *, readonly: bool = False) -> None:
             target_state = "readonly"  # Só TTK suporta
         else:
             target_state = "normal"
-            
+
         # Tentar método .configure() primeiro (CTk e TK)
         try:
             widget.configure(state=target_state)
             return
         except (AttributeError, TypeError):
             pass
-            
+
         # Tentar método .state() do TTK
         try:
-            if hasattr(widget, 'state') and callable(widget.state):
+            if hasattr(widget, "state") and callable(widget.state):
                 if not enabled:
                     widget.state(["disabled"])
                 elif readonly:
@@ -48,17 +48,17 @@ def set_enabled(widget: Any, enabled: bool, *, readonly: bool = False) -> None:
                 return
         except (AttributeError, TypeError):
             pass
-            
+
         # Fallback: acesso direto via dict (TK antigo)
         try:
             widget["state"] = target_state
             return
         except (KeyError, TypeError):
             pass
-            
+
         # Se tudo falhar, log debug
         logger.debug(f"Não foi possível definir state para widget {type(widget)}")
-        
+
     except Exception as e:
         logger.debug(f"Erro ao definir state do widget {type(widget)}: {e}")
 

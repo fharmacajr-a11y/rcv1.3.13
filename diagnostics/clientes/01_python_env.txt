@@ -44,5 +44,3 @@ Arquivo: C:\Users\Pichau\AppData\Local\Programs\Python\Python313\Lib\site-packag
 
 Versão (__version__): 5.2.2
 Versão (metadata): 5.2.2
-
-

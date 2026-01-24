@@ -342,7 +342,7 @@ runs-on: ubuntu-latest   # ❌ Linux headless precisa Xvfb
    # Gerar relatórios separados
    - name: Unit coverage
      run: pytest tests/unit --cov=src --cov-report=json:coverage-unit.json
-   
+
    - name: Modules coverage
      run: pytest tests/modules --cov=src --cov-report=json:coverage-modules.json
    ```

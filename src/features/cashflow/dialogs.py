@@ -63,9 +63,11 @@ class EntryDialog(ctk.CTkToplevel):
             de = CTkDatePicker(frm, date_format="%Y-%m-%d")
             de.set(self.var_date.get())
             de.grid(row=1, column=1, sticky="ew", pady=2)
+
             # Bind para atualizar StringVar ao alterar data
             def on_date_change(event=None):
                 self.var_date.set(de.get())
+
             de.bind("<Return>", on_date_change)
             de.bind("<FocusOut>", on_date_change)
         else:

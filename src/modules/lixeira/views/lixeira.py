@@ -11,8 +11,7 @@ import tkinter as tk
 from tkinter import messagebox as tkmsg
 from typing import Any, Callable, Iterable, List, Optional, Tuple
 
-import customtkinter as ctk
-from src.ui.ctk_config import *
+from src.ui.ctk_config import ctk
 from src.ui.widgets import CTkTableView
 
 from src.modules.clientes.service import (
@@ -135,10 +134,16 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[ctk.CTkTo
     toolbar = ctk.CTkFrame(container)
     toolbar.pack(fill="x", pady=(8, 0))
 
-    btn_restore = ctk.CTkButton(toolbar, text="Restaurar Selecionados", fg_color=("#2E7D32", "#1B5E20"), hover_color=("#1B5E20", "#0D4A11"))
-    btn_purge = ctk.CTkButton(toolbar, text="Apagar Selecionados", fg_color=("#D32F2F", "#B71C1C"), hover_color=("#B71C1C", "#8B0000"))
+    btn_restore = ctk.CTkButton(
+        toolbar, text="Restaurar Selecionados", fg_color=("#2E7D32", "#1B5E20"), hover_color=("#1B5E20", "#0D4A11")
+    )
+    btn_purge = ctk.CTkButton(
+        toolbar, text="Apagar Selecionados", fg_color=("#D32F2F", "#B71C1C"), hover_color=("#B71C1C", "#8B0000")
+    )
     btn_refresh = ctk.CTkButton(toolbar, text="⟳", width=40)
-    btn_close = ctk.CTkButton(toolbar, text="Fechar", fg_color=("#757575", "#616161"), hover_color=("#616161", "#424242"), command=win.destroy)
+    btn_close = ctk.CTkButton(
+        toolbar, text="Fechar", fg_color=("#757575", "#616161"), hover_color=("#616161", "#424242"), command=win.destroy
+    )
 
     btn_restore.pack(side="left", padx=5)
     btn_purge.pack(side="left", padx=5)
@@ -253,16 +258,18 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[ctk.CTkTo
             if ultima_fmt and initial:
                 ultima_fmt = f"{ultima_fmt} ({initial})"
 
-            table_rows.append([
-                str(r_id),
-                razao_social,
-                cnpj,
-                nome,
-                whatsapp,
-                obs,
-                ultima_fmt,
-            ])
-        
+            table_rows.append(
+                [
+                    str(r_id),
+                    razao_social,
+                    cnpj,
+                    nome,
+                    whatsapp,
+                    obs,
+                    ultima_fmt,
+                ]
+            )
+
         tree.set_rows(table_rows)
         status.configure(text=f"{len(rows)} item(ns) na lixeira")
         log.info("Lixeira carregada com %d clientes", len(rows))

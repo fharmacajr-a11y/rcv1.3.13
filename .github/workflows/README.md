@@ -1,72 +1,124 @@
 # GitHub Actions Workflows - RC-Gestor
 
-Este diretório contém os workflows de CI/CD para o projeto RC-Gestor v1.0.29.
+Este diretório contém os workflows de CI/CD para o projeto RC-Gestor.
+
+**Última atualização:** FASE 6 (2026-01-24)
+
+---
 
 ## 📋 Workflows Disponíveis
 
-### 1. `ci.yml` - Test & Build Contínuo
+### 1. `ci.yml` - Test & Build Contínuo (FASE 6)
 
-**Trigger**: Push/PR na branch `maintenance/v1.0.29`
+**Trigger**:
+- Push em `main`, `develop`, `maintenance/**`, `feature/**`
+- Pull requests para `main`, `develop`
+- Workflow dispatch (manual)
+
+**Platforms**:
+- ✅ Windows (windows-latest)
+- ✅ Linux (ubuntu-latest, headless com Xvfb)
 
 **Jobs**:
-1. **test**: Executa pytest em todos os testes
-2. **build**: Cria o executável Windows com PyInstaller
+
+#### Job: `test` (Windows)
+1. ✅ Checkout com histórico completo
+2. ✅ Setup Python 3.13 com cache de pip
+3. ✅ Instalação de dependências
+4. ✅ Verificação de encoding UTF-8
+5. ✅ Pre-commit hooks (all-files)
+6. ✅ Bandit security scan
+7. ✅ Validação de sintaxe (compileall)
+8. ✅ Validação de política UI/Theme
+9. ✅ Smoke test UI
+10. ✅ Suite ClientesV2 (113 testes - gate de qualidade)
+11. ✅ Suite completa com coverage
+12. ✅ Upload de artefatos
+
+#### Job: `test-linux` (Ubuntu)
+- Mesmos steps do Windows
+- Testes rodando em modo headless (Xvfb)
+
+**Encoding UTF-8 (Windows)**:
+```yaml
+env:
+  PYTHONUTF8: 1              # PEP 540
+  PYTHONIOENCODING: utf-8    # Force UTF-8 em stdio
+```
 
 **Artefatos gerados**:
-- `pytest-report` (7 dias de retenção)
-- `RC-Gestor-v1.0.29.zip` (30 dias de retenção)
-
-**Verificações de segurança**:
-- ✅ Busca recursiva por `.env` no bundle
-- ✅ Validação do executável criado
+- `pytest-report-windows` (7 dias)
+- `pytest-report-linux` (7 dias)
+- `coverage-report` (7 dias, Ubuntu only)
 
 **Como usar**:
 ```bash
-# Push para a branch dispara automaticamente
-git push origin maintenance/v1.0.29
+# Push para branch dispara automaticamente
+git push origin develop
 
 # Ou via workflow_dispatch no GitHub UI
 ```
 
-**Acessar artefatos**:
-1. Vá para: `Actions` > `RC - test & build` > Run específico
-2. Na seção `Artifacts`, baixe `RC-Gestor-v1.0.29.zip`
+**Tempo médio**: 8-10min (Windows), 7-9min (Linux)
 
 ---
 
-### 2. `release.yml` - Release Automatizada
+### 2. `release.yml` - Release Automatizada (FASE 6)
 
-**Trigger**: Push de tags `v*`
+**Trigger**:
+- Push de tags `v*`
+- Workflow dispatch (manual)
 
-**Jobs**:
-1. **release**: Testa, builda e cria GitHub Release
+**Platform**: Windows (windows-latest)
+
+**Steps de Validação** (antes do build):
+1. ✅ Pre-commit hooks (all-files)
+2. ✅ Bandit security scan
+3. ✅ Suite ClientesV2 (gate de qualidade)
+4. ✅ Quick test suite
+
+**Steps de Build**:
+1. ✅ PyInstaller build (`rc_gestor.spec`)
+2. ✅ Verificação de executável
+3. ✅ Check de segurança (.env não deve estar no bundle)
+4. ✅ Compactação em ZIP
+5. ✅ Geração de checksum SHA256
+6. ✅ Criação de GitHub Release
 
 **Artefatos publicados na Release**:
-- `RC-Gestor-{version}.zip` - Build completo
+- `RC-Gestor-{version}.zip` - Build completo Windows
 - `RC-Gestor-{version}.zip.sha256` - Checksum SHA256
+- `docs/FASE_5_RELEASE.md` - Documentação da release
 
-**Como usar**:
+**Como usar (Tag Anotada)**:
 ```bash
-# Criar e enviar tag
-git tag v1.0.29
-git push origin v1.0.29
+# Criar tag anotada (RECOMENDADO)
+git tag -a v1.5.63 -m "Release v1.5.63 - FASE 6 CI/CD"
+git push origin v1.5.63
 
-# Ou criar tag anotada
-git tag -a v1.0.29 -m "Release v1.0.29"
-git push origin v1.0.29
+# Tag simples (também funciona)
+git tag v1.5.63
+git push origin v1.5.63
 ```
 
 **Resultado**:
-- Release criada automaticamente em: `Releases` > `v1.0.29`
-- ZIP anexado como asset da release
-- Changelog gerado automaticamente
+- Release criada automaticamente em: `Releases` > `v1.5.63`
+- ZIP e documentação anexados como assets
+- Changelog e instruções incluídas
 
 **Verificação de integridade**:
 ```powershell
 # Windows (PowerShell)
-(Get-FileHash RC-Gestor-v1.0.29.zip -Algorithm SHA256).Hash
+(Get-FileHash RC-Gestor-v1.5.63.zip -Algorithm SHA256).Hash
 
-# Comparar com o conteúdo de RC-Gestor-v1.0.29.zip.sha256
+# Comparar com o conteúdo de RC-Gestor-v1.5.63.zip.sha256
+```
+
+**Encoding UTF-8**:
+```yaml
+env:
+  PYTHONUTF8: 1
+  PYTHONIOENCODING: utf-8
 ```
 
 ---

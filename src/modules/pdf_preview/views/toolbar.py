@@ -62,6 +62,7 @@ class PdfToolbar(ctk.CTkFrame):
         # Se callback não fornecido, desabilita botão
         if on_open_converter is None:
             from src.ui.widget_state import set_disabled
+
             set_disabled(self.btn_converter)
 
     def _handle_toggle_text(self) -> None:

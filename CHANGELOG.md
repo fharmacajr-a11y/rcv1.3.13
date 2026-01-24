@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.62] - 2026-01-24 - FASE 6: CI/CD + Staging
+
+### Added
+- **[CI/CD]**: Workflow de CI completo (`.github/workflows/ci.yml`)
+  - Suporte a Windows e Linux (Ubuntu)
+  - Encoding UTF-8 configurado via `PYTHONUTF8=1` e `PYTHONIOENCODING=utf-8`
+  - Pre-commit hooks rodando em all-files
+  - Bandit security scan integrado
+  - Suite ClientesV2 (113 testes) como gate de qualidade
+  - Coverage reports como artefatos
+
+- **[CI/CD]**: Workflow de Release automatizada (`.github/workflows/release.yml`)
+  - Trigger via tags anotadas (`v*`)
+  - Validação completa antes do build (pre-commit + Bandit + testes)
+  - Geração de checksum SHA256
+  - Anexa documentação (FASE_5_RELEASE.md) como asset
+  - Instruções para tags anotadas na release
+
+- **[DOCS]**: Checklist de Staging (`docs/STAGING_CHECKLIST.md`)
+  - Roteiro de smoke test manual para módulo ClientesV2
+  - Cobre CRUD, funcionalidades auxiliares, estabilidade e interface
+  - Modelo de registro de evidências
+  - Critérios de aprovação e fluxo de falha
+
+- **[DOCS]**: Documentação completa da FASE 6 (`docs/FASE_6_CI_RELEASE.md`)
+  - Objetivos, implementação e resultados
+  - Configurações técnicas de UTF-8
+  - Comandos úteis para tags e validação local
+  - Próximos passos (FASE 7)
+
+### Changed
+- **[CI]**: Atualizado `.github/workflows/ci.yml` com melhorias da FASE 6
+  - Adicionado step de verificação de encoding
+  - Pre-commit e Bandit integrados antes dos testes
+  - Suite ClientesV2 executada antes da suite completa
+
+- **[RELEASE]**: Atualizado `.github/workflows/release.yml` com melhorias da FASE 6
+  - Corrigido caminho do PyInstaller spec (`rcgestor.spec` vs `build/rc_gestor.spec`)
+  - Adicionada validação completa antes do build
+  - Melhorada documentação na release body
+
+- **[DOCS]**: Atualizado `.github/workflows/README.md` com informações da FASE 6
+
+### Fixed
+- **[ENCODING]**: Resolvido definitivamente UnicodeEncodeError no Windows
+  - Três camadas de proteção: env vars, flag `-X utf8`, verificação diagnóstica
+  - Bandit roda com `python -X utf8 -m bandit` no Windows
+
 ## [1.5.40] - 2025-01-03
 
 ### Changed

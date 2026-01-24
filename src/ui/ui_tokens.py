@@ -10,7 +10,7 @@ Conceito-chave do CustomTkinter:
 
 Uso:
     from src.ui.ui_tokens import APP_BG, SURFACE, BORDER, SEP
-    
+
     # Frame com cantos arredondados sobre fundo APP_BG
     card = ctk.CTkFrame(
         parent,

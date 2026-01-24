@@ -18,8 +18,7 @@ from datetime import date
 from tkinter import messagebox
 from typing import Any, Literal, Sequence
 
-from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
-import tkinter as tk
+from src.ui.ctk_config import ctk
 
 
 from src.utils.formatters import format_cnpj

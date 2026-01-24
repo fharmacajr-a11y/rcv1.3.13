@@ -135,7 +135,7 @@ CTkButton(parent, bootstyle="primary")   # Silently ignored
 frame = CTkFrame(parent)
 frame.pack(padx=10, pady=5)             # Padding via geometry manager
 
-combo = CTkComboBox(parent, values=[])   
+combo = CTkComboBox(parent, values=[])  
 combo.set("value")                      # Direct value management
 
 button = CTkButton(parent, text="OK")   # Clean CTk styling

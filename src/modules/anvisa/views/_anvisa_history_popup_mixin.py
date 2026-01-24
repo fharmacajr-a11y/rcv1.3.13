@@ -6,8 +6,7 @@ import logging
 import tkinter as tk
 from typing import Any
 
-import customtkinter as ctk
-from src.ui.ctk_config import *
+from src.ui.ctk_config import ctk
 from src.ui.widgets import CTkTableView
 
 from src.ui.window_utils import (
@@ -130,7 +129,9 @@ class AnvisaHistoryPopupMixin:
         self._history_tree_popup.bind("<Delete>", _handle_delete_key_popup)  # type: ignore[attr-defined]
 
         # Painel de detalhes (Prazo + Observações)
-        details_frame = ctk.CTkFrame(main_frame)  # TODO: text="Detalhes" -> usar CTkLabel separado  # TODO: padding=10 -> usar padx/pady no pack/grid
+        details_frame = ctk.CTkFrame(
+            main_frame
+        )  # TODO: text="Detalhes" -> usar CTkLabel separado  # TODO: padding=10 -> usar padx/pady no pack/grid
         details_frame.pack(fill="x", pady=(0, 10))
         details_frame.columnconfigure(1, weight=1)
 

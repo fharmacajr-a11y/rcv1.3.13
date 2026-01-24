@@ -1,10 +1,9 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING
 import tkinter as _tk
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-    from typing import Any, TypeAlias
+    from typing import TypeAlias
 
 Anchor: TypeAlias = _tk._Anchor
 Color: TypeAlias = str | tuple[str, str]

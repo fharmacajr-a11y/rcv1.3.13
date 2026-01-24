@@ -1,15 +1,15 @@
-from __future__ import annotations
-
-from src.ui.ctk_config import ctk
-
 # -*- coding: utf-8 -*-
 """
 Dialogo simples para definir subpastas de clientes.
 """
 
+from __future__ import annotations
+
 import logging
 import tkinter as tk
 from typing import Optional
+
+from src.ui.ctk_config import ctk
 
 from src.utils.subfolders import sanitize_subfolder_name
 from src.ui.window_utils import show_centered
