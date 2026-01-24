@@ -171,7 +171,6 @@ def _show_main(app: Any) -> Any:
     
     app._main_loaded = True
     # ClientesV2 carrega automaticamente na inicialização
-        log.exception("Erro ao carregar lista na tela principal.")
     return frame
 
 
