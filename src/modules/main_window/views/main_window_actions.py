@@ -888,13 +888,13 @@ def refresh_current_view(app: App) -> None:
 
 def main_screen_frame(app: App):
     """Retorna o frame da tela principal de clientes, se disponível."""
-    from src.modules.clientes import ClientesFrame
+    from src.modules.clientes_v2 import ClientesV2Frame
 
     frame = getattr(app, "_main_frame_ref", None)
-    if isinstance(frame, ClientesFrame):
+    if isinstance(frame, ClientesV2Frame):
         return frame
     current = app.nav.current()
-    if isinstance(current, ClientesFrame):
+    if isinstance(current, ClientesV2Frame):
         app._main_frame_ref = current
         return current
     return None

@@ -106,7 +106,7 @@ from src.modules.main_window.views.state_helpers import (
     combine_status_display,
 )
 from src.modules.notas import HubFrame
-from src.modules.clientes import ClientesFrame
+from src.modules.clientes_v2 import ClientesV2Frame
 from src.modules.chatgpt.views.chatgpt_window import ChatGPTWindow
 from src.modules.main_window.controller import create_frame, tk_report
 from src.modules.main_window.session_service import SessionCache
@@ -284,7 +284,7 @@ class App(ctk.CTk if HAS_CUSTOMTKINTER else tk.Tk):  # type: ignore[misc]
 
         return actions.update_topbar_state(self, frame_or_cls)
 
-    def _main_screen_frame(self) -> Optional[ClientesFrame]:
+    def _main_screen_frame(self) -> Optional["ClientesV2Frame"]:
         """Retorna frame da tela de clientes (wrapper para main_window_actions)."""
         from . import main_window_actions as actions
 

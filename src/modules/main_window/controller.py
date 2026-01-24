@@ -160,28 +160,17 @@ def _show_hub(app: Any) -> Any:
 
 
 def _show_main(app: Any) -> Any:
-    from src.modules.clientes import ClientesFrame, DEFAULT_ORDER_LABEL, ORDER_CHOICES
+    from src.modules.clientes_v2 import ClientesV2Frame
 
-    frame = app.show_frame(
-        ClientesFrame,
-        app=app,
-        on_new=app.novo_cliente,
-        on_edit=app.editar_cliente,
-        on_delete=app._excluir_cliente,
-        on_upload=app.enviar_para_supabase,
-        on_open_subpastas=app.open_client_storage_subfolders,
-        on_open_lixeira=app.abrir_lixeira,
-        on_obrigacoes=app.abrir_obrigacoes_cliente,
-        order_choices=ORDER_CHOICES,
-        default_order_label=DEFAULT_ORDER_LABEL,
-        on_upload_folder=app.enviar_pasta_supabase,
-    )
-    if isinstance(frame, ClientesFrame):
+    # ClientesV2 não precisa de todos esses callbacks (auto-contido)
+    frame = app.show_frame(ClientesV2Frame)
+    
+    if isinstance(frame, ClientesV2Frame):
         app._main_frame_ref = frame
+        app.force_redraw = getattr(frame, 'force_redraw', None)
+    
     app._main_loaded = True
-    try:
-        frame.carregar()
-    except Exception:
+    # ClientesV2 carrega automaticamente na inicialização
         log.exception("Erro ao carregar lista na tela principal.")
     return frame
 
