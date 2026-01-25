@@ -169,10 +169,11 @@ def bind_treeview_to_theme_changes(
     *,
     style_name: Optional[str] = None,
 ) -> None:
-    """Vincula Treeview ao theme_manager para re-aplicar tema ao alternar.
+    """Vincula Treeview ao theme_manager com cleanup em <Destroy>.
 
     Registra callback no theme_manager para atualizar o Treeview automaticamente
-    quando o usuário alterna entre Light/Dark.
+    quando o usuário alterna entre Light/Dark. Ao destruir o widget, o callback
+    é automaticamente desregistrado para evitar memory leaks.
 
     Args:
         tree: Widget ttk.Treeview
@@ -205,6 +206,18 @@ def bind_treeview_to_theme_changes(
 
     theme_manager.register_callback(on_theme_change)
     log.debug("Treeview vinculado ao theme_manager com callback")
+
+    # Cleanup automático ao destruir widget
+    def on_destroy(event: Any) -> None:
+        """Desregistra callback ao destruir widget."""
+        if event.widget is tree:
+            try:
+                theme_manager.unregister_callback(on_theme_change)
+                log.debug("Callback de Treeview desregistrado no <Destroy>")
+            except Exception:
+                pass
+
+    tree.bind("<Destroy>", on_destroy, add="+")
 
 
 # ==================== SCROLLBAR ====================
