@@ -45,7 +45,7 @@ wheels/
 
 # Logs
 *.log
-logs/
+/logs/
 
 # OS
 .DS_Store
@@ -112,7 +112,5 @@ assets/*.tmp
 # ════════════════════════════════════════════════════════════════════════
 # EXCEÇÕES: Código válido que não deve ser ignorado
 # ════════════════════════════════════════════════════════════════════════
-# src/core/logs/ é módulo de código (não logs de runtime)
-# Ref: Issue #7 - Foi necessário git add -f após bloqueio por regra logs/
-!src/core/logs/
-!src/core/logs/**
+# NOTA: Regra /logs/ (linha 48) agora usa / prefixo para ignorar apenas raiz
+#       src/core/logs/ e tests/core/logs/ são automaticamente permitidos
