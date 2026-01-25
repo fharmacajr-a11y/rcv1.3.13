@@ -232,12 +232,50 @@ def resolve_effective_mode(mode: ThemeMode) -> Literal["light", "dark"]:
 
 
 class GlobalThemeManager:
-    """Gerenciador global de temas CustomTkinter."""
+    """Gerenciador global de temas CustomTkinter com suporte a callbacks."""
 
     def __init__(self) -> None:
         """Inicializa o gerenciador de temas."""
         self._initialized = False
         self._master_ref: Optional[tk.Misc] = None  # type: ignore[name-defined]
+        self._callbacks: list[callable] = []  # Callbacks para theme change
+
+    def register_callback(self, callback: callable) -> None:
+        """Registra callback a ser chamado ao alternar tema.
+
+        Args:
+            callback: Função chamada com signature: callback(mode: Literal["Light", "Dark"])
+
+        Example:
+            >>> def on_theme_change(mode):
+            ...     print(f"Theme changed to {mode}")
+            >>> theme_manager.register_callback(on_theme_change)
+        """
+        if callback not in self._callbacks:
+            self._callbacks.append(callback)
+            log.debug(f"Callback registrado: {callback.__name__}")
+
+    def unregister_callback(self, callback: callable) -> None:
+        """Remove callback da lista de notificações.
+
+        Args:
+            callback: Função previamente registrada
+        """
+        if callback in self._callbacks:
+            self._callbacks.remove(callback)
+            log.debug(f"Callback removido: {callback.__name__}")
+
+    def _notify_callbacks(self, mode: Literal["Light", "Dark"]) -> None:
+        """Notifica todos os callbacks registrados sobre mudança de tema.
+
+        Args:
+            mode: Novo modo de aparência ("Light" ou "Dark")
+        """
+        for callback in self._callbacks:
+            try:
+                callback(mode)
+            except Exception:
+                log.exception(f"Erro ao executar callback {callback.__name__}")
 
     def set_master(self, master: tk.Misc) -> None:  # type: ignore[name-defined]
         """Define a janela master para aplicar temas CTk.
@@ -288,7 +326,14 @@ class GlobalThemeManager:
         Returns:
             Novo modo de aparência
         """
-        return toggle_appearance_mode()
+        new_mode = toggle_appearance_mode()
+
+        # Notificar callbacks (mapeando para "Light"/"Dark")
+        mode_map = {"light": "Light", "dark": "Dark"}
+        ctk_mode = mode_map.get(new_mode, "Light")
+        self._notify_callbacks(ctk_mode)
+
+        return new_mode
 
     def set_mode(self, mode: ThemeMode) -> None:
         """Define modo de aparência.
@@ -302,8 +347,12 @@ class GlobalThemeManager:
         if HAS_CUSTOMTKINTER and ctk is not None:
             try:
                 ctk_mode_map = {"light": "Light", "dark": "Dark"}
-                ctk.set_appearance_mode(ctk_mode_map[mode])
+                ctk_mode = ctk_mode_map[mode]
+                ctk.set_appearance_mode(ctk_mode)
                 log.info(f"Modo de aparência definido: {mode}")
+
+                # Notificar callbacks
+                self._notify_callbacks(ctk_mode)
             except Exception:
                 log.exception("Falha ao definir appearance mode")
 
