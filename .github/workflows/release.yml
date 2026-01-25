@@ -5,6 +5,9 @@ on:
     tags: ['v*']
   workflow_dispatch:
 
+permissions:
+  contents: write  # Necessário para criar releases e fazer upload de assets
+
 jobs:
   release:
     runs-on: windows-latest
