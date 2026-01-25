@@ -124,11 +124,9 @@ def check_ttk_style_without_master(files: list[Path], src_dir: Path) -> list[Vio
     # Regex: ttk.Style() sem argumentos (ou apenas whitespace antes do parênteses)
     pattern = re.compile(r"\bttk\.Style\s*\(\s*\)")
 
-    # Permitir ttk_compat.py (arquivo de ajuste, tem docstrings que mencionam a API)
-    # Permitir tree_theme.py (aplica tema global, não tem widget master disponível)
+    # Permitir ttk_compat.py (módulo de helpers para ttk, menções em docstrings)
     allowed_files = {
         src_dir / "ui" / "ttk_compat.py",
-        src_dir / "modules" / "clientes_v2" / "tree_theme.py",
     }
 
     for file in files:
@@ -253,7 +251,7 @@ def check_ttk_widgets(files: list[Path], src_dir: Path) -> list[Violation]:
     # Permitir arquivos específicos que têm Treeview legado
     allowed_files = {
         src_dir / "ui" / "components" / "lists.py",  # Treeview legado em create_clients_treeview
-        src_dir / "ui" / "ttk_compat.py",  # Funções de compatibilidade
+        src_dir / "ui" / "ttk_compat.py",  # Funções de compatibilidade (MICROFASE 36)
         src_dir / "ui" / "widgets" / "ctk_treeview.py",  # Comentários sobre API
         src_dir / "ui" / "widgets" / "ctk_tableview.py",  # Comentários sobre API
         src_dir / "ui" / "widgets" / "ctk_splitpane.py",  # Comentários sobre API
@@ -261,6 +259,7 @@ def check_ttk_widgets(files: list[Path], src_dir: Path) -> list[Violation]:
         src_dir / "ui" / "menu_bar.py",  # Comentário histórico
         src_dir / "ui" / "ctk_audit.py",  # Ferramenta de auditoria (patterns como strings)
         src_dir / "modules" / "clientes_v2" / "view.py",  # Treeview legado em lista de clientes
+        src_dir / "modules" / "clientes_v2" / "tree_theme.py",  # Helper de tema (MICROFASE 36)
     }
 
     for file in files:
@@ -326,6 +325,7 @@ def check_ttk_in_comments(files: list[Path]) -> list[Violation]:
     whitelist = [
         Path("src/third_party/ctktreeview/treeview.py"),
         Path("src/ui/ctk_audit.py"),  # Ferramenta de auditoria (patterns como strings)
+        Path("src/ui/ttk_compat.py"),  # Módulo de compatibilidade ttk (MICROFASE 36)
         Path("src/modules/clientes_v2/view.py"),  # Comentários de migração legados
         Path("src/modules/clientes_v2/tree_theme.py"),  # Helper de tema ttk.Treeview legado
         Path("src/modules/clientes_v2/__init__.py"),  # Documentação de FASE (histórico)

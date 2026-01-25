@@ -132,9 +132,6 @@ class ClientesV2Frame(ctk.CTkFrame):
         except Exception:
             self.current_mode = "Light"
 
-        # Aplicar tema ttk ANTES de criar a Treeview
-        even_bg, odd_bg, fg, heading_bg, heading_fg = apply_clients_v2_treeview_theme(self.current_mode)
-
         # Criar Treeview usando ttk direto (sem wrapper que possa interferir)
         # FASE C: Adicionar colunas observacoes e ultima_alteracao
         columns = ("id", "razao_social", "cnpj", "nome", "whatsapp", "status", "observacoes", "ultima_alteracao")
@@ -145,6 +142,11 @@ class ClientesV2Frame(ctk.CTkFrame):
             show="headings",
             selectmode="browse",
             style="RC.ClientesV2.Treeview",  # Style customizado
+        )
+
+        # Aplicar tema ttk APÓS criar o Treeview (MICROFASE 36: refatorado para passar tree)
+        even_bg, odd_bg, fg, heading_bg, heading_fg = apply_clients_v2_treeview_theme(
+            self.current_mode, self.tree, master=parent
         )
 
         # Configurar headings
