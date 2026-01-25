@@ -108,3 +108,11 @@ exports/*.7z
 # Note: assets/modulos/hub/ e assets/notificacoes/ são versionados pois necessários
 assets/temp/
 assets/*.tmp
+
+# ════════════════════════════════════════════════════════════════════════
+# EXCEÇÕES: Código válido que não deve ser ignorado
+# ════════════════════════════════════════════════════════════════════════
+# src/core/logs/ é módulo de código (não logs de runtime)
+# Ref: Issue #7 - Foi necessário git add -f após bloqueio por regra logs/
+!src/core/logs/
+!src/core/logs/**
