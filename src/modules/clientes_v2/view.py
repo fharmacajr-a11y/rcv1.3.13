@@ -13,9 +13,14 @@ from typing import Any, Optional, List
 
 from src.ui.ctk_config import ctk
 from src.ui.ui_tokens import APP_BG, SURFACE, SURFACE_DARK, TEXT_PRIMARY, BORDER
+from src.ui.ttk_compat import bind_treeview_to_theme_changes
 from src.modules.clientes_v2.views.toolbar import ClientesV2Toolbar
 from src.modules.clientes_v2.views.actionbar import ClientesV2ActionBar
-from src.modules.clientes_v2.tree_theme import apply_clients_v2_treeview_theme, apply_treeview_zebra_tags
+from src.modules.clientes_v2.tree_theme import (
+    apply_clients_v2_treeview_theme,
+    apply_treeview_zebra_tags,
+    get_treeview_zebra_colors,
+)
 
 # Importar ViewModel e dados reais do legacy
 from src.modules.clientes.viewmodel import ClientesViewModel, ClienteRow
@@ -185,6 +190,26 @@ class ClientesV2Frame(ctk.CTkFrame):
         # Guardar referência ao widget ttk interno
         self.tree_widget = self.tree
 
+        # Vinculação automática ao theme_manager (BASELINE CODEC)
+        try:
+            from src.ui.theme_manager import theme_manager
+
+            bind_treeview_to_theme_changes(self.tree, theme_manager, style_name="RC.ClientesV2.Treeview")
+            log.info("✅ [ClientesV2] Treeview vinculada ao theme_manager via ttk_compat")
+        except Exception as exc:
+            log.warning(f"[ClientesV2] Falha ao vincular Treeview ao theme_manager: {exc}")
+
+        # Cleanup: desregistrar callback quando widget for destruído
+        def on_tree_destroy(event: Any = None) -> None:
+            try:
+                # O callback será automaticamente limpo pelo theme_manager
+                # quando detectar que o widget não existe mais
+                log.debug("[ClientesV2] Treeview destruída, callbacks serão limpos")
+            except Exception:
+                pass
+
+        self.tree.bind("<Destroy>", on_tree_destroy, add="+")
+
         # Binds para seleção e atalhos
         self.tree.bind("<<TreeviewSelect>>", self._on_tree_select)
 
@@ -204,23 +229,12 @@ class ClientesV2Frame(ctk.CTkFrame):
         """Força redraw leve da Treeview (sem recarregar dados).
 
         FASE 3.3: Chamado no restore da janela para eliminar tela preta.
-        Apenas reaplicar style + zebra, sem I/O.
+        BASELINE CODEC: Tema agora é aplicado via ttk_compat, apenas forçar update.
         """
         if not self.tree_widget:
             return
 
-        try:
-            mode = ctk.get_appearance_mode()
-        except AttributeError:
-            mode = "Light"
-
-        # Reaplicar style ttk
-        even_bg, odd_bg, fg, _, _ = apply_clients_v2_treeview_theme(mode)
-
-        # Reaplicar zebra tags
-        apply_treeview_zebra_tags(self.tree_widget, even_bg, odd_bg, fg)
-
-        # Forçar update
+        # Apenas forçar update - tema é gerenciado automaticamente por ttk_compat
         self.tree_widget.update_idletasks()
 
         log.debug("[ClientesV2] force_redraw() completo")
@@ -386,6 +400,7 @@ class ClientesV2Frame(ctk.CTkFrame):
         """Handler quando tema muda - OTIMIZADO (sem rebuild).
 
         FASE B: Guard de modo duplicado para evitar double apply.
+        BASELINE CODEC: Treeview agora é atualizada automaticamente via ttk_compat.
         """
         try:
             if not self.winfo_exists():
@@ -398,10 +413,8 @@ class ClientesV2Frame(ctk.CTkFrame):
             self.current_mode = new_mode
             self._last_applied_mode = new_mode
 
-            # APENAS reaplicar style + zebra (SEM rebuild)
-            if self.tree_widget:
-                even_bg, odd_bg, fg, _, _ = apply_clients_v2_treeview_theme(new_mode)
-                apply_treeview_zebra_tags(self.tree_widget, even_bg, odd_bg, fg)
+            # Treeview agora é atualizada automaticamente via bind_treeview_to_theme_changes
+            # (aplicada em _create_treeview). Apenas atualizar toolbar e actionbar aqui.
 
             # Atualizar toolbar e actionbar
             if hasattr(self, "toolbar") and self.toolbar:
@@ -633,7 +646,7 @@ class ClientesV2Frame(ctk.CTkFrame):
 
         # Apenas aplicar tema se mudou (otimização)
         if self._cached_theme_mode != mode or not self._cached_theme_colors:
-            even_bg, odd_bg, fg, _, _ = apply_clients_v2_treeview_theme(mode)
+            even_bg, odd_bg, fg, _, _ = get_treeview_zebra_colors(mode)
             self._cached_theme_colors = (even_bg, odd_bg, fg)
             self._cached_theme_mode = mode
         else:
@@ -687,7 +700,7 @@ class ClientesV2Frame(ctk.CTkFrame):
 
         # Apenas aplicar tema se mudou (otimização)
         if self._cached_theme_mode != mode or not self._cached_theme_colors:
-            even_bg, odd_bg, fg, _, _ = apply_clients_v2_treeview_theme(mode)
+            even_bg, odd_bg, fg, _, _ = get_treeview_zebra_colors(mode)
             self._cached_theme_colors = (even_bg, odd_bg, fg)
             self._cached_theme_mode = mode
         else:

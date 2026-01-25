@@ -1,0 +1,15 @@
+﻿Release v1.5.63 - CI green + Windows UTF-8 safe
+
+## Conteúdo
+- Hotfix GUI: import ctk seguro + BaseApp fallback
+- Hotfix GUI: ClientesV2Frame instanciado com master corretamente
+- Hotfix CI: CTkTable ajustado para versão disponível
+
+## Validações
+- pre-commit: PASS
+- bandit: PASS
+- pytest clientes_v2: PASS
+- CI: PASS (Windows/Linux)
+
+## Observação importante
+Esta release é gerada a partir da branch refatorada (refactor/estrutura-pdf-v1.5.35) devido a divergência estrutural com main (merge bloqueado).

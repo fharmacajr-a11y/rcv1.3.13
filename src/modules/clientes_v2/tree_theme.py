@@ -19,6 +19,21 @@ from src.ui.ttk_compat import apply_treeview_theme
 log = logging.getLogger(__name__)
 
 
+def get_treeview_zebra_colors(mode: Literal["Light", "Dark"]) -> tuple[str, str, str, str, str]:
+    """Retorna cores para tags zebra baseadas no modo.
+
+    Args:
+        mode: "Light" ou "Dark"
+
+    Returns:
+        Tupla (even_bg, odd_bg, fg, heading_bg, heading_fg)
+    """
+    if mode == "Dark":
+        return "#2b2b2b", "#1e1e1e", "#ffffff", "#1a1a1a", "#ffffff"
+    else:  # Light
+        return "#ffffff", "#f0f0f0", "#000000", "#e5e7eb", "#000000"
+
+
 def apply_clients_v2_treeview_theme(
     mode: Literal["Light", "Dark"],
     tree: ttk.Treeview,
@@ -48,10 +63,7 @@ def apply_clients_v2_treeview_theme(
     )
 
     # Retornar cores para tags zebra (compatibilidade com código existente)
-    if mode == "Dark":
-        return "#2b2b2b", "#1e1e1e", "#ffffff", "#1a1a1a", "#ffffff"
-    else:  # Light
-        return "#ffffff", "#f0f0f0", "#000000", "#e5e7eb", "#000000"
+    return get_treeview_zebra_colors(mode)
 
 
 def apply_treeview_zebra_tags(tree: Any, even_bg: str, odd_bg: str, fg: str) -> None:

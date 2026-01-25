@@ -8,7 +8,7 @@ BASELINE: Respeita fallback de CustomTkinter (skip se não disponível).
 from __future__ import annotations
 
 import tkinter as tk
-from datetime import date, datetime
+from datetime import date
 
 import pytest
 
