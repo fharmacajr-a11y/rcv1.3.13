@@ -13,7 +13,7 @@ from typing import Any, Optional, List
 
 from src.ui.ctk_config import ctk
 from src.ui.ui_tokens import APP_BG, SURFACE, SURFACE_DARK, TEXT_PRIMARY, BORDER
-from src.ui.ttk_compat import bind_treeview_to_theme_changes
+from src.ui.ttk_compat import bind_treeview_to_theme_changes, bind_scrollbar_to_theme_changes
 from src.modules.clientes_v2.views.toolbar import ClientesV2Toolbar
 from src.modules.clientes_v2.views.actionbar import ClientesV2ActionBar
 from src.modules.clientes_v2.tree_theme import (
@@ -195,20 +195,10 @@ class ClientesV2Frame(ctk.CTkFrame):
             from src.ui.theme_manager import theme_manager
 
             bind_treeview_to_theme_changes(self.tree, theme_manager, style_name="RC.ClientesV2.Treeview")
-            log.info("✅ [ClientesV2] Treeview vinculada ao theme_manager via ttk_compat")
+            bind_scrollbar_to_theme_changes(scrollbar, theme_manager)
+            log.info("✅ [ClientesV2] Treeview e Scrollbar vinculados ao theme_manager")
         except Exception as exc:
-            log.warning(f"[ClientesV2] Falha ao vincular Treeview ao theme_manager: {exc}")
-
-        # Cleanup: desregistrar callback quando widget for destruído
-        def on_tree_destroy(event: Any = None) -> None:
-            try:
-                # O callback será automaticamente limpo pelo theme_manager
-                # quando detectar que o widget não existe mais
-                log.debug("[ClientesV2] Treeview destruída, callbacks serão limpos")
-            except Exception:
-                pass
-
-        self.tree.bind("<Destroy>", on_tree_destroy, add="+")
+            log.warning(f"[ClientesV2] Falha ao vincular widgets ao theme_manager: {exc}")
 
         # Binds para seleção e atalhos
         self.tree.bind("<<TreeviewSelect>>", self._on_tree_select)
