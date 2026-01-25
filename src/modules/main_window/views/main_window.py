@@ -93,7 +93,7 @@ import tkinter as tk
 from typing import Any, Callable, Optional
 
 # CustomTkinter: fonte única centralizada (Microfase 23 - SSoT)
-from src.ui.ctk_config import HAS_CUSTOMTKINTER
+from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
 
 # Importar novo theme_manager (Microfase 24)
 from src.ui.theme_manager import theme_manager as global_theme_manager
@@ -117,8 +117,11 @@ NO_FS = os.getenv("RC_NO_LOCAL_FS") == "1"
 logger = logging.getLogger("app_gui")
 log = logger
 
+# Define base class segura
+BaseApp = ctk.CTk if (HAS_CUSTOMTKINTER and ctk is not None) else tk.Tk
 
-class App(ctk.CTk if HAS_CUSTOMTKINTER else tk.Tk):  # type: ignore[misc]
+
+class App(BaseApp):  # type: ignore[misc]
     """Main application window using CustomTkinter as primary theme system.
 
     MICROFASE 24: Migração para CustomTkinter como tema principal.
