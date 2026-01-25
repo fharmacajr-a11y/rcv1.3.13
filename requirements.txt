@@ -14,7 +14,7 @@ sv_ttk>=2.6.1             # Tema Sun Valley para ttk
 tkinterweb>=4.4.4         # Navegador web embarcado (preview)
 tkinterweb-tkhtml>=1.1.4  # Renderizador HTML para tkinterweb
 customtkinter>=5.2.0      # UI moderna com suporte a temas light/dark
-CTkTable>=1.2             # Tabelas para CustomTkinter (substitui ttk.Treeview)
+CTkTable>=1.1             # Tabelas para CustomTkinter (substitui ttk.Treeview)
 
 # CTkTreeview: VENDORIZADO em src/third_party/ctktreeview/ (MICROFASE 32)
 # Motivo: Remover dependência icecream (debug tool) de produção
