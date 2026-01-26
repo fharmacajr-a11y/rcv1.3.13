@@ -128,10 +128,24 @@ def apply_online_state(app: App, is_online: Optional[bool]) -> None:
     )
     app._connectivity_state = new_state
 
-    # Atualizar UI de clientes
+    # Atualizar UI de clientes (fallback seguro para frames que não implementam o método)
     frame = app._main_screen_frame()
     if frame:
-        frame._update_main_buttons_state()
+        # P0 #3: Usar hasattr para compatibilidade com ClientesV2Frame e outros frames
+        if hasattr(frame, "_update_main_buttons_state"):
+            try:
+                frame._update_main_buttons_state()
+            except Exception as exc:  # noqa: BLE001
+                log.warning(
+                    "Falha ao atualizar estado dos botões do frame %s: %s",
+                    type(frame).__name__,
+                    exc,
+                )
+        else:
+            log.debug(
+                "Frame %s não implementa _update_main_buttons_state (ok para ClientesV2)",
+                type(frame).__name__,
+            )
 
     # Verificar se deve mostrar alerta usando helper
     if should_show_offline_alert(was_online, new_state.is_online, new_state.offline_alerted):

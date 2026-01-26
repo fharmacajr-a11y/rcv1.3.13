@@ -203,7 +203,16 @@ class App(BaseApp):  # type: ignore[misc]
         # Agora CustomTkinter gerencia cores automaticamente
 
         # Setup básico antes do bootstrap
-        self.report_callback_exception = tk_report
+        # P0 #5: Instalar handler global de exceções Tkinter (opcional, controlado por env)
+        try:
+            from src.core.tk_exception_handler import install_global_exception_handler
+
+            install_global_exception_handler(self)
+        except Exception as exc:  # noqa: BLE001
+            # Fallback: usar handler simples original
+            log.debug("Handler de exceção customizado indisponível, usando fallback: %s", exc)
+            self.report_callback_exception = tk_report
+
         # MICROFASE 24: Manter tema_atual para compatibilidade com código legado
         current_mode = global_theme_manager.get_current_mode()
         self.tema_atual = current_mode  # "light" ou "dark"

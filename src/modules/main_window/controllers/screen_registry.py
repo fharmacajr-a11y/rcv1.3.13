@@ -68,6 +68,7 @@ def register_main_window_screens(router: ScreenRouter, app: App) -> None:
         _log.info("🆕 [ClientesV2] Carregando tela Clientes (versão moderna)")
         frame = ClientesV2Frame(
             master=app._content_container,
+            app=app,  # FIX P0 #4: Injetar referência ao MainWindow para ações funcionarem
         )
         app._main_frame_ref = frame  # Manter referência legacy
         app.force_redraw = frame.force_redraw  # Registrar callback de redesenho

@@ -57,7 +57,7 @@ class SubpastaDialog(tk.Toplevel):
         ctk.CTkLabel(
             frm,
             text="Ex.: SIFAP, VISA, Farmacia_Popular, Auditoria",
-            foreground="#6c757d",
+            text_color="#6c757d",  # FIX: CTkLabel usa text_color, não foreground
             wraplength=520,
             justify="left",
         ).grid(row=1, column=0, sticky="w", pady=(0, 6))

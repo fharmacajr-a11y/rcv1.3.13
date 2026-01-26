@@ -32,6 +32,8 @@ class ClientEditorDialog(ctk.CTkToplevel):
         parent: Any,
         client_id: Optional[int] = None,
         on_save: Optional[Callable[[dict], None]] = None,
+        on_close: Optional[Callable[[], None]] = None,
+        session_id: Optional[str] = None,
         **kwargs: Any,
     ):
         """Inicializa o diálogo.
@@ -40,33 +42,59 @@ class ClientEditorDialog(ctk.CTkToplevel):
             parent: Widget pai
             client_id: ID do cliente para editar (None = novo)
             on_save: Callback chamado após salvar com sucesso
+            on_close: Callback chamado quando diálogo é fechado
+            session_id: ID da sessão para logs (opcional)
         """
+        self.session_id = session_id or "unknown"
+        log.info(f"[ClientEditorDialog:{self.session_id}] Iniciando criação do diálogo")
+
         super().__init__(parent, **kwargs)
 
         self.client_id = client_id
         self.on_save = on_save
+        self.on_close = on_close
         self._client_data: Optional[dict] = None
 
-        # Configurar janela
+        # CRITICAL: Ocultar janela IMEDIATAMENTE para evitar flash
+        self.withdraw()
+        log.debug(f"[ClientEditorDialog:{self.session_id}] Janela ocultada (withdraw)")
+
+        # Configurar janela (invisível)
         self._set_window_title()
         self.geometry("940x600")
         self.resizable(False, False)
 
-        # Centralizar
+        # Centralizar (ainda invisível)
         self.update_idletasks()
         x = (self.winfo_screenwidth() // 2) - (940 // 2)
         y = (self.winfo_screenheight() // 2) - (600 // 2)
         self.geometry(f"+{x}+{y}")
 
-        # Tornar modal
+        # Tornar modal (transient antes de mostrar)
         self.transient(parent)
-        self.grab_set()
 
+        # Construir UI completa (ainda invisível)
         self._build_ui()
+        log.debug(f"[ClientEditorDialog:{self.session_id}] UI construída")
 
-        # Se editando, carregar dados
+        # Se editando, carregar dados (ainda invisível)
         if client_id is not None:
             self.after(100, self._load_client_data)
+
+        # CRITICAL: Forçar renderização completa ANTES de mostrar
+        self.update_idletasks()
+        log.debug(f"[ClientEditorDialog:{self.session_id}] update_idletasks concluído")
+
+        # Mostrar janela (já completamente renderizada)
+        self.deiconify()
+        log.info(f"[ClientEditorDialog:{self.session_id}] Janela exibida (deiconify)")
+
+        # Modal DEPOIS de mostrar (evita flicker no Windows)
+        self.after(10, self.grab_set)
+        log.debug(f"[ClientEditorDialog:{self.session_id}] grab_set agendado")
+
+        # TAREFA A: Registrar callback de fechamento
+        self.protocol("WM_DELETE_WINDOW", self._on_window_close)
 
     def _set_window_title(self) -> None:
         """Define título da janela conforme legado."""
@@ -76,14 +104,24 @@ class ClientEditorDialog(ctk.CTkToplevel):
             # Título será atualizado após carregar dados
             self.title(f"Editar Cliente - {self.client_id}")
 
+    def _on_window_close(self) -> None:
+        """Handler quando usuário fecha a janela (X).
+
+        Notifica parent que diálogo foi fechado.
+        """
+        log.info(f"[ClientEditorDialog:{self.session_id}] Usuário fechou a janela")
+        if self.on_close:
+            self.on_close()
+        self.destroy()
+
     def _build_ui(self) -> None:
         """Constrói a interface do diálogo."""
-        # Usar cores do Hub
+        # TAREFA C: Background cinza claro (sem borda branca)
         self.configure(fg_color=APP_BG)
 
-        # Container principal
-        main_frame = ctk.CTkFrame(self, fg_color=SURFACE_DARK, corner_radius=12)
-        main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        # TAREFA C: Container principal - sem padding externo (remove borda branca)
+        main_frame = ctk.CTkFrame(self, fg_color=SURFACE_DARK, corner_radius=0)
+        main_frame.pack(fill="both", expand=True, padx=0, pady=0)
         main_frame.rowconfigure(0, weight=1)
         main_frame.columnconfigure(0, weight=3)
         main_frame.columnconfigure(1, weight=0)
