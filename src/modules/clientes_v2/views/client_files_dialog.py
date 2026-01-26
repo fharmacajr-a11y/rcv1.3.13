@@ -38,7 +38,7 @@ def _resolve_supabase_client():
     for mod_name, attrs in candidates:
         try:
             mod = importlib.import_module(mod_name)
-        except Exception:  # noqa: B112
+        except Exception:  # nosec B112 - Fallback pattern: tenta múltiplos caminhos até encontrar módulo válido
             continue
         for attr in attrs:
             if hasattr(mod, attr):
@@ -47,7 +47,7 @@ def _resolve_supabase_client():
                 if callable(obj) and not hasattr(obj, "table"):
                     try:
                         return obj()
-                    except Exception:  # noqa: B112
+                    except Exception:  # nosec B112 - Fallback pattern: tenta invocar se for factory function
                         continue
                 return obj
     log.warning("[ClientFiles] Não foi possível resolver o cliente Supabase")
@@ -483,11 +483,11 @@ class ClientFilesDialog(ctk.CTkToplevel):
 
                 # Abrir com sistema (Windows: os.startfile)
                 if os.name == "nt":  # Windows
-                    os.startfile(str(local_path))  # noqa: S606
+                    os.startfile(str(local_path))  # nosec B606 - Local path controlado (download de Supabase Storage)
                 elif os.name == "posix":  # Linux/Mac
-                    import subprocess  # noqa: B404
+                    import subprocess  # nosec B404 - Necessário para xdg-open em Linux
 
-                    subprocess.Popen(["xdg-open", str(local_path)])  # noqa: S603, S607
+                    subprocess.Popen(["xdg-open", str(local_path)])  # nosec B603, B607 - xdg-open com path local controlado
 
                 self.after(0, lambda: self._on_open_complete(file_name))
 

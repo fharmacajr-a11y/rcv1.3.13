@@ -115,6 +115,7 @@ assets/*.tmp
 
 # Pastas de artefatos (diagnostics já estava descomitada acima)
 /diagnostics/
+/artifacts/local/
 
 # Arquivos temporários de auditoria/testes
 audit_*.txt
