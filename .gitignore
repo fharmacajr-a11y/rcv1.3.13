@@ -45,7 +45,9 @@ wheels/
 
 # Logs
 *.log
-logs/
+/logs/
+artifacts/*/logs/
+tests/*/logs/
 
 # OS
 .DS_Store
@@ -134,3 +136,7 @@ EXECUTION_GUIDE.md
 # Exceção: tools/repo/ é versionado (arquiva os scripts de limpeza)
 !tools/repo/
 !tools/repo/**
+
+# Exceção: src/core/logs/ é código versionado (não deve ser ignorado)
+!src/core/logs/
+!src/core/logs/**
