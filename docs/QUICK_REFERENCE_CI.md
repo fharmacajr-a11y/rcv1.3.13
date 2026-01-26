@@ -227,13 +227,11 @@ git push origin v1.5.63
 
 ## 📚 Links Úteis
 
-- [CI Workflow](.github/workflows/ci.yml)
-- [Release Workflow](.github/workflows/release.yml)
-- [Staging Checklist](docs/STAGING_CHECKLIST.md)
-- [FASE 6 Docs](docs/FASE_6_CI_RELEASE.md)
-- [GitHub Actions](https://github.com/<owner>/<repo>/actions)
+- [Staging Checklist](STAGING_CHECKLIST.md)
+- [CI/CD Documentation](ci/README.md)
+- [Releases Documentation](reports/releases/)
 
 ---
 
-**Última atualização:** 2026-01-24  
-**Versão:** 1.5.62 (FASE 6)
+**Última atualização:** 2026-01-26  
+**Versão:** 1.5.63
