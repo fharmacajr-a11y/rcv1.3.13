@@ -234,9 +234,9 @@ Se um teste falhar:
 
 ## 🔗 Referências
 
-- [FASE_5_RELEASE.md](./FASE_5_RELEASE.md) - Documentação da fase anterior
-- [CHANGELOG.md](../CHANGELOG.md) - Histórico de mudanças
-- [CI Workflow](../.github/workflows/ci.yml) - Pipeline de CI/CD
+- [Release Notes](../releases/RELEASE_NOTES.md) - Notas de release
+- [CHANGELOG.md](../../CHANGELOG.md) - Histórico de mudanças
+- [CI Reference](REFERENCE.md) - Quick reference de CI/CD
 
 ---
 

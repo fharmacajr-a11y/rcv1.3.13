@@ -89,8 +89,8 @@ Release v[MAJOR].[MINOR].[PATCH] - [Nome Descritivo]
 
 ## 📚 Documentação
 
-- [CHANGELOG.md](../CHANGELOG.md)
-- [ROADMAP.md](../docs/ROADMAP.md)
+- [CHANGELOG.md](../../CHANGELOG.md)
+- [ROADMAP.md](../ROADMAP.md)
 - [Guia de Migração](#) (se aplicável)
 ```
 

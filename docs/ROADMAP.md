@@ -383,8 +383,8 @@ docs/
 
 ### Histórico Arquivado
 
-- [_archive/](archive/) - Documentação histórica de fases
-- [customtk/_archive/](customtk/_archive/) - 53 microfases da migração CTK
+- [_archive/](_archive/) - Documentação histórica de fases
+- [customtk/customtk_clientes/](customtk/customtk_clientes/) - 53 microfases da migração CTK
 
 ---
 

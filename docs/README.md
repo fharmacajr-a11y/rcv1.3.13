@@ -29,15 +29,17 @@ Documentação de patches aplicados durante o desenvolvimento:
 | [RELATORIO_MICROFASE_37.md](reports/microfases/RELATORIO_MICROFASE_37.md) | Relatório da microfase 37 |
 | [RELATORIO_MIGRACAO_CTK_COMPLETA.md](reports/microfases/RELATORIO_MIGRACAO_CTK_COMPLETA.md) | Relatório completo da migração CTK |
 
-### Releases
+### Releases (Histórico)
+
+Documentos históricos de releases consolidados em [releases/RELEASE_NOTES.md](releases/RELEASE_NOTES.md):
 
 | Arquivo | Descrição |
 |---------|-----------|
-| [EXECUTIVE_SUMMARY.md](reports/releases/EXECUTIVE_SUMMARY.md) | Resumo executivo |
-| [GATE_FINAL.md](reports/releases/GATE_FINAL.md) | Gate final do release |
-| [CI_GREEN_REPORT.md](reports/releases/CI_GREEN_REPORT.md) | Relatório de CI verde |
-| [NEXT_STEPS.md](reports/releases/NEXT_STEPS.md) | Próximos passos |
-| [PR_DESCRIPTION.md](reports/releases/PR_DESCRIPTION.md) | Descrição de pull request |
+| [EXECUTIVE_SUMMARY.md](_archive/releases/EXECUTIVE_SUMMARY.md) | Resumo executivo |
+| [GATE_FINAL.md](_archive/releases/GATE_FINAL.md) | Gate final do release |
+| [CI_GREEN_REPORT.md](_archive/releases/CI_GREEN_REPORT.md) | Relatório de CI verde |
+| [NEXT_STEPS.md](_archive/releases/NEXT_STEPS.md) | Próximos passos |
+| [PR_DESCRIPTION.md](_archive/releases/PR_DESCRIPTION.md) | Descrição de pull request |
 
 ---
 

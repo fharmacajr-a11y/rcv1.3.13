@@ -227,11 +227,10 @@ git push origin v1.5.63
 
 ## 📚 Links Úteis
 
-- [CI Workflow](.github/workflows/ci.yml)
-- [Release Workflow](.github/workflows/release.yml)
-- [Staging Checklist](docs/STAGING_CHECKLIST.md)
-- [FASE 6 Docs](docs/FASE_6_CI_RELEASE.md)
-- [GitHub Actions](https://github.com/<owner>/<repo>/actions)
+- [CI/CD Overview](README.md)
+- [Staging Checklist](STAGING_CHECKLIST.md)
+- [ROADMAP](../ROADMAP.md)
+- [Status](../STATUS.md)
 
 ---
 
