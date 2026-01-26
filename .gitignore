@@ -130,3 +130,7 @@ lifecycle_test.log
 cleanup_repo.*
 gitignore_additions.txt
 EXECUTION_GUIDE.md
+
+# Exceção: tools/repo/ é versionado (arquiva os scripts de limpeza)
+!tools/repo/
+!tools/repo/**
