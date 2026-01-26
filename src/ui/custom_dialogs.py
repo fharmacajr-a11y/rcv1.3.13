@@ -101,7 +101,7 @@ def ask_ok_cancel(parent: tk.Widget, title: str, message: str) -> bool:
     icon_label = ctk.CTkLabel(
         content,
         text="?",
-        foreground="#000000",
+        text_color="#000000",  # FIX: CTkLabel usa text_color, não foreground
         font=("", 26, "bold"),
         anchor="n",
         justify="center",

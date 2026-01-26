@@ -45,7 +45,9 @@ wheels/
 
 # Logs
 *.log
-logs/
+/logs/
+artifacts/*/logs/
+tests/*/logs/
 
 # OS
 .DS_Store
@@ -108,3 +110,33 @@ exports/*.7z
 # Note: assets/modulos/hub/ e assets/notificacoes/ são versionados pois necessários
 assets/temp/
 assets/*.tmp
+
+# ==========================================
+# REORGANIZAÇÃO DO REPOSITÓRIO (26/01/2026)
+# ==========================================
+
+# Pastas de artefatos (diagnostics já estava descomitada acima)
+/diagnostics/
+/artifacts/local/
+
+# Arquivos temporários de auditoria/testes
+audit_*.txt
+hub_*.txt
+baseline_*.txt
+lifecycle_test.log
+
+# Scripts/experimentos movidos para subpastas
+/tests/experiments/
+
+# Arquivos auxiliares de limpeza
+cleanup_repo.*
+gitignore_additions.txt
+EXECUTION_GUIDE.md
+
+# Exceção: tools/repo/ é versionado (arquiva os scripts de limpeza)
+!tools/repo/
+!tools/repo/**
+
+# Exceção: src/core/logs/ é código versionado (não deve ser ignorado)
+!src/core/logs/
+!src/core/logs/**

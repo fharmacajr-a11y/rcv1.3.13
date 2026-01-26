@@ -1,0 +1,70 @@
+# ========================================
+# ADIÇÕES SUGERIDAS PARA .gitignore
+# ========================================
+# Baseado no template oficial Python do github/gitignore
+# https://github.com/github/gitignore/blob/main/Python.gitignore
+#
+# INSTRUÇÕES:
+# Adicione estas linhas ao final do seu .gitignore existente
+
+# Artefatos de diagnóstico (recriados por tools/)
+/diagnostics/
+
+# Logs de testes e lifecycle
+lifecycle_*.log
+
+# Notebooks Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Resultados de auditorias pontuais
+audit_*.txt
+hub_*.txt
+baseline_*.txt
+*_results*.txt
+*_stats*.txt
+
+# Experimentos de testes (pasta específica, não genérica)
+/tests/experiments/
+
+# Artefatos temporários de migração
+fix_*.py.bak
+*.py~
+
+# Cache de editores adicionais
+*.sublime-*
+*.swp
+*.swo
+.vscode/settings.json.user
+
+# Arquivos temporários de sistema
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Backups
+*.bak
+*.backup
+*.old
+*~
+
+# ========================================
+# VERIFICAR SE JÁ EXISTEM (não duplicar):
+# ========================================
+# __pycache__/
+# .mypy_cache/
+# .pytest_cache/
+# .ruff_cache/
+# htmlcov/
+# coverage/
+# .coverage
+# *.pyc
+# *.pyo
+# .venv/
+# dist/
+# build/
+# *.egg-info/

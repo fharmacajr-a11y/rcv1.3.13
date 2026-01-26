@@ -1,9 +1,18 @@
 # -*- coding: utf-8 -*-
-"""Audit logging helpers shared across the application."""
+"""Módulo de auditoria de ações de clientes.
+
+Este módulo registra ações importantes realizadas sobre clientes no sistema.
+Não cria diretórios ou arquivos no import - apenas configura logging.
+"""
 
 from __future__ import annotations
 
-from typing import Iterable
+from typing import Any, Iterable
+
+from .logger import get_logger
+
+# Logger para auditoria (sem side effects no import)
+_audit_logger = get_logger("rcgestor.audit")
 
 __all__ = [
     "ensure_schema",
@@ -21,11 +30,27 @@ def ensure_schema() -> None:
 def log_client_action(
     user: str,
     client_id: int,
-    _action: str,  # Prefixo _ indica parametro nao usado (placeholder futuro)
-    _details: str | None = None,  # Prefixo _ indica parametro nao usado
+    action: str,
+    **kwargs: Any,
 ) -> None:
-    """Registra uma acao de cliente. No momento, funcao no-op mantida para expansao futura."""
-    return None
+    """Registra ação de cliente para auditoria.
+
+    Args:
+        user: Usuário que realizou a ação.
+        client_id: ID do cliente afetado.
+        action: Tipo de ação ("criacao", "edicao", "exclusao", etc.).
+        **kwargs: Dados adicionais para contexto.
+
+    Example:
+        >>> log_client_action("admin", 123, "edicao", field="email")
+    """
+    _audit_logger.info(
+        "Cliente %d - %s por %s",
+        client_id,
+        action,
+        user,
+        extra={"client_id": client_id, "user": user, "action": action, **kwargs},
+    )
 
 
 def last_action_of_user(user_id: int) -> str | None:

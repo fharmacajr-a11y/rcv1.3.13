@@ -18,13 +18,35 @@ log = logging.getLogger(__name__)
 # Import condicional de CTkTable
 try:
     from CTkTable import CTkTable  # type: ignore[import-untyped]
+
+    HAS_CTKTABLE = True
 except ImportError:
+    HAS_CTKTABLE = False
+    # Diagnóstico detalhado para ajudar debug
+    import sys
+
+    log.warning(
+        "CTkTable não está instalado no ambiente Python ativo.\n"
+        "Funcionalidade de tabelas CustomTkinter desabilitada.\n"
+        "Python ativo: %s\n"
+        "Para instalar:\n"
+        "  1. Ative o venv: .venv\\Scripts\\Activate.ps1\n"
+        "  2. Instale: pip install -r requirements.txt\n"
+        "  Ou direto: pip install CTkTable",
+        sys.executable,
+    )
 
     class _CTkTableStub:
         """Stub que levanta erro quando CTkTable não está disponível."""
 
         def __init__(self, *args: Any, **kwargs: Any) -> None:
-            raise ImportError("CTkTable não está instalado. Instale com: pip install CTkTable")
+            raise ImportError(
+                "CTkTable não está instalado.\n"
+                "Para usar tabelas CustomTkinter, instale com:\n"
+                "  pip install CTkTable\n"
+                "ou:\n"
+                "  pip install -r requirements.txt"
+            )
 
     CTkTable = _CTkTableStub  # type: ignore[assignment, misc]
 
@@ -84,9 +106,34 @@ class CTkTableView(ctk.CTkFrame):
 
             self._table = CTkTable(**table_params)
             self._table.pack(fill="both", expand=True)
+        except ImportError as e:
+            log.error(
+                "CTkTable não está instalado: %s\n" "Instale as dependências com: pip install -r requirements.txt",
+                e,
+            )
+            self._table = None
+            # Mostrar label de erro no lugar da tabela
+            self._show_import_error()
         except Exception as e:
             log.error(f"Falha ao criar CTkTable: {e}")
             self._table = None
+
+    def _show_import_error(self) -> None:
+        """Mostra mensagem de erro quando CTkTable não está instalado."""
+        from src.ui.ctk_config import ctk
+
+        error_label = ctk.CTkLabel(
+            self,
+            text=(
+                "⚠️ Componente não disponível\n\n"
+                "CTkTable não está instalado.\n"
+                "Instale as dependências com:\n"
+                "pip install -r requirements.txt"
+            ),
+            text_color="red",
+            font=("Arial", 12),
+        )
+        error_label.pack(fill="both", expand=True, padx=20, pady=20)
 
     def _on_cell_click(self, cell: dict[str, Any]) -> None:
         if not cell:

@@ -57,6 +57,10 @@ class ClientesV2Frame(ctk.CTkFrame):
         self._selected_client_id: Optional[int] = None  # Cliente selecionado
         self._trash_mode: bool = False  # Modo lixeira ativo
 
+        # Guard para evitar duplicação de editor (single instance)
+        self._editor_dialog: Optional[Any] = None  # Referência ao diálogo aberto
+        self._opening_editor: bool = False  # Flag reentrante: bloqueia durante criação
+
         # FASE 3.4: Modo pick (para integração com ANVISA)
         self._pick_mode: bool = pick_mode
         self._on_cliente_selected: Optional[Any] = on_cliente_selected
@@ -183,15 +187,24 @@ class ClientesV2Frame(ctk.CTkFrame):
         # Guardar referência ao widget ttk interno
         self.tree_widget = self.tree
 
-        # Binds para seleção e atalhos
+        # Binds para seleção e atalhos (unbind antes para evitar acúmulo)
+        self.tree.unbind("<<TreeviewSelect>>")
         self.tree.bind("<<TreeviewSelect>>", self._on_tree_select)
 
         # FASE 3.4: Em pick_mode, duplo clique seleciona; caso contrário, edita
         if self._pick_mode:
+            self.tree.unbind("<Double-Button-1>")
             self.tree.bind("<Double-Button-1>", lambda e: self._on_pick_confirm())
         else:
-            self.tree.bind("<Double-Button-1>", lambda e: self._on_edit_client(e))
-            self.tree.bind("<Return>", lambda e: self._on_edit_client(e))
+            # Unbind todos os eventos relacionados
+            self.tree.unbind("<Double-Button-1>")
+            self.tree.unbind("<Return>")
+            self.tree.unbind("<Button-3>")
+            self.tree.unbind("<Button-1>")
+
+            # Método único para duplo clique (sem lambda, mais determinístico)
+            self.tree.bind("<Double-Button-1>", self._on_tree_double_click)
+            self.tree.bind("<Return>", lambda e: self._open_client_editor(source="keyboard"))
             self.tree.bind("<Button-3>", self._on_tree_right_click)  # Context menu
             # FASE 3.9: Clique na coluna WhatsApp
             self.tree.bind("<Button-1>", self._on_tree_click)
@@ -926,7 +939,14 @@ class ClientesV2Frame(ctk.CTkFrame):
             'break' se event fornecido, None caso contrário
         """
         if not self.app:
-            log.warning("[ClientesV2] App não disponível para novo cliente")
+            log.error("[ClientesV2] App não disponível para novo cliente")
+            from tkinter import messagebox
+
+            messagebox.showerror(
+                "Erro",
+                "Não foi possível acessar o controlador do aplicativo.\nTente recarregar o módulo.",
+                parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
+            )
             return "break" if event else None
 
         log.info("[ClientesV2] Novo cliente - abrindo diálogo")
@@ -952,11 +972,47 @@ class ClientesV2Frame(ctk.CTkFrame):
 
         return "break" if event else None
 
-    def _on_edit_client(self, event: Any = None) -> str | None:
-        """Handler para botão Editar Cliente.
+    def _on_tree_double_click(self, event: tk.Event) -> str:
+        """Handler dedicado para duplo clique na lista.
 
-        FASE 4 FINAL: Abre diálogo CustomTkinter (100% CTk).
-        FASE 3.8: Aceita event opcional para atalho Ctrl+E.
+        Identifica a linha clicada, seleciona e abre o editor.
+        Retorna 'break' para impedir propagação.
+        """
+        if not self.tree:
+            return "break"
+
+        # Identificar linha clicada
+        try:
+            region = self.tree.identify("region", event.x, event.y)
+            if region != "cell":  # Clicou fora das células
+                return "break"
+
+            item_id = self.tree.identify_row(event.y)
+            if not item_id:
+                return "break"
+
+            # Selecionar linha clicada
+            self.tree.selection_set(item_id)
+            self.tree.focus(item_id)
+
+            # Atualizar ID selecionado
+            row_data = self._row_data_map.get(item_id)
+            if row_data:
+                self._selected_client_id = row_data.id
+                log.debug(f"[ClientesV2] Duplo clique: cliente ID={self._selected_client_id}")
+
+            # Abrir editor (centralizado)
+            self._open_client_editor(source="doubleclick")
+
+        except Exception as e:
+            log.error(f"[ClientesV2] Erro no duplo clique: {e}", exc_info=True)
+
+        return "break"  # Impedir propagação
+
+    def _on_edit_client(self, event: Any = None) -> str | None:
+        """Handler para botão Editar Cliente ou atalho Ctrl+E.
+
+        Delega para _open_client_editor (método centralizado).
 
         Args:
             event: Evento de teclado (opcional)
@@ -964,11 +1020,53 @@ class ClientesV2Frame(ctk.CTkFrame):
         Returns:
             'break' se event fornecido, None caso contrário
         """
+        self._open_client_editor(source="button" if not event else "shortcut")
+        return "break" if event else None
+
+    def _open_client_editor(self, source: str = "unknown") -> None:
+        """Centraliza lógica de abertura do editor (single instance com guard reentrante).
+
+        Args:
+            source: Origem da chamada (doubleclick, button, shortcut, etc.) para logs
+        """
+        import uuid
+
+        session_id = str(uuid.uuid4())[:8]
+
+        log.info(f"[ClientesV2:{session_id}] Solicitação de abertura do editor (source={source})")
+
+        # GUARD 1: Se já estamos criando um editor, ignorar
+        if self._opening_editor:
+            log.debug(f"[ClientesV2:{session_id}] Abertura bloqueada: já criando editor")
+            return
+
+        # GUARD 2: Se diálogo já existe e está visível, apenas dar foco
+        if self._editor_dialog is not None:
+            try:
+                if self._editor_dialog.winfo_exists():
+                    log.info(f"[ClientesV2:{session_id}] Diálogo já aberto, dando foco")
+                    self._editor_dialog.lift()
+                    self._editor_dialog.focus_force()
+                    return
+            except Exception:
+                # Diálogo foi destruído mas referência não foi limpa
+                log.debug(f"[ClientesV2:{session_id}] Referência obsoleta, limpando")
+                self._editor_dialog = None
+
+        # Validações
         if not self.app:
-            log.warning("[ClientesV2] App não disponível para editar cliente")
-            return "break" if event else None
+            log.error(f"[ClientesV2:{session_id}] App não disponível")
+            from tkinter import messagebox
+
+            messagebox.showerror(
+                "Erro",
+                "Não foi possível acessar o controlador do aplicativo.\nTente recarregar o módulo.",
+                parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
+            )
+            return
 
         if not self._selected_client_id:
+            log.warning(f"[ClientesV2:{session_id}] Nenhum cliente selecionado")
             from tkinter import messagebox
 
             messagebox.showwarning(
@@ -978,28 +1076,41 @@ class ClientesV2Frame(ctk.CTkFrame):
             )
             return
 
-        log.info(f"[ClientesV2] Editar cliente ID={self._selected_client_id} - abrindo diálogo")
+        # Ativar flag de reentrância
+        self._opening_editor = True
+        log.info(f"[ClientesV2:{session_id}] Criando editor para cliente ID={self._selected_client_id}")
 
         try:
             from src.modules.clientes_v2.views.client_editor_dialog import ClientEditorDialog
 
             def on_saved(data: dict) -> None:
                 """Callback após salvar."""
-                log.info(f"[ClientesV2] Cliente {self._selected_client_id} atualizado")
+                log.info(f"[ClientesV2:{session_id}] Cliente {self._selected_client_id} salvo")
                 self.load_async()
 
-            # Abrir diálogo modal
-            dialog = ClientEditorDialog(
+            def on_closed() -> None:
+                """Callback quando diálogo é fechado."""
+                log.info(f"[ClientesV2:{session_id}] Diálogo fechado, limpando referências")
+                self._editor_dialog = None
+                self._opening_editor = False
+
+            # Criar diálogo modal
+            self._editor_dialog = ClientEditorDialog(
                 parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
                 client_id=self._selected_client_id,
                 on_save=on_saved,
+                on_close=on_closed,
+                session_id=session_id,  # Passar session_id para logs
             )
-            dialog.focus()  # type: ignore[attr-defined]
+
+            # Desativar flag após criação (diálogo já está em withdraw/deiconify)
+            self._opening_editor = False
+            log.info(f"[ClientesV2:{session_id}] Editor criado com sucesso")
 
         except Exception as e:
-            log.error(f"[ClientesV2] Erro ao abrir diálogo de edição: {e}", exc_info=True)
-
-        return "break" if event else None
+            log.error(f"[ClientesV2:{session_id}] Erro ao criar editor: {e}", exc_info=True)
+            self._editor_dialog = None
+            self._opening_editor = False
 
     def _on_client_files(self) -> None:
         """Handler para botão Arquivos do Cliente.
@@ -1007,7 +1118,14 @@ class ClientesV2Frame(ctk.CTkFrame):
         FASE 4: Abre gerenciador de arquivos via diálogo CTk.
         """
         if not self.app:
-            log.warning("[ClientesV2] App não disponível para arquivos")
+            log.error("[ClientesV2] App não disponível para arquivos")
+            from tkinter import messagebox
+
+            messagebox.showerror(
+                "Erro",
+                "Não foi possível acessar o controlador do aplicativo.\nTente recarregar o módulo.",
+                parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
+            )
             return
 
         if not self._selected_client_id:
@@ -1020,7 +1138,7 @@ class ClientesV2Frame(ctk.CTkFrame):
             )
             return
 
-        log.info(f"[ClientesV2] Arquivos do cliente ID={self._selected_client_id}")
+        log.info(f"[ClientesV2] Arquivos do cliente ID={self._selected_client_id} (abrindo ClientFilesDialog)")
 
         try:
             # Buscar dados do cliente
@@ -1038,26 +1156,16 @@ class ClientesV2Frame(ctk.CTkFrame):
                 )
                 return
 
-            # Abrir diálogo de arquivos CTk
+            # Abrir diálogo de arquivos funcional (browser real de Supabase Storage)
             from src.modules.clientes_v2.views.client_files_dialog import ClientFilesDialog
 
-            dialog = ClientFilesDialog(
+            ClientFilesDialog(
                 parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
                 client_id=self._selected_client_id,
                 client_name=cliente.get("razao_social", "Cliente"),
             )
-            dialog.focus()  # type: ignore[attr-defined]
+            # Não precisa chamar focus() - diálogo já faz grab_set no __init__
 
-        except ImportError:
-            # Fallback para método legacy se dialog não existir
-            log.warning("[ClientesV2] ClientFilesDialog não implementado, usando fallback")
-            from tkinter import messagebox
-
-            messagebox.showinfo(
-                "Em Desenvolvimento",
-                "Gerenciador de arquivos em desenvolvimento.\nUse o módulo Clientes legacy temporariamente.",
-                parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
-            )
         except Exception as e:
             log.error(f"[ClientesV2] Erro ao abrir arquivos: {e}", exc_info=True)
             from tkinter import messagebox
@@ -1179,7 +1287,14 @@ class ClientesV2Frame(ctk.CTkFrame):
             'break' se event fornecido, None caso contrário
         """
         if not self.app:
-            log.warning("[ClientesV2] App não disponível para excluir")
+            log.error("[ClientesV2] App não disponível para excluir")
+            from tkinter import messagebox
+
+            messagebox.showerror(
+                "Erro",
+                "Não foi possível acessar o controlador do aplicativo.\nTente recarregar o módulo.",
+                parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
+            )
             return "break" if event else None
 
         if not self._selected_client_id:
