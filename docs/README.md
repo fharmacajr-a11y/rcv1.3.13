@@ -59,19 +59,29 @@ Para informações sobre arquitetura, configuração e contribuição, consulte:
 
 ---
 
-## 📋 Outros Documentos
+## 📋 Documentação Principal
 
-### Fases do Projeto
+### Status e Roadmap
 
-- [FASE_4.3_RESUMO.md](FASE_4.3_RESUMO.md)
-- [FASE_5_RELEASE.md](FASE_5_RELEASE.md)
-- [FASE_6_CI_RELEASE.md](FASE_6_CI_RELEASE.md)
-- [FASE_6_RESUMO.md](FASE_6_RESUMO.md)
+- [STATUS.md](STATUS.md) - Estado atual do projeto e próximos passos
+- [ROADMAP.md](ROADMAP.md) - Histórico completo de fases e decisões
 
-### Referências Rápidas
+### CI/CD
 
-- [QUICK_REFERENCE_CI.md](QUICK_REFERENCE_CI.md)
-- [STAGING_CHECKLIST.md](STAGING_CHECKLIST.md)
+- [ci/README.md](ci/README.md) - Visão geral de CI/CD
+- [ci/REFERENCE.md](ci/REFERENCE.md) - Quick reference para desenvolvimento
+- [ci/STAGING_CHECKLIST.md](ci/STAGING_CHECKLIST.md) - Roteiro de smoke test
+
+### Releases
+
+- [releases/RELEASE_NOTES.md](releases/RELEASE_NOTES.md) - Notas de releases consolidadas
+- [releases/TEMPLATES.md](releases/TEMPLATES.md) - Templates de PR e Release
+
+### Migração CustomTkinter
+
+- [customtk/README.md](customtk/README.md) - Índice da migração CTK
+- [customtk/MIGRATION_SUMMARY.md](customtk/MIGRATION_SUMMARY.md) - Resumo completo (53 microfases)
+- [customtk/TECHNICAL_DOCS.md](customtk/TECHNICAL_DOCS.md) - Políticas e configurações técnicas
 
 ### Cronologia
 
