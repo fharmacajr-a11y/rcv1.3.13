@@ -138,14 +138,14 @@ class ClientesV2Frame(ctk.CTkFrame):
             show="headings",
             selectmode="browse",
         )
-        
+
         # Registrar no manager global (aplica tema automaticamente)
         manager = get_treeview_manager()
         _, self._tree_colors = manager.register(
             tree=self.tree,
             master=parent,  # CRÍTICO: usar parent (CTkFrame), não self
             style_name="RC.Treeview",
-            zebra=True
+            zebra=True,
         )
 
         # Configurar headings
@@ -223,7 +223,7 @@ class ClientesV2Frame(ctk.CTkFrame):
         # Reaplica o style e pega as cores corretas do modo atual
         colors = manager.apply_to(
             tree=self.tree_widget,
-            master=self.tree_widget.master,   # precisa ser o mesmo "master" do ttk.Style
+            master=self.tree_widget.master,  # precisa ser o mesmo "master" do ttk.Style
             style_name="RC.Treeview",
             mode=mode,
             zebra=False,
@@ -402,7 +402,7 @@ class ClientesV2Frame(ctk.CTkFrame):
 
             def on_appearance_change(mode: str | None = None) -> None:
                 """Callback do AppearanceModeTracker.
-                
+
                 Compatível com versões antigas (sem parâmetro) e novas (com mode).
                 """
                 new_mode = mode or ctk.get_appearance_mode()
@@ -410,7 +410,7 @@ class ClientesV2Frame(ctk.CTkFrame):
 
             AppearanceModeTracker.add(on_appearance_change, self)
             log.debug("[Clientes] AppearanceModeTracker registrado")
-            
+
             # Aplicar tema inicial imediatamente (importante se já está em Dark ao abrir)
             initial_mode = ctk.get_appearance_mode()
             self._on_theme_changed(initial_mode)
@@ -485,7 +485,7 @@ class ClientesV2Frame(ctk.CTkFrame):
             self._vm.refresh_from_service()
             self._render_rows()
             log.info(f"[Clientes] Dados carregados: {len(self._vm.get_rows())} clientes")
-            
+
             # Atualizar lista de status do toolbar com dados do ViewModel
             self.after(500, self._update_toolbar_status_list)
         except Exception as e:
@@ -569,19 +569,20 @@ class ClientesV2Frame(ctk.CTkFrame):
                     rows = []
                     for idx, client in enumerate(deleted_clients):
                         obs_raw = self._safe_get(client, "obs", "")
-                        
+
                         # Parsear status legado das observações usando STATUS_PREFIX_RE
                         # Formato esperado: "[Status Real] observações..."
                         status_real = "[LIXEIRA]"  # Default
                         obs_clean = obs_raw
-                        
+
                         if obs_raw:
                             from src.modules.clientes.core.constants import STATUS_PREFIX_RE
+
                             match = STATUS_PREFIX_RE.match(obs_raw)
                             if match:
                                 status_real = (match.group("st") or "").strip() or "[LIXEIRA]"
                                 obs_clean = STATUS_PREFIX_RE.sub("", obs_raw, count=1).strip()
-                        
+
                         row = ClienteRow(
                             id=str(self._safe_get(client, "id", "")),
                             razao_social=self._safe_get(client, "razao_social", ""),
@@ -795,8 +796,9 @@ class ClientesV2Frame(ctk.CTkFrame):
         """Handler para mudança de ordenação."""
         # Normalizar order label para garantir compatibilidade
         from src.modules.clientes.core.ui_helpers import normalize_order_label
+
         normalized_order = normalize_order_label(order)
-        
+
         log.debug(f"[Clientes] Ordenação alterada: {order} -> normalizado: {normalized_order}")
         search_text = self.toolbar.get_search_text()
         status = self.toolbar.get_status()
@@ -804,7 +806,7 @@ class ClientesV2Frame(ctk.CTkFrame):
 
     def _on_status_changed(self, status: str) -> None:
         """Handler para mudança de filtro de status.
-        
+
         IMPORTANTE: Sempre usa self.toolbar.get_status() que converte 'Todos' -> ''.
         Não use o argumento 'status' diretamente pois ele vem do callback antes da conversão.
         """

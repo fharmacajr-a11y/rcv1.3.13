@@ -47,12 +47,11 @@ class ClientEditorDialog(ctk.CTkToplevel):
             session_id: ID da sessão para logs (opcional)
         """
         self.session_id = session_id or "unknown"
-        
+
         # ANTI-FLASH: Criar com wm_withdraw ANTES de super().__init__
         # Isso previne que a janela apareça por um frame
-        import tkinter as tk
         import time
-        
+
         start_time = time.time()
         log.info(f"[ClientEditorDialog:{self.session_id}] [t=0.000] Iniciando criação")
 
@@ -67,7 +66,7 @@ class ClientEditorDialog(ctk.CTkToplevel):
         # ANTI-FLASH STEP 1: Ocultar IMEDIATAMENTE (previne aparição inicial)
         self.withdraw()  # type: ignore[attr-defined]
         log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time()-start_time:.3f}] withdraw()")
-        
+
         # ANTI-FLASH STEP 2: Alpha zero (proteção extra no Windows)
         try:
             self.attributes("-alpha", 0.0)
@@ -82,10 +81,11 @@ class ClientEditorDialog(ctk.CTkToplevel):
         # Configurar janela (invisível)
         self._set_window_title()
         self.geometry("940x600")
-        
+
         # Usar Toplevel.resizable para evitar flicker
         try:
             from tkinter import Toplevel
+
             Toplevel.resizable(self, False, False)
         except Exception:
             self.resizable(False, False)
@@ -113,7 +113,7 @@ class ClientEditorDialog(ctk.CTkToplevel):
         # ANTI-FLASH STEP 6: Forçar renderização completa ANTES de mostrar
         self.update_idletasks()
         log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time()-start_time:.3f}] update_idletasks")
-        
+
         # Aplicar titlebar escura (Windows)
         try:
             set_win_dark_titlebar(self)
@@ -124,7 +124,7 @@ class ClientEditorDialog(ctk.CTkToplevel):
         # ANTI-FLASH STEP 7: Exibir janela (ainda transparente)
         self.deiconify()  # type: ignore[attr-defined]
         log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time()-start_time:.3f}] deiconify()")
-        
+
         # ANTI-FLASH STEP 8: Fade in suave (previne flash visual)
         try:
             # Fade in rápido (0.0 -> 1.0 em 50ms)
@@ -666,11 +666,7 @@ class ClientEditorDialog(ctk.CTkToplevel):
         """Handler do botão Senhas (Módulo removido)."""
         from tkinter import messagebox
 
-        messagebox.showinfo(
-            "Módulo Removido",
-            "O módulo de senhas foi removido do sistema.",
-            parent=self
-        )
+        messagebox.showinfo("Módulo Removido", "O módulo de senhas foi removido do sistema.", parent=self)
 
     def _on_cartao_cnpj(self) -> None:
         """Handler do botão Cartão CNPJ."""

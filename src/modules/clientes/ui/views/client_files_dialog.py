@@ -21,7 +21,7 @@ from typing import Any, Optional
 import queue
 
 from src.ui.ctk_config import ctk
-from src.ui.ui_tokens import SURFACE, SURFACE_DARK, TEXT_PRIMARY, TEXT_MUTED, APP_BG
+from src.ui.ui_tokens import TEXT_PRIMARY, TEXT_MUTED, APP_BG
 from src.ui.ttk_treeview_manager import get_treeview_manager
 from src.ui.ttk_treeview_theme import apply_zebra
 from src.ui.dark_window_helper import set_win_dark_titlebar
@@ -35,21 +35,21 @@ log = logging.getLogger(__name__)
 
 def log_slow(op_name: str, start_monotonic: float, threshold_ms: float = 1000.0) -> None:
     """Log warning se operação demorou mais que threshold.
-    
+
     Args:
         op_name: Nome da operação (ex: "list_files", "download", "upload")
         start_monotonic: time.monotonic() quando operação iniciou
         threshold_ms: Threshold em milissegundos (padrão 1000ms)
-        
+
     Note:
         Threshold aumentado de 250ms para 1000ms para reduzir ruído no console.
         Operações de rede de até 1s são consideradas normais.
     """
     import os
-    
+
     # Só logar se RC_DEBUG_SLOW_OPS=1 ou se ultrapassou threshold
     debug_enabled = os.getenv("RC_DEBUG_SLOW_OPS", "0") == "1"
-    
+
     elapsed_ms = (time.monotonic() - start_monotonic) * 1000
     if elapsed_ms > threshold_ms and debug_enabled:
         log.warning(f"[ClientFiles] Operação lenta: {op_name} levou {elapsed_ms:.0f}ms (>{threshold_ms:.0f}ms)")
@@ -91,7 +91,15 @@ class ClientFilesDialog(ctk.CTkToplevel):
     Browser funcional com operações: listar, upload, download, excluir.
     """
 
-    def __init__(self, parent: Any, client_id: int, client_name: str = "Cliente", razao_social: str = "", cnpj: str = "", **kwargs: Any):
+    def __init__(
+        self,
+        parent: Any,
+        client_id: int,
+        client_name: str = "Cliente",
+        razao_social: str = "",
+        cnpj: str = "",
+        **kwargs: Any,
+    ):
         """Inicializa o diálogo.
 
         Args:
@@ -102,7 +110,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
             cnpj: CNPJ do cliente
         """
         super().__init__(parent, **kwargs)
-        
+
         # CRÍTICO: Ocultar janela IMEDIATAMENTE para evitar flash branco
         # Pattern withdraw/deiconify: configura tudo antes de exibir
         self.withdraw()
@@ -124,12 +132,10 @@ class ClientFilesDialog(ctk.CTkToplevel):
         self._tree_metadata: dict[str, dict[str, Any]] = {}  # iid -> {full_path, is_folder, ...}
         self._progress_queue: queue.Queue = queue.Queue()  # Thread-safe para atualizar progresso
         self._tree_colors: Any = None  # TreeColors do tema atual
-        
+
         # ThreadPoolExecutor para operações de rede (NUNCA na thread principal do Tk)
-        self._executor: ThreadPoolExecutor = ThreadPoolExecutor(
-            max_workers=4, thread_name_prefix="ClientFiles"
-        )
-        
+        self._executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="ClientFiles")
+
         # PROTEÇÃO: Controle de fechamento e after jobs
         self._closing: bool = False
         self._after_ids: set[str] = set()
@@ -143,21 +149,22 @@ class ClientFilesDialog(ctk.CTkToplevel):
         if cnpj:
             title_parts.append(cnpj)
         self.title(" - ".join(title_parts))
-        
+
         # Usar cores do Hub (ANTES de geometry)
         self.configure(fg_color=APP_BG)
-        
+
         # Geometry e resizable
         self.geometry("1000x650")
-        
+
         # Usar Toplevel.resizable para evitar flicker do CTkToplevel.resizable
         try:
             from tkinter import Toplevel
+
             Toplevel.resizable(self, True, True)
         except Exception:
             self.resizable(True, True)
 
-# Configurar ícone
+        # Configurar ícone
         try:
             self.iconbitmap(resource_path("rc.ico"))
         except Exception:
@@ -171,23 +178,23 @@ class ClientFilesDialog(ctk.CTkToplevel):
 
         # Tornar modal (transient primeiro, grab depois)
         self.transient(parent)
-        
+
         # Construir UI completa ANTES de exibir
         self._build_ui()
-        
+
         # Processar layout (garante que tudo está renderizado)
         self.update_idletasks()
-        
+
         # Aplicar titlebar escura no Windows (após ter winfo_id)
         try:
             set_win_dark_titlebar(self)
             log.debug("[ClientFiles] Titlebar escura aplicada")
         except Exception as e:
             log.debug(f"[ClientFiles] Erro ao aplicar titlebar escura: {e}")
-        
+
         # EXIBIR JANELA (agora sim, tudo configurado)
         self.deiconify()
-        
+
         # grab_set APÓS deiconify (janela já renderizada, evita flash)
         self.grab_set()
 
@@ -225,7 +232,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
         # Container principal (flat, sem borda/moldura)
         container = ctk.CTkFrame(self, fg_color=("#F5F5F5", "#1e1e1e"), corner_radius=0, border_width=0)
         container.pack(fill="both", expand=True, padx=0, pady=0)
-        
+
         # Configurar grid: somente row 4 (tree_frame) expande
         container.grid_columnconfigure(0, weight=1)
         container.grid_rowconfigure(0, weight=0)  # header
@@ -261,11 +268,11 @@ class ClientFilesDialog(ctk.CTkToplevel):
             title_parts.append(self.razao_social)
         if self.cnpj:
             title_parts.append(self.cnpj)
-        
+
         title_text = " - ".join(title_parts)
-        ctk.CTkLabel(
-            header, text=title_text, font=("Segoe UI", 14, "bold"), text_color=TEXT_PRIMARY
-        ).grid(row=0, column=1, sticky="w")
+        ctk.CTkLabel(header, text=title_text, font=("Segoe UI", 14, "bold"), text_color=TEXT_PRIMARY).grid(
+            row=0, column=1, sticky="w"
+        )
 
         # Botões de ação
         btn_frame = ctk.CTkFrame(header, fg_color="transparent", border_width=0)
@@ -358,18 +365,13 @@ class ClientFilesDialog(ctk.CTkToplevel):
 
         # Double-click para navegar em pastas
         self.tree.bind("<Double-Button-1>", self._on_tree_double_click)
-        
+
         # Bind para atualizar estados dos botões quando seleção muda
         self.tree.bind("<<TreeviewSelect>>", self._on_tree_selection_change)
 
         # Registrar Treeview no manager global (aplica tema automaticamente)
         manager = get_treeview_manager()
-        _, self._tree_colors = manager.register(
-            tree=self.tree,
-            master=self,
-            style_name="RC.Treeview",
-            zebra=True
-        )
+        _, self._tree_colors = manager.register(tree=self.tree, master=self, style_name="RC.Treeview", zebra=True)
 
         # Footer: Botões de ação
         footer_frame = ctk.CTkFrame(container, fg_color="transparent", border_width=0)
@@ -445,7 +447,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
 
         # Bind Escape para fechar
         self.bind("<Escape>", lambda e: self._safe_close())
-        
+
         # Protocol WM_DELETE_WINDOW para cleanup
         self.protocol("WM_DELETE_WINDOW", self._safe_close)
 
@@ -454,7 +456,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
 
     def _show_progress(self, mode: str = "indeterminate") -> None:
         """Mostra barra de progresso.
-        
+
         Args:
             mode: "indeterminate" ou "determinate"
         """
@@ -482,7 +484,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
             return aid
         except Exception:
             return None
-    
+
     def _cancel_afters(self) -> None:
         """Cancela todos os after jobs pendentes."""
         for aid in list(self._after_ids):
@@ -491,40 +493,40 @@ class ClientFilesDialog(ctk.CTkToplevel):
             except Exception:
                 pass
         self._after_ids.clear()
-    
+
     def _ui_alive(self) -> bool:
         """Verifica se UI ainda está viva e acessível."""
         return (not self._closing) and self.winfo_exists()
-    
+
     def _safe_close(self) -> None:
         """Fecha dialog com cleanup seguro."""
         if self._closing:
             return
         self._closing = True
         self._cancel_afters()
-        
+
         # Shutdown do executor (espera workers terminarem, timeout 2s)
         try:
             self._executor.shutdown(wait=True, cancel_futures=True)
             log.debug("[ClientFiles] ThreadPoolExecutor finalizado")
         except Exception as e:
             log.warning(f"[ClientFiles] Erro ao finalizar executor: {e}")
-        
+
         try:
             self.destroy()
         except Exception:
             pass
-    
+
     def _poll_progress_queue(self) -> None:
         """Verifica fila de progresso e atualiza UI (thread-safe)."""
         if not self._ui_alive():
             return
-        
+
         try:
             while True:
                 msg = self._progress_queue.get_nowait()
                 action = msg.get("action")
-                
+
                 if action == "show":
                     mode = msg.get("mode", "indeterminate")
                     self._show_progress(mode)
@@ -538,7 +540,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
                     self._update_status(text)
         except queue.Empty:
             pass
-        
+
         # Continuar polling apenas se ainda ativo
         if self._ui_alive():
             self._safe_after(100, self._poll_progress_queue)
@@ -548,12 +550,12 @@ class ClientFilesDialog(ctk.CTkToplevel):
         selection = self.tree.selection()
         if not selection:
             return
-        
+
         iid = selection[0]
         metadata = self._tree_metadata.get(iid)
         if not metadata:
             return
-        
+
         if metadata.get("is_folder"):
             # Navegar para pasta
             folder_name = metadata.get("name", "")
@@ -566,7 +568,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
     def _update_button_states(self) -> None:
         """Atualiza estados dos botões baseado na seleção atual."""
         selection = self.tree.selection()
-        
+
         if not selection:
             # Nada selecionado: desabilitar tudo
             self.btn_baixar.configure(state="disabled")
@@ -574,10 +576,10 @@ class ClientFilesDialog(ctk.CTkToplevel):
             self.btn_excluir.configure(state="disabled")
             self.btn_visualizar.configure(state="disabled")
             return
-        
+
         iid = selection[0]
         metadata = self._tree_metadata.get(iid)
-        
+
         if not metadata:
             # Metadata não encontrado: desabilitar tudo
             self.btn_baixar.configure(state="disabled")
@@ -585,9 +587,9 @@ class ClientFilesDialog(ctk.CTkToplevel):
             self.btn_excluir.configure(state="disabled")
             self.btn_visualizar.configure(state="disabled")
             return
-        
+
         is_folder = metadata.get("is_folder", False)
-        
+
         if is_folder:
             # Pasta selecionada
             self.btn_baixar.configure(state="disabled")
@@ -622,7 +624,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
 
                 adapter = SupabaseStorageAdapter(bucket=bucket)
                 items = adapter.list_files(full_prefix)
-                
+
                 # Instrumentação: log se list_files demorou muito
                 log_slow("list_files", start_time)
 
@@ -634,10 +636,10 @@ class ClientFilesDialog(ctk.CTkToplevel):
                     # Ignorar arquivos .keep
                     if name.endswith("/.keep") or name.endswith(".keep"):
                         continue
-                    
+
                     # Adicionar full_path (CRÍTICO para evitar 404)
                     item["full_path"] = f"{full_prefix}/{name}".strip("/")
-                    
+
                     # Se tem metadata, é arquivo; senão é pasta
                     if item.get("metadata") is not None:
                         files.append(item)
@@ -664,7 +666,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
         """Callback quando arquivos foram carregados."""
         if not self._ui_alive():
             return
-        
+
         self._files = files
         self._loading = False
         self._enable_buttons()
@@ -679,7 +681,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
         """Callback quando houve erro ao carregar."""
         if not self._ui_alive():
             return
-        
+
         self._loading = False
         self._enable_buttons()
         self._update_status(f"Erro ao carregar arquivos: {error}")
@@ -746,7 +748,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
                 "is_folder": is_folder,
                 "metadata": metadata,
             }
-        
+
         # Reaplicar zebra para garantir consistência visual
         if self._tree_colors:
             apply_zebra(self.tree, self._tree_colors)
@@ -809,7 +811,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
             path_text = "/ (raiz)"
         else:
             path_text = "/" + "/".join(self._nav_stack)
-        
+
         if hasattr(self, "breadcrumb_label") and self.breadcrumb_label.winfo_exists():
             self.breadcrumb_label.configure(text=path_text)
 
@@ -861,14 +863,14 @@ class ClientFilesDialog(ctk.CTkToplevel):
         if not item.get("is_folder"):
             messagebox.showinfo("Info", "Selecione uma pasta, não um arquivo.", parent=self)
             return
-        
+
         # Baixar pasta selecionada como ZIP
         folder_name = item.get("name", "pasta")
         full_path = item.get("full_path", "")
-        
+
         # Definir nome padrão do ZIP
         zip_name = f"{Path(folder_name).name}.zip"
-        
+
         # Pedir local para salvar
         save_path = filedialog.asksaveasfilename(
             title="Salvar pasta como ZIP",
@@ -877,10 +879,10 @@ class ClientFilesDialog(ctk.CTkToplevel):
             defaultextension=".zip",
             filetypes=[("Arquivos ZIP", "*.zip")],
         )
-        
+
         if not save_path:
             return
-        
+
         self._download_folder_as_zip(full_path, save_path)
 
     def _download_folder_as_zip(self, folder_prefix: str, save_path: str) -> None:
@@ -888,7 +890,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
         self._loading = True
         self._update_status("Preparando download ZIP...")
         self._disable_buttons()
-        
+
         # Mostrar progresso indeterminado
         self._progress_queue.put({"action": "show", "mode": "indeterminate"})
 
@@ -919,11 +921,10 @@ class ClientFilesDialog(ctk.CTkToplevel):
                             metadata = item.get("metadata")
                             if metadata is not None:
                                 # É arquivo - baixar e adicionar ao ZIP
-                                self._progress_queue.put({
-                                    "action": "status",
-                                    "text": f"Baixando {relative_item_path}..."
-                                })
-                                
+                                self._progress_queue.put(
+                                    {"action": "status", "text": f"Baixando {relative_item_path}..."}
+                                )
+
                                 try:
                                     content = adapter.download_file(full_item_path)
                                     if isinstance(content, bytes):
@@ -947,9 +948,12 @@ class ClientFilesDialog(ctk.CTkToplevel):
 
                 # Mover ZIP para local escolhido
                 import shutil
+
                 shutil.move(str(temp_zip), save_path)
 
-                self._safe_after(0, lambda count=total_files, path=save_path: self._on_download_zip_complete(count, path))
+                self._safe_after(
+                    0, lambda count=total_files, path=save_path: self._on_download_zip_complete(count, path)
+                )
 
             except Exception as e:
                 log.error(f"[ClientFiles] Erro no download ZIP: {e}", exc_info=True)
@@ -1018,7 +1022,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
                             if metadata is not None:
                                 # É arquivo - baixar e adicionar ao ZIP
                                 self.after(0, lambda p=relative_item_path: self._update_status(f"Baixando {p}..."))
-                                
+
                                 try:
                                     content = adapter.download_file(full_item_path)
                                     if isinstance(content, bytes):
@@ -1042,9 +1046,12 @@ class ClientFilesDialog(ctk.CTkToplevel):
 
                 # Mover ZIP para local escolhido
                 import shutil
+
                 shutil.move(str(temp_zip), save_path)
 
-                self._safe_after(0, lambda count=total_files, path=save_path: self._on_download_zip_complete(count, path))
+                self._safe_after(
+                    0, lambda count=total_files, path=save_path: self._on_download_zip_complete(count, path)
+                )
 
             except Exception as e:
                 log.error(f"[ClientFiles] Erro no download ZIP: {e}", exc_info=True)
@@ -1058,7 +1065,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
         """Callback quando download ZIP foi concluído."""
         if not self._ui_alive():
             return
-        
+
         self._loading = False
         self._enable_buttons()
         self._progress_queue.put({"action": "hide"})
@@ -1074,7 +1081,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
         """Callback quando houve erro no download ZIP."""
         if not self._ui_alive():
             return
-        
+
         self._loading = False
         self._enable_buttons()
         self._progress_queue.put({"action": "hide"})
@@ -1087,7 +1094,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
         self._loading = True
         self._update_status(f"Enviando {len(file_paths)} arquivo(s)...")
         self._disable_buttons()
-        
+
         # Mostrar progresso determinado
         self._progress_queue.put({"action": "show", "mode": "determinate"})
 
@@ -1099,7 +1106,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
 
                 uploaded_count = 0
                 total = len(file_paths)
-                
+
                 for file_path in file_paths:
                     file_name = Path(file_path).name
                     remote_key = f"{prefix}/{subfolder}/{file_name}"
@@ -1112,14 +1119,10 @@ class ClientFilesDialog(ctk.CTkToplevel):
 
                     # Atualizar progresso
                     progress = uploaded_count / total
-                    self._progress_queue.put({
-                        "action": "update",
-                        "value": progress
-                    })
-                    self._progress_queue.put({
-                        "action": "status",
-                        "text": f"Enviados {uploaded_count}/{total} arquivo(s)..."
-                    })
+                    self._progress_queue.put({"action": "update", "value": progress})
+                    self._progress_queue.put(
+                        {"action": "status", "text": f"Enviados {uploaded_count}/{total} arquivo(s)..."}
+                    )
 
                 log.info(f"[ClientFiles] Upload concluído: {uploaded_count} arquivo(s)")
                 self._safe_after(0, lambda: self._on_upload_complete(uploaded_count))
@@ -1135,7 +1138,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
         """Callback quando upload foi concluído."""
         if not self._ui_alive():
             return
-        
+
         self._loading = False
         self._enable_buttons()
         self._progress_queue.put({"action": "hide"})
@@ -1149,7 +1152,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
         """Callback quando houve erro no upload."""
         if not self._ui_alive():
             return
-        
+
         self._loading = False
         self._enable_buttons()
         self._progress_queue.put({"action": "hide"})
@@ -1219,7 +1222,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
         """Callback quando arquivo foi aberto."""
         if not self._ui_alive():
             return
-        
+
         self._loading = False
         self._enable_buttons()
         self._update_status(f"{file_name} aberto")
@@ -1228,7 +1231,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
         """Callback quando houve erro ao abrir."""
         if not self._ui_alive():
             return
-        
+
         self._loading = False
         self._enable_buttons()
         self._update_status("Erro ao abrir arquivo")
@@ -1258,7 +1261,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
         self._loading = True
         self._update_status(f"Baixando {file_name}...")
         self._disable_buttons()
-        
+
         # Mostrar progresso indeterminado
         self._progress_queue.put({"action": "show", "mode": "indeterminate"})
 
@@ -1297,7 +1300,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
         """Callback quando download foi concluído."""
         if not self._ui_alive():
             return
-        
+
         self._loading = False
         self._enable_buttons()
         self._progress_queue.put({"action": "hide"})
@@ -1309,7 +1312,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
         """Callback quando houve erro no download."""
         if not self._ui_alive():
             return
-        
+
         self._loading = False
         self._enable_buttons()
         self._progress_queue.put({"action": "hide"})
@@ -1371,7 +1374,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
         """Callback quando arquivo foi excluído."""
         if not self._ui_alive():
             return
-        
+
         self._loading = False
         self._enable_buttons()
 
@@ -1384,7 +1387,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
         """Callback quando houve erro ao excluir."""
         if not self._ui_alive():
             return
-        
+
         self._loading = False
         self._enable_buttons()
         self._update_status("Erro ao excluir arquivo")
@@ -1404,14 +1407,19 @@ class ClientFilesDialog(ctk.CTkToplevel):
         """Desabilita botões durante operações."""
         if not self._ui_alive():
             return
-        
+
         import tkinter as tk
-        
+
         buttons = [
-            "btn_refresh", "btn_upload", "btn_back", "btn_visualizar",
-            "btn_baixar", "btn_baixar_zip", "btn_excluir"
+            "btn_refresh",
+            "btn_upload",
+            "btn_back",
+            "btn_visualizar",
+            "btn_baixar",
+            "btn_baixar_zip",
+            "btn_excluir",
         ]
-        
+
         for btn_name in buttons:
             if hasattr(self, btn_name):
                 btn = getattr(self, btn_name)
@@ -1425,9 +1433,9 @@ class ClientFilesDialog(ctk.CTkToplevel):
         """Habilita botões após operações."""
         if not self._ui_alive():
             return
-        
+
         import tkinter as tk
-        
+
         # Botões que sempre devem ser habilitados
         for btn_name in ["btn_refresh", "btn_upload"]:
             if hasattr(self, btn_name):
@@ -1437,7 +1445,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
                         btn.configure(state="normal")
                     except tk.TclError:
                         pass
-        
+
         # Atualizar estados dos botões do footer baseado na seleção
         self._update_button_states()
         self._update_back_button()  # Atualiza estado do botão Voltar

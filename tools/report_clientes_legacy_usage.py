@@ -84,9 +84,7 @@ def main() -> int:
     all_matches: dict[str, list[Match]] = {name: [] for name in LEGACY_PATTERNS}
 
     # Compilar regexes
-    compiled_patterns = {
-        name: re.compile(pattern) for name, pattern in LEGACY_PATTERNS.items()
-    }
+    compiled_patterns = {name: re.compile(pattern) for name, pattern in LEGACY_PATTERNS.items()}
 
     # Escanear diretórios
     scan_dirs = ["src", "tests", "docs", "tools"]
@@ -140,7 +138,9 @@ def main() -> int:
             print()
 
     print(f"\n{'='*70}")
-    print(f"RESUMO: {total_matches} referência(s) em {len(set(m.file for matches in all_matches.values() for m in matches))} arquivo(s)")
+    print(
+        f"RESUMO: {total_matches} referência(s) em {len(set(m.file for matches in all_matches.values() for m in matches))} arquivo(s)"
+    )
     print(f"{'='*70}")
 
     return 0

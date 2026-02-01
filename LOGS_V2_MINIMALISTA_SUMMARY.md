@@ -34,7 +34,7 @@ Reduzir ainda mais os logs INFO no console, mantendo apenas eventos importantes 
 - **Depois:**
   ```python
   # Cache global: _ANVISA_LAST_COUNT: dict[str, int] = {}
-  
+
   if last_count is None:
       log.info("[ANVISA] Listadas %d demanda(s) (org_id=%s)", count, org_id)
   elif count != last_count:

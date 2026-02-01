@@ -128,7 +128,7 @@ def list_requests(org_id: str) -> list[dict[str, Any]]:
     """
     from src.core.utils.perf_timer import perf_timer
     from src.infra.supabase_client import supabase
-    
+
     # Verificar cache (se não desabilitado via ENV)
     cache_disabled = os.getenv("RC_DISABLE_STARTUP_CACHE", "0") == "1"
     if not cache_disabled:
@@ -151,7 +151,7 @@ def list_requests(org_id: str) -> list[dict[str, Any]]:
             )
 
             data = getattr(response, "data", None) or []
-            
+
             # Atualizar cache
             if not cache_disabled:
                 _ANVISA_CACHE[org_id] = (data, time.monotonic())

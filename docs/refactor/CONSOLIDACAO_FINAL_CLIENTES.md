@@ -89,7 +89,7 @@ def clientes_v2_frame(tk_root):
 @pytest.fixture(scope="function")
 def clientes_frame(tk_root):
     """Cria uma instância de ClientesFrame para testes.
-    
+
     Este é o nome padrão da fixture após consolidação do módulo clientes.
     """
     from src.modules.clientes.ui import ClientesV2Frame
@@ -100,7 +100,7 @@ def clientes_frame(tk_root):
 @pytest.fixture(scope="function")
 def clientes_v2_frame(clientes_frame):
     """Alias de compatibilidade para clientes_frame.
-    
+
     DEPRECATED: Use 'clientes_frame' ao invés. Mantido temporariamente
     para não quebrar testes existentes durante migração.
     """
@@ -166,10 +166,10 @@ log.info(f"[Clientes:{session_id}] Criando editor...")
 TODO (Remover após 1-2 sprints):
     Quando guard check_no_clientes_v2_imports.py estiver verde por 1-2 sprints
     consecutivos sem novos imports, este diretório completo pode ser removido:
-    
+
     Comando para validação:
         python tools/check_no_clientes_v2_imports.py
-    
+
     Comando para remoção (apenas quando 100% confirmado):
         rm -rf src/modules/clientes_v2/
         git commit -m "chore: Remove shim clientes_v2 (migração 100% completa)"
@@ -397,7 +397,7 @@ FASE 3 - Preparação:
 
 BREAKING CHANGE: None (100% compatível via aliases)
 
-Refs: 
+Refs:
 - docs/refactor/MIGRACAO_COMPLETA_REMOCAO_CLIENTES_V2.md
 - docs/refactor/CONSOLIDACAO_FINAL_CLIENTES.md
 ```

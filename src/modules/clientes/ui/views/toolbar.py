@@ -135,6 +135,7 @@ class ClientesV2Toolbar(ctk.CTkFrame):
 
         # Inicializar com STATUS_CHOICES do helpers
         from src.modules.clientes.core.constants import STATUS_CHOICES
+
         self._status_values = ["Todos"] + list(STATUS_CHOICES)
 
         self.status_combo = ctk.CTkOptionMenu(

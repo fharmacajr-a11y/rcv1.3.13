@@ -290,7 +290,7 @@ def wire_session_and_health(app: "MainWindow") -> None:
                 # FASE 5A PASSO 3: Guarda contra footer=None (deferred ainda não completou)
                 if not hasattr(app, "footer") or app.footer is None:
                     return
-                
+
                 from src.infra.supabase_client import get_supabase_state
 
                 state, _ = get_supabase_state()

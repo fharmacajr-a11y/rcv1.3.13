@@ -273,7 +273,7 @@ class App(BaseApp):  # type: ignore[misc]
         if not hasattr(self, "nav") or self.nav is None:
             log.warning("show_frame chamado antes de nav estar pronto")
             return None
-        
+
         frame = self.nav.show_frame(frame_cls, **kwargs)
         try:
             self._update_topbar_state(frame)
@@ -448,9 +448,13 @@ class App(BaseApp):  # type: ignore[misc]
             if not hasattr(self, "footer") or self.footer is None:
                 log.debug("Footer ainda não pronto, pulando atualização de usuário")
                 return
-            
+
             email = getattr(getattr(session, "user", None), "email", None)
-            self.footer.set_user(email)
+            if email:
+                self.footer.set_user(email)
+                log.info("Footer atualizado: usuário = %s", email[:20] + "..." if len(email) > 20 else email)
+            else:
+                log.debug("Email não disponível na sessão")
         except Exception as e:
             log.warning("Erro ao atualizar usuário no rodapé: %s", e)
 

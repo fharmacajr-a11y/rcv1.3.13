@@ -200,11 +200,11 @@ def normalize_order_label(label: str | None) -> str:
     """
     if not label:
         return DEFAULT_ORDER_LABEL
-    
+
     normalized = label.strip()
     if not normalized:
         return DEFAULT_ORDER_LABEL
-    
+
     return ORDER_LABEL_ALIASES.get(normalized, normalized)
 
 

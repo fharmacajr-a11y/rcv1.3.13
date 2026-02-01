@@ -32,7 +32,7 @@ from src.core.utils.perf_timer import perf_timer
 
 with perf_timer("operation_name", logger, threshold_ms=100):
     do_expensive_work()
-    
+
 # Se RC_PROFILE_STARTUP=1 e >100ms:
 # WARNING: ⚠️ [PERF-SLOW] operation_name = 485ms
 ```
@@ -105,7 +105,7 @@ def list_requests(org_id: str) -> list[dict]:
         if age < 30.0:
             log.debug(f"[ANVISA] Cache hit: {len(data)} demandas (age={age:.1f}s)")
             return data
-    
+
     # Carregar do banco + atualizar cache
     data = fetch_from_supabase()
     _ANVISA_CACHE[org_id] = (data, time.monotonic())
@@ -147,16 +147,16 @@ def _build_layout_skeleton(app, *, start_hidden=False):
     app.title(window_title)
     app.protocol("WM_DELETE_WINDOW", app._confirm_exit)
     apply_fit_policy(app)
-    
+
     # Container vazio (será populado depois)
     content_container = ctk.CTkFrame(app, fg_color=APP_BG)
     content_container.pack(fill="both", expand=True)
-    
+
     # Variáveis Tkinter
     clients_count_var = tk.StringVar(value="0 clientes")
     status_var_dot = tk.StringVar(value="")
     status_var_text = tk.StringVar(value="LOCAL")
-    
+
     # Retorna refs (topbar/menu/footer/nav = None até deferred)
     return MainWindowLayoutRefs(...)
 ```
@@ -170,13 +170,13 @@ def _build_layout_deferred(app, refs):
         # Verificar se app ainda existe
         if not app.winfo_exists():
             return
-        
+
         # Criar componentes pesados
         topbar = TopBar(app, ...)
         menu = AppMenuBar(app, ...)
         footer = StatusFooter(app, ...)
         nav = NavigationController(refs.content_container, ...)
-        
+
         # Pack e atualizar refs
         topbar.pack(side="top", fill="x")
         footer.pack(side="bottom", fill="x")

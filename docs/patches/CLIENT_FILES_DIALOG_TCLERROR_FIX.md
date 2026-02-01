@@ -77,7 +77,7 @@ def _on_open_complete(self, file_name: str) -> None:
     """Callback quando arquivo foi aberto."""
     if not self._ui_alive():  # ← GUARD CLAUSE
         return
-    
+
     self._loading = False
     self._enable_buttons()
     self._update_status(f"{file_name} aberto")
@@ -117,14 +117,14 @@ def _disable_buttons(self) -> None:
     """Desabilita botões durante operações."""
     if not self._ui_alive():
         return
-    
+
     import tkinter as tk
-    
+
     buttons = [
         "btn_refresh", "btn_upload", "btn_back", "btn_visualizar",
         "btn_baixar", "btn_baixar_zip", "btn_excluir"
     ]
-    
+
     for btn_name in buttons:
         if hasattr(self, btn_name):
             btn = getattr(self, btn_name)
@@ -159,14 +159,14 @@ def _poll_progress_queue(self) -> None:
     """Verifica fila de progresso e atualiza UI (thread-safe)."""
     if not self._ui_alive():  # ← GUARD
         return
-    
+
     try:
         while True:
             msg = self._progress_queue.get_nowait()
             # ... processa mensagem
     except queue.Empty:
         pass
-    
+
     # Continuar polling apenas se ainda ativo
     if self._ui_alive():  # ← GUARD
         self._safe_after(100, self._poll_progress_queue)

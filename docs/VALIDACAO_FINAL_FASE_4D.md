@@ -89,7 +89,7 @@ Validar sintaxe Python (compileall).............................................
 Bandit Security Scan (UTF-8 safe)..................................................Passed
 ```
 
-**Nota:** Guards `check_no_clientes_v2_paths.py` e `check_no_clientes_archived_forms_paths.py` 
+**Nota:** Guards `check_no_clientes_v2_paths.py` e `check_no_clientes_archived_forms_paths.py`
 agora usam `python -X utf8` para evitar UnicodeEncodeError no Windows (emoji ✅).
 
 ---

@@ -296,8 +296,8 @@ Write-Host "`n🎉 Limpeza Nível 1 concluída! Economia: ~521.69 MB" -Foregroun
 
 ### Verificar Tamanho Atual
 ```powershell
-$size = (Get-ChildItem -Recurse -File -Force -ErrorAction SilentlyContinue | 
-         Where-Object { -not $_.FullName.Contains('.git\') } | 
+$size = (Get-ChildItem -Recurse -File -Force -ErrorAction SilentlyContinue |
+         Where-Object { -not $_.FullName.Contains('.git\') } |
          Measure-Object -Property Length -Sum).Sum
 Write-Host "Tamanho atual: $([math]::Round($size / 1MB, 2)) MB" -ForegroundColor Cyan
 ```

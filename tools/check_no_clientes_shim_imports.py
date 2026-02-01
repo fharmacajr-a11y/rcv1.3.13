@@ -147,7 +147,7 @@ def main() -> int:
     # Reportar resultados
     if not all_violations:
         print("✅ OK: Nenhum import de shim encontrado")
-        print(f"   Verificados: src/ e tests/")
+        print("   Verificados: src/ e tests/")
         print(f"   Shims permitidos: {len(ALLOWED_SHIM_FILES)} arquivo(s)")
         return 0
 

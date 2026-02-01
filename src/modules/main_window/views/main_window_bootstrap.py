@@ -193,13 +193,14 @@ def _wire_session_and_health(app: App) -> None:
     try:
         # FASE 5A PASSO 3: Guarda contra footer=None (deferred ainda não completou)
         if not hasattr(app, "footer") or app.footer is None:
-            log.debug("Footer ainda não pronto, pulando wire session/health")
+            log.debug("Footer ainda não pronto, reagendando wire session/health em 100ms")
             # Reagendar para depois do deferred
             app.after(100, lambda: _wire_session_and_health(app))
             return
-        
+
         # Conectar callbacks do StatusMonitor ao footer
         if app._status_monitor and hasattr(app.footer, "on_status_update"):
             app._status_monitor.on_status_change = app.footer.on_status_update
+            log.info("StatusMonitor conectado ao footer (on_status_change callback)")
     except Exception as exc:
         log.debug("Falha ao wire session/health: %s", exc)

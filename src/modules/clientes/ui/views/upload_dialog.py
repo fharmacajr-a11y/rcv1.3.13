@@ -79,7 +79,7 @@ class ClientUploadDialog(ctk.CTkToplevel):
             on_complete: Callback após upload bem-sucedido
         """
         super().__init__(parent, **kwargs)
-        
+
         # Ocultar imediatamente para evitar flash branco
         self.withdraw()
 
@@ -87,17 +87,18 @@ class ClientUploadDialog(ctk.CTkToplevel):
         self.client_name = client_name
         self.on_complete = on_complete
         self.selected_files: list[str] = []
-        
+
         # Configurar cores ANTES de geometry
         self.configure(fg_color=APP_BG)
 
         # Configurar janela
         self.title(f"Upload de Arquivos - {client_name or f'Cliente {client_id}'}")
         self.geometry("700x500")
-        
+
         # Usar Toplevel.resizable para evitar flicker
         try:
             from tkinter import Toplevel
+
             Toplevel.resizable(self, False, False)
         except Exception:
             self.resizable(False, False)
@@ -110,22 +111,22 @@ class ClientUploadDialog(ctk.CTkToplevel):
 
         # Tornar modal (transient antes de grab)
         self.transient(parent)
-        
+
         # Construir UI completa
         self._build_ui()
-        
+
         # Processar layout
         self.update_idletasks()
-        
+
         # Aplicar titlebar escura (Windows)
         try:
             set_win_dark_titlebar(self)
         except Exception:
             pass
-        
+
         # EXIBIR janela
         self.deiconify()
-        
+
         # grab_set APÓS deiconify
         self.grab_set()
 

@@ -884,11 +884,12 @@ def poll_health_impl(app: App) -> None:
         # FASE 5A PASSO 3: Guarda contra footer=None (deferred ainda não completou)
         if not hasattr(app, "footer") or app.footer is None:
             return
-        
+
         from src.infra.supabase_client import get_supabase_state
 
         state, _ = get_supabase_state()
         app.footer.set_cloud(state)
+        log.debug("Footer atualizado: cloud = %s", state)
     except Exception as exc:  # noqa: BLE001
         log.debug("Falha ao obter estado da nuvem no polling: %s", exc)
 
@@ -911,12 +912,12 @@ def main_screen_frame(app: App):
     frame = getattr(app, "_main_frame_ref", None)
     if isinstance(frame, ClientesV2Frame):
         return frame
-    
+
     # FASE 5A PASSO 3: Guarda contra nav=None (layout deferred ainda não completou)
     nav = getattr(app, "nav", None)
     if nav is None:
         return None
-    
+
     current = nav.current()
     if isinstance(current, ClientesV2Frame):
         app._main_frame_ref = current

@@ -8,7 +8,6 @@ Este módulo mantém wrappers de compatibilidade para códigos legados.
 from __future__ import annotations
 
 import logging
-from tkinter import ttk
 from typing import Any
 
 from src.ui.ttk_treeview_theme import apply_treeview_theme as _apply_theme_new
@@ -32,10 +31,10 @@ def apply_clients_v2_treeview_theme(mode: str, master: Any = None) -> tuple[str,
         Tupla (even_bg, odd_bg, fg, heading_bg, heading_fg)
     """
     log.warning("[ClientesV2] DEPRECATED: apply_clients_v2_treeview_theme() - use TtkTreeviewManager")
-    
+
     # Usar nova implementação centralizada
     _, colors = _apply_theme_new(mode, master, style_name="RC.ClientesV2")
-    
+
     return colors.even_bg, colors.odd_bg, colors.fg, colors.heading_bg, colors.heading_fg
 
 
@@ -51,10 +50,9 @@ def apply_treeview_zebra_tags(tree: Any, even_bg: str, odd_bg: str, fg: str) -> 
         fg: Cor do texto
     """
     log.warning("[ClientesV2] DEPRECATED: apply_treeview_zebra_tags() - use apply_zebra()")
-    
+
     # Criar TreeColors temporário para compatibilidade
-    from src.ui.ttk_treeview_theme import TreeColors
-    
+
     colors = TreeColors(
         bg=even_bg,
         field_bg=even_bg,
@@ -67,6 +65,5 @@ def apply_treeview_zebra_tags(tree: Any, even_bg: str, odd_bg: str, fg: str) -> 
         odd_bg=odd_bg,
         border="#d1d5db",
     )
-    
-    _apply_zebra_new(tree, colors)
 
+    _apply_zebra_new(tree, colors)

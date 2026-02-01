@@ -161,7 +161,7 @@
 ```python
 class RedactSensitiveData(logging.Filter):
     """Redação automática de dados sensíveis em logs."""
-    
+
     # Padrões de redação:
     # - UUID: 44900b9f-073f-4940-b6ff-9269af781c19 → 44900b9f...
     # - Path Windows: C:\Users\Pichau\Desktop\file.txt → <path>/file.txt
@@ -173,7 +173,7 @@ class RedactSensitiveData(logging.Filter):
 ```python
 class ConsoleImportantFilter(logging.Filter):
     """Filtro de console com allowlist de loggers importantes."""
-    
+
     IMPORTANT_LOGGERS = {
         "startup",
         "app_gui",
@@ -183,7 +183,7 @@ class ConsoleImportantFilter(logging.Filter):
         "src.modules.clientes_v2.view",
         # ... mais loggers críticos
     }
-    
+
     BLOCKED_PREFIXES = (
         "src.ui.ttk_treeview_",
         "infra.supabase.storage",
@@ -195,7 +195,7 @@ class ConsoleImportantFilter(logging.Filter):
 ```python
 class StorageWarningFilter(logging.Filter):
     """Suprime warning específico do storage sobre trailing slash."""
-    
+
     def filter(self, record: logging.LogRecord) -> bool:
         if record.levelno == logging.WARNING:
             msg = str(record.getMessage())
@@ -209,16 +209,16 @@ class StorageWarningFilter(logging.Filter):
 def configure_logging(level: Optional[str] = None) -> None:
     # Capturar warnings do Python
     logging.captureWarnings(True)
-    
+
     # Aplicar filtros aos handlers
     for handler in root_logger.handlers:
         handler.addFilter(RedactSensitiveData())  # Sempre
-        
+
         # Console: apenas loggers importantes
         if isinstance(handler, logging.StreamHandler):
             handler.addFilter(ConsoleImportantFilter())
             handler.addFilter(StorageWarningFilter())
-    
+
     # Configurar loggers ruidosos para DEBUG
     logging.getLogger("src.ui.ttk_treeview_manager").setLevel(logging.DEBUG)
     logging.getLogger("src.utils.network").setLevel(logging.DEBUG)

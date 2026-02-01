@@ -55,9 +55,7 @@ def check_file(file_path: Path) -> list[Violation]:
         for line_num, line in enumerate(content.splitlines(), start=1):
             for pattern in FORBIDDEN_PATTERNS:
                 if re.search(pattern, line, re.IGNORECASE):
-                    violations.append(
-                        Violation(file=file_path, line=line_num, matched_text=line.strip())
-                    )
+                    violations.append(Violation(file=file_path, line=line_num, matched_text=line.strip()))
                     break  # Uma violação por linha é suficiente
     except Exception:
         pass  # Ignorar erros de leitura

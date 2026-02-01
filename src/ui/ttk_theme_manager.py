@@ -108,9 +108,9 @@ class TreeviewThemeManager:
             # Obter ou criar Style para o master da Treeview
             master = getattr(tree, "master", None)
             if master is None:
-                log.warning(f"[TreeviewThemeManager] Treeview sem master, ignorando")
+                log.warning("[TreeviewThemeManager] Treeview sem master, ignorando")
                 return
-            
+
             if master not in self._style_cache:
                 self._style_cache[master] = ttk.Style(master)  # type: ignore[attr-defined]
 

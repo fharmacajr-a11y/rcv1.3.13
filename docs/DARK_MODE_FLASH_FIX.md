@@ -84,16 +84,16 @@ self.grab_set()
    - Pattern withdraw/deiconify completo
    - Titlebar escura aplicada
    - fg_color configurado ANTES de geometry
-   
+
 2. **`src/modules/clientes_v2/views/client_editor_dialog.py`** (ClientEditorDialog)
    - Pattern withdraw/deiconify completo
    - Titlebar escura aplicada
    - Logs detalhados para debug
-   
+
 3. **`src/modules/clientes_v2/views/upload_dialog.py`** (ClientUploadDialog)
    - Pattern withdraw/deiconify completo
    - Titlebar escura aplicada
-   
+
 4. **`src/ui/subpastas_dialog.py`** (SubpastaDialog)
    - Pattern withdraw/deiconify completo
    - Titlebar escura aplicada

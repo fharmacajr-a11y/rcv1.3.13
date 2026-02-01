@@ -78,10 +78,10 @@ def build_main_window_layout(
     """
     # Criar skeleton imediatamente
     refs = _build_layout_skeleton(app, start_hidden=start_hidden)
-    
+
     # Agendar deferred para próximo tick (libera UI thread)
     app.after(0, lambda: _build_layout_deferred(app, refs))
-    
+
     return refs
 
 
@@ -135,12 +135,12 @@ def _build_layout_skeleton(
         except Exception as exc:  # noqa: BLE001
             log.debug("Falha ao ocultar janela: %s", exc)
 
-    # 6. Container de conteúdo VAZIO (será populado em deferred)
+    # 6. Container de conteúdo VAZIO (NÃO empacotar ainda - será feito em deferred após topbar)
     if ctk is not None:
         content_container = ctk.CTkFrame(app, fg_color=APP_BG, corner_radius=0)
     else:
         content_container = tk.Frame(app)
-    content_container.pack(fill="both", expand=True)
+    # NÃO pack aqui - ordem importa: topbar/menu primeiro, footer depois, container por último
 
     # 7. Variáveis Tkinter
     clients_count_var = tk.StringVar(master=app, value="0 clientes")
@@ -150,10 +150,12 @@ def _build_layout_skeleton(
         value=(getattr(app_status, "status_text", None) or "LOCAL"),
     )
 
-    # Criar separadores como placeholders
+    # Criar separadores como placeholders (não empacotar ainda)
     SEP_H = 2
     sep_menu_toolbar = ctk.CTkFrame(app, height=SEP_H, corner_radius=0, fg_color=SEP)
     sep_toolbar_main = ctk.CTkFrame(app, height=SEP_H, corner_radius=0, fg_color=SEP)
+
+    log.info("Layout skeleton criado (container não empacotado ainda)")
 
     return MainWindowLayoutRefs(
         sep_menu_toolbar=sep_menu_toolbar,
@@ -187,14 +189,19 @@ def _build_layout_deferred(app: App, refs: MainWindowLayoutRefs) -> None:
             log.warning("App foi fechado antes de deferred completar")
             return
 
-        # 1. Separadores
+        # ORDEM CRÍTICA DE PACK (top-to-bottom):
+        # 1. Separador + TopBar (topo)
+        # 2. Footer (fundo)
+        # 3. Container de conteúdo (meio, expand=True)
+
+        # 1a. Separador menu-toolbar (topo)
         refs.sep_menu_toolbar.pack(side="top", fill="x", pady=0)
         try:
             refs.sep_menu_toolbar.pack_propagate(False)
         except (AttributeError, Exception):
             pass
 
-        # 2. TopBar
+        # 1b. TopBar (topo)
         topbar = TopBar(
             app,
             on_home=app.show_hub_screen,
@@ -208,15 +215,16 @@ def _build_layout_deferred(app: App, refs: MainWindowLayoutRefs) -> None:
             on_delete_all_notifications_for_me=app._delete_all_notifications_for_me,
         )
         topbar.pack(side="top", fill="x")
+        log.info("TopBar criado e empacotado no topo")
 
-        # 3. Separador pós-topbar
+        # 1c. Separador pós-topbar (topo)
         refs.sep_toolbar_main.pack(side="top", fill="x", pady=0)
         try:
             refs.sep_toolbar_main.pack_propagate(False)
         except (AttributeError, Exception):
             pass
 
-        # 4. AppMenuBar
+        # 2. AppMenuBar (attached to app, não usa pack)
         menu = AppMenuBar(
             app,
             on_home=app.show_hub_screen,
@@ -226,15 +234,20 @@ def _build_layout_deferred(app: App, refs: MainWindowLayoutRefs) -> None:
         )
         menu.attach()
 
-        # 5. NavigationController
-        nav = NavigationController(refs.content_container, frame_factory=app._frame_factory)
-
-        # 6. StatusFooter
+        # 3. StatusFooter (fundo - ANTES do container para não ser coberto)
         footer = StatusFooter(app, show_trash=False)
         footer.pack(side="bottom", fill="x")
         footer.set_count(0)
         footer.set_user(None)
         footer.set_cloud("UNKNOWN")
+        log.info("StatusFooter criado e empacotado no fundo")
+
+        # 4. Container de conteúdo (meio, expand - POR ÚLTIMO)
+        refs.content_container.pack(side="top", fill="both", expand=True)
+        log.info("Container de conteúdo empacotado (meio, expand=True)")
+
+        # 5. NavigationController (usa container já empacotado)
+        nav = NavigationController(refs.content_container, frame_factory=app._frame_factory)
 
         # Atualizar refs (sobrescrever placeholders)
         refs.topbar = topbar

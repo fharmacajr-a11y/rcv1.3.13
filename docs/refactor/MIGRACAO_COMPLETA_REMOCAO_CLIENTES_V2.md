@@ -61,7 +61,7 @@ from src.modules.clientes_v2 → from src.modules.clientes.ui
 tests/modules/clientes_v2/ → tests/modules/clientes_ui/
 ```
 
-**Razão:** 
+**Razão:**
 - Nome alinhado com nova estrutura (`clientes.ui`)
 - Evita confusão sobre qual módulo está sendo testado
 - Consistência com convenção de nomes
@@ -241,7 +241,7 @@ python tools/check_no_clientes_v2_imports.py
 3. **README.md:**
    ```markdown
    ## Desenvolvimento
-   
+
    Antes de commitar, execute:
    ```bash
    python tools/check_no_clientes_v2_imports.py

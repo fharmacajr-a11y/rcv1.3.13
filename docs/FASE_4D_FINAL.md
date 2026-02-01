@@ -94,7 +94,7 @@ KeyError: 'system'
 `theme_manager.py` aceita apenas `"light"` e `"dark"` (tipo `ThemeMode`), mas o teste tentava usar `"system"`.
 
 **Correção:**
-1. Removido teste de `mode="system"` 
+1. Removido teste de `mode="system"`
 2. Testado apenas `light → dark → light` (toggle)
 3. Corrigido `test_theme_manager_api()` (removido `resolve_effective_mode("system")`)
 
@@ -151,14 +151,14 @@ KeyError: 'system'
 ```
 📦 src/modules/clientes/forms/_archived/
    → docs/_archive/clientes_forms/
-   
+
 Conteúdo (19 arquivos .py + 19 .pyc):
    ├── client_form.py (17 KB)
    ├── client_form_new.py (17 KB)
    ├── client_picker.py (14 KB)
    ├── client_subfolders_dialog.py (6 KB)
    └── [+ 15 módulos auxiliares]
-   
+
 MOTIVO: Formulários legados Tkinter/ttkbootstrap
         Substituídos por CustomTkinter (ClientEditorDialog)
 ```

@@ -1,11 +1,12 @@
 """
 Script de teste para verificar se ttk.Style está aplicando corretamente
 """
+
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-import tkinter as tk
 from tkinter import ttk
 import customtkinter as ctk
 

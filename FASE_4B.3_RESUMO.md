@@ -32,11 +32,11 @@
 
 #### Status:
 ✅ **CAUSA RAIZ CORRIGIDA**: `_base_url` patched com trailing slash
-⚠️ **WARNING COSMÉTICO PERSISTE**: 
+⚠️ **WARNING COSMÉTICO PERSISTE**:
    - Emitido por print() direto na lib storage3 durante import
    - Não é configurável/suprimível sem modificar código-fonte da lib
    - **IMPACTO**: ZERO - funcionalidade 100% operacional
-   
+
 #### Documentação:
 Nota explicativa adicionada em `sitecustomize.py` documentando o status.
 

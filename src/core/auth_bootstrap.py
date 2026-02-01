@@ -320,6 +320,9 @@ def _update_footer_email(app: AppProtocol) -> None:
         # FASE 5A PASSO 3: Guarda contra footer=None (deferred ainda não completou)
         if hasattr(app, "footer") and app.footer is not None and email:
             app.footer.set_user(email)
+            log.info("Footer atualizado com usuário: %s", email[:20] + "..." if len(email) > 20 else email)
+        elif not hasattr(app, "footer") or app.footer is None:
+            log.debug("Footer ainda não disponível para atualização de usuário")
     except Exception as exc:
         log.debug("Falha ao atualizar email no rodapé", exc_info=exc)
 

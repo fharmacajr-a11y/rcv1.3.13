@@ -27,7 +27,7 @@ Reduzir ruído no console durante execução da aplicação, removendo warnings 
 ```python
 class LineFilterStream:
     """Stream wrapper que filtra linhas baseado em patterns regex."""
-    
+
     def write(self, text: str) -> int:
         # Bufferiza até '\n'
         # Descarta linhas que matcham patterns

@@ -307,7 +307,7 @@ class RecentActivityStore:
             runner: HubAsyncRunner para operações assíncronas
         """
         from src.core.utils.perf_timer import perf_timer
-        
+
         if self._bootstrapped:
             log.debug("[RecentActivityStore] Já foi carregado do DB, ignorando")
             return
