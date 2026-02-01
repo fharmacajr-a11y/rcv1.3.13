@@ -9,7 +9,7 @@ Cobertura: has_selection, get_selection_count, is_single_selection,
 from __future__ import annotations
 
 
-from src.modules.clientes.views.main_screen_helpers import (
+from src.modules.clientes.core.ui_helpers import (
     can_delete_selection,
     can_edit_selection,
     can_open_folder_for_selection,

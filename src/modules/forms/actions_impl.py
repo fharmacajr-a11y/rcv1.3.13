@@ -19,7 +19,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox
 from typing import Any, Mapping, Protocol, cast
 from typing_extensions import TypedDict
-from src.modules.clientes.service import extrair_dados_cartao_cnpj_em_pasta
+from src.modules.clientes.core.service import extrair_dados_cartao_cnpj_em_pasta
 from src.modules.uploads.external_upload_service import (
     salvar_e_enviar_para_supabase_service,
 )

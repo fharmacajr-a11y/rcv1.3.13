@@ -18,7 +18,7 @@ from src.modules.clientes.controllers.event_router import (
 )
 from src.modules.clientes.controllers.pick_mode_manager import PickModeSnapshot
 from src.modules.clientes.controllers.selection_manager import SelectionSnapshot
-from src.modules.clientes.viewmodel import ClienteRow
+from src.modules.clientes.core.viewmodel import ClienteRow
 
 
 # ────────────────────────────────────────────────────────────────────────────────

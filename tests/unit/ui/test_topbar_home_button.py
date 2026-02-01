@@ -114,7 +114,7 @@ def test_topbar_home_button_state_on_screen_change(tk_root_session):
     tk_root_session.update_idletasks()
 
     # Testar múltiplas telas - btn_home NUNCA deve estar disabled
-    test_screens = ["main", "hub", "sites", "passwords", "cashflow", "auditoria", "anvisa"]
+    test_screens = ["main", "hub", "sites", "cashflow", "auditoria", "anvisa"]
 
     for screen_name in test_screens:
         topbar.set_active_screen(screen_name)

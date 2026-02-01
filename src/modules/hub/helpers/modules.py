@@ -40,8 +40,6 @@ class ModuleButton:
 
 def build_module_buttons(
     has_clientes: bool = True,
-    has_senhas: bool = True,
-    has_auditoria: bool = True,
     has_cashflow: bool = False,
     has_anvisa: bool = False,
     has_farmacia_popular: bool = False,
@@ -56,8 +54,6 @@ def build_module_buttons(
 
     Args:
         has_clientes: Se módulo Clientes está habilitado
-        has_senhas: Se módulo Senhas está habilitado
-        has_auditoria: Se módulo Auditoria está habilitado
         has_cashflow: Se módulo Fluxo de Caixa está habilitado
         has_anvisa: Se módulo Anvisa está habilitado
         has_farmacia_popular: Se módulo Farmácia Popular está habilitado
@@ -70,7 +66,7 @@ def build_module_buttons(
     Examples:
         >>> buttons = build_module_buttons()
         >>> len(buttons)
-        8
+        7
         >>> buttons[0].text
         'Clientes'
         >>> buttons[0].bootstyle
@@ -87,12 +83,6 @@ def build_module_buttons(
     # Ordem fixa de módulos
     if has_clientes:
         buttons.append(ModuleButton("Clientes", enabled=True, bootstyle="info", has_callback=True))
-
-    if has_senhas:
-        buttons.append(ModuleButton("Senhas", enabled=True, bootstyle="info", has_callback=True))
-
-    if has_auditoria:
-        buttons.append(ModuleButton("Auditoria", enabled=True, bootstyle="success", has_callback=True))
 
     # Fluxo de Caixa (em desenvolvimento)
     buttons.append(

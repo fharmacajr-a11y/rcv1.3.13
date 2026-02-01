@@ -18,7 +18,7 @@ from src.modules.clientes.controllers.rendering_adapter import (
     build_row_tags,
     build_row_values,
 )
-from src.modules.clientes.viewmodel import ClienteRow
+from src.modules.clientes.core.viewmodel import ClienteRow
 
 
 @pytest.fixture

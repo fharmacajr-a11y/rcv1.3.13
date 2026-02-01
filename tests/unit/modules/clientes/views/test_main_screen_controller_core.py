@@ -8,7 +8,7 @@ Sem dependências do Tkinter.
 
 from __future__ import annotations
 
-from src.modules.clientes.viewmodel import ClienteRow
+from src.modules.clientes.core.viewmodel import ClienteRow
 from src.modules.clientes.views import main_screen_controller as ctrl
 from tests.unit.modules.clientes.views.factories_main_screen_state import (
     make_main_screen_state,

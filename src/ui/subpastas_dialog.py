@@ -14,6 +14,7 @@ from typing import Optional
 from src.ui.ctk_config import ctk
 from src.utils.subfolders import sanitize_subfolder_name
 from src.ui.window_utils import show_centered
+from src.ui.dark_window_helper import set_win_dark_titlebar
 
 logger = logging.getLogger(__name__)
 
@@ -33,10 +34,18 @@ class SubpastaDialog(ctk.CTkToplevel):
         bucket: str = "rc-docs",
     ):
         super().__init__(parent)
-        self.withdraw()
+        self.withdraw()  # CRÍTICO: Ocultar antes de configurar (evita flash branco)
         self.title("Escolher Subpasta")
         self.transient(parent)
-        self.resizable(True, True)
+
+        # Usar Toplevel.resizable para evitar flicker
+        try:
+            from tkinter import Toplevel
+
+            Toplevel.resizable(self, True, True)
+        except Exception:
+            self.resizable(True, True)
+
         self.minsize(600, 400)
 
         self.result: Optional[str] = None
@@ -88,10 +97,20 @@ class SubpastaDialog(ctk.CTkToplevel):
         self.update_idletasks()
         show_centered(self)
 
+        # Aplicar titlebar escura (Windows)
+        try:
+            set_win_dark_titlebar(self)
+        except Exception:
+            pass
+
         # Carrega subpastas se prefix foi fornecido
         if prefix:
             self._load_subpastas()
 
+        # EXIBIR janela após configurar tudo
+        self.deiconify()
+
+        # grab_set APÓS deiconify
         self.grab_set()
         self.entry.focus_force()
 

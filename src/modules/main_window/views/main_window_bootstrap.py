@@ -33,6 +33,7 @@ def bootstrap_main_window(app: App) -> None:
     Args:
         app: Instância do MainWindow já inicializada com super().__init__
     """
+    from src.core.utils.perf_timer import perf_timer
     from src.modules.main_window.views.main_window_layout import build_main_window_layout
     from src.modules.main_window.views.main_window_services import (
         init_auth_controller,
@@ -50,15 +51,18 @@ def bootstrap_main_window(app: App) -> None:
     from src.core.keybindings import bind_global_shortcuts
 
     # ═══════════════════════════════════════════════════════════════
-    # 1. BUILD LAYOUT
+    # 1. BUILD LAYOUT (em fases: skeleton + deferred)
     # ═══════════════════════════════════════════════════════════════
-    # MICROFASE 24: Removido tema_atual (gerenciado por CustomTkinter globalmente)
+    # FASE 5A PASSO 3: Layout em 2 fases para reduzir freeze
+    # - skeleton: estrutura mínima (imediato)
+    # - deferred: componentes complexos (after 0)
     start_hidden = getattr(app, "_start_hidden", False)
 
-    app._layout = build_main_window_layout(
-        app,
-        start_hidden=start_hidden,
-    )
+    with perf_timer("startup.build_layout_skeleton", log, threshold_ms=50):
+        app._layout = build_main_window_layout(
+            app,
+            start_hidden=start_hidden,
+        )
 
     # Expor refs do layout como atributos do MainWindow (compatibilidade)
     app.sep_menu_toolbar = app._layout.sep_menu_toolbar
@@ -83,15 +87,17 @@ def bootstrap_main_window(app: App) -> None:
     # ═══════════════════════════════════════════════════════════════
 
     # Notifications
-    app._notifications_service = init_notifications_service(app)
-    app.notifications_service = app._notifications_service
-    app._mute_notifications = False
-    app._last_unread_count = 0
-    app._notifications_baselined = False
+    with perf_timer("startup.init_notifications", log, threshold_ms=100):
+        app._notifications_service = init_notifications_service(app)
+        app.notifications_service = app._notifications_service
+        app._mute_notifications = False
+        app._last_unread_count = 0
+        app._notifications_baselined = False
 
     # Supabase client
-    app.supabase = init_supabase_client()
-    app._client = app.supabase
+    with perf_timer("startup.init_supabase", log, threshold_ms=50):
+        app.supabase = init_supabase_client()
+        app._client = app.supabase
 
     # Status fields
     app._status_base_text = app.status_var_text.get() or ""
@@ -100,18 +106,20 @@ def bootstrap_main_window(app: App) -> None:
     app._main_loaded = False
 
     # Theme manager
-    app._theme_listener = init_theme_manager(app)
+    with perf_timer("startup.init_theme_manager", log, threshold_ms=50):
+        app._theme_listener = init_theme_manager(app)
 
     # ═══════════════════════════════════════════════════════════════
     # 3. ROUTER & SCREENS
     # ═══════════════════════════════════════════════════════════════
-    app._router = ScreenRouter(
-        container=app._content_container,
-        logger=log,
-    )
+    with perf_timer("startup.init_router", log, threshold_ms=100):
+        app._router = ScreenRouter(
+            container=app._content_container,
+            logger=log,
+        )
 
-    # Registrar todas as telas (hub, clients, passwords, etc.)
-    register_main_window_screens(app._router, app)
+        # Registrar todas as telas (hub, clients, passwords, etc.)
+        register_main_window_screens(app._router, app)
 
     # ═══════════════════════════════════════════════════════════════
     # 4. STATUS MONITOR (health checks)
@@ -183,6 +191,13 @@ def bootstrap_main_window(app: App) -> None:
 def _wire_session_and_health(app: App) -> None:
     """Wire de sessão e health checks ao rodapé."""
     try:
+        # FASE 5A PASSO 3: Guarda contra footer=None (deferred ainda não completou)
+        if not hasattr(app, "footer") or app.footer is None:
+            log.debug("Footer ainda não pronto, pulando wire session/health")
+            # Reagendar para depois do deferred
+            app.after(100, lambda: _wire_session_and_health(app))
+            return
+        
         # Conectar callbacks do StatusMonitor ao footer
         if app._status_monitor and hasattr(app.footer, "on_status_update"):
             app._status_monitor.on_status_change = app.footer.on_status_update

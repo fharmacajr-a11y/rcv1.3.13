@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.modules.clientes.viewmodel import ClienteRow
+from src.modules.clientes.core.viewmodel import ClienteRow
 from src.modules.clientes.views.main_screen_controller import (
     compute_main_screen_state,
 )

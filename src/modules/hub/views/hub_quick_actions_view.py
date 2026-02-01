@@ -30,8 +30,6 @@ class HubQuickActionsView:
         parent: Any,  # tk.Widget ou tk.Frame
         *,
         on_open_clientes: Optional[Callable[[], None]] = None,
-        on_open_senhas: Optional[Callable[[], None]] = None,
-        on_open_auditoria: Optional[Callable[[], None]] = None,
         on_open_cashflow: Optional[Callable[[], None]] = None,
         on_open_anvisa: Optional[Callable[[], None]] = None,
         on_open_farmacia_popular: Optional[Callable[[], None]] = None,
@@ -43,8 +41,6 @@ class HubQuickActionsView:
         Args:
             parent: Widget pai (onde o painel será criado)
             on_open_clientes: Callback para abrir módulo Clientes
-            on_open_senhas: Callback para abrir módulo Senhas
-            on_open_auditoria: Callback para abrir módulo Auditoria
             on_open_cashflow: Callback para abrir módulo Fluxo de Caixa
             on_open_anvisa: Callback para abrir módulo Anvisa
             on_open_farmacia_popular: Callback para abrir módulo Farmácia Popular
@@ -53,8 +49,6 @@ class HubQuickActionsView:
         """
         self._parent = parent
         self._on_open_clientes = on_open_clientes
-        self._on_open_senhas = on_open_senhas
-        self._on_open_auditoria = on_open_auditoria
         self._on_open_cashflow = on_open_cashflow
         self._on_open_anvisa = on_open_anvisa
         self._on_open_farmacia_popular = on_open_farmacia_popular
@@ -139,14 +133,11 @@ class HubQuickActionsView:
         btn_clientes = mk_btn(frame_cadastros, "Clientes", self._on_open_clientes)
         btn_clientes.grid(row=0, column=0, sticky="ew", padx=6, pady=6)
 
-        btn_senhas = mk_btn(frame_cadastros, "Senhas", self._on_open_senhas)
-        btn_senhas.grid(row=0, column=1, sticky="ew", padx=6, pady=6)
-
-        # BLOCO 2: Gestão / Auditoria
+        # BLOCO 2: Gestão
         # Título da seção
         lbl_gestao = ctk.CTkLabel(
             content_container,
-            text="Gestão / Auditoria",
+            text="Gestão",
             font=("Arial", 12, "bold"),
             text_color=("#374151", "#d1d5db"),
         )
@@ -156,13 +147,9 @@ class HubQuickActionsView:
         frame_gestao = ctk.CTkFrame(content_container, fg_color="transparent")
         frame_gestao.pack(fill="x", padx=8, pady=(0, 8))
         frame_gestao.columnconfigure(0, weight=1)
-        frame_gestao.columnconfigure(1, weight=1)
-
-        btn_auditoria = mk_btn(frame_gestao, "Auditoria", self._on_open_auditoria)
-        btn_auditoria.grid(row=0, column=0, sticky="ew", padx=6, pady=6)
 
         btn_fluxo_caixa = mk_btn(frame_gestao, "Fluxo de Caixa", self._on_open_cashflow)
-        btn_fluxo_caixa.grid(row=0, column=1, sticky="ew", padx=6, pady=6)
+        btn_fluxo_caixa.grid(row=0, column=0, sticky="ew", padx=6, pady=6)
 
         # BLOCO 3: Regulatório / Programas
         # Título da seção

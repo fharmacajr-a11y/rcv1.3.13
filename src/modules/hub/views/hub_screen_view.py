@@ -25,7 +25,6 @@ from src.modules.hub.views.hub_screen_view_constants import (
     MSG_LOADING_NOTES,
     MSG_NO_NOTES_YET,
     SECTION_CADASTROS_LABEL,
-    SECTION_GESTAO_LABEL,
     SECTION_REGULATORIO_LABEL,
 )
 from src.modules.hub.views.hub_screen_view_pure import format_note_line, make_module_button
@@ -111,10 +110,8 @@ class HubScreenView:
         *,
         open_clientes: Callable[[], None] | None = None,
         open_anvisa: Callable[[], None] | None = None,
-        open_auditoria: Callable[[], None] | None = None,
         open_farmacia_popular: Callable[[], None] | None = None,
         open_sngpc: Callable[[], None] | None = None,
-        open_senhas: Callable[[], None] | None = None,
         open_mod_sifap: Callable[[], None] | None = None,
         open_cashflow: Callable[[], None] | None = None,
         open_sites: Callable[[], None] | None = None,
@@ -132,10 +129,8 @@ class HubScreenView:
         # Armazenar callbacks de navegação
         self.open_clientes = open_clientes
         self.open_anvisa = open_anvisa
-        self.open_auditoria = open_auditoria
         self.open_farmacia_popular = open_farmacia_popular
         self.open_sngpc = open_sngpc
-        self.open_senhas = open_senhas
         self.open_mod_sifap = open_mod_sifap
         self.open_cashflow = open_cashflow
         self.open_sites = open_sites
@@ -185,10 +180,8 @@ class HubScreenView:
         para compatibilidade com testes existentes.
         """
         from src.modules.hub.constants import (
-            HUB_BTN_STYLE_AUDITORIA,
             HUB_BTN_STYLE_CLIENTES,
             HUB_BTN_STYLE_FLUXO_CAIXA,
-            HUB_BTN_STYLE_SENHAS,
             MODULES_TITLE,
             PAD_OUTER,
         )
@@ -212,26 +205,19 @@ class HubScreenView:
         btn_clientes = make_module_button(frame_cadastros, "Clientes", self.open_clientes, HUB_BTN_STYLE_CLIENTES)
         btn_clientes.grid(row=0, column=0, sticky="ew", padx=BTN_GRID_PADX, pady=BTN_GRID_PADY)
 
-        btn_senhas = make_module_button(frame_cadastros, "Senhas", self.open_senhas, HUB_BTN_STYLE_SENHAS)
-        btn_senhas.grid(row=0, column=1, sticky="ew", padx=BTN_GRID_PADX, pady=BTN_GRID_PADY)
-
-        # BLOCO 2: Gestão / Auditoria
+        # BLOCO 2: Gestão
         frame_gestao = tk.LabelFrame(
             self.modules_panel,
-            text=SECTION_GESTAO_LABEL,
+            text="Gestão",
             padding=FRAME_INNER_PADDING,
         )
         frame_gestao.pack(fill="x", pady=FRAME_PACK_PADY)
         frame_gestao.columnconfigure(0, weight=1)
-        frame_gestao.columnconfigure(1, weight=1)
-
-        btn_auditoria = make_module_button(frame_gestao, "Auditoria", self.open_auditoria, HUB_BTN_STYLE_AUDITORIA)
-        btn_auditoria.grid(row=0, column=0, sticky="ew", padx=BTN_GRID_PADX, pady=BTN_GRID_PADY)
 
         btn_fluxo_caixa = make_module_button(
             frame_gestao, "Fluxo de Caixa", self.open_cashflow, HUB_BTN_STYLE_FLUXO_CAIXA
         )
-        btn_fluxo_caixa.grid(row=0, column=1, sticky="ew", padx=BTN_GRID_PADX, pady=BTN_GRID_PADY)
+        btn_fluxo_caixa.grid(row=0, column=0, sticky="ew", padx=BTN_GRID_PADX, pady=BTN_GRID_PADY)
 
         # BLOCO 3: Regulatório / Programas
         frame_regulatorio = tk.LabelFrame(

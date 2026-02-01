@@ -36,7 +36,7 @@ def fetch_client_names_impl(client_ids: list[int]) -> dict[int, str]:
         return {}
 
     try:
-        from src.modules.clientes.service import fetch_cliente_by_id
+        from src.modules.clientes.core.service import fetch_cliente_by_id
 
         names: dict[int, str] = {}
         for cid in client_ids:

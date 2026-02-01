@@ -306,6 +306,8 @@ class RecentActivityStore:
             org_id: ID da organização
             runner: HubAsyncRunner para operações assíncronas
         """
+        from src.core.utils.perf_timer import perf_timer
+        
         if self._bootstrapped:
             log.debug("[RecentActivityStore] Já foi carregado do DB, ignorando")
             return
@@ -314,7 +316,8 @@ class RecentActivityStore:
 
         def load_events() -> list[dict[str, Any]]:
             """Função executada em background."""
-            return activity_events_repository.list_recent(org_id, limit=MAX_EVENTS)
+            with perf_timer("hub.recent_activity.load_from_db", log, threshold_ms=500):
+                return activity_events_repository.list_recent(org_id, limit=MAX_EVENTS)
 
         def on_success(rows: list[dict[str, Any]]) -> None:
             """Callback de sucesso - popula deque."""

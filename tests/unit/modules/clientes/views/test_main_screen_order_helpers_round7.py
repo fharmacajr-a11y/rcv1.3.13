@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Dict, Optional, Tuple
 
-from src.modules.clientes.views.main_screen_helpers import (
+from src.modules.clientes.core.ui_helpers import (
     DEFAULT_ORDER_LABEL,
     ORDER_CHOICES,
     ORDER_LABEL_CNPJ,

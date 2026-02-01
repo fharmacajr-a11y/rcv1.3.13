@@ -52,14 +52,6 @@ class HubNavigationHelper:
         else:
             logger.debug("HubNavigationHelper: Callback open_clientes não definido")
 
-    def go_to_pending(self) -> None:
-        """Navega para a tela de Pendências Regulatórias/Auditoria."""
-        callback = getattr(self._hub, "open_auditoria", None)
-        if callback:
-            callback()
-        else:
-            logger.debug("HubNavigationHelper: Callback open_auditoria não definido")
-
     def go_to_tasks_today(self) -> None:
         """Abre interface de tarefas de hoje."""
         # Por enquanto, abre o diálogo de nova tarefa
@@ -75,14 +67,6 @@ class HubNavigationHelper:
     def open_clientes(self) -> None:
         """Abre módulo de Clientes (MF-16: usa _nav_callbacks)."""
         self._invoke_nav_callback("clientes")
-
-    def open_senhas(self) -> None:
-        """Abre módulo de Senhas (MF-16: usa _nav_callbacks)."""
-        self._invoke_nav_callback("senhas")
-
-    def open_auditoria(self) -> None:
-        """Abre módulo de Auditoria (MF-16: usa _nav_callbacks)."""
-        self._invoke_nav_callback("auditoria")
 
     def open_fluxo_caixa(self) -> None:
         """Abre módulo de Fluxo de Caixa (MF-16: usa _nav_callbacks)."""

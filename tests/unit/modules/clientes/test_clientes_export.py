@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 @pytest.fixture
 def sample_rows():
     """Fixture com dados de clientes de exemplo para testes."""
-    from src.modules.clientes.viewmodel import ClienteRow
+    from src.modules.clientes.core.viewmodel import ClienteRow
 
     return [
         ClienteRow(
@@ -61,7 +61,7 @@ def sample_rows():
 
 def test_export_csv_creates_file_with_headers(sample_rows, tmp_path):
     """Testa se exportação CSV cria arquivo com cabeçalhos corretos."""
-    from src.modules.clientes.export import CSV_HEADERS, export_clients_to_csv
+    from src.modules.clientes.core.export import CSV_HEADERS, export_clients_to_csv
 
     output_file = tmp_path / "test_export.csv"
 
@@ -84,7 +84,7 @@ def test_export_csv_creates_file_with_headers(sample_rows, tmp_path):
 
 def test_export_csv_contains_correct_data(sample_rows, tmp_path):
     """Testa se dados exportados correspondem aos dados originais."""
-    from src.modules.clientes.export import export_clients_to_csv
+    from src.modules.clientes.core.export import export_clients_to_csv
 
     output_file = tmp_path / "test_export.csv"
 
@@ -118,8 +118,8 @@ def test_export_csv_contains_correct_data(sample_rows, tmp_path):
 
 def test_export_csv_handles_special_characters(tmp_path):
     """Testa se CSV lida corretamente com caracteres especiais e acentos."""
-    from src.modules.clientes.export import export_clients_to_csv
-    from src.modules.clientes.viewmodel import ClienteRow
+    from src.modules.clientes.core.export import export_clients_to_csv
+    from src.modules.clientes.core.viewmodel import ClienteRow
 
     rows = [
         ClienteRow(
@@ -151,7 +151,7 @@ def test_export_csv_handles_special_characters(tmp_path):
 
 def test_export_csv_empty_list(tmp_path):
     """Testa exportação com lista vazia."""
-    from src.modules.clientes.export import export_clients_to_csv
+    from src.modules.clientes.core.export import export_clients_to_csv
 
     output_file = tmp_path / "test_empty.csv"
 
@@ -170,7 +170,7 @@ def test_export_csv_empty_list(tmp_path):
 
 def test_export_csv_raises_on_invalid_path():
     """Testa se IOError é lançado para caminho inválido."""
-    from src.modules.clientes.export import export_clients_to_csv
+    from src.modules.clientes.core.export import export_clients_to_csv
 
     invalid_path = Path("/caminho/inexistente/arquivo.csv")
 
@@ -185,7 +185,7 @@ def test_export_csv_raises_on_invalid_path():
 
 def test_export_xlsx_requires_openpyxl(sample_rows, tmp_path):
     """Testa se exportação XLSX requer openpyxl instalado."""
-    from src.modules.clientes.export import export_clients_to_xlsx, is_xlsx_available
+    from src.modules.clientes.core.export import export_clients_to_xlsx, is_xlsx_available
 
     output_file = tmp_path / "test_export.xlsx"
 
@@ -201,14 +201,14 @@ def test_export_xlsx_requires_openpyxl(sample_rows, tmp_path):
 
 def test_export_xlsx_creates_file_with_data(sample_rows, tmp_path):
     """Testa se exportação XLSX cria arquivo com dados corretos."""
-    from src.modules.clientes.export import is_xlsx_available
+    from src.modules.clientes.core.export import is_xlsx_available
 
     if not is_xlsx_available():
         pytest.skip("openpyxl não está instalado")
 
     from openpyxl import load_workbook
 
-    from src.modules.clientes.export import export_clients_to_xlsx
+    from src.modules.clientes.core.export import export_clients_to_xlsx
 
     output_file = tmp_path / "test_export.xlsx"
 
@@ -239,14 +239,14 @@ def test_export_xlsx_creates_file_with_data(sample_rows, tmp_path):
 
 def test_export_xlsx_handles_empty_list(tmp_path):
     """Testa exportação XLSX com lista vazia."""
-    from src.modules.clientes.export import is_xlsx_available
+    from src.modules.clientes.core.export import is_xlsx_available
 
     if not is_xlsx_available():
         pytest.skip("openpyxl não está instalado")
 
     from openpyxl import load_workbook
 
-    from src.modules.clientes.export import export_clients_to_xlsx
+    from src.modules.clientes.core.export import export_clients_to_xlsx
 
     output_file = tmp_path / "test_empty.xlsx"
 
@@ -272,7 +272,7 @@ def test_export_xlsx_handles_empty_list(tmp_path):
 
 def test_is_xlsx_available():
     """Testa detecção de disponibilidade de openpyxl."""
-    from src.modules.clientes.export import is_xlsx_available
+    from src.modules.clientes.core.export import is_xlsx_available
 
     # Apenas verifica que a função não falha
     result = is_xlsx_available()
@@ -286,7 +286,7 @@ def test_is_xlsx_available():
 
 def test_viewmodel_export_batch_validates_selection(monkeypatch):
     """Testa se export_batch valida seleção vazia."""
-    from src.modules.clientes.viewmodel import ClientesViewModel
+    from src.modules.clientes.core.viewmodel import ClientesViewModel
 
     # Mock messagebox
     warning_called = []
@@ -315,7 +315,7 @@ def test_viewmodel_export_batch_validates_selection(monkeypatch):
 
 def test_viewmodel_export_batch_respects_cloud_only(monkeypatch):
     """Testa se export_batch respeita modo cloud-only."""
-    from src.modules.clientes.viewmodel import ClientesViewModel
+    from src.modules.clientes.core.viewmodel import ClientesViewModel
 
     # Mock cloud_guardrails (bloquear operação)
     cloud_block_called = []

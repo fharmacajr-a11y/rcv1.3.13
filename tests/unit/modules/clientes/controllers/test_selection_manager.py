@@ -14,7 +14,7 @@ from src.modules.clientes.controllers.selection_manager import (
     SelectionManager,
     SelectionSnapshot,
 )
-from src.modules.clientes.viewmodel import ClienteRow
+from src.modules.clientes.core.viewmodel import ClienteRow
 
 
 # ────────────────────────────────────────────────────────────────────────────────

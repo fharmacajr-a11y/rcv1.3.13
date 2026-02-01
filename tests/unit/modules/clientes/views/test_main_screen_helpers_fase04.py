@@ -11,7 +11,7 @@ Testa helpers puros para ações em massa:
 
 from __future__ import annotations
 
-from src.modules.clientes.views.main_screen_helpers import (
+from src.modules.clientes.core.ui_helpers import (
     can_batch_delete,
     can_batch_export,
     can_batch_restore,

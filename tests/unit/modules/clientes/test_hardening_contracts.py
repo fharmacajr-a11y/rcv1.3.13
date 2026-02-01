@@ -59,7 +59,7 @@ class TestRowTagsContract:
     def test_build_row_tags_returns_tuple(self) -> None:
         """build_row_tags deve retornar tupla de strings."""
         from src.modules.clientes.controllers.rendering_adapter import build_row_tags
-        from src.modules.clientes.viewmodel import ClienteRow
+        from src.modules.clientes.core.viewmodel import ClienteRow
 
         row = ClienteRow(
             id="1",
@@ -81,7 +81,7 @@ class TestRowTagsContract:
     def test_build_row_tags_with_obs_includes_has_obs(self) -> None:
         """build_row_tags deve incluir 'has_obs' se observacoes não vazia."""
         from src.modules.clientes.controllers.rendering_adapter import build_row_tags
-        from src.modules.clientes.viewmodel import ClienteRow
+        from src.modules.clientes.core.viewmodel import ClienteRow
 
         row = ClienteRow(
             id="1",
@@ -106,7 +106,7 @@ class TestRowTagsContract:
         zebra_odd = "odd"
 
         from src.modules.clientes.controllers.rendering_adapter import build_row_tags
-        from src.modules.clientes.viewmodel import ClienteRow
+        from src.modules.clientes.core.viewmodel import ClienteRow
 
         row = ClienteRow(
             id="1",

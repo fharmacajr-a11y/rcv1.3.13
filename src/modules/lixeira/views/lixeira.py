@@ -14,7 +14,7 @@ from typing import Any, Callable, Iterable, List, Optional, Tuple
 from src.ui.ctk_config import ctk
 from src.ui.widgets import CTkTableView
 
-from src.modules.clientes.service import (
+from src.modules.clientes.core.service import (
     excluir_clientes_definitivamente,
     listar_clientes_na_lixeira,
     restaurar_clientes_da_lixeira,

@@ -136,10 +136,8 @@ def _show_hub(app: Any) -> Any:
         HubFrame,
         open_clientes=lambda: navigate_to(app, "main"),
         open_anvisa=lambda: navigate_to(app, "anvisa"),
-        open_auditoria=lambda: navigate_to(app, "auditoria"),
         open_farmacia_popular=lambda: navigate_to(app, "placeholder", title="Farmcia Popular"),
         open_sngpc=lambda: navigate_to(app, "placeholder", title="Sngpc"),
-        open_senhas=lambda: navigate_to(app, "passwords"),
         open_mod_sifap=lambda: navigate_to(app, "placeholder", title="Sifap"),
         open_cashflow=lambda: navigate_to(app, "cashflow"),
         open_sites=lambda: navigate_to(app, "sites"),
@@ -160,7 +158,7 @@ def _show_hub(app: Any) -> Any:
 
 
 def _show_main(app: Any) -> Any:
-    from src.modules.clientes_v2 import ClientesV2Frame
+    from src.modules.clientes.ui import ClientesV2Frame
 
     # ClientesV2 não precisa de todos esses callbacks (auto-contido)
     frame = app.show_frame(ClientesV2Frame)
@@ -270,16 +268,6 @@ def _open_clients_picker(app: Any, on_pick, return_to=None, banner_text: Optiona
     )
 
 
-def _show_auditoria(app: Any) -> Any:
-    """Exibe a tela de Auditoria."""
-    from src.modules.auditoria import AuditoriaFrame
-
-    return app.show_frame(
-        AuditoriaFrame,
-        go_back=lambda: navigate_to(app, "hub"),
-    )
-
-
 def start_client_pick_mode(
     app: Any,
     on_client_picked: Callable[[dict[str, Any]], None],
@@ -385,7 +373,6 @@ def navigate_to(app: Any, target: str, **kwargs) -> Any:
         "placeholder": _show_placeholder,
         "passwords": _show_passwords,
         "clients_picker": _open_clients_picker,
-        "auditoria": _show_auditoria,
         "anvisa": _show_anvisa,
         "cashflow": _show_cashflow,
         "sites": _show_sites,

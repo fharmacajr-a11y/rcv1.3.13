@@ -7,7 +7,7 @@ Round 7 - Fase 3: Testes para lógica de classificação de seleção e decisõe
 
 from __future__ import annotations
 
-from src.modules.clientes.views.main_screen_helpers import (
+from src.modules.clientes.core.ui_helpers import (
     can_perform_multi_item_action,
     can_perform_single_item_action,
     classify_selection,

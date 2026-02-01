@@ -1,0 +1,191 @@
+# -*- coding: utf-8 -*-
+"""Tema centralizado para ttk.Treeview com suporte a Light/Dark mode.
+
+Fornece cores e funções para aplicar tema consistente em todos os Treeviews do app.
+"""
+
+from __future__ import annotations
+
+import logging
+from dataclasses import dataclass
+from tkinter import ttk
+from typing import Any
+
+log = logging.getLogger(__name__)
+
+
+@dataclass
+class TreeColors:
+    """Cores para Treeview em um modo específico."""
+    
+    bg: str              # Background principal
+    field_bg: str        # Field background (áreas vazias)
+    fg: str              # Foreground (texto)
+    heading_bg: str      # Background do heading
+    heading_fg: str      # Foreground do heading
+    sel_bg: str          # Background quando selecionado
+    sel_fg: str          # Foreground quando selecionado
+    even_bg: str         # Background linhas pares (zebra)
+    odd_bg: str          # Background linhas ímpares (zebra)
+    border: str          # Cor da borda
+
+
+def get_tree_colors(mode: str) -> TreeColors:
+    """Retorna cores do Treeview para o modo especificado.
+    
+    Args:
+        mode: "Light" ou "Dark"
+        
+    Returns:
+        TreeColors com todas as cores do tema
+    """
+    if mode == "Dark":
+        return TreeColors(
+            bg="#2b2b2b",
+            field_bg="#2b2b2b",
+            fg="#f5f5f5",
+            heading_bg="#1a1a1a",
+            heading_fg="#f5f5f5",
+            sel_bg="#2563eb",
+            sel_fg="#ffffff",
+            even_bg="#2b2b2b",
+            odd_bg="#242424",
+            border="#1a1a1a",
+        )
+    else:  # Light
+        return TreeColors(
+            bg="#ffffff",
+            field_bg="#ffffff",
+            fg="#111111",
+            heading_bg="#e5e7eb",
+            heading_fg="#111111",
+            sel_bg="#3b82f6",
+            sel_fg="#ffffff",
+            even_bg="#ffffff",
+            odd_bg="#e6eaf0",  # Cinza mais escuro para melhor contraste
+            border="#d1d5db",
+        )
+
+
+def apply_treeview_theme(
+    mode: str,
+    master: Any,
+    style_name: str = "RC.Treeview"
+) -> tuple[str, TreeColors]:
+    """Aplica tema no ttk.Style para Treeview.
+    
+    CRÍTICO: Passa master correto para ttk.Style funcionar em Toplevels.
+    CRÍTICO: Usa tema "clam" para fieldbackground funcionar (vista/xpnative ignoram).
+    
+    Args:
+        mode: "Light" ou "Dark"
+        master: Widget master para criar ttk.Style
+        style_name: Nome base do style (ex: "RC.Treeview")
+        
+    Returns:
+        Tupla (nome_style_completo, TreeColors)
+    """
+    colors = get_tree_colors(mode)
+    
+    try:
+        # Criar Style com master correto
+        # IMPORTANTE: ttk.Style() retorna a instância singleton, não cria nova
+        style = ttk.Style(master)  # type: ignore[attr-defined]
+        
+        # CRÍTICO: Forçar tema "clam" para fieldbackground funcionar
+        try:
+            current = style.theme_use()
+            if current != "clam":
+                style.theme_use("clam")
+                log.debug(f"[TtkTreeTheme] Tema alterado: {current} → clam (mode={mode})")
+        except Exception as exc:
+            log.warning(f"[TtkTreeTheme] Erro ao definir tema clam: {exc}")
+        
+        # Normalizar style_name (remover .Treeview se já existe)
+        base_name = style_name.removesuffix(".Treeview")
+        full_style_name = f"{base_name}.Treeview"
+        
+        log.debug(f"[TtkTreeTheme] Aplicando: {full_style_name}, mode={mode}, bg={colors.bg}, field_bg={colors.field_bg}")
+        
+        style.configure(
+            full_style_name,
+            background=colors.bg,
+            fieldbackground=colors.field_bg,  # CRÍTICO: remove branco residual
+            foreground=colors.fg,
+            insertcolor=colors.fg,
+            borderwidth=0,
+            relief="flat",
+            rowheight=24,
+        )
+        
+        # Configurar Heading
+        style.configure(
+            f"{full_style_name}.Heading",
+            background=colors.heading_bg,
+            foreground=colors.heading_fg,
+            relief="flat",
+            borderwidth=0,
+        )
+        
+        # Map de seleção
+        style.map(
+            full_style_name,
+            background=[("selected", colors.sel_bg)],
+            foreground=[("selected", colors.sel_fg)],
+        )
+        
+        # Fallback para "Treeview" padrão
+        style.configure(
+            "Treeview",
+            background=colors.bg,
+            fieldbackground=colors.field_bg,
+            foreground=colors.fg,
+        )
+        style.configure(
+            "Treeview.Heading",
+            background=colors.heading_bg,
+            foreground=colors.heading_fg,
+        )
+        
+        log.debug(f"[TtkTreeTheme] Tema aplicado: {mode} style={full_style_name}")
+        
+    except Exception as exc:
+        log.exception(f"[TtkTreeTheme] Erro ao aplicar tema: {exc}")
+    
+    return full_style_name, colors
+
+
+def apply_zebra(tree: Any, colors: TreeColors, parent_iid: str = "") -> None:
+    """Aplica tags zebra (even/odd) nas linhas da Treeview.
+    
+    IMPORTANTE: Usa apenas foreground nas tags. O background vem do ttk.Style.
+    Isso evita conflito entre tag background e style fieldbackground.
+    
+    Args:
+        tree: Instância do ttk.Treeview
+        colors: TreeColors com as cores do tema
+        parent_iid: ID do item pai (vazio = raiz)
+    """
+    try:
+        # Configurar tags zebra COM background (necessário para zebra funcionar)
+        # Em Dark mode: even=#2b2b2b, odd=#242424
+        # Em Light mode: even=#ffffff, odd=#e6eaf0
+        tree.tag_configure("even", background=colors.even_bg, foreground=colors.fg)
+        tree.tag_configure("odd", background=colors.odd_bg, foreground=colors.fg)
+        
+        log.debug(f"[TtkTreeTheme] Tags configuradas: even={colors.even_bg}, odd={colors.odd_bg}, fg={colors.fg}")
+        
+        # Aplicar tags em todos os filhos do parent
+        items = tree.get_children(parent_iid)
+        for idx, iid in enumerate(items):
+            tag = "even" if idx % 2 == 0 else "odd"
+            # Preservar outras tags, apenas substituir even/odd
+            current_tags = tree.item(iid, "tags")
+            new_tags = [t for t in current_tags if t not in ("even", "odd")]
+            new_tags.append(tag)
+            tree.item(iid, tags=tuple(new_tags))
+        
+        log.debug(f"[TtkTreeTheme] Zebra aplicada: {len(items)} itens")
+        
+    except Exception as exc:
+        log.exception(f"[TtkTreeTheme] Erro ao aplicar zebra: {exc}")

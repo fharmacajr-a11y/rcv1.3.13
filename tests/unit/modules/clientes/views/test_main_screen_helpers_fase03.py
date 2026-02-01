@@ -9,7 +9,7 @@ Cobertura: filter_by_status, filter_by_search_text, apply_combined_filters,
 from __future__ import annotations
 
 
-from src.modules.clientes.views.main_screen_helpers import (
+from src.modules.clientes.core.ui_helpers import (
     apply_combined_filters,
     build_status_filter_choices,
     extract_unique_status_values,

@@ -75,16 +75,16 @@ def test_theme_switching() -> None:
     assert current == "dark", f"Esperado 'dark', obteve '{current}'"
     print("      ✓ Tema dark aplicado")
 
-    # Alternar para system
-    theme_manager.set_mode("system")
+    # Alternar de volta para light (testar toggle)
+    theme_manager.set_mode("light")
     current = theme_manager.get_current_mode()
-    assert current == "system", f"Esperado 'system', obteve '{current}'"
-    print("      ✓ Tema system aplicado")
+    assert current == "light", f"Esperado 'light', obteve '{current}'"
+    print("      ✓ Tema voltou para light")
 
-    # Verificar resolve
+    # Verificar resolve (deve retornar o modo atual)
     resolved = theme_manager.get_effective_mode()
     assert resolved in ("light", "dark"), f"Resolved inválido: {resolved}"
-    print(f"      ✓ System resolvido para: {resolved}")
+    print(f"      ✓ Modo efetivo: {resolved}")
 
     root.destroy()
 
@@ -123,20 +123,17 @@ def test_theme_manager_api() -> None:
     # Importar resolve_effective_mode (função standalone)
     from src.ui.theme_manager import resolve_effective_mode
 
-    # resolve_effective_mode
+    # resolve_effective_mode (apenas light/dark, não system)
     resolved_light = resolve_effective_mode("light")
     assert resolved_light == "light"
 
     resolved_dark = resolve_effective_mode("dark")
     assert resolved_dark == "dark"
-
-    resolved_system = resolve_effective_mode("system")
-    assert resolved_system in ("light", "dark")
     print("      ✓ resolve_effective_mode: OK")
 
     # Métodos da instância
     current = theme_manager.get_current_mode()
-    assert current in ("light", "dark", "system"), f"Modo inválido: {current}"
+    assert current in ("light", "dark"), f"Modo inválido: {current}"
     print(f"      ✓ get_current_mode: {current}")
 
     effective = theme_manager.get_effective_mode()

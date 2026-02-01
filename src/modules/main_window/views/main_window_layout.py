@@ -65,30 +65,39 @@ def build_main_window_layout(
 ) -> MainWindowLayoutRefs:
     """Constrói toda a estrutura visual do MainWindow.
 
+    FASE 5A PASSO 3: Refatorado para construção em 2 fases:
+    1. Skeleton: estrutura mínima para janela aparecer rápido
+    2. Deferred: componentes complexos (topbar, menu, footer) agendados via after(0)
+
     Args:
         app: Instância de MainWindow (App)
         start_hidden: Se True, oculta janela após construção
 
-    MICROFASE 24: Removido theme_name (tema gerenciado por CustomTkinter globalmente)
-
     Returns:
-        MainWindowLayoutRefs com todas as referências aos componentes criados
+        MainWindowLayoutRefs com referências (alguns None até deferred completar)
+    """
+    # Criar skeleton imediatamente
+    refs = _build_layout_skeleton(app, start_hidden=start_hidden)
+    
+    # Agendar deferred para próximo tick (libera UI thread)
+    app.after(0, lambda: _build_layout_deferred(app, refs))
+    
+    return refs
 
-    Responsabilidades:
-        - Criar separadores horizontais
-        - Criar TopBar (com callbacks passados)
-        - Aplicar ícone da aplicação
-        - Criar AppMenuBar
-        - Configurar protocol WM_DELETE_WINDOW
-        - Criar container de conteúdo + NavigationController
-        - Criar StatusFooter
-        - Criar variáveis Tkinter (clients_count_var, status_var, etc)
 
-    NÃO responsável por:
-        - Registrar telas no router (feito por _register_screens)
-        - Iniciar pollers/jobs (feito por MainWindowPollers)
-        - Lógica de navegação (feito por ScreenRouter)
-        - Bind de atalhos globais (feito por bind_global_shortcuts)
+def _build_layout_skeleton(
+    app: App,
+    *,
+    start_hidden: bool = False,
+) -> MainWindowLayoutRefs:
+    """FASE 1: Cria estrutura mínima para janela aparecer (skeleton).
+
+    Cria apenas:
+    - Container de conteúdo vazio
+    - Variáveis Tkinter
+    - Configurações básicas da janela
+
+    Componentes complexos criados em _build_layout_deferred().
     """
     from src.modules.main_window.views.constants import APP_ICON_PATH, APP_TITLE, APP_VERSION
     from src.modules.main_window.views.state_helpers import (
@@ -98,117 +107,42 @@ def build_main_window_layout(
     from src.ui.window_policy import apply_fit_policy
     import src.core.status as app_status
 
-    # 0. Configurar fundo da janela principal (para tema light consistente)
+    # 0. Configurar fundo da janela principal
     if ctk is not None:
         try:
             app.configure(fg_color=APP_BG)
         except (AttributeError, Exception):
             pass
 
-    # 1. Separadores horizontais
-    SEP_H = 2
-    sep_menu_toolbar = ctk.CTkFrame(app, height=SEP_H, corner_radius=0, fg_color=SEP)
-    sep_menu_toolbar.pack(side="top", fill="x", pady=0)
-    # Blindagem contra crescimento
-    try:
-        sep_menu_toolbar.pack_propagate(False)
-    except (AttributeError, Exception):
-        pass
-
-    # 2. TopBar (precisa de callbacks do app)
-    topbar = TopBar(
-        app,
-        on_home=app.show_hub_screen,
-        on_pdf_converter=app.run_pdf_batch_converter,
-        on_pdf_viewer=app._open_pdf_viewer_empty,
-        on_chatgpt=app.open_chatgpt_window,
-        on_sites=app.show_sites_screen,
-        on_notifications_clicked=app._on_notifications_clicked,
-        on_mark_all_read=app._mark_all_notifications_read,
-        on_delete_notification_for_me=app._delete_notification_for_me,
-        on_delete_all_notifications_for_me=app._delete_all_notifications_for_me,
-    )
-    topbar.pack(side="top", fill="x")
-
-    # Separador após topbar
-    sep_toolbar_main = ctk.CTkFrame(app, height=SEP_H, corner_radius=0, fg_color=SEP)
-    sep_toolbar_main.pack(side="top", fill="x", pady=0)
-    # Blindagem contra crescimento
-    try:
-        sep_toolbar_main.pack_propagate(False)
-    except (AttributeError, Exception):
-        pass
-
-    # 3. Ícone da aplicação
-    _apply_window_icon(app, APP_ICON_PATH)
-
-    # 4. Protocol WM_DELETE_WINDOW
-    app.protocol("WM_DELETE_WINDOW", app._confirm_exit)
-
-    # 5. AppMenuBar
-    # MICROFASE 24: Substituir on_change_theme por on_toggle_theme
-    menu = AppMenuBar(
-        app,
-        on_home=app.show_hub_screen,
-        on_refresh=app.refresh_current_view,
-        on_quit=app._on_menu_logout,
-        on_toggle_theme=app._handle_toggle_theme,
-    )
-    menu.attach()
-
-    # MICROFASE 24: Remover aplicação de tema ttkbootstrap
-    # O tema agora é gerenciado por CustomTkinter globalmente
-
-    # 7. Título da janela
+    # 1. Título da janela
     version_str = format_version_string(APP_VERSION)
     window_title = build_app_title(APP_TITLE, version_str)
     app.title(window_title)
 
-    # 8. Aplicar política Fit-to-WorkArea
-    # BUGFIX-UX-STARTUP-HUB-001 (A2): Instrumentação antes/depois
-    if os.getenv("RC_DEBUG_STARTUP_UI") == "1":
-        log.info(
-            "[UI] ANTES apply_fit_policy: state=%s, viewable=%s, geometry=%s",
-            app.state(),
-            app.winfo_viewable(),
-            app.geometry(),
-        )
+    # 2. Ícone da aplicação
+    _apply_window_icon(app, APP_ICON_PATH)
 
+    # 3. Protocol WM_DELETE_WINDOW
+    app.protocol("WM_DELETE_WINDOW", app._confirm_exit)
+
+    # 4. Aplicar política Fit-to-WorkArea
     apply_fit_policy(app)
 
-    if os.getenv("RC_DEBUG_STARTUP_UI") == "1":
-        log.info(
-            "[UI] DEPOIS apply_fit_policy: state=%s, viewable=%s, geometry=%s",
-            app.state(),
-            app.winfo_viewable(),
-            app.geometry(),
-        )
-
-    # 9. Ocultar janela se start_hidden
+    # 5. Ocultar janela se start_hidden
     if start_hidden:
         try:
             app.withdraw()
         except Exception as exc:  # noqa: BLE001
             log.debug("Falha ao ocultar janela: %s", exc)
 
-    # 10. Container de conteúdo + NavigationController
-    # MICROFASE 35: Usar CTkFrame com APP_BG para evitar fundo cinza no Hub
+    # 6. Container de conteúdo VAZIO (será populado em deferred)
     if ctk is not None:
         content_container = ctk.CTkFrame(app, fg_color=APP_BG, corner_radius=0)
     else:
         content_container = tk.Frame(app)
     content_container.pack(fill="both", expand=True)
 
-    nav = NavigationController(content_container, frame_factory=app._frame_factory)
-
-    # 11. StatusFooter
-    footer = StatusFooter(app, show_trash=False)
-    footer.pack(side="bottom", fill="x")
-    footer.set_count(0)
-    footer.set_user(None)
-    footer.set_cloud("UNKNOWN")
-
-    # 12. Variáveis Tkinter
+    # 7. Variáveis Tkinter
     clients_count_var = tk.StringVar(master=app, value="0 clientes")
     status_var_dot = tk.StringVar(master=app, value="")
     status_var_text = tk.StringVar(
@@ -216,18 +150,99 @@ def build_main_window_layout(
         value=(getattr(app_status, "status_text", None) or "LOCAL"),
     )
 
+    # Criar separadores como placeholders
+    SEP_H = 2
+    sep_menu_toolbar = ctk.CTkFrame(app, height=SEP_H, corner_radius=0, fg_color=SEP)
+    sep_toolbar_main = ctk.CTkFrame(app, height=SEP_H, corner_radius=0, fg_color=SEP)
+
     return MainWindowLayoutRefs(
         sep_menu_toolbar=sep_menu_toolbar,
         sep_toolbar_main=sep_toolbar_main,
-        topbar=topbar,
-        menu=menu,
+        topbar=None,  # type: ignore[arg-type]  # Será criado em deferred
+        menu=None,  # type: ignore[arg-type]  # Será criado em deferred
         content_container=content_container,
-        nav=nav,
-        footer=footer,
+        nav=None,  # type: ignore[arg-type]  # Será criado em deferred
+        footer=None,  # type: ignore[arg-type]  # Será criado em deferred
         clients_count_var=clients_count_var,
         status_var_dot=status_var_dot,
         status_var_text=status_var_text,
     )
+
+
+def _build_layout_deferred(app: App, refs: MainWindowLayoutRefs) -> None:
+    """FASE 2: Cria componentes complexos (topbar, menu, footer, nav).
+
+    Executado via after(0) para não bloquear renderização inicial.
+    Instrumentado com perf_timer quando RC_PROFILE_STARTUP=1.
+    """
+    from src.core.utils.perf_timer import perf_timer
+    from src.ui.topbar import TopBar
+    from src.ui.menu_bar import AppMenuBar
+    from src.ui.status_footer import StatusFooter
+    from src.core.navigation_controller import NavigationController
+
+    with perf_timer("startup.build_layout_deferred", log, threshold_ms=100):
+        # Verificar se app ainda existe (evitar crash se fechou rápido)
+        if not app.winfo_exists():
+            log.warning("App foi fechado antes de deferred completar")
+            return
+
+        # 1. Separadores
+        refs.sep_menu_toolbar.pack(side="top", fill="x", pady=0)
+        try:
+            refs.sep_menu_toolbar.pack_propagate(False)
+        except (AttributeError, Exception):
+            pass
+
+        # 2. TopBar
+        topbar = TopBar(
+            app,
+            on_home=app.show_hub_screen,
+            on_pdf_converter=app.run_pdf_batch_converter,
+            on_pdf_viewer=app._open_pdf_viewer_empty,
+            on_chatgpt=app.open_chatgpt_window,
+            on_sites=app.show_sites_screen,
+            on_notifications_clicked=app._on_notifications_clicked,
+            on_mark_all_read=app._mark_all_notifications_read,
+            on_delete_notification_for_me=app._delete_notification_for_me,
+            on_delete_all_notifications_for_me=app._delete_all_notifications_for_me,
+        )
+        topbar.pack(side="top", fill="x")
+
+        # 3. Separador pós-topbar
+        refs.sep_toolbar_main.pack(side="top", fill="x", pady=0)
+        try:
+            refs.sep_toolbar_main.pack_propagate(False)
+        except (AttributeError, Exception):
+            pass
+
+        # 4. AppMenuBar
+        menu = AppMenuBar(
+            app,
+            on_home=app.show_hub_screen,
+            on_refresh=app.refresh_current_view,
+            on_quit=app._on_menu_logout,
+            on_toggle_theme=app._handle_toggle_theme,
+        )
+        menu.attach()
+
+        # 5. NavigationController
+        nav = NavigationController(refs.content_container, frame_factory=app._frame_factory)
+
+        # 6. StatusFooter
+        footer = StatusFooter(app, show_trash=False)
+        footer.pack(side="bottom", fill="x")
+        footer.set_count(0)
+        footer.set_user(None)
+        footer.set_cloud("UNKNOWN")
+
+        # Atualizar refs (sobrescrever placeholders)
+        refs.topbar = topbar
+        refs.menu = menu
+        refs.nav = nav
+        refs.footer = footer
+
+        log.debug("Layout deferred completo")
 
 
 def _apply_window_icon(app: App, icon_path_relative: str) -> None:
@@ -236,18 +251,20 @@ def _apply_window_icon(app: App, icon_path_relative: str) -> None:
 
     try:
         icon_path = resource_path(icon_path_relative)
-        log.info("Tentando aplicar ícone da aplicação: %s", icon_path)
+        # Logar apenas basename para evitar expor paths completos
+        icon_name = os.path.basename(icon_path)
+        log.info("Aplicando ícone: %s", icon_name)
         if os.path.exists(icon_path):
             try:
                 app.iconbitmap(icon_path)
-                log.info("iconbitmap aplicado com sucesso: %s", icon_path)
+                log.debug("Ícone principal aplicado: %s", icon_name)
 
                 # Tentar definir como ícone default para novos Toplevels
                 try:
                     app.iconbitmap(default=icon_path)
-                    log.info("iconbitmap default aplicado com sucesso para Toplevels")
+                    log.debug("Ícone default aplicado para novos diálogos")
                 except Exception:
-                    log.debug("iconbitmap default não suportado neste ambiente", exc_info=True)
+                    log.debug("Ícone default não suportado neste ambiente", exc_info=True)
 
             except Exception:
                 log.warning("iconbitmap falhou, tentando iconphoto com PNG", exc_info=True)

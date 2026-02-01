@@ -75,7 +75,6 @@ class HubScreenBuilder:
         open_auditoria: Optional[Callable[[], None]] = None,
         open_farmacia_popular: Optional[Callable[[], None]] = None,
         open_sngpc: Optional[Callable[[], None]] = None,
-        open_senhas: Optional[Callable[[], None]] = None,
         open_mod_sifap: Optional[Callable[[], None]] = None,
         open_cashflow: Optional[Callable[[], None]] = None,
         open_sites: Optional[Callable[[], None]] = None,
@@ -109,10 +108,8 @@ class HubScreenBuilder:
             screen,
             open_clientes=open_clientes,
             open_anvisa=open_anvisa,
-            open_auditoria=open_auditoria,
             open_farmacia_popular=open_farmacia_popular,
             open_sngpc=open_sngpc,
-            open_senhas=open_senhas,
             open_mod_sifap=open_mod_sifap,
             open_cashflow=open_cashflow,
             open_sites=open_sites,
@@ -130,10 +127,8 @@ class HubScreenBuilder:
                 screen=screen,
                 open_clientes=open_clientes,
                 open_anvisa=open_anvisa,
-                open_auditoria=open_auditoria,
                 open_farmacia_popular=open_farmacia_popular,
                 open_sngpc=open_sngpc,
-                open_senhas=open_senhas,
                 open_mod_sifap=open_mod_sifap,
                 open_cashflow=open_cashflow,
                 open_sites=open_sites,
@@ -155,7 +150,6 @@ class HubScreenBuilder:
         open_auditoria: Optional[Callable[[], None]] = None,
         open_farmacia_popular: Optional[Callable[[], None]] = None,
         open_sngpc: Optional[Callable[[], None]] = None,
-        open_senhas: Optional[Callable[[], None]] = None,
         open_mod_sifap: Optional[Callable[[], None]] = None,
         open_cashflow: Optional[Callable[[], None]] = None,
         open_sites: Optional[Callable[[], None]] = None,
@@ -172,10 +166,8 @@ class HubScreenBuilder:
         screen._nav_callbacks = HubNavigationCallbacks(
             open_clientes=open_clientes,
             open_anvisa=open_anvisa,
-            open_auditoria=open_auditoria,
             open_farmacia_popular=open_farmacia_popular,
             open_sngpc=open_sngpc,
-            open_senhas=open_senhas,
             open_mod_sifap=open_mod_sifap,
             open_cashflow=open_cashflow,
             open_sites=open_sites,
@@ -184,10 +176,8 @@ class HubScreenBuilder:
         # MF-16: Manter atributos públicos individuais para compatibilidade
         screen.open_clientes = open_clientes
         screen.open_anvisa = open_anvisa
-        screen.open_auditoria = open_auditoria
         screen.open_farmacia_popular = open_farmacia_popular
         screen.open_sngpc = open_sngpc
-        screen.open_senhas = open_senhas
         screen.open_mod_sifap = open_mod_sifap
         screen.open_cashflow = open_cashflow
         screen.open_sites = open_sites

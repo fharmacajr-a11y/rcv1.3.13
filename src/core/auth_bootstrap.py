@@ -301,8 +301,10 @@ def _log_session_state(logger: Optional[logging.Logger]) -> None:
     try:
         sess = client.auth.get_session()
         uid = getattr(getattr(sess, "user", None), "id", None)
-        token_status = "presente" if _get_access_token(client) else "ausente"
-        (logger or log).info("Sessão inicial: uid=%s, token=%s", uid, token_status)
+        token_status = "OK" if _get_access_token(client) else "ausente"
+        # Reduzir UUID para prefixo (redação de dados sensíveis)
+        uid_prefix = str(uid)[:8] + "..." if uid else "none"
+        (logger or log).info("Sessão restaurada (uid=%s, token: %s)", uid_prefix, token_status)
     except Exception as exc:
         (logger or log).warning("Erro ao verificar sessão inicial: %s", exc)
 
@@ -315,7 +317,8 @@ def _update_footer_email(app: AppProtocol) -> None:
     try:
         sess = client.auth.get_session()
         email = getattr(getattr(sess, "user", None), "email", None)
-        if hasattr(app, "footer") and email:
+        # FASE 5A PASSO 3: Guarda contra footer=None (deferred ainda não completou)
+        if hasattr(app, "footer") and app.footer is not None and email:
             app.footer.set_user(email)
     except Exception as exc:
         log.debug("Falha ao atualizar email no rodapé", exc_info=exc)

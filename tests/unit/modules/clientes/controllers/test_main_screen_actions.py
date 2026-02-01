@@ -14,7 +14,7 @@ from unittest.mock import Mock
 import pytest
 
 from src.modules.clientes.controllers.main_screen_actions import ActionResult, MainScreenActions
-from src.modules.clientes.viewmodel import ClientesViewModel
+from src.modules.clientes.core.viewmodel import ClientesViewModel
 
 
 @pytest.fixture

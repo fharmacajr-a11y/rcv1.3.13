@@ -269,8 +269,6 @@ class MainWindowSection(str, Enum):
 
     HUB = "hub"
     CLIENTES = "clientes"
-    SENHAS = "senhas"
-    AUDITORIA = "auditoria"
     CASHFLOW = "cashflow"
     LIXEIRA = "lixeira"
 

@@ -185,6 +185,17 @@ def toggle_appearance_mode() -> ThemeMode:
             ctk_mode_map = {"light": "Light", "dark": "Dark"}
             ctk.set_appearance_mode(ctk_mode_map[new_mode])
             log.info(f"Modo de aparência alternado para: {new_mode}")
+
+            # Notificar TtkTreeviewManager explicitamente
+            try:
+                from src.ui.ttk_treeview_manager import get_treeview_manager
+
+                manager = get_treeview_manager()
+                manager.apply_all(ctk_mode_map[new_mode])
+                log.debug(f"[GlobalThemeManager] TtkTreeviewManager notificado: {new_mode}")
+            except Exception as exc:
+                log.debug(f"[GlobalThemeManager] Erro ao notificar TtkTreeviewManager: {exc}")
+
         except Exception:
             log.exception("Falha ao alternar appearance mode")
 
@@ -304,6 +315,17 @@ class GlobalThemeManager:
                 ctk_mode_map = {"light": "Light", "dark": "Dark"}
                 ctk.set_appearance_mode(ctk_mode_map[mode])
                 log.info(f"Modo de aparência definido: {mode}")
+
+                # Notificar TtkTreeviewManager explicitamente
+                try:
+                    from src.ui.ttk_treeview_manager import get_treeview_manager
+
+                    manager = get_treeview_manager()
+                    manager.apply_all(ctk_mode_map[mode])
+                    log.debug(f"[GlobalThemeManager] TtkTreeviewManager notificado: {mode}")
+                except Exception as exc:
+                    log.debug(f"[GlobalThemeManager] Erro ao notificar TtkTreeviewManager: {exc}")
+
             except Exception:
                 log.exception("Falha ao definir appearance mode")
 

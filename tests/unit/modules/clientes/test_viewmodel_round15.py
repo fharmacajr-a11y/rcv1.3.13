@@ -15,7 +15,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.modules.clientes.viewmodel import (
+from src.modules.clientes.core.viewmodel import (
     ClienteRow,
     ClientesViewModel,
     ClientesViewModelError,

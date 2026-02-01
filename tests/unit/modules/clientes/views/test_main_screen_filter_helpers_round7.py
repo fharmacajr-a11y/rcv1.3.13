@@ -7,7 +7,7 @@ Round 7 - Fase 2: Testes para lógica de normalização de filtros e status.
 
 from __future__ import annotations
 
-from src.modules.clientes.views.main_screen_helpers import (
+from src.modules.clientes.core.ui_helpers import (
     DEFAULT_FILTER_LABEL,
     FILTER_LABEL_TODOS,
     build_filter_choices_with_all_option,

@@ -88,18 +88,6 @@ class HubNavigationFacade:
             self._debug_logger("NavigationFacade: open_clientes")
         self._nav_helper.open_clientes()
 
-    def open_senhas(self) -> None:
-        """Abre módulo de Senhas (MF-10, MF-22)."""
-        if self._debug_logger:
-            self._debug_logger("NavigationFacade: open_senhas")
-        self._nav_helper.open_senhas()
-
-    def open_auditoria(self) -> None:
-        """Abre módulo de Auditoria (MF-10, MF-22)."""
-        if self._debug_logger:
-            self._debug_logger("NavigationFacade: open_auditoria")
-        self._nav_helper.open_auditoria()
-
     def open_fluxo_caixa(self) -> None:
         """Abre módulo de Fluxo de Caixa (MF-10, MF-22)."""
         if self._debug_logger:

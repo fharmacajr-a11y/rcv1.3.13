@@ -31,11 +31,9 @@ def register_main_window_screens(router: ScreenRouter, app: App) -> None:
         Usam router.show() diretamente quando necessário.
     """
     from src.modules.anvisa import AnvisaScreen
-    from src.modules.auditoria import AuditoriaFrame
     from src.modules.cashflow import CashflowFrame
-    from src.modules.clientes_v2 import ClientesV2Frame
+    from src.modules.clientes.ui import ClientesV2Frame
     from src.modules.notas import HubFrame
-    from src.modules.passwords import PasswordsFrame
     from src.modules.sites import SitesScreen
     from src.ui.placeholders import ComingSoonScreen
 
@@ -45,9 +43,7 @@ def register_main_window_screens(router: ScreenRouter, app: App) -> None:
             app._content_container,
             open_clientes=app.show_main_screen,
             open_anvisa=lambda: router.show("anvisa"),
-            open_auditoria=lambda: router.show("auditoria"),
             open_sngpc=lambda: app.show_placeholder_screen("SNGPC"),
-            open_senhas=app.show_passwords_screen,
             open_cashflow=app.show_cashflow_screen,
             open_sites=app.show_sites_screen,
         )
@@ -63,9 +59,9 @@ def register_main_window_screens(router: ScreenRouter, app: App) -> None:
 
     router.register("hub", _create_hub, cache=True)
 
-    # Main (Clientes) - ClientesV2 moderna (cache=True)
+    # Main (Clientes) - Interface moderna (cache=True)
     def _create_main() -> Any:
-        _log.info("🆕 [ClientesV2] Carregando tela Clientes (versão moderna)")
+        _log.info("🆕 [Clientes] Carregando tela Clientes (versão moderna)")
         frame = ClientesV2Frame(
             master=app._content_container,
             app=app,  # FIX P0 #4: Injetar referência ao MainWindow para ações funcionarem
@@ -75,22 +71,6 @@ def register_main_window_screens(router: ScreenRouter, app: App) -> None:
         return frame
 
     router.register("main", _create_main, cache=True)
-
-    # Passwords (singleton cacheado)
-    def _create_passwords() -> Any:
-        if app._passwords_screen_instance is None:
-            app._passwords_screen_instance = PasswordsFrame(
-                app._content_container,
-                main_window=app,
-            )
-        frame = app._passwords_screen_instance
-        try:
-            frame.on_show()
-        except Exception:
-            _log.exception("Erro ao chamar on_show da tela de senhas")
-        return frame
-
-    router.register("passwords", _create_passwords, cache=True)
 
     # Cashflow (criar nova sempre)
     def _create_cashflow() -> Any:
@@ -116,15 +96,6 @@ def register_main_window_screens(router: ScreenRouter, app: App) -> None:
 
     router.register("anvisa", _create_anvisa, cache=True)
 
-    # Auditoria (criar nova sempre)
-    def _create_auditoria() -> Any:
-        return AuditoriaFrame(
-            app._content_container,
-            go_back=app.show_hub_screen,
-        )
-
-    router.register("auditoria", _create_auditoria, cache=False)
-
     # Placeholder (criar nova sempre, lê title de app._placeholder_title)
     def _create_placeholder() -> Any:
         title = getattr(app, "_placeholder_title", None) or "Em Desenvolvimento"
@@ -136,4 +107,4 @@ def register_main_window_screens(router: ScreenRouter, app: App) -> None:
 
     router.register("placeholder", _create_placeholder, cache=False)
 
-    _log.debug("Registradas 8 telas no ScreenRouter")
+    _log.debug("Registradas 7 telas no ScreenRouter")

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from collections.abc import Collection, Sequence
 
-from src.modules.clientes.viewmodel import ClienteRow
+from src.modules.clientes.core.viewmodel import ClienteRow
 from src.modules.clientes.views.main_screen_state import MainScreenState
 
 
@@ -49,7 +49,7 @@ def make_main_screen_state(
         'Razão Social (A→Z)'
 
         >>> # Estado com clientes e seleção
-        >>> from src.modules.clientes.viewmodel import ClienteRow
+        >>> from src.modules.clientes.core.viewmodel import ClienteRow
         >>> clients = [ClienteRow(...), ClienteRow(...)]
         >>> state = make_main_screen_state(
         ...     clients=clients,

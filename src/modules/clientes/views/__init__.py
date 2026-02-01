@@ -1,6 +1,6 @@
 """Views compartilhadas do módulo Clientes (apenas helpers reutilizáveis).
 
-A UI principal está em src.modules.clientes_v2.
+A UI principal está em src.modules.clientes.ui
 """
 
 from __future__ import annotations

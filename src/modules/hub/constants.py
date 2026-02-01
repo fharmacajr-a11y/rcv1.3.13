@@ -17,7 +17,6 @@ NEW_NOTE_LABEL = "Nova anotação:"
 
 # Estilos de botões da coluna "Módulos" do Hub
 HUB_BTN_STYLE_CLIENTES = "info"  # azul claro
-HUB_BTN_STYLE_SENHAS = "info"  # azul claro
 HUB_BTN_STYLE_AUDITORIA = "info"  # azul claro
 HUB_BTN_STYLE_FLUXO_CAIXA = "secondary"  # cinza
 
@@ -37,8 +36,6 @@ __all__ = [
     "MODULES_TITLE",
     "NEW_NOTE_LABEL",
     "HUB_BTN_STYLE_CLIENTES",
-    "HUB_BTN_STYLE_SENHAS",
-    "HUB_BTN_STYLE_AUDITORIA",
     "HUB_BTN_STYLE_FLUXO_CAIXA",
     "MODULES_COL_MINSIZE",
 ]

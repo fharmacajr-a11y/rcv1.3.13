@@ -104,7 +104,7 @@ from src.modules.main_window.views.state_helpers import (
     combine_status_display,
 )
 from src.modules.notas import HubFrame
-from src.modules.clientes_v2 import ClientesV2Frame
+from src.modules.clientes.ui import ClientesV2Frame
 from src.modules.chatgpt.views.chatgpt_window import ChatGPTWindow
 from src.modules.main_window.controller import create_frame, tk_report
 from src.modules.main_window.session_service import SessionCache
@@ -231,7 +231,6 @@ class App(BaseApp):  # type: ignore[misc]
 
         # Cache de telas
         self._hub_screen_instance: Optional[HubFrame] = None
-        self._passwords_screen_instance: Optional[Any] = None
         self._chatgpt_window: Optional[ChatGPTWindow] = None
 
         # ═══════════════════════════════════════════════════════════════
@@ -270,6 +269,11 @@ class App(BaseApp):  # type: ignore[misc]
         return self._pollers.health_job_id if hasattr(self, "_pollers") else None
 
     def show_frame(self, frame_cls: Any, **kwargs: Any) -> Any:
+        # FASE 5A PASSO 3: Guarda contra nav=None (deferred ainda não completou)
+        if not hasattr(self, "nav") or self.nav is None:
+            log.warning("show_frame chamado antes de nav estar pronto")
+            return None
+        
         frame = self.nav.show_frame(frame_cls, **kwargs)
         try:
             self._update_topbar_state(frame)
@@ -361,12 +365,6 @@ class App(BaseApp):  # type: ignore[misc]
 
         return actions.show_placeholder_screen(self, title)
 
-    def show_passwords_screen(self) -> Any:
-        """Mostra a tela de gerenciamento de senhas."""
-        from src.modules.main_window.views.main_window_screens import show_passwords_screen
-
-        return show_passwords_screen(self)
-
     def show_cashflow_screen(self) -> Any:
         """Mostra a tela de fluxo de caixa."""
         from src.modules.main_window.views.main_window_screens import show_cashflow_screen
@@ -446,6 +444,11 @@ class App(BaseApp):  # type: ignore[misc]
     def _on_login_success(self, session):
         """Atualiza o rodapé com o email do usuário após login bem-sucedido."""
         try:
+            # FASE 5A PASSO 3: Guarda contra footer=None (deferred ainda não completou)
+            if not hasattr(self, "footer") or self.footer is None:
+                log.debug("Footer ainda não pronto, pulando atualização de usuário")
+                return
+            
             email = getattr(getattr(session, "user", None), "email", None)
             self.footer.set_user(email)
         except Exception as e:

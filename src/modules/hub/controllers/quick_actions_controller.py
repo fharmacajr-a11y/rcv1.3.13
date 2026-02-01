@@ -39,14 +39,6 @@ class HubQuickActionsNavigatorProtocol(Protocol):
         """Abre o módulo de Clientes."""
         ...
 
-    def open_senhas(self) -> None:
-        """Abre o módulo de Senhas."""
-        ...
-
-    def open_auditoria(self) -> None:
-        """Abre o módulo de Auditoria."""
-        ...
-
     def open_fluxo_caixa(self) -> None:
         """Abre o módulo de Fluxo de Caixa."""
         ...
@@ -85,8 +77,6 @@ class QuickActionsController:
         """
         return (
             "clientes",
-            "senhas",
-            "auditoria",
             "fluxo_caixa",
             "anvisa",
             "sngpc",
@@ -108,10 +98,6 @@ class QuickActionsController:
             # Dispatch para o método apropriado do navigator
             if action_id == "clientes":
                 self.navigator.open_clientes()
-            elif action_id == "senhas":
-                self.navigator.open_senhas()
-            elif action_id == "auditoria":
-                self.navigator.open_auditoria()
             elif action_id in ("fluxo_caixa", "cashflow"):  # Suporte a alias
                 self.navigator.open_fluxo_caixa()
             elif action_id == "anvisa":

@@ -69,14 +69,14 @@ def check_internet_connectivity(timeout: float = 1.0) -> bool:
 
     # 1) Tentativa via socket (comportamento antigo)
     if _socket_check(timeout=timeout):
-        logger.info("Internet connectivity confirmed (cloud-only mode)")
+        logger.debug("Internet connectivity confirmed (cloud-only mode)")
         return True
 
     # 2) Fallback HTTP
     # Timeout agressivo para não atrasar startup (PERF-001)
     http_timeout = max(timeout, 2.0)
     if _http_check(timeout=http_timeout):
-        logger.info("Internet connectivity confirmed via HTTP fallback (cloud-only mode)")
+        logger.debug("Internet connectivity confirmed via HTTP fallback (cloud-only mode)")
         return True
 
     # 3) Se ambos falharem, mantém o comportamento anterior (sem internet)

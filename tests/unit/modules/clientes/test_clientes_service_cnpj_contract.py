@@ -19,7 +19,7 @@ import pytest
 @pytest.mark.unit
 def test_extrair_cartao_cnpj_aceita_kind_cartao_cnpj_sem_fallback() -> None:
     """Garante que classificador com 'kind':'cartao_cnpj' não chama fallback pesado."""
-    from src.modules.clientes.service import extrair_dados_cartao_cnpj_em_pasta
+    from src.modules.clientes.core.service import extrair_dados_cartao_cnpj_em_pasta
 
     base_dir = "/fake/pasta"
     mock_pdf_path = str(Path(base_dir) / "cartao.pdf")
@@ -52,7 +52,7 @@ def test_extrair_cartao_cnpj_aceita_kind_cartao_cnpj_sem_fallback() -> None:
 @pytest.mark.unit
 def test_extrair_cartao_cnpj_aceita_type_cnpj_card_legado() -> None:
     """Garante compatibilidade com classificador legado 'type':'cnpj_card'."""
-    from src.modules.clientes.service import extrair_dados_cartao_cnpj_em_pasta
+    from src.modules.clientes.core.service import extrair_dados_cartao_cnpj_em_pasta
 
     base_dir = "/fake/pasta"
     mock_pdf_path = str(Path(base_dir) / "cartao.pdf")
@@ -83,7 +83,7 @@ def test_extrair_cartao_cnpj_aceita_type_cnpj_card_legado() -> None:
 @pytest.mark.unit
 def test_extrair_cartao_cnpj_com_meta_completo_nao_le_pdf() -> None:
     """Se meta já tem cnpj+razao completo, não deve ler o PDF."""
-    from src.modules.clientes.service import extrair_dados_cartao_cnpj_em_pasta
+    from src.modules.clientes.core.service import extrair_dados_cartao_cnpj_em_pasta
 
     base_dir = "/fake/pasta"
 
@@ -115,7 +115,7 @@ def test_extrair_cartao_cnpj_com_meta_completo_nao_le_pdf() -> None:
 @pytest.mark.unit
 def test_extrair_cartao_cnpj_sem_path_chama_fallback() -> None:
     """Se classificador não retornar path, deve chamar fallback pesado."""
-    from src.modules.clientes.service import extrair_dados_cartao_cnpj_em_pasta
+    from src.modules.clientes.core.service import extrair_dados_cartao_cnpj_em_pasta
 
     base_dir = "/fake/pasta"
 
@@ -144,7 +144,7 @@ def test_extrair_cartao_cnpj_sem_path_chama_fallback() -> None:
 @pytest.mark.unit
 def test_extrair_cartao_cnpj_ambos_campos_vazios_fallback() -> None:
     """Se classificador não retornar dados, chama fallback."""
-    from src.modules.clientes.service import extrair_dados_cartao_cnpj_em_pasta
+    from src.modules.clientes.core.service import extrair_dados_cartao_cnpj_em_pasta
 
     base_dir = "/fake/pasta"
 

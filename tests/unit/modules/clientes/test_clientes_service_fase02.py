@@ -14,7 +14,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.modules.clientes.service import (
+from src.modules.clientes.core.service import (
     mover_cliente_para_lixeira,
     restaurar_clientes_da_lixeira,
     excluir_cliente_simples,

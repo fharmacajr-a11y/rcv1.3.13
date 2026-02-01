@@ -249,9 +249,9 @@ def test_encrypt_text_formato_usado_em_data_supabase_repo(mock_env_key):
     assert len(token) > 0
 
 
-def test_decrypt_text_formato_usado_em_passwords_controller(mock_env_key):
+def test_decrypt_text_common_use_case(mock_env_key):
     """
-    Testa que decrypt_text pode ser usado conforme src/modules/passwords/controller.py:
+    Testa que decrypt_text pode ser usado para descriptografar dados armazenados.
     - Recebe token (string)
     - Retorna texto plano (string)
     """

@@ -51,7 +51,6 @@ BANNED_PREFIXES = [
     "src.ui.lixeira",
     "src.ui.main_window",
     "src.ui.main_screen",
-    "src.ui.passwords_screen",
     "src.ui.login.login",
     # src.ui.forms removido em T09.1 - migrado para src.modules.forms
 ]

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.modules.clientes.viewmodel import ClienteRow, ClientesViewModel
+from src.modules.clientes.core.viewmodel import ClienteRow, ClientesViewModel
 
 
 @pytest.fixture

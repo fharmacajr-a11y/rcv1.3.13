@@ -59,6 +59,20 @@ def apply_rc_icon(window: tk.Misc) -> None:
 
 
 if __name__ == "__main__":
+    # Install line filters FIRST (before any imports that might trigger warnings)
+    import os
+    if os.getenv("RC_SUPPRESS_STORAGE_WARNING", "1") == "1":
+        try:
+            from src.core.utils.stdio_line_filter import install_line_filters
+            install_line_filters(
+                drop_patterns=[
+                    r"Storage endpoint URL should have a trailing slash\.",
+                ],
+                streams=("stdout", "stderr"),
+            )
+        except Exception as exc:
+            logger.debug("Falha ao instalar filtro de console: %s", exc, exc_info=True)
+
     # Install global exception hook early
     try:
         from src.utils.errors import install_global_exception_hook

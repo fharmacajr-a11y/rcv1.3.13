@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from src.modules.clientes.components.helpers import STATUS_PREFIX_RE
+from src.modules.clientes.core.constants import STATUS_PREFIX_RE
 
 
 def apply_status_prefix(obs: str, status: str) -> str:

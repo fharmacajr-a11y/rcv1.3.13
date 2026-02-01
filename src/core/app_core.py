@@ -10,7 +10,7 @@ from tkinter import TclError, messagebox
 from typing import Any, Sequence, Tuple
 
 from src.config.paths import CLOUD_ONLY
-from src.modules.clientes.service import get_cliente_by_id, mover_cliente_para_lixeira
+from src.modules.clientes.core.service import get_cliente_by_id, mover_cliente_para_lixeira
 
 try:
     from src.modules.lixeira import abrir_lixeira as _module_abrir_lixeira, refresh_if_open as _module_refresh_if_open
@@ -83,7 +83,7 @@ def novo_cliente(app: Any) -> None:
     """Abre o formulário para cadastro de um novo cliente."""
     log.info("Opening form for new client")
 
-    from src.modules.clientes.forms.client_form import form_cliente
+    from src.modules.clientes.forms import form_cliente
 
     form_cliente(app)
 
@@ -91,7 +91,7 @@ def novo_cliente(app: Any) -> None:
 def editar_cliente(app: Any, pk: int) -> None:
     """Abre o formulário de edição para o cliente informado."""
     log.info("Opening edit form for client id=%s", pk)
-    from src.modules.clientes.forms.client_form import form_cliente
+    from src.modules.clientes.forms import form_cliente
 
     row = _resolve_cliente_row(pk)
     if row:

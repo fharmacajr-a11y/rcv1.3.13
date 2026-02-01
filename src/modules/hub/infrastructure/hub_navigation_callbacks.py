@@ -34,12 +34,6 @@ class HubNavigationCallbacks:
     # Módulo de Clientes
     open_clientes: Optional[Callable[[], None]] = None
 
-    # Módulo de Senhas
-    open_senhas: Optional[Callable[[], None]] = None
-
-    # Módulo de Auditoria
-    open_auditoria: Optional[Callable[[], None]] = None
-
     # Módulo de Fluxo de Caixa
     open_cashflow: Optional[Callable[[], None]] = None
 
@@ -69,8 +63,6 @@ class HubNavigationCallbacks:
         """
         callback_map = {
             "clientes": self.open_clientes,
-            "senhas": self.open_senhas,
-            "auditoria": self.open_auditoria,
             "cashflow": self.open_cashflow,
             "anvisa": self.open_anvisa,
             "farmacia_popular": self.open_farmacia_popular,

@@ -62,7 +62,7 @@ def configure_logging(*, preload: bool = False) -> Optional[logging.Logger]:
     logger = logging.getLogger("startup")
 
     root = Path(__file__).resolve().parents[1]
-    logger.info("APP PATH = %s", root)
+    logger.debug("APP PATH = %s", root)
     logger.info("Logging level ativo: %s", logging.getLevelName(logging.getLogger().level))
 
     logging.getLogger("httpx").setLevel(logging.WARNING)

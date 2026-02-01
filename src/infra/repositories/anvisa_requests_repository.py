@@ -17,9 +17,18 @@ Note:
 from __future__ import annotations
 
 import logging
+import os
+import time
 from typing import Any
 
 from src.infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ID
+
+# Cache para log on change (org_id -> count)
+_ANVISA_LAST_COUNT: dict[str, int] = {}
+
+# Cache com TTL para evitar chamadas duplicadas no startup
+_ANVISA_CACHE: dict[str, tuple[list[dict[str, Any]], float]] = {}  # org_id -> (data, timestamp)
+_ANVISA_CACHE_TTL = 30.0  # 30 segundos
 
 log = logging.getLogger(__name__)
 
@@ -117,19 +126,51 @@ def list_requests(org_id: str) -> list[dict[str, Any]]:
         >>> for d in demandas:
         ...     print(d["clients"]["razao_social"], d["request_type"])
     """
+    from src.core.utils.perf_timer import perf_timer
     from src.infra.supabase_client import supabase
+    
+    # Verificar cache (se não desabilitado via ENV)
+    cache_disabled = os.getenv("RC_DISABLE_STARTUP_CACHE", "0") == "1"
+    if not cache_disabled:
+        cached = _ANVISA_CACHE.get(org_id)
+        if cached:
+            data, timestamp = cached
+            age = time.monotonic() - timestamp
+            if age < _ANVISA_CACHE_TTL:
+                log.debug(f"[ANVISA] Cache hit: {len(data)} demanda(s) (age={age:.1f}s)")
+                return data
 
     try:
-        response = (
-            supabase.table("client_anvisa_requests")
-            .select("id,client_id,request_type,status,created_at,updated_at,payload,clients(razao_social,cnpj)")
-            .eq("org_id", org_id)
-            .order("updated_at", desc=True)
-            .execute()
-        )
+        with perf_timer("anvisa.list_requests", log, threshold_ms=300):
+            response = (
+                supabase.table("client_anvisa_requests")
+                .select("id,client_id,request_type,status,created_at,updated_at,payload,clients(razao_social,cnpj)")
+                .eq("org_id", org_id)
+                .order("updated_at", desc=True)
+                .execute()
+            )
 
-        data = getattr(response, "data", None) or []
-        log.info("[ANVISA] Listadas %d demanda(s) (org_id=%s)", len(data), org_id)
+            data = getattr(response, "data", None) or []
+            
+            # Atualizar cache
+            if not cache_disabled:
+                _ANVISA_CACHE[org_id] = (data, time.monotonic())
+
+            # Log on change: só loga se o número de demandas mudou
+            count = len(data)
+            last_count = _ANVISA_LAST_COUNT.get(org_id)
+
+            if last_count is None:
+                # Primeira consulta para este org_id
+                log.info("[ANVISA] Listadas %d demanda(s) (org_id=%s)", count, org_id)
+                _ANVISA_LAST_COUNT[org_id] = count
+            elif count != last_count:
+                # Número mudou
+                log.info("[ANVISA] Demandas mudaram: %d → %d (org_id=%s)", last_count, count, org_id)
+                _ANVISA_LAST_COUNT[org_id] = count
+            else:
+                # Número não mudou, log em DEBUG
+                log.debug("[ANVISA] Listadas %d demanda(s) (org_id=%s)", count, org_id)
 
         return data
 

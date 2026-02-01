@@ -10,12 +10,12 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 
-from src.modules.clientes.viewmodel import ClienteRow
+from src.modules.clientes.core.viewmodel import ClienteRow
 from src.modules.clientes.views.main_screen_controller import (
     FilterOrderInput,
     compute_filtered_and_ordered,
 )
-from src.modules.clientes.views.main_screen_helpers import (
+from src.modules.clientes.core.ui_helpers import (
     ORDER_LABEL_UPDATED_OLD,
     ORDER_LABEL_UPDATED_RECENT,
 )

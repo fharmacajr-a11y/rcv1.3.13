@@ -288,7 +288,9 @@ def refresh_clients_count_async(app: App, auto_schedule: bool = True) -> None:
         text = "1 cliente" if total == 1 else f"{total} clientes"
         try:
             app.after(0, lambda: app.clients_count_var.set(text))
-            app.after(0, lambda: app.footer.set_count(total))
+            # FASE 5A PASSO 3: Guarda contra footer=None (deferred ainda não completou)
+            if hasattr(app, "footer") and app.footer is not None:
+                app.after(0, lambda: app.footer.set_count(total))
         except Exception as exc:  # noqa: BLE001
             log.debug("Falha ao atualizar contagem de clientes: %s", exc)
 
@@ -536,10 +538,10 @@ def open_clients_picker(
 
     if return_to is None:
 
-        def _return_to_passwords() -> None:
-            navigate_to(app, "passwords")
+        def _return_to_hub() -> None:
+            navigate_to(app, "hub")
 
-        return_to = _return_to_passwords
+        return_to = _return_to_hub
     effective_banner = banner_text or "Modo seleção: escolha um cliente para continuar"
     start_client_pick_mode(
         app,
@@ -879,6 +881,10 @@ def set_user_status(app: App, email: Optional[str], role: Optional[str] = None) 
 def poll_health_impl(app: App) -> None:
     """Implementação headless de health check (sem lógica de reagendamento)."""
     try:
+        # FASE 5A PASSO 3: Guarda contra footer=None (deferred ainda não completou)
+        if not hasattr(app, "footer") or app.footer is None:
+            return
+        
         from src.infra.supabase_client import get_supabase_state
 
         state, _ = get_supabase_state()
@@ -895,19 +901,23 @@ def refresh_current_view(app: App) -> None:
 
     if app._try_call(current, "carregar"):
         return
-    if app._try_call(current, "reload_passwords"):
-        return
     app._try_call(current, "on_show")
 
 
 def main_screen_frame(app: App):
     """Retorna o frame da tela principal de clientes, se disponível."""
-    from src.modules.clientes_v2 import ClientesV2Frame
+    from src.modules.clientes.ui import ClientesV2Frame
 
     frame = getattr(app, "_main_frame_ref", None)
     if isinstance(frame, ClientesV2Frame):
         return frame
-    current = app.nav.current()
+    
+    # FASE 5A PASSO 3: Guarda contra nav=None (layout deferred ainda não completou)
+    nav = getattr(app, "nav", None)
+    if nav is None:
+        return None
+    
+    current = nav.current()
     if isinstance(current, ClientesV2Frame):
         app._main_frame_ref = current
         return current

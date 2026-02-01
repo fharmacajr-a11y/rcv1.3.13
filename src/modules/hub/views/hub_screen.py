@@ -100,10 +100,8 @@ class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame): 
         open_clientes: Optional[Callable[[], None]] = None,
         open_sifap: Optional[Callable[[], None]] = None,
         open_anvisa: Optional[Callable[[], None]] = None,
-        open_auditoria: Optional[Callable[[], None]] = None,
         open_farmacia_popular: Optional[Callable[[], None]] = None,
         open_sngpc: Optional[Callable[[], None]] = None,  # Corrigido: snjpc -> sngpc
-        open_senhas: Optional[Callable[[], None]] = None,
         open_mod_sifap: Optional[Callable[[], None]] = None,
         open_cashflow: Optional[Callable[[], None]] = None,
         open_sites: Optional[Callable[[], None]] = None,
@@ -115,10 +113,8 @@ class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame): 
             open_clientes or kwargs.pop("on_open_clientes", None) or open_sifap or kwargs.pop("on_open_sifap", None)
         )
         open_anvisa = open_anvisa or kwargs.pop("on_open_anvisa", None)
-        open_auditoria = open_auditoria or kwargs.pop("on_open_auditoria", None)
         open_farmacia_popular = open_farmacia_popular or kwargs.pop("on_open_farmacia_popular", None)
         open_sngpc = open_sngpc or kwargs.pop("on_open_sngpc", None) or kwargs.pop("on_open_snjpc", None)
-        open_senhas = open_senhas or kwargs.pop("on_open_passwords", None) or kwargs.pop("on_open_senhas", None)
         open_mod_sifap = open_mod_sifap or kwargs.pop("on_open_mod_sifap", None)
         open_cashflow = open_cashflow or kwargs.pop("on_open_cashflow", None)
         open_sites = open_sites or kwargs.pop("on_open_sites", None)
@@ -148,10 +144,8 @@ class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame): 
         self._init_state(
             open_clientes=open_clientes,
             open_anvisa=open_anvisa,
-            open_auditoria=open_auditoria,
             open_farmacia_popular=open_farmacia_popular,
             open_sngpc=open_sngpc,
-            open_senhas=open_senhas,
             open_mod_sifap=open_mod_sifap,
             open_cashflow=open_cashflow,
             open_sites=open_sites,
@@ -167,8 +161,6 @@ class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame): 
         quick_actions_view = HubQuickActionsView(
             self,
             on_open_clientes=self.open_clientes,
-            on_open_senhas=self.open_senhas,
-            on_open_auditoria=self.open_auditoria,
             on_open_cashflow=self.open_cashflow,
             on_open_anvisa=self.open_anvisa,
             on_open_farmacia_popular=self.open_farmacia_popular,
@@ -230,10 +222,8 @@ class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame): 
         *,
         open_clientes: Optional[Callable[[], None]] = None,
         open_anvisa: Optional[Callable[[], None]] = None,
-        open_auditoria: Optional[Callable[[], None]] = None,
         open_farmacia_popular: Optional[Callable[[], None]] = None,
         open_sngpc: Optional[Callable[[], None]] = None,
-        open_senhas: Optional[Callable[[], None]] = None,
         open_mod_sifap: Optional[Callable[[], None]] = None,
         open_cashflow: Optional[Callable[[], None]] = None,
         open_sites: Optional[Callable[[], None]] = None,
@@ -252,10 +242,8 @@ class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame): 
             self,
             open_clientes=open_clientes,
             open_anvisa=open_anvisa,
-            open_auditoria=open_auditoria,
             open_farmacia_popular=open_farmacia_popular,
             open_sngpc=open_sngpc,
-            open_senhas=open_senhas,
             open_mod_sifap=open_mod_sifap,
             open_cashflow=open_cashflow,
             open_sites=open_sites,
@@ -452,14 +440,6 @@ class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame): 
     def open_clientes(self) -> None:
         """Abre módulo de Clientes (MF-10, MF-22: via NavigationFacade)."""
         self._navigation_facade.open_clientes()
-
-    def open_senhas(self) -> None:
-        """Abre módulo de Senhas (MF-10, MF-22: via NavigationFacade)."""
-        self._navigation_facade.open_senhas()
-
-    def open_auditoria(self) -> None:
-        """Abre módulo de Auditoria (MF-10, MF-22: via NavigationFacade)."""
-        self._navigation_facade.open_auditoria()
 
     def open_fluxo_caixa(self) -> None:
         """Abre módulo de Fluxo de Caixa (MF-10, MF-22: via NavigationFacade)."""

@@ -12,7 +12,7 @@ from contextlib import contextmanager
 
 import pytest
 
-import src.modules.clientes.service as clientes_service
+import src.modules.clientes.core.service as clientes_service
 
 
 class DummyQuery:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pytest import MonkeyPatch
 
-from src.modules.clientes.viewmodel import ClienteRow
+from src.modules.clientes.core.viewmodel import ClienteRow
 from src.modules.clientes.views.main_screen_state_builder import build_main_screen_state
 
 

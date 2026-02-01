@@ -18,7 +18,7 @@ from src.modules.clientes.controllers.filter_sort_manager import (
     FilterSortManager,
     FilterSortResult,
 )
-from src.modules.clientes.viewmodel import ClienteRow
+from src.modules.clientes.core.viewmodel import ClienteRow
 from src.modules.clientes.views.main_screen_controller import (
     MainScreenComputed,
     MainScreenState,

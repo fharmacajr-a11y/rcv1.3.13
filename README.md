@@ -182,7 +182,37 @@ pyright src/
 
 # Análise de segurança com bandit
 bandit --ini .bandit -r src adapters infra helpers
+
+# Guard anti-regressão: Verificar imports de clientes_v2 (deprecated)
+python tools/check_no_clientes_v2_imports.py
 ```
+
+### ⚠️ Políticas de Desenvolvimento (obrigatório)
+
+#### 1. Módulo Clientes - Use `clientes.ui`
+```python
+# ✅ CORRETO - Usar sempre
+from src.modules.clientes.ui import ClientesV2Frame
+from src.modules.clientes.ui.views.client_editor_dialog import ClientEditorDialog
+
+# ❌ ERRADO - NUNCA usar (deprecated desde 2026-02-01)
+from src.modules.clientes_v2 import ClientesV2Frame  # módulo apenas shim
+```
+
+**Razão**: `src.modules.clientes_v2` foi consolidado em `src.modules.clientes.ui`. O módulo `clientes_v2` é apenas um shim de compatibilidade temporário.
+
+**Validação automática**: O hook `check-no-clientes-v2-imports` no pre-commit bloqueará commits com imports incorretos.
+
+#### 2. CustomTkinter - Use `ctk_config.py` (SSoT)
+```python
+# ✅ CORRETO
+from src.ui.ctk_config import ctk, HAS_CUSTOMTKINTER
+
+# ❌ ERRADO
+import customtkinter  # Violação de SSoT
+```
+
+**Razão**: Single Source of Truth - todos os imports CustomTkinter devem passar por `src/ui/ctk_config.py`.
 
 ---
 

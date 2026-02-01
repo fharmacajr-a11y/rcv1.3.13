@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import date
 
 
-from src.modules.clientes.views.main_screen_helpers import (
+from src.modules.clientes.core.ui_helpers import (
     calculate_button_states,
     calculate_new_clients_stats,
     extract_created_at_from_client,

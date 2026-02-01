@@ -119,6 +119,52 @@ repos:
           - Zero ttkbootstrap imports executáveis
           - UTF-8 safe: usa python -X utf8 para evitar UnicodeEncodeError no Windows
 
+      - id: check-no-clientes-v2-imports
+        name: Proibir imports de clientes_v2 (usar clientes.ui)
+        language: system
+        entry: python tools/check_no_clientes_v2_imports.py
+        types: [python]
+        pass_filenames: false
+        description: |
+          Previne regressão: nenhum código novo deve importar de src.modules.clientes_v2.
+          Use src.modules.clientes.ui ao invés (clientes_v2 é apenas shim deprecated).
+          Guard criado em 2026-02-01 como parte da consolidação para "um módulo só".
+
+      - id: check-no-clientes-shim-imports
+        name: Proibir uso interno de shims (usar core/*)
+        language: system
+        entry: python tools/check_no_clientes_shim_imports.py
+        types: [python]
+        pass_filenames: false
+        description: |
+          Previne regressão: código interno deve usar src.modules.clientes.core.*
+          Os shims (export.py, service.py, viewmodel.py, etc) existem apenas para
+          compatibilidade externa e emitem DeprecationWarning.
+          Guard criado em 2026-02-01 como parte da FASE 4C.
+
+      - id: check-no-clientes-v2-paths
+        name: Proibir referências a clientes_v2 (removido)
+        language: system
+        entry: python -X utf8 tools/check_no_clientes_v2_paths.py
+        types: [python]
+        pass_filenames: false
+        description: |
+          Previne regressão: clientes_v2 foi REMOVIDO (migração completa).
+          Nenhum código novo deve referenciar clientes_v2 em strings ou paths.
+          Use src.modules.clientes.ui ao invés.
+          Guard criado em 2026-02-01 como parte da FASE 4D.
+
+      - id: check-no-clientes-archived-forms
+        name: Proibir uso de forms/_archived (movido para docs)
+        language: system
+        entry: python -X utf8 tools/check_no_clientes_archived_forms_paths.py
+        types: [python]
+        pass_filenames: false
+        description: |
+          Previne regressão: forms/_archived foi MOVIDO para docs/_archive/clientes_forms/.
+          Use substitutos modernos: ClientEditorDialog, SubpastaDialog.
+          Guard criado em 2026-02-01 como parte da FASE 4D.
+
       - id: compileall-check
         name: Validar sintaxe Python (compileall)
         language: system

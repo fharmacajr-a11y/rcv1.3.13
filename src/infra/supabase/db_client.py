@@ -138,10 +138,10 @@ def _start_health_checker() -> None:
         global _IS_ONLINE, _LAST_SUCCESS_TIMESTAMP
 
         if supa_types.HEALTHCHECK_DISABLED:
-            log.info("Health checker desativado por RC_HEALTHCHECK_DISABLE=1")
+            log.debug("Health checker desativado por RC_HEALTHCHECK_DISABLE=1")
             return
 
-        log.info(
+        log.debug(
             "Health checker iniciado (intervalo: %.1fs, threshold instabilidade: %.1fs, via RPC '%s')",
             supa_types.HEALTHCHECK_INTERVAL_SECONDS,
             supa_types.HEALTHCHECK_UNSTABLE_THRESHOLD,
@@ -344,7 +344,7 @@ def get_supabase() -> Client:
         if not _SINGLETON_REUSE_LOGGED:
             with _SINGLETON_LOCK:
                 if not _SINGLETON_REUSE_LOGGED:  # double-check
-                    log.info("Cliente Supabase reutilizado.")
+                    log.debug("Cliente Supabase reutilizado.")
                     _SINGLETON_REUSE_LOGGED = True
         return _SUPABASE_SINGLETON
 
@@ -364,15 +364,31 @@ def get_supabase() -> Client:
         if not url or not key:
             raise RuntimeError("Faltam SUPABASE_URL e SUPABASE_ANON_KEY (ou SUPABASE_KEY) no .env")
 
-        # Normalizar URL para sempre ter trailing slash (evita warning do storage client)
-        url = url.strip().rstrip("/") + "/"
+        # CRÍTICO: NÃO adicionar slash no base URL (quebra /rest/v1, /auth/v1)
+        # Apenas normalizar: remover trailing slash se houver
+        url = url.strip().rstrip("/")
 
         options: ClientOptions = ClientOptions(
             httpx_client=HTTPX_CLIENT,
             postgrest_client_timeout=HTTPX_TIMEOUT_LIGHT,
         )
+
         _SUPABASE_SINGLETON = create_client(url, key, options=options)
-        log.info("Cliente Supabase SINGLETON criado.")
+
+        # Patch do storage client para adicionar "/" no endpoint (previne warning)
+        # A lib storage3 valida se URL termina com "/", mas supabase_url não deve ter
+        try:
+            storage_client = _SUPABASE_SINGLETON.storage
+            if hasattr(storage_client, "_base_url"):
+                original_url = storage_client._base_url
+                if not original_url.endswith("/"):
+                    storage_client._base_url = original_url + "/"
+                    log.debug(f"Storage endpoint normalizado: {storage_client._base_url}")
+        except Exception as e:
+            log.debug(f"Não foi possível normalizar endpoint de Storage: {e}")
+
+        log.debug("Cliente Supabase SINGLETON criado.")
+        log.info("Backend: conectado")
 
         # Inicia o health checker em background
         _start_health_checker()

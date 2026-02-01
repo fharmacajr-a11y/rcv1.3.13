@@ -75,33 +75,6 @@ def show_main_screen(app: "MainWindow") -> Any:
     return frame
 
 
-def show_passwords_screen(app: "MainWindow") -> Any:
-    """Mostra a tela de gerenciamento de senhas.
-
-    Args:
-        app: Instância do MainWindow
-
-    Returns:
-        Frame da tela de senhas
-    """
-    # Usar router para navegação
-    frame = app._router.show("passwords")
-
-    # Side-effects: atualizar topbar
-    try:
-        app._update_topbar_state(frame)
-    except Exception as exc:  # noqa: BLE001
-        log.debug("_update_topbar_state failed: %s", exc)
-
-    # Atualizar nav._current para compatibilidade
-    try:
-        app.nav._current = frame
-    except Exception as exc:  # noqa: BLE001
-        log.debug("set app.nav._current failed: %s", exc)
-
-    return frame
-
-
 def show_cashflow_screen(app: "MainWindow") -> Any:
     """Mostra a tela de fluxo de caixa.
 

@@ -1,7 +1,7 @@
 """Módulo Clientes - serviços compartilhados (service, viewmodel, export).
 
-A UI principal está em src.modules.clientes_v2 (ClientesV2Frame).
-Este módulo mantém apenas código compartilhado/reutilizável.
+A UI principal está em src.modules.clientes.ui (ClientesFrame).
+Domain logic está em src.modules.clientes.core.*
 """
 
 from __future__ import annotations

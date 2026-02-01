@@ -512,7 +512,7 @@ class NotificationsService:
                 "[NOTIF] publish SEM ACTOR: org=%s module=%s event=%s (continuando mesmo assim)", org_id, module, event
             )
 
-        self._log.info(
+        self._log.debug(
             "[NOTIF] publish called org=%s actor_user_id=%s actor_email=%s module=%s event=%s client=%s request=%s",
             org_id,
             actor_user_id,
@@ -537,7 +537,7 @@ class NotificationsService:
             )
 
             if success:
-                self._log.info("[NOTIF] publish SUCCESS org=%s module=%s event=%s", org_id, module, event)
+                self._log.debug("[NOTIF] publish SUCCESS org=%s module=%s event=%s", org_id, module, event)
             else:
                 self._log.error(
                     "[NOTIF] publish FAILED (repo retornou False) org=%s module=%s event=%s", org_id, module, event
