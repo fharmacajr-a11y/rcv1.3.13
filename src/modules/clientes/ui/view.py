@@ -554,7 +554,7 @@ class ClientesV2Frame(ctk.CTkFrame):
             try:
                 if show_trash:
                     # Modo lixeira: usar serviço específico
-                    from src.modules.clientes import service as clientes_service
+                    from src.modules.clientes.core import service as clientes_service
 
                     # Mapear ordenação do toolbar para parâmetros do service
                     order_by, descending = self._map_order_label_to_params(order_label)
@@ -825,7 +825,7 @@ class ClientesV2Frame(ctk.CTkFrame):
         """
         from tkinter import filedialog, messagebox
         from pathlib import Path
-        from src.modules.clientes import export
+        from src.modules.clientes.core import export
 
         try:
             # Verificar se há dados para exportar
@@ -1188,7 +1188,7 @@ class ClientesV2Frame(ctk.CTkFrame):
 
         try:
             # Buscar dados do cliente
-            from src.modules.clientes import service as clientes_service
+            from src.modules.clientes.core import service as clientes_service
 
             cliente = clientes_service.fetch_cliente_by_id(self._selected_client_id)
 
@@ -1241,7 +1241,7 @@ class ClientesV2Frame(ctk.CTkFrame):
 
         try:
             # Buscar dados do cliente
-            from src.modules.clientes import service as clientes_service
+            from src.modules.clientes.core import service as clientes_service
 
             cliente = clientes_service.fetch_cliente_by_id(self._selected_client_id)
 
@@ -1374,7 +1374,7 @@ class ClientesV2Frame(ctk.CTkFrame):
 
         try:
             # Chamar service legacy
-            from src.modules.clientes import service as clientes_service
+            from src.modules.clientes.core import service as clientes_service
             from src.modules.lixeira import refresh_if_open as refresh_lixeira_if_open
 
             clientes_service.mover_cliente_para_lixeira(self._selected_client_id)

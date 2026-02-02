@@ -274,7 +274,7 @@ def refresh_clients_count_async(app: App, auto_schedule: bool = True) -> None:
     Args:
         auto_schedule: Se True, agenda próxima atualização automática em 30s
     """
-    from src.modules.clientes import service as clientes_service
+    from src.modules.clientes.core import service as clientes_service
 
     def _work():
         try:
@@ -881,15 +881,16 @@ def set_user_status(app: App, email: Optional[str], role: Optional[str] = None) 
 def poll_health_impl(app: App) -> None:
     """Implementação headless de health check (sem lógica de reagendamento)."""
     try:
-        # FASE 5A PASSO 3: Guarda contra footer=None (deferred ainda não completou)
-        if not hasattr(app, "footer") or app.footer is None:
-            return
-
         from src.infra.supabase_client import get_supabase_state
 
         state, _ = get_supabase_state()
-        app.footer.set_cloud(state)
-        log.debug("Footer atualizado: cloud = %s", state)
+
+        # FASE 5A FIX: Usar FooterController (sempre existe)
+        if hasattr(app, "layout_refs") and app.layout_refs and hasattr(app.layout_refs, "footer_controller"):
+            app.layout_refs.footer_controller.set_cloud(state)
+            log.debug("Footer controller atualizado: cloud = %s", state)
+        else:
+            log.debug("Footer controller ainda não disponível")
     except Exception as exc:  # noqa: BLE001
         log.debug("Falha ao obter estado da nuvem no polling: %s", exc)
 

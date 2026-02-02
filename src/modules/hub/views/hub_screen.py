@@ -130,6 +130,9 @@ class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame): 
         # Flag para evitar destroy duplo
         self._destroy_called = False
 
+        # FASE 5A: ID do after para cancelar no destroy
+        self._hub_build_after_id: Optional[str] = None
+
         # BUGFIX-UX-STARTUP-HUB-001 (C3): Instrumentação para medir custo de construção
         import os
 
@@ -153,65 +156,13 @@ class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame): 
 
         if _debug_ui:
             perf_mark("Hub._init_state", _t0_hub, logger)
-            _t0_qa = perf_counter()
 
-        # BUILD MODULES PANEL (delegado para HubQuickActionsView - MF-25)
-        from src.modules.hub.views.hub_quick_actions_view import HubQuickActionsView
-
-        quick_actions_view = HubQuickActionsView(
-            self,
-            on_open_clientes=self.open_clientes,
-            on_open_cashflow=self.open_cashflow,
-            on_open_anvisa=self.open_anvisa,
-            on_open_farmacia_popular=self.open_farmacia_popular,
-            on_open_sngpc=self.open_sngpc,
-            on_open_mod_sifap=self.open_mod_sifap,
-        )
-        self.modules_panel = quick_actions_view.build()
-        # END BUILD MODULES PANEL
+        # FASE 5A: Skeleton UI imediato + deferred build para não travar o paint
+        self._build_skeleton_ui()
+        self._hub_build_after_id = self.after(0, self._build_deferred_ui)
 
         if _debug_ui:
-            perf_mark("Hub.quick_actions_view.build", _t0_qa, logger)
-            _t0_dash = perf_counter()
-
-        # BUILD DASHBOARD PANEL (delegado para HubDashboardView - MF-26)
-        from src.modules.hub.views.hub_dashboard_view import HubDashboardView
-
-        self._dashboard_view = HubDashboardView(self)
-        self.center_spacer = self._dashboard_view.build()
-        self.dashboard_scroll = self._dashboard_view.dashboard_scroll
-        # Renderizar estado inicial de loading (evita painel em branco)
-        self._dashboard_view.render_loading()
-        # END BUILD DASHBOARD PANEL
-
-        if _debug_ui:
-            perf_mark("Hub.dashboard_view.build", _t0_dash, logger)
-            _t0_notes = perf_counter()
-
-        self._build_notes_panel()
-
-        if _debug_ui:
-            perf_mark("Hub._build_notes_panel", _t0_notes, logger)
-            _t0_layout = perf_counter()
-
-        # SETUP LAYOUT (inline para satisfazer testes)
-
-        widgets = {
-            "modules_panel": self.modules_panel,
-            "spacer": self.center_spacer,
-            "notes_panel": self.notes_panel,
-        }
-        apply_hub_notes_right(self, widgets)
-        # END SETUP LAYOUT
-
-        if _debug_ui:
-            perf_mark("Hub.apply_hub_notes_right", _t0_layout, logger)
-
-        self._setup_bindings()
-        self._start_timers()
-
-        if _debug_ui:
-            perf_mark("Hub.__init__ TOTAL", _t0_hub, logger)
+            perf_mark("Hub.__init__ skeleton", _t0_hub, logger)
 
     # ============================================================================
     # MÉTODOS DE INICIALIZAÇÃO (Builders Privados)
@@ -280,6 +231,133 @@ class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame): 
     # ==============================================================================
     # CONSTRUÇÃO DE UI
     # ==============================================================================
+
+    def _build_skeleton_ui(self) -> None:
+        """FASE 5A: Cria placeholder imediato 'Carregando Hub...' para não travar o paint.
+
+        Inicializa atributos como None para compatibilidade com código existente.
+        """
+        # Inicializar atributos que serão criados no deferred
+        self.modules_panel: Optional[tk.Frame] = None
+        self.center_spacer: Optional[tk.Frame] = None
+        self.notes_panel: Optional[tk.Frame] = None
+        self.dashboard_scroll: Optional[tk.Widget] = None
+        self._dashboard_view: Optional[Any] = None
+
+        # Criar placeholder simples
+        if HAS_CUSTOMTKINTER and ctk:
+            self._loading_placeholder = ctk.CTkLabel(
+                self,
+                text="Carregando Hub...",
+                font=("Segoe UI", 14),
+                text_color=("#666666", "#999999"),
+            )
+        else:
+            self._loading_placeholder = tk.Label(
+                self,
+                text="Carregando Hub...",
+                font=("Segoe UI", 14),
+                fg="#666666",
+                bg=APP_BG,
+            )
+
+        self._loading_placeholder.pack(expand=True)
+        logger.debug("HubScreen: skeleton UI criado (placeholder)")
+
+    def _build_deferred_ui(self) -> None:
+        """FASE 5A: Constrói UI pesada após skeleton (via after 0).
+
+        Destrói placeholder e monta módulos/dashboard/notes/layout/bindings/timers.
+        Protegido contra widget já destruído (TclError).
+        """
+        try:
+            # Verificar se widget ainda existe
+            if not self.winfo_exists():
+                logger.debug("HubScreen: widget destruído antes de deferred build")
+                return
+        except tk.TclError:
+            logger.debug("HubScreen: TclError ao verificar widget em deferred build")
+            return
+
+        import os
+
+        _debug_ui = os.getenv("RC_DEBUG_STARTUP_UI") == "1"
+
+        if _debug_ui:
+            from time import perf_counter
+            from src.utils.perf import perf_mark
+
+            _t0_deferred = perf_counter()
+
+        try:
+            # Remover placeholder
+            if hasattr(self, "_loading_placeholder") and self._loading_placeholder:
+                self._loading_placeholder.destroy()
+                self._loading_placeholder = None
+
+            if _debug_ui:
+                _t0_qa = perf_counter()
+
+            # BUILD MODULES PANEL (delegado para HubQuickActionsView - MF-25)
+            from src.modules.hub.views.hub_quick_actions_view import HubQuickActionsView
+
+            quick_actions_view = HubQuickActionsView(
+                self,
+                on_open_clientes=self.open_clientes,
+                on_open_cashflow=self.open_cashflow,
+                on_open_anvisa=self.open_anvisa,
+                on_open_farmacia_popular=self.open_farmacia_popular,
+                on_open_sngpc=self.open_sngpc,
+                on_open_mod_sifap=self.open_mod_sifap,
+            )
+            self.modules_panel = quick_actions_view.build()
+
+            if _debug_ui:
+                perf_mark("Hub.deferred.quick_actions", _t0_qa, logger)
+                _t0_dash = perf_counter()
+
+            # BUILD DASHBOARD PANEL (delegado para HubDashboardView - MF-26)
+            from src.modules.hub.views.hub_dashboard_view import HubDashboardView
+
+            self._dashboard_view = HubDashboardView(self)
+            self.center_spacer = self._dashboard_view.build()
+            self.dashboard_scroll = self._dashboard_view.dashboard_scroll
+            # Renderizar estado inicial de loading (evita painel em branco)
+            self._dashboard_view.render_loading()
+
+            if _debug_ui:
+                perf_mark("Hub.deferred.dashboard", _t0_dash, logger)
+                _t0_notes = perf_counter()
+
+            self._build_notes_panel()
+
+            if _debug_ui:
+                perf_mark("Hub.deferred.notes_panel", _t0_notes, logger)
+                _t0_layout = perf_counter()
+
+            # SETUP LAYOUT
+            widgets = {
+                "modules_panel": self.modules_panel,
+                "spacer": self.center_spacer,
+                "notes_panel": self.notes_panel,
+            }
+            apply_hub_notes_right(self, widgets)
+
+            if _debug_ui:
+                perf_mark("Hub.deferred.layout", _t0_layout, logger)
+
+            self._setup_bindings()
+            self._start_timers()
+
+            if _debug_ui:
+                perf_mark("Hub.deferred TOTAL", _t0_deferred, logger)
+
+            logger.debug("HubScreen: deferred UI build completo")
+
+        except tk.TclError as e:
+            logger.debug(f"HubScreen: TclError durante deferred build (widget destruído?): {e}")
+        except Exception as e:
+            logger.exception(f"HubScreen: erro durante deferred build: {e}")
 
     # MF-25, MF-26: Painéis de quick actions e dashboard extraídos para views dedicados
 
@@ -818,6 +896,15 @@ class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame): 
         # Marcar como destruído
         self._destroy_called = True
 
+        # FASE 5A: Cancelar deferred build se ainda não executou
+        if hasattr(self, "_hub_build_after_id") and self._hub_build_after_id is not None:
+            try:
+                self.after_cancel(self._hub_build_after_id)
+                logger.debug("HubScreen.destroy: deferred build cancelado")
+            except (tk.TclError, Exception) as e:
+                logger.debug(f"HubScreen.destroy: erro ao cancelar deferred build: {e}")
+            self._hub_build_after_id = None
+
         try:
             # Parar lifecycle interno (compatibilidade)
             if hasattr(self, "_lifecycle") and self._lifecycle is not None:
@@ -830,6 +917,14 @@ class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame): 
             self.stop_polling()
         except Exception as e:
             logger.debug(f"Erro ao parar polling no destroy: {e}")
+
+        # FASE 5A: Encerrar HubAsyncRunner antes de destruir widget
+        try:
+            if hasattr(self, "_async") and self._async is not None:
+                self._async.shutdown()
+                logger.debug("HubScreen.destroy: _async.shutdown() chamado")
+        except Exception as e:
+            logger.debug(f"Erro ao encerrar _async no destroy: {e}")
 
         try:
             super().destroy()

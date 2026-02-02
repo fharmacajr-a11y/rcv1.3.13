@@ -31,6 +31,22 @@ O smoke test foca nas **funcionalidades principais** do módulo ClientesV2, que 
   - Autenticação com credenciais válidas funciona
   - Mensagem de erro para credenciais inválidas é exibida
   - Transição para tela principal após login bem-sucedido
+  - Footer exibe email do usuário após login (mesmo com timing de criação do widget)
+
+---
+
+### 1.1 Hub / Startup (FASE 5A)
+
+- [ ] **Carregamento do Hub**
+  - Placeholder "Carregando…" aparece instantaneamente (<100ms) ao abrir Hub
+  - Layout pesado monta logo após via deferred build
+  - Navegação/fechamento rápido durante loading NÃO gera TclError
+  - Callbacks não executam após destroy da tela
+
+- [ ] **Footer - Estado Persistente**
+  - Email do usuário aparece sempre no rodapé após login
+  - Cloud status atualiza sempre após health poll
+  - Updates funcionam mesmo se footer ainda não existia (race condition)
 
 ---
 

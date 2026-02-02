@@ -6,7 +6,8 @@ Domain logic está em src.modules.clientes.core.*
 
 from __future__ import annotations
 
-from .service import (
+# Importar diretamente de core para evitar warnings internos
+from .core.service import (
     ClienteCNPJDuplicadoError,
     checar_duplicatas_para_form,
     excluir_clientes_definitivamente,

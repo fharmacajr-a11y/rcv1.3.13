@@ -444,17 +444,17 @@ class App(BaseApp):  # type: ignore[misc]
     def _on_login_success(self, session):
         """Atualiza o rodapé com o email do usuário após login bem-sucedido."""
         try:
-            # FASE 5A PASSO 3: Guarda contra footer=None (deferred ainda não completou)
-            if not hasattr(self, "footer") or self.footer is None:
-                log.debug("Footer ainda não pronto, pulando atualização de usuário")
+            email = getattr(getattr(session, "user", None), "email", None)
+            if not email:
+                log.debug("Email não disponível na sessão")
                 return
 
-            email = getattr(getattr(session, "user", None), "email", None)
-            if email:
-                self.footer.set_user(email)
-                log.info("Footer atualizado: usuário = %s", email[:20] + "..." if len(email) > 20 else email)
+            # FASE 5A FIX: Usar FooterController (sempre existe)
+            if hasattr(self, "layout_refs") and self.layout_refs and hasattr(self.layout_refs, "footer_controller"):
+                self.layout_refs.footer_controller.set_user(email)
+                log.info("Footer controller atualizado: %s", email[:20] + "..." if len(email) > 20 else email)
             else:
-                log.debug("Email não disponível na sessão")
+                log.debug("Footer controller ainda não disponível")
         except Exception as e:
             log.warning("Erro ao atualizar usuário no rodapé: %s", e)
 

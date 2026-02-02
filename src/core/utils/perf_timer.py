@@ -11,10 +11,11 @@ import logging
 import os
 import time
 from contextlib import contextmanager
-from typing import Generator, Optional
+from typing import Generator
 
 # Cache para verificação de ENV (evitar múltiplas chamadas)
-_PROFILING_ENABLED: Optional[bool] = None
+# Não usar maiúsculas para variáveis mutáveis (Pyright warning)
+_profiling_enabled: bool | None = None
 
 
 def is_profiling_enabled() -> bool:
@@ -23,10 +24,10 @@ def is_profiling_enabled() -> bool:
     Returns:
         True se RC_PROFILE_STARTUP=1, False caso contrário
     """
-    global _PROFILING_ENABLED
-    if _PROFILING_ENABLED is None:
-        _PROFILING_ENABLED = os.getenv("RC_PROFILE_STARTUP", "0") == "1"
-    return _PROFILING_ENABLED
+    global _profiling_enabled
+    if _profiling_enabled is None:
+        _profiling_enabled = os.getenv("RC_PROFILE_STARTUP", "0") == "1"
+    return _profiling_enabled
 
 
 @contextmanager

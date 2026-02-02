@@ -47,7 +47,7 @@ class AppActions:
     def _excluir_cliente(self) -> None:
         """Fluxo original de exclusão/movimento para lixeira, movido da App."""
         from tkinter import messagebox
-        from src.modules.clientes import service as clientes_service
+        from src.modules.clientes.core import service as clientes_service
         from src.modules.lixeira import refresh_if_open as refresh_lixeira_if_open
 
         values = self._app._selected_main_values()

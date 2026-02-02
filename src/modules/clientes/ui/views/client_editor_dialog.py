@@ -443,7 +443,7 @@ class ClientEditorDialog(ctk.CTkToplevel):
 
         try:
             # Buscar cliente via service
-            from src.modules.clientes import service as clientes_service
+            from src.modules.clientes.core import service as clientes_service
 
             cliente = clientes_service.fetch_cliente_by_id(self.client_id)
 
@@ -585,7 +585,7 @@ class ClientEditorDialog(ctk.CTkToplevel):
             }
 
             # FASE 3.2: Validar duplicatas antes de salvar
-            from src.modules.clientes import service as clientes_service
+            from src.modules.clientes.core import service as clientes_service
             from tkinter import messagebox
 
             # Montar row (None para novo, tupla (id,) para editar)
@@ -672,7 +672,7 @@ class ClientEditorDialog(ctk.CTkToplevel):
         """Handler do botão Cartão CNPJ."""
         try:
             from tkinter.filedialog import askdirectory
-            from src.modules.clientes import service as clientes_service
+            from src.modules.clientes.core import service as clientes_service
 
             # Solicitar pasta
             base_dir = askdirectory(title="Escolha a pasta do cliente (com o Cartão CNPJ)", parent=self)
@@ -756,7 +756,7 @@ class ClientEditorDialog(ctk.CTkToplevel):
                     "Observações": obs_completa,
                 }
 
-                from src.modules.clientes import service as clientes_service
+                from src.modules.clientes.core import service as clientes_service
 
                 result_save = clientes_service.salvar_cliente_a_partir_do_form(None, valores)
 

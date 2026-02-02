@@ -758,7 +758,17 @@ def reset_session_cache():
     Limpa TODAS as instâncias de SessionCache criadas até o momento,
     resolvendo o problema de AssertionError em test_get_role_uses_memberships_and_caches.
     """
+    # Import movido pra dentro do try para evitar carregar UI pesada
+    # quando testes não precisam de main_window/session_service
     try:
+        # Lazy import: só carrega se módulo existir e for necessário
+        import importlib.util
+
+        spec = importlib.util.find_spec("src.modules.main_window.session_service")
+        if spec is None:
+            yield
+            return
+
         from src.modules.main_window.session_service import SessionCache
 
         # Limpa antes do teste
@@ -766,7 +776,8 @@ def reset_session_cache():
         yield
         # Limpa depois do teste
         SessionCache.clear_all_instances_for_tests()
-    except ImportError:
+    except (ImportError, AttributeError):
+        # Se não conseguir importar (testes que não dependem de UI), continue
         yield
 
 

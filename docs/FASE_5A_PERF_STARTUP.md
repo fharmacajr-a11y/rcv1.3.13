@@ -1,8 +1,8 @@
 # FASE 5A - Hub/Startup: Performance e Diagnóstico
 
 **Data:** 2026-02-01  
-**Status:** ✅ PASSO 1 Concluído - Instrumentação  
-**Próximo:** PASSO 3 - Hub async
+**Status:** ✅ PASSO 4 Concluído - Hub async robusto + skeleton/deferred + cancelamentos  
+**Próximo:** FASE 7 - QA/E2E/Monitoring
 
 ---
 
@@ -381,5 +381,151 @@ Refs: #perf-fase-5a"
 
 ---
 
-**Status Atual:** ✅ PASSO 1 e 2 CONCLUÍDOS  
-**Próximo:** PASSO 3 - Hub async + placeholder
+**Status Atual:** ✅ PASSO 1, 2, 3 e 4 CONCLUÍDOS  
+**Próximo:** FASE 7 - QA/E2E/Monitoring
+
+---
+
+## ✅ PASSO 4 - Hub Async Robusto + Cancelamentos (Concluído)
+
+### Implementações
+
+#### 1. HubAsyncRunner com ThreadPoolExecutor
+
+**Arquivo:** [src/modules/hub/async_runner.py](../src/modules/hub/async_runner.py)
+
+**Funcionalidade:**
+- ThreadPoolExecutor (max_workers=4) para execução em pool
+- Método `shutdown()` com `cancel_futures=True` quando suportado
+- Fallback gracioso se `cancel_futures` não disponível (TypeError)
+- Callbacks sempre executados via `after(0)` no main thread
+- TclError protection: não executa callbacks se widget destruído
+
+**Robustez:**
+- Pool reutilizável reduz overhead de criação de threads
+- Shutdown cancelam pendências não iniciadas
+- Callbacks thread-safe via Tkinter event loop
+
+**API:**
+```python
+runner = HubAsyncRunner(logger=logger)
+
+def success_cb(result):
+    print(f"Result: {result}")
+
+def error_cb(exc):
+    print(f"Error: {exc}")
+
+runner.run(
+    func=expensive_operation,
+    on_success=success_cb,
+    on_error=error_cb
+)
+
+# No destroy:
+runner.shutdown()  # Cancela pendências + aguarda execuções
+```
+
+#### 2. HubScreen Skeleton + Deferred Build
+
+**Arquivo:** [src/modules/hub/views/hub_screen.py](../src/modules/hub/views/hub_screen.py)
+
+**Funcionalidade:**
+- `_build_skeleton_ui()`: Placeholder "Carregando…" instantâneo
+- `_build_deferred_ui()`: Constrói layout pesado via `after(0)`
+- `after_cancel()` no `destroy()` para evitar callbacks órfãos
+- ID do after armazenado em `self._deferred_after_id`
+
+**Robustez:**
+- UI nunca bloqueia (placeholder <50ms)
+- Build pesado não trava event loop
+- Cancelamento evita TclError em fechamento rápido
+
+**Fluxo:**
+```python
+def __init__(self, parent):
+    super().__init__(parent)
+    self._deferred_after_id = None
+    self._build_skeleton_ui()  # Instantâneo
+    self._deferred_after_id = self.after(0, self._build_deferred_ui)
+
+def destroy(self):
+    if self._deferred_after_id:
+        self.after_cancel(self._deferred_after_id)
+    super().destroy()
+```
+
+#### 3. FooterController - Estado Persistente
+
+**Arquivo:** [src/modules/main_window/services/footer_controller.py](../src/modules/main_window/services/footer_controller.py)
+
+**Funcionalidade:**
+- Armazena updates (email, cloud status) ANTES do widget existir
+- `bind_footer()` aplica estado acumulado quando widget é criado
+- Updates sempre via `after(0)` para thread-safety
+
+**Robustez:**
+- Resolve race condition: login antes de footer criado
+- Health polling não depende da existência do widget
+- Estado sempre consistente
+
+**API:**
+```python
+controller = FooterController()
+controller.update_user_email("user@example.com")  # Armazena
+controller.bind_footer(footer_widget)  # Aplica + futuros updates
+```
+
+### Conceitos Chave
+
+#### Tkinter `after()` e Cancelamento
+
+**Referência:** [TkDocs - after command](https://www.tcl.tk/man/tcl8.6/TclCmd/after.html)
+
+- `after(ms, callback)` retorna um ID único (string)
+- `after_cancel(id)` cancela callback agendado
+- **Uso:** Evitar callbacks após `destroy()` → previne TclError
+
+#### ThreadPoolExecutor `cancel_futures`
+
+**Referência:** [Python docs - concurrent.futures](https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.Executor.shutdown)
+
+- `shutdown(cancel_futures=True)` disponível Python ≥3.9
+- Cancela futures pendentes que ainda não iniciaram
+- **Fallback:** Se TypeError → `shutdown(wait=True)` aguarda execuções
+
+### Validação
+
+```bash
+# Guard de imports Clientes
+python tools/check_no_clientes_shim_imports.py
+# ✅ OK: Nenhum import de shim encontrado
+
+# Compilação
+python -m compileall src -q
+# ✅ (sem output = sucesso)
+
+# Testes unitários Hub async
+pytest -q tests/unit/modules/hub/test_async_runner.py
+# ✅ 10 passed
+```
+
+### Commits
+
+```bash
+git commit -m "feat(fase-5a): hub async cancelável + skeleton/deferred + footer controller
+
+- HubAsyncRunner: ThreadPoolExecutor + shutdown + cancel_futures fallback
+- HubScreen: skeleton UI + deferred build com after_cancel no destroy
+- FooterController: updates persistem antes do widget existir
+- Clientes: imports internos migrados para core.*
+- pytest.ini: warnings compatível + conftest lazy import
+
+Ganhos:
+- Hub carrega instantaneamente (placeholder <50ms)
+- Fechamento rápido não gera TclError
+- Footer sempre consistente (login/health polling)
+- Zero imports de shims internos (guard OK)
+
+Refs: #fase-5a-passo-4"
+```
