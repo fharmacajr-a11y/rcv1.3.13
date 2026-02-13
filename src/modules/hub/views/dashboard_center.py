@@ -11,7 +11,6 @@ import logging
 import re
 import tkinter as tk
 from tkinter.constants import X, BOTH, LEFT, W
-from tkinter.scrolledtext import ScrolledText
 from typing import TYPE_CHECKING, Any, Callable
 
 from src.ui.ctk_config import ctk
@@ -63,11 +62,13 @@ _HUB_ICON_CACHE: dict[str, Any] = {}  # type: ignore[type-arg]
 
 def get_inner_text_widget(textbox: Any) -> tk.Text:
     """Helper para acessar widget Text interno do CTkTextbox."""
-    return textbox._textbox  # type: ignore[attr-defined]
+    if hasattr(textbox, "_textbox"):
+        return textbox._textbox  # type: ignore[attr-defined]
+    return textbox  # Fallback genérico
 
 
 def configure_textbox_readonly(textbox: Any) -> None:
-    """Configura CTkTextbox como read-only sem usar .config diretamente."""
+    """Configura CTkTextbox como read-only."""
     inner = get_inner_text_widget(textbox)
     inner.configure(state="disabled")
 
@@ -168,10 +169,7 @@ def _render_text_with_status_highlight(
             suffix = line[idx_end:]
 
             # Criar frame para a linha
-            if HAS_CUSTOMTKINTER and ctk is not None:
-                line_frame = ctk.CTkFrame(parent)
-            else:
-                line_frame = tk.Frame(parent)
+            line_frame = ctk.CTkFrame(parent, fg_color="transparent")
             line_frame.pack(anchor="w", pady=1)
 
             # Label para o prefixo (normal)
@@ -247,7 +245,7 @@ def _build_scrollable_text_list(
     parent: tk.Frame,
     *,
     height_lines: int = 5,
-) -> ScrolledText | ctk.CTkTextbox:
+) -> ctk.CTkTextbox:
     """Cria widget scrollável para lista rolável.
 
     Args:
@@ -255,27 +253,18 @@ def _build_scrollable_text_list(
         height_lines: Altura do widget em linhas (padrão 5).
 
     Returns:
-        Widget ScrolledText ou CTkTextbox configurado.
+        Widget CTkTextbox configurado.
     """
-    if HAS_CUSTOMTKINTER and ctk is not None:
-        text_widget = ctk.CTkTextbox(
-            parent,
-            height=height_lines * 20,  # Aproximação: 20px por linha
-            wrap="word",
-            font=SECTION_ITEM_FONT,
-        )
-        # Para CTkTextbox, configurar como read-only usando helper
-        from src.ui.ctk_text_compat import configure_text_readonly
+    text_widget = ctk.CTkTextbox(
+        parent,
+        height=height_lines * 20,  # Aproximação: 20px por linha
+        wrap="word",
+        font=SECTION_ITEM_FONT,
+    )
+    # Para CTkTextbox, configurar como read-only usando helper
+    from src.ui.ctk_text_compat import configure_text_readonly
 
-        configure_text_readonly(text_widget)
-    else:
-        text_widget = ScrolledText(
-            parent,
-            height=height_lines,
-            wrap="word",
-            font=SECTION_ITEM_FONT,
-            state="disabled",
-        )
+    configure_text_readonly(text_widget)
 
     # Dar foco ao passar mouse (para scroll funcionar no Windows)
     text_widget.bind("<Enter>", lambda e: text_widget.focus_set())
@@ -284,7 +273,7 @@ def _build_scrollable_text_list(
 
 
 def _render_lines_with_status_highlight(
-    text_widget: ScrolledText | ctk.CTkTextbox,
+    text_widget: ctk.CTkTextbox,
     lines: list[str],
 ) -> None:
     """Renderiza linhas no Text widget com tags para colorir status.
@@ -294,7 +283,7 @@ def _render_lines_with_status_highlight(
     - "Hoje" => azul (#0d6efd)
 
     Args:
-        text_widget: Widget Text/ScrolledText/CTkTextbox onde renderizar.
+        text_widget: Widget CTkTextbox onde renderizar.
         lines: Lista de strings (uma por linha) a serem exibidas.
     """
     from src.ui.ctk_text_compat import get_inner_text_widget, configure_text_readonly
@@ -312,7 +301,7 @@ def _render_lines_with_status_highlight(
         inner_widget.unbind("<Key>")  # type: ignore[attr-defined]
         inner_widget.unbind("<<Paste>>")  # type: ignore[attr-defined]
     else:
-        # ScrolledText: usar configure normal
+        # CTkTextbox: usar configure normal
         text_widget.configure(state="normal")  # type: ignore[attr-defined]
 
     inner_widget.delete("1.0", "end")
@@ -363,7 +352,7 @@ def _render_lines_with_status_highlight(
         # CTkTextbox: reconfigurar como read-only
         configure_text_readonly(text_widget)
     else:
-        # ScrolledText: usar state disabled
+        # CTkTextbox: usar state disabled
         text_widget.configure(state="disabled")  # type: ignore[attr-defined]
 
     # Garantir que está no topo
@@ -377,10 +366,10 @@ def _build_scrollable_status_list(
 ) -> None:
     """[DEPRECATED] Usa _build_scrollable_text_list + _render_lines_with_status_highlight.
 
-    Mantido para compatibilidade. Criar ScrolledText e renderizar linhas com tags.
+    DEPRECATED: Função legada. Use build_recent_activity_section().
 
     Args:
-        parent: Frame pai onde o ScrolledText será criado.
+        parent: Frame pai onde o CTkTextbox será criado.
         lines: Lista de strings (uma por linha) a serem exibidas.
         height: Altura do widget em linhas (padrão 7).
     """
@@ -435,8 +424,6 @@ def _build_indicator_card(
             border_width=0 if is_colored_card else 1,
             border_color=BORDER,
         )
-    else:
-        card = ctk.CTkFrame(parent)
     card.pack(padx=CARD_PAD_X, pady=CARD_PAD_Y)
 
     # Tornar card clicável se callback fornecido
@@ -521,12 +508,6 @@ def build_section_card(
         inner.pack(fill="both", expand=True, padx=14, pady=(0, 12))
 
         return outer, inner
-    else:
-        # Fallback
-        outer = ctk.CTkFrame(parent)
-        inner = ctk.CTkFrame(outer)
-        inner.pack(fill="both", expand=True)
-        return outer, inner
 
 
 def _build_section_frame(
@@ -563,10 +544,6 @@ def _build_section_frame(
         title_label.pack(anchor="w", padx=12, pady=(12, 6))
 
         content = ctk.CTkFrame(section, fg_color="transparent")
-    else:
-        # Fallback: usar CTkFrame sem estilo especial
-        section = ctk.CTkFrame(parent)
-        content = ctk.CTkFrame(section, fg_color="transparent")
     content.pack(fill=X, padx=12, pady=(0, 12))
 
     return section, content
@@ -574,7 +551,7 @@ def _build_section_frame(
 
 def _build_inner_content_area(
     content_parent: tk.Frame, height: int = 180, **textbox_kwargs
-) -> Any:  # ctk.CTkTextbox | tk.ScrolledText
+) -> ctk.CTkTextbox:
     """Constrói área interna de conteúdo branca/escura para textbox/lista.
 
     Args:
@@ -585,32 +562,26 @@ def _build_inner_content_area(
     Returns:
         CTkTextbox configurado com padrão uniforme
     """
-    if HAS_CUSTOMTKINTER and ctk is not None:
-        # Textbox direto sem frame adicional
-        textbox = ctk.CTkTextbox(
-            content_parent,
-            height=height,
-            wrap="word",
-            font=BODY_FONT,
-            fg_color=SURFACE,
-            text_color=TEXT_PRIMARY,
-            **textbox_kwargs,
-        )
-        textbox.pack(fill="both", expand=True, padx=8, pady=6)
+    # Textbox direto sem frame adicional
+    textbox = ctk.CTkTextbox(
+        content_parent,
+        height=height,
+        wrap="word",
+        font=BODY_FONT,
+        fg_color=SURFACE,
+        text_color=TEXT_PRIMARY,
+        **textbox_kwargs,
+    )
+    textbox.pack(fill="both", expand=True, padx=8, pady=6)
 
-        # Ajustar padding interno e line spacing
-        try:
-            textbox._textbox.configure(padx=8, pady=6)  # type: ignore[attr-defined]
-            textbox._textbox.configure(spacing1=2, spacing3=6)  # type: ignore[attr-defined]
-        except (AttributeError, Exception):
-            pass
+    # Ajustar padding interno e line spacing
+    try:
+        textbox._textbox.configure(padx=8, pady=6)  # type: ignore[attr-defined]
+        textbox._textbox.configure(spacing1=2, spacing3=6)  # type: ignore[attr-defined]
+    except (AttributeError, Exception):
+        pass
 
-        return textbox
-    else:
-        # Fallback
-        from tkinter.scrolledtext import ScrolledText
-
-        return ScrolledText(content_parent, height=height // 15, wrap="word")  # type: ignore[return-value]
+    return textbox
 
 
 # ORG-005: Funções de formatação movidas para dashboard_center_pure.py
@@ -632,11 +603,7 @@ def _build_risk_radar_section(
     section.pack(fill=X, pady=(0, 16))
 
     # Grid 1x3 para os quadrantes (uma linha com 3 colunas)
-    if HAS_CUSTOMTKINTER and ctk is not None:
-        grid_frame = ctk.CTkFrame(inner_content, fg_color="transparent")
-    else:
-        # Fallback
-        grid_frame = ctk.CTkFrame(inner_content, fg_color="transparent")
+    grid_frame = ctk.CTkFrame(inner_content, fg_color="transparent")
     grid_frame.pack(fill=X, padx=8, pady=6)
 
     quadrants = [
@@ -669,14 +636,11 @@ def _build_risk_radar_section(
             text = f"Pendentes: {pending} – Atrasadas: {overdue}"
 
         # Create quadrant frame - MICROFASE 35: colorido
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            quad_frame = ctk.CTkFrame(
-                grid_frame,
-                fg_color=bg_color,
-                corner_radius=8,
-            )
-        else:
-            quad_frame = ctk.CTkFrame(grid_frame)
+        quad_frame = ctk.CTkFrame(
+            grid_frame,
+            fg_color=bg_color,
+            corner_radius=8,
+        )
         quad_frame.grid(row=row, column=col, padx=5, pady=5, sticky="nsew")
 
         # Quadrant name - texto branco
@@ -730,7 +694,7 @@ def _build_recent_activity_section(
 ) -> None:
     """Constrói a seção de atividade recente da equipe.
 
-    Agora usa ScrolledText para exibir histórico de atividades em tempo real,
+    Usa CTkTextbox para exibir histórico de atividades em tempo real,
     conectado ao RecentActivityStore e carrega do Supabase.
 
     Args:
@@ -747,100 +711,34 @@ def _build_recent_activity_section(
     section, inner_content = build_section_card(parent, "📋 Atividade recente da equipe")
     section.pack(fill=X, pady=(0, 16))
 
-    # Criar textbox direto no inner content
-    if HAS_CUSTOMTKINTER and ctk is not None:
-        activity_text = ctk.CTkTextbox(
-            inner_content,
-            height=180,
-            wrap="word",
-            font=BODY_FONT,
-            fg_color=SURFACE,
-            text_color=TEXT_PRIMARY,
-        )
-        activity_text.pack(fill=BOTH, expand=True, padx=8, pady=6)
+    # Criar textbox CTk
+    activity_text = ctk.CTkTextbox(
+        inner_content,
+        height=180,
+        wrap="word",
+        font=BODY_FONT,
+        fg_color=SURFACE,
+        text_color=TEXT_PRIMARY,
+    )
+    activity_text.pack(fill=BOTH, expand=True, padx=8, pady=6)
 
-        # Ajustar padding interno e line spacing
-        try:
-            activity_text._textbox.configure(padx=8, pady=6)  # type: ignore[attr-defined]
-            activity_text._textbox.configure(spacing1=2, spacing3=6)  # type: ignore[attr-defined]
-        except (AttributeError, Exception):
-            pass
+    # Ajustar padding interno e line spacing
+    try:
+        activity_text._textbox.configure(padx=8, pady=6)  # type: ignore[attr-defined]
+        activity_text._textbox.configure(spacing1=2, spacing3=6)  # type: ignore[attr-defined]
+    except (AttributeError, Exception):
+        pass
 
-    # Configurar função de atualização baseada no tipo
-    if HAS_CUSTOMTKINTER and ctk is not None:
-        # Para CTkTextbox, usar métodos diferentes
-        def set_activity_text(full_text: str) -> None:
-            """Atualiza o conteúdo do CTkTextbox."""
-            configure_textbox_editable(activity_text)
-            activity_text.delete("1.0", "end")
-            if full_text:
-                activity_text.insert("1.0", full_text)
-            else:
-                activity_text.insert("1.0", "Nenhuma atividade recente.")
-            configure_textbox_readonly(activity_text)
-
-    # Configurar tags para colorir ações específicas (apenas para ScrolledText)
-    # MICROFASE 35: CTkTextbox não suporta tags, então pulamos colorização inline
-    bold_font = ("Segoe UI", 9, "bold")
-
-    if not (HAS_CUSTOMTKINTER and ctk is not None):
-        # Tags apenas para ScrolledText (fallback)
-        inner_text = get_inner_text_widget(activity_text)
-        inner_text.tag_configure(
-            "status_cancelada",
-            foreground="#dc3545",  # Vermelho (danger)
-            font=bold_font,
-        )
-
-        inner_text.tag_configure(
-            "status_concluida",
-            foreground="#28a745",  # Verde (success)
-            font=bold_font,
-        )
-
-        # Função helper para atualizar o texto com colorização
-        def set_activity_text(full_text: str) -> None:
-            """Atualiza o conteúdo do ScrolledText com colorização de ações.
-
-            Cada entrada agora tem 2 linhas, separadas por linha em branco.
-            Usa Text.search() para aplicar tags de forma robusta.
-            """
-            configure_textbox_editable(activity_text)
-            activity_text.delete("1.0", "end")
-
-            # Inserir texto completo
-            if full_text:
-                # Cada entrada já vem com \n interno (2 linhas)
-                # Adicionar \n\n entre entradas
-                entries = full_text.split("\n\n") if "\n\n" in full_text else [full_text]
-                for i, entry in enumerate(entries):
-                    activity_text.insert("end", entry)
-                    # Adicionar linha em branco entre entradas (exceto última)
-                    if i < len(entries) - 1:
-                        activity_text.insert("end", "\n\n")
-            else:
-                activity_text.insert("end", "Nenhuma atividade recente.")
-
-            # Aplicar tags usando Text.search() para robustez
-            def apply_status_tags(needle: str, tag: str) -> None:
-                """Aplica tag em todas as ocorrências de needle."""
-                inner = get_inner_text_widget(activity_text)
-                idx = "1.0"
-                while True:
-                    pos = inner.search(needle, idx, stopindex="end")  # type: ignore[attr-defined]
-                    if not pos:
-                        break
-                    end_pos = f"{pos}+{len(needle)}c"
-                    inner.tag_add(tag, pos, end_pos)  # type: ignore[attr-defined]
-                    idx = end_pos
-
-            # Aplicar tags para ações específicas
-            apply_status_tags("REGULARIZAÇÃO CANCELADA", "status_cancelada")
-            apply_status_tags("REGULARIZAÇÃO CONCLUÍDA", "status_concluida")
-
-            configure_textbox_readonly(activity_text)
-            inner = get_inner_text_widget(activity_text)
-            inner.see("end")  # type: ignore[attr-defined]
+    # Configurar função de atualização
+    def set_activity_text(full_text: str) -> None:
+        """Atualiza o conteúdo do CTkTextbox."""
+        configure_textbox_editable(activity_text)
+        activity_text.delete("1.0", "end")
+        if full_text:
+            activity_text.insert("1.0", full_text)
+        else:
+            activity_text.insert("1.0", "Nenhuma atividade recente.")
+        configure_textbox_readonly(activity_text)
 
     # Função para renderizar atividades do store
     def render_activity() -> None:
@@ -941,22 +839,14 @@ def build_dashboard_center(
     _clear_children(parent)
 
     # Container principal sem padding - MICROFASE 35: fundo transparente
-    if HAS_CUSTOMTKINTER and ctk is not None:
-        main_container = ctk.CTkFrame(parent, fg_color="transparent")
-    else:
-        # Fallback
-        main_container = ctk.CTkFrame(parent, fg_color="transparent")
+    main_container = ctk.CTkFrame(parent, fg_color="transparent")
     main_container.pack(fill=BOTH, expand=True, padx=10, pady=10)
 
     # -------------------------------------------------------------------------
     # 1. LINHA DE CARDS DE INDICADORES (usando DashboardCardView do state)
     # -------------------------------------------------------------------------
     # MICROFASE 35: Usar CTkFrame transparente
-    if HAS_CUSTOMTKINTER and ctk is not None:
-        cards_frame = ctk.CTkFrame(main_container, fg_color="transparent")
-    else:
-        # Fallback
-        cards_frame = ctk.CTkFrame(main_container, fg_color="transparent")
+    cards_frame = ctk.CTkFrame(main_container, fg_color="transparent")
     cards_frame.pack(fill=X, pady=(0, 15))
 
     # Card: Clientes ativos (consome state.card_clientes)
@@ -1148,11 +1038,6 @@ def build_dashboard_center(
                 tasks_textbox._textbox.configure(spacing1=2, spacing3=6)  # type: ignore[attr-defined]
             except (AttributeError, Exception):
                 pass
-        else:
-            from tkinter.scrolledtext import ScrolledText
-
-            tasks_textbox = ScrolledText(tasks_inner, height=8, wrap="word")
-            tasks_textbox.pack(fill=BOTH, expand=True)
 
         # Agrupar tarefas por cliente
         task_blocks = group_tasks_for_display(
@@ -1164,14 +1049,10 @@ def build_dashboard_center(
         # Renderizar tarefas no textbox
         tasks_text = "\n\n".join(task_blocks) if task_blocks else tasks_empty_msg
 
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            tasks_textbox.configure(state="normal")
-            tasks_textbox.delete("1.0", "end")
-            tasks_textbox.insert("1.0", tasks_text)
-            tasks_textbox.configure(state="disabled")
-        else:
-            tasks_textbox.delete("1.0", "end")
-            tasks_textbox.insert("1.0", tasks_text)
+        tasks_textbox.configure(state="normal")
+        tasks_textbox.delete("1.0", "end")
+        tasks_textbox.insert("1.0", tasks_text)
+        tasks_textbox.configure(state="disabled")
 
     # -------------------------------------------------------------------------
     # 2.2. BLOCO "CLIENTES DO DIA" (oculto em ANVISA-only)
@@ -1280,11 +1161,6 @@ def build_dashboard_center(
                 deadlines_textbox._textbox.configure(spacing1=2, spacing3=6)
             except (AttributeError, Exception):
                 pass
-        else:
-            from tkinter.scrolledtext import ScrolledText
-
-            deadlines_textbox = ScrolledText(deadlines_inner, height=8, wrap="word")
-            deadlines_textbox.pack(fill=BOTH, expand=True)
 
         # Agrupar prazos por cliente (limite aumentado para 50 com scroll)
         deadline_blocks = group_deadlines_for_display(
@@ -1297,14 +1173,10 @@ def build_dashboard_center(
         # Renderizar prazos no textbox
         deadlines_text = "\n".join(deadline_blocks) if deadline_blocks else deadlines_empty_msg
 
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            deadlines_textbox.configure(state="normal")
-            deadlines_textbox.delete("1.0", "end")
-            deadlines_textbox.insert("1.0", deadlines_text)
-            deadlines_textbox.configure(state="disabled")
-        else:
-            deadlines_textbox.delete("1.0", "end")
-            deadlines_textbox.insert("1.0", deadlines_text)
+        deadlines_textbox.configure(state="normal")
+        deadlines_textbox.delete("1.0", "end")
+        deadlines_textbox.insert("1.0", deadlines_text)
+        deadlines_textbox.configure(state="disabled")
 
     # -------------------------------------------------------------------------
     # 3.1. BLOCO "ATIVIDADE RECENTE DA EQUIPE" (movido para depois dos prazos)
@@ -1337,8 +1209,6 @@ def build_dashboard_error(parent: tk.Frame, message: str | None = None) -> None:
             border_width=0,
             corner_radius=CARD_RADIUS,
         )
-    else:
-        container = ctk.CTkFrame(parent)
     container.pack(fill=BOTH, expand=True, padx=20, pady=20)
 
     # Ícone de erro
