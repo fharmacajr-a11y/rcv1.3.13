@@ -174,70 +174,43 @@ def _render_text_with_status_highlight(
 
             # Label para o prefixo (normal)
             if prefix:
-                if HAS_CUSTOMTKINTER and ctk is not None:
-                    lbl_prefix = ctk.CTkLabel(
-                        line_frame,
-                        text=prefix,
-                        font=font or SECTION_ITEM_FONT,
-                    )
-                else:
-                    lbl_prefix = tk.Label(  # type: ignore[attr-defined]
-                        line_frame,
-                        text=prefix,
-                        font=font or SECTION_ITEM_FONT,
-                    )
+                lbl_prefix = ctk.CTkLabel(
+                    line_frame,
+                    text=prefix,
+                    font=font or SECTION_ITEM_FONT,
+                    fg_color="transparent",
+                )
                 lbl_prefix.pack(side="left")
 
             # Label para o status (colorido e normalizado)
-            if HAS_CUSTOMTKINTER and ctk is not None:
-                lbl_status = ctk.CTkLabel(
-                    line_frame,
-                    text=normalized_status,
-                    font=font or SECTION_ITEM_FONT,
-                    text_color=fg_color if fg_color else None,
-                )
-            else:
-                lbl_status = tk.Label(  # type: ignore[attr-defined]
-                    line_frame,
-                    text=normalized_status,
-                    font=font or SECTION_ITEM_FONT,
-                    fg=fg_color if fg_color else "black",
-                )
+            lbl_status = ctk.CTkLabel(
+                line_frame,
+                text=normalized_status,
+                font=font or SECTION_ITEM_FONT,
+                text_color=fg_color if fg_color else None,
+                fg_color="transparent",
+            )
             lbl_status.pack(side="left")
 
             # Label para o sufixo (normal)
             if suffix:
-                if HAS_CUSTOMTKINTER and ctk is not None:
-                    lbl_suffix = ctk.CTkLabel(
-                        line_frame,
-                        text=suffix,
-                        font=font or SECTION_ITEM_FONT,
-                    )
-                else:
-                    lbl_suffix = tk.Label(  # type: ignore[attr-defined]
-                        line_frame,
-                        text=suffix,
-                        font=font or SECTION_ITEM_FONT,
-                    )
+                lbl_suffix = ctk.CTkLabel(
+                    line_frame,
+                    text=suffix,
+                    font=font or SECTION_ITEM_FONT,
+                    fg_color="transparent",
+                )
                 lbl_suffix.pack(side="left")
         else:
             # Linha sem status - renderizar normalmente
-            if HAS_CUSTOMTKINTER and ctk is not None:
-                lbl = ctk.CTkLabel(
-                    parent,
-                    text=line,
-                    font=font or SECTION_ITEM_FONT,
-                    justify=justify,
-                    wraplength=wraplength,
-                )
-            else:
-                lbl = tk.Label(  # type: ignore[attr-defined]
-                    parent,
-                    text=line,
-                    font=font or SECTION_ITEM_FONT,
-                    justify=justify,
-                    wraplength=wraplength,
-                )
+            lbl = ctk.CTkLabel(
+                parent,
+                text=line,
+                font=font or SECTION_ITEM_FONT,
+                justify=justify,
+                wraplength=wraplength,
+                fg_color="transparent",
+            )
             lbl.pack(anchor="w", pady=1)
 
 
@@ -436,20 +409,13 @@ def _build_indicator_card(
     display_text = (
         value_text if value_text is not None else (str(int(value)) if isinstance(value, float) else str(value))
     )
-    if HAS_CUSTOMTKINTER and ctk is not None:
-        value_label = ctk.CTkLabel(
-            card,
-            text=display_text,
-            font=FONT_KPI_VALUE,
-            text_color=text_color,
-            fg_color="transparent",
-        )
-    else:
-        value_label = tk.Label(  # type: ignore[attr-defined]
-            card,
-            text=display_text,
-            font=FONT_KPI_VALUE,
-        )
+    value_label = ctk.CTkLabel(
+        card,
+        text=display_text,
+        font=FONT_KPI_VALUE,
+        text_color=text_color,
+        fg_color="transparent",
+    )
     value_label.pack(anchor="center", pady=(12, 4))
 
     # Propagar evento de clique para labels também
@@ -457,20 +423,13 @@ def _build_indicator_card(
         value_label.bind("<Button-1>", lambda e: on_click())
 
     # Label descritivo
-    if HAS_CUSTOMTKINTER and ctk is not None:
-        text_label = ctk.CTkLabel(
-            card,
-            text=label,
-            font=FONT_KPI_LABEL,
-            text_color=text_color,
-            fg_color="transparent",
-        )
-    else:
-        text_label = tk.Label(  # type: ignore[attr-defined]
-            card,
-            text=label,
-            font=CARD_LABEL_FONT,
-        )
+    text_label = ctk.CTkLabel(
+        card,
+        text=label,
+        font=FONT_KPI_LABEL,
+        text_color=text_color,
+        fg_color="transparent",
+    )
     text_label.pack(anchor="center", pady=(0, 8))
 
     # Propagar evento de clique para labels também
@@ -645,38 +604,24 @@ def _build_risk_radar_section(
 
         # Quadrant name - texto branco
         name_font: Any = ("Segoe UI", 10, "bold")
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            lbl_name = ctk.CTkLabel(
-                quad_frame,
-                text=name,
-                font=name_font,
-                text_color="#ffffff",
-                fg_color="transparent",
-            )
-        else:
-            lbl_name = tk.Label(  # type: ignore[attr-defined]
-                quad_frame,
-                text=name,
-                font=name_font,
-            )
+        lbl_name = ctk.CTkLabel(
+            quad_frame,
+            text=name,
+            font=name_font,
+            text_color="#ffffff",
+            fg_color="transparent",
+        )
         lbl_name.pack(anchor="center", pady=(8, 2))
 
         # Counts - texto branco
         counts_font: tuple[str, int] = ("Segoe UI", 9)
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            lbl_counts = ctk.CTkLabel(
-                quad_frame,
-                text=text,
-                font=counts_font,
-                text_color="#ffffff",
-                fg_color="transparent",
-            )
-        else:
-            lbl_counts = tk.Label(  # type: ignore[attr-defined]
-                quad_frame,
-                text=text,
-                font=counts_font,
-            )
+        lbl_counts = ctk.CTkLabel(
+            quad_frame,
+            text=text,
+            font=counts_font,
+            text_color="#ffffff",
+            fg_color="transparent",
+        )
         lbl_counts.pack(anchor="center", pady=(0, 8))
 
     # Configure grid weights for equal sizing (3 colunas)
@@ -900,36 +845,23 @@ def build_dashboard_center(
 
         if not snapshot.hot_items:
             # Nenhum alerta
-            if HAS_CUSTOMTKINTER and ctk is not None:
-                lbl_no_hot = ctk.CTkLabel(
-                    hot_content,
-                    text=MSG_NO_HOT_ITEMS,
-                    font=SECTION_ITEM_FONT,
-                )
-            else:
-                lbl_no_hot = tk.Label(  # type: ignore[attr-defined]
-                    hot_content,
-                    text=MSG_NO_HOT_ITEMS,
-                    font=SECTION_ITEM_FONT,
-                )
+            lbl_no_hot = ctk.CTkLabel(
+                hot_content,
+                text=MSG_NO_HOT_ITEMS,
+                font=SECTION_ITEM_FONT,
+                fg_color="transparent",
+            )
             lbl_no_hot.pack(anchor=W, pady=2)
         else:
             # Exibir cada hot_item com prefixo de alerta
             for item in snapshot.hot_items:
-                if HAS_CUSTOMTKINTER and ctk is not None:
-                    lbl_item = ctk.CTkLabel(
-                        hot_content,
-                        text=f"⚠ {item}",  # Adiciona ícone de alerta
-                        font=SECTION_ITEM_FONT,
-                        text_color=("#dc2626", "#fca5a5"),  # Vermelho
-                        fg_color="transparent",
-                    )
-                else:
-                    lbl_item = tk.Label(  # type: ignore[attr-defined]
-                        hot_content,
-                        text=f"⚠ {item}",
-                        font=SECTION_ITEM_FONT,
-                    )
+                lbl_item = ctk.CTkLabel(
+                    hot_content,
+                    text=f"⚠ {item}",  # Adiciona ícone de alerta
+                    font=SECTION_ITEM_FONT,
+                    text_color=("#dc2626", "#fca5a5"),  # Vermelho
+                    fg_color="transparent",
+                )
                 lbl_item.pack(anchor=W, pady=2)
 
     # -------------------------------------------------------------------------
@@ -1003,22 +935,14 @@ def build_dashboard_center(
     # Renderizar tarefas no inner content
     if not all_today_items:
         # Nenhuma tarefa pendente
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            lbl_no_tasks = ctk.CTkLabel(
-                tasks_inner,
-                text=tasks_empty_msg,
-                font=BODY_FONT,
-                text_color=TEXT_MUTED,
-                fg_color="transparent",
-            )
-            lbl_no_tasks.pack(pady=20)
-        else:
-            lbl_no_tasks = tk.Label(  # type: ignore[attr-defined]
-                tasks_inner,
-                text=tasks_empty_msg,
-                font=BODY_FONT,
-            )
-            lbl_no_tasks.pack(pady=20)
+        lbl_no_tasks = ctk.CTkLabel(
+            tasks_inner,
+            text=tasks_empty_msg,
+            font=BODY_FONT,
+            text_color=TEXT_MUTED,
+            fg_color="transparent",
+        )
+        lbl_no_tasks.pack(pady=20)
     else:
         # Criar textbox de tarefas
         if HAS_CUSTOMTKINTER and ctk is not None:
@@ -1069,20 +993,13 @@ def build_dashboard_center(
 
         if not snapshot.clients_of_the_day:
             # Nenhum cliente com obrigação hoje
-            if HAS_CUSTOMTKINTER and ctk is not None:
-                lbl_no_clients = ctk.CTkLabel(
-                    clients_content,
-                    text=clients_empty_msg,
-                    font=SECTION_ITEM_FONT,
-                    text_color=("#6b7280", "#9ca3af"),
-                    fg_color="transparent",
-                )
-            else:
-                lbl_no_clients = tk.Label(  # type: ignore[attr-defined]
-                    clients_content,
-                    text=clients_empty_msg,
-                    font=SECTION_ITEM_FONT,
-                )
+            lbl_no_clients = ctk.CTkLabel(
+                clients_content,
+                text=clients_empty_msg,
+                font=SECTION_ITEM_FONT,
+                text_color=("#6b7280", "#9ca3af"),
+                fg_color="transparent",
+            )
             lbl_no_clients.pack(anchor=W, pady=2)
         else:
             # Exibir cada cliente
@@ -1091,20 +1008,13 @@ def build_dashboard_center(
                 kinds = item.get("obligation_kinds") or []
                 kinds_str = ", ".join(kinds) if kinds else "obrigação"
                 text = f"{client_name} – {kinds_str}"
-                if HAS_CUSTOMTKINTER and ctk is not None:
-                    lbl_client = ctk.CTkLabel(
-                        clients_content,
-                        text=text,
-                        font=SECTION_ITEM_FONT,
-                        text_color=("#1f2937", "#f3f4f6"),
-                        fg_color="transparent",
-                    )
-                else:
-                    lbl_client = tk.Label(  # type: ignore[attr-defined]
-                        clients_content,
-                        text=text,
-                        font=SECTION_ITEM_FONT,
-                    )
+                lbl_client = ctk.CTkLabel(
+                    clients_content,
+                    text=text,
+                    font=SECTION_ITEM_FONT,
+                    text_color=("#1f2937", "#f3f4f6"),
+                    fg_color="transparent",
+                )
                 lbl_client.pack(anchor=W, pady=2)
 
     # -------------------------------------------------------------------------
@@ -1127,20 +1037,13 @@ def build_dashboard_center(
 
     if not future_deadlines:
         # Nenhum vencimento futuro
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            lbl_no_deadlines = ctk.CTkLabel(
-                deadlines_inner,
-                text=deadlines_empty_msg,
-                font=BODY_FONT,
-                text_color=TEXT_MUTED,
-                fg_color="transparent",
-            )
-        else:
-            lbl_no_deadlines = tk.Label(  # type: ignore[attr-defined]
-                deadlines_inner,
-                text=deadlines_empty_msg,
-                font=BODY_FONT,
-            )
+        lbl_no_deadlines = ctk.CTkLabel(
+            deadlines_inner,
+            text=deadlines_empty_msg,
+            font=BODY_FONT,
+            text_color=TEXT_MUTED,
+            fg_color="transparent",
+        )
         lbl_no_deadlines.pack(pady=20)
     else:
         # Criar textbox para prazos
@@ -1213,39 +1116,23 @@ def build_dashboard_error(parent: tk.Frame, message: str | None = None) -> None:
 
     # Ícone de erro
     icon_font: Any = ("Segoe UI", 32)
-    if HAS_CUSTOMTKINTER and ctk is not None:
-        lbl_icon = ctk.CTkLabel(
-            container,
-            text="⚠️",
-            font=icon_font,
-            fg_color="transparent",
-        )
-    else:
-        lbl_icon = tk.Label(  # type: ignore[attr-defined]
-            container,
-            text="⚠️",
-            font=icon_font,
-        )
+    lbl_icon = ctk.CTkLabel(
+        container,
+        text="⚠️",
+        font=icon_font,
+        fg_color="transparent",
+    )
     lbl_icon.pack(pady=(20, 10))
 
     # Mensagem
     msg_font: Any = ("Segoe UI", 11)
-    if HAS_CUSTOMTKINTER and ctk is not None:
-        lbl_msg = ctk.CTkLabel(
-            container,
-            text=error_msg,
-            font=msg_font,
-            wraplength=300,
-            justify="center",
-            text_color=("#dc2626", "#fca5a5"),
-            fg_color="transparent",
-        )
-    else:
-        lbl_msg = tk.Label(  # type: ignore[attr-defined]
-            container,
-            text=error_msg,
-            font=msg_font,
-            wraplength=300,
-            justify="center",
-        )
+    lbl_msg = ctk.CTkLabel(
+        container,
+        text=error_msg,
+        font=msg_font,
+        wraplength=300,
+        justify="center",
+        text_color=("#dc2626", "#fca5a5"),
+        fg_color="transparent",
+    )
     lbl_msg.pack(pady=10)
