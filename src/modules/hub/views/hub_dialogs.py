@@ -63,27 +63,20 @@ def show_note_editor(
     result = {"confirmed": False, "data": None}
 
     # Build UI
-    frame = tk.Frame(dialog, padding=10)
-    frame.pack(fill="both", expand=True)
+    frame = ctk.CTkFrame(dialog, fg_color="transparent")
+    frame.pack(fill="both", expand=True, padx=10, pady=10)
 
     # Label
-    tk.Label(frame, text="Texto da nota:").pack(anchor="w", pady=(0, 5))
+    ctk.CTkLabel(frame, text="Texto da nota:", fg_color="transparent").pack(anchor="w", pady=(0, 5))
 
     # Text widget with scrollbar
-    text_frame = tk.Frame(frame)
-    text_frame.pack(fill="both", expand=True, pady=(0, 10))
-
-    scrollbar = ctk.CTkScrollbar(text_frame)
-    scrollbar.pack(side="right", fill="y")
-
-    text_widget = tk.Text(
-        text_frame,
+    text_widget = ctk.CTkTextbox(
+        frame,
         wrap="word",
-        yscrollcommand=scrollbar.set,
         font=("Segoe UI", 10),
+        height=200,
     )
-    text_widget.pack(side="left", fill="both", expand=True)
-    scrollbar.config(command=text_widget.yview)
+    text_widget.pack(fill="both", expand=True, pady=(0, 10))
 
     # Populate text if editing
     if note_data and "body" in note_data:
@@ -94,7 +87,7 @@ def show_note_editor(
     text_widget.focus_set()
 
     # Buttons frame
-    btn_frame = tk.Frame(frame)
+    btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
     btn_frame.pack(fill="x")
 
     def on_confirm():
@@ -123,13 +116,13 @@ def show_note_editor(
         dialog.destroy()
 
     # Buttons
-    tk.Button(
+    ctk.CTkButton(
         btn_frame,
         text="Confirmar",
         command=on_confirm,
     ).pack(side="left", padx=(0, 5))
 
-    tk.Button(
+    ctk.CTkButton(
         btn_frame,
         text="Cancelar",
         command=on_cancel,
