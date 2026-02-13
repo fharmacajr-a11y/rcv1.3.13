@@ -57,23 +57,17 @@ class HubDashboardView:
             O frame container do painel de dashboard (center_spacer)
         """
         # Container da coluna central - MICROFASE 35: fundo APP_BG
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            self.center_spacer = ctk.CTkFrame(
-                self._parent,
-                fg_color=APP_BG,
-                corner_radius=0,
-            )
-        else:
-            self.center_spacer = tk.Frame(self._parent)
+        self.center_spacer = ctk.CTkFrame(
+            self._parent,
+            fg_color=APP_BG,
+            corner_radius=0,
+        )
 
         # Frame normal dentro do container (sem scrollbar) - fundo transparente
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            self.dashboard_scroll = ctk.CTkFrame(
-                self.center_spacer,
-                fg_color="transparent",
-            )
-        else:
-            self.dashboard_scroll = tk.Frame(self.center_spacer)
+        self.dashboard_scroll = ctk.CTkFrame(
+            self.center_spacer,
+            fg_color="transparent",
+        )
         self.dashboard_scroll.pack(fill="both", expand=True)
 
         # Compatibilidade: quem chama espera .content
@@ -103,20 +97,13 @@ class HubDashboardView:
         for widget in self.dashboard_scroll.content.winfo_children():
             widget.destroy()
 
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            loading_label = ctk.CTkLabel(
-                self.dashboard_scroll.content,
-                text="Carregando dashboard...",
-                font=("Segoe UI", 12),
-                text_color=("#6b7280", "#9ca3af"),
-                fg_color="transparent",
-            )
-        else:
-            loading_label = tk.Label(
-                self.dashboard_scroll.content,
-                text="Carregando dashboard...",
-                font=("Segoe UI", 12),
-            )
+        loading_label = ctk.CTkLabel(
+            self.dashboard_scroll.content,
+            text="Carregando dashboard...",
+            font=("Segoe UI", 12),
+            text_color=("#6b7280", "#9ca3af"),
+            fg_color="transparent",
+        )
         loading_label.pack(pady=50)
 
     def render_empty(self) -> None:
@@ -131,20 +118,13 @@ class HubDashboardView:
         for widget in self.dashboard_scroll.content.winfo_children():
             widget.destroy()
 
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            empty_label = ctk.CTkLabel(
-                self.dashboard_scroll.content,
-                text="Nenhum dado disponível no momento.",
-                font=("Segoe UI", 12),
-                text_color=("#6b7280", "#9ca3af"),
-                fg_color="transparent",
-            )
-        else:
-            empty_label = tk.Label(
-                self.dashboard_scroll.content,
-                text="Nenhum dado disponível no momento.",
-                font=("Segoe UI", 12),
-            )
+        empty_label = ctk.CTkLabel(
+            self.dashboard_scroll.content,
+            text="Nenhum dado disponível no momento.",
+            font=("Segoe UI", 12),
+            text_color=("#6b7280", "#9ca3af"),
+            fg_color="transparent",
+        )
         empty_label.pack(pady=50)
 
     def render_error(self, message: str | None = None) -> None:
