@@ -231,9 +231,8 @@ class ClientesV2Frame(ctk.CTkFrame):
         # Zebra precisa ser aplicado após inserir/atualizar itens
         apply_zebra(self.tree_widget, colors)
 
-        # Aplicar tag 'selected' na linha atualmente selecionada
-        from src.ui.ttk_treeview_theme import apply_selected_tag
-        apply_selected_tag(self.tree_widget, colors)
+        # Seleção agora é aplicada automaticamente via TtkTreeviewManager bind
+        # (não precisa chamar apply_selected_tag manualmente)
 
         # Atualiza cache pra qualquer uso legado
         self._tree_colors = colors
@@ -286,9 +285,8 @@ class ClientesV2Frame(ctk.CTkFrame):
                 if hasattr(self, "actionbar") and self.actionbar:
                     self.actionbar.set_selection_state(False)
 
-            # Aplicar tag 'selected' visível na linha selecionada
-            from src.ui.ttk_treeview_theme import apply_selected_tag
-            apply_selected_tag(self.tree_widget, self._tree_colors)
+            # Seleção visível agora é aplicada automaticamente via TtkTreeviewManager bind
+            # (não precisa chamar apply_selected_tag manualmente)
 
         except Exception as e:
             log.error(f"[Clientes] Erro no handler de seleção: {e}", exc_info=True)

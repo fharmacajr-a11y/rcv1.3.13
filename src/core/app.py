@@ -142,35 +142,32 @@ if __name__ == "__main__":
                 logger=log,
             )
             if login_ok:
-                # BUGFIX-UX-STARTUP-HUB-001 (B3): Restaurar alpha/geometry antes de mostrar
+                # BUGFIX-UX-STARTUP-HUB-001 (B3): Manter alpha=0.0 até maximizar e pintar Hub
+                # Isso elimina o "flash" de janela 1x1 no canto
                 try:
-                    # Restaurar alpha se estava em 0.0
-                    try:
-                        app.attributes("-alpha", 1.0)
-                    except Exception as alpha_exc:  # noqa: BLE001
-                        # Não crítico: alpha pode não ter sido setado
-                        if log:
-                            log.debug("Alpha não restaurado (esperado se não foi setado): %s", alpha_exc)
-
                     # Remover geometry off-screen temporária (será recalculada por _maximize_window)
-                    app.geometry("")  # Reset para deixar WM gerenciar
+                    # Fazer isso com alpha=0.0 ainda ativo
+                    try:
+                        app.geometry("")  # Reset para deixar WM gerenciar
+                    except Exception:
+                        pass
 
                     if os.getenv("RC_DEBUG_STARTUP_UI") == "1":
                         if log:
-                            log.info("[UI] Alpha/geometry restaurados antes de deiconify")
+                            log.info("[UI] Geometry resetada antes de deiconify (alpha ainda em 0.0)")
                 except Exception as exc:
                     if log:
-                        log.debug("Falha ao restaurar alpha/geometry: %s", exc)
+                        log.debug("Falha ao resetar geometry: %s", exc)
 
-                # Só mostrar a janela principal APÓS login bem-sucedido
+                # Mostrar janela AINDA INVISÍVEL (alpha=0.0), então maximizar
                 try:
-                    app.deiconify()  # Torna a janela principal visível
-                    app._maximize_window()  # Maximiza a janela
+                    app.deiconify()  # Janela mapeada mas invisível (alpha=0.0)
+                    app._maximize_window()  # Maximiza enquanto ainda invisível
                     if log:
-                        log.info("MainWindow exibida e maximizada após login bem-sucedido")
+                        log.info("MainWindow mapeada e maximizada (ainda invisível, alpha=0.0)")
                 except Exception as exc:
                     if log:
-                        log.debug("Falha ao exibir/maximizar MainWindow: %s", exc)
+                        log.debug("Falha ao mapear/maximizar MainWindow: %s", exc)
 
                 # BUGFIX-UX-STARTUP-HUB-001 (C1): update_idletasks + after_idle antes do Hub
                 # Isso permite que a janela pinte ANTES de construir o Hub (evita tela preta)
@@ -211,13 +208,26 @@ if __name__ == "__main__":
                                 log.debug("MessageBox também falhou: %s", msg_exc)
                         app.destroy()
 
+                def _restore_alpha_deferred():
+                    """Restaura alpha=1.0 APÓS Hub ter sido pintado."""
+                    try:
+                        app.attributes("-alpha", 1.0)
+                        if log:
+                            log.info("[UI] Alpha restaurado para 1.0 - janela agora visível")
+                    except Exception as exc:
+                        if log:
+                            log.debug("Falha ao restaurar alpha: %s", exc)
+
                 try:
                     app.after_idle(_show_hub_deferred)
+                    # Restaurar alpha SOMENTE depois que Hub foi agendado/pintado
+                    app.after_idle(_restore_alpha_deferred)
                 except Exception as exc:
                     if log:
                         log.error("Falha ao agendar show_hub_screen: %s", exc)
                     # Fallback: chamar direto
                     _show_hub_deferred()
+                    _restore_alpha_deferred()
             else:
                 # Login cancelado ou falhou (usuário já foi informado via messagebox se foi erro técnico)
                 if log:

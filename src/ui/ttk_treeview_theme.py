@@ -158,7 +158,8 @@ def apply_treeview_theme(mode: str, master: Any, style_name: str = "RC.Treeview"
 def apply_zebra(tree: Any, colors: TreeColors, parent_iid: str = "") -> None:
     """Aplica tags zebra (even/odd) nas linhas da Treeview.
 
-    IMPORTANTE: Preserva a tag 'selected' por último para ganhar precedência.
+    IMPORTANTE: Configura tag 'selected' PRIMEIRO para ganhar precedência (ordem de criação).
+    Preserva a tag 'selected' por último na lista de tags de cada item.
 
     Args:
         tree: Instância do ttk.Treeview
@@ -166,13 +167,17 @@ def apply_zebra(tree: Any, colors: TreeColors, parent_iid: str = "") -> None:
         parent_iid: ID do item pai (vazio = raiz)
     """
     try:
+        # CRÍTICO: Configurar tag "selected" PRIMEIRO (ordem de criação = prioridade no ttk.Treeview)
+        # Tag criada primeiro tem MAIOR prioridade visual
+        tree.tag_configure("selected", background=colors.sel_bg, foreground=colors.sel_fg)
+
         # Configurar tags zebra COM background (necessário para zebra funcionar)
         # Em Dark mode: even=#2b2b2b, odd=#242424
         # Em Light mode: even=#ffffff, odd=#e6eaf0
         tree.tag_configure("even", background=colors.even_bg, foreground=colors.fg)
         tree.tag_configure("odd", background=colors.odd_bg, foreground=colors.fg)
 
-        log.debug(f"[TtkTreeTheme] Tags configuradas: even={colors.even_bg}, odd={colors.odd_bg}, fg={colors.fg}")
+        log.debug(f"[TtkTreeTheme] Tags configuradas: selected={colors.sel_bg}, even={colors.even_bg}, odd={colors.odd_bg}")
 
         # Aplicar tags em todos os filhos do parent
         items = tree.get_children(parent_iid)

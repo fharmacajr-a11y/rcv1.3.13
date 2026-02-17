@@ -7,10 +7,11 @@ Gerencia todos os Treeviews do app e aplica tema automaticamente quando muda Lig
 from __future__ import annotations
 
 import logging
+import tkinter as tk
 import weakref
 from typing import Any, Optional
 
-from src.ui.ttk_treeview_theme import apply_treeview_theme, apply_zebra, TreeColors
+from src.ui.ttk_treeview_theme import apply_treeview_theme, apply_zebra, apply_selected_tag, TreeColors
 
 log = logging.getLogger(__name__)
 
@@ -68,6 +69,21 @@ class TtkTreeviewManager:
             if zebra:
                 apply_zebra(tree, colors)
 
+            # Bind automático de seleção (não sobrescreve handlers existentes)
+            # Usa add="+" para encadear com callbacks já registrados
+            def _auto_selection_handler(event: Any = None) -> None:
+                """Handler automático que aplica tag visual de seleção."""
+                try:
+                    apply_selected_tag(tree, colors)
+                except Exception as exc:
+                    log.debug(f"[TtkTreeManager] Erro no auto_selection_handler: {exc}")
+
+            try:
+                tree.bind("<<TreeviewSelect>>", _auto_selection_handler, add="+")
+                log.debug("[TtkTreeManager] Bind automático de seleção registrado")
+            except Exception as exc:
+                log.warning(f"[TtkTreeManager] Erro ao registrar bind de seleção: {exc}")
+
             # Registrar com weakref para não impedir garbage collection
             record = {
                 "tree": weakref.ref(tree),
@@ -103,6 +119,18 @@ class TtkTreeviewManager:
                 odd_bg="#e6eaf0",
                 border="#d1d5db",
             )
+
+    def unregister(self, tree: Any) -> None:
+        """Remove um Treeview do registry.
+
+        Args:
+            tree: Instância do ttk.Treeview a remover
+        """
+        before = len(self._trees)
+        self._trees = [r for r in self._trees if r["tree"]() is not tree]
+        removed = before - len(self._trees)
+        if removed:
+            log.debug(f"[TtkTreeManager] Treeview desregistrado ({removed} registro(s) removido(s))")
 
     def apply_to(self, tree: Any, master: Any, style_name: str, mode: str, zebra: bool = False) -> TreeColors:
         """Aplica tema em um Treeview específico.
@@ -153,9 +181,21 @@ class TtkTreeviewManager:
         self._trees = [r for r in self._trees if r["tree"]() is not None]
 
         applied = 0
+        stale: list[dict[str, Any]] = []
+
         for record in self._trees:
             tree = record["tree"]()
             if tree is None:
+                stale.append(record)
+                continue
+
+            # Checar se widget ainda existe no Tk (evita "invalid command name")
+            try:
+                if not tree.winfo_exists():
+                    stale.append(record)
+                    continue
+            except Exception:
+                stale.append(record)
                 continue
 
             try:
@@ -169,6 +209,11 @@ class TtkTreeviewManager:
                 # Reaplicar zebra em TODOS os itens existentes
                 if zebra:
                     apply_zebra(tree, colors)
+                    # Reaplicar seleção visível após zebra
+                    try:
+                        apply_selected_tag(tree, colors)
+                    except Exception:
+                        pass
                     # Forçar update visual
                     try:
                         tree.update_idletasks()
@@ -178,8 +223,16 @@ class TtkTreeviewManager:
                 applied += 1
                 log.debug(f"[TtkTreeManager] Tree atualizada: {style_name}, bg={colors.bg}")
 
+            except tk.TclError as exc:
+                log.debug(f"[TtkTreeManager] TclError (widget destruído?): {exc}")
+                stale.append(record)
             except Exception as exc:
                 log.warning(f"[TtkTreeManager] Erro ao aplicar tema em Treeview: {exc}")
+
+        # Remover registros de widgets que já não existem
+        if stale:
+            self._trees = [r for r in self._trees if r not in stale]
+            log.debug(f"[TtkTreeManager] {len(stale)} refs mortas removidas do registry")
 
         log.debug(f"[TtkTreeManager] Tema {mode} aplicado em {applied} Treeviews")
 
