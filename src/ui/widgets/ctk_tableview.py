@@ -8,6 +8,7 @@ Fornece API completa para migração plug-in sem quebrar código existente.
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any, Callable, Optional
 
 # CustomTkinter: fonte única centralizada (SSoT)
@@ -78,6 +79,9 @@ class CTkTableView(ctk.CTkFrame):
         self._zebra_colors = zebra_colors or ("#ffffff", "#f0f0f0")
         self._iid_to_index: dict[str, int] = {}
         self._next_iid = 0
+        # Tracking para detecção de double click
+        self._last_click_t: float = 0.0
+        self._last_click_row_idx: Optional[int] = None
 
         self._create_table()
 
@@ -108,7 +112,7 @@ class CTkTableView(ctk.CTkFrame):
             self._table.pack(fill="both", expand=True)
         except ImportError as e:
             log.error(
-                "CTkTable não está instalado: %s\n" "Instale as dependências com: pip install -r requirements.txt",
+                "CTkTable não está instalado: %s\nInstale as dependências com: pip install -r requirements.txt",
                 e,
             )
             self._table = None
@@ -151,6 +155,21 @@ class CTkTableView(ctk.CTkFrame):
                     self._row_select_callback(data_idx)
                 except Exception as e:
                     log.error(f"Erro em callback: {e}")
+
+            # Detecção de double click
+            now = time.monotonic()
+            if (
+                self._double_click_callback is not None
+                and self._last_click_row_idx == data_idx
+                and (now - self._last_click_t) <= 0.35
+            ):
+                try:
+                    self._double_click_callback(None)
+                except TypeError:
+                    self._double_click_callback()
+
+            self._last_click_row_idx = data_idx
+            self._last_click_t = now
 
     def set_columns(self, headers: list[str]) -> None:
         self._headers = headers
@@ -272,11 +291,48 @@ class CTkTableView(ctk.CTkFrame):
     def get_children(self, item: str = "") -> tuple[str, ...]:
         return tuple(self._iid_to_index.keys())
 
-    def bind(self, sequence: str, callback: Callable[..., Any]) -> None:
+    def bind(self, sequence: str, callback: Callable[..., Any], add: Optional[str] = None) -> None:
+        """Bind compatível com tkinter/customtkinter.
+
+        Suporta:
+        - <<TreeviewSelect>>: callback chamado com None ao selecionar linha
+        - <Double-1> / <Double-Button-1>: detecção de double click
+        - Outros sequences: repassados para super().bind()
+
+        Args:
+            sequence: Evento a vincular
+            callback: Função callback
+            add: Se '+', encadeia com callback existente; caso contrário, sobrescreve
+        """
         if sequence in ("<Double-Button-1>", "<Double-1>"):
-            self._double_click_callback = callback
-        elif sequence == "<<TreeviewSelect>>":
-            self.bind_row_select(lambda idx: callback(None))
+            if add == "+" and self._double_click_callback is not None:
+                prev = self._double_click_callback
+
+                def chained(event: Any = None) -> Any:
+                    prev(event)
+                    return callback(event)
+
+                self._double_click_callback = chained
+            else:
+                self._double_click_callback = callback
+            return
+
+        if sequence == "<<TreeviewSelect>>":
+            new_cb: Callable[[int], None] = lambda _idx: callback(None)
+            if add == "+" and self._row_select_callback is not None:
+                prev = self._row_select_callback
+
+                def chained_select(idx: int) -> None:
+                    prev(idx)
+                    new_cb(idx)
+
+                self._row_select_callback = chained_select
+            else:
+                self._row_select_callback = new_cb
+            return
+
+        # Não engolir outros eventos (ex: <Configure>)
+        super().bind(sequence, callback, add)
 
     def selection_set(self, iid: str) -> None:
         """Seleciona uma linha pelo iid."""
