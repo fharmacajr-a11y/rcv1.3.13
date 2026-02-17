@@ -13,8 +13,8 @@ from typing import Any, Optional, List
 
 from src.ui.ctk_config import ctk
 from src.ui.ui_tokens import APP_BG, SURFACE, SURFACE_DARK, TEXT_PRIMARY, BORDER
-from src.ui.ttk_treeview_manager import get_treeview_manager
 from src.ui.ttk_treeview_theme import apply_zebra
+from src.ui.widgets.ctk_treeview_container import CTkTreeviewContainer
 from src.modules.clientes.ui.views.toolbar import ClientesV2Toolbar
 from src.modules.clientes.ui.views.actionbar import ClientesV2ActionBar
 
@@ -127,35 +127,38 @@ class ClientesV2Frame(ctk.CTkFrame):
         """Cria Treeview com configuração completa de tema.
 
         TAREFA 3: ttk.Treeview com background E fieldbackground configurados.
+        FASE 5: Migrado para CTkTreeviewContainer.
         """
-        # Criar Treeview usando ttk direto (sem wrapper que possa interferir)
+        # Colunas do Treeview
         # FASE C: Adicionar colunas observacoes e ultima_alteracao
         columns = ("id", "razao_social", "cnpj", "nome", "whatsapp", "status", "observacoes", "ultima_alteracao")
 
-        self.tree = ttk.Treeview(
+        # FASE 5: Usar CTkTreeviewContainer (substitui criação manual de Treeview + Scrollbar)
+        self._tree_container = CTkTreeviewContainer(
             parent,
             columns=columns,
             show="headings",
             selectmode="browse",
-        )
-
-        # Registrar no manager global (aplica tema automaticamente)
-        manager = get_treeview_manager()
-        _, self._tree_colors = manager.register(
-            tree=self.tree,
-            master=parent,  # CRÍTICO: usar parent (CTkFrame), não self
-            style_name="RC.Treeview",
+            rowheight=24,
             zebra=True,
+            style_name="RC.Treeview",
         )
+        self._tree_container.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+
+        # Obter referência ao Treeview interno (preserva API existente)
+        self.tree = self._tree_container.get_treeview()
+
+        # Obter cores do tema (CTkTreeviewContainer já registrou no manager)
+        self._tree_colors = self._tree_container.get_colors()
 
         # Configurar headings
         self.tree.heading("id", text="ID", anchor="center")
         self.tree.heading("razao_social", text="Razão Social", anchor="center")
         self.tree.heading("cnpj", text="CNPJ", anchor="center")
         self.tree.heading("nome", text="Nome", anchor="center")
-        self.tree.heading("whatsapp", text="WhatsApp", anchor="w")
+        self.tree.heading("whatsapp", text="WhatsApp", anchor="center")
         self.tree.heading("status", text="Status", anchor="center")
-        self.tree.heading("observacoes", text="Observações", anchor="w")
+        self.tree.heading("observacoes", text="Observações", anchor="center")
         self.tree.heading("ultima_alteracao", text="Última Alteração", anchor="center")
 
         # Configurar colunas
@@ -163,22 +166,15 @@ class ClientesV2Frame(ctk.CTkFrame):
         self.tree.column("razao_social", width=280, minwidth=200, anchor="center", stretch=True)
         self.tree.column("cnpj", width=140, minwidth=120, anchor="center", stretch=False)
         self.tree.column("nome", width=180, minwidth=150, anchor="center", stretch=True)
-        self.tree.column("whatsapp", width=120, minwidth=110, anchor="w", stretch=False)
+        self.tree.column("whatsapp", width=120, minwidth=110, anchor="center", stretch=False)
         self.tree.column("status", width=150, minwidth=130, anchor="center", stretch=False)
-        self.tree.column("observacoes", width=250, minwidth=180, anchor="w", stretch=True)
+        self.tree.column("observacoes", width=250, minwidth=180, anchor="center", stretch=True)
         self.tree.column("ultima_alteracao", width=150, minwidth=130, anchor="center", stretch=False)
 
-        # Grid com scrollbar
-        scrollbar = ttk.Scrollbar(parent, orient="vertical", command=self.tree.yview)  # type: ignore[attr-defined]
-        self.tree.configure(yscrollcommand=scrollbar.set)
-
-        self.tree.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)  # type: ignore[attr-defined]
-        scrollbar.grid(row=0, column=1, sticky="ns", pady=5)
-
+        # Configurar grid do parent
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
 
-        # Zebra já aplicada pelo manager.register() acima
         # Guardar referência ao widget ttk interno
         self.tree_widget = self.tree
 
@@ -218,6 +214,9 @@ class ClientesV2Frame(ctk.CTkFrame):
         except Exception:
             mode = "Light"
 
+        # Import local para evitar circular
+        from src.ui.ttk_treeview_manager import get_treeview_manager
+
         manager = get_treeview_manager()
 
         # Reaplica o style e pega as cores corretas do modo atual
@@ -231,6 +230,10 @@ class ClientesV2Frame(ctk.CTkFrame):
 
         # Zebra precisa ser aplicado após inserir/atualizar itens
         apply_zebra(self.tree_widget, colors)
+
+        # Aplicar tag 'selected' na linha atualmente selecionada
+        from src.ui.ttk_treeview_theme import apply_selected_tag
+        apply_selected_tag(self.tree_widget, colors)
 
         # Atualiza cache pra qualquer uso legado
         self._tree_colors = colors
@@ -282,6 +285,10 @@ class ClientesV2Frame(ctk.CTkFrame):
                 self._selected_client_id = None
                 if hasattr(self, "actionbar") and self.actionbar:
                     self.actionbar.set_selection_state(False)
+
+            # Aplicar tag 'selected' visível na linha selecionada
+            from src.ui.ttk_treeview_theme import apply_selected_tag
+            apply_selected_tag(self.tree_widget, self._tree_colors)
 
         except Exception as e:
             log.error(f"[Clientes] Erro no handler de seleção: {e}", exc_info=True)
@@ -434,10 +441,10 @@ class ClientesV2Frame(ctk.CTkFrame):
             self.current_mode = new_mode
             self._last_applied_mode = new_mode
 
-            # Manager já aplicou tema automaticamente em todos os Treeviews
-            # Apenas aplicar zebra no tree local
-            if self.tree_widget and self._tree_colors:
-                apply_zebra(self.tree_widget, self._tree_colors)
+            # BUGFIX: Chamar _sync_tree_theme_and_zebra() para obter cores atualizadas
+            # do novo tema, em vez de usar cache antigo (_tree_colors)
+            if self.tree_widget:
+                self._sync_tree_theme_and_zebra()
 
             # Atualizar toolbar e actionbar
             if hasattr(self, "toolbar") and self.toolbar:
@@ -554,7 +561,7 @@ class ClientesV2Frame(ctk.CTkFrame):
             try:
                 if show_trash:
                     # Modo lixeira: usar serviço específico
-                    from src.modules.clientes import service as clientes_service
+                    from src.modules.clientes.core import service as clientes_service
 
                     # Mapear ordenação do toolbar para parâmetros do service
                     order_by, descending = self._map_order_label_to_params(order_label)
@@ -825,7 +832,7 @@ class ClientesV2Frame(ctk.CTkFrame):
         """
         from tkinter import filedialog, messagebox
         from pathlib import Path
-        from src.modules.clientes import export
+        from src.modules.clientes.core import export
 
         try:
             # Verificar se há dados para exportar
@@ -1188,7 +1195,7 @@ class ClientesV2Frame(ctk.CTkFrame):
 
         try:
             # Buscar dados do cliente
-            from src.modules.clientes import service as clientes_service
+            from src.modules.clientes.core import service as clientes_service
 
             cliente = clientes_service.fetch_cliente_by_id(self._selected_client_id)
 
@@ -1241,7 +1248,7 @@ class ClientesV2Frame(ctk.CTkFrame):
 
         try:
             # Buscar dados do cliente
-            from src.modules.clientes import service as clientes_service
+            from src.modules.clientes.core import service as clientes_service
 
             cliente = clientes_service.fetch_cliente_by_id(self._selected_client_id)
 
@@ -1374,7 +1381,7 @@ class ClientesV2Frame(ctk.CTkFrame):
 
         try:
             # Chamar service legacy
-            from src.modules.clientes import service as clientes_service
+            from src.modules.clientes.core import service as clientes_service
             from src.modules.lixeira import refresh_if_open as refresh_lixeira_if_open
 
             clientes_service.mover_cliente_para_lixeira(self._selected_client_id)

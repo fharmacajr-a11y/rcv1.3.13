@@ -291,7 +291,7 @@ class CTkTableView(ctk.CTkFrame):
     def get_children(self, item: str = "") -> tuple[str, ...]:
         return tuple(self._iid_to_index.keys())
 
-    def bind(self, sequence: str, callback: Callable[..., Any], add: Optional[str] = None) -> None:
+    def bind(self, sequence: str, callback: Callable[..., Any], add: Optional[object] = None) -> None:
         """Bind compatível com tkinter/customtkinter.
 
         Suporta:
@@ -302,10 +302,18 @@ class CTkTableView(ctk.CTkFrame):
         Args:
             sequence: Evento a vincular
             callback: Função callback
-            add: Se '+', encadeia com callback existente; caso contrário, sobrescreve
+            add: Se '+' ou True, encadeia com callback existente; caso contrário, sobrescreve.
+                 Aceita None, False, "", True, "+". CustomTkinter só aceita "+" ou True.
         """
+        # Normalizar 'add' para compatibilidade tkinter/customtkinter
+        # tkinter aceita: None, False, "", True, "+"
+        # customtkinter só aceita: True ou "+"
+        should_chain = False
+        if add is True or add == "+":
+            should_chain = True
+
         if sequence in ("<Double-Button-1>", "<Double-1>"):
-            if add == "+" and self._double_click_callback is not None:
+            if should_chain and self._double_click_callback is not None:
                 prev = self._double_click_callback
 
                 def chained(event: Any = None) -> Any:
@@ -319,7 +327,7 @@ class CTkTableView(ctk.CTkFrame):
 
         if sequence == "<<TreeviewSelect>>":
             new_cb: Callable[[int], None] = lambda _idx: callback(None)
-            if add == "+" and self._row_select_callback is not None:
+            if should_chain and self._row_select_callback is not None:
                 prev = self._row_select_callback
 
                 def chained_select(idx: int) -> None:
@@ -332,7 +340,11 @@ class CTkTableView(ctk.CTkFrame):
             return
 
         # Não engolir outros eventos (ex: <Configure>)
-        super().bind(sequence, callback, add)
+        # CustomTkinter só aceita add="+" ou add=True
+        if should_chain:
+            super().bind(sequence, callback, add="+")
+        else:
+            super().bind(sequence, callback)
 
     def selection_set(self, iid: str) -> None:
         """Seleciona uma linha pelo iid."""

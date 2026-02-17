@@ -126,10 +126,12 @@ def apply_treeview_theme(mode: str, master: Any, style_name: str = "RC.Treeview"
         )
 
         # Map de seleção
+        # CRÍTICO: NÃO forçar background="" no map, isso mata o zebra por tags
         style.map(
             full_style_name,
             background=[("selected", colors.sel_bg)],
             foreground=[("selected", colors.sel_fg)],
+            fieldbackground=[("", colors.field_bg)],
         )
 
         # Fallback para "Treeview" padrão
@@ -156,8 +158,7 @@ def apply_treeview_theme(mode: str, master: Any, style_name: str = "RC.Treeview"
 def apply_zebra(tree: Any, colors: TreeColors, parent_iid: str = "") -> None:
     """Aplica tags zebra (even/odd) nas linhas da Treeview.
 
-    IMPORTANTE: Usa apenas foreground nas tags. O background vem do ttk.Style.
-    Isso evita conflito entre tag background e style fieldbackground.
+    IMPORTANTE: Preserva a tag 'selected' por último para ganhar precedência.
 
     Args:
         tree: Instância do ttk.Treeview
@@ -177,13 +178,51 @@ def apply_zebra(tree: Any, colors: TreeColors, parent_iid: str = "") -> None:
         items = tree.get_children(parent_iid)
         for idx, iid in enumerate(items):
             tag = "even" if idx % 2 == 0 else "odd"
-            # Preservar outras tags, apenas substituir even/odd
+            # Preservar outras tags, mas garantir 'selected' por último
             current_tags = tree.item(iid, "tags")
-            new_tags = [t for t in current_tags if t not in ("even", "odd")]
+            new_tags = [t for t in current_tags if t not in ("even", "odd", "selected")]
             new_tags.append(tag)
+            # Se tinha 'selected', adicionar por último (maior precedência)
+            if "selected" in current_tags:
+                new_tags.append("selected")
             tree.item(iid, tags=tuple(new_tags))
 
         log.debug(f"[TtkTreeTheme] Zebra aplicada: {len(items)} itens")
 
     except Exception as exc:
         log.exception(f"[TtkTreeTheme] Erro ao aplicar zebra: {exc}")
+
+
+def apply_selected_tag(tree: Any, colors: TreeColors) -> None:
+    """Aplica tag 'selected' na linha atualmente selecionada.
+
+    Remove 'selected' de todos os itens e adiciona apenas no item selecionado.
+    A tag 'selected' deve ficar por último para ter precedência sobre even/odd.
+
+    Args:
+        tree: Instância do ttk.Treeview
+        colors: TreeColors com as cores do tema
+    """
+    try:
+        # Configurar tag selected
+        tree.tag_configure("selected", background=colors.sel_bg, foreground=colors.sel_fg)
+
+        # Remover 'selected' de todos os itens (preservando outras tags)
+        for iid in tree.get_children(""):
+            current_tags = tree.item(iid, "tags")
+            new_tags = [t for t in current_tags if t != "selected"]
+            tree.item(iid, tags=tuple(new_tags))
+
+        # Adicionar 'selected' SOMENTE no item atualmente selecionado
+        selection = tree.selection()
+        if selection:
+            iid = selection[0]
+            current_tags = tree.item(iid, "tags")
+            # Remover 'selected' se já existe e adicionar por último
+            new_tags = [t for t in current_tags if t != "selected"]
+            new_tags.append("selected")
+            tree.item(iid, tags=tuple(new_tags))
+            log.debug(f"[TtkTreeTheme] Tag 'selected' aplicada ao item: {iid}")
+
+    except Exception as exc:
+        log.exception(f"[TtkTreeTheme] Erro ao aplicar selected tag: {exc}")
