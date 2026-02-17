@@ -53,6 +53,24 @@ class TtkTreeviewManager:
             Tupla (nome_style_completo, TreeColors)
         """
         try:
+            # PROTEÇÃO: Verificar se tree já está registrada (evita bind duplicado)
+            for record in self._trees:
+                existing_tree = record["tree"]()
+                if existing_tree is tree:
+                    log.debug("[TtkTreeManager] Tree já registrada, pulando registro duplicado")
+                    # Aplicar tema mesmo assim (pode estar mudando style_name ou modo)
+                    if mode is None:
+                        try:
+                            from src.ui.ctk_config import ctk
+                            mode = ctk.get_appearance_mode()
+                        except Exception:
+                            mode = "Light"
+                    full_style, colors = apply_treeview_theme(mode, master, style_name)
+                    tree.configure(style=full_style)
+                    if zebra:
+                        apply_zebra(tree, colors)
+                    return full_style, colors
+
             # Detectar modo atual se não especificado
             if mode is None:
                 try:

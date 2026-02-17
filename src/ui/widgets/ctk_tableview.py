@@ -13,6 +13,7 @@ from typing import Any, Callable, Optional
 
 # CustomTkinter: fonte única centralizada (SSoT)
 from src.ui.ctk_config import ctk
+from src.ui.table_ui_spec import TABLE_UI_SPEC, get_ctk_font_string
 
 log = logging.getLogger(__name__)
 
@@ -53,7 +54,10 @@ except ImportError:
 
 
 class CTkTableView(ctk.CTkFrame):
-    """Tabela customizada usando CTkTable, compatível com API Treeview."""
+    """Tabela customizada usando CTkTable, compatível com API Treeview.
+    
+    Usa TABLE_UI_SPEC para padronizar visual (fonte, rowheight, cores, etc).
+    """
 
     def __init__(
         self,
@@ -76,7 +80,8 @@ class CTkTableView(ctk.CTkFrame):
         self._table: CTkTable | None = None
         self._height = height
         self._zebra = zebra
-        self._zebra_colors = zebra_colors or ("#ffffff", "#f0f0f0")
+        # Usar zebra do spec se não especificado (detecta modo Light/Dark)
+        self._zebra_colors = zebra_colors or self._get_zebra_colors_from_theme()
         self._iid_to_index: dict[str, int] = {}
         self._next_iid = 0
         # Tracking para detecção de double click
@@ -85,6 +90,18 @@ class CTkTableView(ctk.CTkFrame):
 
         self._create_table()
 
+    def _get_zebra_colors_from_theme(self) -> tuple[str, str]:
+        """Obtém cores zebra baseadas no tema atual (Light/Dark)."""
+        try:
+            mode = ctk.get_appearance_mode()
+        except Exception:
+            mode = "Light"
+        
+        # Importar TreeColors para consistor com Treeview
+        from src.ui.ttk_treeview_theme import get_tree_colors
+        colors = get_tree_colors(mode)
+        return (colors.even_bg, colors.odd_bg)
+
     def _create_table(self) -> None:
         if self._table is not None:
             self._table.destroy()
@@ -92,14 +109,20 @@ class CTkTableView(ctk.CTkFrame):
         data = [self._headers] + self._rows if self._headers else [[]]
 
         try:
+            # Usar fonte padronizada do TABLE_UI_SPEC
+            body_font = get_ctk_font_string(heading=False)
+            header_font = get_ctk_font_string(heading=True)
+
             # Configurar parâmetros base da tabela
             table_params = {
                 "master": self,
                 "values": data if data and data != [[]] else [["Sem dados"]],
                 "row": len(data) if data and data != [[]] else 1,
                 "column": len(self._headers) if self._headers else 1,
-                "hover": True,
+                "hover": TABLE_UI_SPEC.hover_enabled,
                 "command": self._on_cell_click,
+                "font": (TABLE_UI_SPEC.font_family, TABLE_UI_SPEC.font_size),
+                "header_font": (TABLE_UI_SPEC.font_family, TABLE_UI_SPEC.heading_font_size, TABLE_UI_SPEC.heading_font_weight),
             }
 
             # Adicionar cores apenas se zebra estiver ativo e houver dados

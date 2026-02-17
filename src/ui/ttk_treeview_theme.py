@@ -2,6 +2,7 @@
 """Tema centralizado para ttk.Treeview com suporte a Light/Dark mode.
 
 Fornece cores e funções para aplicar tema consistente em todos os Treeviews do app.
+Usa TABLE_UI_SPEC para padronizar visual (fonte, rowheight, padding, etc).
 """
 
 from __future__ import annotations
@@ -10,6 +11,8 @@ import logging
 from dataclasses import dataclass
 from tkinter import ttk
 from typing import Any
+
+from src.ui.table_ui_spec import TABLE_UI_SPEC, get_table_font
 
 log = logging.getLogger(__name__)
 
@@ -105,24 +108,30 @@ def apply_treeview_theme(mode: str, master: Any, style_name: str = "RC.Treeview"
             f"[TtkTreeTheme] Aplicando: {full_style_name}, mode={mode}, bg={colors.bg}, field_bg={colors.field_bg}"
         )
 
+        # Aplicar TABLE_UI_SPEC para consistência visual
+        font_tuple = get_table_font(heading=False)
+        heading_font_tuple = get_table_font(heading=True)
+
         style.configure(
             full_style_name,
             background=colors.bg,
             fieldbackground=colors.field_bg,  # CRÍTICO: remove branco residual
             foreground=colors.fg,
             insertcolor=colors.fg,
-            borderwidth=0,
-            relief="flat",
-            rowheight=24,
+            borderwidth=TABLE_UI_SPEC.border_width,
+            relief=TABLE_UI_SPEC.relief,
+            rowheight=TABLE_UI_SPEC.row_height,
+            font=font_tuple,  # Fonte padronizada
         )
 
-        # Configurar Heading
+        # Configurar Heading com fonte e dimensões padronizadas
         style.configure(
             f"{full_style_name}.Heading",
             background=colors.heading_bg,
             foreground=colors.heading_fg,
-            relief="flat",
-            borderwidth=0,
+            relief=TABLE_UI_SPEC.heading_relief,
+            borderwidth=TABLE_UI_SPEC.heading_border_width,
+            font=heading_font_tuple,  # Fonte do header (bold)
         )
 
         # Map de seleção
