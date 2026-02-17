@@ -601,16 +601,17 @@ def pick_anvisa_history_target(
 
     result: dict[str, Any] = {"action": None, "client_id": ""}
 
-    frame = tk.Frame(dialog, padding=10)
-    frame.pack(fill="both", expand=True)
+    frame = ctk.CTkFrame(dialog, fg_color="transparent")
+    frame.pack(fill="both", expand=True, padx=10, pady=10)
 
-    tk.Label(
+    ctk.CTkLabel(
         frame,
         text="Selecione o cliente para abrir o histórico de regularizações:",
         font=("Segoe UI", 10),
+        fg_color="transparent",
     ).pack(anchor="w", pady=(0, 8))
 
-    tree_frame = tk.Frame(frame)
+    tree_frame = ctk.CTkFrame(frame, fg_color="transparent")
     tree_frame.pack(fill="both", expand=True)
 
     tree = CTkTableView(
@@ -713,10 +714,10 @@ def pick_anvisa_history_target(
             ],
         )
 
-    btn_frame = tk.Frame(frame)
+    btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
     btn_frame.pack(fill="x", pady=(10, 0))
 
-    btn_open_history = tk.Button(
+    btn_open_history = ctk.CTkButton(
         btn_frame,
         text="Abrir histórico",
         state="disabled",
@@ -740,7 +741,7 @@ def pick_anvisa_history_target(
 
     btn_open_history.configure(command=on_open_history)
 
-    tk.Button(
+    ctk.CTkButton(
         btn_frame,
         text="Cancelar",
         command=on_cancel,

@@ -62,26 +62,42 @@ class LoginDialog(tk.Toplevel):
 
         self._icon_email = None
         self._icon_senha = None
+        self._icon_email_ctk = None
+        self._icon_senha_ctk = None
 
-        if email_icon_path:
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            # Modo CTk: usar PIL + CTkImage
             try:
-                self._icon_email = tk.PhotoImage(file=email_icon_path)
-            except Exception:
-                self._icon_email = None
+                from PIL import Image
+                if email_icon_path and os.path.exists(email_icon_path):
+                    pil_email = Image.open(email_icon_path).convert("RGBA")
+                    self._icon_email_ctk = ctk.CTkImage(light_image=pil_email, dark_image=pil_email, size=(16, 16))
+                if senha_icon_path and os.path.exists(senha_icon_path):
+                    pil_senha = Image.open(senha_icon_path).convert("RGBA")
+                    self._icon_senha_ctk = ctk.CTkImage(light_image=pil_senha, dark_image=pil_senha, size=(16, 16))
+            except Exception as exc:
+                log.debug("Falha ao criar CTkImage para ícones de login: %s", exc)
+        else:
+            # Modo tk: usar PhotoImage
+            if email_icon_path:
+                try:
+                    self._icon_email = tk.PhotoImage(file=email_icon_path)
+                except Exception:
+                    self._icon_email = None
 
-        if senha_icon_path:
-            try:
-                self._icon_senha = tk.PhotoImage(file=senha_icon_path)
-            except Exception:
-                self._icon_senha = None
+            if senha_icon_path:
+                try:
+                    self._icon_senha = tk.PhotoImage(file=senha_icon_path)
+                except Exception:
+                    self._icon_senha = None
 
         # Layout
         if HAS_CUSTOMTKINTER and ctk is not None:
             self.email_label = ctk.CTkLabel(
                 self,
                 text="E-mail",
-                image=self._icon_email,
-                compound="left" if self._icon_email is not None else "none",
+                image=self._icon_email_ctk,
+                compound="left" if self._icon_email_ctk is not None else "none",
                 anchor="w",
             )
         else:
@@ -104,8 +120,8 @@ class LoginDialog(tk.Toplevel):
             self.pass_label = ctk.CTkLabel(
                 self,
                 text="Senha",
-                image=self._icon_senha,
-                compound="left" if self._icon_senha is not None else "none",
+                image=self._icon_senha_ctk,
+                compound="left" if self._icon_senha_ctk is not None else "none",
                 anchor="w",
             )
         else:
@@ -240,7 +256,7 @@ class LoginDialog(tk.Toplevel):
 
         show_centered(self)
         try:
-            log.info("LoginDialog: inicializado em %.3fs", time.perf_counter() - t0)
+            log.info("LoginDialog: inicializado em %.3f segundos", time.perf_counter() - t0)
         except Exception:
             log.debug("Falha ao registrar log de inicialização do LoginDialog", exc_info=True)
 
@@ -271,11 +287,8 @@ class LoginDialog(tk.Toplevel):
             uid = getattr(sess, "user", None) and getattr(sess.user, "id", None)
             token = _get_access_token(client)
 
-            log.info(
-                "Login OK: user.id=%s | token=%s",
-                uid,
-                "presente" if token else "ausente",
-            )
+            # Usando f-string para evitar problemas de formatação
+            log.info(f"Login OK: user.id={uid} | token={'presente' if token else 'ausente'}")
 
             if not token:
                 messagebox.showerror(
