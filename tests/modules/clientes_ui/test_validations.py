@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """Testes de validações para ClientesV2 - FASE 3.2.
 
 Testa validações de duplicatas (CNPJ, Razão Social, Telefone) no formulário de cliente.
@@ -55,7 +55,7 @@ def test_validation_rejects_duplicate_cnpj_new_client(tk_root, monkeypatch):
     mock_showerror = MagicMock()
 
     with (
-        patch("src.modules.clientes.service.checar_duplicatas_para_form", mock_check),
+        patch("src.modules.clientes.core.service.checar_duplicatas_para_form", mock_check),
         patch("tkinter.messagebox.showerror", mock_showerror),
     ):
         # Criar dialog para novo cliente
@@ -114,9 +114,9 @@ def test_validation_accepts_own_cnpj_when_editing(tk_root, monkeypatch):
     )
 
     with (
-        patch("src.modules.clientes.service.checar_duplicatas_para_form", mock_check),
-        patch("src.modules.clientes.service.salvar_cliente_a_partir_do_form", mock_save),
-        patch("src.modules.clientes.service.fetch_cliente_by_id", mock_fetch_cliente),
+        patch("src.modules.clientes.core.service.checar_duplicatas_para_form", mock_check),
+        patch("src.modules.clientes.core.service.salvar_cliente_a_partir_do_form", mock_save),
+        patch("src.modules.clientes.core.service.fetch_cliente_by_id", mock_fetch_cliente),
     ):
         # Criar dialog para editar cliente ID=1
         dialog = ClientEditorDialog(tk_root, client_id=1)
@@ -170,9 +170,9 @@ def test_validation_warns_similar_razao_user_cancels(tk_root, monkeypatch):
     mock_save = MagicMock()
 
     with (
-        patch("src.modules.clientes.service.checar_duplicatas_para_form", mock_check),
+        patch("src.modules.clientes.core.service.checar_duplicatas_para_form", mock_check),
         patch("tkinter.messagebox.askyesno", mock_askyesno),
-        patch("src.modules.clientes.service.salvar_cliente_a_partir_do_form", mock_save),
+        patch("src.modules.clientes.core.service.salvar_cliente_a_partir_do_form", mock_save),
     ):
         # Criar dialog para novo cliente
         dialog = ClientEditorDialog(tk_root, client_id=None)
@@ -222,9 +222,9 @@ def test_validation_warns_similar_razao_user_confirms(tk_root, monkeypatch):
     mock_save = MagicMock(return_value=({"id": 10}, None))
 
     with (
-        patch("src.modules.clientes.service.checar_duplicatas_para_form", mock_check),
+        patch("src.modules.clientes.core.service.checar_duplicatas_para_form", mock_check),
         patch("tkinter.messagebox.askyesno", mock_askyesno),
-        patch("src.modules.clientes.service.salvar_cliente_a_partir_do_form", mock_save),
+        patch("src.modules.clientes.core.service.salvar_cliente_a_partir_do_form", mock_save),
     ):
         # Criar dialog para novo cliente
         dialog = ClientEditorDialog(tk_root, client_id=None)
@@ -267,9 +267,9 @@ def test_validation_warns_similar_telefone_user_cancels(tk_root, monkeypatch):
     mock_save = MagicMock()
 
     with (
-        patch("src.modules.clientes.service.checar_duplicatas_para_form", mock_check),
+        patch("src.modules.clientes.core.service.checar_duplicatas_para_form", mock_check),
         patch("tkinter.messagebox.askyesno", mock_askyesno),
-        patch("src.modules.clientes.service.salvar_cliente_a_partir_do_form", mock_save),
+        patch("src.modules.clientes.core.service.salvar_cliente_a_partir_do_form", mock_save),
     ):
         # Criar dialog para novo cliente
         dialog = ClientEditorDialog(tk_root, client_id=None)
@@ -312,9 +312,9 @@ def test_validation_warns_combined_conflicts(tk_root, monkeypatch):
     mock_save = MagicMock()
 
     with (
-        patch("src.modules.clientes.service.checar_duplicatas_para_form", mock_check),
+        patch("src.modules.clientes.core.service.checar_duplicatas_para_form", mock_check),
         patch("tkinter.messagebox.askyesno", mock_askyesno),
-        patch("src.modules.clientes.service.salvar_cliente_a_partir_do_form", mock_save),
+        patch("src.modules.clientes.core.service.salvar_cliente_a_partir_do_form", mock_save),
     ):
         # Criar dialog
         dialog = ClientEditorDialog(tk_root, client_id=None)
@@ -361,8 +361,8 @@ def test_validation_no_conflicts_saves_directly(tk_root, monkeypatch):
     mock_showerror = MagicMock()
 
     with (
-        patch("src.modules.clientes.service.checar_duplicatas_para_form", mock_check),
-        patch("src.modules.clientes.service.salvar_cliente_a_partir_do_form", mock_save),
+        patch("src.modules.clientes.core.service.checar_duplicatas_para_form", mock_check),
+        patch("src.modules.clientes.core.service.salvar_cliente_a_partir_do_form", mock_save),
         patch("tkinter.messagebox.askyesno", mock_askyesno),
         patch("tkinter.messagebox.showerror", mock_showerror),
     ):
@@ -397,7 +397,7 @@ def test_validation_handles_service_error(tk_root, monkeypatch):
     mock_showerror = MagicMock()
 
     with (
-        patch("src.modules.clientes.service.checar_duplicatas_para_form", mock_check),
+        patch("src.modules.clientes.core.service.checar_duplicatas_para_form", mock_check),
         patch("tkinter.messagebox.showerror", mock_showerror),
     ):
         # Criar dialog

@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 Round 15: Testes de cobertura para viewmodel.py
 
@@ -539,7 +539,7 @@ class TestBatchOperations:
 
     def test_delete_clientes_batch_success(self, vm: ClientesViewModel):
         """Testa exclusão em lote bem-sucedida."""
-        with patch("src.modules.clientes.service.excluir_clientes_definitivamente") as mock_excluir:
+        with patch("src.modules.clientes.core.service.excluir_clientes_definitivamente") as mock_excluir:
             mock_excluir.return_value = (3, [])
 
             qtd, erros = vm.delete_clientes_batch(["1", "2", "3"])
@@ -550,7 +550,7 @@ class TestBatchOperations:
 
     def test_delete_clientes_batch_with_errors(self, vm: ClientesViewModel):
         """Testa exclusão em lote com erros."""
-        with patch("src.modules.clientes.service.excluir_clientes_definitivamente") as mock_excluir:
+        with patch("src.modules.clientes.core.service.excluir_clientes_definitivamente") as mock_excluir:
             mock_excluir.return_value = (2, [(1, "Erro ao excluir")])
 
             qtd, erros = vm.delete_clientes_batch(["1", "2", "3"])
@@ -561,7 +561,7 @@ class TestBatchOperations:
 
     def test_restore_clientes_batch(self, vm: ClientesViewModel):
         """Testa restauração em lote."""
-        with patch("src.modules.clientes.service.restaurar_clientes_da_lixeira") as mock_restaurar:
+        with patch("src.modules.clientes.core.service.restaurar_clientes_da_lixeira") as mock_restaurar:
             vm.restore_clientes_batch(["10", "20", "30"])
 
             mock_restaurar.assert_called_once_with([10, 20, 30])

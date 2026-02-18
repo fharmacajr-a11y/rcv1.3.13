@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """Testes para funcionalidade de Lixeira do ClientesV2 (FASE 3.6).
 
 Valida:
@@ -51,7 +51,7 @@ def sample_clients():
     ]
 
 
-@patch("src.modules.clientes.service.mover_cliente_para_lixeira")
+@patch("src.modules.clientes.core.service.mover_cliente_para_lixeira")
 @patch("src.modules.lixeira.refresh_if_open")
 @patch("tkinter.messagebox.askyesno")
 @patch("tkinter.messagebox.showinfo")
@@ -116,7 +116,7 @@ def test_delete_without_selection_does_nothing(mock_askyesno, root, mock_vm):
     assert not mock_askyesno.called, "Não deve mostrar confirmação sem seleção"
 
 
-@patch("src.modules.clientes.service.mover_cliente_para_lixeira")
+@patch("src.modules.clientes.core.service.mover_cliente_para_lixeira")
 @patch("tkinter.messagebox.askyesno")
 def test_delete_cancel_does_not_call_service(mock_askyesno, mock_mover, root, mock_vm, sample_clients):
     """FASE 3.6: Cancelar confirmação não exclui cliente."""
@@ -155,7 +155,7 @@ def test_delete_cancel_does_not_call_service(mock_askyesno, mock_mover, root, mo
     assert not mock_mover.called, "Service não deve ser chamado ao cancelar"
 
 
-@patch("src.modules.clientes.service.mover_cliente_para_lixeira")
+@patch("src.modules.clientes.core.service.mover_cliente_para_lixeira")
 @patch("tkinter.messagebox.askyesno")
 @patch("tkinter.messagebox.showerror")
 def test_delete_handles_service_error(mock_showerror, mock_askyesno, mock_mover, root, mock_vm, sample_clients):
@@ -225,7 +225,7 @@ def test_trash_toggle_changes_mode(root, mock_vm):
         assert frame._trash_mode is False, "Deve voltar ao modo normal"
 
 
-@patch("src.modules.clientes.service.mover_cliente_para_lixeira")
+@patch("src.modules.clientes.core.service.mover_cliente_para_lixeira")
 @patch("tkinter.messagebox.askyesno")
 def test_delete_confirmation_message_includes_client_name(mock_askyesno, mock_mover, root, mock_vm, sample_clients):
     """FASE 3.6: Mensagem de confirmação inclui nome do cliente."""
@@ -268,7 +268,7 @@ def test_delete_confirmation_message_includes_client_name(mock_askyesno, mock_mo
     assert "Empresa Alpha LTDA" in message or "ID 1" in message, "Mensagem deve incluir identificação do cliente"
 
 
-@patch("src.modules.clientes.service.mover_cliente_para_lixeira")
+@patch("src.modules.clientes.core.service.mover_cliente_para_lixeira")
 @patch("src.modules.lixeira.refresh_if_open")
 @patch("tkinter.messagebox.askyesno")
 @patch("tkinter.messagebox.showinfo")
@@ -321,7 +321,7 @@ def test_trash_mode_initial_state(root, mock_vm):
     assert hasattr(frame, "_trash_mode"), "Deve ter atributo _trash_mode"
 
 
-@patch("src.modules.clientes.service.mover_cliente_para_lixeira")
+@patch("src.modules.clientes.core.service.mover_cliente_para_lixeira")
 @patch("tkinter.messagebox.askyesno")
 @patch("tkinter.messagebox.showinfo")
 def test_delete_multiple_clients_sequentially(mock_showinfo, mock_askyesno, mock_mover, root, mock_vm, sample_clients):

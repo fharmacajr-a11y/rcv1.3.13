@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """Testes da extração de CNPJ da pasta (FASE 3.7).
 
 Valida o fluxo completo do botão "Cartão CNPJ":
@@ -39,7 +39,7 @@ class TestCNPJExtraction:
         # Mock para askdirectory retornar pasta temporária
         with (
             patch("tkinter.filedialog.askdirectory", return_value=str(test_folder)),
-            patch("src.modules.clientes.service.extrair_dados_cartao_cnpj_em_pasta") as mock_extrair,
+            patch("src.modules.clientes.core.service.extrair_dados_cartao_cnpj_em_pasta") as mock_extrair,
             patch("tkinter.messagebox.showinfo") as mock_info,
         ):
             # Configurar retorno do service (sucesso)
@@ -77,7 +77,7 @@ class TestCNPJExtraction:
         # Mock para askdirectory
         with (
             patch("tkinter.filedialog.askdirectory", return_value=str(test_folder)),
-            patch("src.modules.clientes.service.extrair_dados_cartao_cnpj_em_pasta") as mock_extrair,
+            patch("src.modules.clientes.core.service.extrair_dados_cartao_cnpj_em_pasta") as mock_extrair,
             patch("tkinter.messagebox.showinfo") as mock_info,
         ):
             # Configurar retorno parcial (apenas CNPJ)
@@ -107,7 +107,7 @@ class TestCNPJExtraction:
         # Mock para askdirectory
         with (
             patch("tkinter.filedialog.askdirectory", return_value=str(empty_folder)),
-            patch("src.modules.clientes.service.extrair_dados_cartao_cnpj_em_pasta") as mock_extrair,
+            patch("src.modules.clientes.core.service.extrair_dados_cartao_cnpj_em_pasta") as mock_extrair,
             patch("tkinter.messagebox.showwarning") as mock_warning,
             patch("tkinter.messagebox.showinfo") as mock_info,
         ):
@@ -142,7 +142,7 @@ class TestCNPJExtraction:
         # Mock para askdirectory retornar None (cancelado)
         with (
             patch("tkinter.filedialog.askdirectory", return_value=""),
-            patch("src.modules.clientes.service.extrair_dados_cartao_cnpj_em_pasta") as mock_extrair,
+            patch("src.modules.clientes.core.service.extrair_dados_cartao_cnpj_em_pasta") as mock_extrair,
             patch("tkinter.messagebox.showwarning") as mock_warning,
         ):
             # Act
@@ -171,7 +171,7 @@ class TestCNPJExtraction:
         # Mock para askdirectory
         with (
             patch("tkinter.filedialog.askdirectory", return_value=str(error_folder)),
-            patch("src.modules.clientes.service.extrair_dados_cartao_cnpj_em_pasta") as mock_extrair,
+            patch("src.modules.clientes.core.service.extrair_dados_cartao_cnpj_em_pasta") as mock_extrair,
             patch("tkinter.messagebox.showerror") as mock_error,
         ):
             # Configurar service para lançar exceção
@@ -206,7 +206,7 @@ class TestCNPJExtraction:
         # Mock para askdirectory
         with (
             patch("tkinter.filedialog.askdirectory", return_value=str(test_folder)),
-            patch("src.modules.clientes.service.extrair_dados_cartao_cnpj_em_pasta") as mock_extrair,
+            patch("src.modules.clientes.core.service.extrair_dados_cartao_cnpj_em_pasta") as mock_extrair,
             patch("tkinter.messagebox.showinfo"),
         ):
             # Configurar retorno do service
@@ -244,7 +244,7 @@ class TestCNPJExtraction:
         # Mock para askdirectory
         with (
             patch("tkinter.filedialog.askdirectory", return_value=str(test_folder)),
-            patch("src.modules.clientes.service.extrair_dados_cartao_cnpj_em_pasta") as mock_extrair,
+            patch("src.modules.clientes.core.service.extrair_dados_cartao_cnpj_em_pasta") as mock_extrair,
             patch("tkinter.messagebox.showinfo"),
         ):
             # Configurar retorno com novos dados
@@ -293,7 +293,7 @@ class TestCNPJExtraction:
         # Mock para askdirectory
         with (
             patch("tkinter.filedialog.askdirectory", return_value=str(test_folder)),
-            patch("src.modules.clientes.service.extrair_dados_cartao_cnpj_em_pasta") as mock_extrair,
+            patch("src.modules.clientes.core.service.extrair_dados_cartao_cnpj_em_pasta") as mock_extrair,
             patch("tkinter.messagebox.showwarning") as mock_warning,
         ):
             # Configurar retorno com strings vazias

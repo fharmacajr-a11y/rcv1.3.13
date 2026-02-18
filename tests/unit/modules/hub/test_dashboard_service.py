@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """Unit tests for src/modules/hub/dashboard_service.py.
 
 Tests the dashboard service that aggregates data from multiple repositories
@@ -1326,7 +1326,7 @@ class TestFetchClientNames:
         # This test verifies the function doesn't crash when called
         # The actual service call is handled internally
         with patch(
-            "src.modules.clientes.service.fetch_cliente_by_id",
+            "src.modules.clientes.core.service.fetch_cliente_by_id",
             return_value={"razao_social": "Farmácia ABC", "nome_fantasia": "ABC"},
         ):
             result = _fetch_client_names([1, 2])
@@ -1787,7 +1787,7 @@ def _get_snapshot_with_mocks(
             return_value=obligations,
         ),
         patch(
-            "src.modules.clientes.service.fetch_cliente_by_id",
+            "src.modules.clientes.core.service.fetch_cliente_by_id",
             side_effect=mock_fetch_cliente,
         ),
         patch(
@@ -2188,7 +2188,7 @@ class TestFetchClientNamesIO:
             raise RuntimeError("DB error")
 
         monkeypatch.setattr(
-            "src.modules.clientes.service.fetch_cliente_by_id",
+            "src.modules.clientes.core.service.fetch_cliente_by_id",
             raise_error,
         )
 
@@ -2203,7 +2203,7 @@ class TestFetchClientNamesIO:
         import src.modules.hub.dashboard.service as ds
 
         monkeypatch.setattr(
-            "src.modules.clientes.service.fetch_cliente_by_id",
+            "src.modules.clientes.core.service.fetch_cliente_by_id",
             lambda cid: None,
         )
 
