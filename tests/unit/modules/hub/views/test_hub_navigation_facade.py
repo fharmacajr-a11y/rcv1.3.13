@@ -24,8 +24,6 @@ class TestHubNavigationFacade:
         helper.go_to_pending = MagicMock()
         helper.go_to_tasks_today = MagicMock()
         helper.open_clientes = MagicMock()
-        helper.open_senhas = MagicMock()
-        helper.open_auditoria = MagicMock()
         helper.open_fluxo_caixa = MagicMock()
         helper.open_anvisa = MagicMock()
         helper.open_farmacia_popular = MagicMock()
@@ -86,11 +84,13 @@ class TestHubNavigationFacade:
         facade_without_debug.open_clientes()
         mock_nav_helper.open_clientes.assert_called_once_with()
 
+    @pytest.mark.skip(reason="Ação 'senhas' removida – migração CTK")
     def test_open_senhas_delega_para_helper(self, facade_without_debug, mock_nav_helper):
         """Testa que open_senhas delega para helper."""
         facade_without_debug.open_senhas()
         mock_nav_helper.open_senhas.assert_called_once_with()
 
+    @pytest.mark.skip(reason="Ação 'auditoria' removida – migração CTK")
     def test_open_auditoria_delega_para_helper(self, facade_without_debug, mock_nav_helper):
         """Testa que open_auditoria delega para helper."""
         facade_without_debug.open_auditoria()
@@ -134,8 +134,6 @@ class TestHubNavigationFacade:
         """Testa que todos os métodos open_* fazem log quando debug está habilitado."""
         metodos_open = [
             "open_clientes",
-            "open_senhas",
-            "open_auditoria",
             "open_fluxo_caixa",
             "open_anvisa",
             "open_farmacia_popular",
@@ -155,7 +153,7 @@ class TestHubNavigationFacade:
         """Testa que sem debug logger, não há tentativa de log."""
         # Não deve levantar exceção mesmo sem logger
         facade_without_debug.go_to_clients()
-        facade_without_debug.open_auditoria()
+        facade_without_debug.open_fluxo_caixa()
         # Verifica que helper foi chamado normalmente
         mock_nav_helper.go_to_clients.assert_called_once()
-        mock_nav_helper.open_auditoria.assert_called_once()
+        mock_nav_helper.open_fluxo_caixa.assert_called_once()

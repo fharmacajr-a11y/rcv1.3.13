@@ -20,7 +20,7 @@ status_text: str = "LOCAL"
 DEFAULT_INTERVAL_MS = 30_000  # 30 seconds
 DEFAULT_TIMEOUT = 2.0
 CONFIG_PATH = Path("config.yml")
-_STATUS_DOT = "\u25cf"  # Unicode bullet rendered by ttkbootstrap
+_STATUS_DOT = "\u25cf"  # Unicode bullet (status indicator)
 
 # Cache structure: (path, mtime, (url, timeout, interval_ms))
 ConfigValues = tuple[str, float, int]
@@ -54,15 +54,27 @@ def _apply_status(app: Any, status: Status) -> None:
         if hasattr(app, "status_var_dot"):
             app.status_var_dot.set(_STATUS_DOT)
         if hasattr(app, "status_dot"):
-            style = "warning"
+            _STATUS_COLORS = {
+                "warning": ("#f39c12", "#f39c12"),
+                "success": ("#2ecc71", "#2ecc71"),
+                "danger": ("#e74c3c", "#e74c3c"),
+            }
+            color_tag = "warning"
             env_text = "LOCAL"
             if status == Status.ONLINE:
-                style = "success"
+                color_tag = "success"
                 env_text = "ONLINE"
             elif status == Status.OFFLINE:
-                style = "danger"
+                color_tag = "danger"
                 env_text = "OFFLINE"
-            app.status_dot.configure(bootstyle=style)
+            try:
+                app.status_dot.configure(text_color=_STATUS_COLORS[color_tag])
+            except Exception:  # noqa: BLE001
+                # Fallback para widget sem text_color (tk.Label liso)
+                try:
+                    app.status_dot.configure(foreground=_STATUS_COLORS[color_tag][0])
+                except Exception:  # noqa: BLE001
+                    pass
             _set_env_text(app, env_text)
         else:
             _set_env_text(app, "ONLINE" if status == Status.ONLINE else "OFFLINE")

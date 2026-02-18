@@ -35,7 +35,6 @@ def app_mock():
 
     app.show_hub_screen = RealApp.show_hub_screen.__get__(app, type(app))
     app.show_main_screen = RealApp.show_main_screen.__get__(app, type(app))
-    app.show_passwords_screen = RealApp.show_passwords_screen.__get__(app, type(app))
     app.show_cashflow_screen = RealApp.show_cashflow_screen.__get__(app, type(app))
     app.show_placeholder_screen = RealApp.show_placeholder_screen.__get__(app, type(app))
     app.novo_cliente = RealApp.novo_cliente.__get__(app, type(app))
@@ -67,6 +66,7 @@ def test_app_show_main_screen_chama_router(app_mock):
     app_mock._router.show.assert_called_once_with("main")
 
 
+@pytest.mark.skip(reason="Ação removida – migração CTK")
 def test_app_show_passwords_screen_chama_router(app_mock):
     """Testa que show_passwords_screen usa router."""
     app_mock.show_passwords_screen()

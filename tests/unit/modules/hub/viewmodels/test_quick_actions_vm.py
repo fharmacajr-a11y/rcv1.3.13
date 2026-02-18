@@ -88,15 +88,14 @@ class TestQuickActionsViewModel:
         state = vm.build_state()
 
         assert isinstance(state, QuickActionsViewState)
-        # BUGFIX-HUB-UI-001: Removidos farmacia_popular e sifap (7 actions restantes)
-        assert len(state.actions) == 7
+        # Removidos farmacia_popular, sifap, senhas e auditoria (5 actions restantes)
+        assert len(state.actions) == 5
         assert state.is_loading is False
         assert state.error_message is None
 
         # Verificar IDs dos atalhos essenciais
         action_ids = {a.id for a in state.actions}
-        # Garantir que ações principais existem (sem farmacia_popular e sifap)
-        for expected_id in {"clientes", "senhas", "auditoria", "fluxo_caixa", "anvisa", "sngpc", "sites"}:
+        for expected_id in {"clientes", "fluxo_caixa", "anvisa", "sngpc", "sites"}:
             assert expected_id in action_ids
 
     def test_build_state_correct_labels(self, vm):
@@ -105,14 +104,11 @@ class TestQuickActionsViewModel:
 
         actions_map = {a.id: a for a in state.actions}
 
-        # Verificar labels das ações essenciais (sem farmacia_popular e sifap)
+        # Verificar labels das ações essenciais (sem farmacia_popular, sifap, senhas e auditoria)
         assert actions_map["clientes"].label == "Clientes"
-        assert actions_map["senhas"].label == "Senhas"
-        assert actions_map["auditoria"].label == "Auditoria"
         assert actions_map["fluxo_caixa"].label == "Fluxo de Caixa"
         assert actions_map["anvisa"].label == "Anvisa"
         assert actions_map["sngpc"].label == "Sngpc"
-        # MF-39: sites incluído
         assert actions_map["sites"].label == "Sites"
 
     def test_build_state_correct_categories(self, vm):
@@ -126,9 +122,9 @@ class TestQuickActionsViewModel:
                 by_category[action.category] = []
             by_category[action.category].append(action.id)
 
-        # Verificar categorias principais (BUGFIX-HUB-UI-001: sem farmacia_popular e sifap)
-        assert set(by_category["cadastros"]) == {"clientes", "senhas"}
-        assert set(by_category["gestao"]) == {"auditoria", "fluxo_caixa"}
+        # Verificar categorias principais (sem farmacia_popular, sifap, senhas, auditoria)
+        assert set(by_category["cadastros"]) == {"clientes"}
+        assert set(by_category["gestao"]) == {"fluxo_caixa"}
         assert set(by_category["regulatorio"]) == {
             "anvisa",
             "sngpc",
@@ -147,8 +143,8 @@ class TestQuickActionsViewModel:
         # Verificar ordem específica (MF-39: sites agora é o último, não sifap)
         action_ids = [a.id for a in state.actions]
         assert action_ids[0] == "clientes"  # order=10 (sempre primeiro)
-        assert action_ids[1] == "senhas"  # order=20 (sempre segundo)
-        # Último agora é "sites" (order=90), não "sifap" (order=80)
+        # senhas e auditoria removidos – segundo agora é fluxo_caixa
+        assert action_ids[-1] == "sites"  # order=90 (sempre último)
 
     def test_build_state_all_enabled_by_default(self, vm):
         """Deve retornar todos atalhos habilitados por padrão."""
@@ -179,7 +175,6 @@ class TestQuickActionsViewModel:
         # Verificar IDs específicos existem
         actions_map = {a.id: a for a in state.actions}
         assert "clientes" in actions_map
-        assert "senhas" in actions_map
-        assert "auditoria" in actions_map
         assert "fluxo_caixa" in actions_map
+        assert "anvisa" in actions_map
         # bootstyle não mais validado (tag semântica opcional)

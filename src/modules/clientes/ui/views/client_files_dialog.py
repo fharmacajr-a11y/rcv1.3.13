@@ -16,14 +16,13 @@ import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from tkinter import filedialog, messagebox
-from tkinter import ttk
 from typing import Any, Optional
 import queue
 
 from src.ui.ctk_config import ctk
 from src.ui.ui_tokens import TEXT_PRIMARY, TEXT_MUTED, APP_BG
-from src.ui.ttk_treeview_manager import get_treeview_manager
 from src.ui.ttk_treeview_theme import apply_zebra
+from src.ui.widgets.ctk_treeview_container import CTkTreeviewContainer
 from src.ui.dark_window_helper import set_win_dark_titlebar
 from src.adapters.storage.supabase_storage import SupabaseStorageAdapter
 from src.modules.uploads.components.helpers import get_clients_bucket, client_prefix_for_id, get_current_org_id
@@ -213,7 +212,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
             )
             messagebox.showerror(
                 "Erro de Configuração",
-                "Não foi possível conectar ao Supabase.\n" "Verifique a configuração e tente novamente.",
+                "Não foi possível conectar ao Supabase.\nVerifique a configuração e tente novamente.",
                 parent=self,
             )
             return
@@ -335,20 +334,21 @@ class ClientFilesDialog(ctk.CTkToplevel):
         self.progress_bar.grid(row=3, column=0, sticky="ew", padx=15, pady=(0, 5))
         self.progress_bar.grid_remove()  # Ocultar inicialmente
 
-        # Body: TreeView + Scrollbar
-        body_frame = ctk.CTkFrame(container, fg_color="transparent", border_width=0)
-        body_frame.grid(row=4, column=0, sticky="nsew", padx=15, pady=(0, 10))
-        body_frame.grid_rowconfigure(0, weight=1)
-        body_frame.grid_columnconfigure(0, weight=1)
-
-        # Treeview
-        self.tree = ttk.Treeview(
-            body_frame,
+        # Body: CTkTreeviewContainer (substitui criação manual de TreeView + Scrollbar)
+        # FASE 4: Migração para CTkTreeviewContainer
+        self._tree_container = CTkTreeviewContainer(
+            container,
             columns=("tipo",),
             show="tree headings",
             selectmode="browse",
+            rowheight=24,
+            zebra=True,
+            style_name="RC.Treeview",
         )
-        self.tree.grid(row=0, column=0, sticky="nsew")
+        self._tree_container.grid(row=4, column=0, sticky="nsew", padx=15, pady=(0, 10))
+
+        # Obter referência ao Treeview interno (preserva API existente)
+        self.tree = self._tree_container.get_treeview()
 
         # Headings
         self.tree.heading("#0", text="Nome do arquivo/pasta", anchor="w")
@@ -358,20 +358,14 @@ class ClientFilesDialog(ctk.CTkToplevel):
         self.tree.column("#0", stretch=True, minwidth=200)
         self.tree.column("tipo", width=120, stretch=False, anchor="w")
 
-        # Scrollbar
-        scrollbar = ttk.Scrollbar(body_frame, orient="vertical", command=self.tree.yview)
-        scrollbar.grid(row=0, column=1, sticky="ns")
-        self.tree.configure(yscrollcommand=scrollbar.set)
-
         # Double-click para navegar em pastas
         self.tree.bind("<Double-Button-1>", self._on_tree_double_click)
 
         # Bind para atualizar estados dos botões quando seleção muda
         self.tree.bind("<<TreeviewSelect>>", self._on_tree_selection_change)
 
-        # Registrar Treeview no manager global (aplica tema automaticamente)
-        manager = get_treeview_manager()
-        _, self._tree_colors = manager.register(tree=self.tree, master=self, style_name="RC.Treeview", zebra=True)
+        # Obter cores do tema (CTkTreeviewContainer já registrou no manager)
+        self._tree_colors = self._tree_container.get_colors()
 
         # Footer: Botões de ação
         footer_frame = ctk.CTkFrame(container, fg_color="transparent", border_width=0)

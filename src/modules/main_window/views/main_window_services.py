@@ -75,24 +75,20 @@ def init_auth_controller(app: "MainWindow") -> Any:
 
 
 def init_theme_manager(app: "MainWindow") -> Optional[Any]:
-    """Configura o gerenciador de temas.
+    """Configura o gerenciador de temas via GlobalThemeManager (CustomTkinter).
 
     Args:
         app: Instância do MainWindow
 
     Returns:
-        Callback do theme listener ou None
+        None (listeners não são mais necessários com CTk)
     """
     try:
-        from src.ui import theme_manager, themes
+        from src.ui.theme_manager import theme_manager
 
-        theme_manager.register_window(app)
-
-        def listener(theme: str) -> None:
-            themes.apply_button_styles(app, theme=theme)
-
-        theme_manager.add_listener(listener)
-        return listener
+        theme_manager.set_master(app)
+        log.debug("GlobalThemeManager.set_master() configurado")
+        return None  # CTk não precisa de listener manual
     except Exception as exc:  # noqa: BLE001
         log.debug("Falha ao inicializar theme manager: %s", exc)
         return None

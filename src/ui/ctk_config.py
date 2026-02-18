@@ -24,12 +24,26 @@ try:
     _has_ctk = True
     _ctk_module = customtkinter
 except ImportError:
-    pass
+    # Mock básico para testes quando CustomTkinter não disponível
+    class MockCTk:
+        CTkFrame = object
+        CTkButton = object
+        CTkLabel = object
+        CTkEntry = object
+        CTkTextbox = object
+        CTkToplevel = object
+        CTkCheckBox = object
+        CTkComboBox = object
+        CTkSegmentedButton = object
+        CTkProgressBar = object
+        CTkScrollableFrame = object
+
+    _ctk_module = MockCTk()
 
 # Constante global exportada (Final para evitar reatribuição)
 HAS_CUSTOMTKINTER: Final[bool] = _has_ctk
 
-# Módulo customtkinter (ou None se não disponível)
+# Módulo customtkinter (ou Mock se não disponível)
 ctk = _ctk_module
 
 if TYPE_CHECKING:

@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import time
 
+import pytest
 
 from src.modules.hub.views.hub_screen_helpers import (
     build_module_buttons,
@@ -418,14 +419,12 @@ class TestBuildModuleButtons:
     def test_default_all_enabled(self):
         """Configuração padrão habilita módulos principais."""
         buttons = build_module_buttons()
-        assert len(buttons) == 8
+        assert len(buttons) == 6
 
-        # Verificar ordem
+        # Verificar ordem (senhas/auditoria removidos)
         texts = [b.text for b in buttons]
         assert texts[0] == "Clientes"
-        assert texts[1] == "Senhas"
-        assert texts[2] == "Auditoria"
-        assert texts[3] == "Fluxo de Caixa"
+        assert texts[1] == "Fluxo de Caixa"
 
     def test_clientes_enabled(self):
         """Módulo Clientes habilitado."""
@@ -435,6 +434,7 @@ class TestBuildModuleButtons:
         assert clientes.bootstyle == "info"
         assert clientes.has_callback is True
 
+    @pytest.mark.skip(reason="Ação 'senhas' removida – migração CTK")
     def test_senhas_enabled(self):
         """Módulo Senhas habilitado."""
         buttons = build_module_buttons(has_senhas=True)
@@ -442,6 +442,7 @@ class TestBuildModuleButtons:
         assert senhas.enabled is True
         assert senhas.bootstyle == "info"
 
+    @pytest.mark.skip(reason="Ação 'auditoria' removida – migração CTK")
     def test_auditoria_enabled(self):
         """Módulo Auditoria habilitado."""
         buttons = build_module_buttons(has_auditoria=True)

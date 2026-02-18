@@ -411,7 +411,7 @@ def test_fetch_client_names_success(monkeypatch: pytest.MonkeyPatch) -> None:
     mock_fetch = MagicMock(
         side_effect=lambda cid: {"razao_social": f"Cliente {cid}", "nome_fantasia": f"Fantasia {cid}"}
     )
-    monkeypatch.setattr("src.modules.clientes.service.fetch_cliente_by_id", mock_fetch)
+    monkeypatch.setattr("src.modules.clientes.core.service.fetch_cliente_by_id", mock_fetch)
 
     names = _fetch_client_names([1, 2])
     assert names[1] == "Cliente 1"
@@ -421,7 +421,7 @@ def test_fetch_client_names_success(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_fetch_client_names_fallback_nome_fantasia(monkeypatch: pytest.MonkeyPatch) -> None:
     """Testa _fetch_client_names com fallback para nome_fantasia."""
     mock_fetch = MagicMock(side_effect=lambda cid: {"razao_social": None, "nome_fantasia": f"Fantasia {cid}"})
-    monkeypatch.setattr("src.modules.clientes.service.fetch_cliente_by_id", mock_fetch)
+    monkeypatch.setattr("src.modules.clientes.core.service.fetch_cliente_by_id", mock_fetch)
 
     names = _fetch_client_names([1])
     assert names[1] == "Fantasia 1"
@@ -430,7 +430,7 @@ def test_fetch_client_names_fallback_nome_fantasia(monkeypatch: pytest.MonkeyPat
 def test_fetch_client_names_fallback_cliente_id(monkeypatch: pytest.MonkeyPatch) -> None:
     """Testa _fetch_client_names com fallback para Cliente #id."""
     mock_fetch = MagicMock(side_effect=lambda cid: {"razao_social": None, "nome_fantasia": None})
-    monkeypatch.setattr("src.modules.clientes.service.fetch_cliente_by_id", mock_fetch)
+    monkeypatch.setattr("src.modules.clientes.core.service.fetch_cliente_by_id", mock_fetch)
 
     names = _fetch_client_names([1])
     assert names[1] == "Cliente #1"
@@ -439,7 +439,7 @@ def test_fetch_client_names_fallback_cliente_id(monkeypatch: pytest.MonkeyPatch)
 def test_fetch_client_names_exception(monkeypatch: pytest.MonkeyPatch) -> None:
     """Testa _fetch_client_names com exception em fetch_cliente_by_id."""
     mock_fetch = MagicMock(side_effect=Exception("Database error"))
-    monkeypatch.setattr("src.modules.clientes.service.fetch_cliente_by_id", mock_fetch)
+    monkeypatch.setattr("src.modules.clientes.core.service.fetch_cliente_by_id", mock_fetch)
 
     names = _fetch_client_names([1])
     assert names[1] == "Cliente #1"
@@ -447,20 +447,28 @@ def test_fetch_client_names_exception(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_fetch_client_names_import_error_v2(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
     """Testa _fetch_client_names com ImportError (fallback e logger.warning)."""
-    # Simula ImportError ao tentar importar o módulo
     import builtins
+    import sys
 
     original_import = builtins.__import__
 
+    # Precisamos remover o módulo cacheado para que __import__ seja chamado novamente
+    saved = sys.modules.pop("src.modules.clientes.core.service", None)
+
     def mock_import(name: str, *args: Any, **kwargs: Any) -> Any:
-        if "clientes.service" in name:
+        if "clientes" in name and "service" in name:
             raise ImportError("Module not found")
         return original_import(name, *args, **kwargs)
 
     monkeypatch.setattr("builtins.__import__", mock_import)
 
-    with caplog.at_level(logging.WARNING):
-        names = _fetch_client_names([1, 2])
+    try:
+        with caplog.at_level(logging.WARNING):
+            names = _fetch_client_names([1, 2])
+    finally:
+        # Restaura o módulo no cache para não afetar outros testes
+        if saved is not None:
+            sys.modules["src.modules.clientes.core.service"] = saved
 
     assert names[1] == "Cliente #1"
     assert names[2] == "Cliente #2"
@@ -494,7 +502,7 @@ def test_load_pending_tasks_success(monkeypatch: pytest.MonkeyPatch) -> None:
     mock_fetch_cliente = MagicMock(side_effect=lambda cid: {"razao_social": f"Cliente {cid}", "nome_fantasia": None})
 
     monkeypatch.setattr("src.features.tasks.repository.list_tasks_for_org", mock_list_tasks)
-    monkeypatch.setattr("src.modules.clientes.service.fetch_cliente_by_id", mock_fetch_cliente)
+    monkeypatch.setattr("src.modules.clientes.core.service.fetch_cliente_by_id", mock_fetch_cliente)
 
     tasks = _load_pending_tasks("org-123", date(2023, 5, 15), limit=5)
     assert len(tasks) == 2
@@ -563,7 +571,7 @@ def test_load_clients_of_the_day_success(monkeypatch: pytest.MonkeyPatch) -> Non
     mock_fetch_cliente = MagicMock(side_effect=lambda cid: {"razao_social": f"Cliente {cid}", "nome_fantasia": None})
 
     monkeypatch.setattr("src.features.regulations.repository.list_obligations_for_org", mock_list_obligations)
-    monkeypatch.setattr("src.modules.clientes.service.fetch_cliente_by_id", mock_fetch_cliente)
+    monkeypatch.setattr("src.modules.clientes.core.service.fetch_cliente_by_id", mock_fetch_cliente)
 
     clients = _load_clients_of_the_day("org-123", today)
     assert len(clients) == 2
@@ -596,7 +604,7 @@ def test_load_clients_of_the_day_filters_status(monkeypatch: pytest.MonkeyPatch)
     mock_fetch_cliente = MagicMock(side_effect=lambda cid: {"razao_social": f"Cliente {cid}", "nome_fantasia": None})
 
     monkeypatch.setattr("src.features.regulations.repository.list_obligations_for_org", mock_list_obligations)
-    monkeypatch.setattr("src.modules.clientes.service.fetch_cliente_by_id", mock_fetch_cliente)
+    monkeypatch.setattr("src.modules.clientes.core.service.fetch_cliente_by_id", mock_fetch_cliente)
 
     clients = _load_clients_of_the_day("org-123", today)
     assert len(clients) == 1
@@ -625,7 +633,7 @@ def test_load_clients_of_the_day_filters_due_date(monkeypatch: pytest.MonkeyPatc
     mock_fetch_cliente = MagicMock(side_effect=lambda cid: {"razao_social": f"Cliente {cid}", "nome_fantasia": None})
 
     monkeypatch.setattr("src.features.regulations.repository.list_obligations_for_org", mock_list_obligations)
-    monkeypatch.setattr("src.modules.clientes.service.fetch_cliente_by_id", mock_fetch_cliente)
+    monkeypatch.setattr("src.modules.clientes.core.service.fetch_cliente_by_id", mock_fetch_cliente)
 
     clients = _load_clients_of_the_day("org-123", today)
     assert len(clients) == 1
@@ -1686,7 +1694,7 @@ def test_fetch_client_names_individual_exception(monkeypatch):
 
     _install_fake_module(
         monkeypatch,
-        "src.modules.clientes.service",
+        "src.modules.clientes.core.service",
         fetch_cliente_by_id=fake_fetch_cliente_by_id,
     )
 
@@ -1710,7 +1718,7 @@ def test_fetch_client_names_cliente_not_found(monkeypatch):
 
     _install_fake_module(
         monkeypatch,
-        "src.modules.clientes.service",
+        "src.modules.clientes.core.service",
         fetch_cliente_by_id=fake_fetch_cliente_by_id,
     )
 
@@ -1869,7 +1877,7 @@ def test_load_pending_tasks_with_none_client_ids(monkeypatch):
     )
     _install_fake_module(
         monkeypatch,
-        "src.modules.clientes.service",
+        "src.modules.clientes.core.service",
         fetch_cliente_by_id=fake_fetch_cliente_by_id,
     )
 

@@ -13,8 +13,7 @@ import warnings
 
 # Emitir warning UMA VEZ por sessão
 warnings.warn(
-    "src.modules.clientes.views.main_screen_helpers está deprecado. "
-    "Use src.modules.clientes.core.ui_helpers no lugar.",
+    "src.modules.clientes.views.main_screen_helpers está deprecado. Use src.modules.clientes.core.ui_helpers no lugar.",
     DeprecationWarning,
     stacklevel=2,
 )

@@ -324,7 +324,7 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
             self.content_frame,
             text=title,
             font=("Segoe UI", 16, "bold"),  # type: ignore[arg-type]
-            bootstyle="info",
+            text_color=("#1976D2", "#64B5F6"),
         )
         page_title.pack(pady=(20, 10))
 
@@ -333,7 +333,7 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
             self.content_frame,
             text="Em desenvolvimento.",
             font=("Segoe UI", 11),
-            bootstyle="secondary",
+            text_color=("#757575", "#BDBDBD"),
         )
         info_text.pack(pady=10)
 
@@ -555,14 +555,14 @@ class AnvisaScreen(AnvisaRequestsMixin, AnvisaHistoryPopupMixin, AnvisaHandlersM
 
         # Container principal (padding via pack ao invés de kwargs)
         main_frame = ctk.CTkFrame(dlg)
-        main_frame.pack(fill=BOTH, expand=True, padx=16, pady=(8, 16))
+        main_frame.pack(fill="both", expand=True, padx=16, pady=(8, 16))
 
         # A) Título (menos espaço embaixo)
         ctk.CTkLabel(
             main_frame,
             text="Regularização ANVISA",
             font=("Segoe UI", 16, "bold"),  # type: ignore[arg-type]
-            bootstyle="primary",
+            text_color=("#1976D2", "#64B5F6"),
         ).pack(pady=(0, 12))
 
         # B) Caixinha "Cliente" com 3 campos readonly

@@ -63,6 +63,7 @@ class TestGoToMethods:
         mock_logger.debug.assert_called_once()
         assert "open_clientes não definido" in mock_logger.debug.call_args[0][0]
 
+    @pytest.mark.skip(reason="Ação 'auditoria' removida – migração CTK")
     @patch("src.modules.hub.views.hub_navigation.logger")
     def test_go_to_pending_with_callback(self, mock_logger: MagicMock, dummy_hub: SimpleNamespace) -> None:
         """go_to_pending chama open_auditoria quando definido."""
@@ -74,6 +75,7 @@ class TestGoToMethods:
         dummy_hub.open_auditoria.assert_called_once()
         mock_logger.debug.assert_not_called()
 
+    @pytest.mark.skip(reason="Ação 'auditoria' removida – migração CTK")
     @patch("src.modules.hub.views.hub_navigation.logger")
     def test_go_to_pending_without_callback(self, mock_logger: MagicMock, dummy_hub: SimpleNamespace) -> None:
         """go_to_pending loga quando open_auditoria não definido."""
@@ -115,12 +117,14 @@ class TestOpenMethods:
             helper.open_clientes()
             mock_invoke.assert_called_once_with("clientes")
 
+    @pytest.mark.skip(reason="Ação 'senhas' removida – migração CTK")
     def test_open_senhas_delegates(self, helper: hub_nav.HubNavigationHelper) -> None:
         """open_senhas delega para _invoke_nav_callback('senhas')."""
         with patch.object(helper, "_invoke_nav_callback") as mock_invoke:
             helper.open_senhas()
             mock_invoke.assert_called_once_with("senhas")
 
+    @pytest.mark.skip(reason="Ação 'auditoria' removida – migração CTK")
     def test_open_auditoria_delegates(self, helper: hub_nav.HubNavigationHelper) -> None:
         """open_auditoria delega para _invoke_nav_callback('auditoria')."""
         with patch.object(helper, "_invoke_nav_callback") as mock_invoke:

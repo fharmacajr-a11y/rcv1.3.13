@@ -94,9 +94,7 @@ def check_multiple_roots(root: Optional[tk.Tk] = None) -> int:
         count = len(toplevels)
 
         if count > 1:
-            log.warning(
-                "Múltiplas toplevels detectadas: %d janelas! " "Isso pode causar janela 'tk' indesejada.", count
-            )
+            log.warning("Múltiplas toplevels detectadas: %d janelas! Isso pode causar janela 'tk' indesejada.", count)
             # Log detalhes em debug
             if log.isEnabledFor(logging.DEBUG):
                 for i, toplevel in enumerate(toplevels):

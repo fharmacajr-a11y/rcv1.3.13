@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import pytest
 
 import src.core.app_core as app_core
-import src.modules.clientes.forms.client_form as cf
+import src.modules.clientes.forms as cf
 
 
 @pytest.fixture(autouse=True)

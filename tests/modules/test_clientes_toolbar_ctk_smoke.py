@@ -7,7 +7,11 @@ import pytest
 
 from tests.helpers.skip_conditions import SKIP_PY313_TKINTER
 
+# Skip all tests since toolbar modules have been discontinued
+pytestmark = pytest.mark.skip("All toolbar modules discontinued - functionality moved to ui components")
 
+
+@pytest.mark.skip("toolbar_ctk module discontinued - functionality moved to ui components")
 def test_toolbar_ctk_import():
     """Verifica que toolbar_ctk pode ser importada."""
     try:
@@ -19,6 +23,7 @@ def test_toolbar_ctk_import():
         pytest.fail(f"Falha ao importar toolbar_ctk: {e}")
 
 
+@pytest.mark.skip("toolbar module discontinued - functionality moved to ui components")
 def test_toolbar_legacy_still_works():
     """Verifica que toolbar legada ainda funciona."""
     try:
@@ -29,6 +34,7 @@ def test_toolbar_legacy_still_works():
         pytest.fail(f"Falha ao importar toolbar legada: {e}")
 
 
+@pytest.mark.skip("main_screen_ui_builder module discontinued - functionality moved to ui components")
 def test_builder_imports_with_ctk():
     """Verifica que builder importa corretamente com CTK."""
     try:
@@ -40,6 +46,7 @@ def test_builder_imports_with_ctk():
         pytest.fail(f"Falha ao importar builder: {e}")
 
 
+@pytest.mark.skip("ClientesThemeManager module discontinued - functionality moved to theme_manager")
 def test_toolbar_ctk_creation_with_mocks():
     """Testa criação da toolbar CTK com mocks."""
     import tkinter as tk

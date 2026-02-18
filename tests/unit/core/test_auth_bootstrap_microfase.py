@@ -748,6 +748,7 @@ def test_update_footer_email_atualiza_quando_tem_usuario(monkeypatch):
     monkeypatch.setattr("src.core.auth_bootstrap._supabase_client", lambda: fake_client)
 
     fake_app = MagicMock()
+    fake_app.layout_refs = None  # Força fallback para app.footer
     fake_app.footer = MagicMock()
     auth_bootstrap._update_footer_email(fake_app)
 
@@ -764,6 +765,7 @@ def test_update_footer_email_nao_atualiza_quando_sem_usuario(monkeypatch):
     monkeypatch.setattr("src.core.auth_bootstrap._supabase_client", lambda: fake_client)
 
     fake_app = MagicMock()
+    fake_app.layout_refs = None  # Força fallback para app.footer
     fake_app.footer = MagicMock()
     auth_bootstrap._update_footer_email(fake_app)
 

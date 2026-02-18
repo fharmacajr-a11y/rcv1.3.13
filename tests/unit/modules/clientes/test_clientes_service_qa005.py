@@ -8,7 +8,7 @@ import types
 
 import pytest
 
-from src.modules.clientes import service
+from src.modules.clientes.core import service
 
 
 class TestFilterSelfQA005:

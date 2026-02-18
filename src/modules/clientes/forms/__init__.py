@@ -59,7 +59,7 @@ class ClientPicker:
             stacklevel=2,
         )
         raise NotImplementedError(
-            "ClientPicker foi removido.\n" "Código legado arquivado em: docs/_archive/clientes_forms/"
+            "ClientPicker foi removido.\nCódigo legado arquivado em: docs/_archive/clientes_forms/"
         )
 
 

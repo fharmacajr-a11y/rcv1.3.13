@@ -49,7 +49,7 @@ def test_manager():
 
     # Popular tree1
     for i in range(10):
-        iid = tree1.insert("", "end", text=f"{i:03d}", values=(f"Cliente {i}", f"Cidade {i}"))
+        tree1.insert("", "end", text=f"{i:03d}", values=(f"Cliente {i}", f"Cidade {i}"))
 
     # === Tree 2: ClientFiles ===
     frame2 = ctk.CTkFrame(main_frame)
@@ -66,7 +66,7 @@ def test_manager():
 
     # Popular tree2
     for i in range(5):
-        tree2.insert("", "end", text=f"file_{i}.txt", values=(f"{i*100} KB",))
+        tree2.insert("", "end", text=f"file_{i}.txt", values=(f"{i * 100} KB",))
 
     # === Botão de troca de tema ===
     def toggle_theme():

@@ -31,9 +31,9 @@ BATCH_01_MODULES = [
     "src.ui.hub_screen",
     "src.ui.lixeira.__init__",
     "src.ui.lixeira.lixeira",
-    "src.ui.passwords_screen",
-    "src.modules.clientes.forms.pipeline",
-    "src.ui.main_screen",
+    # "src.ui.passwords_screen",  # Removido na migração
+    # "src.modules.clientes.forms.pipeline",  # Removido na migração
+    # "src.ui.main_screen",  # Deprecated, MainScreenFrame não exportado mais
     "src.ui.widgets.client_picker",
     "src.modules.forms.actions",
 ]

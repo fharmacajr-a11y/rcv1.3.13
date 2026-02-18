@@ -16,11 +16,24 @@ class FakeTkRoot:
 
     def __init__(self):
         self.scheduled_callbacks: list[tuple[int, Callable, tuple]] = []
+        self._after_id_counter = 0
+        self._exists = True
 
-    def after(self, delay_ms: int, callback: Callable, *args) -> None:
+    def after(self, delay_ms: int, callback: Callable, *args) -> str:
         """Simula tk.after, executando callbacks imediatamente nos testes."""
         # Executar callback imediatamente para simplificar testes
         callback(*args)
+        # Retornar ID fake para compatibilidade com novo código
+        self._after_id_counter += 1
+        return f"after#{self._after_id_counter}"
+
+    def after_cancel(self, after_id: str) -> None:
+        """Simula tk.after_cancel."""
+        pass  # No-op em testes
+
+    def winfo_exists(self) -> bool:
+        """Simula tk.winfo_exists()."""
+        return self._exists
 
 
 @pytest.fixture

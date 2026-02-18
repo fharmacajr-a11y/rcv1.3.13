@@ -5,18 +5,33 @@ pois os testes legados foram escritos para widgets tkinter padrão.
 
 Estratégia:
 - Desabilita HAS_CUSTOMTKINTER globalmente em testes
-- Força ctk=None para garantir fallback
+- Usa mock leve de CTK para evitar quebrar herança de classes
 - Patches são aplicados antes de qualquer import dos módulos do HUB
 """
 
 from tkinter import Tk, TclError  # type: ignore[attr-defined]
 import pytest
 
-# PASSO 1A: Blindagem precoce (antes de qualquer import dos testes)
-import src.ui.ctk_config as ctk_config
 
-ctk_config.HAS_CUSTOMTKINTER = False
-ctk_config.ctk = None
+# Mock leve de CustomTkinter para testes (evita ctk=None que quebra herança)
+class _MinimalCTk:
+    """Mock mínimo de CustomTkinter para testes legados do Hub.
+
+    Fornece classes base vazias para evitar AttributeError quando
+    código tenta herdar de ctk.CTkFrame, ctk.CTkLabel, etc.
+    """
+
+    CTkFrame = object
+    CTkLabel = object
+    CTkButton = object
+    CTkToplevel = object
+    CTkEntry = object
+    CTkTextbox = object
+    CTkCheckBox = object
+    CTkComboBox = object
+    CTkSegmentedButton = object
+    CTkScrollableFrame = object
+    CTkScrollbar = object
 
 
 @pytest.fixture(autouse=True, scope="function")
@@ -30,17 +45,21 @@ def force_tk_fallback(monkeypatch):
     Without this, conditional inheritance creates CTkFrame instances
     that are incompatible with legacy test expectations.
     """
+    # Criar instância do mock CTK
+    minimal_ctk = _MinimalCTk()
+
     # Patch SSoT global flags BEFORE any module imports them
     monkeypatch.setattr("src.ui.ctk_config.HAS_CUSTOMTKINTER", False, raising=False)
-    monkeypatch.setattr("src.ui.ctk_config.ctk", None, raising=False)
+    monkeypatch.setattr("src.ui.ctk_config.ctk", minimal_ctk, raising=False)
 
     # PASSO 1B: Patch módulos já importados que cached o valor
     # (Importante: patch o nome usado pelo SUT, não um alias antigo)
+    # Usar minimal_ctk ao invés de None para não quebrar herança
     try:
         import src.modules.hub.views.hub_screen
 
         monkeypatch.setattr(src.modules.hub.views.hub_screen, "HAS_CUSTOMTKINTER", False)
-        monkeypatch.setattr(src.modules.hub.views.hub_screen, "ctk", None)
+        monkeypatch.setattr(src.modules.hub.views.hub_screen, "ctk", minimal_ctk)
     except (ImportError, AttributeError):
         pass
 
@@ -48,7 +67,7 @@ def force_tk_fallback(monkeypatch):
         import src.modules.hub.views.dashboard_center
 
         monkeypatch.setattr(src.modules.hub.views.dashboard_center, "HAS_CUSTOMTKINTER", False)
-        monkeypatch.setattr(src.modules.hub.views.dashboard_center, "ctk", None)
+        monkeypatch.setattr(src.modules.hub.views.dashboard_center, "ctk", minimal_ctk)
     except (ImportError, AttributeError):
         pass
 
@@ -56,7 +75,7 @@ def force_tk_fallback(monkeypatch):
         import src.modules.hub.views.hub_quick_actions_view
 
         monkeypatch.setattr(src.modules.hub.views.hub_quick_actions_view, "HAS_CUSTOMTKINTER", False)
-        monkeypatch.setattr(src.modules.hub.views.hub_quick_actions_view, "ctk", None)
+        monkeypatch.setattr(src.modules.hub.views.hub_quick_actions_view, "ctk", minimal_ctk)
     except (ImportError, AttributeError):
         pass
 
@@ -64,7 +83,7 @@ def force_tk_fallback(monkeypatch):
         import src.modules.hub.views.modules_panel
 
         monkeypatch.setattr(src.modules.hub.views.modules_panel, "HAS_CUSTOMTKINTER", False)
-        monkeypatch.setattr(src.modules.hub.views.modules_panel, "ctk", None)
+        monkeypatch.setattr(src.modules.hub.views.modules_panel, "ctk", minimal_ctk)
     except (ImportError, AttributeError):
         pass
 
@@ -72,7 +91,7 @@ def force_tk_fallback(monkeypatch):
         import src.modules.hub.views.notes_panel_view
 
         monkeypatch.setattr(src.modules.hub.views.notes_panel_view, "HAS_CUSTOMTKINTER", False)
-        monkeypatch.setattr(src.modules.hub.views.notes_panel_view, "ctk", None)
+        monkeypatch.setattr(src.modules.hub.views.notes_panel_view, "ctk", minimal_ctk)
     except (ImportError, AttributeError):
         pass
 
@@ -80,7 +99,7 @@ def force_tk_fallback(monkeypatch):
         import src.modules.hub.views.hub_screen_view_pure
 
         monkeypatch.setattr(src.modules.hub.views.hub_screen_view_pure, "HAS_CUSTOMTKINTER", False)
-        monkeypatch.setattr(src.modules.hub.views.hub_screen_view_pure, "ctk", None)
+        monkeypatch.setattr(src.modules.hub.views.hub_screen_view_pure, "ctk", minimal_ctk)
     except (ImportError, AttributeError):
         pass
 
@@ -88,7 +107,7 @@ def force_tk_fallback(monkeypatch):
         import src.modules.hub.views.hub_dialogs
 
         monkeypatch.setattr(src.modules.hub.views.hub_dialogs, "HAS_CUSTOMTKINTER", False)
-        monkeypatch.setattr(src.modules.hub.views.hub_dialogs, "ctk", None)
+        monkeypatch.setattr(src.modules.hub.views.hub_dialogs, "ctk", minimal_ctk)
     except (ImportError, AttributeError):
         pass
 

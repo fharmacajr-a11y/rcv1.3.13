@@ -220,19 +220,20 @@ def handle_client_picked_for_obligation(
         # Montar nome do cliente para exibição
         client_name = client_data.get("razao_social") or client_data.get("nome") or f"Cliente {client_id}"
 
-        # Abrir janela de obrigações
-        from src.modules.clientes.views.client_obligations_window import show_client_obligations_window
-
-        # Voltar para o Hub primeiro
+        # Navegar para o Hub antes de abrir a janela de obrigações
         app = get_main_app()
         if app:
             from src.modules.main_window.controller import navigate_to
 
             navigate_to(app, "hub")
 
-        # Depois abrir janela de obrigações
+        # Abrir janela de obrigações (stub enquanto funcionalidade em desenvolvimento)
+        from src.modules.clientes.views.client_obligations_window import (
+            show_client_obligations_window,
+        )
+
         show_client_obligations_window(
-            parent=parent.winfo_toplevel(),  # type: ignore[arg-type]
+            parent=parent,
             org_id=org_id,
             created_by=user_id,
             client_id=client_id,

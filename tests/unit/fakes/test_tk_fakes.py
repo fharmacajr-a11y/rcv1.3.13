@@ -411,6 +411,18 @@ class FakeTreeview:
         """Pack widget."""
         self._packed = True
 
+    def clear(self) -> None:
+        """Limpa todos os itens (compatível com CTkTableView)."""
+        self._items.clear()
+        self._children.clear()
+        self._selection.clear()
+
+    def get_selected_iid(self) -> str | None:
+        """Retorna iid do item selecionado (compatível com CTkTableView)."""
+        if self._selection:
+            return self._selection[0]
+        return None
+
     def bind(self, event: str, callback: Any) -> None:
         """Bind evento."""
         pass

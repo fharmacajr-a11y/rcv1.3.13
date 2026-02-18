@@ -143,7 +143,7 @@ class CTkKwargsValidator:
         context_lines = []
         for i in range(context_start, context_end):
             prefix = ">>>" if i == start_line else "   "
-            context_lines.append(f"{prefix} {i+1:3}: {lines[i]}")
+            context_lines.append(f"{prefix} {i + 1:3}: {lines[i]}")
 
         return "\n".join(context_lines)
 

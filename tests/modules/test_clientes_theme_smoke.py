@@ -11,9 +11,10 @@ from tests.helpers.skip_conditions import SKIP_PY313_TKINTER
 def test_clientes_theme_manager_import():
     """Verifica que o theme manager pode ser importado."""
     try:
-        from src.modules.clientes.appearance import ClientesThemeManager, HAS_CUSTOMTKINTER
+        from src.ui.theme_manager import theme_manager
+        from src.ui.ctk_config import HAS_CUSTOMTKINTER
 
-        assert ClientesThemeManager is not None
+        assert theme_manager is not None
         # HAS_CUSTOMTKINTER pode ser False se não estiver instalado
         assert isinstance(HAS_CUSTOMTKINTER, bool)
     except ImportError as e:
@@ -23,7 +24,7 @@ def test_clientes_theme_manager_import():
 def test_clientes_frame_import():
     """Verifica que ClientesFrame pode ser importado."""
     try:
-        from src.modules.clientes.view import ClientesFrame
+        from src.modules.clientes.ui.view import ClientesV2Frame as ClientesFrame
 
         assert ClientesFrame is not None
     except ImportError as e:
@@ -34,40 +35,34 @@ def test_lists_new_functions_import():
     """Verifica que as novas funções de lists.py podem ser importadas."""
     try:
         from src.ui.components.lists import (
-            reapply_clientes_treeview_style,
             reapply_clientes_treeview_tags,
+            create_clients_treeview,
         )
 
-        assert callable(reapply_clientes_treeview_style)
         assert callable(reapply_clientes_treeview_tags)
+        assert callable(create_clients_treeview)
     except ImportError as e:
         pytest.fail(f"Falha ao importar funções de lists: {e}")
 
 
 def test_theme_manager_basic_operations():
     """Verifica operações básicas do theme manager."""
-    from src.modules.clientes.appearance import ClientesThemeManager
-
-    manager = ClientesThemeManager()
+    from src.ui.theme_manager import theme_manager
 
     # Verifica que tem um modo inicial
-    assert manager.current_mode in ("light", "dark")
+    assert theme_manager.get_current_mode() in ("light", "dark")
 
-    # Verifica que get_palette retorna dict
-    palette = manager.get_palette()
-    assert isinstance(palette, dict)
-    assert "bg" in palette
-    assert "fg" in palette
-    assert "tree_bg" in palette
+    # Verifica operações básicas
+    current_mode = theme_manager.get_current_mode()
+    current_color = theme_manager.get_current_color()
 
-    # Verifica que save/load funciona
-    original_mode = manager.current_mode
-    manager.save_mode("dark")
-    loaded_mode = manager.load_mode()
-    assert loaded_mode == "dark"
+    # Testar toggle
+    toggled_mode = theme_manager.toggle_mode()
+    assert toggled_mode in ("light", "dark")
+    assert toggled_mode != current_mode
 
-    # Restaura estado original
-    manager.save_mode(original_mode)
+    # Voltar ao original
+    theme_manager.set_mode(current_mode)
 
 
 @SKIP_PY313_TKINTER

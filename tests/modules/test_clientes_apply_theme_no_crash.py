@@ -15,8 +15,8 @@ def test_apply_theme_to_widgets_no_crash_with_ctk():
     import tkinter as tk
 
     try:
-        from src.modules.clientes.view import ClientesFrame
-        from src.modules.clientes.views.toolbar_ctk import HAS_CUSTOMTKINTER
+        from src.modules.clientes.ui.view import ClientesV2Frame as ClientesFrame
+        from src.ui.ctk_config import HAS_CUSTOMTKINTER
 
         if not HAS_CUSTOMTKINTER:
             pytest.skip("CustomTkinter não disponível, teste não aplicável")
@@ -63,7 +63,7 @@ def test_apply_theme_skips_customtkinter_widgets():
     import tkinter as tk
 
     try:
-        from src.modules.clientes.appearance import ClientesThemeManager
+        from src.ui.theme_manager import theme_manager
         from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
 
         if not HAS_CUSTOMTKINTER:
@@ -71,8 +71,14 @@ def test_apply_theme_skips_customtkinter_widgets():
 
         root = tk.Tk()
         try:
-            theme_manager = ClientesThemeManager()
-            palette = theme_manager.get_palette()
+            # Usar o theme_manager global em vez do ClientesThemeManager
+            current_mode = theme_manager.get_current_mode()
+
+            # Criar paleta simples baseada no modo
+            if current_mode == "dark":
+                palette = {"bg": "#2b2b2b", "fg": "#ffffff", "tree_bg": "#1e1e1e"}
+            else:
+                palette = {"bg": "#ffffff", "fg": "#000000", "tree_bg": "#f0f0f0"}
 
             # Cria um mix de widgets tk e CTk
             frame = tk.Frame(root)
@@ -109,8 +115,8 @@ def test_theme_toggle_completes_without_error():
     import tkinter as tk
 
     try:
-        from src.modules.clientes.view import ClientesFrame
-        from src.modules.clientes.views.toolbar_ctk import HAS_CUSTOMTKINTER
+        from src.modules.clientes.ui.view import ClientesV2Frame as ClientesFrame
+        from src.ui.ctk_config import HAS_CUSTOMTKINTER
 
         if not HAS_CUSTOMTKINTER:
             pytest.skip("CustomTkinter não disponível")
@@ -160,11 +166,12 @@ def test_apply_theme_handles_tclerror_gracefully():
     import tkinter as tk
 
     try:
-        from src.modules.clientes.appearance import ClientesThemeManager
+        from src.ui.theme_manager import theme_manager
 
         root = tk.Tk()
         try:
-            _ = ClientesThemeManager()  # noqa: F841
+            # Usar o theme_manager global
+            current_mode = theme_manager.get_current_mode()
 
             # Cria widget que não existe mais (para simular TclError)
             label = tk.Label(root, text="Test")

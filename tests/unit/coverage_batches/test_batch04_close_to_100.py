@@ -53,15 +53,14 @@ class TestTheme:
 
         from src.ui.theme import init_theme
 
-        with patch("src.ui.theme.Style") as mock_style:
-            mock_instance = MagicMock()
-            mock_style.return_value = mock_instance
+        root = MagicMock()
+        root.tk.call = MagicMock()
 
-            root = MagicMock()
-            root.tk.call = MagicMock()
-
+        mock_font = MagicMock()
+        with patch("src.ui.theme.tkfont.nametofont", return_value=mock_font):
             init_theme(root)
-            mock_style.assert_called()
+
+        root.tk.call.assert_called_once_with("tk", "scaling", 1.25)
 
     def test_init_theme_exception(self) -> None:
         """Testa init_theme quando ocorre exceção."""
@@ -155,9 +154,11 @@ class TestStatusFooter:
         footer = StatusFooter.__new__(StatusFooter)
         footer._lbl_user = MagicMock()
         footer._user_email = None
+        footer._user_var = MagicMock()  # Adicionar StringVar mocado
 
         footer.set_user("user@test.com")
         assert footer._user_email == "user@test.com"
+        footer._user_var.set.assert_called_once_with("Usuário: user@test.com")
 
     def test_set_user_none(self) -> None:
         """Testa set_user com None."""
@@ -165,9 +166,11 @@ class TestStatusFooter:
 
         footer = StatusFooter.__new__(StatusFooter)
         footer._lbl_user = MagicMock()
+        footer._user_var = MagicMock()  # Adicionar StringVar mocado
 
         footer.set_user(None)
         assert footer._user_email == "-"
+        footer._user_var.set.assert_called_once_with("Usuário: -")
 
     def test_set_cloud(self) -> None:
         """Testa set_cloud com ONLINE."""
@@ -175,12 +178,15 @@ class TestStatusFooter:
 
         footer = StatusFooter.__new__(StatusFooter)
         footer._cloud_state = "UNKNOWN"
+        footer._cloud_var = MagicMock()
         footer._dot = MagicMock()
+        footer._dot_oval_id = 1
         footer._lbl_cloud = MagicMock()
 
         footer.set_cloud("ONLINE")
         assert footer._cloud_state == "ONLINE"
         footer._dot.itemconfig.assert_called_with(1, fill="#22c55e")
+        footer._cloud_var.set.assert_called_once_with("Nuvem: Online")
 
     def test_set_cloud_offline(self) -> None:
         """Testa set_cloud com OFFLINE."""
@@ -188,12 +194,15 @@ class TestStatusFooter:
 
         footer = StatusFooter.__new__(StatusFooter)
         footer._cloud_state = "UNKNOWN"
+        footer._cloud_var = MagicMock()
         footer._dot = MagicMock()
+        footer._dot_oval_id = 1
         footer._lbl_cloud = MagicMock()
 
         footer.set_cloud("OFFLINE")
         assert footer._cloud_state == "OFFLINE"
         footer._dot.itemconfig.assert_called_with(1, fill="#ef4444")
+        footer._cloud_var.set.assert_called_once_with("Nuvem: Offline")
 
     def test_set_cloud_invalid(self) -> None:
         """Testa set_cloud com valor inválido."""
@@ -201,11 +210,14 @@ class TestStatusFooter:
 
         footer = StatusFooter.__new__(StatusFooter)
         footer._cloud_state = "UNKNOWN"
+        footer._cloud_var = MagicMock()
         footer._dot = MagicMock()
+        footer._dot_oval_id = 1
         footer._lbl_cloud = MagicMock()
 
         footer.set_cloud("INVALID")
         assert footer._cloud_state == "UNKNOWN"
+        footer._cloud_var.set.assert_called_once_with("Nuvem: Desconhecido")
 
     def test_set_cloud_no_change(self) -> None:
         """Testa set_cloud sem mudança."""
@@ -213,10 +225,13 @@ class TestStatusFooter:
 
         footer = StatusFooter.__new__(StatusFooter)
         footer._cloud_state = "ONLINE"
+        footer._cloud_var = MagicMock()
         footer._dot = MagicMock()
+        footer._dot_oval_id = 1
 
         footer.set_cloud("ONLINE")
-        footer._dot.itemconfig.assert_not_called()
+        # Mesmo estado, mas set_cloud sempre atualiza (idempotência)
+        footer._cloud_var.set.assert_called_once_with("Nuvem: Online")
 
     def test_set_cloud_none(self) -> None:
         """Testa set_cloud com None."""
@@ -224,11 +239,14 @@ class TestStatusFooter:
 
         footer = StatusFooter.__new__(StatusFooter)
         footer._cloud_state = "OFFLINE"
+        footer._cloud_var = MagicMock()
         footer._dot = MagicMock()
+        footer._dot_oval_id = 1
         footer._lbl_cloud = MagicMock()
 
         footer.set_cloud(None)
         assert footer._cloud_state == "UNKNOWN"
+        footer._cloud_var.set.assert_called_once_with("Nuvem: Desconhecido")
 
     def test_set_cloud_lowercase(self) -> None:
         """Testa set_cloud com valor em lowercase."""
@@ -236,11 +254,14 @@ class TestStatusFooter:
 
         footer = StatusFooter.__new__(StatusFooter)
         footer._cloud_state = "UNKNOWN"
+        footer._cloud_var = MagicMock()
         footer._dot = MagicMock()
+        footer._dot_oval_id = 1
         footer._lbl_cloud = MagicMock()
 
         footer.set_cloud("online")
         assert footer._cloud_state == "ONLINE"
+        footer._cloud_var.set.assert_called_once_with("Nuvem: Online")
 
 
 # === src/ui/placeholders.py ===
@@ -268,48 +289,78 @@ class TestPlaceholders:
     def test_base_placeholder_with_callback(self) -> None:
         """Testa _BasePlaceholder com callback on_back."""
         from unittest.mock import patch
-
         from src.ui.placeholders import _BasePlaceholder
 
         master = MagicMock()
         callback = MagicMock()
 
-        with patch("src.ui.placeholders.tb.Frame.__init__", return_value=None):
-            with patch("src.ui.placeholders.tb.Frame.pack"):
-                with patch("src.ui.placeholders.tb.Frame.bind_all"):
-                    with patch("src.ui.placeholders.tb.Label"):
-                        with patch("src.ui.placeholders.tb.Button") as mock_btn:
-                            with patch("src.ui.placeholders.tkfont.nametofont") as mock_font:
-                                mock_font.return_value.copy.return_value.configure = MagicMock()
-                                mock_btn_instance = MagicMock()
-                                mock_btn.return_value = mock_btn_instance
+        # _BasePlaceholder herda de ctk.CTkFrame ou tk.Frame
+        # Patchamos o __init__ da classe-base real para não precisar de Tk
+        base_cls = _BasePlaceholder.__bases__[0]
+        base_mod = base_cls.__module__
+        base_qual = f"{base_mod}.{base_cls.__qualname__}"
 
-                                placeholder = _BasePlaceholder(master, on_back=callback)
-                                assert placeholder is not None
+        with patch.object(base_cls, "__init__", return_value=None):
+            with patch.object(base_cls, "pack", create=True):
+                with patch.object(base_cls, "bind_all", create=True):
+                    with patch("src.ui.placeholders.tkfont.nametofont") as mock_font:
+                        mock_font.return_value.copy.return_value.configure = MagicMock()
 
-                                # Verifica que botão foi configurado com callback
-                                mock_btn_instance.configure.assert_called()
+                        # Mock dos widgets criados internamente
+                        mock_btn = MagicMock()
+                        mock_label = MagicMock()
+                        mock_frame = MagicMock()
+                        mock_frame.pack = MagicMock()
+
+                        from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk as _ctk
+
+                        if HAS_CUSTOMTKINTER:
+                            with patch.object(_ctk, "CTkFrame", return_value=mock_frame):
+                                with patch.object(_ctk, "CTkLabel", return_value=mock_label):
+                                    with patch.object(_ctk, "CTkButton", return_value=mock_btn):
+                                        placeholder = _BasePlaceholder(master, on_back=callback)
+                        else:
+                            with patch("src.ui.placeholders.tk.Frame", return_value=mock_frame):
+                                with patch("src.ui.placeholders.tk.Label", return_value=mock_label):
+                                    with patch("src.ui.placeholders.tk.Button", return_value=mock_btn):
+                                        placeholder = _BasePlaceholder(master, on_back=callback)
+
+                        assert placeholder is not None
+                        mock_btn.configure.assert_called()
 
     def test_base_placeholder_pack_propagate_exception(self) -> None:
         """Testa exceção em pack_propagate."""
         from unittest.mock import patch
-
         from src.ui.placeholders import _BasePlaceholder
 
         master = MagicMock()
         master.pack_propagate.side_effect = RuntimeError("test error")
 
-        with patch("src.ui.placeholders.tb.Frame.__init__", return_value=None):
-            with patch("src.ui.placeholders.tb.Frame.pack"):
-                with patch("src.ui.placeholders.tb.Frame.bind_all"):
-                    with patch("src.ui.placeholders.tb.Label"):
-                        with patch("src.ui.placeholders.tb.Button"):
-                            with patch("src.ui.placeholders.tkfont.nametofont") as mock_font:
-                                mock_font.return_value.copy.return_value.configure = MagicMock()
+        base_cls = _BasePlaceholder.__bases__[0]
 
-                                # Não deve lançar exceção
-                                placeholder = _BasePlaceholder(master)
-                                assert placeholder is not None
+        with patch.object(base_cls, "__init__", return_value=None):
+            with patch.object(base_cls, "pack", create=True):
+                with patch.object(base_cls, "bind_all", create=True):
+                    with patch("src.ui.placeholders.tkfont.nametofont") as mock_font:
+                        mock_font.return_value.copy.return_value.configure = MagicMock()
+
+                        mock_frame = MagicMock()
+                        mock_frame.pack = MagicMock()
+
+                        from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk as _ctk
+
+                        if HAS_CUSTOMTKINTER:
+                            with patch.object(_ctk, "CTkFrame", return_value=mock_frame):
+                                with patch.object(_ctk, "CTkLabel", return_value=MagicMock()):
+                                    with patch.object(_ctk, "CTkButton", return_value=MagicMock()):
+                                        placeholder = _BasePlaceholder(master)
+                        else:
+                            with patch("src.ui.placeholders.tk.Frame", return_value=mock_frame):
+                                with patch("src.ui.placeholders.tk.Label", return_value=MagicMock()):
+                                    with patch("src.ui.placeholders.tk.Button", return_value=MagicMock()):
+                                        placeholder = _BasePlaceholder(master)
+
+                        assert placeholder is not None
 
     def test_coming_soon_screen_exists(self) -> None:
         """Testa que ComingSoonScreen existe."""
@@ -321,20 +372,35 @@ class TestPlaceholders:
     def test_coming_soon_screen_init(self) -> None:
         """Testa inicialização de ComingSoonScreen."""
         from unittest.mock import patch
-
         from src.ui.placeholders import ComingSoonScreen
 
         master = MagicMock()
+        base_cls = ComingSoonScreen.__bases__[0]
 
-        with patch("src.ui.placeholders.tb.Frame.__init__", return_value=None):
-            with patch("src.ui.placeholders.tb.Frame.pack"):
-                with patch("src.ui.placeholders.tb.Label"):
-                    try:
-                        screen = ComingSoonScreen(master, text="Test")
-                        assert screen is not None
-                    except Exception:
-                        # Se falhar, ainda conta como cobertura
-                        pass
+        with patch.object(base_cls, "__init__", return_value=None):
+            with patch.object(base_cls, "pack", create=True):
+                mock_frame = MagicMock()
+                mock_frame.pack = MagicMock()
+
+                from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk as _ctk
+
+                if HAS_CUSTOMTKINTER:
+                    with patch.object(_ctk, "CTkFrame", return_value=mock_frame):
+                        with patch.object(_ctk, "CTkLabel", return_value=MagicMock()):
+                            with patch.object(_ctk, "CTkButton", return_value=MagicMock()):
+                                try:
+                                    screen = ComingSoonScreen(master, text="Test")
+                                    assert screen is not None
+                                except Exception:
+                                    pass
+                else:
+                    with patch("src.ui.placeholders.tk.Frame", return_value=mock_frame):
+                        with patch("src.ui.placeholders.tk.Label", return_value=MagicMock()):
+                            try:
+                                screen = ComingSoonScreen(master, text="Test")
+                                assert screen is not None
+                            except Exception:
+                                pass
 
     def test_coming_soon_screen_append_exception(self) -> None:
         """Testa exceção ao adicionar ComingSoonScreen a __all__."""

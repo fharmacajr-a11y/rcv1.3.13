@@ -28,7 +28,7 @@ times = []
 flash_count = 0
 
 for i in range(20):
-    print(f"\n[{i+1}/20] Abrindo diálogo...")
+    print(f"\n[{i + 1}/20] Abrindo diálogo...")
 
     start = time.time()
 
@@ -36,7 +36,7 @@ for i in range(20):
     dialog = ClientEditorDialog(
         parent=root,
         client_id=None,  # Novo cliente
-        session_id=f"test-{i+1}",
+        session_id=f"test-{i + 1}",
     )
 
     elapsed = time.time() - start
@@ -59,7 +59,7 @@ print("\n" + "=" * 60)
 print("RESULTADOS")
 print("=" * 60)
 print("Total de aberturas: 20")
-print(f"Tempo médio: {sum(times)/len(times):.3f}s")
+print(f"Tempo médio: {sum(times) / len(times):.3f}s")
 print(f"Tempo mínimo: {min(times):.3f}s")
 print(f"Tempo máximo: {max(times):.3f}s")
 print("\n✅ Se NÃO houve flash branco: CORREÇÃO FUNCIONOU")

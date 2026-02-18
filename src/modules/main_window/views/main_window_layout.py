@@ -27,6 +27,7 @@ from src.ui.topbar import TopBar
 from src.ui.menu_bar import AppMenuBar
 from src.ui.status_footer import StatusFooter
 from src.core.navigation_controller import NavigationController
+from src.modules.main_window.services.footer_controller import FooterController
 
 if TYPE_CHECKING:
     from src.modules.main_window.views.main_window import App
@@ -51,11 +52,14 @@ class MainWindowLayoutRefs:
     content_container: tk.Frame  # MICROFASE 24: Pode ser tk.Frame ou ctk.CTkFrame
     nav: NavigationController
     footer: StatusFooter
+    footer_controller: FooterController  # FASE 5A FIX: Controlador de estado do footer
 
     # Variáveis Tkinter
     clients_count_var: tk.StringVar
     status_var_dot: tk.StringVar
     status_var_text: tk.StringVar
+    footer_user_var: tk.StringVar
+    footer_cloud_var: tk.StringVar
 
 
 def build_main_window_layout(
@@ -149,11 +153,16 @@ def _build_layout_skeleton(
         master=app,
         value=(getattr(app_status, "status_text", None) or "LOCAL"),
     )
+    footer_user_var = tk.StringVar(master=app, value="Usuário: -")
+    footer_cloud_var = tk.StringVar(master=app, value="Nuvem: Desconhecido")
 
     # Criar separadores como placeholders (não empacotar ainda)
     SEP_H = 2
     sep_menu_toolbar = ctk.CTkFrame(app, height=SEP_H, corner_radius=0, fg_color=SEP)
     sep_toolbar_main = ctk.CTkFrame(app, height=SEP_H, corner_radius=0, fg_color=SEP)
+
+    # FASE 5A FIX: Criar FooterController (sempre existe, mesmo antes do footer)
+    footer_controller = FooterController(root=app)
 
     log.info("Layout skeleton criado (container não empacotado ainda)")
 
@@ -168,6 +177,9 @@ def _build_layout_skeleton(
         clients_count_var=clients_count_var,
         status_var_dot=status_var_dot,
         status_var_text=status_var_text,
+        footer_user_var=footer_user_var,
+        footer_cloud_var=footer_cloud_var,
+        footer_controller=footer_controller,
     )
 
 
@@ -235,11 +247,17 @@ def _build_layout_deferred(app: App, refs: MainWindowLayoutRefs) -> None:
         menu.attach()
 
         # 3. StatusFooter (fundo - ANTES do container para não ser coberto)
-        footer = StatusFooter(app, show_trash=False)
+        footer = StatusFooter(
+            app,
+            show_trash=False,
+            user_var=refs.footer_user_var,
+            cloud_var=refs.footer_cloud_var,
+        )
         footer.pack(side="bottom", fill="x")
         footer.set_count(0)
-        footer.set_user(None)
-        footer.set_cloud("UNKNOWN")
+
+        # FASE 5A FIX: Bindar footer ao controller e aplicar estado
+        refs.footer_controller.bind_footer(footer)
         log.info("StatusFooter criado e empacotado no fundo")
 
         # 4. Container de conteúdo (meio, expand - POR ÚLTIMO)
@@ -254,6 +272,12 @@ def _build_layout_deferred(app: App, refs: MainWindowLayoutRefs) -> None:
         refs.menu = menu
         refs.nav = nav
         refs.footer = footer
+
+        # FASE 5A FIX: Atualizar também app para compatibilidade
+        app.footer = footer
+        app.nav = nav
+        app._topbar = topbar
+        app._menu = menu
 
         log.debug("Layout deferred completo")
 

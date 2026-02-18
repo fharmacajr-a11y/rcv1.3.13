@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from src.ui.ctk_config import ctk
-
+import logging
 import tkinter as tk
 from typing import Optional
+
+from src.ui.ctk_config import ctk
+
+log = logging.getLogger(__name__)
 
 CLOUD_COLORS = {
     "ONLINE": "#22c55e",
@@ -13,7 +16,14 @@ CLOUD_COLORS = {
 
 
 class StatusFooter(ctk.CTkFrame):
-    def __init__(self, master, on_lixeira_click=None, show_trash=False):
+    def __init__(
+        self,
+        master,
+        on_lixeira_click=None,
+        show_trash=False,
+        user_var: tk.StringVar | None = None,
+        cloud_var: tk.StringVar | None = None,
+    ):
         super().__init__(master)
         # CTkFrame não suporta padding - usar grid/pack configurações
         self.columnconfigure(0, weight=1)
@@ -35,12 +45,16 @@ class StatusFooter(ctk.CTkFrame):
         right = ctk.CTkFrame(self)
         right.grid(row=1, column=1, sticky="e", padx=6, pady=2)
 
-        self._dot = tk.Canvas(right, width=14, height=14, highlightthickness=0, bd=0)
-        self._dot.create_oval(2, 2, 12, 12, fill=CLOUD_COLORS["UNKNOWN"], outline="")
-        self._lbl_cloud = ctk.CTkLabel(right, text="Nuvem: Desconhecido")
+        # Usar StringVars se fornecidas (suporte a updates antes do widget existir)
+        self._cloud_var = cloud_var or tk.StringVar(value="Nuvem: Desconhecido")
+        self._user_var = user_var or tk.StringVar(value="Usuário: -")
 
+        self._dot = tk.Canvas(right, width=14, height=14, highlightthickness=0, bd=0)
+        self._dot_oval_id = self._dot.create_oval(2, 2, 12, 12, fill=CLOUD_COLORS["UNKNOWN"], outline="")
+
+        self._lbl_cloud = ctk.CTkLabel(right, textvariable=self._cloud_var)
         sep = ctk.CTkLabel(right, text="  •  ")
-        self._lbl_user = ctk.CTkLabel(right, text="Usuário: -")
+        self._lbl_user = ctk.CTkLabel(right, textvariable=self._user_var)
 
         self._dot.grid(row=0, column=0, sticky="e")
         self._lbl_cloud.grid(row=0, column=1, sticky="e", padx=(6, 0))
@@ -77,16 +91,29 @@ class StatusFooter(ctk.CTkFrame):
 
     def set_user(self, email: str | None):
         self._user_email = email or "-"
-        self._lbl_user.configure(text=f"Usuário: {self._user_email}")
+        self._user_var.set(f"Usuário: {self._user_email}")
+        log.debug(f"StatusFooter: user atualizado -> {self._user_email}")
 
     def set_cloud(self, state: Optional[str]) -> None:
         state = (state or "UNKNOWN").upper()
         if state not in CLOUD_COLORS:
             state = "UNKNOWN"
-        if state == self._cloud_state:
-            return
+
+        # Sempre atualizar estado (não return cedo para idempotência)
         self._cloud_state = state
         color = CLOUD_COLORS[state]
-        self._dot.itemconfig(1, fill=color)
+
+        # Atualizar dot com retry se TclError
+        if hasattr(self, "_dot") and self._dot and hasattr(self, "_dot_oval_id"):
+            try:
+                self._dot.itemconfig(self._dot_oval_id, fill=color)
+            except tk.TclError:
+                # Retry via after(0) se widget ainda não pronto
+                try:
+                    self.after(0, lambda: self._dot.itemconfig(self._dot_oval_id, fill=color))
+                except Exception:
+                    pass  # Ignorar se after também falhar
+
         label = {"ONLINE": "Online", "OFFLINE": "Offline", "UNKNOWN": "Desconhecido"}[state]
-        self._lbl_cloud.configure(text=f"Nuvem: {label}")
+        self._cloud_var.set(f"Nuvem: {label}")
+        log.debug(f"StatusFooter: cloud atualizado -> {state}")

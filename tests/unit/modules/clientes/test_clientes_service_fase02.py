@@ -252,7 +252,7 @@ def test_extrair_dados_cartao_cnpj_em_pasta_fallback_extrai_de_pdf(
 # ============================================================================
 
 
-@patch("src.modules.clientes.service.checar_duplicatas_info")
+@patch("src.modules.clientes.core.service.checar_duplicatas_info")
 def test_checar_duplicatas_para_form_sem_conflitos(mock_duplicatas):
     """Retorna dict estruturado quando não há conflitos."""
     mock_duplicatas.return_value = {
@@ -271,7 +271,7 @@ def test_checar_duplicatas_para_form_sem_conflitos(mock_duplicatas):
     assert result["blocking_fields"]["razao"] is False
 
 
-@patch("src.modules.clientes.service.checar_duplicatas_info")
+@patch("src.modules.clientes.core.service.checar_duplicatas_info")
 def test_checar_duplicatas_para_form_com_conflito_cnpj(mock_duplicatas):
     """Retorna conflito CNPJ quando detectado."""
     mock_duplicatas.return_value = {
@@ -288,7 +288,7 @@ def test_checar_duplicatas_para_form_com_conflito_cnpj(mock_duplicatas):
     assert result["conflict_ids"]["cnpj"] == [99]
 
 
-@patch("src.modules.clientes.service.checar_duplicatas_info")
+@patch("src.modules.clientes.core.service.checar_duplicatas_info")
 def test_checar_duplicatas_para_form_com_conflito_razao(mock_duplicatas):
     """Retorna conflitos de razao quando detectados."""
     mock_duplicatas.return_value = {
@@ -309,8 +309,8 @@ def test_checar_duplicatas_para_form_com_conflito_razao(mock_duplicatas):
 # ============================================================================
 
 
-@patch("src.modules.clientes.service.exec_postgrest")
-@patch("src.modules.clientes.service.supabase")
+@patch("src.modules.clientes.core.service.exec_postgrest")
+@patch("src.modules.clientes.core.service.supabase")
 def test_mover_cliente_para_lixeira_sucesso(mock_supabase, mock_exec):
     """Move cliente para lixeira atualizando deleted_at."""
     mock_query = Mock()
@@ -326,7 +326,7 @@ def test_mover_cliente_para_lixeira_sucesso(mock_supabase, mock_exec):
     mock_exec.assert_called_once()
 
 
-@patch("src.modules.clientes.service.exec_postgrest")
+@patch("src.modules.clientes.core.service.exec_postgrest")
 def test_mover_cliente_para_lixeira_propaga_erro_postgrest(mock_exec):
     """Propaga exceção quando exec_postgrest falha."""
     mock_exec.side_effect = RuntimeError("Database error")
@@ -340,8 +340,8 @@ def test_mover_cliente_para_lixeira_propaga_erro_postgrest(mock_exec):
 # ============================================================================
 
 
-@patch("src.modules.clientes.service.exec_postgrest")
-@patch("src.modules.clientes.service.supabase")
+@patch("src.modules.clientes.core.service.exec_postgrest")
+@patch("src.modules.clientes.core.service.supabase")
 def test_restaurar_clientes_da_lixeira_lista_vazia(mock_supabase, mock_exec):
     """Não faz nada quando lista de IDs está vazia."""
     restaurar_clientes_da_lixeira([])
@@ -350,8 +350,8 @@ def test_restaurar_clientes_da_lixeira_lista_vazia(mock_supabase, mock_exec):
     mock_exec.assert_not_called()
 
 
-@patch("src.modules.clientes.service.exec_postgrest")
-@patch("src.modules.clientes.service.supabase")
+@patch("src.modules.clientes.core.service.exec_postgrest")
+@patch("src.modules.clientes.core.service.supabase")
 def test_restaurar_clientes_da_lixeira_sucesso(mock_supabase, mock_exec):
     """Restaura múltiplos clientes removendo deleted_at."""
     mock_query = Mock()
@@ -374,8 +374,8 @@ def test_restaurar_clientes_da_lixeira_sucesso(mock_supabase, mock_exec):
 # ============================================================================
 
 
-@patch("src.modules.clientes.service.exec_postgrest")
-@patch("src.modules.clientes.service.supabase")
+@patch("src.modules.clientes.core.service.exec_postgrest")
+@patch("src.modules.clientes.core.service.supabase")
 def test_excluir_cliente_simples_sucesso(mock_supabase, mock_exec):
     """Exclui cliente fisicamente do banco."""
     mock_query = Mock()
@@ -396,7 +396,7 @@ def test_excluir_cliente_simples_sucesso(mock_supabase, mock_exec):
 # ============================================================================
 
 
-@patch("src.modules.clientes.service._list_clientes_deletados_core")
+@patch("src.modules.clientes.core.service._list_clientes_deletados_core")
 def test_listar_clientes_na_lixeira_sucesso(mock_core):
     """Retorna lista de clientes deletados via core."""
     mock_core.return_value = [
@@ -411,9 +411,9 @@ def test_listar_clientes_na_lixeira_sucesso(mock_core):
     mock_core.assert_called_once_with(order_by="id", descending=True)
 
 
-@patch("src.modules.clientes.service.exec_postgrest")
-@patch("src.modules.clientes.service.supabase")
-@patch("src.modules.clientes.service._list_clientes_deletados_core")
+@patch("src.modules.clientes.core.service.exec_postgrest")
+@patch("src.modules.clientes.core.service.supabase")
+@patch("src.modules.clientes.core.service._list_clientes_deletados_core")
 def test_listar_clientes_na_lixeira_fallback_quando_core_falha(mock_core, mock_supabase, mock_exec):
     """Usa fallback direto ao Supabase quando core levanta exceção."""
     mock_core.side_effect = RuntimeError("Core failure")
@@ -436,9 +436,9 @@ def test_listar_clientes_na_lixeira_fallback_quando_core_falha(mock_core, mock_s
     mock_supabase.table.assert_called_once_with("clients")
 
 
-@patch("src.modules.clientes.service.exec_postgrest")
-@patch("src.modules.clientes.service.supabase")
-@patch("src.modules.clientes.service._list_clientes_deletados_core")
+@patch("src.modules.clientes.core.service.exec_postgrest")
+@patch("src.modules.clientes.core.service.supabase")
+@patch("src.modules.clientes.core.service._list_clientes_deletados_core")
 def test_listar_clientes_na_lixeira_fallback_retorna_dict(mock_core, mock_supabase, mock_exec):
     """Fallback extrai 'data' de dict quando resp não tem atributo."""
     mock_core.side_effect = Exception("error")
@@ -463,7 +463,7 @@ def test_listar_clientes_na_lixeira_fallback_retorna_dict(mock_core, mock_supaba
 # ============================================================================
 
 
-@patch("src.modules.clientes.service.core_get_cliente_by_id")
+@patch("src.modules.clientes.core.service.core_get_cliente_by_id")
 def test_get_cliente_by_id_retorna_objeto(mock_core):
     """get_cliente_by_id retorna objeto do core."""
     mock_obj = Mock()
@@ -476,7 +476,7 @@ def test_get_cliente_by_id_retorna_objeto(mock_core):
     mock_core.assert_called_once_with(42)
 
 
-@patch("src.modules.clientes.service.core_get_cliente_by_id")
+@patch("src.modules.clientes.core.service.core_get_cliente_by_id")
 def test_get_cliente_by_id_retorna_none(mock_core):
     """get_cliente_by_id retorna None quando não encontra."""
     mock_core.return_value = None
@@ -486,7 +486,7 @@ def test_get_cliente_by_id_retorna_none(mock_core):
     assert result is None
 
 
-@patch("src.modules.clientes.service.get_cliente_by_id")
+@patch("src.modules.clientes.core.service.get_cliente_by_id")
 def test_fetch_cliente_by_id_retorna_none(mock_get):
     """fetch_cliente_by_id retorna None quando cliente não existe."""
     mock_get.return_value = None
@@ -496,7 +496,7 @@ def test_fetch_cliente_by_id_retorna_none(mock_get):
     assert result is None
 
 
-@patch("src.modules.clientes.service.get_cliente_by_id")
+@patch("src.modules.clientes.core.service.get_cliente_by_id")
 def test_fetch_cliente_by_id_retorna_dict_direto(mock_get):
     """fetch_cliente_by_id retorna dict quando get_cliente retorna dict."""
     mock_get.return_value = {"id": 10, "razao_social": "Teste"}
@@ -506,7 +506,7 @@ def test_fetch_cliente_by_id_retorna_dict_direto(mock_get):
     assert result == {"id": 10, "razao_social": "Teste"}
 
 
-@patch("src.modules.clientes.service.get_cliente_by_id")
+@patch("src.modules.clientes.core.service.get_cliente_by_id")
 def test_fetch_cliente_by_id_converte_objeto_para_dict(mock_get):
     """fetch_cliente_by_id converte objeto em dict."""
     mock_obj = Mock()
@@ -530,9 +530,9 @@ def test_fetch_cliente_by_id_converte_objeto_para_dict(mock_get):
 # ============================================================================
 
 
-@patch("src.modules.clientes.service.exec_postgrest")
-@patch("src.modules.clientes.service.supabase")
-@patch("src.modules.clientes.service.fetch_cliente_by_id")
+@patch("src.modules.clientes.core.service.exec_postgrest")
+@patch("src.modules.clientes.core.service.supabase")
+@patch("src.modules.clientes.core.service.fetch_cliente_by_id")
 def test_update_cliente_status_and_observacoes_com_int(mock_fetch, mock_supabase, mock_exec):
     """Aceita cliente_id como int."""
     mock_fetch.return_value = {"id": 50, "observacoes": "Texto antigo"}
@@ -549,7 +549,7 @@ def test_update_cliente_status_and_observacoes_com_int(mock_fetch, mock_supabase
     mock_query.update.assert_called_once()
 
 
-@patch("src.modules.clientes.service.fetch_cliente_by_id")
+@patch("src.modules.clientes.core.service.fetch_cliente_by_id")
 def test_update_cliente_status_and_observacoes_cliente_sem_id(mock_fetch):
     """Levanta ValueError quando cliente não tem 'id'."""
     mock_fetch.return_value = None
@@ -558,8 +558,8 @@ def test_update_cliente_status_and_observacoes_cliente_sem_id(mock_fetch):
         update_cliente_status_and_observacoes({"nome": "sem_id"}, "STATUS")
 
 
-@patch("src.modules.clientes.service.exec_postgrest")
-@patch("src.modules.clientes.service.supabase")
+@patch("src.modules.clientes.core.service.exec_postgrest")
+@patch("src.modules.clientes.core.service.supabase")
 def test_update_cliente_status_and_observacoes_com_dict(mock_supabase, mock_exec):
     """Aceita cliente como dict."""
     mock_query = Mock()
@@ -579,8 +579,8 @@ def test_update_cliente_status_and_observacoes_com_dict(mock_supabase, mock_exec
 # ============================================================================
 
 
-@patch("src.modules.clientes.service.exec_postgrest")
-@patch("src.modules.clientes.service.supabase")
+@patch("src.modules.clientes.core.service.exec_postgrest")
+@patch("src.modules.clientes.core.service.supabase")
 def test_resolve_current_org_id_sucesso(mock_supabase, mock_exec):
     """Resolve org_id corretamente."""
     mock_user = Mock()
@@ -604,7 +604,7 @@ def test_resolve_current_org_id_sucesso(mock_supabase, mock_exec):
     assert result == "org-456"
 
 
-@patch("src.modules.clientes.service.supabase")
+@patch("src.modules.clientes.core.service.supabase")
 def test_resolve_current_org_id_usuario_nao_autenticado(mock_supabase):
     """Levanta RuntimeError quando não há usuário autenticado."""
     mock_supabase.auth.get_user.return_value = None
@@ -613,8 +613,8 @@ def test_resolve_current_org_id_usuario_nao_autenticado(mock_supabase):
         _resolve_current_org_id()
 
 
-@patch("src.modules.clientes.service.exec_postgrest")
-@patch("src.modules.clientes.service.supabase")
+@patch("src.modules.clientes.core.service.exec_postgrest")
+@patch("src.modules.clientes.core.service.supabase")
 def test_resolve_current_org_id_organizacao_nao_encontrada(mock_supabase, mock_exec):
     """Levanta RuntimeError quando não encontra org_id."""
     mock_user = Mock()
@@ -642,9 +642,9 @@ def test_resolve_current_org_id_organizacao_nao_encontrada(mock_supabase, mock_e
 # ============================================================================
 
 
-@patch("src.modules.clientes.service.using_storage_backend")
-@patch("src.modules.clientes.service.storage_list_files")
-@patch("src.modules.clientes.service.SupabaseStorageAdapter")
+@patch("src.modules.clientes.core.service.using_storage_backend")
+@patch("src.modules.clientes.core.service.storage_list_files")
+@patch("src.modules.clientes.core.service.SupabaseStorageAdapter")
 def test_gather_paths_retorna_lista_vazia_quando_sem_items(mock_adapter, mock_list, mock_using):
     """_gather_paths retorna lista vazia quando não há arquivos."""
     mock_list.return_value = []
@@ -654,9 +654,9 @@ def test_gather_paths_retorna_lista_vazia_quando_sem_items(mock_adapter, mock_li
     assert result == []
 
 
-@patch("src.modules.clientes.service.using_storage_backend")
-@patch("src.modules.clientes.service.storage_list_files")
-@patch("src.modules.clientes.service.SupabaseStorageAdapter")
+@patch("src.modules.clientes.core.service.using_storage_backend")
+@patch("src.modules.clientes.core.service.storage_list_files")
+@patch("src.modules.clientes.core.service.SupabaseStorageAdapter")
 def test_gather_paths_ignora_items_sem_name(mock_adapter, mock_list, mock_using):
     """_gather_paths ignora items sem campo 'name'."""
     mock_list.return_value = [{"metadata": {}}]
@@ -666,9 +666,9 @@ def test_gather_paths_ignora_items_sem_name(mock_adapter, mock_list, mock_using)
     assert result == []
 
 
-@patch("src.modules.clientes.service.using_storage_backend")
-@patch("src.modules.clientes.service.storage_list_files")
-@patch("src.modules.clientes.service.SupabaseStorageAdapter")
+@patch("src.modules.clientes.core.service.using_storage_backend")
+@patch("src.modules.clientes.core.service.storage_list_files")
+@patch("src.modules.clientes.core.service.SupabaseStorageAdapter")
 def test_gather_paths_adiciona_arquivos_com_metadata(mock_adapter, mock_list, mock_using):
     """_gather_paths adiciona paths de arquivos (com metadata)."""
     mock_list.return_value = [{"name": "file1.pdf", "metadata": {"size": 1024}}]
@@ -679,9 +679,9 @@ def test_gather_paths_adiciona_arquivos_com_metadata(mock_adapter, mock_list, mo
     assert "prefix/file1.pdf" in result
 
 
-@patch("src.modules.clientes.service.using_storage_backend")
-@patch("src.modules.clientes.service.storage_list_files")
-@patch("src.modules.clientes.service.SupabaseStorageAdapter")
+@patch("src.modules.clientes.core.service.using_storage_backend")
+@patch("src.modules.clientes.core.service.storage_list_files")
+@patch("src.modules.clientes.core.service.SupabaseStorageAdapter")
 def test_gather_paths_trata_excecao_list_files(mock_adapter, mock_list, mock_using):
     """_gather_paths continua quando list_files levanta exceção."""
     mock_list.side_effect = RuntimeError("Storage error")
@@ -691,8 +691,8 @@ def test_gather_paths_trata_excecao_list_files(mock_adapter, mock_list, mock_usi
     assert result == []
 
 
-@patch("src.modules.clientes.service._gather_paths")
-@patch("src.modules.clientes.service.storage_delete_file")
+@patch("src.modules.clientes.core.service._gather_paths")
+@patch("src.modules.clientes.core.service.storage_delete_file")
 def test_remove_cliente_storage_sucesso(mock_delete, mock_gather):
     """_remove_cliente_storage remove arquivos com sucesso."""
     mock_gather.return_value = ["org/123/file1.pdf", "org/123/file2.pdf"]
@@ -705,8 +705,8 @@ def test_remove_cliente_storage_sucesso(mock_delete, mock_gather):
     assert mock_delete.call_count == 2
 
 
-@patch("src.modules.clientes.service._gather_paths")
-@patch("src.modules.clientes.service.storage_delete_file")
+@patch("src.modules.clientes.core.service._gather_paths")
+@patch("src.modules.clientes.core.service.storage_delete_file")
 def test_remove_cliente_storage_falha_delete(mock_delete, mock_gather):
     """_remove_cliente_storage adiciona erro quando delete_file falha."""
     mock_gather.return_value = ["org/123/file1.pdf"]
@@ -720,7 +720,7 @@ def test_remove_cliente_storage_falha_delete(mock_delete, mock_gather):
     assert "Delete failed" in errs[0][1]
 
 
-@patch("src.modules.clientes.service._gather_paths")
+@patch("src.modules.clientes.core.service._gather_paths")
 def test_remove_cliente_storage_falha_gather(mock_gather):
     """_remove_cliente_storage adiciona erro quando _gather_paths falha."""
     mock_gather.side_effect = RuntimeError("Gather failed")
@@ -738,10 +738,10 @@ def test_remove_cliente_storage_falha_gather(mock_gather):
 # ============================================================================
 
 
-@patch("src.modules.clientes.service._remove_cliente_storage")
-@patch("src.modules.clientes.service._resolve_current_org_id")
-@patch("src.modules.clientes.service.exec_postgrest")
-@patch("src.modules.clientes.service.supabase")
+@patch("src.modules.clientes.core.service._remove_cliente_storage")
+@patch("src.modules.clientes.core.service._resolve_current_org_id")
+@patch("src.modules.clientes.core.service.exec_postgrest")
+@patch("src.modules.clientes.core.service.supabase")
 def test_excluir_clientes_definitivamente_lista_vazia(mock_supabase, mock_exec, mock_org, mock_remove):
     """Retorna (0, []) quando lista de IDs está vazia."""
     ok, errs = excluir_clientes_definitivamente([])
@@ -751,10 +751,10 @@ def test_excluir_clientes_definitivamente_lista_vazia(mock_supabase, mock_exec, 
     mock_supabase.table.assert_not_called()
 
 
-@patch("src.modules.clientes.service._remove_cliente_storage")
-@patch("src.modules.clientes.service._resolve_current_org_id")
-@patch("src.modules.clientes.service.exec_postgrest")
-@patch("src.modules.clientes.service.supabase")
+@patch("src.modules.clientes.core.service._remove_cliente_storage")
+@patch("src.modules.clientes.core.service._resolve_current_org_id")
+@patch("src.modules.clientes.core.service.exec_postgrest")
+@patch("src.modules.clientes.core.service.supabase")
 def test_excluir_clientes_definitivamente_sucesso(mock_supabase, mock_exec, mock_org, mock_remove):
     """Exclui clientes e storage com sucesso."""
     mock_org.return_value = "org-123"
@@ -776,10 +776,10 @@ def test_excluir_clientes_definitivamente_sucesso(mock_supabase, mock_exec, mock
     assert mock_remove.call_count == 2
 
 
-@patch("src.modules.clientes.service._remove_cliente_storage")
-@patch("src.modules.clientes.service._resolve_current_org_id")
-@patch("src.modules.clientes.service.exec_postgrest")
-@patch("src.modules.clientes.service.supabase")
+@patch("src.modules.clientes.core.service._remove_cliente_storage")
+@patch("src.modules.clientes.core.service._resolve_current_org_id")
+@patch("src.modules.clientes.core.service.exec_postgrest")
+@patch("src.modules.clientes.core.service.supabase")
 def test_excluir_clientes_definitivamente_com_callback(mock_supabase, mock_exec, mock_org, mock_remove):
     """Chama progress_cb durante exclusão."""
     mock_org.return_value = "org-123"
@@ -806,8 +806,8 @@ def test_excluir_clientes_definitivamente_com_callback(mock_supabase, mock_exec,
     assert progress_calls[-1] == (3, 3, 3)
 
 
-@patch("src.modules.clientes.service._remove_cliente_storage")
-@patch("src.modules.clientes.service._resolve_current_org_id")
+@patch("src.modules.clientes.core.service._remove_cliente_storage")
+@patch("src.modules.clientes.core.service._resolve_current_org_id")
 def test_excluir_clientes_definitivamente_falha_resolve_org(mock_org, mock_remove):
     """Adiciona erro quando _resolve_current_org_id falha."""
     mock_org.side_effect = RuntimeError("Auth failed")

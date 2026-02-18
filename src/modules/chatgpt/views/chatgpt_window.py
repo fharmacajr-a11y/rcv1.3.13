@@ -105,7 +105,7 @@ class ChatGPTWindow(tk.Toplevel):
         # Header simples com apenas o título
         # Os botões de minimizar/fechar são os nativos da barra do Windows
 
-        header = ctk.CTkFrame(self, style="TFrame")
+        header = ctk.CTkFrame(self)
         header.pack(side="top", fill="x", before=self.winfo_children()[0] if self.winfo_children() else None)
 
         title_label = ctk.CTkLabel(header, text="ChatGPT", font=("Segoe UI", 10, "bold"))

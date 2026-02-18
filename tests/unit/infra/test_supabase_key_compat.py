@@ -1,7 +1,21 @@
 # -*- coding: utf-8 -*-
-"""Testes para garantir compatibilidade SUPABASE_KEY → SUPABASE_ANON_KEY."""
+"""Testes para garantir compatibilidade SUPABASE_KEY → SUPABASE_ANON_KEY.
 
+FASE 8: Marcado como integration — excluído do default.
+"""
+
+import importlib
+
+import pytest
 from unittest.mock import patch
+
+_supabase_available = importlib.util.find_spec("supabase") is not None
+
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.supabase,
+    pytest.mark.skipif(not _supabase_available, reason="supabase package not installed"),
+]
 
 
 def test_supabase_client_accepts_supabase_key_fallback(monkeypatch):

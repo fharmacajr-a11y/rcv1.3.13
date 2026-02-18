@@ -64,6 +64,10 @@ def bootstrap_main_window(app: App) -> None:
             start_hidden=start_hidden,
         )
 
+    # FASE 5A FIX: Expor layout_refs para acesso ao footer_controller
+    app.layout_refs = app._layout
+    app.footer_controller = app._layout.footer_controller  # Exposição direta para compatibilidade
+
     # Expor refs do layout como atributos do MainWindow (compatibilidade)
     app.sep_menu_toolbar = app._layout.sep_menu_toolbar
     app.sep_toolbar_main = app._layout.sep_toolbar_main

@@ -1,8 +1,17 @@
 from __future__ import annotations
 
+import importlib
 import types
 
 import pytest
+
+_supabase_available = importlib.util.find_spec("supabase") is not None
+
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.supabase,
+    pytest.mark.skipif(not _supabase_available, reason="supabase package not installed"),
+]
 
 import src.db.supabase_repo as repo
 

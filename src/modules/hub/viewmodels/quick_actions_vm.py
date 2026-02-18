@@ -104,21 +104,7 @@ class QuickActionsViewModel:
                     order=10,
                     category="cadastros",
                 ),
-                QuickActionItemView(
-                    id="senhas",
-                    label="Senhas",
-                    description="Gerenciar senhas de acesso",
-                    order=20,
-                    category="cadastros",
-                ),
-                # Bloco 2: Gestão / Auditoria
-                QuickActionItemView(
-                    id="auditoria",
-                    label="Auditoria",
-                    description="Módulo de auditoria e conferências",
-                    order=30,
-                    category="gestao",
-                ),
+                # Bloco 2: Gestão
                 QuickActionItemView(
                     id="fluxo_caixa",
                     label="Fluxo de Caixa",

@@ -1,175 +1,258 @@
-import importlib
+# -*- coding: utf-8 -*-
+"""Testes do sistema de temas CustomTkinter (src.ui.theme_manager).
+
+Substitui os testes legados de ttkbootstrap.
+Valida que GlobalThemeManager chama corretamente:
+  - customtkinter.set_appearance_mode(...)
+  - customtkinter.set_default_color_theme(...)
+"""
+
+from __future__ import annotations
+
 import json
-import os
-import sys
-import types
+from unittest.mock import MagicMock
+
+import pytest
 
 
-def reload_themes(monkeypatch, tmp_path, *, no_fs=True, default_theme="flatly", safe_mode=False):
-    """Reload the themes module with controlled env/modules to isolate tests."""
-    monkeypatch.setenv("RC_NO_LOCAL_FS", "1" if no_fs else "0")
-    if default_theme is None:
-        monkeypatch.delenv("RC_DEFAULT_THEME", raising=False)
-    else:
-        monkeypatch.setenv("RC_DEFAULT_THEME", default_theme)
-
-    fake_cli = types.ModuleType("src.cli")
-
-    def get_args():
-        return types.SimpleNamespace(safe_mode=safe_mode)
-
-    fake_cli.get_args = get_args
-    monkeypatch.setitem(sys.modules, "src.cli", fake_cli)
-
-    if not no_fs:
-        config_module = types.ModuleType("config")
-        config_paths = types.ModuleType("config.paths")
-        config_paths.BASE_DIR = tmp_path
-        config_module.paths = config_paths
-        monkeypatch.setitem(sys.modules, "config", config_module)
-        monkeypatch.setitem(sys.modules, "config.paths", config_paths)
-
-    sys.modules.pop("src.utils.themes", None)
-    import src.utils.themes as themes
-
-    return importlib.reload(themes)
+# ==================== Fixtures ====================
 
 
-def test_load_theme_returns_default_in_safe_mode(monkeypatch, tmp_path):
-    themes = reload_themes(monkeypatch, tmp_path, no_fs=True, safe_mode=True)
-    themes._CACHED_THEME = "cached"
+@pytest.fixture()
+def _isolate_theme_manager(monkeypatch, tmp_path):
+    """Isola o theme_manager para cada teste: cache limpo + arquivo temporário."""
+    import src.ui.theme_manager as tm
 
-    assert themes.load_theme() == "default"
-    assert themes._CACHED_THEME == "cached"  # safe-mode não mexe no cache
+    # Limpar cache global
+    monkeypatch.setattr(tm, "_cached_mode", None)
+    monkeypatch.setattr(tm, "_cached_color", None)
+    # Usar arquivo temporário
+    monkeypatch.setattr(tm, "CONFIG_FILE", tmp_path / "config_theme.json")
+    monkeypatch.setattr(tm, "NO_FS", False)
+    # Resetar estado do singleton
+    monkeypatch.setattr(tm.theme_manager, "_initialized", False)
+    monkeypatch.setattr(tm.theme_manager, "_master_ref", None)
 
-
-def test_load_theme_no_fs_uses_env_default_and_cache(monkeypatch, tmp_path):
-    themes = reload_themes(monkeypatch, tmp_path, no_fs=True, default_theme="azure")
-
-    assert themes.load_theme() == "azure"
-    assert themes._CACHED_THEME == "azure"
-    assert themes._CACHED_MTIME is None
-
-    themes._CACHED_THEME = "cached-theme"
-    assert themes.load_theme() == "cached-theme"
-
-
-def test_load_theme_reads_from_disk_and_respects_force_reload(monkeypatch, tmp_path):
-    themes = reload_themes(monkeypatch, tmp_path, no_fs=False, default_theme="flatly")
-    config_path = themes.CONFIG_FILE
-    assert config_path
-
-    with open(config_path, "w", encoding="utf-8") as f:
-        json.dump({"theme": "dark"}, f)
-
-    first = themes.load_theme(force_reload=True)
-    first_mtime = themes._CACHED_MTIME
-    assert first == "dark"
-    assert first_mtime is not None
-
-    with open(config_path, "w", encoding="utf-8") as f:
-        json.dump({"theme": "light"}, f)
-    os.utime(config_path, (first_mtime + 1, first_mtime + 1))
-
-    second = themes.load_theme(force_reload=True)
-    assert second == "light"
-    assert themes._CACHED_MTIME != first_mtime
+    return tm
 
 
-def test_save_theme_no_fs_updates_cache_only(monkeypatch, tmp_path):
-    themes = reload_themes(monkeypatch, tmp_path, no_fs=True, default_theme="flatly")
-
-    themes.save_theme("custom")
-
-    assert themes._CACHED_THEME == "custom"
-    assert themes._CACHED_MTIME is None
-    assert themes.CONFIG_FILE is None or not os.path.exists(themes.CONFIG_FILE)
+@pytest.fixture()
+def tm(_isolate_theme_manager):
+    """Atalho para o módulo theme_manager isolado."""
+    return _isolate_theme_manager
 
 
-def test_save_theme_persists_to_disk(monkeypatch, tmp_path):
-    themes = reload_themes(monkeypatch, tmp_path, no_fs=False, default_theme="flatly")
-    config_path = themes.CONFIG_FILE
-    assert config_path
-
-    themes.save_theme("midnight")
-
-    with open(config_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    assert data["theme"] == "midnight"
-    assert themes._CACHED_THEME == "midnight"
-    assert themes._CACHED_MTIME == os.path.getmtime(config_path)
-
-    themes._CACHED_THEME = None
-    assert themes.load_theme(force_reload=True) == "midnight"
+# ==================== load / save ====================
 
 
-def test_toggle_theme_switches_and_updates_buttons(monkeypatch, tmp_path):
-    themes = reload_themes(monkeypatch, tmp_path, no_fs=True, default_theme="flatly")
-    style_calls = []
-
-    class FakeStyle:
-        def theme_use(self, name):
-            style_calls.append(name)
-
-    class FakeTb:
-        def Style(self):  # noqa: N802
-            return FakeStyle()
-
-    themes.tb = FakeTb()
-
-    class FakeButton:
-        def __init__(self):
-            self.bootstyles = []
-
-        def configure(self, *, bootstyle):
-            self.bootstyles.append(bootstyle)
-
-    class FakeApp:
-        def __init__(self):
-            self.btn_limpar = FakeButton()
-            self.btn_abrir = FakeButton()
-            self.btn_subpastas = FakeButton()
-
-    app = FakeApp()
-    themes.save_theme(themes.DEFAULT_THEME)
-
-    first = themes.toggle_theme(app)
-    assert first == themes.ALT_THEME
-    assert app.tema_atual == themes.ALT_THEME
-    assert style_calls[-1] == themes.ALT_THEME
-    assert app.btn_limpar.bootstyles[-1] == "secondary"
-    assert app.btn_abrir.bootstyles[-1] == "secondary"
-    assert app.btn_subpastas.bootstyles[-1] == "secondary"
-
-    second = themes.toggle_theme(app)
-    assert second == themes.DEFAULT_THEME
-    assert style_calls[-1] == themes.DEFAULT_THEME
-    assert app.btn_limpar.bootstyles[-1] == "danger"
-    assert app.btn_abrir.bootstyles[-1] == "primary"
-    assert app.btn_subpastas.bootstyles[-1] == "secondary"
+def test_load_theme_config_returns_defaults_when_no_file(tm):
+    mode, color = tm.load_theme_config()
+    assert mode == "light"
+    assert color == "blue"
 
 
-def test_apply_theme_handles_missing_ttkbootstrap(monkeypatch, tmp_path):
-    themes = reload_themes(monkeypatch, tmp_path, no_fs=True, default_theme="flatly")
-    themes.tb = None
+def test_load_theme_config_reads_from_disk(tm):
+    data = {"appearance_mode": "dark", "color_theme": "green"}
+    tm.CONFIG_FILE.write_text(json.dumps(data), encoding="utf-8")
 
-    themes.apply_theme(win=object(), theme="custom")  # deve ser no-op sem erro
+    mode, color = tm.load_theme_config()
+    assert mode == "dark"
+    assert color == "green"
 
 
-def test_apply_theme_uses_style_when_available(monkeypatch, tmp_path):
-    themes = reload_themes(monkeypatch, tmp_path, no_fs=True, default_theme="flatly")
-    calls = []
+def test_load_theme_config_validates_invalid_values(tm):
+    data = {"appearance_mode": "cosmic", "color_theme": "rainbow"}
+    tm.CONFIG_FILE.write_text(json.dumps(data), encoding="utf-8")
 
-    class FakeStyle:
-        def theme_use(self, name):
-            calls.append(name)
+    mode, color = tm.load_theme_config()
+    assert mode == "light"  # fallback
+    assert color == "blue"  # fallback
 
-    class FakeTb:
-        def Style(self):  # noqa: N802
-            return FakeStyle()
 
-    themes.tb = FakeTb()
+def test_load_theme_config_no_fs_uses_cache(tm, monkeypatch):
+    monkeypatch.setattr(tm, "NO_FS", True)
+    monkeypatch.setattr(tm, "_cached_mode", "dark")
+    monkeypatch.setattr(tm, "_cached_color", "green")
 
-    themes.apply_theme(win=object(), theme="custom")
+    mode, color = tm.load_theme_config()
+    assert mode == "dark"
+    assert color == "green"
 
-    assert calls == ["custom"]
+
+def test_save_theme_config_persists_to_disk(tm):
+    tm.save_theme_config("dark", "dark-blue")
+
+    data = json.loads(tm.CONFIG_FILE.read_text(encoding="utf-8"))
+    assert data["appearance_mode"] == "dark"
+    assert data["color_theme"] == "dark-blue"
+
+
+def test_save_theme_config_updates_cache(tm):
+    tm.save_theme_config("dark", "green")
+    assert tm._cached_mode == "dark"
+    assert tm._cached_color == "green"
+
+
+def test_save_theme_config_no_fs_only_cache(tm, monkeypatch):
+    monkeypatch.setattr(tm, "NO_FS", True)
+
+    tm.save_theme_config("dark", "green")
+
+    assert tm._cached_mode == "dark"
+    assert tm._cached_color == "green"
+    assert not tm.CONFIG_FILE.exists()
+
+
+# ==================== apply_global_theme ====================
+
+
+def test_apply_global_theme_calls_ctk(tm, monkeypatch):
+    mock_ctk = MagicMock()
+    monkeypatch.setattr(tm, "ctk", mock_ctk)
+    monkeypatch.setattr(tm, "HAS_CUSTOMTKINTER", True)
+
+    tm.apply_global_theme("dark", "green")
+
+    mock_ctk.set_appearance_mode.assert_called_once_with("Dark")
+    mock_ctk.set_default_color_theme.assert_called_once_with("green")
+
+
+def test_apply_global_theme_noop_without_ctk(tm, monkeypatch):
+    monkeypatch.setattr(tm, "HAS_CUSTOMTKINTER", False)
+    monkeypatch.setattr(tm, "ctk", None)
+
+    # Não deve lançar erro
+    tm.apply_global_theme("dark", "blue")
+
+
+# ==================== toggle_appearance_mode ====================
+
+
+def test_toggle_appearance_mode_light_to_dark(tm, monkeypatch):
+    mock_ctk = MagicMock()
+    monkeypatch.setattr(tm, "ctk", mock_ctk)
+    monkeypatch.setattr(tm, "HAS_CUSTOMTKINTER", True)
+
+    tm.save_theme_config("light", "blue")
+    new_mode = tm.toggle_appearance_mode()
+
+    assert new_mode == "dark"
+    mock_ctk.set_appearance_mode.assert_called_with("Dark")
+
+
+def test_toggle_appearance_mode_dark_to_light(tm, monkeypatch):
+    mock_ctk = MagicMock()
+    monkeypatch.setattr(tm, "ctk", mock_ctk)
+    monkeypatch.setattr(tm, "HAS_CUSTOMTKINTER", True)
+
+    tm.save_theme_config("dark", "blue")
+    new_mode = tm.toggle_appearance_mode()
+
+    assert new_mode == "light"
+    mock_ctk.set_appearance_mode.assert_called_with("Light")
+
+
+def test_toggle_persists_new_mode(tm, monkeypatch):
+    monkeypatch.setattr(tm, "ctk", MagicMock())
+    monkeypatch.setattr(tm, "HAS_CUSTOMTKINTER", True)
+
+    tm.save_theme_config("light", "green")
+    tm.toggle_appearance_mode()
+
+    mode, color = tm.load_theme_config()
+    assert mode == "dark"
+    assert color == "green"  # color não muda
+
+
+# ==================== set_color_theme ====================
+
+
+def test_set_color_theme_calls_ctk(tm, monkeypatch):
+    mock_ctk = MagicMock()
+    monkeypatch.setattr(tm, "ctk", mock_ctk)
+    monkeypatch.setattr(tm, "HAS_CUSTOMTKINTER", True)
+
+    tm.save_theme_config("light", "blue")
+    tm.set_color_theme("dark-blue")
+
+    mock_ctk.set_default_color_theme.assert_called_with("dark-blue")
+    _, color = tm.load_theme_config()
+    assert color == "dark-blue"
+
+
+# ==================== GlobalThemeManager ====================
+
+
+def test_manager_initialize_applies_theme(tm, monkeypatch):
+    mock_ctk = MagicMock()
+    monkeypatch.setattr(tm, "ctk", mock_ctk)
+    monkeypatch.setattr(tm, "HAS_CUSTOMTKINTER", True)
+
+    tm.save_theme_config("dark", "green")
+    mgr = tm.GlobalThemeManager()
+    mgr.initialize()
+
+    mock_ctk.set_appearance_mode.assert_called_with("Dark")
+    mock_ctk.set_default_color_theme.assert_called_with("green")
+    assert mgr._initialized is True
+
+
+def test_manager_initialize_idempotent(tm, monkeypatch):
+    mock_ctk = MagicMock()
+    monkeypatch.setattr(tm, "ctk", mock_ctk)
+    monkeypatch.setattr(tm, "HAS_CUSTOMTKINTER", True)
+
+    mgr = tm.GlobalThemeManager()
+    mgr.initialize()
+    mgr.initialize()  # segunda vez
+
+    assert mock_ctk.set_appearance_mode.call_count == 1
+
+
+def test_manager_get_current_mode(tm):
+    tm.save_theme_config("dark", "blue")
+    assert tm.theme_manager.get_current_mode() == "dark"
+
+
+def test_manager_get_effective_mode(tm):
+    tm.save_theme_config("light", "blue")
+    assert tm.theme_manager.get_effective_mode() == "light"
+
+
+def test_manager_toggle_mode(tm, monkeypatch):
+    mock_ctk = MagicMock()
+    monkeypatch.setattr(tm, "ctk", mock_ctk)
+    monkeypatch.setattr(tm, "HAS_CUSTOMTKINTER", True)
+
+    tm.save_theme_config("light", "blue")
+    result = tm.theme_manager.toggle_mode()
+
+    assert result == "dark"
+
+
+def test_manager_set_mode(tm, monkeypatch):
+    mock_ctk = MagicMock()
+    monkeypatch.setattr(tm, "ctk", mock_ctk)
+    monkeypatch.setattr(tm, "HAS_CUSTOMTKINTER", True)
+
+    tm.theme_manager.set_mode("dark")
+
+    mock_ctk.set_appearance_mode.assert_called_with("Dark")
+    assert tm.theme_manager.get_current_mode() == "dark"
+
+
+def test_manager_set_color(tm, monkeypatch):
+    mock_ctk = MagicMock()
+    monkeypatch.setattr(tm, "ctk", mock_ctk)
+    monkeypatch.setattr(tm, "HAS_CUSTOMTKINTER", True)
+
+    tm.theme_manager.set_color("green")
+
+    mock_ctk.set_default_color_theme.assert_called_with("green")
+    assert tm.theme_manager.get_current_color() == "green"
+
+
+def test_manager_set_master(tm):
+    fake_app = MagicMock()
+    tm.theme_manager.set_master(fake_app)
+    assert tm.theme_manager._master_ref is fake_app

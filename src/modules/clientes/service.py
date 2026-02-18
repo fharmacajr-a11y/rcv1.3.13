@@ -11,7 +11,7 @@ import warnings
 
 # Aviso de deprecacao (emitido UMA vez por sessao)
 warnings.warn(
-    "src.modules.clientes.service foi movido para src.modules.clientes.core.service. " "Atualize seus imports.",
+    "src.modules.clientes.service foi movido para src.modules.clientes.core.service. Atualize seus imports.",
     DeprecationWarning,
     stacklevel=2,
 )

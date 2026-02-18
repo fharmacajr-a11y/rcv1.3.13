@@ -2,6 +2,8 @@
 """
 Testes para infra/supabase/auth_client.py.
 Foco: bind_postgrest_auth_if_any cobre fluxos com/sem token e erro ao aplicar.
+
+FASE 8: Marcado como integration — excluído do default.
 """
 
 from __future__ import annotations
@@ -13,6 +15,14 @@ from types import ModuleType, SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
+
+_supabase_available = importlib.util.find_spec("supabase") is not None
+
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.supabase,
+    pytest.mark.skipif(not _supabase_available, reason="supabase package not installed"),
+]
 
 
 @pytest.fixture

@@ -14,6 +14,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+# Skip GUI tests if CustomTkinter is not available
+pytestmark = pytest.mark.gui
+
 import src.modules.main_window.app_actions as app_actions
 from src.modules.main_window.app_actions import AppActions
 
@@ -119,6 +122,10 @@ def _stub_tk_modules(monkeypatch):
     tk_module.Toplevel = _FakeToplevel
     tk_module.Misc = object  # Interface base do tkinter
     tk_module.TclError = _FakeTclError
+    tk_module.Event = type("Event", (), {})  # Fake Event class para imports
+    tk_module.Grid = type("Grid", (), {})
+    tk_module.Pack = type("Pack", (), {})
+    tk_module.Place = type("Place", (), {})
     tk_module.ttk = ttk_stub
     tk_module.scrolledtext = scrolledtext_stub
 
@@ -127,6 +134,10 @@ def _stub_tk_modules(monkeypatch):
     monkeypatch.setitem(sys.modules, "tkinter.filedialog", filedialog_stub)
     monkeypatch.setitem(sys.modules, "tkinter.ttk", ttk_stub)
     monkeypatch.setitem(sys.modules, "tkinter.scrolledtext", scrolledtext_stub)
+
+    # Pre-injetar stubs de uploads para evitar importação real (CTkTreeview)
+    _stub_uploads_modules(monkeypatch)
+
     return calls, responses
 
 
@@ -172,6 +183,51 @@ def _stub_pdf_dependencies(monkeypatch):
     monkeypatch.setattr(threading, "Thread", _ImmediateThread)
 
     return convert_mock, dialog_class
+
+
+def _stub_uploads_modules(monkeypatch):
+    """Pre-injeta stubs para src.modules.uploads e sub-módulos.
+
+    Evita que monkeypatch.setattr("src.modules.uploads.X", ...) cause
+    importação real do módulo, que falha sem tkinter funcional (CTkTreeview
+    tenta `from tkinter import Event, Grid, Pack, Place, ttk`).
+    """
+    # src.modules.uploads
+    uploads_pkg = sys.modules.get("src.modules.uploads")
+    if uploads_pkg is None:
+        uploads_pkg = types.ModuleType("src.modules.uploads")
+        uploads_pkg.__path__ = []  # type: ignore[attr-defined]
+        uploads_pkg.open_files_browser = MagicMock()
+        monkeypatch.setitem(sys.modules, "src.modules.uploads", uploads_pkg)
+        # Vincular ao pacote pai
+        src_modules = sys.modules.get("src.modules")
+        if src_modules is not None:
+            monkeypatch.setattr(src_modules, "uploads", uploads_pkg, raising=False)
+
+    # src.modules.uploads.components
+    uploads_comp = sys.modules.get("src.modules.uploads.components")
+    if uploads_comp is None:
+        uploads_comp = types.ModuleType("src.modules.uploads.components")
+        uploads_comp.__path__ = []  # type: ignore[attr-defined]
+        monkeypatch.setitem(sys.modules, "src.modules.uploads.components", uploads_comp)
+        uploads_pkg.components = uploads_comp  # type: ignore[attr-defined]
+
+    # src.modules.uploads.components.helpers
+    uploads_helpers = sys.modules.get("src.modules.uploads.components.helpers")
+    if uploads_helpers is None:
+        uploads_helpers = types.ModuleType("src.modules.uploads.components.helpers")
+        uploads_helpers.client_prefix_for_id = MagicMock()
+        uploads_helpers.get_clients_bucket = MagicMock()
+        monkeypatch.setitem(sys.modules, "src.modules.uploads.components.helpers", uploads_helpers)
+        uploads_comp.helpers = uploads_helpers  # type: ignore[attr-defined]
+
+    # src.modules.uploads.uploader_supabase
+    uploads_supa = sys.modules.get("src.modules.uploads.uploader_supabase")
+    if uploads_supa is None:
+        uploads_supa = types.ModuleType("src.modules.uploads.uploader_supabase")
+        uploads_supa.send_to_supabase_interactive = MagicMock()
+        monkeypatch.setitem(sys.modules, "src.modules.uploads.uploader_supabase", uploads_supa)
+        uploads_pkg.uploader_supabase = uploads_supa  # type: ignore[attr-defined]
 
 
 def test_novo_cliente_chama_app_core(monkeypatch):
@@ -247,7 +303,7 @@ def test_excluir_cliente_com_id_invalido_mostra_erro(monkeypatch):
     actions = AppActions(types.SimpleNamespace(_selected_main_values=lambda: ["abc"]), logger=logger)
 
     monkeypatch.setattr(
-        "src.modules.clientes.service.mover_cliente_para_lixeira",
+        "src.modules.clientes.core.service.mover_cliente_para_lixeira",
         lambda *args, **kwargs: pytest.fail("nao deve mover"),
     )
 
@@ -262,7 +318,7 @@ def test_excluir_cliente_cancelado_na_confirmacao(monkeypatch):
     responses["askyesno"] = False
     logger = MagicMock()
     mover_mock = MagicMock()
-    monkeypatch.setattr("src.modules.clientes.service.mover_cliente_para_lixeira", mover_mock)
+    monkeypatch.setattr("src.modules.clientes.core.service.mover_cliente_para_lixeira", mover_mock)
 
     app = types.SimpleNamespace(_selected_main_values=lambda: ["7", "ACME"])
     actions = AppActions(app, logger=logger)
@@ -280,7 +336,7 @@ def test_excluir_cliente_sucesso_atualiza_fluxos(monkeypatch):
 
     mover_mock = MagicMock()
     refresh_mock = MagicMock()
-    monkeypatch.setattr("src.modules.clientes.service.mover_cliente_para_lixeira", mover_mock)
+    monkeypatch.setattr("src.modules.clientes.core.service.mover_cliente_para_lixeira", mover_mock)
     monkeypatch.setattr("src.modules.lixeira.refresh_if_open", refresh_mock)
 
     load_called = {}
@@ -488,7 +544,7 @@ def test_excluir_cliente_falha_ao_mover(monkeypatch):
     def fake_mover(_client_id):
         raise RuntimeError("DB error")
 
-    monkeypatch.setattr("src.modules.clientes.service.mover_cliente_para_lixeira", fake_mover)
+    monkeypatch.setattr("src.modules.clientes.core.service.mover_cliente_para_lixeira", fake_mover)
 
     app = types.SimpleNamespace(_selected_main_values=lambda: ["5", "Test"])
     actions = AppActions(app, logger=logger)
@@ -507,7 +563,7 @@ def test_excluir_cliente_falha_ao_carregar(monkeypatch):
 
     mover_mock = MagicMock()
     refresh_mock = MagicMock()
-    monkeypatch.setattr("src.modules.clientes.service.mover_cliente_para_lixeira", mover_mock)
+    monkeypatch.setattr("src.modules.clientes.core.service.mover_cliente_para_lixeira", mover_mock)
     monkeypatch.setattr("src.modules.lixeira.refresh_if_open", refresh_mock)
 
     def fake_carregar():
@@ -530,7 +586,7 @@ def test_excluir_cliente_falha_refresh_lixeira(monkeypatch):
     logger = MagicMock()
 
     mover_mock = MagicMock()
-    monkeypatch.setattr("src.modules.clientes.service.mover_cliente_para_lixeira", mover_mock)
+    monkeypatch.setattr("src.modules.clientes.core.service.mover_cliente_para_lixeira", mover_mock)
 
     def fake_refresh():
         raise RuntimeError("Lixeira UI error")

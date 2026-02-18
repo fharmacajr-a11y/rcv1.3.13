@@ -60,8 +60,6 @@ class TestBuildModuleButtons:
         """Testa construção com todos os módulos habilitados."""
         buttons = build_module_buttons(
             has_clientes=True,
-            has_senhas=True,
-            has_auditoria=True,
             has_cashflow=True,
             has_anvisa=True,
             has_farmacia_popular=True,
@@ -69,7 +67,7 @@ class TestBuildModuleButtons:
             has_sifap=True,
         )
 
-        assert len(buttons) == 8
+        assert len(buttons) == 6
 
         # Verificar ordem e configuração
         assert buttons[0].text == "Clientes"
@@ -77,78 +75,62 @@ class TestBuildModuleButtons:
         assert buttons[0].bootstyle == "info"
         assert buttons[0].has_callback is True
 
-        assert buttons[1].text == "Senhas"
+        assert buttons[1].text == "Fluxo de Caixa"
         assert buttons[1].enabled is True
-        assert buttons[1].bootstyle == "info"
+        assert buttons[1].bootstyle == "warning"
         assert buttons[1].has_callback is True
 
-        assert buttons[2].text == "Auditoria"
+        assert buttons[2].text == "Anvisa"
         assert buttons[2].enabled is True
-        assert buttons[2].bootstyle == "success"
+        assert buttons[2].bootstyle == "secondary"
         assert buttons[2].has_callback is True
 
-        assert buttons[3].text == "Fluxo de Caixa"
+        assert buttons[3].text == "Farmácia Popular"
         assert buttons[3].enabled is True
-        assert buttons[3].bootstyle == "warning"
+        assert buttons[3].bootstyle == "secondary"
         assert buttons[3].has_callback is True
 
-        assert buttons[4].text == "Anvisa"
+        assert buttons[4].text == "Sngpc"
         assert buttons[4].enabled is True
         assert buttons[4].bootstyle == "secondary"
         assert buttons[4].has_callback is True
 
-        assert buttons[5].text == "Farmácia Popular"
+        assert buttons[5].text == "Sifap"
         assert buttons[5].enabled is True
         assert buttons[5].bootstyle == "secondary"
         assert buttons[5].has_callback is True
-
-        assert buttons[6].text == "Sngpc"
-        assert buttons[6].enabled is True
-        assert buttons[6].bootstyle == "secondary"
-        assert buttons[6].has_callback is True
-
-        assert buttons[7].text == "Sifap"
-        assert buttons[7].enabled is True
-        assert buttons[7].bootstyle == "secondary"
-        assert buttons[7].has_callback is True
 
     def test_build_module_buttons_defaults(self):
         """Testa construção com valores padrão."""
         buttons = build_module_buttons()
 
-        assert len(buttons) == 8
+        assert len(buttons) == 6
 
-        # Clientes, Senhas, Auditoria habilitados por padrão
+        # Clientes habilitado por padrão
         assert buttons[0].text == "Clientes"
         assert buttons[0].enabled is True
 
-        assert buttons[1].text == "Senhas"
-        assert buttons[1].enabled is True
-
-        assert buttons[2].text == "Auditoria"
-        assert buttons[2].enabled is True
-
         # Fluxo de Caixa desabilitado por padrão
-        assert buttons[3].text == "Fluxo de Caixa"
+        assert buttons[1].text == "Fluxo de Caixa"
+        assert buttons[1].enabled is False
+        assert buttons[1].has_callback is False
+
+        # Módulos em desenvolvimento desabilitados por padrão
+        assert buttons[2].text == "Anvisa"
+        assert buttons[2].enabled is False
+        assert buttons[2].has_callback is False
+
+        assert buttons[3].text == "Farmácia Popular"
         assert buttons[3].enabled is False
         assert buttons[3].has_callback is False
 
-        # Módulos em desenvolvimento desabilitados por padrão
-        assert buttons[4].text == "Anvisa"
+        assert buttons[4].text == "Sngpc"
         assert buttons[4].enabled is False
         assert buttons[4].has_callback is False
 
-        assert buttons[5].text == "Farmácia Popular"
+        assert buttons[5].text == "Sifap"
         assert buttons[5].enabled is False
         assert buttons[5].has_callback is False
-
-        assert buttons[6].text == "Sngpc"
-        assert buttons[6].enabled is False
-        assert buttons[6].has_callback is False
-
-        assert buttons[7].text == "Sifap"
-        assert buttons[7].enabled is False
-        assert buttons[7].has_callback is False
 
     def test_build_module_buttons_clientes_disabled(self):
         """Testa construção sem módulo Clientes."""
@@ -157,11 +139,12 @@ class TestBuildModuleButtons:
         # Verifica que não há botão Clientes
         texts = [b.text for b in buttons]
         assert "Clientes" not in texts
-        assert len(buttons) == 7
+        assert len(buttons) == 5
 
-        # Senhas deve ser o primeiro
-        assert buttons[0].text == "Senhas"
+        # Fluxo de Caixa deve ser o primeiro
+        assert buttons[0].text == "Fluxo de Caixa"
 
+    @pytest.mark.skip(reason="Ação 'senhas' removida – migração CTK")
     def test_build_module_buttons_senhas_disabled(self):
         """Testa construção sem módulo Senhas."""
         buttons = build_module_buttons(has_senhas=False)
@@ -175,6 +158,7 @@ class TestBuildModuleButtons:
         # Auditoria é o segundo
         assert buttons[1].text == "Auditoria"
 
+    @pytest.mark.skip(reason="Ação 'auditoria' removida – migração CTK")
     def test_build_module_buttons_auditoria_disabled(self):
         """Testa construção sem módulo Auditoria."""
         buttons = build_module_buttons(has_auditoria=False)
@@ -191,8 +175,6 @@ class TestBuildModuleButtons:
         """Testa construção apenas com módulos principais habilitados."""
         buttons = build_module_buttons(
             has_clientes=True,
-            has_senhas=True,
-            has_auditoria=True,
             has_cashflow=False,
             has_anvisa=False,
             has_farmacia_popular=False,
@@ -200,27 +182,23 @@ class TestBuildModuleButtons:
             has_sifap=False,
         )
 
-        # Total sempre 8 (módulos em dev sempre aparecem)
-        assert len(buttons) == 8
+        # Total sempre 6 (módulos em dev sempre aparecem)
+        assert len(buttons) == 6
 
-        # Primeiros 3 habilitados
+        # Primeiro habilitado
         assert buttons[0].enabled is True  # Clientes
-        assert buttons[1].enabled is True  # Senhas
-        assert buttons[2].enabled is True  # Auditoria
 
         # Resto desabilitado
-        assert buttons[3].enabled is False  # Fluxo de Caixa
-        assert buttons[4].enabled is False  # Anvisa
-        assert buttons[5].enabled is False  # Farmácia Popular
-        assert buttons[6].enabled is False  # Sngpc
-        assert buttons[7].enabled is False  # Sifap
+        assert buttons[1].enabled is False  # Fluxo de Caixa
+        assert buttons[2].enabled is False  # Anvisa
+        assert buttons[3].enabled is False  # Farmácia Popular
+        assert buttons[4].enabled is False  # Sngpc
+        assert buttons[5].enabled is False  # Sifap
 
     def test_build_module_buttons_all_core_disabled(self):
         """Testa construção sem nenhum módulo principal."""
         buttons = build_module_buttons(
             has_clientes=False,
-            has_senhas=False,
-            has_auditoria=False,
         )
 
         # Apenas módulos em desenvolvimento

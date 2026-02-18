@@ -162,7 +162,18 @@ class AntiSpamFilter(logging.Filter):
         if record.levelno >= logging.WARNING:
             return True
 
-        msg = str(record.getMessage())
+        try:
+            msg = str(record.getMessage())
+        except (TypeError, Exception) as e:
+            # Se falhar ao formatar mensagem (ex: placeholders vs args mismatch),
+            # usar mensagem raw e limpar args para evitar crash
+            msg = str(record.msg)
+            record.args = ()
+            # Log do problema em dev_mode apenas para debug
+            import os
+
+            if os.environ.get("RC_DEBUG_TK_EXCEPTIONS") == "1":
+                print(f"[LogFilter] Erro de formatação: {e} | msg={record.msg} | args={record.args}")
 
         # Verificar se mensagem corresponde a algum padrão de spam
         for pattern in self.SPAM_PATTERNS:

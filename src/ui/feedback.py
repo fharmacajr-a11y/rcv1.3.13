@@ -359,17 +359,6 @@ class TkFeedback:
             # info ou success
             messagebox.showinfo(title, message, parent=parent)
 
-    @staticmethod
-    def _kind_to_bootstyle(kind: FeedbackKind) -> str:
-        """Converte FeedbackKind para bootstyle do ttkbootstrap."""
-        mapping = {
-            "info": "info",
-            "warning": "warning",
-            "error": "danger",
-            "success": "success",
-        }
-        return mapping.get(kind, "info")
-
     def info(self, title: str, message: str) -> None:
         self.notify("info", title, message, toast=False)
 

@@ -9,24 +9,26 @@ import src.core.services.clientes_service as clientes_service
 
 
 def test_switch_theme_calls_apply_theme(monkeypatch):
-    calls: list[tuple[object, str]] = []
+    calls: list[tuple[str]] = []
 
-    def fake_apply_theme(root, *, theme):
-        calls.append((root, theme))
+    def fake_set_mode(mode):
+        calls.append((mode,))
 
-    monkeypatch.setattr("src.utils.themes.apply_theme", fake_apply_theme)
+    # Mock the actual method being called in switch_theme
+    monkeypatch.setattr("src.ui.theme_manager.theme_manager.set_mode", fake_set_mode)
 
     sentinel_root = object()
     api_clients.switch_theme(sentinel_root, "flatly")
 
-    assert calls == [(sentinel_root, "flatly")]
+    assert calls == [("light",)]
 
 
 def test_switch_theme_logs_warning_when_apply_theme_fails(monkeypatch, caplog):
-    def fake_apply_theme(*_args, **_kwargs):
-        raise RuntimeError("tk failed")
+    def fake_set_mode(*_args, **_kwargs):
+        raise RuntimeError("theme manager failed")
 
-    monkeypatch.setattr("src.utils.themes.apply_theme", fake_apply_theme)
+    # Mock the actual method being called in switch_theme
+    monkeypatch.setattr("src.ui.theme_manager.theme_manager.set_mode", fake_set_mode)
     caplog.set_level(logging.WARNING)
 
     api_clients.switch_theme(object(), "darkly")
@@ -35,18 +37,19 @@ def test_switch_theme_logs_warning_when_apply_theme_fails(monkeypatch, caplog):
 
 
 def test_get_current_theme_returns_value_from_utils(monkeypatch):
-    monkeypatch.setattr("src.utils.themes.load_theme", lambda: "darkly")
+    monkeypatch.setattr("src.ui.theme_manager.theme_manager.get_current_mode", lambda: "darkly")
 
     assert api_clients.get_current_theme() == "darkly"
 
 
 def test_get_current_theme_returns_default_on_exception(monkeypatch):
-    def fake_load_theme():
-        raise RuntimeError("prefs missing")
+    def fake_get_current_mode():
+        raise RuntimeError("theme manager failed")
 
-    monkeypatch.setattr("src.utils.themes.load_theme", fake_load_theme)
+    # Mock the actual method and make it fail to trigger exception path
+    monkeypatch.setattr("src.ui.theme_manager.theme_manager.get_current_mode", fake_get_current_mode)
 
-    assert api_clients.get_current_theme() == "flatly"
+    assert api_clients.get_current_theme() == "light"
 
 
 def test_upload_folder_returns_service_result(monkeypatch):

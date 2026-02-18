@@ -145,7 +145,12 @@ class TreeviewThemeManager:
                 borderwidth=1,
             )
 
-            style.map(style_name, background=[("selected", sel_bg)], foreground=[("selected", sel_fg)])
+            style.map(
+                style_name,
+                background=[("", even_bg), ("selected", sel_bg)],
+                foreground=[("selected", sel_fg)],
+                fieldbackground=[("", even_bg)],
+            )
 
             # Fallback para "Treeview" padrão
             style.configure("Treeview", background=even_bg, fieldbackground=even_bg, foreground=fg)
@@ -221,7 +226,12 @@ class TreeviewThemeManager:
                 borderwidth=1,
             )
 
-            style.map(style_name, background=[("selected", sel_bg)], foreground=[("selected", sel_fg)])
+            style.map(
+                style_name,
+                background=[("", even_bg), ("selected", sel_bg)],
+                foreground=[("selected", sel_fg)],
+                fieldbackground=[("", even_bg)],
+            )
 
             style.configure("Treeview", background=even_bg, fieldbackground=even_bg, foreground=fg)
             style.configure("Treeview.Heading", background=heading_bg, foreground=heading_fg)

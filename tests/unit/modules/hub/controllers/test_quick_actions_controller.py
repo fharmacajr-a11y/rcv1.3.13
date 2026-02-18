@@ -86,6 +86,7 @@ class TestQuickActionsController:
         assert fake_navigator.senhas_opened is False
         assert fake_navigator.auditoria_opened is False
 
+    @pytest.mark.skip(reason="Ação 'senhas' removida do controller – migração CTK")
     def test_handle_senhas_click(self, controller, fake_navigator):
         """Deve chamar open_senhas ao clicar em 'senhas'."""
         controller.handle_action_click("senhas")
@@ -93,6 +94,7 @@ class TestQuickActionsController:
         assert fake_navigator.senhas_opened is True
         assert fake_navigator.clientes_opened is False
 
+    @pytest.mark.skip(reason="Ação 'auditoria' removida do controller – migração CTK")
     def test_handle_auditoria_click(self, controller, fake_navigator):
         """Deve chamar open_auditoria ao clicar em 'auditoria'."""
         controller.handle_action_click("auditoria")

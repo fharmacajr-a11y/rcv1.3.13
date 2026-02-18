@@ -32,19 +32,20 @@ class TestSwitchTheme:
     def test_switch_theme_success(self) -> None:
         """switch_theme() deve aplicar tema com sucesso"""
         mock_root = Mock()
-        mock_apply = Mock()
+        mock_theme_manager = Mock()
 
-        with patch("src.utils.themes.apply_theme", mock_apply):
+        with patch("src.ui.theme_manager.theme_manager", mock_theme_manager):
             api_clients.switch_theme(mock_root, "darkly")
 
-        mock_apply.assert_called_once_with(mock_root, theme="darkly")
+        # Verifica se o set_mode foi chamado com "dark" (mapeado de "darkly")
+        mock_theme_manager.set_mode.assert_called_once_with("dark")
 
     def test_switch_theme_import_error(self, caplog: Any) -> None:
         """switch_theme() deve logar warning se import falhar"""
         mock_root = Mock()
 
-        # Simula falha no import fazendo apply_theme levantar exceção
-        with patch("src.utils.themes.apply_theme", side_effect=ImportError("no module")):
+        # Simula falha no import fazendo theme_manager levantar exceção
+        with patch("src.ui.theme_manager.theme_manager.set_mode", side_effect=ImportError("no module")):
             api_clients.switch_theme(mock_root, "flatly")
 
         # Deve logar warning mas não crashar
@@ -55,7 +56,7 @@ class TestSwitchTheme:
         mock_root = Mock()
 
         with patch(
-            "src.utils.themes.apply_theme",
+            "src.ui.theme_manager.theme_manager.set_mode",
             side_effect=Exception("theme error"),
         ):
             api_clients.switch_theme(mock_root, "invalid")
@@ -73,27 +74,27 @@ class TestGetCurrentTheme:
 
     def test_get_current_theme_success(self) -> None:
         """get_current_theme() deve retornar tema atual"""
-        with patch("src.utils.themes.load_theme", return_value="darkly"):
+        with patch("src.ui.theme_manager.theme_manager.get_current_mode", return_value="dark"):
             result = api_clients.get_current_theme()
 
-        assert result == "darkly"
+        assert result == "dark"
 
     def test_get_current_theme_error_fallback(self) -> None:
-        """get_current_theme() deve retornar 'flatly' em caso de erro"""
+        """get_current_theme() deve retornar 'light' em caso de erro"""
         with patch(
-            "src.utils.themes.load_theme",
+            "src.ui.theme_manager.theme_manager.get_current_mode",
             side_effect=Exception("load error"),
         ):
             result = api_clients.get_current_theme()
 
-        assert result == "flatly"
+        assert result == "light"
 
     def test_get_current_theme_import_error(self) -> None:
         """get_current_theme() deve retornar fallback se import falhar"""
-        with patch("src.utils.themes.load_theme", side_effect=ImportError("no module")):
+        with patch("src.ui.theme_manager.theme_manager.get_current_mode", side_effect=ImportError("no module")):
             result = api_clients.get_current_theme()
 
-        assert result == "flatly"
+        assert result == "light"
 
 
 # ============================================================================
@@ -405,11 +406,16 @@ class TestEdgeCases:
 
     def test_switch_theme_with_none_root(self, caplog: Any) -> None:
         """switch_theme() deve lidar com root=None gracefully"""
+        mock_tm = Mock()
+        mock_tm.set_mode.side_effect = AttributeError("root is None")
         with patch(
-            "src.utils.themes.apply_theme",
-            side_effect=AttributeError("root is None"),
+            "src.ui.theme_manager.theme_manager",
+            mock_tm,
         ):
-            api_clients.switch_theme(None, "flatly")  # type: ignore
+            import logging
+
+            with caplog.at_level(logging.WARNING):
+                api_clients.switch_theme(None, "flatly")  # type: ignore
 
         assert any("Failed to apply theme" in rec.message for rec in caplog.records)
 

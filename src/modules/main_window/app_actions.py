@@ -47,7 +47,7 @@ class AppActions:
     def _excluir_cliente(self) -> None:
         """Fluxo original de exclusão/movimento para lixeira, movido da App."""
         from tkinter import messagebox
-        from src.modules.clientes import service as clientes_service
+        from src.modules.clientes.core import service as clientes_service
         from src.modules.lixeira import refresh_if_open as refresh_lixeira_if_open
 
         values = self._app._selected_main_values()
@@ -161,55 +161,16 @@ class AppActions:
         self.open_client_storage_subfolders()
 
     def abrir_obrigacoes_cliente(self) -> None:
-        """Abre a janela de obrigações regulatórias para o cliente selecionado."""
+        """Abre a janela de obrigações regulatórias para o cliente selecionado.
+
+        NOTA: Funcionalidade em desenvolvimento.
+        """
         from tkinter import messagebox
-        from src.modules.clientes.views.client_obligations_window import show_client_obligations_window
 
-        values = self._app._selected_main_values()
-        if not values:
-            messagebox.showwarning("Atenção", "Selecione um cliente para gerenciar obrigações.", parent=self._app)
-            return
-
-        try:
-            client_id = int(values[0])
-        except Exception:
-            messagebox.showerror("Erro", "ID inválido.", parent=self._app)
-            return
-
-        # Pega razão social ou nome fantasia ou nome
-        razao = (values[1] or "").strip()
-        nome = (values[3] or "").strip()
-        client_name = razao or nome or f"Cliente #{client_id}"
-
-        u = self._app._get_user_cached()
-        if not u:
-            messagebox.showerror("Erro", "Usuário não autenticado.", parent=self._app)
-            return
-
-        org_id = self._app._get_org_id_cached(u["id"])
-        if not org_id:
-            messagebox.showerror("Erro", "Organização não encontrada para o usuário.", parent=self._app)
-            return
-
-        user_id = u["id"]
-
-        # Callback para atualizar Hub se necessário
-        def on_refresh_hub() -> None:
-            try:
-                # Se hub estiver aberto, recarrega
-                hub_instance = getattr(self._app, "_hub_screen_instance", None)
-                if hub_instance is not None:
-                    hub_instance.on_show()
-            except Exception as exc:
-                self._logger.debug("Falha ao atualizar Hub após mudança em obrigações: %s", exc)
-
-        show_client_obligations_window(
+        messagebox.showinfo(
+            "Em Desenvolvimento",
+            "A funcionalidade de gerenciamento de obrigações está em desenvolvimento.",
             parent=self._app,
-            org_id=org_id,
-            created_by=user_id,
-            client_id=client_id,
-            client_name=client_name,
-            on_refresh_hub=on_refresh_hub,
         )
 
     def enviar_para_supabase(self) -> None:

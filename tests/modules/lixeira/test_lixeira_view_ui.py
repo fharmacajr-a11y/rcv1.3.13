@@ -102,10 +102,10 @@ class TestLixeiraButtonDefinitions:
 
         source = inspect.getsource(lixeira_mod.abrir_lixeira)
 
-        # Verifica bootstyles
-        assert 'bootstyle="success"' in source  # Restaurar
-        assert 'bootstyle="danger"' in source  # Apagar
-        assert 'bootstyle="secondary"' in source  # Fechar
+        # Verifica cores dos botões (CustomTkinter usa fg_color ao invés de bootstyle)
+        assert 'fg_color=("#2E7D32", "#1B5E20")' in source  # Restaurar (verde)
+        assert 'fg_color=("#D32F2F", "#B71C1C")' in source  # Apagar (vermelho)
+        assert 'fg_color=("#757575", "#616161")' in source  # Fechar (cinza)
 
     def test_handler_functions_are_defined(self):
         """Verifica que as funções de handler estão definidas no código."""

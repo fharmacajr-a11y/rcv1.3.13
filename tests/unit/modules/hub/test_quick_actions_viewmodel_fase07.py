@@ -165,10 +165,9 @@ def test_controller_get_supported_action_ids_contem_todas_actions_principais(
 
     # Expected: todas as actions que têm método open_* no Navigator Protocol
     # Removidos: farmacia_popular, sifap (BUGFIX-HUB-UI-001)
+    # Removidos: senhas, auditoria (migração CTK)
     expected = {
         "clientes",
-        "senhas",
-        "auditoria",
         "fluxo_caixa",
         "anvisa",
         "sngpc",

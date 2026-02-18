@@ -14,7 +14,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.modules.clientes import service as clientes_service
+from src.modules.clientes.core import service as clientes_service
 
 
 class EntryStub:

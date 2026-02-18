@@ -13,6 +13,7 @@ def test_clientesv2_imports():
     assert ClientesV2Frame is not None, "ClientesV2Frame não pode ser None"
 
 
+@pytest.mark.gui
 def test_clientesv2_has_required_methods():
     """Test que ClientesV2Frame tem métodos essenciais."""
     from src.modules.clientes.ui import ClientesV2Frame
@@ -90,3 +91,41 @@ def test_clientesv2_is_ctk_frame():
 
     # Verificar hierarquia de classes
     assert issubclass(ClientesV2Frame, ctk.CTkFrame), "ClientesV2Frame deveria herdar de CTkFrame"
+
+
+# ==================== Testes FASE 5: CTkTreeviewContainer ====================
+
+
+def test_clientesv2_uses_ctk_treeview_container():
+    """Verifica que ClientesV2Frame importa e usa CTkTreeviewContainer."""
+    import src.modules.clientes.ui.view as view_mod
+
+    # Verificar que CTkTreeviewContainer está importado no módulo
+    assert hasattr(view_mod, "CTkTreeviewContainer"), "CTkTreeviewContainer não importado no módulo view"
+
+
+def test_clientesv2_has_tree_container_attribute(clientes_v2_frame):
+    """FASE 5: Verifica que view tem _tree_container (CTkTreeviewContainer)."""
+    frame = clientes_v2_frame
+
+    # Deve ter o atributo _tree_container
+    assert hasattr(frame, "_tree_container"), "_tree_container não encontrado"
+    assert frame._tree_container is not None, "_tree_container é None"
+
+
+def test_clientesv2_tree_equals_container_treeview(clientes_v2_frame):
+    """FASE 5: Verifica que self.tree é o Treeview do CTkTreeviewContainer."""
+    frame = clientes_v2_frame
+
+    # tree deve ser igual ao Treeview dentro do container
+    container_tree = frame._tree_container.get_treeview()
+    assert frame.tree == container_tree, "self.tree não é o Treeview do container"
+    assert frame.tree_widget == container_tree, "self.tree_widget não é o Treeview do container"
+
+
+def test_clientesv2_tree_colors_from_container(clientes_v2_frame):
+    """FASE 5: Verifica que _tree_colors vem do CTkTreeviewContainer."""
+    frame = clientes_v2_frame
+
+    container_colors = frame._tree_container.get_colors()
+    assert frame._tree_colors == container_colors, "Cores não coincidem com o container"

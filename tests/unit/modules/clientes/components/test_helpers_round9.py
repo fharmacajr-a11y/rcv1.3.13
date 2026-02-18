@@ -21,6 +21,17 @@ from unittest.mock import Mock
 import pytest
 
 from src.modules.clientes.components import helpers
+from src.modules.clientes.core import constants as _constants_mod
+from src.modules.clientes.core.constants import (
+    DEFAULT_STATUS_CHOICES as _TRUE_DEFAULT_CHOICES,
+    DEFAULT_STATUS_GROUPS as _TRUE_DEFAULT_GROUPS,
+)
+
+
+def _reload_helpers():
+    """Reload constants first, then helpers shim, so module-level vars refresh."""
+    importlib.reload(_constants_mod)
+    return importlib.reload(helpers)
 
 
 # ============================================================================
@@ -33,9 +44,9 @@ def clean_env(monkeypatch):
     """Remove environment variables to test default behavior."""
     monkeypatch.delenv("RC_STATUS_CHOICES", raising=False)
     monkeypatch.delenv("RC_STATUS_GROUPS", raising=False)
-    importlib.reload(helpers)
+    _reload_helpers()
     yield
-    importlib.reload(helpers)
+    _reload_helpers()
 
 
 @pytest.fixture
@@ -73,7 +84,7 @@ class TestLoadStatusChoices:
 
         result = helpers._load_status_choices()
 
-        assert result == list(helpers.DEFAULT_STATUS_CHOICES)
+        assert result == list(_TRUE_DEFAULT_CHOICES)
 
     def test_returns_defaults_when_env_is_whitespace(self, monkeypatch):
         """Should return defaults when RC_STATUS_CHOICES is only whitespace."""
@@ -81,7 +92,7 @@ class TestLoadStatusChoices:
 
         result = helpers._load_status_choices()
 
-        assert result == list(helpers.DEFAULT_STATUS_CHOICES)
+        assert result == list(_TRUE_DEFAULT_CHOICES)
 
     def test_parses_json_array(self, monkeypatch):
         """Should parse JSON array from RC_STATUS_CHOICES."""
@@ -130,7 +141,7 @@ class TestLoadStatusChoices:
 
         result = helpers._load_status_choices()
 
-        assert result == list(helpers.DEFAULT_STATUS_CHOICES)
+        assert result == list(_TRUE_DEFAULT_CHOICES)
 
     def test_filters_empty_values_from_json(self, monkeypatch):
         """Should filter out empty/falsy values from JSON array."""
@@ -175,7 +186,7 @@ class TestLoadStatusGroups:
 
         result = helpers._load_status_groups()
 
-        assert result == list(helpers.DEFAULT_STATUS_GROUPS)
+        assert result == list(_TRUE_DEFAULT_GROUPS)
 
     def test_returns_defaults_when_env_is_whitespace(self, monkeypatch):
         """Should return defaults when RC_STATUS_GROUPS is only whitespace."""
@@ -183,7 +194,7 @@ class TestLoadStatusGroups:
 
         result = helpers._load_status_groups()
 
-        assert result == list(helpers.DEFAULT_STATUS_GROUPS)
+        assert result == list(_TRUE_DEFAULT_GROUPS)
 
     def test_parses_valid_json_dict(self, monkeypatch):
         """Should parse valid JSON dictionary from RC_STATUS_GROUPS."""
@@ -255,7 +266,7 @@ class TestLoadStatusGroups:
 
         result = helpers._load_status_groups()
 
-        assert result == list(helpers.DEFAULT_STATUS_GROUPS)
+        assert result == list(_TRUE_DEFAULT_GROUPS)
 
     def test_returns_defaults_when_json_is_not_dict(self, monkeypatch):
         """Should return defaults when JSON is not a dictionary."""
@@ -263,7 +274,7 @@ class TestLoadStatusGroups:
 
         result = helpers._load_status_groups()
 
-        assert result == list(helpers.DEFAULT_STATUS_GROUPS)
+        assert result == list(_TRUE_DEFAULT_GROUPS)
 
     def test_returns_defaults_when_json_is_empty_dict(self, monkeypatch):
         """Should return defaults when JSON is an empty dictionary."""
@@ -271,7 +282,7 @@ class TestLoadStatusGroups:
 
         result = helpers._load_status_groups()
 
-        assert result == list(helpers.DEFAULT_STATUS_GROUPS)
+        assert result == list(_TRUE_DEFAULT_GROUPS)
 
     def test_converts_group_name_to_string(self, monkeypatch):
         """Should convert group names to strings."""
@@ -585,37 +596,37 @@ class TestEnvironmentIntegration:
         monkeypatch.setenv("RC_STATUS_GROUPS", groups_json)
         monkeypatch.delenv("RC_STATUS_CHOICES", raising=False)
 
-        reloaded = importlib.reload(helpers)
+        reloaded = _reload_helpers()
 
         try:
             assert reloaded.STATUS_CHOICES == ["Custom A", "Custom B"]
         finally:
-            importlib.reload(helpers)
+            _reload_helpers()
 
     def test_reload_with_custom_groups_affects_constants(self, monkeypatch):
         """Setting RC_STATUS_GROUPS and reloading should affect STATUS_GROUPS."""
         groups_json = json.dumps({"Custom Group": ["Custom Status"]})
         monkeypatch.setenv("RC_STATUS_GROUPS", groups_json)
 
-        reloaded = importlib.reload(helpers)
+        reloaded = _reload_helpers()
 
         try:
             assert reloaded.STATUS_GROUPS == [("Custom Group", ["Custom Status"])]
         finally:
-            importlib.reload(helpers)
+            _reload_helpers()
 
     def test_fallback_to_defaults_preserves_consistency(self, monkeypatch):
         """When falling back to defaults, STATUS_CHOICES should match flattened STATUS_GROUPS."""
         monkeypatch.delenv("RC_STATUS_CHOICES", raising=False)
         monkeypatch.delenv("RC_STATUS_GROUPS", raising=False)
 
-        reloaded = importlib.reload(helpers)
+        reloaded = _reload_helpers()
 
         try:
             flattened = [label for _, values in reloaded.STATUS_GROUPS for label in values]
             assert reloaded.STATUS_CHOICES == flattened
         finally:
-            importlib.reload(helpers)
+            _reload_helpers()
 
 
 __all__ = [

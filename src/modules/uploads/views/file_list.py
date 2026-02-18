@@ -49,11 +49,14 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
 
         self.tree.grid(row=0, column=0, sticky="nsew")
 
-        # Scrollbars vertical e horizontal
+        # Scrollbar vertical (CustomTkinter)
         scroll_y = ctk.CTkScrollbar(self, command=self.tree.yview)
         scroll_y.grid(row=0, column=1, sticky="ns")
 
-        scroll_x = ctk.CTkScrollbar(self, orient="horizontal", command=self.tree.xview)
+        # Para scrollbar horizontal, usar tkinter padrão pois CTkScrollbar não suporta horizontal
+        import tkinter as tk
+
+        scroll_x = tk.Scrollbar(self, orient="horizontal", command=self.tree.xview)
         scroll_x.grid(row=1, column=0, sticky="ew")
 
         self.tree.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)

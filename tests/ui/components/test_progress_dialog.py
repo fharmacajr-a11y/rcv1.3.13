@@ -6,6 +6,8 @@ from src.ui.components.progress_dialog import ProgressDialog
 
 
 def test_progress_dialog_updates_fields(tk_root_session):
+    from src.ui.ctk_config import HAS_CUSTOMTKINTER
+
     dialog = ProgressDialog(
         tk_root_session,
         title="Teste",
@@ -20,15 +22,30 @@ def test_progress_dialog_updates_fields(tk_root_session):
 
     assert dialog._message_var.get() == "Nova mensagem"  # type: ignore[attr-defined]
     assert dialog._detail_var.get() == "Novo detalhe"  # type: ignore[attr-defined]
-    assert float(dialog._progress.cget("value")) == pytest.approx(50.0)  # type: ignore[attr-defined]
+
+    # Para CustomTkinter, verificamos via get(), para tkinter puro via atributo interno
+    if HAS_CUSTOMTKINTER and hasattr(dialog._progress, "get"):
+        progress_value = dialog._progress.get()  # type: ignore[attr-defined]
+        assert progress_value == pytest.approx(0.5)
+    else:
+        progress_value = dialog._progress._progress_value  # type: ignore[attr-defined]
+        assert progress_value == pytest.approx(0.5)
+
     assert "ETA" in dialog._eta_var.get()  # type: ignore[attr-defined]
 
     dialog.set_progress(None)
-    assert str(dialog._progress.cget("mode")) == "indeterminate"  # type: ignore[attr-defined]
+    assert dialog._indeterminate is True  # type: ignore[attr-defined]
 
     dialog.set_progress(1.0)
-    assert str(dialog._progress.cget("mode")) == "determinate"  # type: ignore[attr-defined]
-    assert float(dialog._progress.cget("value")) == pytest.approx(100.0)  # type: ignore[attr-defined]
+    assert dialog._indeterminate is False  # type: ignore[attr-defined]
+
+    # Verificar progresso em 100%
+    if HAS_CUSTOMTKINTER and hasattr(dialog._progress, "get"):
+        progress_value = dialog._progress.get()  # type: ignore[attr-defined]
+        assert progress_value == pytest.approx(1.0)
+    else:
+        progress_value = dialog._progress._progress_value  # type: ignore[attr-defined]
+        assert progress_value == pytest.approx(1.0)
 
     dialog.close()
 

@@ -99,33 +99,45 @@ class HubQuickActionsView:
                 corner_radius=CARD_RADIUS,
             )
         else:
-            self.modules_panel = ctk.CTkFrame(self._parent)
+            self.modules_panel = tk.Frame(self._parent)
 
         # Container interno com title - fonte maior
-        title_label = ctk.CTkLabel(
-            self.modules_panel,
-            text=MODULES_TITLE,
-            font=TITLE_FONT,
-            text_color=TEXT_PRIMARY,
-        )
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            title_label = ctk.CTkLabel(
+                self.modules_panel,
+                text=MODULES_TITLE,
+                font=TITLE_FONT,
+                text_color=TEXT_PRIMARY,
+            )
+        else:
+            title_label = tk.Label(self.modules_panel, text=MODULES_TITLE, font=TITLE_FONT)
         title_label.pack(fill="x", padx=PAD_OUTER, pady=(PAD_OUTER, 4))
 
         # Container de conteúdo com padding
-        content_container = ctk.CTkFrame(self.modules_panel, fg_color="transparent")
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            content_container = ctk.CTkFrame(self.modules_panel, fg_color="transparent")
+        else:
+            content_container = tk.Frame(self.modules_panel)
         content_container.pack(fill="both", expand=True, padx=PAD_OUTER, pady=(0, PAD_OUTER))
 
         # BLOCO 1: Cadastros / Acesso
         # Título da seção
-        lbl_cadastros = ctk.CTkLabel(
-            content_container,
-            text="Cadastros / Acesso",
-            font=("Arial", 12, "bold"),
-            text_color=("#374151", "#d1d5db"),
-        )
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            lbl_cadastros = ctk.CTkLabel(
+                content_container,
+                text="Cadastros / Acesso",
+                font=("Arial", 12, "bold"),
+                text_color=("#374151", "#d1d5db"),
+            )
+        else:
+            lbl_cadastros = tk.Label(content_container, text="Cadastros / Acesso", font=("Arial", 12, "bold"))
         lbl_cadastros.pack(fill="x", pady=(8, 2))
 
         # Frame de conteúdo - transparente para manter fundo do painel
-        frame_cadastros = ctk.CTkFrame(content_container, fg_color="transparent")
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            frame_cadastros = ctk.CTkFrame(content_container, fg_color="transparent")
+        else:
+            frame_cadastros = tk.Frame(content_container)
         frame_cadastros.pack(fill="x", padx=8, pady=(0, 8))
         frame_cadastros.columnconfigure(0, weight=1)
         frame_cadastros.columnconfigure(1, weight=1)
@@ -135,16 +147,22 @@ class HubQuickActionsView:
 
         # BLOCO 2: Gestão
         # Título da seção
-        lbl_gestao = ctk.CTkLabel(
-            content_container,
-            text="Gestão",
-            font=("Arial", 12, "bold"),
-            text_color=("#374151", "#d1d5db"),
-        )
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            lbl_gestao = ctk.CTkLabel(
+                content_container,
+                text="Gestão",
+                font=("Arial", 12, "bold"),
+                text_color=("#374151", "#d1d5db"),
+            )
+        else:
+            lbl_gestao = tk.Label(content_container, text="Gestão", font=("Arial", 12, "bold"))
         lbl_gestao.pack(fill="x", pady=(0, 2))
 
         # Frame de conteúdo - transparente para manter fundo do painel
-        frame_gestao = ctk.CTkFrame(content_container, fg_color="transparent")
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            frame_gestao = ctk.CTkFrame(content_container, fg_color="transparent")
+        else:
+            frame_gestao = tk.Frame(content_container)
         frame_gestao.pack(fill="x", padx=8, pady=(0, 8))
         frame_gestao.columnconfigure(0, weight=1)
 
@@ -153,16 +171,22 @@ class HubQuickActionsView:
 
         # BLOCO 3: Regulatório / Programas
         # Título da seção
-        lbl_regulatorio = ctk.CTkLabel(
-            content_container,
-            text="Regulatório / Programas",
-            font=("Arial", 12, "bold"),
-            text_color=("#374151", "#d1d5db"),
-        )
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            lbl_regulatorio = ctk.CTkLabel(
+                content_container,
+                text="Regulatório / Programas",
+                font=("Arial", 12, "bold"),
+                text_color=("#374151", "#d1d5db"),
+            )
+        else:
+            lbl_regulatorio = tk.Label(content_container, text="Regulatório / Programas", font=("Arial", 12, "bold"))
         lbl_regulatorio.pack(fill="x", pady=(0, 2))
 
         # Frame de conteúdo - transparente para manter fundo do painel
-        frame_regulatorio = ctk.CTkFrame(content_container, fg_color="transparent")
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            frame_regulatorio = ctk.CTkFrame(content_container, fg_color="transparent")
+        else:
+            frame_regulatorio = tk.Frame(content_container)
         frame_regulatorio.pack(fill="x", padx=8, pady=(0, 0))
         frame_regulatorio.columnconfigure(0, weight=1)
         frame_regulatorio.columnconfigure(1, weight=1)

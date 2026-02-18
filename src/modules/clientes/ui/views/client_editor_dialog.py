@@ -56,7 +56,7 @@ class ClientEditorDialog(ctk.CTkToplevel):
         log.info(f"[ClientEditorDialog:{self.session_id}] [t=0.000] Iniciando criação")
 
         super().__init__(parent, **kwargs)
-        log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time()-start_time:.3f}] super().__init__")
+        log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time() - start_time:.3f}] super().__init__")
 
         self.client_id = client_id
         self.on_save = on_save
@@ -65,18 +65,18 @@ class ClientEditorDialog(ctk.CTkToplevel):
 
         # ANTI-FLASH STEP 1: Ocultar IMEDIATAMENTE (previne aparição inicial)
         self.withdraw()  # type: ignore[attr-defined]
-        log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time()-start_time:.3f}] withdraw()")
+        log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time() - start_time:.3f}] withdraw()")
 
         # ANTI-FLASH STEP 2: Alpha zero (proteção extra no Windows)
         try:
             self.attributes("-alpha", 0.0)
-            log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time()-start_time:.3f}] alpha=0.0")
+            log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time() - start_time:.3f}] alpha=0.0")
         except Exception:
             pass  # Nem todos OS suportam alpha
 
         # ANTI-FLASH STEP 3: Configurar cores ANTES de geometry (evita flash branco)
         self.configure(fg_color=APP_BG)
-        log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time()-start_time:.3f}] fg_color configurado")
+        log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time() - start_time:.3f}] fg_color configurado")
 
         # Configurar janela (invisível)
         self._set_window_title()
@@ -95,35 +95,35 @@ class ClientEditorDialog(ctk.CTkToplevel):
         x = (self.winfo_screenwidth() // 2) - (940 // 2)
         y = (self.winfo_screenheight() // 2) - (600 // 2)
         self.geometry(f"940x600+{x}+{y}")
-        log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time()-start_time:.3f}] geometry centralizado")
+        log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time() - start_time:.3f}] geometry centralizado")
 
         # Modal: transient ANTES de mostrar
         self.transient(parent)
 
         # ANTI-FLASH STEP 4: Construir UI completa (ainda invisível)
         self._build_ui()
-        log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time()-start_time:.3f}] UI construída")
+        log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time() - start_time:.3f}] UI construída")
 
         # ANTI-FLASH STEP 5: Carregar dados ANTES de exibir (se editando)
         # CRÍTICO: Move carregamento para ANTES do deiconify (previne segundo flash)
         if client_id is not None:
             self._load_client_data()
-            log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time()-start_time:.3f}] dados carregados")
+            log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time() - start_time:.3f}] dados carregados")
 
         # ANTI-FLASH STEP 6: Forçar renderização completa ANTES de mostrar
         self.update_idletasks()
-        log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time()-start_time:.3f}] update_idletasks")
+        log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time() - start_time:.3f}] update_idletasks")
 
         # Aplicar titlebar escura (Windows)
         try:
             set_win_dark_titlebar(self)
-            log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time()-start_time:.3f}] titlebar escura")
+            log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time() - start_time:.3f}] titlebar escura")
         except Exception as e:
             log.debug(f"[ClientEditorDialog:{self.session_id}] Erro titlebar: {e}")
 
         # ANTI-FLASH STEP 7: Exibir janela (ainda transparente)
         self.deiconify()  # type: ignore[attr-defined]
-        log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time()-start_time:.3f}] deiconify()")
+        log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time() - start_time:.3f}] deiconify()")
 
         # ANTI-FLASH STEP 8: Fade in suave (previne flash visual)
         try:
@@ -131,7 +131,7 @@ class ClientEditorDialog(ctk.CTkToplevel):
             for alpha in [0.0, 0.3, 0.6, 0.8, 1.0]:
                 self.attributes("-alpha", alpha)
                 self.update_idletasks()
-            log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time()-start_time:.3f}] fade-in completo")
+            log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time() - start_time:.3f}] fade-in completo")
         except Exception:
             # Fallback: mostrar imediatamente se alpha não suportado
             try:
@@ -142,11 +142,11 @@ class ClientEditorDialog(ctk.CTkToplevel):
         # ANTI-FLASH STEP 9: grab_set APÓS fade-in completo
         try:
             self.grab_set()
-            log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time()-start_time:.3f}] grab_set")
+            log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time() - start_time:.3f}] grab_set")
         except Exception:
             pass
 
-        log.info(f"[ClientEditorDialog:{self.session_id}] [t={time.time()-start_time:.3f}] PRONTO")
+        log.info(f"[ClientEditorDialog:{self.session_id}] [t={time.time() - start_time:.3f}] PRONTO")
 
         # Registrar callback de fechamento
         self.protocol("WM_DELETE_WINDOW", self._on_window_close)
@@ -443,7 +443,7 @@ class ClientEditorDialog(ctk.CTkToplevel):
 
         try:
             # Buscar cliente via service
-            from src.modules.clientes import service as clientes_service
+            from src.modules.clientes.core import service as clientes_service
 
             cliente = clientes_service.fetch_cliente_by_id(self.client_id)
 
@@ -585,7 +585,7 @@ class ClientEditorDialog(ctk.CTkToplevel):
             }
 
             # FASE 3.2: Validar duplicatas antes de salvar
-            from src.modules.clientes import service as clientes_service
+            from src.modules.clientes.core import service as clientes_service
             from tkinter import messagebox
 
             # Montar row (None para novo, tupla (id,) para editar)
@@ -672,7 +672,7 @@ class ClientEditorDialog(ctk.CTkToplevel):
         """Handler do botão Cartão CNPJ."""
         try:
             from tkinter.filedialog import askdirectory
-            from src.modules.clientes import service as clientes_service
+            from src.modules.clientes.core import service as clientes_service
 
             # Solicitar pasta
             base_dir = askdirectory(title="Escolha a pasta do cliente (com o Cartão CNPJ)", parent=self)
@@ -756,7 +756,7 @@ class ClientEditorDialog(ctk.CTkToplevel):
                     "Observações": obs_completa,
                 }
 
-                from src.modules.clientes import service as clientes_service
+                from src.modules.clientes.core import service as clientes_service
 
                 result_save = clientes_service.salvar_cliente_a_partir_do_form(None, valores)
 

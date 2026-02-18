@@ -120,10 +120,10 @@ def main() -> int:
         if not matches:
             continue
 
-        print(f"{'='*70}")
+        print(f"{'=' * 70}")
         print(f"Padrão: {pattern_name}")
         print(f"Total: {len(matches)} ocorrência(s)")
-        print(f"{'='*70}\n")
+        print(f"{'=' * 70}\n")
 
         # Agrupar por arquivo
         by_file: dict[Path, list[Match]] = {}
@@ -137,11 +137,11 @@ def main() -> int:
                 print(f"     Linha {m.line}: {m.matched_text}")
             print()
 
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(
         f"RESUMO: {total_matches} referência(s) em {len(set(m.file for matches in all_matches.values() for m in matches))} arquivo(s)"
     )
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
 
     return 0
 

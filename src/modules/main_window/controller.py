@@ -254,10 +254,10 @@ def _open_clients_picker(app: Any, on_pick, return_to=None, banner_text: Optiona
     """
     if return_to is None:
 
-        def _return_to_passwords() -> None:
-            navigate_to(app, "passwords")
+        def _return_to_hub() -> None:
+            navigate_to(app, "hub")
 
-        return_to = _return_to_passwords
+        return_to = _return_to_hub
 
     effective_banner = banner_text or LEGACY_PICK_MODE_BANNER_TEXT
     start_client_pick_mode(
@@ -284,14 +284,6 @@ def start_client_pick_mode(
         return_to: Callback opcional para retornar após seleção/cancelamento
 
     Uso:
-        # Para Senhas:
-        start_client_pick_mode(
-            app,
-            on_client_picked=self._handle_client_picked_for_passwords,
-            banner_text="Modo seleção: escolha um cliente para gerenciar senhas",
-            return_to=lambda: navigate_to(app, "passwords")
-        )
-
         # Para Obrigações:
         start_client_pick_mode(
             app,
@@ -316,8 +308,7 @@ def start_client_pick_mode(
 def _show_anvisa(app: Any) -> Any:
     """Mostra a tela ANVISA, cacheando a instância.
 
-    Segue o mesmo padrão de _show_passwords: esconde frame anterior,
-    garante que frame está mapeado, atualiza nav._current.
+    Esconde frame anterior, garante que frame está mapeado, atualiza nav._current.
     """
     from src.modules.anvisa import AnvisaScreen
 
@@ -371,7 +362,6 @@ def navigate_to(app: Any, target: str, **kwargs) -> Any:
         "hub": _show_hub,
         "main": _show_main,
         "placeholder": _show_placeholder,
-        "passwords": _show_passwords,
         "clients_picker": _open_clients_picker,
         "anvisa": _show_anvisa,
         "cashflow": _show_cashflow,

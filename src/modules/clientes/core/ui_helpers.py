@@ -177,37 +177,6 @@ def normalize_status_filter_value(status_value: str | None) -> str | None:
     return normalized
 
 
-def normalize_order_label(label: str | None) -> str:
-    """Normaliza um rótulo de ordenação.
-
-    - None ou string vazia -> DEFAULT_ORDER_LABEL
-    - Aliases conhecidos (ex.: "ID (↑)", "Última Alteração ↓") -> label canônico
-    - Qualquer outro texto -> retornado como está, stripado
-
-    Args:
-        label: Rótulo de ordenação a normalizar
-
-    Returns:
-        Rótulo normalizado
-
-    Examples:
-        >>> normalize_order_label("ID (↑)")
-        'ID (1→9)'
-        >>> normalize_order_label("Última Alteração ↓")
-        'Última Alteração (mais recente)'
-        >>> normalize_order_label(None)
-        'Razão Social (A→Z)'
-    """
-    if not label:
-        return DEFAULT_ORDER_LABEL
-
-    normalized = label.strip()
-    if not normalized:
-        return DEFAULT_ORDER_LABEL
-
-    return ORDER_LABEL_ALIASES.get(normalized, normalized)
-
-
 def build_filter_choices_with_all_option(status_options: Sequence[str]) -> list[str]:
     """Constrói lista de opções para combobox de filtro de status.
 

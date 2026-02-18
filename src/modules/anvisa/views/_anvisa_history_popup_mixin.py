@@ -107,7 +107,7 @@ class AnvisaHistoryPopupMixin:
         self._history_tree_popup.column("criada_em", width=120, anchor="center", stretch=False)  # type: ignore[attr-defined]
         self._history_tree_popup.column("atualizada_em", width=140, anchor="center", stretch=False)  # type: ignore[attr-defined]
 
-        self._history_tree_popup.pack(side="left", fill=BOTH, expand=True)  # type: ignore[attr-defined]
+        self._history_tree_popup.pack(side="left", fill="both", expand=True)  # type: ignore[attr-defined]
 
         # Travar redimensionamento de colunas (permite override via _lock_history_tree_columns)
         lock_cols = getattr(self, "_lock_history_tree_columns", None)
@@ -157,7 +157,7 @@ class AnvisaHistoryPopupMixin:
             width=18,
             state="disabled",
         )
-        self._btn_finalizar.pack(side=LEFT, padx=(0, 5))  # type: ignore[attr-defined]
+        self._btn_finalizar.pack(side="left", padx=(0, 5))  # type: ignore[attr-defined]
 
         self._btn_cancelar = ctk.CTkButton(  # type: ignore[attr-defined]
             buttons_frame,
@@ -166,7 +166,7 @@ class AnvisaHistoryPopupMixin:
             width=12,
             state="disabled",
         )
-        self._btn_cancelar.pack(side=LEFT, padx=(0, 5))  # type: ignore[attr-defined]
+        self._btn_cancelar.pack(side="left", padx=(0, 5))  # type: ignore[attr-defined]
 
         self._btn_excluir_popup = ctk.CTkButton(  # type: ignore[attr-defined]
             buttons_frame,
@@ -175,7 +175,7 @@ class AnvisaHistoryPopupMixin:
             width=12,
             state="disabled",
         )
-        self._btn_excluir_popup.pack(side=LEFT, padx=(0, 5))  # type: ignore[attr-defined]
+        self._btn_excluir_popup.pack(side="left", padx=(0, 5))  # type: ignore[attr-defined]
 
         # Botão Fechar à direita
         ctk.CTkButton(
@@ -313,7 +313,7 @@ class AnvisaHistoryPopupMixin:
             return
 
         # Obter row com actions pré-calculadas
-        request_id = selection[0]
+        request_id = item_id
         row = self._history_rows_by_id.get(request_id) if hasattr(self, "_history_rows_by_id") else None  # type: ignore[attr-defined]
 
         if not row:

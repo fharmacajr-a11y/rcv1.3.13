@@ -395,7 +395,7 @@ class ClientUploadDialog(ctk.CTkToplevel):
             else:
                 messagebox.showwarning(
                     "Upload Parcial",
-                    f"⚠️ {success_count} de {len(items)} arquivo(s) enviado(s).\n" f"Alguns arquivos falharam.",
+                    f"⚠️ {success_count} de {len(items)} arquivo(s) enviado(s).\nAlguns arquivos falharam.",
                     parent=self,
                 )
 

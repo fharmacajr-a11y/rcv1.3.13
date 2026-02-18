@@ -31,7 +31,8 @@ from src.modules.uploads.service import (
 from src.modules.pdf_preview import open_pdf_viewer
 from src.ui.components.progress_dialog import ProgressDialog
 from src.ui.files_browser.utils import sanitize_filename, suggest_zip_filename
-from src.ui.window_utils import show_centered
+from src.ui.window_utils import prepare_hidden_window, show_centered_no_flash
+from src.ui.dark_window_helper import set_win_dark_titlebar
 from src.utils.prefs import load_browser_status_map
 from src.utils.resource_path import resource_path
 
@@ -120,7 +121,7 @@ class UploadsBrowserWindow(ctk.CTkToplevel):  # type: ignore[misc]
         anvisa_context: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(parent)
-        self.withdraw()
+        prepare_hidden_window(self)  # BUGFIX: Evitar flash branco ao abrir
         self._is_closing = False
         self._supabase = supabase
         self._module = module
@@ -157,7 +158,13 @@ class UploadsBrowserWindow(ctk.CTkToplevel):  # type: ignore[misc]
         self.minsize(1000, 620)
         self.transient(parent)
         self.update_idletasks()
-        show_centered(self)
+
+        # BUGFIX: Aplicar titlebar escura no Windows antes de mostrar
+        set_win_dark_titlebar(self)
+
+        # BUGFIX: Mostrar janela sem flash usando show_centered_no_flash
+        show_centered_no_flash(self, parent, width=1000, height=620)
+
         if modal:
             try:
                 self.grab_set()

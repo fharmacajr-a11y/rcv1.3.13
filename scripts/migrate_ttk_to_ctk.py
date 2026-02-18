@@ -111,9 +111,9 @@ def main():
         else:
             skipped.append((py_file, message))
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"MIGRACAO TTK -> CTK ({'DRY RUN' if dry_run else 'APLICADO'})")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     if migrated:
         print(f"OK MIGRADOS ({len(migrated)}):")
@@ -132,9 +132,9 @@ def main():
         if len(skipped) > 10:
             print(f"  ... e mais {len(skipped) - 10} arquivos")
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Total: {len(migrated)} migrados, {len(skipped)} pulados, {len(errors)} erros")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
 
 if __name__ == "__main__":

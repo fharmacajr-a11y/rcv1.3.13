@@ -115,8 +115,6 @@ def mock_callbacks() -> dict[str, MagicMock]:
     """Callbacks mock para testes."""
     return {
         "on_open_clientes": MagicMock(),
-        "on_open_senhas": MagicMock(),
-        "on_open_auditoria": MagicMock(),
         "on_open_cashflow": MagicMock(),
         "on_open_anvisa": MagicMock(),
         "on_open_farmacia_popular": MagicMock(),
@@ -149,8 +147,6 @@ class TestInit:
         view = hub_quick_actions_view.HubQuickActionsView(fake_parent, **mock_callbacks)
 
         assert view._on_open_clientes is mock_callbacks["on_open_clientes"]
-        assert view._on_open_senhas is mock_callbacks["on_open_senhas"]
-        assert view._on_open_auditoria is mock_callbacks["on_open_auditoria"]
         assert view._on_open_cashflow is mock_callbacks["on_open_cashflow"]
         assert view._on_open_anvisa is mock_callbacks["on_open_anvisa"]
         assert view._on_open_farmacia_popular is mock_callbacks["on_open_farmacia_popular"]
@@ -182,56 +178,59 @@ class TestBuild:
         """build() cria painel principal com título correto."""
         from src.modules.hub.views import hub_quick_actions_view
         from src.modules.hub.constants import MODULES_TITLE
+        import tkinter as tk
 
         view = hub_quick_actions_view.HubQuickActionsView(fake_parent, **mock_callbacks)
         view.build()
 
         panel = view.modules_panel
-        # ttk.Labelframe tem método cget para pegar text
-        assert panel.cget("text") == MODULES_TITLE
+        # Sem CTK, o título é um tk.Label filho do painel
+        children = panel.winfo_children()
+        title_labels = [w for w in children if isinstance(w, tk.Label) and w.cget("text") == MODULES_TITLE]
+        assert len(title_labels) >= 1
 
     def test_build_creates_three_blocks(self, fake_parent, mock_callbacks: dict[str, MagicMock]) -> None:
-        """build() cria 3 blocos de botões (Labelframes filhos)."""
+        """build() cria 3 blocos de botões (seções com labels de título)."""
         from src.modules.hub.views import hub_quick_actions_view
-        from tkinter import ttk
+        import tkinter as tk
 
         view = hub_quick_actions_view.HubQuickActionsView(fake_parent, **mock_callbacks)
         view.build()
 
-        # Contar Labelframes filhos (blocos)
-        children = view.modules_panel.winfo_children()
-        labelframes = [w for w in children if isinstance(w, ttk.Labelframe)]
-        assert len(labelframes) == 3
+        # Verificar que os 3 títulos de seção existem na árvore
+        def collect_labels(widget):
+            labels = []
+            if isinstance(widget, tk.Label):
+                labels.append(widget)
+            for child in widget.winfo_children():
+                labels.extend(collect_labels(child))
+            return labels
+
+        labels = collect_labels(view.modules_panel)
+        section_titles = {lbl.cget("text") for lbl in labels}
+        assert "Cadastros / Acesso" in section_titles
+        assert "Gestão" in section_titles
+        assert "Regulatório / Programas" in section_titles
 
     def test_build_blocks_have_correct_bootstyle_and_padding(
         self, fake_parent, mock_callbacks: dict[str, MagicMock]
     ) -> None:
         """build() cria blocos (bootstyle é semântico, não é passado ao widget)."""
         from src.modules.hub.views import hub_quick_actions_view
-        from tkinter import ttk
+        import tkinter as tk
 
         view = hub_quick_actions_view.HubQuickActionsView(fake_parent, **mock_callbacks)
         view.build()
 
-        # Contar Labelframes filhos (blocos)
-        children = view.modules_panel.winfo_children()
-        labelframes = [w for w in children if isinstance(w, ttk.Labelframe)]
-        assert len(labelframes) == 3
+        # Apenas validar que blocos existem (frames filhos)
+        def count_frames(widget):
+            count = 1 if isinstance(widget, tk.Frame) else 0
+            for child in widget.winfo_children():
+                count += count_frames(child)
+            return count
 
-    def test_build_blocks_have_correct_bootstyle_and_padding(
-        self, fake_parent, mock_callbacks: dict[str, MagicMock]
-    ) -> None:
-        """build() cria blocos (bootstyle é semântico, não é passado ao widget)."""
-        from src.modules.hub.views import hub_quick_actions_view
-        from tkinter import ttk
-
-        view = hub_quick_actions_view.HubQuickActionsView(fake_parent, **mock_callbacks)
-        view.build()
-
-        # Apenas validar que blocos existem (bootstyle não é argumento de widget)
-        children = view.modules_panel.winfo_children()
-        labelframes = [w for w in children if isinstance(w, ttk.Labelframe)]
-        assert len(labelframes) >= 3
+        frames_count = count_frames(view.modules_panel)
+        assert frames_count >= 3
 
 
 # =============================================================================
@@ -243,7 +242,7 @@ class TestButtons:
     """Testes dos botões criados."""
 
     def test_build_creates_eight_buttons(self, fake_parent, mock_callbacks: dict[str, MagicMock]) -> None:
-        """build() cria exatamente 6 botões (BUGFIX-HUB-UI-001: removidos Farmácia Popular e Sifap)."""
+        """build() cria exatamente 4 botões (removidos Senhas, Auditoria, Sngpc, Sifap)."""
         from src.modules.hub.views import hub_quick_actions_view
         import tkinter as tk
 
@@ -258,7 +257,7 @@ class TestButtons:
             return count
 
         buttons_count = count_buttons(view.modules_panel)
-        assert buttons_count == 6
+        assert buttons_count == 4
 
     def test_button_texts_are_correct(self, fake_parent, mock_callbacks: dict[str, MagicMock]) -> None:
         """build() cria botões com textos corretos."""
@@ -280,7 +279,7 @@ class TestButtons:
         buttons = collect_buttons(view.modules_panel)
         button_texts = {btn.cget("text") for btn in buttons}
 
-        expected = {"Clientes", "Senhas", "Auditoria", "Fluxo de Caixa", "Anvisa", "Farmácia Popular"}
+        expected = {"Clientes", "Fluxo de Caixa", "Anvisa", "Farmácia Popular"}
         assert button_texts == expected
 
     def test_button_bootstyles_are_correct(self, fake_parent, mock_callbacks: dict[str, MagicMock]) -> None:
@@ -343,7 +342,7 @@ class TestCallbacksNone:
             return count
 
         buttons_count = count_buttons(view.modules_panel)
-        assert buttons_count == 6
+        assert buttons_count == 4
 
     def test_invoke_with_none_callback_does_not_crash(self, fake_parent) -> None:
         """invoke() em botões com callback None não explode."""

@@ -100,8 +100,8 @@ class ClientesV2Frame(ctk.CTkFrame):
         )
         self.toolbar.pack(side="top", fill="x", padx=10, pady=(10, 5))
 
-        # Container da lista (centro)
-        list_container = ctk.CTkFrame(self, fg_color=SURFACE, corner_radius=10, border_width=0)
+        # Container da lista (centro) - usar SURFACE_DARK para consistência com editor
+        list_container = ctk.CTkFrame(self, fg_color=SURFACE_DARK, corner_radius=10, border_width=0)
         list_container.pack(side="top", fill="both", expand=True, padx=10, pady=5)
 
         # Criar Treeview com style correto
@@ -142,6 +142,8 @@ class ClientesV2Frame(ctk.CTkFrame):
             rowheight=24,
             zebra=True,
             style_name="RC.Treeview",
+            fg_color="transparent",  # Transparente para não sobrepor o fundo do list_container
+            show_hscroll=False,  # Não mostrar scrollbar horizontal (tabela já é responsiva)
         )
         self._tree_container.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
 
@@ -151,25 +153,21 @@ class ClientesV2Frame(ctk.CTkFrame):
         # Obter cores do tema (CTkTreeviewContainer já registrou no manager)
         self._tree_colors = self._tree_container.get_colors()
 
-        # Configurar headings
-        self.tree.heading("id", text="ID", anchor="center")
-        self.tree.heading("razao_social", text="Razão Social", anchor="center")
-        self.tree.heading("cnpj", text="CNPJ", anchor="center")
-        self.tree.heading("nome", text="Nome", anchor="center")
-        self.tree.heading("whatsapp", text="WhatsApp", anchor="center")
-        self.tree.heading("status", text="Status", anchor="center")
-        self.tree.heading("observacoes", text="Observações", anchor="center")
-        self.tree.heading("ultima_alteracao", text="Última Alteração", anchor="center")
+        # Specs de colunas para layout responsívo
+        # Estrutura: (base_width, min_width, stretch, weight)
+        self._column_specs = {
+            "id": (70, 60, False, 0),
+            "razao_social": (520, 320, True, 0.75),  # Coluna FLEX principal (75% do espaço)
+            "cnpj": (190, 170, False, 0),
+            "nome": (260, 200, True, 0.25),  # Coluna FLEX secundária (25% do espaço)
+            "whatsapp": (160, 140, False, 0),
+            "status": (240, 200, False, 0),
+            "observacoes": (160, 120, False, 0),
+            "ultima_alteracao": (240, 225, False, 0),  # Reduzido para ficar mais justo (sem espaço demais)
+        }
 
-        # Configurar colunas
-        self.tree.column("id", width=50, minwidth=45, anchor="center", stretch=False)
-        self.tree.column("razao_social", width=280, minwidth=200, anchor="center", stretch=True)
-        self.tree.column("cnpj", width=140, minwidth=120, anchor="center", stretch=False)
-        self.tree.column("nome", width=180, minwidth=150, anchor="center", stretch=True)
-        self.tree.column("whatsapp", width=120, minwidth=110, anchor="center", stretch=False)
-        self.tree.column("status", width=150, minwidth=130, anchor="center", stretch=False)
-        self.tree.column("observacoes", width=250, minwidth=180, anchor="center", stretch=True)
-        self.tree.column("ultima_alteracao", width=150, minwidth=130, anchor="center", stretch=False)
+        # Aplicar configuração inicial das colunas
+        self._apply_columns_layout()
 
         # Configurar grid do parent
         parent.grid_rowconfigure(0, weight=1)
@@ -181,6 +179,13 @@ class ClientesV2Frame(ctk.CTkFrame):
         # Binds para seleção e atalhos (unbind antes para evitar acúmulo)
         self.tree.unbind("<<TreeviewSelect>>")
         self.tree.bind("<<TreeviewSelect>>", self._on_tree_select)
+
+        # Bind para travar colunas (bloquear resize e reorder)
+        # IMPORTANTE: bindar em AMBOS os eventos para bloquear completamente
+        self.tree.unbind("<ButtonPress-1>", funcid=None)
+        self.tree.unbind("<B1-Motion>", funcid=None)
+        self.tree.bind("<ButtonPress-1>", self._on_column_lock, add="+")
+        self.tree.bind("<B1-Motion>", self._on_column_lock, add="+")  # Bloqueia drag durante movimento
 
         # FASE 3.4: Em pick_mode, duplo clique seleciona; caso contrário, edita
         if self._pick_mode:
@@ -200,7 +205,91 @@ class ClientesV2Frame(ctk.CTkFrame):
             # FASE 3.9: Clique na coluna WhatsApp
             self.tree.bind("<Button-1>", self._on_tree_click)
 
+        # Bind para resize responsívo (recalcula larguras quando o tree redimensiona)
+        self.tree.unbind("<Configure>", funcid=None)
+        self.tree.bind("<Configure>", self._resize_columns, add="+")
+
+        # Aplicar resize inicial após renderização
+        self.after(50, self._resize_columns)
+
         log.info("✅ [Clientes] Treeview criada com style RC.ClientesV2.Treeview")
+
+    def _apply_columns_layout(self) -> None:
+        """Aplica configuração inicial das colunas (headings, anchor, larguras).
+
+        Configura:
+        - Headings centralizados
+        - Anchor das células centralizados
+        - Larguras base (width) e mínimas (minwidth)
+        - Stretch (True para colunas flex, False para fixas)
+        """
+        # Configurar headings (todos centralizados)
+        self.tree.heading("id", text="ID", anchor="center")
+        self.tree.heading("razao_social", text="Razão Social", anchor="center")
+        self.tree.heading("cnpj", text="CNPJ", anchor="center")
+        self.tree.heading("nome", text="Nome", anchor="center")
+        self.tree.heading("whatsapp", text="WhatsApp", anchor="center")
+        self.tree.heading("status", text="Status", anchor="center")
+        self.tree.heading("observacoes", text="Observações", anchor="center")
+        self.tree.heading("ultima_alteracao", text="Última Alteração", anchor="center")
+
+        # Configurar colunas usando specs (todos centralizados)
+        for col_id, (base_width, min_width, stretch, _) in self._column_specs.items():
+            self.tree.column(
+                col_id,
+                width=base_width,
+                minwidth=min_width,
+                anchor="center",  # Todas centralizadas
+                stretch=stretch,
+            )
+
+        log.debug("[Clientes] Layout inicial das colunas aplicado")
+
+    def _resize_columns(self, event: Any = None) -> None:
+        """Recalcula larguras das colunas flex baseado no espaço disponível.
+
+        Colunas FIXAS mantêm largura base.
+        Colunas FLEX (Razão Social e Nome) dividem o espaço restante por peso.
+
+        Args:
+            event: Evento de Configure (opcional)
+        """
+        try:
+            # Obter largura atual do tree
+            tree_width = self.tree.winfo_width()
+            if tree_width <= 1:
+                return  # Tree ainda não foi renderizado
+
+            # Padding/margem (scrollbar vertical + margens internas)
+            padding = 16
+
+            # Calcular total ocupado pelas colunas fixas
+            fixed_total = sum(
+                specs[0]  # base_width
+                for col_id, specs in self._column_specs.items()
+                if not specs[2]  # se stretch == False (coluna fixa)
+            )
+
+            # Calcular espaço disponível para colunas flex
+            available = max(0, tree_width - fixed_total - padding)
+
+            # Distribuir espaço disponível entre colunas flex por peso
+            flex_columns = {
+                col_id: specs
+                for col_id, specs in self._column_specs.items()
+                if specs[2]  # stretch == True
+            }
+
+            if not flex_columns:
+                return
+
+            # Calcular larguras das colunas flex
+            for col_id, (_, min_width, _, weight) in flex_columns.items():
+                new_width = max(min_width, int(available * weight))
+                self.tree.column(col_id, width=new_width)
+
+        except Exception as e:
+            log.error(f"[Clientes] Erro ao redimensionar colunas: {e}", exc_info=True)
 
     def _sync_tree_theme_and_zebra(self) -> None:
         """Reaplica tema do ttk + zebra usando o modo ATUAL.
@@ -291,6 +380,33 @@ class ClientesV2Frame(ctk.CTkFrame):
         except Exception as e:
             log.error(f"[Clientes] Erro no handler de seleção: {e}", exc_info=True)
             self._selected_client_id = None
+
+    def _on_column_lock(self, event: Any) -> str | None:
+        """Handler para bloquear resize e reorder de colunas.
+
+        Args:
+            event: Evento de clique do mouse
+
+        Returns:
+            "break" se bloqueou a ação, None caso contrário
+        """
+        try:
+            region = self.tree.identify_region(event.x, event.y)
+
+            # Bloquear resize (separador entre colunas)
+            if region == "separator":
+                return "break"
+
+            # Bloquear clique no heading (impede reordenação e clique)
+            if region == "heading":
+                return "break"
+
+            # Permitir outras ações (seleção de linha, clique em célula)
+            return None
+
+        except Exception as e:
+            log.error(f"[Clientes] Erro no handler de bloqueio de coluna: {e}", exc_info=True)
+            return None
 
     def _on_tree_right_click(self, event: Any) -> None:
         """Handler para botão direito do mouse (context menu).

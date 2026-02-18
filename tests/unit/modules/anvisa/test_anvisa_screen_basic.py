@@ -74,7 +74,9 @@ def test_anvisa_screen_starts_on_home(anvisa_screen):
 def test_anvisa_screen_has_treeview_with_columns(anvisa_screen):
     """Deve ter Treeview com colunas corretas."""
     assert anvisa_screen.tree_requests is not None
-    columns = anvisa_screen.tree_requests["columns"]
+    # CTkTableView usa _columns; ttk.Treeview usa ["columns"]
+    tree = anvisa_screen.tree_requests
+    columns = getattr(tree, "_columns", None) or tree["columns"]
     assert "client_id" in columns
     assert "razao_social" in columns
     assert "cnpj" in columns
@@ -120,11 +122,22 @@ def test_anvisa_screen_no_back_button_present(anvisa_screen):
 
 
 def _find_buttons_recursive(widget) -> list:
-    """Busca recursiva de botões Button."""
-    import ttkbootstrap as ttk
+    """Busca recursiva de botões Button (CTk ou ttk)."""
+    import tkinter as tk
 
     buttons = []
-    if isinstance(widget, ttk.Button):
+
+    # Detectar CTkButton ou ttk.Button
+    try:
+        from customtkinter import CTkButton
+
+        is_button = isinstance(widget, (CTkButton, tk.Button))
+    except ImportError:
+        from tkinter import ttk
+
+        is_button = isinstance(widget, (ttk.Button, tk.Button))
+
+    if is_button:
         buttons.append(widget)
 
     try:

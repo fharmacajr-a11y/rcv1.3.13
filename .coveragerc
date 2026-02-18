@@ -6,17 +6,9 @@
 data_file = .coverage
 
 # Fontes do App Core a serem medidas:
-# - src: núcleo da aplicação
-# - adapters: integrações (ex.: Supabase Storage)
-# - infra: camada de infraestrutura (clientes, net, settings, etc.)
-# - data: tipos de domínio compartilhados e repositórios
-# - security: criptografia de senhas e afins
+# - src: núcleo da aplicação (incluindo adapters, infra, data, security)
 source =
     src
-    adapters
-    infra
-    data
-    security
 
 # Habilitar branch coverage para métricas mais completas
 branch = True

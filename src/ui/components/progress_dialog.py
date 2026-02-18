@@ -378,10 +378,32 @@ class ProgressDialog(tk.Toplevel):
             self._handle_cancel()
 
     def _handle_cancel(self) -> None:
-        if self._cancel_button and str(self._cancel_button["state"]) == "disabled":
-            return
         if self._cancel_button:
-            self._cancel_button.configure(state="disabled", text="Cancelando...")
+            # Para CustomTkinter, verificar se tem o atributo _state ou usar try/except
+            try:
+                if HAS_CUSTOMTKINTER and ctk is not None and hasattr(self._cancel_button, "_state"):
+                    if self._cancel_button._state == "disabled":  # type: ignore[attr-defined]
+                        return
+                elif hasattr(self._cancel_button, "cget"):
+                    # Tkinter padrão
+                    if str(self._cancel_button.cget("state")) == "disabled":  # type: ignore[attr-defined]
+                        return
+            except Exception:
+                # Se falhar ao verificar state, continua com o cancelamento
+                pass
+
+        if self._cancel_button:
+            try:
+                if HAS_CUSTOMTKINTER and ctk is not None and hasattr(self._cancel_button, "configure"):
+                    # CTkButton usa configure diferente
+                    self._cancel_button.configure(text="Cancelando...")  # type: ignore[attr-defined]
+                    # CTkButton não tem state="disabled", usar outros métodos
+                else:
+                    # Tkinter padrão
+                    self._cancel_button.configure(state="disabled", text="Cancelando...")  # type: ignore[attr-defined]
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Falha ao desabilitar botão de cancelamento: %s", exc)
+
         if self._cancel_callback:
             try:
                 self._cancel_callback()

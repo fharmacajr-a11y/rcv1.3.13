@@ -13,7 +13,6 @@ from tkinter import filedialog, messagebox
 from typing import Callable
 
 from src.ui.ctk_config import ctk
-from src.ui.ctk_config import *
 
 from src.modules.anvisa.constants import REQUEST_TYPES
 from src.modules.anvisa.helpers.process_slug import get_process_slug

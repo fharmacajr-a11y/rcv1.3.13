@@ -945,7 +945,7 @@ class TestDashboardCardsSmartColors:
 
         # Verificar que existe um card com bootstyle success (verde)
         frames = []
-        _collect_widgets_by_type(parent_frame, ttk.Frame, frames)
+        _collect_widgets_by_type(parent_frame, tk.Frame, frames)
 
         # Pelo menos um frame deve ter bootstyle success
         # (o card de pendências com 0 deve ser verde)
@@ -980,7 +980,7 @@ class TestDashboardCardsSmartColors:
 
         # Verificar construção sem erros
         frames = []
-        _collect_widgets_by_type(parent_frame, ttk.Frame, frames)
+        _collect_widgets_by_type(parent_frame, tk.Frame, frames)
         assert len(frames) > 0
 
     def test_tarefas_card_warning_when_positive(self, parent_frame):

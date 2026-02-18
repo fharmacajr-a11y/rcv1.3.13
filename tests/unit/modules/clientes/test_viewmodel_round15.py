@@ -779,7 +779,7 @@ class TestRefreshFromService:
             make_cliente_dict(id=2, razao_social="B"),
         ]
 
-        with patch("src.modules.clientes.viewmodel.search_clientes") as mock_search:
+        with patch("src.modules.clientes.core.viewmodel.search_clientes") as mock_search:
             mock_search.return_value = fake_clientes
 
             vm_svc.refresh_from_service()
@@ -801,7 +801,7 @@ class TestRefreshFromService:
             make_cliente_dict(id=20),
         ]
 
-        with patch("src.modules.clientes.viewmodel.search_clientes") as mock_search:
+        with patch("src.modules.clientes.core.viewmodel.search_clientes") as mock_search:
             mock_search.return_value = fake_clientes
 
             vm_svc.refresh_from_service()
@@ -824,7 +824,7 @@ class TestRefreshFromService:
             make_cliente_dict(id=20),
         ]
 
-        with patch("src.modules.clientes.viewmodel.search_clientes") as mock_search:
+        with patch("src.modules.clientes.core.viewmodel.search_clientes") as mock_search:
             mock_search.return_value = fake_clientes
 
             vm_svc.refresh_from_service()
@@ -838,7 +838,7 @@ class TestRefreshFromService:
         """Testa que erro do serviço é propagado como ClientesViewModelError."""
         vm_svc = ClientesViewModel()
 
-        with patch("src.modules.clientes.viewmodel.search_clientes") as mock_search:
+        with patch("src.modules.clientes.core.viewmodel.search_clientes") as mock_search:
             mock_search.side_effect = RuntimeError("Erro no banco")
 
             with pytest.raises(ClientesViewModelError) as exc_info:

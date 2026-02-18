@@ -310,19 +310,26 @@ def _log_session_state(logger: Optional[logging.Logger]) -> None:
 
 
 def _update_footer_email(app: AppProtocol) -> None:
-    """Atualiza o rodapé da UI com o e-mail autenticado."""
+    """Atualiza o rodapé da UI com o e-mail autenticado (via FooterController)."""
     client = _supabase_client()
     if not client:
         return
     try:
         sess = client.auth.get_session()
         email = getattr(getattr(sess, "user", None), "email", None)
-        # FASE 5A PASSO 3: Guarda contra footer=None (deferred ainda não completou)
-        if hasattr(app, "footer") and app.footer is not None and email:
+        if not email:
+            return
+
+        # FASE 5A FIX: Usar FooterController (sempre existe, aplica via after)
+        if hasattr(app, "layout_refs") and app.layout_refs and hasattr(app.layout_refs, "footer_controller"):
+            app.layout_refs.footer_controller.set_user(email)
+            log.info("Footer controller atualizado: %s", email[:20] + "..." if len(email) > 20 else email)
+        elif hasattr(app, "footer") and hasattr(app.footer, "set_user"):
+            # Fallback para testes que usam DummyApp com footer direto
             app.footer.set_user(email)
-            log.info("Footer atualizado com usuário: %s", email[:20] + "..." if len(email) > 20 else email)
-        elif not hasattr(app, "footer") or app.footer is None:
-            log.debug("Footer ainda não disponível para atualização de usuário")
+            log.debug("Footer direto atualizado: %s", email[:20] + "..." if len(email) > 20 else email)
+        else:
+            log.debug("Footer controller ainda não disponível")
     except Exception as exc:
         log.debug("Falha ao atualizar email no rodapé", exc_info=exc)
 

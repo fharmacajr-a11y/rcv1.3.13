@@ -27,7 +27,7 @@ sys.path.insert(0, str(__file__).rsplit("scripts", 1)[0].rstrip("\\/"))
 
 import ttkbootstrap as tb  # noqa: E402
 
-from src.modules.clientes.viewmodel import ClienteRow  # noqa: E402
+from src.modules.clientes.core.viewmodel import ClienteRow  # noqa: E402
 from src.modules.clientes.controllers.rendering_adapter import build_row_tags  # noqa: E402
 from src.ui.components.lists import create_clients_treeview  # noqa: E402
 
@@ -152,7 +152,7 @@ class PerfTestRunner:
         """Executa teste com N linhas, retorna métricas."""
         root = self._ensure_root()
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Performance Test: {n_rows} linhas")
         print("=" * 60)
 
@@ -231,7 +231,7 @@ class PerfTestRunner:
             "clear": clear_time,
         }
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("RESUMO:")
         print(f"  Render inicial:   {render_time:.3f}s")
         print(f"  Refresh parcial:  {refresh_time:.3f}s")
@@ -254,7 +254,7 @@ class PerfTestRunner:
         Usa uma única janela raiz para evitar bugs do ttkbootstrap
         relacionados a ttk::ThemeChanged ao destruir janelas.
         """
-        print(f"\n{'#'*60}")
+        print(f"\n{'#' * 60}")
         print(f"STRESS TEST: {n_cycles} ciclos, {n_rows} rows cada")
         print("#" * 60)
 
@@ -305,7 +305,7 @@ class PerfTestRunner:
                 gc.collect()
                 current_mem = tracemalloc.get_traced_memory()[0]
                 delta_mb = (current_mem - initial_mem) / (1024 * 1024)
-                print(f"  Ciclo {i+1:3d}: memória delta = {delta_mb:+.2f} MB")
+                print(f"  Ciclo {i + 1:3d}: memória delta = {delta_mb:+.2f} MB")
 
         # Destruir janela raiz após todos os ciclos
         try:
@@ -321,11 +321,11 @@ class PerfTestRunner:
         delta_mb = (final_mem - initial_mem) / (1024 * 1024)
         peak_mb = peak_mem / (1024 * 1024)
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("RESULTADO STRESS TEST:")
         print(f"  Ciclos completados: {n_cycles}")
-        print(f"  Memória inicial:    {initial_mem / (1024*1024):.2f} MB")
-        print(f"  Memória final:      {final_mem / (1024*1024):.2f} MB")
+        print(f"  Memória inicial:    {initial_mem / (1024 * 1024):.2f} MB")
+        print(f"  Memória final:      {final_mem / (1024 * 1024):.2f} MB")
         print(f"  Delta:              {delta_mb:+.2f} MB")
         print(f"  Pico:               {peak_mb:.2f} MB")
 

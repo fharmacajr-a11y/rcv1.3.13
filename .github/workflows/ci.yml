@@ -54,11 +54,14 @@ jobs:
       - name: Validate UI/Theme policy
         run: python scripts/validate_ui_theme_policy.py
 
+      - name: Validate TTK policy (FASE 8)
+        run: python scripts/validate_ttk_policy.py --ci
+
+      - name: TTK policy tests (FASE 8)
+        run: python -m pytest tests/ci/test_ttk_policy.py -q
+
       - name: Smoke test UI
         run: python scripts/smoke_ui.py
-
-      - name: Run tests with coverage (ClientesV2 suite)
-        run: python -m pytest tests/modules/clientes_v2/ -v --tb=short --maxfail=5
 
       - name: Run full test suite with coverage
         run: python -m pytest --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=25 -v
@@ -121,11 +124,14 @@ jobs:
       - name: Validate UI/Theme policy
         run: python scripts/validate_ui_theme_policy.py
 
+      - name: Validate TTK policy (FASE 8)
+        run: python scripts/validate_ttk_policy.py --ci
+
+      - name: TTK policy tests (FASE 8)
+        run: python -m pytest tests/ci/test_ttk_policy.py -q
+
       - name: Smoke test UI (headless with Xvfb)
         run: xvfb-run -a python scripts/smoke_ui.py
-
-      - name: Run tests with coverage (ClientesV2 suite)
-        run: xvfb-run -a python -m pytest tests/modules/clientes_v2/ -v --tb=short --maxfail=5
 
       - name: Run full test suite with coverage (headless)
         run: xvfb-run -a python -m pytest --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=25 -v

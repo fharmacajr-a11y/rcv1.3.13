@@ -101,7 +101,7 @@ def main():
         # Instruções
         instructions = tk.Label(
             main_frame,
-            text="Alterne o switch acima para ver as cores mudarem.\n" "As preferências são salvas automaticamente.",
+            text="Alterne o switch acima para ver as cores mudarem.\nAs preferências são salvas automaticamente.",
             font=("Segoe UI", 10),
             justify="center",
         )

@@ -5,6 +5,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 
 def test_on_new_obligation_calls_start_client_pick_mode_with_correct_params():
     """
@@ -120,6 +122,7 @@ def test_obligations_flow_does_not_call_passwords_screen():
         # (NãO o de senhas)
 
 
+@pytest.mark.skip(reason="Ação 'senhas' removida – migração CTK; PasswordsScreen é stub")
 def test_passwords_flow_isolation():
     """
     Testa que o fluxo de Senhas continua funcionando de forma independente.

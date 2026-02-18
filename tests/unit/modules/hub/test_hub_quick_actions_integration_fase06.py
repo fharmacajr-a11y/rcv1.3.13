@@ -89,6 +89,7 @@ def test_quick_actions_controller_chama_navigator_para_clientes(quick_actions_co
     assert len(fake_navigator.calls) == 1
 
 
+@pytest.mark.skip(reason="Ação 'senhas' removida do controller – migração CTK")
 def test_quick_actions_controller_chama_navigator_para_senhas(quick_actions_controller, fake_navigator):
     """Teste: handle_action_click('senhas') chama navigator.open_senhas()."""
     # Act
@@ -100,6 +101,7 @@ def test_quick_actions_controller_chama_navigator_para_senhas(quick_actions_cont
     assert len(fake_navigator.calls) == 1
 
 
+@pytest.mark.skip(reason="Ação 'auditoria' removida do controller – migração CTK")
 def test_quick_actions_controller_chama_navigator_para_auditoria(quick_actions_controller, fake_navigator):
     """Teste: handle_action_click('auditoria') chama navigator.open_auditoria()."""
     # Act
@@ -193,6 +195,7 @@ def test_quick_actions_controller_handle_module_click_delega_para_handle_action_
     assert len(fake_navigator.calls) == 1
 
 
+@pytest.mark.skip(reason="Ação 'senhas' removida do controller – migração CTK")
 def test_quick_actions_controller_handle_module_click_normaliza_lowercase(quick_actions_controller, fake_navigator):
     """Teste: handle_module_click normaliza para lowercase antes de delegar."""
     # Act
@@ -230,23 +233,22 @@ def test_quick_actions_controller_handle_module_click_module_none_retorna_false(
 
 def test_quick_actions_controller_multiplas_actions_sequenciais(quick_actions_controller, fake_navigator):
     """Teste: Múltiplas actions em sequência chamam navigator corretamente."""
-    # Act
+    # Act  (senhas e auditoria removidas do controller – migração CTK)
     quick_actions_controller.handle_action_click("clientes")
-    quick_actions_controller.handle_action_click("senhas")
-    quick_actions_controller.handle_action_click("auditoria")
+    quick_actions_controller.handle_action_click("anvisa")
+    quick_actions_controller.handle_action_click("sngpc")
 
     # Assert
     assert len(fake_navigator.calls) == 3
-    assert fake_navigator.calls == ["open_clientes", "open_senhas", "open_auditoria"]
+    assert fake_navigator.calls == ["open_clientes", "open_anvisa", "open_sngpc"]
 
 
 def test_quick_actions_controller_todas_actions_principais_funcionam(quick_actions_controller, fake_navigator):
     """Teste: Todas as actions principais navegam corretamente."""
     # BUGFIX-HUB-UI-001: Removidos farmacia_popular e sifap
+    # senhas e auditoria removidas do controller – migração CTK
     actions = [
         ("clientes", "open_clientes"),
-        ("senhas", "open_senhas"),
-        ("auditoria", "open_auditoria"),
         ("fluxo_caixa", "open_fluxo_caixa"),
         ("cashflow", "open_fluxo_caixa"),  # alias
         ("anvisa", "open_anvisa"),
@@ -358,19 +360,19 @@ def test_hub_controller_quick_action_e_module_mesma_action_usam_mesmo_caminho(
     hub_screen_controller_with_integration, fake_navigator
 ):
     """Teste: Quick action e module com mesmo ID chegam ao mesmo método do navigator."""
-    # Act - quick action
-    hub_screen_controller_with_integration.on_quick_action_clicked("senhas")
+    # Act - quick action  (senhas removida – usando anvisa)
+    hub_screen_controller_with_integration.on_quick_action_clicked("anvisa")
     primeira_chamada = fake_navigator.calls[0]
 
     # Reset
     fake_navigator.calls.clear()
 
     # Act - module
-    hub_screen_controller_with_integration.on_module_clicked("senhas")
+    hub_screen_controller_with_integration.on_module_clicked("anvisa")
     segunda_chamada = fake_navigator.calls[0]
 
     # Assert
-    assert primeira_chamada == segunda_chamada == "open_senhas"
+    assert primeira_chamada == segunda_chamada == "open_anvisa"
 
 
 def test_hub_controller_quick_action_sites_fluxo_completo(hub_screen_controller_with_integration, fake_navigator):
@@ -397,11 +399,11 @@ def test_hub_controller_quick_action_case_insensitive_chega_ao_navigator(
     hub_screen_controller_with_integration, fake_navigator
 ):
     """Teste: Quick action com uppercase é normalizada e chega ao navigator."""
-    # Act
-    hub_screen_controller_with_integration.on_quick_action_clicked("AUDITORIA")
+    # Act  (auditoria removida – usando SNGPC)
+    hub_screen_controller_with_integration.on_quick_action_clicked("SNGPC")
 
     # Assert
-    assert "open_auditoria" in fake_navigator.calls
+    assert "open_sngpc" in fake_navigator.calls
     assert len(fake_navigator.calls) == 1
 
 
@@ -430,10 +432,9 @@ def test_hub_controller_alias_cashflow_fluxo_completo(hub_screen_controller_with
 def test_hub_controller_todas_quick_actions_chegam_ao_navigator(hub_screen_controller_with_integration, fake_navigator):
     """Teste: Todas as quick actions principais chegam ao navigator corretamente."""
     # BUGFIX-HUB-UI-001: Removidos farmacia_popular e sifap
+    # senhas e auditoria removidas do controller – migração CTK
     actions = [
         ("clientes", "open_clientes"),
-        ("senhas", "open_senhas"),
-        ("auditoria", "open_auditoria"),
         ("fluxo_caixa", "open_fluxo_caixa"),
         ("anvisa", "open_anvisa"),
         ("sngpc", "open_sngpc"),
@@ -455,10 +456,9 @@ def test_hub_controller_todas_quick_actions_chegam_ao_navigator(hub_screen_contr
 def test_hub_controller_todos_modules_chegam_ao_navigator(hub_screen_controller_with_integration, fake_navigator):
     """Teste: Todos os modules principais chegam ao navigator corretamente."""
     # BUGFIX-HUB-UI-001: Removidos farmacia_popular e sifap
+    # senhas e auditoria removidas do controller – migração CTK
     modules = [
         ("clientes", "open_clientes"),
-        ("senhas", "open_senhas"),
-        ("auditoria", "open_auditoria"),
         ("cashflow", "open_fluxo_caixa"),  # alias via module
         ("anvisa", "open_anvisa"),
         ("sngpc", "open_sngpc"),

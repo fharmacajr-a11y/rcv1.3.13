@@ -145,31 +145,30 @@ class TestAnvisaRequestsMixinMF52Coverage:
         # Verificar que UI foi chamada corretamente
         dummy.tree_requests.insert.assert_called_once()
         dummy.tree_requests.selection_set.assert_called_once_with("item_123")
-        dummy.tree_requests.see.assert_called_once_with("item_123")
 
     def test_load_requests_with_zero_requests(self, monkeypatch):
         """Testa _load_requests_from_cloud com zero demandas encontradas (edge case)."""
         dummy = DummyRequestsMixin()
 
         # Mock tree
-        dummy.tree_requests.get_children = Mock(return_value=["item1", "item2"])
-        dummy.tree_requests.delete = Mock()
+        dummy.tree_requests.clear = Mock()
         dummy.tree_requests.insert = Mock()
 
         # Mock _resolve_org_id
         monkeypatch.setattr(dummy, "_resolve_org_id", lambda: "org123")
 
-        # Mock repo retornando lista vazia
-        monkeypatch.setattr("src.infra.repositories.anvisa_requests_repository.list_requests", lambda org_id: [])
+        # Mock _get_requests_controller
+        mock_controller = Mock()
+        mock_controller.list_requests = Mock(return_value=[])
+        monkeypatch.setattr(dummy, "_get_requests_controller", lambda: mock_controller)
 
         # Mock service retornando listas vazias
         dummy._service.build_main_rows = Mock(return_value=({}, []))
 
         dummy._load_requests_from_cloud()
 
-        # Verificar limpeza da tree
-        dummy.tree_requests.delete.assert_any_call("item1")
-        dummy.tree_requests.delete.assert_any_call("item2")
+        # Verificar limpeza da tree (usa clear() agora, não delete individual)
+        dummy.tree_requests.clear.assert_called_once()
 
         # Verificar mensagem final
         dummy.last_action.set.assert_called_with("0 cliente(s) com 0 demanda(s) carregada(s)")

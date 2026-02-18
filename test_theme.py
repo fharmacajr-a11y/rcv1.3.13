@@ -62,7 +62,7 @@ def test_theme():
 
     # Inserir dados de teste
     for i in range(20):
-        tree.insert("", "end", values=(i + 1, f"Cliente {i+1}", "Ativo" if i % 2 == 0 else "Inativo"))
+        tree.insert("", "end", values=(i + 1, f"Cliente {i + 1}", "Ativo" if i % 2 == 0 else "Inativo"))
 
     # Aplicar tema inicial
     apply_theme()

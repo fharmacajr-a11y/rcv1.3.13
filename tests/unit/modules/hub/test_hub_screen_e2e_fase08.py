@@ -45,14 +45,6 @@ class FakeNavigator:
         self.calls.append("open_clientes")
         self.last_called = "clientes"
 
-    def open_senhas(self) -> None:
-        self.calls.append("open_senhas")
-        self.last_called = "senhas"
-
-    def open_auditoria(self) -> None:
-        self.calls.append("open_auditoria")
-        self.last_called = "auditoria"
-
     def open_fluxo_caixa(self) -> None:
         self.calls.append("open_fluxo_caixa")
         self.last_called = "fluxo_caixa"
@@ -114,8 +106,6 @@ def hub_screen_with_fake_navigator(hub_screen_safe_teardown, fake_navigator):
     # Criar callbacks que delegam para o fake navigator
     callbacks = {
         "open_clientes": fake_navigator.open_clientes,
-        "open_senhas": fake_navigator.open_senhas,
-        "open_auditoria": fake_navigator.open_auditoria,
         "open_farmacia_popular": fake_navigator.open_farmacia_popular,
         "open_sngpc": fake_navigator.open_sngpc,
         "open_anvisa": fake_navigator.open_anvisa,
@@ -152,32 +142,6 @@ def test_hub_screen_open_clientes_dispara_navigator(hub_screen_with_fake_navigat
     # Assert
     assert "open_clientes" in navigator.calls
     assert navigator.last_called == "clientes"
-
-
-def test_hub_screen_open_senhas_dispara_navigator(hub_screen_with_fake_navigator):
-    """Teste E2E: HubScreen.open_senhas() chama navigator.open_senhas()."""
-    # Arrange
-    hub, navigator = hub_screen_with_fake_navigator
-
-    # Act
-    hub.open_senhas()
-
-    # Assert
-    assert "open_senhas" in navigator.calls
-    assert navigator.last_called == "senhas"
-
-
-def test_hub_screen_open_auditoria_dispara_navigator(hub_screen_with_fake_navigator):
-    """Teste E2E: HubScreen.open_auditoria() chama navigator.open_auditoria()."""
-    # Arrange
-    hub, navigator = hub_screen_with_fake_navigator
-
-    # Act
-    hub.open_auditoria()
-
-    # Assert
-    assert "open_auditoria" in navigator.calls
-    assert navigator.last_called == "auditoria"
 
 
 def test_hub_screen_open_fluxo_caixa_dispara_navigator(hub_screen_with_fake_navigator):
@@ -265,8 +229,6 @@ def test_hub_screen_todas_actions_navegam_corretamente(hub_screen_with_fake_navi
 
     actions_to_test = [
         ("open_clientes", "open_clientes", "clientes"),
-        ("open_senhas", "open_senhas", "senhas"),
-        ("open_auditoria", "open_auditoria", "auditoria"),
         ("open_fluxo_caixa", "open_fluxo_caixa", "fluxo_caixa"),
         ("open_anvisa", "open_anvisa", "anvisa"),
         ("open_farmacia_popular", "open_farmacia_popular", "farmacia_popular"),
@@ -295,15 +257,15 @@ def test_hub_screen_multiplos_cliques_sequenciais(hub_screen_with_fake_navigator
     # Arrange
     hub, navigator = hub_screen_with_fake_navigator
 
-    # Act
+    # Act  (senhas e auditoria removidas do HubScreen – migração CTK)
     hub.open_clientes()
-    hub.open_senhas()
-    hub.open_auditoria()
+    hub.open_anvisa()
+    hub.open_sngpc()
 
     # Assert
     assert len(navigator.calls) == 3
-    assert navigator.calls == ["open_clientes", "open_senhas", "open_auditoria"]
-    assert navigator.last_called == "auditoria"
+    assert navigator.calls == ["open_clientes", "open_anvisa", "open_sngpc"]
+    assert navigator.last_called == "sngpc"
 
 
 def test_hub_screen_mesma_action_multiplas_vezes(hub_screen_with_fake_navigator):
@@ -332,7 +294,7 @@ def test_hub_screen_callback_nao_registrado_levanta_typeerror(hub_screen_safe_te
     # Arrange - criar HubScreen sem passar callback de clientes
     hub = HubScreen(
         master=tk_root,
-        open_senhas=lambda: None,  # apenas senhas tem callback
+        open_anvisa=lambda: None,  # apenas anvisa tem callback
         # open_clientes omitido propositalmente
     )
 
@@ -353,8 +315,6 @@ def test_hub_screen_implementa_navigator_protocol(hub_screen_with_fake_navigator
 
     # Assert - verificar que HubScreen tem todos os métodos do Protocol
     assert hasattr(hub, "open_clientes")
-    assert hasattr(hub, "open_senhas")
-    assert hasattr(hub, "open_auditoria")
     assert hasattr(hub, "open_fluxo_caixa")
     assert hasattr(hub, "open_anvisa")
     assert hasattr(hub, "open_farmacia_popular")
@@ -364,8 +324,6 @@ def test_hub_screen_implementa_navigator_protocol(hub_screen_with_fake_navigator
 
     # Verificar que são callable
     assert callable(hub.open_clientes)
-    assert callable(hub.open_senhas)
-    assert callable(hub.open_auditoria)
     assert callable(hub.open_fluxo_caixa)
     assert callable(hub.open_anvisa)
     assert callable(hub.open_farmacia_popular)
@@ -382,8 +340,6 @@ def test_hub_screen_metodos_open_sao_publicos(hub_screen_with_fake_navigator):
     # Assert - verificar que métodos não têm prefixo _ (são públicos)
     public_methods = [
         "open_clientes",
-        "open_senhas",
-        "open_auditoria",
         "open_fluxo_caixa",
         "open_anvisa",
         "open_farmacia_popular",
@@ -445,8 +401,6 @@ def test_hub_screen_todas_actions_tem_mesmo_comportamento_independente_origem(hu
     # Testar que cada método pode ser chamado sem quebrar
     methods = [
         hub.open_clientes,
-        hub.open_senhas,
-        hub.open_auditoria,
         hub.open_fluxo_caixa,
         hub.open_anvisa,
         hub.open_farmacia_popular,
@@ -511,7 +465,6 @@ def test_hub_screen_callback_none_explicito_levanta_typeerror(hub_screen_safe_te
     hub = HubScreen(
         master=tk_root,
         open_clientes=None,
-        open_senhas=None,
     )
 
     # Act & Assert - comportamento atual: levanta TypeError
@@ -541,7 +494,7 @@ def test_hub_screen_callback_que_levanta_excecao_propaga_excecao(hub_screen_safe
 
     # Hub deve continuar funcional após exceção
     assert hub is not None
-    assert hasattr(hub, "open_senhas")  # outros métodos ainda existem
+    assert hasattr(hub, "open_anvisa")  # outros métodos ainda existem
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -576,14 +529,21 @@ def test_hub_lifecycle_manager_is_active_property(tk_root):
     """MF-28: Property is_active do lifecycle manager reflete estado.
 
     Valida:
-    - HubLifecycleManager.is_active retorna True após construção (auto-start)
+    - HubLifecycleManager.is_active retorna False após construção (não auto-start)
+    - HubLifecycleManager.is_active retorna True após start
     - HubLifecycleManager.is_active retorna False após stop
     - HubLifecycleManager.is_active retorna True após restart
     """
     # Arrange
     hub = HubScreen(master=tk_root)
 
-    # Assert - lifecycle inicia automaticamente no __init__
+    # Assert - lifecycle NÃO inicia automaticamente (_polling_active=False no __init__)
+    assert hub._lifecycle_manager.is_active is False
+
+    # Act - start explícito
+    hub.start_polling()
+
+    # Assert - ativo
     assert hub._lifecycle_manager.is_active is True
 
     # Act - stop

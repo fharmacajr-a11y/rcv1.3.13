@@ -287,14 +287,16 @@ def wire_session_and_health(app: "MainWindow") -> None:
         # DEPRECATED: Poll_health agora é gerenciado por MainWindowPollers (P2-MF3C)
         def poll_health():
             try:
-                # FASE 5A PASSO 3: Guarda contra footer=None (deferred ainda não completou)
-                if not hasattr(app, "footer") or app.footer is None:
-                    return
-
                 from src.infra.supabase_client import get_supabase_state
 
                 state, _ = get_supabase_state()
-                app.footer.set_cloud(state)
+
+                # FASE 5A FIX: Usar FooterController (sempre existe)
+                if hasattr(app, "layout_refs") and app.layout_refs and hasattr(app.layout_refs, "footer_controller"):
+                    app.layout_refs.footer_controller.set_cloud(state)
+                    log.debug("Footer controller atualizado: %s", state)
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Falha ao obter estado da nuvem no polling: %s", exc)
             except Exception as exc:  # noqa: BLE001
                 log.debug("Falha ao obter estado da nuvem no polling: %s", exc)
             # Reagendar polling (P0 #2: cancelar anterior)
@@ -315,12 +317,14 @@ def wire_session_and_health(app: "MainWindow") -> None:
 
         # Tentar obter estado inicial
         try:
-            # FASE 5A PASSO 3: Guarda contra footer=None (deferred ainda não completou)
-            if hasattr(app, "footer") and app.footer is not None:
-                from src.infra.supabase_client import get_supabase_state
+            from src.infra.supabase_client import get_supabase_state
 
-                current, _ = get_supabase_state()
-                app.footer.set_cloud(current)
+            current, _ = get_supabase_state()
+
+            # FASE 5A FIX: Usar FooterController (sempre existe)
+            if hasattr(app, "layout_refs") and app.layout_refs and hasattr(app.layout_refs, "footer_controller"):
+                app.layout_refs.footer_controller.set_cloud(current)
+                log.debug("Footer controller inicial: %s", current)
         except Exception as exc:  # noqa: BLE001
             log.debug("Falha ao definir estado inicial da nuvem: %s", exc)
 

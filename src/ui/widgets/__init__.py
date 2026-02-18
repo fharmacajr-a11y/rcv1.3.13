@@ -1,7 +1,15 @@
 # ui/widgets/__init__.py
 from __future__ import annotations
 
-__all__ = ["BusyOverlay", "CTkDatePicker", "CTkTableView", "CTkTreeView", "CTkAutocompleteEntry", "CTkSection"]
+__all__ = [
+    "BusyOverlay",
+    "CTkDatePicker",
+    "CTkTableView",
+    "CTkTreeView",
+    "CTkTreeviewContainer",
+    "CTkAutocompleteEntry",
+    "CTkSection",
+]
 
 try:
     from src.ui.widgets.busy import BusyOverlay
@@ -25,6 +33,11 @@ except ImportError:
 
 try:
     from src.ui.widgets.ctk_treeview import CTkTreeView
+except ImportError:
+    pass
+
+try:
+    from src.ui.widgets.ctk_treeview_container import CTkTreeviewContainer
 except ImportError:
     pass
 

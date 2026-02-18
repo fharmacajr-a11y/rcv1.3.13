@@ -24,7 +24,6 @@ def test_app_methods_exist():
     # Navegação
     assert callable(getattr(App, "show_hub_screen", None))
     assert callable(getattr(App, "show_main_screen", None))
-    assert callable(getattr(App, "show_passwords_screen", None))
     assert callable(getattr(App, "show_cashflow_screen", None))
     assert callable(getattr(App, "show_placeholder_screen", None))
 

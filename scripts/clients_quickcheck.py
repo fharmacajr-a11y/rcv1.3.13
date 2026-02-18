@@ -50,7 +50,7 @@ def run_perf_test(n_rows: int = 5000) -> bool:
 
     try:
         import ttkbootstrap as tb
-        from src.modules.clientes.viewmodel import ClienteRow
+        from src.modules.clientes.core.viewmodel import ClienteRow
         from src.modules.clientes.controllers.rendering_adapter import build_row_tags
         from src.ui.components.lists import create_clients_treeview
     except ImportError as e:
@@ -137,7 +137,7 @@ def run_stress_test(n_cycles: int = STRESS_CYCLES, n_rows: int = 1000) -> bool:
 
     try:
         import ttkbootstrap as tb
-        from src.modules.clientes.viewmodel import ClienteRow
+        from src.modules.clientes.core.viewmodel import ClienteRow
         from src.modules.clientes.controllers.rendering_adapter import build_row_tags
         from src.ui.components.lists import create_clients_treeview
     except ImportError as e:

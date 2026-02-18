@@ -18,6 +18,8 @@ import importlib
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 import src.modules.hub.views.hub_navigation_facade as hub_navigation_facade
 from src.modules.hub.views.hub_navigation_facade import HubNavigationFacade
 
@@ -66,6 +68,7 @@ class TestNavigationFacadeDelegationWithoutDebugLogger:
 
         nav_helper.open_clientes.assert_called_once_with()
 
+    @pytest.mark.skip(reason="Ação 'senhas' removida – migração CTK")
     def test_open_senhas_delegates_to_nav_helper(self) -> None:
         """open_senhas deve delegar para nav_helper.open_senhas."""
         nav_helper = MagicMock()
@@ -75,6 +78,7 @@ class TestNavigationFacadeDelegationWithoutDebugLogger:
 
         nav_helper.open_senhas.assert_called_once_with()
 
+    @pytest.mark.skip(reason="Ação 'auditoria' removida – migração CTK")
     def test_open_auditoria_delegates_to_nav_helper(self) -> None:
         """open_auditoria deve delegar para nav_helper.open_auditoria."""
         nav_helper = MagicMock()
@@ -191,6 +195,7 @@ class TestNavigationFacadeDelegationWithDebugLogger:
         debug_logger.assert_called_once_with("NavigationFacade: open_clientes")
         nav_helper.open_clientes.assert_called_once_with()
 
+    @pytest.mark.skip(reason="Ação 'senhas' removida – migração CTK")
     def test_open_senhas_logs_and_delegates(self) -> None:
         """open_senhas com debug_logger deve logar e delegar."""
         nav_helper = MagicMock()
@@ -202,6 +207,7 @@ class TestNavigationFacadeDelegationWithDebugLogger:
         debug_logger.assert_called_once_with("NavigationFacade: open_senhas")
         nav_helper.open_senhas.assert_called_once_with()
 
+    @pytest.mark.skip(reason="Ação 'auditoria' removida – migração CTK")
     def test_open_auditoria_logs_and_delegates(self) -> None:
         """open_auditoria com debug_logger deve logar e delegar."""
         nav_helper = MagicMock()

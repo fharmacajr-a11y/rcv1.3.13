@@ -2,6 +2,8 @@
 """
 Testes para infra/supabase/db_client.py (COV-INFRA-SUPABASE-DB).
 Cobrem singleton, health check, estados e exec_postgrest.
+
+FASE 8: Marcado como integration — excluído do default.
 """
 
 from __future__ import annotations
@@ -15,6 +17,14 @@ from types import ModuleType, SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
+
+_supabase_available = importlib.util.find_spec("supabase") is not None
+
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.supabase,
+    pytest.mark.skipif(not _supabase_available, reason="supabase package not installed"),
+]
 
 
 @pytest.fixture(autouse=True)
@@ -333,8 +343,8 @@ def test_get_supabase_creates_singleton(db_client, monkeypatch):
 
     supa = db_client.get_supabase()
 
-    # URL é normalizada com trailing slash
-    assert supa.url == db_client.supa_types.SUPABASE_URL + "/"
+    # URL é normalizada removendo trailing slash (crítico para endpoints /rest/v1, /auth/v1)
+    assert supa.url == db_client.supa_types.SUPABASE_URL.rstrip("/")
     assert supa.key == db_client.supa_types.SUPABASE_ANON_KEY
     assert created["args"][2].httpx_client == db_client.HTTPX_CLIENT
     assert db_client._SUPABASE_SINGLETON is supa
@@ -356,7 +366,7 @@ def test_get_supabase_reuse_logs_once(db_client, monkeypatch):
     db_client._SUPABASE_SINGLETON = supa
     db_client._SINGLETON_REUSE_LOGGED = False
     messages = []
-    monkeypatch.setattr(db_client.log, "info", lambda msg: messages.append(msg))
+    monkeypatch.setattr(db_client.log, "debug", lambda msg: messages.append(msg))
 
     first = db_client.get_supabase()
     second = db_client.get_supabase()

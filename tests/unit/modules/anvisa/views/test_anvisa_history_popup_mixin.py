@@ -10,8 +10,6 @@ from tests.unit.fakes.test_tk_fakes import (
     FakeButton,
     FakeFrame,
     FakeLabel,
-    FakeLabelframe,
-    FakeScrollbar,
     FakeStringVar,
     FakeToplevel,
     FakeTreeview,
@@ -68,40 +66,32 @@ class DummyHistoryPopupMixinHeadless(AnvisaHistoryPopupMixin):
 
 @pytest.fixture
 def patched_tk_modules(monkeypatch):
-    """Fixture que patcha os módulos tk/ttk no mixin."""
-    import src.modules.anvisa.views._anvisa_history_popup_mixin as m
+    """Fixture que patcha os módulos tk/ctk no mixin.
+
+    Patcha via __globals__ do método _open_history_popup para
+    garantir que funciona mesmo quando test_anvisa_lazy_imports
+    trocou o módulo no sys.modules (criando objeto diferente).
+    """
+    # Obter o dict de globais DO MÓDULO ONDE O MÉTODO FOI DEFINIDO
+    fn_globals = AnvisaHistoryPopupMixin._open_history_popup.__globals__
+    tk_mod = fn_globals["tk"]
+    ctk_mod = fn_globals["ctk"]
 
     # Patch tk
-    monkeypatch.setattr(m.tk, "Toplevel", FakeToplevel)
-    monkeypatch.setattr(m.tk, "StringVar", FakeStringVar)
+    monkeypatch.setattr(tk_mod, "Toplevel", FakeToplevel)
+    monkeypatch.setattr(tk_mod, "StringVar", FakeStringVar)
 
-    # Patch ttk (ttkbootstrap)
-    monkeypatch.setattr(m.ttk, "Frame", FakeFrame)
-    monkeypatch.setattr(m.ttk, "Label", FakeLabel)
-    monkeypatch.setattr(m.ttk, "Labelframe", FakeLabelframe)
-    monkeypatch.setattr(m.ttk, "Button", FakeButton)
+    # Patch ctk (customtkinter)
+    monkeypatch.setattr(ctk_mod, "CTkFrame", FakeFrame)
+    monkeypatch.setattr(ctk_mod, "CTkLabel", FakeLabel)
+    monkeypatch.setattr(ctk_mod, "CTkButton", FakeButton)
 
-    # Patch tkttk (tkinter.ttk)
-    monkeypatch.setattr(m.tkttk, "Treeview", FakeTreeview)
-    monkeypatch.setattr(m.tkttk, "Scrollbar", FakeScrollbar)
-
-    # Patch window utils (diretamente no namespace do módulo)
-    monkeypatch.setattr(
-        "src.modules.anvisa.views._anvisa_history_popup_mixin.prepare_hidden_window",
-        lambda w: None,
-    )
-    monkeypatch.setattr(
-        "src.modules.anvisa.views._anvisa_history_popup_mixin.apply_window_icon",
-        lambda w: None,
-    )
-    monkeypatch.setattr(
-        "src.modules.anvisa.views._anvisa_history_popup_mixin.center_window_simple",
-        lambda w, p: None,
-    )
-    monkeypatch.setattr(
-        "src.modules.anvisa.views._anvisa_history_popup_mixin.show_centered_no_flash",
-        lambda w, p, width, height: None,
-    )
+    # Patch CTkTableView e window utils via __globals__
+    monkeypatch.setitem(fn_globals, "CTkTableView", FakeTreeview)
+    monkeypatch.setitem(fn_globals, "prepare_hidden_window", lambda w: None)
+    monkeypatch.setitem(fn_globals, "apply_window_icon", lambda w: None)
+    monkeypatch.setitem(fn_globals, "center_window_simple", lambda w, p: None)
+    monkeypatch.setitem(fn_globals, "show_centered_no_flash", lambda w, p, width, height: None)
 
 
 def test_open_history_popup_creates_popup_and_tree_headless_mf48(patched_tk_modules):

@@ -98,7 +98,7 @@ def discover_coverage_command() -> Tuple[str, str]:
 
     # Prioridade 1: pytest_cov.ini
     if pathlib.Path("pytest_cov.ini").exists():
-        return ("pytest -c pytest_cov.ini", "-m pytest -c pytest_cov.ini -ra --continue-on-collection-errors")
+        return ("pytest -c pytest_cov.ini", "-m pytest -c pytest_cov.ini -x --tb=short --continue-on-collection-errors")
 
     # Fallback: comando do CI
     return ("pytest --cov=src -v", "-m pytest --cov=src --cov-report=term-missing -v")
@@ -159,7 +159,7 @@ def run_coverage_command(
 
         elapsed = time.time() - start_time
 
-        print(f"✓ Comando concluído em {elapsed:.1f} segundos ({elapsed/60:.1f} minutos)")
+        print(f"✓ Comando concluído em {elapsed:.1f} segundos ({elapsed / 60:.1f} minutos)")
 
         return True, result.returncode, result.stdout, result.stderr
 

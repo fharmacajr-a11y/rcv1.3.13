@@ -131,53 +131,38 @@ def test_create_frame_returns_none_when_instantiation_fails():
 
 
 def test_show_main_configures_frame_and_sets_flags(monkeypatch):
-    class FakeClientesFrame:
-        def __init__(self, parent, **kwargs):
-            self.parent = parent
+    """_show_main agora usa ClientesV2Frame (auto-contido, sem kwargs extras)."""
+
+    class FakeClientesV2Frame:
+        def __init__(self, *args, **kwargs):
+            self.args = args
             self.kwargs = kwargs
-            self.carregar_calls = 0
 
-        def carregar(self):
-            self.carregar_calls += 1
+        def force_redraw(self):
+            pass
 
-    clientes_module = types.SimpleNamespace(
-        ClientesFrame=FakeClientesFrame,
-        DEFAULT_ORDER_LABEL="ordem",
-        ORDER_CHOICES=["nome", "cnpj"],
-    )
-    monkeypatch.setitem(sys.modules, "src.modules.clientes", clientes_module)
+    clientes_ui_module = types.SimpleNamespace(ClientesV2Frame=FakeClientesV2Frame)
+    monkeypatch.setitem(sys.modules, "src.modules.clientes.ui", clientes_ui_module)
 
     captured = {}
 
     app = SimpleNamespace(
         _content_container="container",
-        novo_cliente=lambda: None,
-        editar_cliente=lambda: None,
-        _excluir_cliente=lambda: None,
-        enviar_para_supabase=lambda: None,
-        open_client_storage_subfolders=lambda: None,
-        ver_subpastas=lambda: None,
-        abrir_obrigacoes_cliente=lambda: None,
-        abrir_lixeira=lambda: None,
-        enviar_pasta_supabase=lambda: None,
         _main_frame_ref=None,
         _main_loaded=False,
+        force_redraw=None,
     )
 
     def fake_show_frame(frame_cls, **kwargs):
         captured["frame_cls"] = frame_cls
         captured["kwargs"] = kwargs
-        return frame_cls(app._content_container, **kwargs)
+        return FakeClientesV2Frame()
 
     app.show_frame = fake_show_frame
 
     frame = controller._show_main(app)
-    assert captured["frame_cls"] is FakeClientesFrame
-    assert captured["kwargs"]["order_choices"] == ["nome", "cnpj"]
-    assert captured["kwargs"]["default_order_label"] == "ordem"
-    assert captured["kwargs"]["on_new"] is app.novo_cliente
-    assert captured["kwargs"]["on_open_lixeira"] is app.abrir_lixeira
-    assert frame.carregar_calls == 1
+    assert captured["frame_cls"] is FakeClientesV2Frame
+    assert isinstance(frame, FakeClientesV2Frame)
     assert app._main_frame_ref is frame
     assert app._main_loaded is True
 
@@ -267,15 +252,12 @@ def test_show_hub_wires_navigation_callbacks(monkeypatch):
     callbacks = frame.kwargs
     callbacks["open_clientes"]()
     callbacks["open_cashflow"]()
-    callbacks["open_auditoria"]()
     callbacks["open_sites"]()
-    callbacks["open_senhas"]()
     callbacks["open_anvisa"]()
     assert nav_calls[0][0] == "main"
     assert nav_calls[1][0] == "cashflow"
-    assert nav_calls[3][0] == "sites"
-    # Callback de anvisa agora navega para a tela real, não placeholder
-    assert nav_calls[-1] == ("anvisa", {})
+    assert nav_calls[2][0] == "sites"
+    assert nav_calls[3] == ("anvisa", {})
 
 
 def test_open_clients_picker_delegates_to_start_client_pick_mode(monkeypatch):
@@ -300,7 +282,7 @@ def test_open_clients_picker_delegates_to_start_client_pick_mode(monkeypatch):
     assert callable(recorded["return_to"])
 
     recorded["return_to"]()
-    assert nav_calls == ["passwords"]
+    assert nav_calls == ["hub"]
 
 
 def test_open_clients_picker_respects_custom_banner(monkeypatch):
@@ -364,6 +346,7 @@ def test_show_placeholder_passes_back_navigation(monkeypatch):
     assert nav_calls == ["hub"]
 
 
+@pytest.mark.skip(reason="Ação removida – migração CTK")
 def test_show_auditoria_configures_back_button(monkeypatch):
     class FakeAuditoriaFrame:
         def __init__(self, *args, **kwargs):
