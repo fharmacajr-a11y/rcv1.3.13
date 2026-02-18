@@ -12,50 +12,10 @@ import pytest
 
 def test_apply_theme_to_widgets_no_crash_with_ctk():
     """Verifica que _apply_theme_to_widgets não quebra com widgets CTk."""
-    import tkinter as tk
-
-    try:
-        from src.modules.clientes.ui.view import ClientesV2Frame as ClientesFrame
-        from src.ui.ctk_config import HAS_CUSTOMTKINTER
-
-        if not HAS_CUSTOMTKINTER:
-            pytest.skip("CustomTkinter não disponível, teste não aplicável")
-
-        root = tk.Tk()
-        try:
-            # Callbacks mock
-            def mock_cb(*args: Any, **kwargs: Any) -> None:
-                pass
-
-            # Cria frame (que criará toolbar CTK internamente)
-            frame = ClientesFrame(
-                root,
-                on_new=mock_cb,
-                on_edit=mock_cb,
-                on_delete=mock_cb,
-                on_upload=mock_cb,
-                on_open_subpastas=mock_cb,
-                on_open_lixeira=mock_cb,
-                on_obrigacoes=mock_cb,
-            )
-
-            # Chama _apply_theme_to_widgets diretamente
-            # Não deve levantar ValueError sobre 'bg'
-            frame._apply_theme_to_widgets()
-
-            # Se chegou aqui, sucesso!
-            assert True
-
-        finally:
-            root.destroy()
-
-    except ValueError as e:
-        if "are not supported arguments" in str(e) or "bg" in str(e).lower():
-            pytest.fail(f"ValueError relacionado a 'bg' em widget CTk: {e}")
-        raise
-
-    except Exception as e:
-        pytest.fail(f"Erro inesperado ao aplicar tema: {e}")
+    # NOTA: Este teste foi desativado pois _apply_theme_to_widgets() não existe mais
+    # no ClientesV2Frame. O tema agora é aplicado via theme_manager global e
+    # apply_treeview_theme() para ttk.Treeview.
+    pytest.skip("Método _apply_theme_to_widgets() removido; tema gerenciado via theme_manager")
 
 
 def test_apply_theme_skips_customtkinter_widgets():
@@ -166,13 +126,8 @@ def test_apply_theme_handles_tclerror_gracefully():
     import tkinter as tk
 
     try:
-        from src.ui.theme_manager import theme_manager
-
         root = tk.Tk()
         try:
-            # Usar o theme_manager global
-            current_mode = theme_manager.get_current_mode()
-
             # Cria widget que não existe mais (para simular TclError)
             label = tk.Label(root, text="Test")
             label.pack()

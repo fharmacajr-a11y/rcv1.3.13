@@ -38,8 +38,8 @@ class TestTtkThemeToggleSmoke:
                 # Dark → aplicar
                 style_name_dark, colors_dark = apply_treeview_theme("Dark", root)
                 assert style_name_dark.endswith(".Treeview")
-                assert colors_dark.bg == "#2b2b2b"
-                assert colors_dark.field_bg == "#2b2b2b"
+                assert colors_dark.bg == "#141414"  # SURFACE dark mode
+                assert colors_dark.field_bg == "#141414"
 
                 # Volta para Light
                 style_name_back, colors_back = apply_treeview_theme("Light", root)

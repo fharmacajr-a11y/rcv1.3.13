@@ -62,15 +62,15 @@ def get_tree_colors(mode: str) -> TreeColors:
     """
     # Usar tokens para manter consistência com ClientEditorDialog e outros dialogs
     return TreeColors(
-        bg=_pick(SURFACE_DARK, mode),  # Fundo principal = SURFACE_DARK (igual editor)
-        field_bg=_pick(SURFACE_DARK, mode),  # Field background = SURFACE_DARK
+        bg=_pick(SURFACE, mode),  # Fundo principal = SURFACE (branco puro em Light)
+        field_bg=_pick(SURFACE, mode),  # Field background = SURFACE
         fg=_pick(TEXT_PRIMARY, mode),  # Texto principal
-        heading_bg=_pick(SURFACE, mode),  # Heading = SURFACE (destaque sutil)
+        heading_bg=_pick(SURFACE_DARK, mode),  # Heading = SURFACE_DARK (destaque sutil)
         heading_fg=_pick(TEXT_PRIMARY, mode),  # Texto do heading
         sel_bg=_pick(KPI_BLUE, mode),  # Seleção = azul KPI
         sel_fg="#ffffff",  # Texto selecionado branco (contraste)
-        even_bg=_pick(SURFACE_DARK, mode),  # Zebra par = SURFACE_DARK
-        odd_bg=_pick(SURFACE, mode),  # Zebra ímpar = SURFACE (alternância sutil)
+        even_bg=_pick(SURFACE, mode),  # Zebra par = SURFACE
+        odd_bg=_pick(SURFACE_DARK, mode),  # Zebra ímpar = SURFACE_DARK (alternância sutil)
         border=_pick(BORDER, mode),  # Borda = token BORDER
     )
 
