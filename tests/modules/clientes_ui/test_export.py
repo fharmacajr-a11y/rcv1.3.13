@@ -400,7 +400,7 @@ def test_export_handles_special_characters(mock_dialog, root, mock_vm, tmp_path)
     assert "Linha 1" in rows[0]["Observações"]
 
 
-@patch("src.modules.clientes.export.is_xlsx_available")
+@patch("src.modules.clientes.core.export.is_xlsx_available")
 @patch("tkinter.filedialog.asksaveasfilename")
 def test_export_xlsx_option_only_if_available(mock_dialog, mock_is_xlsx, root, mock_vm, sample_clients):
     """FASE 3.5: Opção XLSX aparece apenas se openpyxl disponível."""

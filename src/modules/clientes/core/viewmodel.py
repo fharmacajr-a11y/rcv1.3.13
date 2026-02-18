@@ -257,7 +257,7 @@ class ClientesViewModel:
         Retorna (qtd_ok, erros_por_id).
         """
         # Import local para evitar circular import
-        from ..service import excluir_clientes_definitivamente
+        from .service import excluir_clientes_definitivamente
 
         ids_int = [int(id_str) for id_str in ids]
         return excluir_clientes_definitivamente(ids_int)
@@ -265,7 +265,7 @@ class ClientesViewModel:
     def restore_clientes_batch(self, ids: Collection[str]) -> None:
         """Restaura uma coleção de clientes da lixeira."""
         # Import local para evitar circular import
-        from ..service import restaurar_clientes_da_lixeira
+        from .service import restaurar_clientes_da_lixeira
 
         ids_int = [int(id_str) for id_str in ids]
         restaurar_clientes_da_lixeira(ids_int)
