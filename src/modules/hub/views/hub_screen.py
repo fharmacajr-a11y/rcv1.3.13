@@ -99,7 +99,6 @@ class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame): 
         *,
         open_clientes: Optional[Callable[[], None]] = None,
         open_sifap: Optional[Callable[[], None]] = None,
-        open_anvisa: Optional[Callable[[], None]] = None,
         open_farmacia_popular: Optional[Callable[[], None]] = None,
         open_sngpc: Optional[Callable[[], None]] = None,  # Corrigido: snjpc -> sngpc
         open_mod_sifap: Optional[Callable[[], None]] = None,
@@ -112,7 +111,6 @@ class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame): 
         open_clientes = (
             open_clientes or kwargs.pop("on_open_clientes", None) or open_sifap or kwargs.pop("on_open_sifap", None)
         )
-        open_anvisa = open_anvisa or kwargs.pop("on_open_anvisa", None)
         open_farmacia_popular = open_farmacia_popular or kwargs.pop("on_open_farmacia_popular", None)
         open_sngpc = open_sngpc or kwargs.pop("on_open_sngpc", None) or kwargs.pop("on_open_snjpc", None)
         open_mod_sifap = open_mod_sifap or kwargs.pop("on_open_mod_sifap", None)
@@ -146,7 +144,6 @@ class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame): 
         # Inicialização estruturada em métodos privados
         self._init_state(
             open_clientes=open_clientes,
-            open_anvisa=open_anvisa,
             open_farmacia_popular=open_farmacia_popular,
             open_sngpc=open_sngpc,
             open_mod_sifap=open_mod_sifap,
@@ -172,7 +169,6 @@ class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame): 
         self,
         *,
         open_clientes: Optional[Callable[[], None]] = None,
-        open_anvisa: Optional[Callable[[], None]] = None,
         open_farmacia_popular: Optional[Callable[[], None]] = None,
         open_sngpc: Optional[Callable[[], None]] = None,
         open_mod_sifap: Optional[Callable[[], None]] = None,
@@ -192,7 +188,6 @@ class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame): 
         components = builder.build(
             self,
             open_clientes=open_clientes,
-            open_anvisa=open_anvisa,
             open_farmacia_popular=open_farmacia_popular,
             open_sngpc=open_sngpc,
             open_mod_sifap=open_mod_sifap,
@@ -305,7 +300,6 @@ class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame): 
                 self,
                 on_open_clientes=self.open_clientes,
                 on_open_cashflow=self.open_cashflow,
-                on_open_anvisa=self.open_anvisa,
                 on_open_farmacia_popular=self.open_farmacia_popular,
                 on_open_sngpc=self.open_sngpc,
                 on_open_mod_sifap=self.open_mod_sifap,
@@ -522,71 +516,6 @@ class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame): 
     def open_fluxo_caixa(self) -> None:
         """Abre módulo de Fluxo de Caixa (MF-10, MF-22: via NavigationFacade)."""
         self._navigation_facade.open_fluxo_caixa()
-
-    def open_anvisa(self) -> None:
-        """Abre módulo de Anvisa (MF-10, MF-22: via NavigationFacade)."""
-        self._navigation_facade.open_anvisa()
-
-    def open_anvisa_history(self, client_id: str) -> None:
-        """Abre histórico de regularizações ANVISA para um cliente específico.
-
-        Primeiro abre a tela ANVISA, depois agenda abertura do histórico.
-
-        Args:
-            client_id: ID do cliente para abrir histórico.
-        """
-        # Abrir tela ANVISA primeiro
-        self.open_anvisa()
-
-        # Agendar abertura do histórico após tela renderizar
-        def _deferred_open_history():
-            try:
-                app = get_app_from_widget(self)
-                if not app:
-                    logger.warning("open_anvisa_history: app não disponível")
-                    return
-
-                # Obter instância da tela ANVISA
-                anvisa_screen = getattr(app, "_anvisa_screen_instance", None)
-                if anvisa_screen and hasattr(anvisa_screen, "open_history_for_client"):
-                    anvisa_screen.open_history_for_client(client_id)
-                else:
-                    logger.warning("open_anvisa_history: anvisa_screen sem método open_history_for_client")
-            except Exception as e:
-                logger.exception(f"Erro ao abrir histórico ANVISA: {e}")
-
-        # after_idle + after(150ms) garante layout/geometry prontos
-        self.after_idle(lambda: self.after(150, _deferred_open_history))
-
-    def open_anvisa_history_picker(self, items: list[dict[str, Any]]) -> None:
-        """Abre um seletor (modal) para escolher qual histórico ANVISA abrir.
-
-        Usado quando há múltiplos clientes com tarefas ANVISA hoje.
-
-        Args:
-            items: Lista de items (clients_of_the_day ou pending_tasks).
-        """
-        try:
-            from src.modules.hub.views.hub_dialogs import pick_anvisa_history_target
-
-            choice = pick_anvisa_history_target(self, items)
-            if not choice:
-                return
-
-            action, client_id = choice
-            if action == "anvisa":
-                self.open_anvisa()
-                return
-            if action == "history" and client_id:
-                self.open_anvisa_history(client_id)
-                return
-
-            # Fallback seguro
-            self.open_anvisa()
-        except Exception as e:
-            logger.exception(f"Erro ao abrir picker de histórico ANVISA: {e}")
-            # Fallback seguro
-            self.open_anvisa()
 
     def open_farmacia_popular(self) -> None:
         """Abre módulo de Farmácia Popular (MF-10, MF-22: via NavigationFacade)."""

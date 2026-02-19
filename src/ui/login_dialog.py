@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import messagebox
 
 from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+from src.ui.widgets.button_factory import make_btn
 from src.db.auth_bootstrap import _get_access_token
 from src.infra.healthcheck import healthcheck  # <-- ADICIONADO: health check pós-login
 from src.infra.supabase_client import bind_postgrest_auth_if_any, get_supabase
@@ -69,6 +70,7 @@ class LoginDialog(tk.Toplevel):
             # Modo CTk: usar PIL + CTkImage
             try:
                 from PIL import Image
+
                 if email_icon_path and os.path.exists(email_icon_path):
                     pil_email = Image.open(email_icon_path).convert("RGBA")
                     self._icon_email_ctk = ctk.CTkImage(light_image=pil_email, dark_image=pil_email, size=(16, 16))
@@ -178,11 +180,11 @@ class LoginDialog(tk.Toplevel):
         self.buttons_frame.grid(row=7, column=0, columnspan=2, padx=8, pady=(8, 12))
 
         if HAS_CUSTOMTKINTER and ctk is not None:
-            self.exit_btn = ctk.CTkButton(
+            self.exit_btn = make_btn(
                 self.buttons_frame,
                 text="Sair",
                 command=self._on_exit,
-                fg_color="#dc3545",  # Bootstrap danger color
+                fg_color="#dc3545",
                 hover_color="#c82333",
             )
         else:
@@ -196,7 +198,7 @@ class LoginDialog(tk.Toplevel):
         self.exit_btn.pack(side="left", padx=(0, 8))
 
         if HAS_CUSTOMTKINTER and ctk is not None:
-            self.login_btn = ctk.CTkButton(
+            self.login_btn = make_btn(
                 self.buttons_frame,
                 text="Entrar",
                 command=self._do_login,

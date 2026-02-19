@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from src.ui.ctk_config import ctk
+from src.ui.widgets.button_factory import make_btn
 
 import tkinter as tk
 from dataclasses import dataclass
@@ -36,7 +37,7 @@ __all__ = ["FooterButtons", "toolbar_button", "create_footer_buttons"]
 
 def toolbar_button(parent: tk.Misc, text: str, command: Callable[[], Any]) -> ctk.CTkButton:
     """Create a standard toolbar button and return it."""
-    return ctk.CTkButton(parent, text=text, command=command)
+    return make_btn(parent, text=text, command=command)
 
 
 def create_footer_buttons(
@@ -58,9 +59,9 @@ def create_footer_buttons(
         frame = tk.Frame(parent)
 
     if HAS_CUSTOMTKINTER and ctk is not None:
-        btn_novo = ctk.CTkButton(frame, text="Novo Cliente", command=on_novo, fg_color="#28a745", hover_color="#218838")
-        btn_editar = ctk.CTkButton(frame, text="Editar", command=on_editar)
-        btn_subpastas = ctk.CTkButton(frame, text="Arquivos", command=on_subpastas)
+        btn_novo = make_btn(frame, text="Novo Cliente", command=on_novo, fg_color="#28a745", hover_color="#218838")
+        btn_editar = make_btn(frame, text="Editar", command=on_editar)
+        btn_subpastas = make_btn(frame, text="Arquivos", command=on_subpastas)
     else:
         btn_novo = tk.Button(frame, text="Novo Cliente", command=on_novo, bg="#28a745", fg="white")
         btn_editar = tk.Button(frame, text="Editar", command=on_editar)
@@ -75,9 +76,7 @@ def create_footer_buttons(
     btn_excluir: Optional[Any] = None
     if on_excluir is not None:
         if HAS_CUSTOMTKINTER and ctk is not None:
-            btn_excluir = ctk.CTkButton(
-                frame, text="Excluir", command=on_excluir, fg_color="#dc3545", hover_color="#c82333"
-            )
+            btn_excluir = make_btn(frame, text="Excluir", command=on_excluir, fg_color="#dc3545", hover_color="#c82333")
         else:
             btn_excluir = tk.Button(frame, text="Excluir", command=on_excluir, bg="#dc3545", fg="white")
         btn_excluir.grid(row=0, column=3, padx=5, pady=5, sticky="w")
@@ -104,7 +103,7 @@ def create_footer_buttons(
 
         if on_batch_delete is not None:
             if HAS_CUSTOMTKINTER and ctk is not None:
-                btn_batch_delete = ctk.CTkButton(
+                btn_batch_delete = make_btn(
                     frame, text="Excluir em Lote", command=on_batch_delete, fg_color="#dc3545", hover_color="#c82333"
                 )
             else:
@@ -116,7 +115,7 @@ def create_footer_buttons(
 
         if on_batch_restore is not None:
             if HAS_CUSTOMTKINTER and ctk is not None:
-                btn_batch_restore = ctk.CTkButton(frame, text="Restaurar em Lote", command=on_batch_restore)
+                btn_batch_restore = make_btn(frame, text="Restaurar em Lote", command=on_batch_restore)
             else:
                 btn_batch_restore = tk.Button(frame, text="Restaurar em Lote", command=on_batch_restore)
             btn_batch_restore.grid(row=0, column=next_column, padx=5, pady=5, sticky="w")
@@ -124,7 +123,7 @@ def create_footer_buttons(
 
         if on_batch_export is not None:
             if HAS_CUSTOMTKINTER and ctk is not None:
-                btn_batch_export = ctk.CTkButton(frame, text="Exportar em Lote", command=on_batch_export)
+                btn_batch_export = make_btn(frame, text="Exportar em Lote", command=on_batch_export)
             else:
                 btn_batch_export = tk.Button(frame, text="Exportar em Lote", command=on_batch_export)
             btn_batch_export.grid(row=0, column=next_column, padx=5, pady=5, sticky="w")

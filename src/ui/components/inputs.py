@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Iterable
 
 from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+from src.ui.widgets.button_factory import make_btn
 from src.utils.resource_path import resource_path
 
 log = logging.getLogger(__name__)
@@ -253,7 +254,7 @@ def create_search_controls(
     _update_placeholder()
 
     if HAS_CUSTOMTKINTER and ctk is not None:
-        search_button = ctk.CTkButton(
+        search_button = make_btn(
             frame,
             text="Buscar",
             command=_trigger_search,
@@ -275,7 +276,7 @@ def create_search_controls(
 
     # Botao Limpar com estilo especifico para topbar de clientes
     if HAS_CUSTOMTKINTER and ctk is not None:
-        clear_button = ctk.CTkButton(
+        clear_button = make_btn(
             frame,
             text="Limpar",
             command=_on_clear_pressed,
@@ -374,11 +375,10 @@ def create_search_controls(
 
         # Botão Obrigações
         if HAS_CUSTOMTKINTER and ctk is not None:
-            obrigacoes_button = ctk.CTkButton(
+            obrigacoes_button = make_btn(
                 frame,
                 text="Obrigações",
                 command=on_obrigacoes,
-                width=120,
             )
         else:
             obrigacoes_button = tk.Button(
@@ -391,7 +391,7 @@ def create_search_controls(
 
     # Botão Lixeira à direita
     if HAS_CUSTOMTKINTER and ctk is not None:
-        lixeira_button = ctk.CTkButton(
+        lixeira_button = make_btn(
             frame,
             text="Lixeira",
             command=on_lixeira,

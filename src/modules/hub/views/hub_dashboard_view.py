@@ -9,7 +9,7 @@ e pela renderização dos cards de dashboard.
 
 from typing import Any, Callable
 
-from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+from src.ui.ctk_config import ctk
 from src.ui.ui_tokens import APP_BG
 import tkinter as tk
 

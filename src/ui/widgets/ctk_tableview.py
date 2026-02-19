@@ -55,7 +55,7 @@ except ImportError:
 
 class CTkTableView(ctk.CTkFrame):
     """Tabela customizada usando CTkTable, compatível com API Treeview.
-    
+
     Usa TABLE_UI_SPEC para padronizar visual (fonte, rowheight, cores, etc).
     """
 
@@ -96,9 +96,10 @@ class CTkTableView(ctk.CTkFrame):
             mode = ctk.get_appearance_mode()
         except Exception:
             mode = "Light"
-        
+
         # Importar TreeColors para consistor com Treeview
         from src.ui.ttk_treeview_theme import get_tree_colors
+
         colors = get_tree_colors(mode)
         return (colors.even_bg, colors.odd_bg)
 
@@ -122,7 +123,11 @@ class CTkTableView(ctk.CTkFrame):
                 "hover": TABLE_UI_SPEC.hover_enabled,
                 "command": self._on_cell_click,
                 "font": (TABLE_UI_SPEC.font_family, TABLE_UI_SPEC.font_size),
-                "header_font": (TABLE_UI_SPEC.font_family, TABLE_UI_SPEC.heading_font_size, TABLE_UI_SPEC.heading_font_weight),
+                "header_font": (
+                    TABLE_UI_SPEC.font_family,
+                    TABLE_UI_SPEC.heading_font_size,
+                    TABLE_UI_SPEC.heading_font_weight,
+                ),
             }
 
             # Adicionar cores apenas se zebra estiver ativo e houver dados

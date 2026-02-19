@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from src.ui.ctk_config import ctk
+from src.ui.widgets.button_factory import make_btn, make_btn_sm, make_btn_icon
 
 import tkinter as tk
 from typing import Callable
@@ -36,10 +37,10 @@ class PdfToolbar(ctk.CTkFrame):
         self._on_toggle_text = on_toggle_text
         self.var_text = tk.BooleanVar(master=self, value=False)
 
-        ctk.CTkButton(self, text="\u2212", width=3, command=on_zoom_out).pack(side="left", padx=(8, 0), pady=6)
-        ctk.CTkButton(self, text="100%", command=on_zoom_100).pack(side="left", padx=4, pady=6)
-        ctk.CTkButton(self, text="+", width=3, command=on_zoom_in).pack(side="left", padx=4, pady=6)
-        ctk.CTkButton(self, text="Largura", command=on_fit_width).pack(side="left", padx=8, pady=6)
+        make_btn_icon(self, text="\u2212", command=on_zoom_out).pack(side="left", padx=(8, 0), pady=6)
+        make_btn_sm(self, text="100%", command=on_zoom_100).pack(side="left", padx=4, pady=6)
+        make_btn_icon(self, text="+", command=on_zoom_in).pack(side="left", padx=4, pady=6)
+        make_btn_sm(self, text="Largura", command=on_fit_width).pack(side="left", padx=8, pady=6)
 
         self.lbl_page = ctk.CTkLabel(self, text="Página 1/1")
         self.lbl_page.pack(side="left", padx=12)
@@ -50,13 +51,13 @@ class PdfToolbar(ctk.CTkFrame):
         self.chk_text.pack(side="left", padx=12)
 
         # Botões da direita (ordem de pack para visual correto)
-        self.btn_download_pdf = ctk.CTkButton(self, text="Baixar PDF", command=on_download_pdf)
+        self.btn_download_pdf = make_btn(self, text="Baixar PDF", command=on_download_pdf)
         self.btn_download_pdf.pack(side="right", padx=8, pady=6)
-        self.btn_download_img = ctk.CTkButton(self, text="Baixar imagem", command=on_download_image)
+        self.btn_download_img = make_btn(self, text="Baixar imagem", command=on_download_image)
         self.btn_download_img.pack(side="right", padx=8, pady=6)
 
         # Novo botão Conversor PDF (pack por último para ficar à esquerda dos downloads)
-        self.btn_converter = ctk.CTkButton(self, text="Conversor PDF", command=on_open_converter or (lambda: None))
+        self.btn_converter = make_btn(self, text="Conversor PDF", command=on_open_converter or (lambda: None))
         self.btn_converter.pack(side="right", padx=8, pady=6)
 
         # Se callback não fornecido, desabilita botão

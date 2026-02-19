@@ -7,6 +7,7 @@ from tkinter import messagebox
 from typing import Any, Optional
 
 from src.ui.ctk_config import ctk
+from src.ui.widgets.button_factory import make_btn
 from src.ui.widgets import CTkTableView
 
 from src.features.cashflow import repository as repo
@@ -67,10 +68,10 @@ class CashflowFrame(ctk.CTkFrame):
         ctk.CTkLabel(top, text="Busca").pack(side="left", padx=4)
         ctk.CTkEntry(top, textvariable=self.var_text, width=180).pack(side="left", padx=4)
 
-        ctk.CTkButton(top, text="Filtrar", command=self.refresh, width=80).pack(side="left", padx=6)
-        ctk.CTkButton(top, text="Novo", command=self.create, width=80).pack(side="right", padx=4)
-        ctk.CTkButton(top, text="Editar", command=self.edit, width=80).pack(side="right", padx=4)
-        ctk.CTkButton(top, text="Excluir", command=self.delete, width=80).pack(side="right", padx=4)
+        make_btn(top, text="Filtrar", command=self.refresh).pack(side="left", padx=6)
+        make_btn(top, text="Novo", command=self.create).pack(side="right", padx=4)
+        make_btn(top, text="Editar", command=self.edit).pack(side="right", padx=4)
+        make_btn(top, text="Excluir", command=self.delete).pack(side="right", padx=4)
 
         # --- grade ---
         self.tree = CTkTableView(

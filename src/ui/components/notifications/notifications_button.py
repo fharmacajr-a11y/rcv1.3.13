@@ -7,6 +7,7 @@ MICROFASE 24: Migrado para CustomTkinter.
 from __future__ import annotations
 
 from src.ui.ctk_config import ctk
+from src.ui.widgets.button_factory import make_btn_icon
 
 import logging
 from typing import TYPE_CHECKING, Callable, Optional
@@ -130,7 +131,7 @@ class NotificationsButton(ctk.CTkFrame):
         self._icon_img = None
 
         # Botão de notificações (emoji como fallback seguro)
-        self.btn_notifications = ctk.CTkButton(
+        self.btn_notifications = make_btn_icon(
             self,
             text="🔔",
             command=self._handle_click,

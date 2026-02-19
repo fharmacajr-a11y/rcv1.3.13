@@ -37,9 +37,6 @@ class HubNavigationCallbacks:
     # Módulo de Fluxo de Caixa
     open_cashflow: Optional[Callable[[], None]] = None
 
-    # Módulo ANVISA
-    open_anvisa: Optional[Callable[[], None]] = None
-
     # Módulo Farmácia Popular
     open_farmacia_popular: Optional[Callable[[], None]] = None
 
@@ -64,7 +61,6 @@ class HubNavigationCallbacks:
         callback_map = {
             "clientes": self.open_clientes,
             "cashflow": self.open_cashflow,
-            "anvisa": self.open_anvisa,
             "farmacia_popular": self.open_farmacia_popular,
             "sngpc": self.open_sngpc,
             "sifap": self.open_mod_sifap,

@@ -14,7 +14,7 @@ import tkinter as tk
 from typing import Any, Callable, Optional
 
 from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
-from src.ui.ui_tokens import APP_BG
+from src.ui.ui_tokens import APP_BG, BORDER, BORDER_WIDTH, CARD_RADIUS, SURFACE_DARK
 
 from src.ui.components.topbar_actions import TopbarActions
 from src.ui.components.topbar_nav import TopbarNav
@@ -120,12 +120,10 @@ class TopBar(BaseTopBar):
             on_delete_notification_for_me: Callback para excluir notificação (só para o usuário)
             on_delete_all_notifications_for_me: Callback para excluir todas notificações (só para o usuário)
         """
-        # Configurar cores baseado na classe base
+        # Wrapper transparente — quem desenha o fundo arredondado é o "bar" interno
         if HAS_CUSTOMTKINTER and ctk is not None:
-            # Modo CTk: fundo branco, sem cantos arredondados
             super().__init__(master, fg_color=APP_BG, corner_radius=0, **kwargs)
         else:
-            # Modo tk.Frame: fundo branco
             super().__init__(master, bg=APP_BG[0], **kwargs)
 
         # Guardar callbacks
@@ -139,19 +137,35 @@ class TopBar(BaseTopBar):
         self._on_delete_notification_for_me = on_delete_notification_for_me
         self._on_delete_all_notifications_for_me = on_delete_all_notifications_for_me
 
-        # Container principal
+        # "Card" arredondado — fundo cinza, borda fina, altura fixa
         if HAS_CUSTOMTKINTER and ctk is not None:
-            container = ctk.CTkFrame(self, fg_color="transparent")
+            bar = ctk.CTkFrame(
+                self,
+                fg_color=SURFACE_DARK,
+                bg_color=APP_BG,
+                corner_radius=CARD_RADIUS,
+                border_width=BORDER_WIDTH,
+                border_color=BORDER,
+                height=48,
+            )
         else:
-            container = tk.Frame(self, bg=APP_BG[0])
-        container.pack(fill="x", expand=True)
+            bar = tk.Frame(self, bg=SURFACE_DARK[0], height=48)
+        bar.pack(side="top", fill="x", padx=10, pady=(0, 8))
+        bar.pack_propagate(False)  # respeitar height fixa
 
-        # Criar componentes
+        # Container transparente dentro do bar
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            container = ctk.CTkFrame(bar, fg_color="transparent")
+        else:
+            container = tk.Frame(bar, bg=SURFACE_DARK[0])
+        container.pack(fill="both", expand=True, padx=8, pady=6)
+
+        # Criar componentes com padding interno p/ não encostar nos cantos
         self._nav = TopbarNav(container, callbacks=_NavCallbacks(self))
-        self._nav.pack(side="left", fill="y")
+        self._nav.pack(side="left", fill="y", padx=(18, 0))
 
         self._actions = TopbarActions(container, callbacks=_ActionsCallbacks(self))
-        self._actions.pack(side="right", fill="y")
+        self._actions.pack(side="right", fill="y", padx=(0, 12))
 
         # Expor botões para compatibilidade com código existente
         self.btn_home = self._nav.btn_home

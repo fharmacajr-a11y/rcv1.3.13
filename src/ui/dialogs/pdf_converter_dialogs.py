@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from src.ui.ctk_config import ctk
+from src.ui.widgets.button_factory import make_btn
 
 import logging
 import os
@@ -107,13 +108,13 @@ class PDFDeleteImagesConfirmDialog(_BaseDialog):
         buttons = ctk.CTkFrame(content)
         buttons.grid(row=1, column=0, columnspan=2, pady=(12, 0), sticky="e")
 
-        btn_cancel = ctk.CTkButton(buttons, text="Cancelar", command=self.on_cancel)
+        btn_cancel = make_btn(buttons, text="Cancelar", command=self.on_cancel)
         btn_cancel.pack(side="left", padx=(0, 8))
 
-        btn_no = ctk.CTkButton(buttons, text="N\u00e3o", command=self.on_no)
+        btn_no = make_btn(buttons, text="Não", command=self.on_no)
         btn_no.pack(side="left", padx=(0, 8))
 
-        btn_yes = ctk.CTkButton(buttons, text="Sim", command=self.on_yes)
+        btn_yes = make_btn(buttons, text="Sim", command=self.on_yes)
         btn_yes.pack(side="left")
 
         btn_cancel.focus_set()
@@ -162,7 +163,7 @@ class PDFConversionResultDialog(_BaseDialog):
         )
         message_label.pack(fill="both", expand=True, pady=(0, 12))
 
-        button = ctk.CTkButton(content, text="OK", command=self.on_ok)
+        button = make_btn(content, text="OK", command=self.on_ok)
         button.pack(side="right")
 
         self.bind("<Return>", lambda _: self.on_ok())

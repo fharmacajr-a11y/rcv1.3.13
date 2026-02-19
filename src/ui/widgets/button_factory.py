@@ -6,7 +6,7 @@ botões CTkButton do app, facilitando manutenção e garantindo UX uniforme.
 
 USO:
     from src.ui.widgets.button_factory import make_btn, make_btn_sm, make_btn_icon
-    
+
     btn = make_btn(
         master=parent,
         text="Meu Botão",
@@ -39,14 +39,14 @@ def make_btn(
     **kwargs: Any,
 ) -> Any:
     """Cria um CTkButton padronizado com tamanho e estilo consistentes.
-    
+
     Args:
         master: Widget pai onde o botão será criado
         text: Texto do botão
         command: Callback quando botão é clicado
         **kwargs: Argumentos adicionais para customização (fg_color, hover_color, etc)
                   Estes sobrescrevem os padrões se fornecidos.
-    
+
     Returns:
         Instância de ctk.CTkButton configurada com os tokens globais
     """
@@ -72,7 +72,7 @@ def make_btn_sm(
     **kwargs: Any,
 ) -> Any:
     """Cria um CTkButton *pequeno* para barras/widgets compactos.
-    
+
     Usa BUTTON_SM_W / BUTTON_SM_H. Ideal para toolbars densas onde o
     padrão de 140 px de largura não cabe.
     """
@@ -98,7 +98,7 @@ def make_btn_icon(
     **kwargs: Any,
 ) -> Any:
     """Cria um CTkButton quadrado para ícones (⟳, 🔔, +, − etc.).
-    
+
     Usa BUTTON_ICON × BUTTON_ICON (32 × 32 por padrão).
     """
     defaults = {

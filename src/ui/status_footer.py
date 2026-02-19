@@ -5,6 +5,7 @@ import tkinter as tk
 from typing import Optional
 
 from src.ui.ctk_config import ctk
+from src.ui.widgets.button_factory import make_btn
 
 log = logging.getLogger(__name__)
 
@@ -64,7 +65,7 @@ class StatusFooter(ctk.CTkFrame):
         # Botão Lixeira opcional (apenas se show_trash=True)
         self._btn_lixeira = None
         if show_trash and on_lixeira_click:
-            self._btn_lixeira = ctk.CTkButton(right, text="Lixeira", command=on_lixeira_click)
+            self._btn_lixeira = make_btn(right, text="Lixeira", command=on_lixeira_click)
             self._btn_lixeira.grid(row=0, column=4, sticky="e")
 
         self._cloud_state = "UNKNOWN"

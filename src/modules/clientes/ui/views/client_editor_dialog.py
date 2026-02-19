@@ -13,9 +13,12 @@ import tkinter as tk
 from typing import Any, Callable, Optional
 
 from src.ui.ctk_config import ctk
+from src.ui.widgets.button_factory import make_btn
 from src.ui.ui_tokens import SURFACE, SURFACE_DARK, TEXT_PRIMARY, TEXT_MUTED, BORDER, APP_BG
 from src.modules.clientes.core.constants import STATUS_CHOICES
 from src.ui.dark_window_helper import set_win_dark_titlebar
+from src.utils.formatters import format_cnpj
+from src.utils.paths import resource_path
 
 log = logging.getLogger(__name__)
 
@@ -121,6 +124,13 @@ class ClientEditorDialog(ctk.CTkToplevel):
         except Exception as e:
             log.debug(f"[ClientEditorDialog:{self.session_id}] Erro titlebar: {e}")
 
+        # Aplicar ícone do app
+        try:
+            self.iconbitmap(resource_path("rc.ico"))
+            log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time() - start_time:.3f}] iconbitmap aplicado")
+        except Exception as e:
+            log.debug(f"[ClientEditorDialog:{self.session_id}] Erro iconbitmap: {e}")
+
         # ANTI-FLASH STEP 7: Exibir janela (ainda transparente)
         self.deiconify()  # type: ignore[attr-defined]
         log.debug(f"[ClientEditorDialog:{self.session_id}] [t={time.time() - start_time:.3f}] deiconify()")
@@ -157,7 +167,7 @@ class ClientEditorDialog(ctk.CTkToplevel):
             self.title("Novo Cliente")
         else:
             # Título será atualizado após carregar dados
-            self.title(f"Editar Cliente - {self.client_id}")
+            self.title(f"Editar Cliente - ID: {self.client_id}")
 
     def _on_window_close(self) -> None:
         """Handler quando usuário fecha a janela (X).
@@ -307,8 +317,8 @@ class ClientEditorDialog(ctk.CTkToplevel):
         )
         self.status_combo.grid(row=1, column=0, sticky="ew", padx=(0, 5), pady=0)
 
-        self.senhas_btn = ctk.CTkButton(
-            status_container, text="Senhas", command=self._on_senhas, width=80, fg_color="gray", hover_color="darkgray"
+        self.senhas_btn = make_btn(
+            status_container, text="Senhas", command=self._on_senhas, fg_color="gray", hover_color="darkgray"
         )
         self.senhas_btn.grid(row=1, column=1, sticky="w", pady=0)
 
@@ -389,44 +399,40 @@ class ClientEditorDialog(ctk.CTkToplevel):
         buttons_frame.grid(row=1, column=0, columnspan=3, sticky="w", padx=10, pady=(0, 10))
 
         # Botão Salvar (verde)
-        self.save_btn = ctk.CTkButton(
+        self.save_btn = make_btn(
             buttons_frame,
             text="Salvar",
             command=self._on_save_clicked,
-            width=120,
             fg_color="#28a745",
             hover_color="#218838",
         )
         self.save_btn.pack(side="left", padx=(0, 5))
 
         # Botão Cartão CNPJ (azul)
-        self.cartao_btn = ctk.CTkButton(
+        self.cartao_btn = make_btn(
             buttons_frame,
             text="Cartão CNPJ",
             command=self._on_cartao_cnpj,
-            width=120,
             fg_color="#007bff",
             hover_color="#0056b3",
         )
         self.cartao_btn.pack(side="left", padx=5)
 
         # Botão Enviar documentos (azul)
-        self.upload_btn = ctk.CTkButton(
+        self.upload_btn = make_btn(
             buttons_frame,
             text="Enviar documentos",
             command=self._on_enviar_documentos,
-            width=140,
             fg_color="#007bff",
             hover_color="#0056b3",
         )
         self.upload_btn.pack(side="left", padx=5)
 
         # Botão Cancelar (vermelho)
-        self.cancel_btn = ctk.CTkButton(
+        self.cancel_btn = make_btn(
             buttons_frame,
             text="Cancelar",
             command=self._on_cancel,
-            width=120,
             fg_color="#dc3545",
             hover_color="#c82333",
         )
@@ -455,7 +461,8 @@ class ClientEditorDialog(ctk.CTkToplevel):
 
             # Atualizar título com dados do cliente (igual ao legado)
             razao = cliente.get("razao_social", "")
-            cnpj = cliente.get("cnpj", "")
+            cnpj_raw = cliente.get("cnpj", "")
+            cnpj_fmt = format_cnpj(cnpj_raw) or cnpj_raw  # Formatar CNPJ com pontos/barra
 
             # Extrair sufixo WhatsApp das observações (se existir)
             obs = cliente.get("observacoes", "") or ""
@@ -465,7 +472,7 @@ class ClientEditorDialog(ctk.CTkToplevel):
             elif "(Respondendo)" in obs:
                 sufixo = " (Respondendo)"
 
-            self.title(f"Editar Cliente - {self.client_id} - {razao} - {cnpj}{sufixo}")
+            self.title(f"Editar Cliente - ID: {self.client_id} - {razao} - {cnpj_fmt}{sufixo}")
 
             # Preencher campos principais
             self.razao_entry.delete(0, "end")

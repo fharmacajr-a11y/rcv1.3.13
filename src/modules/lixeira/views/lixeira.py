@@ -12,6 +12,7 @@ from tkinter import messagebox as tkmsg
 from typing import Any, Callable, Iterable, List, Optional, Tuple
 
 from src.ui.ctk_config import ctk
+from src.ui.widgets.button_factory import make_btn, make_btn_icon
 from src.ui.widgets import CTkTableView
 
 from src.modules.clientes.core.service import (
@@ -134,14 +135,14 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[ctk.CTkTo
     toolbar = ctk.CTkFrame(container)
     toolbar.pack(fill="x", pady=(8, 0))
 
-    btn_restore = ctk.CTkButton(
+    btn_restore = make_btn(
         toolbar, text="Restaurar Selecionados", fg_color=("#2E7D32", "#1B5E20"), hover_color=("#1B5E20", "#0D4A11")
     )
-    btn_purge = ctk.CTkButton(
+    btn_purge = make_btn(
         toolbar, text="Apagar Selecionados", fg_color=("#D32F2F", "#B71C1C"), hover_color=("#B71C1C", "#8B0000")
     )
-    btn_refresh = ctk.CTkButton(toolbar, text="⟳", width=40)
-    btn_close = ctk.CTkButton(
+    btn_refresh = make_btn_icon(toolbar, text="⟳", width=40)
+    btn_close = make_btn(
         toolbar, text="Fechar", fg_color=("#757575", "#616161"), hover_color=("#616161", "#424242"), command=win.destroy
     )
 

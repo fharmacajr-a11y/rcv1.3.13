@@ -7,6 +7,7 @@ import tkinter as tk
 from typing import Callable
 
 from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+from src.ui.widgets.button_factory import make_btn
 from src.ui.win_titlebar import set_immersive_dark_mode
 from src.ui.window_utils import show_centered
 from src.utils.resource_path import resource_path
@@ -254,7 +255,7 @@ class ProgressDialog(tk.Toplevel):
         # Botão Cancelar: canto direito, vermelho
         if can_cancel:
             if HAS_CUSTOMTKINTER and ctk is not None:
-                self._cancel_button = ctk.CTkButton(
+                self._cancel_button = make_btn(
                     body, text="Cancelar", command=self._handle_cancel, fg_color="#dc3545", hover_color="#c82333"
                 )
             else:

@@ -159,7 +159,8 @@ def _build_layout_skeleton(
     # Criar separadores como placeholders (não empacotar ainda)
     SEP_H = 2
     sep_menu_toolbar = ctk.CTkFrame(app, height=SEP_H, corner_radius=0, fg_color=SEP)
-    sep_toolbar_main = ctk.CTkFrame(app, height=SEP_H, corner_radius=0, fg_color=SEP)
+    # sep_toolbar_main com height=0 para conectar TopBar com content sem gap
+    sep_toolbar_main = ctk.CTkFrame(app, height=0, corner_radius=0, fg_color=SEP)
 
     # FASE 5A FIX: Criar FooterController (sempre existe, mesmo antes do footer)
     footer_controller = FooterController(root=app)
@@ -206,12 +207,8 @@ def _build_layout_deferred(app: App, refs: MainWindowLayoutRefs) -> None:
         # 2. Footer (fundo)
         # 3. Container de conteúdo (meio, expand=True)
 
-        # 1a. Separador menu-toolbar (topo)
-        refs.sep_menu_toolbar.pack(side="top", fill="x", pady=0)
-        try:
-            refs.sep_menu_toolbar.pack_propagate(False)
-        except (AttributeError, Exception):
-            pass
+        # 1a. Separador menu-toolbar REMOVIDO p/ grudar TopBar no topo
+        # (sep_menu_toolbar existe no refs mas não é empacotado)
 
         # 1b. TopBar (topo)
         topbar = TopBar(
@@ -226,7 +223,7 @@ def _build_layout_deferred(app: App, refs: MainWindowLayoutRefs) -> None:
             on_delete_notification_for_me=app._delete_notification_for_me,
             on_delete_all_notifications_for_me=app._delete_all_notifications_for_me,
         )
-        topbar.pack(side="top", fill="x")
+        topbar.pack(side="top", fill="x", pady=0)
         log.info("TopBar criado e empacotado no topo")
 
         # 1c. Separador pós-topbar (topo)

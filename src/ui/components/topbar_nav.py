@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from src.ui.ctk_config import ctk
 
-from src.ui.ui_tokens import SURFACE_DARK
+from src.ui.widgets.button_factory import make_btn
 
 import logging
 import os
@@ -71,11 +71,11 @@ class TopbarNav(ctk.CTkFrame):
             master: Widget pai
             callbacks: Objeto com callbacks de navegação
         """
-        # Configurar strip cinza atrás dos botões
+        # Fundo transparente (o cinza vem do container pai)
         if HAS_CUSTOMTKINTER and ctk is not None:
-            super().__init__(master, fg_color=SURFACE_DARK, corner_radius=0, **kwargs)
+            super().__init__(master, fg_color="transparent", **kwargs)
         else:
-            super().__init__(master, bg=SURFACE_DARK[0], **kwargs)
+            super().__init__(master, bg=master["bg"], **kwargs)
 
         self._callbacks = callbacks
 
@@ -142,48 +142,57 @@ class TopbarNav(ctk.CTkFrame):
             return
 
         # Botão Início
-        self.btn_home = ctk.CTkButton(
+        self.btn_home = make_btn(
             self,
             text="Inicio",
             command=self._handle_home,
-            width=80,
-            height=28,
+            fg_color=("#2563eb", "#3b82f6"),
+            hover_color=("#1d4ed8", "#2563eb"),
+            text_color="#ffffff",
+            font=("Segoe UI", 11, "bold"),
         )
-        self.btn_home.pack(side="left", padx=(6, BTN_PADX), pady=BTN_PADY)
+        self.btn_home.pack(side="left", padx=(0, 5), pady=2)
 
         # Botão Visualizador PDF
-        self.btn_pdf_viewer = ctk.CTkButton(
+        self.btn_pdf_viewer = make_btn(
             self,
             text="Visualizador PDF",
             command=self._handle_pdf_viewer,
-            width=120,
-            height=28,
+            width=130,  # Ligeiramente maior para acomodar texto
+            fg_color=("#6c757d", "#495057"),
+            hover_color=("#5a6268", "#343a40"),
+            text_color="#ffffff",
+            font=("Segoe UI", 11),
         )
-        self.btn_pdf_viewer.pack(side="left", padx=(BTN_PADX, BTN_PADX), pady=BTN_PADY)
+        self.btn_pdf_viewer.pack(side="left", padx=5, pady=2)
 
         # Botão ChatGPT (sem ícone temporariamente para debugging)
-        self.btn_chatgpt = ctk.CTkButton(
+        self.btn_chatgpt = make_btn(
             self,
             text="ChatGPT",
             # image=self._chatgpt_image,
             # compound="left" if self._chatgpt_image else "none",
             command=self._handle_chatgpt,
-            width=100,
-            height=28,
+            fg_color=("#6c757d", "#495057"),
+            hover_color=("#5a6268", "#343a40"),
+            text_color="#ffffff",
+            font=("Segoe UI", 11),
         )
-        self.btn_chatgpt.pack(side="left", padx=(BTN_PADX, BTN_PADX), pady=BTN_PADY)
+        self.btn_chatgpt.pack(side="left", padx=5, pady=2)
 
         # Botão Sites (sem ícone temporariamente para debugging)
-        self.btn_sites = ctk.CTkButton(
+        self.btn_sites = make_btn(
             self,
             text="Sites",
             # image=self._sites_image,
             # compound="left" if self._sites_image else "none",
             command=self._handle_sites,
-            width=80,
-            height=28,
+            fg_color=("#6c757d", "#495057"),
+            hover_color=("#5a6268", "#343a40"),
+            text_color="#ffffff",
+            font=("Segoe UI", 11),
         )
-        self.btn_sites.pack(side="left", padx=(BTN_PADX, 0), pady=BTN_PADY)
+        self.btn_sites.pack(side="left", padx=(5, 0), pady=2)
 
     def _handle_home(self) -> None:
         """Handler para botão Início."""

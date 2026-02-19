@@ -18,7 +18,6 @@ from src.modules.hub.views.notes_panel_view import NotesViewCallbacks, build_not
 
 # ORG-006: Constantes e funções puras extraídas
 from src.modules.hub.views.hub_screen_view_constants import (
-    BTN_GRID_PADX,
     BTN_GRID_PADY,
     FRAME_INNER_PADDING,
     FRAME_PACK_PADY,
@@ -109,7 +108,6 @@ class HubScreenView:
         callbacks: HubViewCallbacks,
         *,
         open_clientes: Callable[[], None] | None = None,
-        open_anvisa: Callable[[], None] | None = None,
         open_farmacia_popular: Callable[[], None] | None = None,
         open_sngpc: Callable[[], None] | None = None,
         open_mod_sifap: Callable[[], None] | None = None,
@@ -128,7 +126,6 @@ class HubScreenView:
 
         # Armazenar callbacks de navegação
         self.open_clientes = open_clientes
-        self.open_anvisa = open_anvisa
         self.open_farmacia_popular = open_farmacia_popular
         self.open_sngpc = open_sngpc
         self.open_mod_sifap = open_mod_sifap
@@ -136,7 +133,7 @@ class HubScreenView:
         self.open_sites = open_sites
 
         # Widgets principais (criados em build_layout)
-        self.modules_panel: tk.LabelFrame | None = None
+        self.modules_panel: tk.Frame | None = None
         self.center_spacer: tk.Frame | None = None
         self.dashboard_scroll: Any | None = None
         self.notes_panel: Any | None = None
@@ -176,64 +173,57 @@ class HubScreenView:
     def _build_modules_panel(self) -> None:
         """Constrói o painel de módulos (menu vertical à esquerda).
 
-        Delega construção para build_modules_panel helper, mas inline
-        para compatibilidade com testes existentes.
+        Layout: cada seção é um LabelFrame com título, botões
+        centralizados e tamanho uniforme.
         """
-        from src.modules.hub.constants import (
-            HUB_BTN_STYLE_CLIENTES,
-            HUB_BTN_STYLE_FLUXO_CAIXA,
-            MODULES_TITLE,
-            PAD_OUTER,
-        )
+        from src.modules.hub.constants import PAD_OUTER
 
-        # ORG-006: Helper movido para hub_screen_view_pure.py
-        # Helper inline `mk_btn` agora é `make_module_button`
+        # Largura uniforme para todos os botões do painel
+        _BTN_WIDTH = 160
 
-        # Painel principal
-        self.modules_panel = tk.LabelFrame(self.parent, text=MODULES_TITLE, padding=PAD_OUTER)
+        # Painel principal (container sem título)
+        self.modules_panel = tk.Frame(self.parent)
+
+        inner = tk.Frame(self.modules_panel)
+        inner.pack(fill="both", expand=True, padx=PAD_OUTER, pady=PAD_OUTER)
 
         # BLOCO 1: Cadastros / Acesso
         frame_cadastros = tk.LabelFrame(
-            self.modules_panel,
+            inner,
             text=SECTION_CADASTROS_LABEL,
             padding=FRAME_INNER_PADDING,
         )
         frame_cadastros.pack(fill="x", pady=FRAME_PACK_PADY)
-        frame_cadastros.columnconfigure(0, weight=1)
-        frame_cadastros.columnconfigure(1, weight=1)
 
-        btn_clientes = make_module_button(frame_cadastros, "Clientes", self.open_clientes, HUB_BTN_STYLE_CLIENTES)
-        btn_clientes.grid(row=0, column=0, sticky="ew", padx=BTN_GRID_PADX, pady=BTN_GRID_PADY)
+        btn_clientes = make_module_button(frame_cadastros, "Clientes", self.open_clientes, width=_BTN_WIDTH)
+        btn_clientes.pack(pady=BTN_GRID_PADY)
 
         # BLOCO 2: Gestão
         frame_gestao = tk.LabelFrame(
-            self.modules_panel,
+            inner,
             text="Gestão",
             padding=FRAME_INNER_PADDING,
         )
         frame_gestao.pack(fill="x", pady=FRAME_PACK_PADY)
-        frame_gestao.columnconfigure(0, weight=1)
 
-        btn_fluxo_caixa = make_module_button(
-            frame_gestao, "Fluxo de Caixa", self.open_cashflow, HUB_BTN_STYLE_FLUXO_CAIXA
-        )
-        btn_fluxo_caixa.grid(row=0, column=0, sticky="ew", padx=BTN_GRID_PADX, pady=BTN_GRID_PADY)
+        btn_fluxo_caixa = make_module_button(frame_gestao, "Fluxo de Caixa", self.open_cashflow, width=_BTN_WIDTH)
+        btn_fluxo_caixa.pack(pady=BTN_GRID_PADY)
 
         # BLOCO 3: Regulatório / Programas
         frame_regulatorio = tk.LabelFrame(
-            self.modules_panel,
+            inner,
             text=SECTION_REGULATORIO_LABEL,
             padding=FRAME_INNER_PADDING,
         )
         frame_regulatorio.pack(fill="x", pady=(0, 0))
-        frame_regulatorio.columnconfigure(0, weight=1)
-        frame_regulatorio.columnconfigure(1, weight=1)
 
-        btn_anvisa = make_module_button(frame_regulatorio, "Anvisa", self.open_anvisa, "info")
-        btn_anvisa.grid(row=0, column=0, sticky="ew", padx=BTN_GRID_PADX, pady=BTN_GRID_PADY)
-
-        btn_sngpc = make_module_button(frame_regulatorio, "Sngpc", self.open_sngpc, "secondary")
-        btn_sngpc.grid(row=0, column=1, sticky="ew", padx=BTN_GRID_PADX, pady=BTN_GRID_PADY)
+        btn_farmacia = make_module_button(
+            frame_regulatorio,
+            "Farmácia Popular",
+            self.open_farmacia_popular,
+            width=_BTN_WIDTH,
+        )
+        btn_farmacia.pack(pady=BTN_GRID_PADY)
 
     def _build_dashboard_panel(self) -> None:
         """Constrói o painel central para o dashboard (sem scrollbar)."""
@@ -353,21 +343,9 @@ class HubScreenView:
         if not state.snapshot:
             return
 
-        # No modo ANVISA-only, desabilitar cliques em Pendências/Tarefas
-        # (dados vêm de anvisa_requests, não de obligations/tasks)
-        anvisa_only = state.snapshot.anvisa_only if state.snapshot else False
-
-        # Callbacks para cards - desabilitados em modo ANVISA-only
-        card_pendencias_cb = (
-            None if anvisa_only else (on_card_pendencias_click or (lambda _s: self.callbacks.on_card_click("pending")))
-        )
-        card_tarefas_cb = (
-            None if anvisa_only else (on_card_tarefas_click or (lambda _s: self.callbacks.on_card_click("tasks")))
-        )
-
-        # TODO ANVISA-only: no futuro, pode-se implementar:
-        # card_pendencias_cb = (lambda _s: self.callbacks.open_module("anvisa")) if anvisa_only else ...
-        # card_tarefas_cb = (lambda _s: self.callbacks.open_module("anvisa")) if anvisa_only else ...
+        # Callbacks para cards
+        card_pendencias_cb = on_card_pendencias_click or (lambda _s: self.callbacks.on_card_click("pending"))
+        card_tarefas_cb = on_card_tarefas_click or (lambda _s: self.callbacks.on_card_click("tasks"))
 
         # Renderizar dashboard com state completo
         build_dashboard_center(

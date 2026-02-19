@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional
 
 # CustomTkinter: fonte única centralizada
 from src.ui.ctk_config import ctk
+from src.ui.widgets.button_factory import make_btn
 from src.ui.window_utils import show_centered
 
 # CTkDatePicker substituiu ttkbootstrap DateEntry
@@ -97,8 +98,8 @@ class EntryDialog(ctk.CTkToplevel):
         # Botões
         btns = ctk.CTkFrame(frm, fg_color="transparent")
         btns.grid(row=6, column=0, columnspan=2, sticky="ew", pady=(8, 0))
-        ctk.CTkButton(btns, text="Cancelar", command=self._cancel, width=80).pack(side="right", padx=4)
-        ctk.CTkButton(btns, text="Salvar", command=self._ok, width=80).pack(side="right", padx=4)
+        make_btn(btns, text="Cancelar", command=self._cancel).pack(side="right", padx=4)
+        make_btn(btns, text="Salvar", command=self._ok).pack(side="right", padx=4)
 
         frm.columnconfigure(1, weight=1)
 

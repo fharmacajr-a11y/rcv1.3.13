@@ -12,6 +12,7 @@ from typing import Callable
 
 from src.ui.ctk_config import ctk
 from src.ui.ui_tokens import SURFACE, SURFACE_DARK, TEXT_PRIMARY, TEXT_MUTED, BORDER
+from src.ui.widgets.button_factory import make_btn
 
 log = logging.getLogger(__name__)
 
@@ -64,7 +65,7 @@ class ClientesV2Toolbar(ctk.CTkFrame):
         """Constrói interface da toolbar."""
         # Label "Pesquisar:"
         ctk.CTkLabel(self, text="Pesquisar:", text_color=TEXT_PRIMARY, font=("Segoe UI", 11)).pack(
-            side="left", padx=(10, 5)
+            side="left", padx=(10, 5), pady=10
         )
 
         # Entry de busca
@@ -78,59 +79,61 @@ class ClientesV2Toolbar(ctk.CTkFrame):
             border_color=BORDER,
             width=250,
         )
-        self.entry_search.pack(side="left", padx=5)
+        self.entry_search.pack(side="left", padx=5, pady=10)
         self.entry_search.bind("<Return>", lambda e: self._trigger_search())
         # Debounce na digitação (400ms)
         self.search_var.trace_add("write", lambda *_: self._on_search_text_changed())  # type: ignore[attr-defined]
 
         # Botão Buscar
-        ctk.CTkButton(
+        make_btn(
             self,
-            text="🔍 Buscar",
+            text="Buscar",
             command=self._trigger_search,
-            width=100,
             fg_color=("#2563eb", "#3b82f6"),
             hover_color=("#1d4ed8", "#2563eb"),
-        ).pack(side="left", padx=5)
+        ).pack(side="left", padx=5, pady=10)
 
         # Botão Limpar
-        ctk.CTkButton(
+        make_btn(
             self,
-            text="❌ Limpar",
+            text="Limpar",
             command=self._trigger_clear,
-            width=100,
             fg_color=("#6c757d", "#495057"),
             hover_color=("#5a6268", "#343a40"),
-        ).pack(side="left", padx=5)
+        ).pack(side="left", padx=5, pady=10)
 
         # Ordenar
         ctk.CTkLabel(self, text="Ordenar:", text_color=TEXT_PRIMARY, font=("Segoe UI", 11)).pack(
-            side="left", padx=(15, 5)
+            side="left", padx=(15, 5), pady=10
         )
 
         self.order_combo = ctk.CTkOptionMenu(
             self,
             variable=self.order_var,
             values=[
-                "ID (↑)",
-                "ID (↓)",
+                "ID (1-9)",
+                "ID (9-1)",
                 "Razão Social (A→Z)",
                 "Razão Social (Z→A)",
-                "Última Alteração ↓",
-                "Última Alteração ↑",
+                "Última Alteração (MAIS RECENTE)",
+                "Última Alteração (MAIS ANTIGA)",
             ],
             command=self._trigger_order_change,
             fg_color=SURFACE,
             button_color=SURFACE,
-            button_hover_color=BORDER,
+            button_hover_color=("#2563eb", "#3b82f6"),
             text_color=TEXT_PRIMARY,
+            dropdown_fg_color=SURFACE_DARK,
+            dropdown_hover_color=BORDER,
+            dropdown_text_color=TEXT_PRIMARY,
+            corner_radius=8,
             width=200,
         )
-        self.order_combo.pack(side="left", padx=5)
+        self.order_combo.pack(side="left", padx=5, pady=10)
 
         # Status
         ctk.CTkLabel(self, text="Status:", text_color=TEXT_PRIMARY, font=("Segoe UI", 11)).pack(
-            side="left", padx=(15, 5)
+            side="left", padx=(15, 5), pady=10
         )
 
         # Inicializar com STATUS_CHOICES do helpers
@@ -145,33 +148,36 @@ class ClientesV2Toolbar(ctk.CTkFrame):
             command=self._trigger_status_change,
             fg_color=SURFACE,
             button_color=SURFACE,
-            button_hover_color=BORDER,
+            button_hover_color=("#2563eb", "#3b82f6"),
             text_color=TEXT_PRIMARY,
+            dropdown_fg_color=SURFACE_DARK,
+            dropdown_hover_color=BORDER,
+            dropdown_text_color=TEXT_PRIMARY,
+            corner_radius=8,
             width=180,
         )
-        self.status_combo.pack(side="left", padx=5)
+        self.status_combo.pack(side="left", padx=5, pady=10)
 
         # FASE 3.5: Botão Exportar
-        self.export_btn = ctk.CTkButton(
+        # Botão Lixeira (pack side=right primeiro → fica mais à direita)
+        self.trash_btn = make_btn(
             self,
-            text="📊 Exportar",
-            command=self._trigger_export,
-            width=110,
-            fg_color=("#28a745", "#218838"),
-            hover_color=("#218838", "#1e7e34"),
-        )
-        self.export_btn.pack(side="right", padx=(5, 5))
-
-        # Botão Lixeira
-        self.trash_btn = ctk.CTkButton(
-            self,
-            text="🗑️ Lixeira",
+            text="Lixeira",
             command=self._trigger_trash,
-            width=100,
             fg_color=("#dc3545", "#c82333"),
             hover_color=("#c82333", "#bd2130"),
         )
-        self.trash_btn.pack(side="right", padx=(5, 10))
+        self.trash_btn.pack(side="right", padx=(0, 10), pady=10)
+
+        # FASE 3.5: Botão Exportar (ao lado esquerdo do Lixeira, 5px entre eles)
+        self.export_btn = make_btn(
+            self,
+            text="Exportar",
+            command=self._trigger_export,
+            fg_color=("#28a745", "#218838"),
+            hover_color=("#218838", "#1e7e34"),
+        )
+        self.export_btn.pack(side="right", padx=(0, 5), pady=10)
 
     def _trigger_search(self) -> None:
         """Dispara callback de busca."""

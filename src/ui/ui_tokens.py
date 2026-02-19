@@ -35,7 +35,7 @@ APP_BG = ("#ffffff", "#0b0b0b")
 SURFACE = ("#ffffff", "#141414")
 
 # Superfície mais escura para cards específicos
-SURFACE_DARK = ("#e6e6e6", "#121212")
+SURFACE_DARK = ("#dadada", "#121212")
 
 # Superfície interna (textboxes/listas) - branco no light para contraste
 INNER_SURFACE = ("#ffffff", "#1a1a1a")
@@ -124,3 +124,28 @@ CARD_PADDING = 12
 
 # Padding entre seções
 SECTION_GAP = 16
+
+# =============================================================================
+# BOTÕES (padronização de tamanho e estilo)
+# =============================================================================
+
+# Largura padrão dos botões de ação (ajustada para caber "Visualizador PDF")
+BUTTON_W = 140
+
+# Altura padrão dos botões de ação
+BUTTON_H = 32
+
+# Corner radius dos botões (menor que cards)
+BUTTON_RADIUS = 10
+
+# Border spacing interno dos botões
+BUTTON_BORDER_SPACING = 2
+
+# --- Variantes compactas (widgets densos: DatePicker, Autocomplete, toolbar densa) ---
+
+# Botão pequeno (cabe em barras compactas)
+BUTTON_SM_W = 110
+BUTTON_SM_H = 28
+
+# Botão ícone (quadrado, ex.: ⟳, 🔔)
+BUTTON_ICON = 32

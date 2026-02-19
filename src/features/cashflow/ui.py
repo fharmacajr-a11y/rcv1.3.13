@@ -8,6 +8,7 @@ from tkinter import StringVar, messagebox
 from typing import Optional
 
 from src.ui.ctk_config import ctk
+from src.ui.widgets.button_factory import make_btn
 from src.ui.widgets import CTkTableView
 from src.ui.window_utils import show_centered
 
@@ -83,10 +84,10 @@ class CashflowWindow(ctk.CTkToplevel):
         ctk.CTkLabel(top, text="Busca").pack(side="left", padx=(8, 4))
         ctk.CTkEntry(top, textvariable=self.var_text, width=200).pack(side="left", padx=4)
 
-        ctk.CTkButton(top, text="Filtrar", command=self.refresh, width=80).pack(side="left", padx=6)
-        ctk.CTkButton(top, text="Novo", command=self.create, width=70).pack(side="right", padx=4)
-        ctk.CTkButton(top, text="Editar", command=self.edit, width=70).pack(side="right", padx=4)
-        ctk.CTkButton(top, text="Excluir", command=self.delete, width=70).pack(side="right", padx=4)
+        make_btn(top, text="Filtrar", command=self.refresh).pack(side="left", padx=6)
+        make_btn(top, text="Novo", command=self.create).pack(side="right", padx=4)
+        make_btn(top, text="Editar", command=self.edit).pack(side="right", padx=4)
+        make_btn(top, text="Excluir", command=self.delete).pack(side="right", padx=4)
 
     def _build_tree(self) -> None:
         # Usar CTkTableView ao invés de Treeview

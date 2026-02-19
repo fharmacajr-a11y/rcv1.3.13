@@ -12,6 +12,7 @@ from typing import Any, Callable
 
 # CustomTkinter (fonte centralizada)
 from src.ui.ctk_config import ctk
+from src.ui.widgets.button_factory import make_btn_icon
 
 from src.modules.uploads.components.helpers import (
     client_prefix_for_id,
@@ -118,7 +119,6 @@ class UploadsBrowserWindow(ctk.CTkToplevel):  # type: ignore[misc]
         module: str = "",
         modal: bool = False,
         delete_folder_handler: Callable[[str, str], Any] | None = None,
-        anvisa_context: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(parent)
         prepare_hidden_window(self)  # BUGFIX: Evitar flash branco ao abrir
@@ -136,7 +136,6 @@ class UploadsBrowserWindow(ctk.CTkToplevel):  # type: ignore[misc]
         self._delete_folder_handler = delete_folder_handler
         self._pdf_viewer_window = None
         self._last_view_signature: str | None = None
-        self._anvisa_context = anvisa_context
         self._download_in_progress = False
 
         razao_clean = strip_cnpj_from_razao(razao, cnpj)
@@ -192,7 +191,7 @@ class UploadsBrowserWindow(ctk.CTkToplevel):  # type: ignore[misc]
         prefix_entry.grid(row=0, column=0, sticky="ew", padx=(0, UI_GAP))
 
         # Botão refresh (ícone-only) à direita
-        btn_refresh_top = ctk.CTkButton(top_bar, text="⟳", width=40, command=self._refresh_listing)  # type: ignore[union-attr]
+        btn_refresh_top = make_btn_icon(top_bar, text="⟳", width=40, command=self._refresh_listing)  # type: ignore[union-attr]
         btn_refresh_top.grid(row=0, column=1, sticky="e")
 
         # Frame contendo a árvore de arquivos (ocupa toda a área central)
@@ -224,20 +223,6 @@ class UploadsBrowserWindow(ctk.CTkToplevel):  # type: ignore[misc]
             on_close=self._close_window,
         )
         self.actions.grid(row=1, column=0, sticky="ew", pady=(8, 0))
-
-        # Footer ANVISA (condicional)
-        if self._anvisa_context is not None:
-            from src.modules.anvisa.views.anvisa_footer import AnvisaFooter
-
-            anvisa_footer = AnvisaFooter(
-                self,
-                default_process=self._anvisa_context.get("request_type"),
-                base_prefix=self._base_prefix,
-                org_id=self._org_id,
-                on_upload_complete=lambda: self._refresh_listing(),
-                padding=(UI_PADX, UI_PADY),
-            )
-            anvisa_footer.grid(row=3, column=0, sticky="ew")
 
     # ------------------------------------------------------------------
     # UI actions
@@ -621,7 +606,6 @@ def open_files_browser(
     module: str = "",
     modal: bool = False,
     delete_folder_handler: Callable[[str, str], Any] | None = None,
-    anvisa_context: dict[str, Any] | None = None,
 ) -> UploadsBrowserWindow:
     """
     Entry point compatível com o open_files_browser legacy.
@@ -639,7 +623,6 @@ def open_files_browser(
         module: Nome do módulo que está abrindo o browser (ex: "auditoria")
         modal: Se True, janela fica modal ao parent
         delete_folder_handler: Handler para exclusao de pastas (opcional)
-        anvisa_context: Dict com contexto ANVISA (request_type, on_upload_complete)
 
     Returns:
         Janela UploadsBrowserWindow criada e exibida
@@ -658,7 +641,6 @@ def open_files_browser(
         module=module,
         modal=modal,
         delete_folder_handler=delete_folder_handler,
-        anvisa_context=anvisa_context,
     )
 
     window.deiconify()

@@ -44,13 +44,18 @@ ORDER_LABEL_ALIASES = {
     "ID (1->9)": ORDER_LABEL_ID_ASC,
     "ID (9→1)": ORDER_LABEL_ID_DESC,
     "ID (9->1)": ORDER_LABEL_ID_DESC,
-    # Aliases para novos labels do toolbar
+    # Aliases antigos (compatibilidade)
     "ID (↑)": ORDER_LABEL_ID_ASC,
     "ID (↓)": ORDER_LABEL_ID_DESC,
-    "Razão Social (A→Z)": ORDER_LABEL_RAZAO,
-    "Razão Social (Z→A)": ORDER_LABEL_RAZAO_DESC,
     "Última Alteração ↓": ORDER_LABEL_UPDATED_RECENT,
     "Última Alteração ↑": ORDER_LABEL_UPDATED_OLD,
+    # Aliases novos (labels do toolbar)
+    "ID (1-9)": ORDER_LABEL_ID_ASC,
+    "ID (9-1)": ORDER_LABEL_ID_DESC,
+    "Razão Social (A→Z)": ORDER_LABEL_RAZAO,
+    "Razão Social (Z→A)": ORDER_LABEL_RAZAO_DESC,
+    "Última Alteração (MAIS RECENTE)": ORDER_LABEL_UPDATED_RECENT,
+    "Última Alteração (MAIS ANTIGA)": ORDER_LABEL_UPDATED_OLD,
 }
 
 DEFAULT_ORDER_LABEL = ORDER_LABEL_RAZAO

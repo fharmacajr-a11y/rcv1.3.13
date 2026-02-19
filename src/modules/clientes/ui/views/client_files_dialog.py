@@ -20,6 +20,7 @@ from typing import Any, Optional
 import queue
 
 from src.ui.ctk_config import ctk
+from src.ui.widgets.button_factory import make_btn
 from src.ui.ui_tokens import TEXT_PRIMARY, TEXT_MUTED, APP_BG
 from src.ui.ttk_treeview_theme import apply_zebra
 from src.ui.widgets.ctk_treeview_container import CTkTreeviewContainer
@@ -247,12 +248,10 @@ class ClientFilesDialog(ctk.CTkToplevel):
         header.grid_columnconfigure(1, weight=1)
 
         # Botão Voltar
-        self.btn_back = ctk.CTkButton(
+        self.btn_back = make_btn(
             header,
             text="⬅ Voltar",
             command=self._on_back,
-            width=90,
-            height=32,
             fg_color=("#6b7280", "#4b5563"),
             hover_color=("#4b5563", "#374151"),
             border_width=0,
@@ -277,24 +276,20 @@ class ClientFilesDialog(ctk.CTkToplevel):
         btn_frame = ctk.CTkFrame(header, fg_color="transparent", border_width=0)
         btn_frame.grid(row=0, column=2, sticky="e")
 
-        self.btn_refresh = ctk.CTkButton(
+        self.btn_refresh = make_btn(
             btn_frame,
             text="Atualizar",
             command=self._refresh_files,
-            width=80,
-            height=32,
             fg_color=("#2563eb", "#3b82f6"),
             hover_color=("#1d4ed8", "#2563eb"),
             border_width=0,
         )
         self.btn_refresh.pack(side="left", padx=2)
 
-        self.btn_upload = ctk.CTkButton(
+        self.btn_upload = make_btn(
             btn_frame,
             text="Upload",
             command=self._on_upload,
-            width=80,
-            height=32,
             fg_color=("#059669", "#10b981"),
             hover_color=("#047857", "#059669"),
             border_width=0,
@@ -371,65 +366,55 @@ class ClientFilesDialog(ctk.CTkToplevel):
         footer_frame = ctk.CTkFrame(container, fg_color="transparent", border_width=0)
         footer_frame.grid(row=5, column=0, sticky="ew", padx=15, pady=(0, 15))
 
-        self.btn_baixar = ctk.CTkButton(
+        self.btn_baixar = make_btn(
             footer_frame,
             text="Baixar",
             command=self._on_baixar,
-            width=100,
-            height=32,
             fg_color=("#059669", "#10b981"),
             hover_color=("#047857", "#059669"),
             border_width=0,
-            state="disabled",  # Inicialmente desabilitado
+            state="disabled",
         )
         self.btn_baixar.pack(side="left", padx=2)
 
-        self.btn_baixar_zip = ctk.CTkButton(
+        self.btn_baixar_zip = make_btn(
             footer_frame,
             text="Baixar pasta (.zip)",
             command=self._on_baixar_pasta_zip,
-            width=160,
-            height=32,
             fg_color=("#7c3aed", "#8b5cf6"),
             hover_color=("#6d28d9", "#7c3aed"),
             border_width=0,
-            state="disabled",  # Inicialmente desabilitado
+            state="disabled",
         )
         self.btn_baixar_zip.pack(side="left", padx=2)
 
-        self.btn_excluir = ctk.CTkButton(
+        self.btn_excluir = make_btn(
             footer_frame,
             text="Excluir",
             command=self._on_excluir,
-            width=100,
-            height=32,
             fg_color=("#dc2626", "#ef4444"),
             hover_color=("#b91c1c", "#dc2626"),
             border_width=0,
-            state="disabled",  # Inicialmente desabilitado
+            state="disabled",
         )
         self.btn_excluir.pack(side="left", padx=2)
 
-        self.btn_visualizar = ctk.CTkButton(
+        self.btn_visualizar = make_btn(
             footer_frame,
             text="Visualizar",
             command=self._on_visualizar,
-            width=120,
-            height=32,
             fg_color=("#2563eb", "#3b82f6"),
             hover_color=("#1d4ed8", "#2563eb"),
             border_width=0,
-            state="disabled",  # Inicialmente desabilitado
+            state="disabled",
         )
         self.btn_visualizar.pack(side="left", padx=2)
 
         # Botão Fechar à direita
-        self.btn_fechar = ctk.CTkButton(
+        self.btn_fechar = make_btn(
             footer_frame,
             text="Fechar",
             command=self._safe_close,
-            width=80,
-            height=32,
             fg_color=("#6b7280", "#4b5563"),
             hover_color=("#4b5563", "#374151"),
             border_width=0,

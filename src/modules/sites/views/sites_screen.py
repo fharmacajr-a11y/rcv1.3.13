@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from src.ui.ctk_config import ctk
+from src.ui.widgets.button_factory import make_btn
 
 import logging
 import tkinter as tk
@@ -153,10 +154,9 @@ class SitesScreen(ctk.CTkFrame):
             category_frame.content_frame.columnconfigure(0, weight=1)
 
             for i, site in enumerate(category.sites):
-                btn = ctk.CTkButton(
+                btn = make_btn(
                     category_frame.content_frame,
                     text=site.name,
-                    width=80,
                     command=lambda url=site.url: self._open_site(url),
                 )
                 btn.grid(row=i, column=0, sticky="ew", pady=3, padx=(5, 5))

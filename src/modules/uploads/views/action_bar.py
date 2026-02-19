@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Callable, Optional
 
 # CustomTkinter (fonte centralizada)
 from src.ui.ctk_config import ctk
+from src.ui.widgets.button_factory import make_btn
 
 if TYPE_CHECKING:
     pass  # ctk já importado via src.ui.ctk_config
@@ -42,25 +43,25 @@ class ActionBar(ctk.CTkFrame):  # type: ignore[misc]
         col = 0
 
         if on_download is not None:
-            btn = ctk.CTkButton(left, text="Baixar", command=on_download)  # type: ignore[union-attr]
+            btn = make_btn(left, text="Baixar", command=on_download)  # type: ignore[union-attr]
             btn.grid(row=0, column=col, padx=(0, 8))
             self.btn_download = btn  # type: ignore[assignment]
             col += 1
 
         if on_download_folder is not None:
-            btn = ctk.CTkButton(left, text="Baixar pasta (.zip)", command=on_download_folder)  # type: ignore[union-attr]
+            btn = make_btn(left, text="Baixar pasta (.zip)", command=on_download_folder)  # type: ignore[union-attr]
             btn.grid(row=0, column=col, padx=(0, 8))
             self.btn_download_folder = btn  # type: ignore[assignment]
             col += 1
 
         if on_delete is not None:
-            btn = ctk.CTkButton(left, text="Excluir", command=on_delete, fg_color="red", hover_color="darkred")  # type: ignore[union-attr]
+            btn = make_btn(left, text="Excluir", command=on_delete, fg_color="red", hover_color="darkred")  # type: ignore[union-attr]
             btn.grid(row=0, column=col, padx=(0, 8))
             self.btn_delete = btn  # type: ignore[assignment]
             col += 1
 
         if on_view is not None:
-            btn = ctk.CTkButton(left, text="Visualizar", command=on_view, fg_color="green", hover_color="darkgreen")  # type: ignore[union-attr]
+            btn = make_btn(left, text="Visualizar", command=on_view, fg_color="green", hover_color="darkgreen")  # type: ignore[union-attr]
             btn.grid(row=0, column=col, padx=(0, 8))
             self.btn_view = btn  # type: ignore[assignment]
             col += 1
@@ -72,9 +73,7 @@ class ActionBar(ctk.CTkFrame):  # type: ignore[misc]
         col_right = 0
 
         if on_close is not None:
-            self.btn_close = ctk.CTkButton(
-                right, text="Fechar", command=on_close, fg_color="gray", hover_color="darkgray"
-            )  # type: ignore[assignment]
+            self.btn_close = make_btn(right, text="Fechar", command=on_close, fg_color="gray", hover_color="darkgray")  # type: ignore[assignment]
             if self.btn_close is not None:
                 self.btn_close.grid(row=0, column=col_right)
 

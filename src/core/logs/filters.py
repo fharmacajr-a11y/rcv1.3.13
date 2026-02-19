@@ -217,7 +217,6 @@ class ConsoleImportantFilter(logging.Filter):
         "src.modules.main_window.views.main_window_services",
         "src.infra.supabase.db_client",  # Apenas criação/health checker
         "src.infra.supabase.auth_client",
-        "src.infra.repositories.anvisa_requests_repository",
         "src.modules.hub.recent_activity_store",
     }
 

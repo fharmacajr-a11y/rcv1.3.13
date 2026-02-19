@@ -130,6 +130,7 @@ def apply_treeview_theme(mode: str, master: Any, style_name: str = "RC.Treeview"
         )
 
         # Configurar Heading com fonte e dimensões padronizadas
+        # IMPORTANTE: padding garante respiro visual entre colunas (evita texto grudado)
         style.configure(
             f"{full_style_name}.Heading",
             background=colors.heading_bg,
@@ -137,6 +138,7 @@ def apply_treeview_theme(mode: str, master: Any, style_name: str = "RC.Treeview"
             relief=TABLE_UI_SPEC.heading_relief,
             borderwidth=TABLE_UI_SPEC.heading_border_width,
             font=heading_font_tuple,  # Fonte do header (bold)
+            padding=(TABLE_UI_SPEC.cell_padding_x, TABLE_UI_SPEC.cell_padding_y),  # Respiro visual no header
         )
 
         # Map para Heading: manter cores fixas no hover/active/pressed (não clarear)

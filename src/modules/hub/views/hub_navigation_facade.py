@@ -94,12 +94,6 @@ class HubNavigationFacade:
             self._debug_logger("NavigationFacade: open_fluxo_caixa")
         self._nav_helper.open_fluxo_caixa()
 
-    def open_anvisa(self) -> None:
-        """Abre módulo de Anvisa (MF-10, MF-22)."""
-        if self._debug_logger:
-            self._debug_logger("NavigationFacade: open_anvisa")
-        self._nav_helper.open_anvisa()
-
     def open_farmacia_popular(self) -> None:
         """Abre módulo de Farmácia Popular (MF-10, MF-22)."""
         if self._debug_logger:

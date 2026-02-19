@@ -135,7 +135,6 @@ def _show_hub(app: Any) -> Any:
     frame = app.show_frame(
         HubFrame,
         open_clientes=lambda: navigate_to(app, "main"),
-        open_anvisa=lambda: navigate_to(app, "anvisa"),
         open_farmacia_popular=lambda: navigate_to(app, "placeholder", title="Farmcia Popular"),
         open_sngpc=lambda: navigate_to(app, "placeholder", title="Sngpc"),
         open_mod_sifap=lambda: navigate_to(app, "placeholder", title="Sifap"),
@@ -305,65 +304,12 @@ def start_client_pick_mode(
     frame.start_pick(on_pick=on_client_picked, return_to=return_to, banner_text=banner_text)
 
 
-def _show_anvisa(app: Any) -> Any:
-    """Mostra a tela ANVISA, cacheando a instância.
-
-    Esconde frame anterior, garante que frame está mapeado, atualiza nav._current.
-    """
-    from src.modules.anvisa import AnvisaScreen
-
-    # 1. Obter/criar frame ANVISA (cachear instância)
-    if getattr(app, "_anvisa_screen_instance", None) is None:
-        app._anvisa_screen_instance = AnvisaScreen(
-            app._content_container,
-            main_window=app,
-            on_back=lambda: navigate_to(app, "hub"),
-        )
-        _place_or_pack(app._anvisa_screen_instance)
-
-    frame = app._anvisa_screen_instance
-
-    # 2. Esconder frame atual se diferente
-    current = app.nav.current()
-    if current is not None and current is not frame:
-        _forget_widget(current)
-
-    # 3. Garantir que frame ANVISA está mapeado
-    try:
-        mgr = frame.winfo_manager()
-        if mgr == "":
-            _place_or_pack(frame)
-    except Exception as exc:  # noqa: BLE001
-        log.debug("Falha ao verificar winfo_manager em ANVISA: %s", exc)
-
-    # 4. Dar lift/tkraise no frame
-    try:
-        frame.lift()
-    except Exception as exc:  # noqa: BLE001
-        log.debug("anvisa frame.lift() failed: %s", exc)
-
-    # 5. Atualizar nav._current
-    try:
-        app.nav._current = frame
-    except Exception as exc:  # noqa: BLE001
-        log.debug("set app.nav._current failed: %s", exc)
-
-    # 6. Garantir que botão Início esteja ativo no ANVISA
-    try:
-        app._topbar.set_is_hub(False)
-    except Exception as exc:
-        log.warning("Falha ao atualizar estado da topbar: %s", exc, exc_info=True)
-
-    return frame
-
-
 def navigate_to(app: Any, target: str, **kwargs) -> Any:
     handlers = {
         "hub": _show_hub,
         "main": _show_main,
         "placeholder": _show_placeholder,
         "clients_picker": _open_clients_picker,
-        "anvisa": _show_anvisa,
         "cashflow": _show_cashflow,
         "sites": _show_sites,
     }

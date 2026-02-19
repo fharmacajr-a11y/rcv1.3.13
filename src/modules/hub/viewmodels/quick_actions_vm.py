@@ -114,13 +114,6 @@ class QuickActionsViewModel:
                 ),
                 # Bloco 3: Regulatório / Programas
                 QuickActionItemView(
-                    id="anvisa",
-                    label="Anvisa",
-                    description="Regulatório Anvisa",
-                    order=50,
-                    category="regulatorio",
-                ),
-                QuickActionItemView(
                     id="sngpc",
                     label="Sngpc",
                     description="Sistema Nacional de Gerenciamento de Produtos Controlados",

@@ -54,61 +54,6 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-def _count_anvisa_open_and_due(
-    requests: Sequence[Mapping[str, Any]],
-    today: date,
-) -> tuple[int, int]:
-    """Count open ANVISA requests and those due until today with daily check.
-
-    Regras:
-    - total_open = todas as demandas com status em STATUS_OPEN (draft, submitted, in_progress)
-    - due_until_today = demandas abertas com:
-        * payload.check_daily == True (precisa acompanhar no Solicita)
-        * payload.due_date <= today
-
-    Args:
-        requests: Sequence of ANVISA request mappings.
-        today: Reference date.
-
-    Returns:
-        Tuple of (total_open, due_until_today).
-    """
-    # Try to import STATUS_OPEN from ANVISA module
-    try:
-        from src.modules.anvisa.constants import STATUS_OPEN
-
-        open_status = STATUS_OPEN
-    except ImportError:
-        # Fallback: common open statuses
-        open_status = {"draft", "submitted", "in_progress"}
-
-    open_total = 0
-    due_until_today = 0
-
-    for req in requests:
-        status = req.get("status", "")
-        if status not in open_status:
-            continue
-
-        open_total += 1
-
-        # Check if due until today AND needs daily check
-        payload = req.get("payload")
-        if isinstance(payload, dict):
-            # Só conta em "tarefas hoje" se check_daily=True
-            check_daily = payload.get("check_daily", False)
-            if not check_daily:
-                continue
-
-            due_str = str(payload.get("due_date") or "").strip()
-            if due_str:
-                due_date = _parse_due_date_iso(due_str)
-                if due_date and due_date <= today:
-                    due_until_today += 1
-
-    return open_total, due_until_today
-
-
 def _count_tasks_due_until_today(
     tasks: Sequence[Mapping[str, Any]],
     today: date,
@@ -260,86 +205,21 @@ def _build_hot_items(
     return hot_items
 
 
-def _build_anvisa_radar_from_requests(
-    requests: Sequence[Mapping[str, Any]],
-    today: date,
-) -> dict[str, Any]:
-    """Build ANVISA radar quadrant from client_anvisa_requests.
-
-    Args:
-        requests: Sequence of ANVISA request mappings from client_anvisa_requests table.
-        today: Reference date for calculating overdue status.
-
-    Returns:
-        Dictionary with pending, overdue counts, status, and enabled flag.
-    """
-    # Try to import STATUS_OPEN from ANVISA module, fallback to default
-    try:
-        from src.modules.anvisa.constants import STATUS_OPEN
-
-        open_status = STATUS_OPEN
-    except ImportError:
-        # Fallback: common open statuses
-        open_status = {"draft", "submitted", "in_progress"}
-
-    pending = 0
-    overdue = 0
-
-    for request in requests:
-        status = request.get("status", "")
-        if status not in open_status:
-            continue
-
-        # Count as pending (open)
-        pending += 1
-
-        # Check if overdue based on payload.due_date
-        payload = request.get("payload")
-        if isinstance(payload, dict):
-            due_str = payload.get("due_date")
-            if due_str and isinstance(due_str, str):
-                try:
-                    due_date = date.fromisoformat(due_str)
-                    if due_date < today:
-                        overdue += 1
-                except ValueError:
-                    pass  # Invalid date format, skip
-
-    # Determine quadrant status
-    if overdue > 0:
-        status_color = "red"
-    elif pending > 0:
-        status_color = "yellow"
-    else:
-        status_color = "green"
-
-    # pending here = open but not overdue
-    pending_not_overdue = pending - overdue
-
-    return {
-        "pending": pending_not_overdue,
-        "overdue": overdue,
-        "status": status_color,
-        "enabled": True,
-    }
-
-
 def _build_risk_radar(
     obligations: Sequence[Mapping[str, Any]],
     today: date,
 ) -> dict[str, dict[str, Any]]:
-    """Build risk radar with 3 quadrants (ANVISA, SNGPC, SIFAP).
+    """Build risk radar with quadrants (SNGPC, SIFAP).
 
     Args:
         obligations: Sequence of obligation mappings.
         today: Reference date for calculating overdue status.
 
     Returns:
-        Dictionary with 3 quadrants, each containing pending, overdue counts and status.
+        Dictionary with quadrants, each containing pending, overdue counts and status.
     """
     # Initialize quadrants
     quadrants: dict[str, dict[str, Any]] = {
-        "ANVISA": {"pending": 0, "overdue": 0},
         "SNGPC": {"pending": 0, "overdue": 0},
         "SIFAP": {"pending": 0, "overdue": 0},
     }
@@ -353,10 +233,8 @@ def _build_risk_radar(
             key = "SNGPC"
         elif kind == "SIFAP":
             key = "SIFAP"
-        elif kind == "LICENCA_SANITARIA":
-            key = "ANVISA"
         else:
-            continue  # Unknown or unmapped kind (FARMACIA_POPULAR não aparece no radar)
+            continue  # Unknown or unmapped kind
 
         status = obl.get("status", "")
         due_date_raw = obl.get("due_date")
@@ -439,6 +317,24 @@ def _load_pending_tasks(
     return data_access.load_pending_tasks_impl(org_id, today, limit, fetch_client_names_fn=_fetch_client_names)
 
 
+def _load_obligations(org_id: str) -> list[dict[str, Any]]:
+    """Load all obligations for the organization.
+
+    Args:
+        org_id: UUID of the organization.
+
+    Returns:
+        List of obligation dictionaries.
+    """
+    try:
+        from src.features.regulations.repository import list_obligations_for_org
+
+        return list(list_obligations_for_org(org_id))
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Failed to load obligations: %s", e)
+        return []
+
+
 def _load_clients_of_the_day(
     org_id: str,
     today: date,
@@ -493,6 +389,77 @@ def _load_recent_activity(
     return data_access.load_recent_activity_impl(org_id, today)
 
 
+def _build_upcoming_deadlines(
+    obligations: Sequence[Mapping[str, Any]],
+    today: date,
+    limit: int = 5,
+) -> list[dict[str, Any]]:
+    """Build upcoming deadlines from obligations (pending/overdue, sorted by due_date).
+
+    Args:
+        obligations: Sequence of obligation mappings.
+        today: Reference date.
+        limit: Maximum number of deadlines to return.
+
+    Returns:
+        List of deadline dicts with due_date, client_id, client_name, kind, title, status.
+    """
+    deadlines: list[dict[str, Any]] = []
+
+    for obl in obligations:
+        status = obl.get("status", "")
+        if status not in ("pending", "overdue"):
+            continue
+
+        due_date_raw = obl.get("due_date")
+        if due_date_raw is None:
+            continue
+
+        # Parse due_date
+        due_date: date | None = None
+        if isinstance(due_date_raw, str):
+            try:
+                due_date = date.fromisoformat(due_date_raw)
+            except ValueError:
+                continue
+        elif isinstance(due_date_raw, date):
+            due_date = due_date_raw
+        else:
+            continue
+
+        # Only include future or today deadlines
+        if due_date < today:
+            # Include overdue items too (they are urgent)
+            pass
+
+        client_id = str(obl.get("client_id", ""))
+        kind = obl.get("kind", "")
+        title = obl.get("title", kind)
+
+        status_badge, days_delta = _due_badge(due_date, today)
+
+        deadlines.append(
+            {
+                "due_date": _format_due_br(due_date),
+                "client_id": client_id,
+                "client_name": f"Cliente #{client_id}",
+                "kind": kind,
+                "title": title,
+                "status": status_badge,
+                "_days_delta": days_delta,
+            }
+        )
+
+    # Sort by days_delta (closest first)
+    deadlines.sort(key=lambda x: x["_days_delta"])
+
+    # Remove internal sort field and limit
+    for item in deadlines:
+        item.pop("_days_delta", None)
+
+    return deadlines[:limit]
+
+
 def get_dashboard_snapshot(
     org_id: str,
     today: date | None = None,
@@ -501,9 +468,6 @@ def get_dashboard_snapshot(
 
     This function collects data from multiple repositories and services to
     build a comprehensive snapshot for the Hub dashboard.
-
-    Currently in ANVISA-only mode: Pendencies and tasks are calculated
-    from client_anvisa_requests table only.
 
     Args:
         org_id: UUID of the organization.
@@ -517,15 +481,6 @@ def get_dashboard_snapshot(
 
     snapshot = DashboardSnapshot()
 
-    # Fetch ANVISA requests once (used for multiple calculations)
-    try:
-        from src.infra.repositories.anvisa_requests_repository import list_requests as list_anvisa_requests
-
-        anvisa_requests = list_anvisa_requests(org_id)
-    except Exception as e:  # noqa: BLE001
-        logger.warning("Failed to fetch ANVISA requests: %s", e)
-        anvisa_requests = []
-
     # 1) Active clients count
     try:
         from src.core.services.clientes_service import count_clients
@@ -535,15 +490,23 @@ def get_dashboard_snapshot(
         logger.warning("Failed to count active clients: %s", e)
         snapshot.active_clients = 0
 
-    # 2) Pending obligations count - ANVISA only (total open requests)
-    # 3) Tasks due today - ANVISA only (open requests with due_date <= today)
+    # 2) Pending obligations count
     try:
-        open_total, due_until_today = _count_anvisa_open_and_due(anvisa_requests, today)
-        snapshot.pending_obligations = open_total
-        snapshot.tasks_today = due_until_today
+        from src.features.regulations.repository import count_pending_obligations
+
+        snapshot.pending_obligations = count_pending_obligations(org_id)
     except Exception as e:  # noqa: BLE001
-        logger.warning("Failed to count ANVISA open/due: %s", e)
+        logger.warning("Failed to count pending obligations: %s", e)
         snapshot.pending_obligations = 0
+
+    # 3) Tasks due today
+    try:
+        from src.features.tasks.repository import list_tasks_for_org
+
+        pending_tasks_all = list_tasks_for_org(org_id, status="pending")
+        snapshot.tasks_today = _count_tasks_due_until_today(pending_tasks_all, today)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Failed to count tasks due today: %s", e)
         snapshot.tasks_today = 0
 
     # 4) Cash inflow for current month
@@ -558,162 +521,52 @@ def get_dashboard_snapshot(
         logger.warning("Failed to get cash inflow: %s", e)
         snapshot.cash_in_month = 0.0
 
-    # 5-8) Build ANVISA lists from requests
-    # Populate upcoming_deadlines, pending_tasks, and clients_of_the_day
+    # 5) Load obligations (used for deadlines, hot_items, risk_radar)
+    obligations = _load_obligations(org_id)
+
+    # 6) Upcoming deadlines from obligations (pending/overdue, sorted by due_date, top 5)
     try:
-        from src.modules.anvisa.constants import STATUS_OPEN
-
-        open_status = STATUS_OPEN
-    except ImportError:
-        open_status = {"draft", "submitted", "in_progress"}
-
-    # Filter open requests
-    open_reqs = [req for req in anvisa_requests if req.get("status", "") in open_status]
-
-    # (A) Build upcoming_deadlines: top 5 closest deadlines (sorted by due_date)
-    deadlines_data = []
-    for req in open_reqs:
-        client_id = str(req.get("client_id", ""))
-        request_id = str(req.get("id", ""))
-        client_data = req.get("clients", {}) or {}
-        client_name = client_data.get("razao_social") or f"Cliente #{client_id}"
-        request_type = str(req.get("request_type") or "—")
-
-        payload = req.get("payload")
-        due_date = None
-        if isinstance(payload, dict):
-            due_iso = str(payload.get("due_date") or "").strip()
-            if due_iso:
-                try:
-                    due_date = date.fromisoformat(due_iso)
-                except (ValueError, AttributeError):
-                    pass
-
-        status_badge, days_delta = _due_badge(due_date, today)
-
-        deadlines_data.append(
-            {
-                "due_date": _format_due_br(due_date),
-                "client_id": client_id,
-                "client_name": client_name,
-                "kind": "ANVISA",
-                "title": request_type,
-                "status": status_badge,
-                "request_id": request_id,
-                "_days_delta": days_delta,  # Para ordenação
-            }
-        )
-
-    # Ordenar por days_delta (menor primeiro = mais urgente)
-    deadlines_data.sort(key=lambda x: x["_days_delta"])
-
-    # Remover campo interno de ordenação e pegar top 5
-    for item in deadlines_data:
-        item.pop("_days_delta", None)
-    snapshot.upcoming_deadlines = deadlines_data[:5]
-
-    # (B) Build pending_tasks: tasks with check_daily=True and due_date <= today
-    tasks_data = []
-    for req in open_reqs:
-        payload = req.get("payload")
-        if not isinstance(payload, dict):
-            continue
-
-        # Só inclui se check_daily=True
-        if not payload.get("check_daily", False):
-            continue
-
-        due_iso = str(payload.get("due_date") or "").strip()
-        if not due_iso:
-            continue
-
-        try:
-            due_date = date.fromisoformat(due_iso)
-        except (ValueError, AttributeError):
-            continue
-
-        # Só inclui se due_date <= today
-        if due_date > today:
-            continue
-
-        client_id = str(req.get("client_id", ""))
-        request_id = str(req.get("id", ""))
-        client_data = req.get("clients", {}) or {}
-        client_name = client_data.get("razao_social") or f"Cliente #{client_id}"
-        request_type = str(req.get("request_type") or "—")
-
-        days_overdue = (today - due_date).days
-
-        if days_overdue > 0:
-            # Atrasada
-            title = f"{request_type} (Atrasada {days_overdue}d)"
-            priority = "urgent"
-        else:
-            # Hoje
-            title = f"{request_type} (Hoje)"
-            priority = "high"
-
-        tasks_data.append(
-            {
-                "due_date": _format_due_br(due_date),
-                "client_id": client_id,
-                "client_name": client_name,
-                "title": title,
-                "priority": priority,
-                "request_id": request_id,
-                "_due_date_obj": due_date,  # Para ordenação
-            }
-        )
-
-    # Ordenar por due_date (mais antigas primeiro)
-    tasks_data.sort(key=lambda x: x["_due_date_obj"])
-
-    # Remover campo interno e pegar top 5
-    for item in tasks_data:
-        item.pop("_due_date_obj", None)
-    snapshot.pending_tasks = tasks_data[:5]
-
-    # Atualizar contador de tarefas para refletir todas as tarefas (não só top 5)
-    snapshot.tasks_today = len(tasks_data)
-
-    # (C) Build clients_of_the_day: group pending_tasks by client_id
-    clients_map: dict[str, dict[str, Any]] = {}
-    for task in tasks_data:
-        client_id = task["client_id"]
-        if client_id not in clients_map:
-            clients_map[client_id] = {
-                "client_id": client_id,
-                "client_name": task["client_name"],
-                "obligation_kinds": [],
-            }
-        # Extrair tipo de demanda do título (remover parte entre parênteses)
-        title = task["title"]
-        req_type = title.split(" (")[0] if " (" in title else title
-        if req_type not in clients_map[client_id]["obligation_kinds"]:
-            clients_map[client_id]["obligation_kinds"].append(req_type)
-
-    snapshot.clients_of_the_day = list(clients_map.values())
-
-    # Clear hot_items (not used in ANVISA-only mode yet)
-    snapshot.hot_items = []
-
-    # 9) Risk radar - ANVISA uses client_anvisa_requests, SNGPC/SIFAP disabled
-    try:
-        anvisa_quad = _build_anvisa_radar_from_requests(anvisa_requests, today)
+        snapshot.upcoming_deadlines = _build_upcoming_deadlines(obligations, today, limit=5)
     except Exception as e:  # noqa: BLE001
-        logger.warning("Failed to build ANVISA radar from demands: %s", e)
-        anvisa_quad = {"pending": 0, "overdue": 0, "status": "green", "enabled": True}
+        logger.warning("Failed to build upcoming deadlines: %s", e)
+        snapshot.upcoming_deadlines = []
 
-    snapshot.risk_radar = {
-        "ANVISA": anvisa_quad,
-        "SNGPC": {"pending": 0, "overdue": 0, "status": "disabled", "enabled": False},
-        "SIFAP": {"pending": 0, "overdue": 0, "status": "disabled", "enabled": False},
-    }
+    # 7) Pending tasks (top 5)
+    try:
+        snapshot.pending_tasks = _load_pending_tasks(org_id, today, limit=5)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Failed to load pending tasks: %s", e)
+        snapshot.pending_tasks = []
 
-    # 10) Recent activity - empty in ANVISA-only mode
-    snapshot.recent_activity = []
+    # 8) Clients of the day
+    try:
+        snapshot.clients_of_the_day = _load_clients_of_the_day(org_id, today)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Failed to load clients of the day: %s", e)
+        snapshot.clients_of_the_day = []
 
-    # 11) Mark as ANVISA-only mode (disables Pendências/Tarefas clicks)
-    snapshot.anvisa_only = True
+    # 9) Hot items (urgent alerts)
+    try:
+        snapshot.hot_items = _build_hot_items(obligations, today)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Failed to build hot items: %s", e)
+        snapshot.hot_items = []
+
+    # 10) Risk radar from obligations
+    try:
+        snapshot.risk_radar = _build_risk_radar(obligations, today)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Failed to build risk radar: %s", e)
+        snapshot.risk_radar = {}
+
+    # 11) Recent activity
+    try:
+        snapshot.recent_activity = _load_recent_activity(org_id, today)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Failed to load recent activity: %s", e)
+        snapshot.recent_activity = []
+
+    # Not in ANVISA-only mode anymore
+    snapshot.anvisa_only = False
 
     return snapshot

@@ -11,6 +11,7 @@ from tkinter.constants import W
 from typing import Callable, Optional
 
 from src.ui.ctk_config import ctk  # SSoT: import via ctk_config
+from src.ui.widgets.button_factory import make_btn
 from src.db.domain_types import ClientRow
 from src.core.app import apply_rc_icon
 from src.features.tasks.service import create_task
@@ -177,23 +178,21 @@ class NovaTarefaDialog(ctk.CTkToplevel):
         button_frame = ctk.CTkFrame(container, fg_color="transparent")
         button_frame.grid(row=6, column=0, columnspan=2, pady=(15, 0))
 
-        self.ok_button = ctk.CTkButton(
+        self.ok_button = make_btn(
             button_frame,
             text="Criar Tarefa",
             command=self._on_ok,
             fg_color="green",
             hover_color="darkgreen",
-            width=150,
         )
         self.ok_button.pack(side="left", padx=5)
 
-        self.cancel_button = ctk.CTkButton(
+        self.cancel_button = make_btn(
             button_frame,
             text="Cancelar",
             command=self._on_close,
             fg_color="gray",
             hover_color="darkgray",
-            width=150,
         )
         self.cancel_button.pack(side="left", padx=5)
 

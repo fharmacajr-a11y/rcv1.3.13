@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from src.ui.ctk_config import ctk
+from src.ui.widgets.button_factory import make_btn
 
 import logging
 import os
@@ -69,7 +70,7 @@ def show_info(parent: tk.Widget, title: str, message: str) -> None:
         except Exception as exc:  # noqa: BLE001
             logger.debug("Falha ao fechar dialogo de info: %s", exc)
 
-    btn = ctk.CTkButton(frm, text="OK", command=_close)
+    btn = make_btn(frm, text="OK", command=_close)
     btn.pack(side="right")
 
     top.bind("<Return>", _close)
@@ -138,8 +139,8 @@ def ask_ok_cancel(parent: tk.Widget, title: str, message: str) -> bool:
     btns = ctk.CTkFrame(frm)
     btns.pack(fill="x")
 
-    ctk.CTkButton(btns, text=OK_LABEL, command=_ok).pack(side="right", padx=(8, 0))
-    ctk.CTkButton(btns, text=CANCEL_LABEL, command=_cancel).pack(side="right", padx=(0, 5))
+    make_btn(btns, text=OK_LABEL, command=_ok).pack(side="right", padx=(8, 0))
+    make_btn(btns, text=CANCEL_LABEL, command=_cancel).pack(side="right", padx=(0, 5))
 
     top.bind("<Return>", _ok)
     top.bind("<Escape>", _cancel)

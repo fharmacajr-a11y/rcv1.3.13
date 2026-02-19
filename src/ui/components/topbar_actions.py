@@ -10,7 +10,6 @@ REFATORAÇÃO P2 (Microfase 2 → MF3):
 from __future__ import annotations
 
 from src.ui.ctk_config import ctk
-from src.ui.ui_tokens import SURFACE_DARK
 
 import logging
 from typing import Any, Protocol
@@ -77,7 +76,7 @@ class TopbarActions(ctk.CTkFrame):
             master: Widget pai
             callbacks: Objeto com callbacks de ações
         """
-        super().__init__(master, fg_color=SURFACE_DARK, corner_radius=0, **kwargs)
+        super().__init__(master, fg_color="transparent", **kwargs)
         self._callbacks = callbacks
 
         # Criar controller headless (MF3)
@@ -88,7 +87,7 @@ class TopbarActions(ctk.CTkFrame):
             self,
             on_click=self._handle_button_click,
         )
-        self._button.pack(side="right", padx=(0, 6))
+        self._button.pack(side="right", padx=(0, 0), pady=10)
 
         self._popup = NotificationsPopup(
             parent_widget=self,

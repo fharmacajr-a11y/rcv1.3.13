@@ -71,7 +71,6 @@ class HubScreenBuilder:
         screen: HubScreen,
         *,
         open_clientes: Optional[Callable[[], None]] = None,
-        open_anvisa: Optional[Callable[[], None]] = None,
         open_auditoria: Optional[Callable[[], None]] = None,
         open_farmacia_popular: Optional[Callable[[], None]] = None,
         open_sngpc: Optional[Callable[[], None]] = None,
@@ -107,7 +106,6 @@ class HubScreenBuilder:
         self._setup_navigation_callbacks(
             screen,
             open_clientes=open_clientes,
-            open_anvisa=open_anvisa,
             open_farmacia_popular=open_farmacia_popular,
             open_sngpc=open_sngpc,
             open_mod_sifap=open_mod_sifap,
@@ -126,7 +124,6 @@ class HubScreenBuilder:
             components = factory.create_components(
                 screen=screen,
                 open_clientes=open_clientes,
-                open_anvisa=open_anvisa,
                 open_farmacia_popular=open_farmacia_popular,
                 open_sngpc=open_sngpc,
                 open_mod_sifap=open_mod_sifap,
@@ -146,7 +143,6 @@ class HubScreenBuilder:
         screen: HubScreen,
         *,
         open_clientes: Optional[Callable[[], None]] = None,
-        open_anvisa: Optional[Callable[[], None]] = None,
         open_auditoria: Optional[Callable[[], None]] = None,
         open_farmacia_popular: Optional[Callable[[], None]] = None,
         open_sngpc: Optional[Callable[[], None]] = None,
@@ -165,7 +161,6 @@ class HubScreenBuilder:
 
         screen._nav_callbacks = HubNavigationCallbacks(
             open_clientes=open_clientes,
-            open_anvisa=open_anvisa,
             open_farmacia_popular=open_farmacia_popular,
             open_sngpc=open_sngpc,
             open_mod_sifap=open_mod_sifap,
@@ -175,7 +170,6 @@ class HubScreenBuilder:
 
         # MF-16: Manter atributos públicos individuais para compatibilidade
         screen.open_clientes = open_clientes
-        screen.open_anvisa = open_anvisa
         screen.open_farmacia_popular = open_farmacia_popular
         screen.open_sngpc = open_sngpc
         screen.open_mod_sifap = open_mod_sifap

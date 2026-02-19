@@ -12,6 +12,7 @@ from tkinter import messagebox
 from typing import Optional
 
 from src.ui.ctk_config import ctk
+from src.ui.widgets.button_factory import make_btn
 from src.utils.subfolders import sanitize_subfolder_name
 from src.ui.window_utils import show_centered
 from src.ui.dark_window_helper import set_win_dark_titlebar
@@ -86,9 +87,9 @@ class SubpastaDialog(ctk.CTkToplevel):
         btn_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         btn_frame.pack(fill="x")
 
-        ctk.CTkButton(btn_frame, text="OK", command=self._ok, width=80).pack(side="left", padx=(0, 5))
-        ctk.CTkButton(btn_frame, text="Cancelar", command=self._cancel, width=100).pack(side="left", padx=(0, 5))
-        ctk.CTkButton(btn_frame, text="Atualizar Lista", command=self._load_subpastas, width=120).pack(side="left")
+        make_btn(btn_frame, text="OK", command=self._ok).pack(side="left", padx=(0, 5))
+        make_btn(btn_frame, text="Cancelar", command=self._cancel).pack(side="left", padx=(0, 5))
+        make_btn(btn_frame, text="Atualizar Lista", command=self._load_subpastas).pack(side="left")
 
         # Bindings
         self.bind("<Return>", lambda e: self._ok())
@@ -146,7 +147,7 @@ class SubpastaDialog(ctk.CTkToplevel):
 
             # Adiciona botões para cada subpasta
             for subpasta in sorted(subpastas):
-                btn = ctk.CTkButton(
+                btn = make_btn(
                     self.scroll_frame,
                     text=subpasta,
                     command=lambda s=subpasta: self._select_subpasta(s),

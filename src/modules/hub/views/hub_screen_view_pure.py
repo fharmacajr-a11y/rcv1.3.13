@@ -17,6 +17,8 @@ def make_module_button(
     parent: Any,  # tk.Misc
     text: str,
     command: Callable[[], None] | None = None,
+    width: int = 100,
+    corner_radius: int = 8,
     **kwargs: Any,
 ) -> Any:  # CTkButton or tk.Button
     """Cria um botão de módulo com estilo consistente.
@@ -28,6 +30,8 @@ def make_module_button(
         parent: Widget pai onde o botão será criado
         text: Texto do botão
         command: Callback do botão (opcional)
+        width: Largura do botão em pixels (padrão: 100)
+        corner_radius: Raio das bordas arredondadas (padrão: 8)
         **kwargs: Argumentos adicionais (ignorados para compatibilidade)
 
     Returns:
@@ -38,11 +42,17 @@ def make_module_button(
         >>> btn.grid(row=0, column=0)
     """
     from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+    from src.ui.widgets.button_factory import make_btn
     import tkinter as tk
 
     if HAS_CUSTOMTKINTER and ctk is not None:
-        return ctk.CTkButton(parent, text=text, command=command)
-    return tk.Button(parent, text=text, command=command)
+        return make_btn(
+            parent,
+            text=text,
+            command=command,
+            corner_radius=corner_radius,
+        )
+    return tk.Button(parent, text=text, command=command, width=width)
 
 
 def extract_time_from_timestamp(timestamp: str) -> str:

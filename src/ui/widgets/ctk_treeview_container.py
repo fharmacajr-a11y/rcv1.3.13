@@ -43,6 +43,7 @@ class CTkTreeviewContainer(ctk.CTkFrame):
         zebra: bool = True,
         style_name: str = STYLE_NAME,
         show_hscroll: bool = True,
+        tree_padx: tuple[int, int] | int = 0,
         **kwargs: Any,
     ):
         """Inicializa o container com Treeview e scrollbars.
@@ -57,6 +58,7 @@ class CTkTreeviewContainer(ctk.CTkFrame):
             zebra: Se True, aplica zebra striping
             style_name: Nome base do style (default: "CTk.Treeview")
             show_hscroll: Se True, mostra scrollbar horizontal (default: True)
+            tree_padx: Padding horizontal do Treeview (left, right) ou valor único (default: 0)
             **kwargs: Argumentos adicionais para CTkFrame
         """
         super().__init__(master, **kwargs)
@@ -69,6 +71,7 @@ class CTkTreeviewContainer(ctk.CTkFrame):
         self._zebra = zebra
         self._style_name = style_name
         self._show_hscroll = show_hscroll
+        self._tree_padx = tree_padx if isinstance(tree_padx, tuple) else (tree_padx, tree_padx)
         self._colors: Optional[TreeColors] = None
 
         # Aplicar tema inicial
@@ -103,7 +106,7 @@ class CTkTreeviewContainer(ctk.CTkFrame):
             self._tree.configure(xscrollcommand=self._hsb.set)
 
         # Layout usando grid
-        self._tree.grid(row=0, column=0, sticky="nsew")  # type: ignore[attr-defined]
+        self._tree.grid(row=0, column=0, sticky="nsew", padx=self._tree_padx)  # type: ignore[attr-defined]  # Respiro visual
         self._vsb.grid(row=0, column=1, sticky="ns")
         if self._hsb:
             self._hsb.grid(row=1, column=0, sticky="ew")

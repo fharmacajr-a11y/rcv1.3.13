@@ -60,6 +60,25 @@ class HubNavigationHelper:
         if on_new_task:
             on_new_task()
 
+    def go_to_pending(self) -> None:
+        """Navega para Pendências Regulatórias/Auditoria."""
+        callback = getattr(self._hub, "open_auditoria", None) or getattr(self._hub, "open_pendencias", None)
+        if callable(callback):
+            callback()
+            return
+
+        on_new_obligation = getattr(self._hub, "_on_new_obligation", None)
+        if callable(on_new_obligation):
+            on_new_obligation()
+            return
+
+        fallback_clients = getattr(self._hub, "open_clientes", None)
+        if callable(fallback_clients):
+            fallback_clients()
+            return
+
+        logger.debug("HubNavigationHelper: Nenhum callback disponível para go_to_pending")
+
     # ═══════════════════════════════════════════════════════════════════════
     # HubQuickActionsNavigatorProtocol - Abertura de módulos específicos
     # ═══════════════════════════════════════════════════════════════════════
@@ -71,10 +90,6 @@ class HubNavigationHelper:
     def open_fluxo_caixa(self) -> None:
         """Abre módulo de Fluxo de Caixa (MF-16: usa _nav_callbacks)."""
         self._invoke_nav_callback("cashflow")
-
-    def open_anvisa(self) -> None:
-        """Abre módulo de Anvisa (MF-16: usa _nav_callbacks)."""
-        self._invoke_nav_callback("anvisa")
 
     def open_farmacia_popular(self) -> None:
         """Abre módulo de Farmácia Popular (MF-16: usa _nav_callbacks)."""

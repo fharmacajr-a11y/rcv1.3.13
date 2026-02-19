@@ -30,7 +30,6 @@ def register_main_window_screens(router: ScreenRouter, app: App) -> None:
         Factories NÃO devem chamar show_* ou navigate_to para evitar recursão.
         Usam router.show() diretamente quando necessário.
     """
-    from src.modules.anvisa import AnvisaScreen
     from src.modules.cashflow import CashflowFrame
     from src.modules.clientes.ui import ClientesV2Frame
     from src.modules.notas import HubFrame
@@ -42,7 +41,6 @@ def register_main_window_screens(router: ScreenRouter, app: App) -> None:
         frame = HubFrame(
             app._content_container,
             open_clientes=app.show_main_screen,
-            open_anvisa=lambda: router.show("anvisa"),
             open_sngpc=lambda: app.show_placeholder_screen("SNGPC"),
             open_cashflow=app.show_cashflow_screen,
             open_sites=app.show_sites_screen,
@@ -84,18 +82,6 @@ def register_main_window_screens(router: ScreenRouter, app: App) -> None:
 
     router.register("sites", _create_sites, cache=False)
 
-    # ANVISA (singleton cacheado)
-    def _create_anvisa() -> Any:
-        if not hasattr(app, "_anvisa_screen_instance") or app._anvisa_screen_instance is None:
-            app._anvisa_screen_instance = AnvisaScreen(
-                app._content_container,
-                main_window=app,
-                on_back=app.show_hub_screen,
-            )
-        return app._anvisa_screen_instance
-
-    router.register("anvisa", _create_anvisa, cache=True)
-
     # Placeholder (criar nova sempre, lê title de app._placeholder_title)
     def _create_placeholder() -> Any:
         title = getattr(app, "_placeholder_title", None) or "Em Desenvolvimento"
@@ -107,4 +93,4 @@ def register_main_window_screens(router: ScreenRouter, app: App) -> None:
 
     router.register("placeholder", _create_placeholder, cache=False)
 
-    _log.debug("Registradas 7 telas no ScreenRouter")
+    _log.debug("Registradas 6 telas no ScreenRouter")

@@ -8,6 +8,7 @@ import tkinter.font as tkfont
 from typing import Protocol, Type
 
 from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+from src.ui.widgets.button_factory import make_btn
 
 __all__ = ["PlaceholderType"]
 
@@ -44,7 +45,7 @@ class _BasePlaceholder(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkF
         if HAS_CUSTOMTKINTER and ctk is not None:
             header = ctk.CTkLabel(center, text=self.title, font=header_font)
             desc = ctk.CTkLabel(center, text="Funcionalidade em desenvolvimento.")
-            btn = ctk.CTkButton(center, text="Voltar")
+            btn = make_btn(center, text="Voltar")
         else:
             header = tk.Label(center, text=self.title, font=header_font)
             desc = tk.Label(center, text="Funcionalidade em desenvolvimento.")
@@ -62,10 +63,6 @@ class _BasePlaceholder(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkF
             self.master.pack_propagate(False)
         except Exception as exc:  # noqa: BLE001
             _log.debug("Falha ao desabilitar pack_propagate: %s", exc)
-
-
-class AnvisaPlaceholder(_BasePlaceholder):
-    title = "ANVISA - Em breve"
 
 
 class AuditoriaPlaceholder(_BasePlaceholder):

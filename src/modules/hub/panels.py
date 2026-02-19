@@ -6,6 +6,7 @@ import tkinter as tk
 from typing import TYPE_CHECKING, Callable
 
 from src.ui.ctk_config import ctk
+from src.ui.widgets.button_factory import make_btn
 from src.ui.ui_tokens import (
     APP_BG,
     SURFACE_DARK,
@@ -147,7 +148,7 @@ def build_notes_panel(
     new_note_entry.grid(row=1, column=0, sticky="ew", pady=(0, 6))
 
     if HAS_CUSTOMTKINTER and ctk is not None:
-        btn_add_note = ctk.CTkButton(
+        btn_add_note = make_btn(
             entry_frame,
             text="Adicionar",
             command=on_add_note_click if on_add_note_click else None,

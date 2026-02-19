@@ -33,7 +33,6 @@ from src.ui.ctk_config import HAS_CUSTOMTKINTER
 
 # ORG-005: Constantes e funções puras extraídas
 from src.modules.hub.views.dashboard_center_constants import (
-    CARD_LABEL_FONT,
     CARD_PAD_X,
     CARD_PAD_Y,
     MSG_NO_HOT_ITEMS,
@@ -508,9 +507,7 @@ def _build_section_frame(
     return section, content
 
 
-def _build_inner_content_area(
-    content_parent: tk.Frame, height: int = 180, **textbox_kwargs
-) -> ctk.CTkTextbox:
+def _build_inner_content_area(content_parent: tk.Frame, height: int = 180, **textbox_kwargs) -> ctk.CTkTextbox:
     """Constrói área interna de conteúdo branca/escura para textbox/lista.
 
     Args:

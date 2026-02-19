@@ -110,7 +110,6 @@ class HubComponentFactory:
         screen: HubScreen,
         *,
         open_clientes: Optional[Callable[[], None]] = None,
-        open_anvisa: Optional[Callable[[], None]] = None,
         open_farmacia_popular: Optional[Callable[[], None]] = None,
         open_sngpc: Optional[Callable[[], None]] = None,
         open_mod_sifap: Optional[Callable[[], None]] = None,
@@ -237,7 +236,6 @@ class HubComponentFactory:
             parent=screen,
             callbacks=hub_callbacks,  # type: ignore[arg-type]
             open_clientes=open_clientes,
-            open_anvisa=open_anvisa,
             open_farmacia_popular=open_farmacia_popular,
             open_sngpc=open_sngpc,
             open_mod_sifap=open_mod_sifap,
