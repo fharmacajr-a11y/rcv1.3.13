@@ -11,11 +11,11 @@ from tkinter import ttk
 from typing import Any, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from customtkinter import AppearanceModeTracker  # type: ignore[import-not-found]
+    from src.ui.ctk_config import AppearanceModeTracker
 else:
     try:
-        from customtkinter import AppearanceModeTracker  # type: ignore[import-not-found]
-    except ImportError:
+        from src.ui.ctk_config import AppearanceModeTracker  # Use centralized import
+    except (ImportError, AttributeError):
         AppearanceModeTracker = None  # type: ignore[assignment,misc]
 
 

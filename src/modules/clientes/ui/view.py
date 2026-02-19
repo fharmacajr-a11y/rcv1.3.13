@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import logging
 import tkinter as tk
+from tkinter import font as tkfont
 from tkinter import ttk
 from typing import Any, Optional, List
 
 from src.ui.ctk_config import ctk
+from src.ui.widgets.button_factory import make_btn
 from src.ui.ui_tokens import APP_BG, SURFACE, SURFACE_DARK, TEXT_PRIMARY, BORDER
 from src.ui.ttk_treeview_theme import apply_zebra
 from src.ui.widgets.ctk_treeview_container import CTkTreeviewContainer
@@ -23,6 +25,9 @@ from src.modules.clientes.core.viewmodel import ClientesViewModel, ClienteRow
 from src.modules.clientes.core.ui_helpers import ORDER_CHOICES, DEFAULT_ORDER_LABEL
 
 log = logging.getLogger(__name__)
+
+# Constantes para padding visual das colunas (respiro interno)
+CELL_PAD_PX = 12  # Padding interno nas bordas das colunas (como ID)
 
 
 class ClientesV2Frame(ctk.CTkFrame):
@@ -98,7 +103,9 @@ class ClientesV2Frame(ctk.CTkFrame):
             on_trash=self._on_toggle_trash,
             on_export=self._on_export,  # FASE 3.5
         )
-        self.toolbar.pack(side="top", fill="x", padx=10, pady=(10, 5))
+        self.toolbar.pack(side="top", fill="x", padx=10, pady=(0, 5))
+        # Forçar aplicação do tema ANTES de renderizar (evita flash branco no entry)
+        self.toolbar.refresh_theme()
 
         # Container da lista (centro) - usar SURFACE_DARK para consistência com editor
         list_container = ctk.CTkFrame(self, fg_color=SURFACE_DARK, corner_radius=10, border_width=0)
@@ -118,7 +125,6 @@ class ClientesV2Frame(ctk.CTkFrame):
                 on_new=self._on_new_client,
                 on_edit=self._on_edit_client,
                 on_files=self._on_client_files,
-                on_upload=self._on_upload_client,
                 on_delete=self._on_delete_client,
             )
             self.actionbar.pack(side="bottom", fill="x", padx=10, pady=(5, 10))
@@ -144,8 +150,9 @@ class ClientesV2Frame(ctk.CTkFrame):
             style_name="RC.Treeview",
             fg_color="transparent",  # Transparente para não sobrepor o fundo do list_container
             show_hscroll=False,  # Não mostrar scrollbar horizontal (tabela já é responsiva)
+            tree_padx=0,  # Sem padding extra: colunas encostam nas bordas (simetria com ID)
         )
-        self._tree_container.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+        self._tree_container.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
         # Obter referência ao Treeview interno (preserva API existente)
         self.tree = self._tree_container.get_treeview()
@@ -153,17 +160,26 @@ class ClientesV2Frame(ctk.CTkFrame):
         # Obter cores do tema (CTkTreeviewContainer já registrou no manager)
         self._tree_colors = self._tree_container.get_colors()
 
+        # Calcular largura ideal para coluna ultima_alteracao com base na fonte real
+        ultima_alt_width = self._calculate_ultima_alteracao_width()
+
         # Specs de colunas para layout responsívo
         # Estrutura: (base_width, min_width, stretch, weight)
+        # IMPORTANTE: razao_social com prioridade máxima, observacoes compacta
         self._column_specs = {
             "id": (70, 60, False, 0),
-            "razao_social": (520, 320, True, 0.75),  # Coluna FLEX principal (75% do espaço)
+            "razao_social": (540, 340, True, 0.80),  # Coluna FLEX principal (80% do espaço) - prioridade máxima
             "cnpj": (190, 170, False, 0),
-            "nome": (260, 200, True, 0.25),  # Coluna FLEX secundária (25% do espaço)
+            "nome": (240, 180, True, 0.20),  # Coluna FLEX secundária (20% do espaço)
             "whatsapp": (160, 140, False, 0),
-            "status": (240, 200, False, 0),
-            "observacoes": (160, 120, False, 0),
-            "ultima_alteracao": (240, 225, False, 0),  # Reduzido para ficar mais justo (sem espaço demais)
+            "status": (210, 180, False, 0),
+            "observacoes": (100, 80, False, 0),  # Coluna FIXA compacta com mais espaço após
+            "ultima_alteracao": (
+                ultima_alt_width,
+                max(ultima_alt_width - 10, 180),
+                False,
+                0,
+            ),  # Calculada com respiro, min=180
         }
 
         # Aplicar configuração inicial das colunas
@@ -231,62 +247,120 @@ class ClientesV2Frame(ctk.CTkFrame):
         self.tree.heading("whatsapp", text="WhatsApp", anchor="center")
         self.tree.heading("status", text="Status", anchor="center")
         self.tree.heading("observacoes", text="Observações", anchor="center")
-        self.tree.heading("ultima_alteracao", text="Última Alteração", anchor="center")
+        self.tree.heading("ultima_alteracao", text="Última Alteração", anchor="center")  # Centralizado como ID
 
-        # Configurar colunas usando specs (todos centralizados)
+        # Configurar colunas usando specs (todas centralizadas para respiro visual)
         for col_id, (base_width, min_width, stretch, _) in self._column_specs.items():
             self.tree.column(
                 col_id,
                 width=base_width,
                 minwidth=min_width,
-                anchor="center",  # Todas centralizadas
+                anchor="center",  # Todas centralizadas (respiro visual igual ao ID)
                 stretch=stretch,
             )
 
         log.debug("[Clientes] Layout inicial das colunas aplicado")
 
+    def _calculate_ultima_alteracao_width(self) -> int:
+        """Calcula largura ideal para coluna ultima_alteracao baseada na fonte real.
+
+        Usa o maior formato possível ("00/00/0000 - 00:00:00 (J)") + padding
+        para garantir que o texto fique com respiro igual ao ID.
+
+        Returns:
+            Largura em pixels (width e minwidth serão iguais)
+        """
+        try:
+            # Obter fonte do Treeview
+            style = ttk.Style(self.tree)
+            font_name = style.lookup("Treeview", "font") or "TkDefaultFont"
+            font_obj = tkfont.nametofont(font_name)
+
+            # Sample do maior formato que aparece na coluna
+            sample = "00/00/0000 - 00:00:00 (J)"
+            text_width = font_obj.measure(sample)
+
+            # Adicionar padding interno (respiro dos dois lados)
+            ideal_width = text_width + (2 * CELL_PAD_PX)
+
+            log.debug(
+                f"[Clientes] Calculada largura ultima_alteracao: {ideal_width}px (texto: {text_width}px + pad: {2 * CELL_PAD_PX}px)"
+            )
+            return ideal_width
+
+        except Exception as e:
+            log.warning(f"[Clientes] Erro ao calcular largura ultima_alteracao: {e}, usando fallback 215px")
+            return 215  # Fallback
+
     def _resize_columns(self, event: Any = None) -> None:
         """Recalcula larguras das colunas flex baseado no espaço disponível.
 
-        Colunas FIXAS mantêm largura base.
-        Colunas FLEX (Razão Social e Nome) dividem o espaço restante por peso.
+        IMPORTANTE: Garante que sum(widths) <= tree_width para evitar corte de colunas.
+        Algoritmo:
+        1) Começa com minwidth de TODAS as colunas
+        2) Calcula espaço extra disponível (tree_width - soma_minwidths)
+        3) Completa colunas fixas até base_width (opcional)
+        4) Distribui restante entre colunas flex por weight
 
         Args:
             event: Evento de Configure (opcional)
         """
         try:
-            # Obter largura atual do tree
             tree_width = self.tree.winfo_width()
             if tree_width <= 1:
                 return  # Tree ainda não foi renderizado
 
-            # Padding/margem (scrollbar vertical + margens internas)
-            padding = 16
+            # Manter ordem das colunas como no dict (inserção)
+            cols = list(self._column_specs.keys())
+            specs = self._column_specs
 
-            # Calcular total ocupado pelas colunas fixas
-            fixed_total = sum(
-                specs[0]  # base_width
-                for col_id, specs in self._column_specs.items()
-                if not specs[2]  # se stretch == False (coluna fixa)
-            )
+            # 1) Começa pelos mínimos
+            widths = {c: int(specs[c][1]) for c in cols}  # min_width
+            total_min = sum(widths.values())
 
-            # Calcular espaço disponível para colunas flex
-            available = max(0, tree_width - fixed_total - padding)
-
-            # Distribuir espaço disponível entre colunas flex por peso
-            flex_columns = {
-                col_id: specs
-                for col_id, specs in self._column_specs.items()
-                if specs[2]  # stretch == True
-            }
-
-            if not flex_columns:
+            # Se nem os mínimos cabem, aplica mínimos e deixa o Treeview clipar
+            if tree_width <= total_min:
+                for c in cols:
+                    base_w, min_w, stretch, _ = specs[c]
+                    self.tree.column(c, width=widths[c], minwidth=min_w, stretch=stretch, anchor="center")
+                log.debug(f"[Clientes] Largura insuficiente: tree={tree_width}px < min={total_min}px")
                 return
 
-            # Calcular larguras das colunas flex
-            for col_id, (_, min_width, _, weight) in flex_columns.items():
-                new_width = max(min_width, int(available * weight))
-                self.tree.column(col_id, width=new_width)
+            extra = tree_width - total_min
+
+            # 2) Opcional: completar colunas fixas até base_width
+            fixed_cols = [c for c in cols if not specs[c][2]]  # stretch=False
+            for c in fixed_cols:
+                base_w, _, _, _ = specs[c]
+                need = max(0, int(base_w) - widths[c])
+                add = min(extra, need)
+                widths[c] += add
+                extra -= add
+                if extra <= 0:
+                    break
+
+            # 3) Distribuir restante nas colunas flex por weight
+            flex_cols = [c for c in cols if specs[c][2]]  # stretch=True
+            if flex_cols and extra > 0:
+                total_weight = sum(float(specs[c][3]) for c in flex_cols) or float(len(flex_cols))
+                remaining = extra
+                for i, c in enumerate(flex_cols):
+                    w = float(specs[c][3]) or 1.0
+                    if i == len(flex_cols) - 1:
+                        # Joga o resto na última para fechar certinho
+                        add = remaining
+                    else:
+                        add = int(extra * (w / total_weight))
+                        add = min(add, remaining)
+                    widths[c] += add
+                    remaining -= add
+
+            # 4) Aplicar widths finais
+            for c in cols:
+                base_w, min_w, stretch, _ = specs[c]
+                self.tree.column(c, width=widths[c], minwidth=min_w, stretch=stretch, anchor="center")
+
+            log.debug(f"[Clientes] Colunas redimensionadas: tree={tree_width}px, total={sum(widths.values())}px")
 
         except Exception as e:
             log.error(f"[Clientes] Erro ao redimensionar colunas: {e}", exc_info=True)
@@ -342,6 +416,24 @@ class ClientesV2Frame(ctk.CTkFrame):
         self.tree_widget.update_idletasks()
 
         log.debug("[Clientes] force_redraw() completo")
+
+    @staticmethod
+    def _one_line(text: str | None) -> str:
+        """Sanitiza texto para garantir que aparece em uma única linha.
+
+        Remove caracteres \r, \n e múltiplos espaços, garantindo que o texto
+        não quebre em várias linhas na Treeview.
+
+        Args:
+            text: Texto a ser sanitizado
+
+        Returns:
+            Texto em uma única linha
+        """
+        if not text:
+            return ""
+        # Substituir \r e \n por espaço, depois remover múltiplos espaços
+        return " ".join(str(text).replace("\r", " ").replace("\n", " ").split())
 
     def _on_tree_select(self, event: Any = None) -> None:
         """Handler quando uma linha é selecionada na Treeview.
@@ -439,7 +531,7 @@ class ClientesV2Frame(ctk.CTkFrame):
             btn_width = 180
             btn_height = 32
 
-            ctk.CTkButton(
+            make_btn(
                 container,
                 text="✏️ Editar",
                 command=lambda: [menu.destroy(), self._on_edit_client()],
@@ -451,7 +543,7 @@ class ClientesV2Frame(ctk.CTkFrame):
                 anchor="w",
             ).pack(padx=4, pady=(4, 2))
 
-            ctk.CTkButton(
+            make_btn(
                 container,
                 text="📁 Arquivos",
                 command=lambda: [menu.destroy(), self._on_client_files()],
@@ -463,7 +555,7 @@ class ClientesV2Frame(ctk.CTkFrame):
                 anchor="w",
             ).pack(padx=4, pady=2)
 
-            ctk.CTkButton(
+            make_btn(
                 container,
                 text="📤 Enviar documentos",
                 command=lambda: [menu.destroy(), self._on_enviar_documentos()],
@@ -475,7 +567,7 @@ class ClientesV2Frame(ctk.CTkFrame):
                 anchor="w",
             ).pack(padx=4, pady=2)
 
-            ctk.CTkButton(
+            make_btn(
                 container,
                 text="🗑️ Excluir / Lixeira",
                 command=lambda: [menu.destroy(), self._on_delete_client()],
@@ -742,6 +834,10 @@ class ClientesV2Frame(ctk.CTkFrame):
                     )
                 else:
                     # Modo normal: usar ViewModel
+                    # CRITICAL FIX: Refresh data from service BEFORE applying filters
+                    # (fixes bug where edited clients don't update until app restart)
+                    self._vm.refresh_from_service()
+
                     self._vm.set_search_text(search if search else None, rebuild=False)
                     self._vm.set_status_filter(status if status else None, rebuild=False)
                     if order_label:
@@ -785,17 +881,22 @@ class ClientesV2Frame(ctk.CTkFrame):
             # FASE C: Formatar data de ultima_alteracao
             ultima_alt_str = self._format_datetime(row.ultima_alteracao)
 
+            # Sanitizar textos para evitar quebras de linha
+            razao_social = self._one_line(row.razao_social)
+            nome = self._one_line(row.nome)
+            observacoes = self._one_line(row.observacoes)
+
             iid = self.tree_widget.insert(
                 "",
                 "end",
                 values=(
                     row.id,
-                    row.razao_social,
+                    razao_social,
                     row.cnpj,
-                    row.nome,
+                    nome,
                     row.whatsapp,
                     row.status,
-                    row.observacoes or "",  # FASE C: Observações
+                    observacoes or "",  # FASE C: Observações
                     ultima_alt_str,  # FASE C: Última alteração formatada
                 ),
             )
@@ -827,17 +928,22 @@ class ClientesV2Frame(ctk.CTkFrame):
         for row in rows:
             ultima_alt_str = self._format_datetime(row.ultima_alteracao)
 
+            # Sanitizar textos para evitar quebras de linha
+            razao_social = self._one_line(row.razao_social)
+            nome = self._one_line(row.nome)
+            observacoes = self._one_line(row.observacoes)
+
             iid = self.tree_widget.insert(
                 "",
                 "end",
                 values=(
                     row.id,
-                    row.razao_social,
+                    razao_social,
                     row.cnpj,
-                    row.nome,
+                    nome,
                     row.whatsapp,
                     row.status,
-                    row.observacoes or "",
+                    observacoes or "",
                     ultima_alt_str,
                 ),
             )
@@ -1345,58 +1451,6 @@ class ClientesV2Frame(ctk.CTkFrame):
                 parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
             )
 
-    def _on_upload_client(self) -> None:
-        """Handler para botão Upload de arquivos (FASE 3.3).
-
-        Abre diálogo de upload para o cliente selecionado.
-        """
-        if not self._selected_client_id:
-            from tkinter import messagebox
-
-            messagebox.showwarning(
-                "Atenção",
-                "Selecione um cliente para fazer upload de arquivos.",
-                parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
-            )
-            return
-
-        try:
-            # Buscar dados do cliente
-            from src.modules.clientes.core import service as clientes_service
-
-            cliente = clientes_service.fetch_cliente_by_id(self._selected_client_id)
-
-            if not cliente:
-                from tkinter import messagebox
-
-                messagebox.showerror(
-                    "Erro",
-                    "Cliente não encontrado.",
-                    parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
-                )
-                return
-
-            # Abrir diálogo de upload
-            from src.modules.clientes.ui.views.upload_dialog import ClientUploadDialog
-
-            dialog = ClientUploadDialog(
-                parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
-                client_id=self._selected_client_id,
-                client_name=cliente.get("razao_social", "Cliente"),
-                on_complete=lambda: self.load_async(),  # Refresh após upload
-            )
-            dialog.focus()  # type: ignore[attr-defined]
-
-        except Exception as e:
-            log.error(f"[Clientes] Erro ao abrir upload: {e}", exc_info=True)
-            from tkinter import messagebox
-
-            messagebox.showerror(
-                "Erro",
-                f"Erro ao abrir diálogo de upload: {e}",
-                parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
-            )
-
     def _on_enviar_documentos(self) -> None:
         """Handler para enviar documentos do cliente (via context menu).
 
@@ -1672,11 +1726,10 @@ class ClientesV2Frame(ctk.CTkFrame):
         btn_container.pack(expand=True, pady=10)
 
         # Botão Selecionar (verde)
-        btn_select = ctk.CTkButton(
+        btn_select = make_btn(
             btn_container,
             text="✓ Selecionar Cliente",
             command=self._on_pick_confirm,
-            width=180,
             height=36,
             font=("Segoe UI", 13, "bold"),
             fg_color="#28a745",
@@ -1685,11 +1738,10 @@ class ClientesV2Frame(ctk.CTkFrame):
         btn_select.pack(side="left", padx=5)
 
         # Botão Cancelar (cinza)
-        btn_cancel = ctk.CTkButton(
+        btn_cancel = make_btn(
             btn_container,
             text="✕ Cancelar",
             command=self._on_pick_cancel,
-            width=140,
             height=36,
             font=("Segoe UI", 13),
             fg_color="#6c757d",

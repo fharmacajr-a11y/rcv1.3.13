@@ -17,12 +17,15 @@ from typing import TYPE_CHECKING, Final
 # Detectar disponibilidade do CustomTkinter
 _has_ctk = False
 _ctk_module = None
+_appearance_tracker = None
 
 try:
     import customtkinter
 
     _has_ctk = True
     _ctk_module = customtkinter
+    # Import AppearanceModeTracker for centralized export
+    _appearance_tracker = customtkinter.AppearanceModeTracker
 except ImportError:
     # Mock básico para testes quando CustomTkinter não disponível
     class MockCTk:
@@ -39,6 +42,7 @@ except ImportError:
         CTkScrollableFrame = object
 
     _ctk_module = MockCTk()
+    _appearance_tracker = None
 
 # Constante global exportada (Final para evitar reatribuição)
 HAS_CUSTOMTKINTER: Final[bool] = _has_ctk
@@ -46,8 +50,11 @@ HAS_CUSTOMTKINTER: Final[bool] = _has_ctk
 # Módulo customtkinter (ou Mock se não disponível)
 ctk = _ctk_module
 
+# AppearanceModeTracker para uso centralizado
+AppearanceModeTracker = _appearance_tracker
+
 if TYPE_CHECKING:
     import customtkinter as ctk  # Para type hints
 
 
-__all__ = ["HAS_CUSTOMTKINTER", "ctk"]
+__all__ = ["HAS_CUSTOMTKINTER", "ctk", "AppearanceModeTracker"]

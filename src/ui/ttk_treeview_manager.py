@@ -62,6 +62,7 @@ class TtkTreeviewManager:
                     if mode is None:
                         try:
                             from src.ui.ctk_config import ctk
+
                             mode = ctk.get_appearance_mode()
                         except Exception:
                             mode = "Light"
@@ -257,7 +258,7 @@ class TtkTreeviewManager:
     def _register_appearance_tracker(self) -> None:
         """Registra callback no AppearanceModeTracker do CustomTkinter."""
         try:
-            from customtkinter import AppearanceModeTracker  # type: ignore[import-untyped, attr-defined]
+            from src.ui.ctk_config import AppearanceModeTracker  # Use centralized import
 
             def _theme_callback(mode: Optional[str] = None) -> None:
                 """Callback compatível com diferentes versões do CustomTkinter."""

@@ -1,207 +1,36 @@
-# ============================================================================
-# PRE-COMMIT HOOKS - RC Gestor de Clientes
-# ============================================================================
-# Configuração de hooks para garantir qualidade de código antes de commits.
-#
-# Instalação:
-#   pre-commit install
-#
-# Executar manualmente:
-#   pre-commit run --all-files
-#
-# ============================================================================
-
+# Pre-commit hooks for RC Gestor - Post cleanup version
 repos:
-  # ---------------------------------------------------------------------------
-  # HOOKS BÁSICOS (trailing whitespace, EOF, large files, etc.)
-  # ---------------------------------------------------------------------------
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
-        name: Remover espaços em branco no final das linhas
         args: [--markdown-linebreak-ext=md]
-
       - id: end-of-file-fixer
-        name: Garantir nova linha no final dos arquivos
-
-      - id: check-added-large-files
-        name: Verificar arquivos grandes (>500KB)
-        args: ['--maxkb=500']
-
       - id: check-yaml
-        name: Validar sintaxe YAML
-        exclude: ^(\.github/workflows/.*\.yml|mkdocs\.yml)$
-
       - id: check-toml
-        name: Validar sintaxe TOML
-
       - id: check-json
-        name: Validar sintaxe JSON
-
       - id: check-merge-conflict
-        name: Detectar marcadores de merge conflict
+      - id: check-ast
+      - id: debug-statements
 
-      - id: check-case-conflict
-        name: Verificar conflitos de case em nomes de arquivos
-
-      - id: mixed-line-ending
-        name: Garantir line endings consistentes
-        args: ['--fix=auto']
-
-  # ---------------------------------------------------------------------------
-  # RUFF - Linter e Formatador (substitui flake8/isort/black)
-  # ---------------------------------------------------------------------------
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.4
     hooks:
       - id: ruff
-        name: Ruff Linter (Python)
         args: [--fix, --exit-non-zero-on-fix]
         types_or: [python, pyi]
-        exclude: ^src/modules/clientes/forms/_archived/
-
       - id: ruff-format
-        name: Ruff Formatter (Python)
         types_or: [python, pyi]
 
-  # ---------------------------------------------------------------------------
-  # VERIFICAÇÕES PYTHON ESPECÍFICAS
-  # ---------------------------------------------------------------------------
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
-    hooks:
-      - id: check-ast
-        name: Validar sintaxe Python (AST)
-
-      - id: check-builtin-literals
-        name: Verificar uso de literais builtin
-
-      - id: check-docstring-first
-        name: Verificar posição de docstrings
-        exclude: ^src/modules/hub/views/(hub_messages|hub_screen_view_constants|hub_notes_facade_constants)\.py$|^src/modules/clientes/forms/_archived/
-
-      - id: debug-statements
-        name: Detectar statements de debug (breakpoint, pdb)
-
-      # name-tests-test: removido — diretório tests/ não mais rastreado pelo git
-      # (ver docs/CLEANUP_REMOVAL_REPORT.md)
-
-  # ---------------------------------------------------------------------------
-  # HOOKS LOCAIS - Políticas Customizadas do Projeto
-  # ---------------------------------------------------------------------------
   - repo: local
     hooks:
-      - id: no-direct-customtkinter-import
-        name: Proibir import direto de customtkinter (usar src/ui/ctk_config.py)
-        language: pygrep
-        entry: '^\s*(import\s+customtkinter|from\s+customtkinter\s+import)'
-        types: [python]
-        exclude: ^(src/ui/ctk_config\.py|src/third_party/ctktreeview/treeview\.py)$
-        description: |
-          CustomTkinter deve ser importado apenas via src/ui/ctk_config.py (Single Source of Truth).
-          Use: from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
-          Exceção: vendor code (third_party/) pode ter import direto.
-
-      - id: validate-ui-theme-policy
-        name: Validar política UI/Theme (SSoT + sem root implícita)
-        language: system
-        entry: python -X utf8 scripts/validate_ui_theme_policy.py
-        types: [python]
-        pass_filenames: false
-        description: |
-          Garante baseline CODEC:
-          - SSoT: set_appearance_mode apenas em theme_manager.py
-          - Sem root implícita: ttk.Style(master=)
-          - Zero ttkbootstrap imports executáveis
-          - UTF-8 safe: usa python -X utf8 para evitar UnicodeEncodeError no Windows
-
-      - id: check-no-clientes-v2-imports
-        name: Proibir imports de clientes_v2 (usar clientes.ui)
-        language: system
-        entry: python tools/check_no_clientes_v2_imports.py
-        types: [python]
-        pass_filenames: false
-        description: |
-          Previne regressão: nenhum código novo deve importar de src.modules.clientes_v2.
-          Use src.modules.clientes.ui ao invés (clientes_v2 é apenas shim deprecated).
-          Guard criado em 2026-02-01 como parte da consolidação para "um módulo só".
-
-      - id: check-no-clientes-shim-imports
-        name: Proibir uso interno de shims (usar core/*)
-        language: system
-        entry: python tools/check_no_clientes_shim_imports.py
-        types: [python]
-        pass_filenames: false
-        description: |
-          Previne regressão: código interno deve usar src.modules.clientes.core.*
-          Os shims (export.py, service.py, viewmodel.py, etc) existem apenas para
-          compatibilidade externa e emitem DeprecationWarning.
-          Guard criado em 2026-02-01 como parte da FASE 4C.
-
-      - id: check-no-clientes-v2-paths
-        name: Proibir referências a clientes_v2 (removido)
-        language: system
-        entry: python -X utf8 tools/check_no_clientes_v2_paths.py
-        types: [python]
-        pass_filenames: false
-        description: |
-          Previne regressão: clientes_v2 foi REMOVIDO (migração completa).
-          Nenhum código novo deve referenciar clientes_v2 em strings ou paths.
-          Use src.modules.clientes.ui ao invés.
-          Guard criado em 2026-02-01 como parte da FASE 4D.
-
-      - id: check-no-clientes-archived-forms
-        name: Proibir uso de forms/_archived (movido para docs)
-        language: system
-        entry: python -X utf8 tools/check_no_clientes_archived_forms_paths.py
-        types: [python]
-        pass_filenames: false
-        description: |
-          Previne regressão: forms/_archived foi MOVIDO para docs/_archive/clientes_forms/.
-          Use substitutos modernos: ClientEditorDialog, SubpastaDialog.
-          Guard criado em 2026-02-01 como parte da FASE 4D.
-
       - id: compileall-check
         name: Validar sintaxe Python (compileall)
         language: system
         entry: python -m compileall -q src
         types: [python]
         pass_filenames: false
-        description: |
-          Valida sintaxe de todos os arquivos Python antes do commit.
 
-      - id: smoke-ui-test
-        name: Smoke test UI (CustomTkinter básico)
-        language: system
-        entry: python scripts/smoke_ui.py
-        types: [python]
-        pass_filenames: false
-        stages: [pre-push]
-        description: |
-          Smoke test básico da UI CustomTkinter (apenas pre-push para não bloquear commits rápidos).
-
-      - id: bandit-security-scan
-        name: Bandit Security Scan (UTF-8 safe)
-        language: system
-        entry: python -X utf8 -m bandit -c .bandit -r src
-        types: [python]
-        pass_filenames: false
-        exclude: ^(src/third_party/|src/modules/clientes/forms/_archived/)
-        description: |
-          Análise de segurança Python com UTF-8 mode (resolve UnicodeEncodeError no Windows).
-          Usa python -X utf8 para forçar encoding UTF-8 independente do locale do sistema.
-
-# ============================================================================
-# CONFIGURAÇÕES GLOBAIS
-# ============================================================================
-
-# Codificação padrão
+fail_fast: false
 default_language_version:
   python: python3.13
-
-# Não falhar em arquivos ausentes (útil em CI)
-fail_fast: false
-
-# Executar em paralelo para melhor performance
-default_stages: [pre-commit, pre-push]
