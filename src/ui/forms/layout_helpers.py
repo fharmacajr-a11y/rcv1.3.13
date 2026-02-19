@@ -1,5 +1,6 @@
 import ttkbootstrap as tb
 
+
 def make_labeled_entry(parent, label: str, width: int = 40, show: str | None = None):
     """Cria um par Label+Entry."""
     frm = tb.Frame(parent)

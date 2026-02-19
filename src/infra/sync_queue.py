@@ -4,11 +4,13 @@ import uuid
 import threading
 from datetime import datetime
 
+
 class SyncQueue:
     """
     Fila local persistente para operações que dependem de API.
     Cada item: { "id": "...", "type": "nome_da_acao", "payload": {...}, "timestamp": "..." }
     """
+
     def __init__(self, file_path="runtime/sync_queue.json"):
         self.file_path = file_path
         self._lock = threading.Lock()
@@ -36,7 +38,7 @@ class SyncQueue:
             "id": str(uuid.uuid4()),
             "type": action_type,
             "payload": payload,
-            "timestamp": datetime.now().isoformat(timespec="seconds")
+            "timestamp": datetime.now().isoformat(timespec="seconds"),
         }
         items.append(item)
         self._save(items)

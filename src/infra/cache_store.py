@@ -4,11 +4,13 @@ import os
 import threading
 from datetime import datetime, timedelta
 
+
 class JsonCacheStore:
     """
     Cache simples baseado em JSON com TTL.
     Salva um dicionário: { cache_key: { "timestamp": "...", "payload": ... } }
     """
+
     def __init__(self, file_path="runtime/cache.json", ttl_hours=24):
         self.file_path = file_path
         self.ttl = timedelta(hours=ttl_hours)
@@ -34,23 +36,19 @@ class JsonCacheStore:
     def get(self, key):
         data = self._load()
         now = time.time()
-        expired = [k for k,v in list(data.items()) if isinstance(v, dict) and v.get('expire', 0) < now]
+        expired = [k for k, v in list(data.items()) if isinstance(v, dict) and v.get("expire", 0) < now]
         if expired:
             for k in expired:
                 data.pop(k, None)
             self._save(data)
         item = data.get(key)
-        if isinstance(item, dict) and item.get('expire', 0) < now:
+        if isinstance(item, dict) and item.get("expire", 0) < now:
             return None
         return item
 
-
     def set(self, key, payload):
         data = self._load()
-        data[key] = {
-            "timestamp": datetime.now().isoformat(timespec="seconds"),
-            "payload": payload
-        }
+        data[key] = {"timestamp": datetime.now().isoformat(timespec="seconds"), "payload": payload}
         self._save(data)
 
     def has_valid(self, key):

@@ -2,6 +2,7 @@
 from pathlib import Path
 from detectors.cnpj_card import detect_and_extract
 
+
 def classify_document(path: str) -> dict:
     """
     Classifica um arquivo PDF.

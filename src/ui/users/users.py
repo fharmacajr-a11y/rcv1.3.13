@@ -10,11 +10,11 @@ from core.auth.auth import ensure_users_db, create_user, _pbkdf2_hash
 from core.logs.audit import last_action_of_user
 from config.paths import USERS_DB_PATH
 from utils.file_utils import format_datetime
-from ui.utils import center_window   # <<< novo import centralizado
+from ui.utils import center_window  # <<< novo import centralizado
 
 log = logging.getLogger("ui.users")
 
-ADMIN_ID = 1      # considera id 1 como admin raiz
+ADMIN_ID = 1  # considera id 1 como admin raiz
 ADMIN_NAME = "admin"
 
 
@@ -50,21 +50,16 @@ class UserManagerDialog(tk.Toplevel):
         # Esquerda: CRUD (somente se for admin)
         is_admin = (current_role or "").lower() == "admin"
         if is_admin:
-            tb.Button(footer, text="Adicionar", bootstyle="success",
-                      command=self.add_user).pack(side="left", padx=5)
-            tb.Button(footer, text="Editar", bootstyle="info",
-                      command=self.edit_user).pack(side="left", padx=5)
-            tb.Button(footer, text="Excluir", bootstyle="danger",
-                      command=self.delete_user).pack(side="left", padx=5)
+            tb.Button(footer, text="Adicionar", bootstyle="success", command=self.add_user).pack(side="left", padx=5)
+            tb.Button(footer, text="Editar", bootstyle="info", command=self.edit_user).pack(side="left", padx=5)
+            tb.Button(footer, text="Excluir", bootstyle="danger", command=self.delete_user).pack(side="left", padx=5)
 
         # Direita: ↻ (ícone) e Fechar
-        tb.Button(footer, text="Fechar", bootstyle="secondary",
-                  command=self.destroy).pack(side="right", padx=5)
-        tb.Button(footer, text="↻", width=3, bootstyle="secondary",
-                  command=self.load_users).pack(side="right", padx=5)
+        tb.Button(footer, text="Fechar", bootstyle="secondary", command=self.destroy).pack(side="right", padx=5)
+        tb.Button(footer, text="↻", width=3, bootstyle="secondary", command=self.load_users).pack(side="right", padx=5)
 
         self.load_users()
-        center_window(self, 520, 360)   # <<< centralização padrão
+        center_window(self, 520, 360)  # <<< centralização padrão
         # Atalho: F5 para recarregar
         self.bind("<F5>", lambda e: (self.load_users(), "break"))
 
@@ -96,6 +91,7 @@ class UserManagerDialog(tk.Toplevel):
         if not rows:
             try:
                 from core.session.session import get_current_user
+
                 uname = get_current_user() or ADMIN_NAME
             except Exception:
                 uname = ADMIN_NAME
@@ -162,32 +158,43 @@ class UserManagerDialog(tk.Toplevel):
     def _user_form(self, title: str, user_id=None, username: str = ""):
         if self._mini_form is not None:
             try:
-                self._mini_form.lift(); return
+                self._mini_form.lift()
+                return
             except Exception:
                 self._mini_form = None
 
-        top = tb.Toplevel(self); self._mini_form = top
-        def _close(): self._mini_form = None; top.destroy()
+        top = tb.Toplevel(self)
+        self._mini_form = top
 
-        top.title(title); top.transient(self); top.grab_set(); top.resizable(False, False)
+        def _close():
+            self._mini_form = None
+            top.destroy()
+
+        top.title(title)
+        top.transient(self)
+        top.grab_set()
+        top.resizable(False, False)
         top.protocol("WM_DELETE_WINDOW", _close)
 
-        frm = tb.Frame(top, padding=14); frm.pack(fill="both", expand=True)
+        frm = tb.Frame(top, padding=14)
+        frm.pack(fill="both", expand=True)
 
         # Usuário
         tb.Label(frm, text="Usuário").grid(row=0, column=0, sticky="w")
         ent_user = tb.Entry(frm, width=34)
-        ent_user.grid(row=1, column=0, sticky="ew", pady=(0,8))
+        ent_user.grid(row=1, column=0, sticky="ew", pady=(0, 8))
         ent_user.insert(0, username or "")
 
         if user_id == ADMIN_ID or (username or "").lower() == ADMIN_NAME:
-            try: ent_user.configure(state="disabled")
-            except Exception: pass
+            try:
+                ent_user.configure(state="disabled")
+            except Exception:
+                pass
 
         # Senha + confirmar
         tb.Label(frm, text="Senha").grid(row=2, column=0, sticky="w")
         ent_pwd = tb.Entry(frm, show="*", width=34)
-        ent_pwd.grid(row=3, column=0, sticky="ew", pady=(0,8))
+        ent_pwd.grid(row=3, column=0, sticky="ew", pady=(0, 8))
 
         tb.Label(frm, text="Confirmar senha").grid(row=4, column=0, sticky="w")
         ent_pwd2 = tb.Entry(frm, show="*", width=34)
@@ -218,16 +225,22 @@ class UserManagerDialog(tk.Toplevel):
                         if user_id == ADMIN_ID:
                             if pwd:
                                 senha_hash = _pbkdf2_hash(pwd)
-                                cur.execute("UPDATE users SET password_hash=?, updated_at=? WHERE id=?",
-                                            (senha_hash, datetime.utcnow().isoformat(), user_id))
+                                cur.execute(
+                                    "UPDATE users SET password_hash=?, updated_at=? WHERE id=?",
+                                    (senha_hash, datetime.utcnow().isoformat(), user_id),
+                                )
                             con.commit()
                         else:
-                            cur.execute("UPDATE users SET username=?, updated_at=? WHERE id=?",
-                                        (uname, datetime.utcnow().isoformat(), user_id))
+                            cur.execute(
+                                "UPDATE users SET username=?, updated_at=? WHERE id=?",
+                                (uname, datetime.utcnow().isoformat(), user_id),
+                            )
                             if pwd:
                                 senha_hash = _pbkdf2_hash(pwd)
-                                cur.execute("UPDATE users SET password_hash=?, updated_at=? WHERE id=?",
-                                            (senha_hash, datetime.utcnow().isoformat(), user_id))
+                                cur.execute(
+                                    "UPDATE users SET password_hash=?, updated_at=? WHERE id=?",
+                                    (senha_hash, datetime.utcnow().isoformat(), user_id),
+                                )
                             con.commit()
                 self.load_users()
                 _close()
@@ -235,7 +248,8 @@ class UserManagerDialog(tk.Toplevel):
                 log.exception("Falha ao salvar usuário: %s", e)
                 messagebox.showerror(title, f"Erro ao salvar: {e}")
 
-        btns = tb.Frame(frm); btns.grid(row=6, column=0, pady=(12,0), sticky="e")
+        btns = tb.Frame(frm)
+        btns.grid(row=6, column=0, pady=(12, 0), sticky="e")
         tb.Button(btns, text="Cancelar", bootstyle="secondary", command=_close).pack(side="right", padx=4)
         tb.Button(btns, text="Salvar", bootstyle="success", command=_save).pack(side="right")
 

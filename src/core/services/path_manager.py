@@ -11,8 +11,10 @@ try:
     # seu resolver já existente (sólido)
     from core.services.path_resolver import resolve_unique_path
 except Exception:  # fallback muito defensivo (não deve ocorrer)
+
     def resolve_unique_path(pk: int, prefer: Optional[str] = None):
         return None, None  # type: ignore[misc]
+
 
 log = logging.getLogger(__name__)
 
@@ -20,16 +22,18 @@ log = logging.getLogger(__name__)
 @dataclass(frozen=True)
 class PathResolution:
     """Resultado consolidado da resolução de caminhos para um cliente."""
+
     pk: int
     active_path: Optional[str]
     trash_path: Optional[str]
     location: Optional[str]  # 'active' | 'trash' | None
-    has_conflict: bool       # true quando há pastas nas duas localizações
+    has_conflict: bool  # true quando há pastas nas duas localizações
     marker_id: Optional[str] = None
     slug: Optional[str] = None
 
 
 # -------------------------- resolução --------------------------
+
 
 def resolve_paths(pk: int) -> PathResolution:
     """
@@ -72,6 +76,7 @@ def resolve_paths(pk: int) -> PathResolution:
 
 # -------------------------- pré-checagens para mover/restaurar --------------------------
 
+
 def preflight_move_to_trash(pk: int) -> Tuple[Optional[str], Optional[str]]:
     """
     Verifica se há uma pasta ativa para mover.
@@ -95,6 +100,7 @@ def preflight_restore_from_trash(pk: int) -> Tuple[Optional[str], Optional[str]]
 
 
 # -------------------------- helpers seguros de FS --------------------------
+
 
 def ensure_dir(path: str) -> bool:
     try:
@@ -133,7 +139,7 @@ def ensure_subfolders(base_dir: str, names: Iterable[str]) -> Tuple[list[str], l
     Retorna: (criadas, falhas[(nome, motivo)]).
     """
     created, failures = [], []
-    for name in (names or []):
+    for name in names or []:
         p = os.path.join(base_dir, name)
         try:
             os.makedirs(p, exist_ok=True)
@@ -156,6 +162,7 @@ _MARKER_CANDIDATES = (
     "CLIENTE.ID",
     ".marker",
 )
+
 
 def read_marker_id(path: Optional[str]) -> Optional[str]:
     """
@@ -193,6 +200,7 @@ def write_marker_id(path: str, marker_value: str, filename: str = ".cliente_id")
 
 
 # -------------------------- utilidades diversas --------------------------
+
 
 def slug_from_path(path: Optional[str]) -> Optional[str]:
     if not path:

@@ -1,9 +1,10 @@
 from __future__ import annotations
+
 """
 Pagination helpers for clientes search (Sprint 4).
 SQL with LIMIT/OFFSET + safe fallbacks, without breaking existing search module.
 """
-from typing import Iterable, Optional, Tuple, List
+from typing import Optional, List
 import sqlite3
 import unicodedata
 
@@ -54,7 +55,7 @@ _SQL_BASE_WHERE = """
     FROM clientes
     WHERE (DELETED_AT IS NULL OR DELETED_AT='')
       AND (
-            ? = '' 
+            ? = ''
          OR unaccent(upper(NOME))          LIKE '%' || ? || '%'
          OR unaccent(upper(RAZAO_SOCIAL))  LIKE '%' || ? || '%'
          OR digits(NUMERO)                 LIKE '%' || ? || '%'
@@ -105,10 +106,17 @@ def search_clientes_paged(term: str, order_label: Optional[str], limit: int, off
                 )
             except Exception:
                 # Construtor diferente? cria parcial
-                clientes.append(Cliente(id=r["ID"], numero=r["NUMERO"], nome=r["NOME"],
-                                        razao_social=r["RAZAO_SOCIAL"], cnpj=r["CNPJ"],
-                                        ultima_alteracao=r.get("ULTIMA_ALTERACAO") if isinstance(r, dict) else None,
-                                        obs=None))
+                clientes.append(
+                    Cliente(
+                        id=r["ID"],
+                        numero=r["NUMERO"],
+                        nome=r["NOME"],
+                        razao_social=r["RAZAO_SOCIAL"],
+                        cnpj=r["CNPJ"],
+                        ultima_alteracao=r.get("ULTIMA_ALTERACAO") if isinstance(r, dict) else None,
+                        obs=None,
+                    )
+                )
         return clientes
     finally:
         conn.close()
