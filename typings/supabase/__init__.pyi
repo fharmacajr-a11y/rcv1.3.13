@@ -1,0 +1,16 @@
+from typing import Any
+
+class Postgrest:
+    def auth(self, *args: Any, **kwargs: Any) -> Any: ...
+    def table(self, name: str) -> Any: ...
+    def rpc(self, name: str, *args: Any, **kwargs: Any) -> Any: ...
+
+class Storage:
+    def from_(self, bucket: str) -> Any: ...
+
+class Client:
+    postgrest: Postgrest
+    storage: Storage
+    auth: Any
+
+def create_client(*args: Any, **kwargs: Any) -> Client: ...

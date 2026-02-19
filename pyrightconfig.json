@@ -1,0 +1,32 @@
+{
+  "pythonVersion": "3.13",
+  "typeCheckingMode": "basic",
+  "venvPath": ".",
+  "venv": ".venv",
+  "extraPaths": [
+    "src"
+  ],
+  "exclude": [
+    "**/tests/**",
+    "scripts",
+    "migrations",
+    ".venv",
+    "venv",
+    "build",
+    "dist",
+    "vulture_whitelist.py"
+  ],
+  "stubPath": "./typings",
+  "reportCallIssue": "none",
+  "reportAttributeAccessIssue": "warning",
+  "reportRedeclaration": "error",
+  "reportUnknownMemberType": "none",
+  "reportUnknownArgumentType": "none",
+  "reportUnknownVariableType": "none",
+  "reportOptionalMemberAccess": "none",
+  "reportMissingTypeStubs": "warning",
+  "reportInvalidTypeForm": "none",
+  "reportMissingModuleSource": "none",
+  "reportArgumentType": "none",
+  "reportConstantRedefinition": "warning"
+}

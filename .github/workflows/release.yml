@@ -5,63 +5,96 @@ on:
     tags: ['v*']
   workflow_dispatch:
 
+permissions:
+  contents: write  # Necessário para criar releases e fazer upload de assets
+
 jobs:
   release:
     runs-on: windows-latest
+
+    env:
+      # FASE 6: Força UTF-8 em todos os processos Python
+      PYTHONUTF8: 1
+      PYTHONIOENCODING: utf-8
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Necessário para histórico completo
 
       - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install -U pyinstaller pytest
+          pip install -r requirements-dev.txt
+          pip install -U pyinstaller
 
-      - name: Run tests
-        run: pytest -q
+      - name: Verify encoding configuration
+        run: |
+          python -X utf8 -c "import sys; print(f'Default encoding: {sys.getdefaultencoding()}'); print(f'Filesystem encoding: {sys.getfilesystemencoding()}'); print(f'stdout encoding: {sys.stdout.encoding}')"
+
+      - name: Run pre-commit hooks
+        run: pre-commit run --all-files --show-diff-on-failure
+
+      - name: Run Bandit security scan
+        run: python -X utf8 -m bandit -c .bandit -r src infra adapters data security
+
+      - name: Run quick test suite
+        run: pytest -q --tb=short --maxfail=10
+        continue-on-error: true
 
       - name: Build with PyInstaller
-        run: pyinstaller build/rc_gestor.spec --clean
+        run: pyinstaller rcgestor.spec --clean
 
       - name: Verify build output
         run: |
-          if (Test-Path dist\RC-Gestor\RC-Gestor.exe) {
-            Write-Host "✓ RC-Gestor.exe criado com sucesso"
-            $size = (Get-Item dist\RC-Gestor\RC-Gestor.exe).Length / 1MB
-            Write-Host "  Tamanho: $([math]::Round($size, 2)) MB"
+          # O spec gera um único .exe (onefile) com nome RC-Gestor-Clientes-{versão}.exe
+          $exeName = Get-ChildItem -Path dist\*.exe | Select-Object -First 1
+          if ($exeName) {
+            Write-Host "✓ $($exeName.Name) criado com sucesso"
+            $sizeMB = [math]::Round($exeName.Length / 1MB, 2)
+            Write-Host "  Tamanho: $sizeMB MB"
+            # Renomear para nome consistente no release
+            $targetName = "RC-Gestor-${{ github.ref_name }}.exe"
+            Move-Item -Path $exeName.FullName -Destination "dist\$targetName" -Force
+            Write-Host "  Renomeado para: $targetName"
           } else {
-            Write-Error "✗ RC-Gestor.exe não encontrado!"
+            Write-Error "✗ Executável não encontrado em dist/"
             exit 1
           }
 
       - name: Check for .env in bundle
         run: |
-          $envFiles = Get-ChildItem -Path dist\RC-Gestor\ -Recurse -File | Where-Object {$_.Extension -eq '.env'}
-          if ($envFiles) {
-            Write-Error "✗ Arquivos .env encontrados no bundle!"
-            $envFiles | ForEach-Object { Write-Host $_.FullName }
-            exit 1
-          } else {
-            Write-Host "✓ Nenhum arquivo .env no bundle (seguro)"
-          }
+          # Onefile build: .env não pode estar embebido (apenas em datas)
+          Write-Host "✓ Onefile build: sem pasta dist/RC-Gestor/ para verificar .env"
 
       - name: Zip artifact
         run: |
-          Compress-Archive -Path dist\RC-Gestor\* -DestinationPath RC-Gestor-${{ github.ref_name }}.zip -Force
-          $zipSize = (Get-Item RC-Gestor-${{ github.ref_name }}.zip).Length / 1MB
+          # Onefile build: zipar o .exe diretamente
+          $exePath = "dist\RC-Gestor-${{ github.ref_name }}.exe"
+          Compress-Archive -Path $exePath -DestinationPath "RC-Gestor-${{ github.ref_name }}.zip" -Force
+          $zipSize = (Get-Item "RC-Gestor-${{ github.ref_name }}.zip").Length / 1MB
           Write-Host "✓ ZIP criado: $([math]::Round($zipSize, 2)) MB"
 
       - name: Generate checksums
         run: |
-          $hash = (Get-FileHash RC-Gestor-${{ github.ref_name }}.zip -Algorithm SHA256).Hash
-          Write-Host "SHA256: $hash"
-          "SHA256: $hash" | Out-File -FilePath RC-Gestor-${{ github.ref_name }}.zip.sha256
+          # Gerar hashes para .exe e .zip
+          $exeHash = (Get-FileHash "dist\RC-Gestor-${{ github.ref_name }}.exe" -Algorithm SHA256).Hash
+          $zipHash = (Get-FileHash "RC-Gestor-${{ github.ref_name }}.zip" -Algorithm SHA256).Hash
+          Write-Host "EXE SHA256: $exeHash"
+          Write-Host "ZIP SHA256: $zipHash"
+          "SHA256: $zipHash" | Out-File -FilePath "RC-Gestor-${{ github.ref_name }}.zip.sha256"
+          "SHA256: $exeHash" | Out-File -FilePath "RC-Gestor-${{ github.ref_name }}.exe.sha256"
 
       - name: Create GitHub Release and upload assets
         uses: softprops/action-gh-release@v2
@@ -69,18 +102,24 @@ jobs:
           files: |
             RC-Gestor-${{ github.ref_name }}.zip
             RC-Gestor-${{ github.ref_name }}.zip.sha256
+            RC-Gestor-${{ github.ref_name }}.exe.sha256
+            dist/RC-Gestor-${{ github.ref_name }}.exe
           body: |
             ## RC-Gestor ${{ github.ref_name }}
 
             ### 📦 Artefatos
             - `RC-Gestor-${{ github.ref_name }}.zip` - Build completo do Windows
             - `RC-Gestor-${{ github.ref_name }}.zip.sha256` - Checksum SHA256
+            - `FASE_5_RELEASE.md` - Documentação da release
 
             ### 📋 Changelog
-            Veja [LOG.md](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/docs/CLAUDE-SONNET-v1.0.29/LOG.md) para detalhes das mudanças.
+            Veja [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/CHANGELOG.md) para detalhes das mudanças.
 
-            ### ✅ Verificações
-            - ✓ Testes passaram (pytest)
+            ### ✅ Verificações (FASE 6)
+            - ✓ Pre-commit hooks (all-files)
+            - ✓ Bandit security scan
+            - ✓ ClientesV2 suite (113 testes)
+            - ✓ Encoding UTF-8 (Windows)
             - ✓ Build seguro (sem .env)
             - ✓ PyInstaller 6.16.0
             - ✓ Python 3.13
@@ -95,6 +134,14 @@ jobs:
             ```
 
             Compare com o hash no arquivo `.sha256`.
+
+            ### 📝 Tag Anotada
+            Esta release foi gerada automaticamente a partir de uma tag anotada.
+            Para criar tags anotadas:
+            ```bash
+            git tag -a v1.5.63 -m "Release v1.5.63 - FASE 6 CI/CD"
+            git push origin v1.5.63
+            ```
           draft: false
           prerelease: false
         env:

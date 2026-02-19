@@ -1,5 +1,125 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [tool.ruff]
-line-length = 100
+src = ["src"]
+line-length = 120
+target-version = "py313"
+
+[project]
+name = "rcgestor"
+version = "1.5.62"
+description = "Sistema de Gestão de Clientes"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.13"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "N",    # pep8-naming (PEP 8 naming conventions)
+]
+ignore = [
+    "E501",  # linhas longas: manter flexível por enquanto
+    "F403",  # star imports legados
+    "F821",  # nomes indefinidos em caminhos condicionais
+]
+
+[tool.ruff.lint.per-file-ignores]
+"typings/**/*" = ["N801", "N802", "N803", "N806"]  # Typings refletem APIs externas
 
 [tool.mypy]
 ignore_missing_imports = true
+
+[tool.deptry]
+# Arquivos de requirements a usar
+requirements_files = ["requirements.txt"]
+requirements_files_dev = ["requirements-dev.txt"]
+
+# Diretórios a excluir da análise
+extend_exclude = [
+    "docs",
+    "htmlcov",
+    "reports",
+    "build",
+    "dist",
+    ".venv",
+    ".venv_backup_20251204",
+    ".pytest_cache",
+    ".ruff_cache",
+    "__pycache__",
+    "migrations",
+    "third_party",
+    "typings",
+    "installer",
+]
+
+# Módulos first-party do projeto
+known_first_party = ["src"]
+
+# Mapeamento de nomes de pacotes para módulos importados
+[tool.deptry.package_module_name_map]
+Pillow = ["PIL"]
+
+# Ignorar DEP002 para dependências transitivas e pacotes fixados
+[tool.deptry.per_rule_ignores]
+DEP001 = [
+    "openpyxl",  # Importação opcional para exportação de Excel
+]
+DEP002 = [
+    "sv_ttk",
+    "tkinterweb",
+    "tkinterweb-tkhtml",
+    "supabase-auth",
+    "supabase-functions",
+    "storage3",
+    "realtime",
+    "websockets",
+    "psycopg",
+    "psycopg-binary",
+    "psycopg2-binary",
+    "SQLAlchemy",
+    "alembic",
+    "h11",
+    "h2",
+    "hpack",
+    "hyperframe",
+    "certifi",
+    "bcrypt",
+    "PyJWT",
+    "passlib",
+    "cffi",
+    "pycparser",
+    "pydantic",
+    "pydantic-settings",
+    "pydantic_core",
+    "annotated-types",
+    "typing-inspection",
+    "click",
+    "rich",
+    "colorama",
+    "PyYAML-ft",
+    "tzdata",
+    "anyio",
+    "sniffio",
+    "idna",
+    "charset-normalizer",
+    "iniconfig",
+    "packaging",
+    "platformdirs",
+]
+
+[tool.vulture]
+paths = ["src", "vulture_whitelist.py"]
+exclude = ["docs", "reports", "build", "dist", ".venv", "venv", ".pytest_cache", ".ruff_cache", "__pycache__"]
+ignore_decorators = ["@overload"]
+min_confidence = 100

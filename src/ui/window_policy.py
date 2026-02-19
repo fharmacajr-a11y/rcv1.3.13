@@ -1,0 +1,102 @@
+# src/ui/window_policy.py
+from __future__ import annotations
+import ctypes
+import os
+import platform
+import tkinter as tk
+import logging
+from typing import cast
+
+log = logging.getLogger(__name__)
+
+
+def _workarea_win32() -> tuple[int, int, int, int] | None:
+    """Retorna (x, y, w, h) da área útil (sem taskbar) no Windows."""
+    SPI_GETWORKAREA = 48  # noqa: N806 (Win32 constant)
+
+    class RECT(ctypes.Structure):
+        _fields_ = [
+            ("left", ctypes.c_long),
+            ("top", ctypes.c_long),
+            ("right", ctypes.c_long),
+            ("bottom", ctypes.c_long),
+        ]
+
+    rect = RECT()
+    ok = ctypes.windll.user32.SystemParametersInfoW(SPI_GETWORKAREA, 0, ctypes.byref(rect), 0)
+    if not ok:
+        return None
+    return rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top
+
+
+def get_workarea(root: tk.Misc) -> tuple[int, int, int, int]:
+    """Área útil do monitor atual: (x,y,w,h). No Windows exclui taskbar."""
+    if platform.system() == "Windows":
+        wa = _workarea_win32()
+        if wa:
+            return wa
+    # Fallback: área total do Tk (pode incluir barra em Linux/macOS)
+    root.update_idletasks()
+    return 0, 0, root.winfo_screenwidth(), root.winfo_screenheight()
+
+
+def fit_geometry_for_device(root: tk.Misc) -> str:
+    """
+    Calcula geometria amigável para notebooks e desktops:
+    - usa % da área útil (evita fullscreen/maximize)
+    - aplica mínimos seguros
+    """
+    x, y, w, h = get_workarea(root)
+    # perfis automáticos por resolução
+    notebook_like = (w <= 1440) or (h <= 900)
+
+    # percentuais por perfil (afinados para 1366x768, 1600x900, 1920x1080)
+    if notebook_like:
+        win_w = int(w * 0.96)
+        win_h = int(h * 0.94)
+        min_w, min_h = 1100, 650
+    else:
+        win_w = int(w * 0.92)
+        win_h = int(h * 0.90)
+        min_w, min_h = 1200, 720
+
+    win_w = max(min_w, min(win_w, w))
+    win_h = max(min_h, min(win_h, h))
+
+    # centraliza na workarea
+    gx = x + (w - win_w) // 2
+    gy = y + (h - win_h) // 2
+    return f"{win_w}x{win_h}+{gx}+{gy}"
+
+
+def apply_fit_policy(win: tk.Misc) -> None:
+    """Aplica a política Fit-to-WorkArea e garante foco/elevação.
+
+    BUGFIX-UX-STARTUP-HUB-001 (B2): Evita lift/focus quando janela está oculta
+    para prevenir flash/pulos visuais.
+    """
+    geo = fit_geometry_for_device(win)
+    # Define geometria antes do primeiro draw para evitar flicker
+    # Cast para tk.Tk para acessar métodos de window manager
+    window = cast(tk.Tk, win)
+    window.geometry(geo)
+    try:
+        window.minsize(900, 580)  # mínimos gerais defensivos
+    except Exception as e:
+        log.debug("Failed to set minsize: %s", e)
+
+    # BUGFIX-UX-STARTUP-HUB-001 (B2): Só aplicar lift/focus se janela visível
+    # Evita flash e "pulos" visuais quando janela ainda está withdrawn
+    try:
+        is_visible = window.winfo_viewable() or window.state() not in ("withdrawn", "iconic")
+        if is_visible:
+            # traz para frente e foca sem topmost permanente
+            window.lift()
+            window.focus_force()
+            window.wm_attributes("-topmost", True)
+            window.after(10, lambda: window.wm_attributes("-topmost", False))
+        else:
+            if os.getenv("RC_DEBUG_STARTUP_UI") == "1":
+                log.info("[UI] Pulando lift/focus (janela não visível): state=%s", window.state())
+    except Exception as e:
+        log.debug("Failed to set window focus/topmost: %s", e)

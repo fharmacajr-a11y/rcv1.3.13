@@ -1,0 +1,30 @@
+# ============================================================================
+# Configuração do Bandit - Security Linter para Python
+# ============================================================================
+# Documentação: https://bandit.readthedocs.io/en/latest/config.html
+#
+# Uso:
+#   bandit -r src infra adapters data security -c bandit.yaml
+#
+# ============================================================================
+
+# Diretórios a excluir da análise
+exclude_dirs:
+  - '.venv'
+  - '.venv_backup_20251204'
+  - 'tests'
+  - '__pycache__'
+  - '.pytest_cache'
+  - '.ruff_cache'
+  - 'htmlcov'
+  - 'build'
+  - 'dist'
+  - '.git'
+  - 'docs'
+  - 'reports'
+
+# Testes a pular (se necessário no futuro)
+# skips: []
+
+# Plugins a carregar (vazio = todos os plugins padrão)
+# plugins: []

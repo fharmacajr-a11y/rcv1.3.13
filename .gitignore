@@ -8,21 +8,33 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.py[cod]
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
 
 # Backups
 backup_*/
+*.bak
 
 # Arquivos de ambiente e segredos
 .env
-.env.local
-.env.*.local
-*.env
+.env.backup
+.env.*
+!.env.example
 
-# Build e distribuição
+# Chave da API OpenAI (não versionar)
+config/openai_key.txt
+
+# Build e distribuição (PyInstaller)
 build/
-!build/*.spec
 dist/
 *.exe
+# Exceção: binários embarcados do 7-Zip
+!src/infra/bin/7zip/*.exe
+!src/infra/bin/7zip/*.dll
+*.egg-info/
+wheels/
 
 # IDEs
 .vscode/
@@ -33,9 +45,99 @@ dist/
 
 # Logs
 *.log
-logs/
+/logs/
+artifacts/*/logs/
+tests/*/logs/
 
 # OS
 .DS_Store
 Thumbs.db
 docs/*.zip
+
+# ZIPs pesados de backup
+*.zip
+
+# Tool artifacts (security/quality scans)
+bandit-report.json
+ruff-report.json
+pip-audit.json
+.coverage
+
+# QA reports (devtools)
+devtools/qa/*.json
+devtools/qa/*.txt
+devtools/qa/*.log
+!devtools/qa/README.md
+
+# Arquivos de árvore gerados localmente
+tree_full.txt
+tree_dirs_only.txt
+
+# SQL backups
+migrations/*.sql~
+
+# Relatórios locais do pip-audit (workflow security-audit)
+audit-report.json
+audit-report.md
+
+# Ferramentas de analise / coverage
+.coverage
+.coverage.*
+coverage.xml
+coverage.json
+htmlcov/
+coverage/trace/
+*.cover
+
+# Pasta reports/ da raiz (não versionada - apenas local)
+/reports/
+bandit_*.txt
+bandit_*.csv
+bandit_*.json
+ruff_*.json
+pyright_*.json
+pyright_final.json
+
+# Workspaces temporários de ferramentas
+_codex_workspace/
+
+# Exports temporários (ZIPs grandes de sanitização/backup)
+exports/*.zip
+exports/*.tar.gz
+exports/*.7z
+
+# Assets temporários/auto-gerados (manter apenas os necessários versionados)
+# Note: assets/modulos/hub/ e assets/notificacoes/ são versionados pois necessários
+assets/temp/
+assets/*.tmp
+
+# ==========================================
+# REORGANIZAÇÃO DO REPOSITÓRIO (26/01/2026)
+# ==========================================
+
+# Pastas de artefatos (diagnostics já estava descomitada acima)
+/diagnostics/
+/artifacts/local/
+
+# Arquivos temporários de auditoria/testes
+audit_*.txt
+hub_*.txt
+baseline_*.txt
+lifecycle_test.log
+
+# Scripts/experimentos movidos para subpastas
+/tests/experiments/
+
+# Arquivos auxiliares de limpeza
+cleanup_repo.*
+gitignore_additions.txt
+EXECUTION_GUIDE.md
+
+# Dev scripts and tools (removed from tracking in cleanup/remove-unused-files)
+/scripts/
+/tools/
+/_trash_quarantine/
+
+# Exceção: src/core/logs/ é código versionado (não deve ser ignorado)
+!src/core/logs/
+!src/core/logs/**

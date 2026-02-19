@@ -1,0 +1,38 @@
+# .coveragerc - Configuração de coverage para RC Gestor
+# Mede apenas o "App Core" oficial (src + adapters + infra + data + security)
+
+[run]
+# Arquivo de dados do coverage (sempre na raiz do projeto)
+data_file = .coverage
+
+# Fontes do App Core a serem medidas:
+# - src: núcleo da aplicação (incluindo adapters, infra, data, security)
+source =
+    src
+
+# Habilitar branch coverage para métricas mais completas
+branch = True
+
+[report]
+# Mostrar linhas não cobertas no terminal
+show_missing = True
+
+# Precisão de 1 casa decimal
+precision = 1
+
+# Omitir arquivos não relevantes para coverage de produto
+omit =
+    tests/*
+    */tests/*
+    venv/*
+    .venv/*
+    */site-packages/*
+    devtools/*
+    scripts/*
+    helpers/__init__.py
+    sitecustomize.py
+    main.py
+
+[html]
+# Configuração para relatórios HTML (se gerados no futuro)
+directory = htmlcov

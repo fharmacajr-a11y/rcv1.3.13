@@ -1,0 +1,32 @@
+target-version = "py313"
+line-length = 120
+
+[lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "N",    # pep8-naming (PEP 8 naming conventions)
+]
+ignore = [
+    "E501",  # line too long (mantido flexível)
+    "F403",  # star imports legados
+    "F821",  # undefined name em caminhos condicionais
+]
+
+[lint.per-file-ignores]
+"tests/**/*" = ["D", "ANN", "S101"]
+"tests/unit/core/test_auth_bootstrap_microfase.py" = ["E741", "F401"]
+"tests/unit/modules/passwords/test_passwords_screen_ui.py" = ["F401", "F811", "F841"]
+"tests/unit/modules/lixeira/test_lixeira_service.py" = ["E731"]
+"tests/unit/modules/hub/views/test_hub_quick_actions_view_mf62.py" = ["F811"]  # Redefinição de teste (bug no código)
+"scripts/*" = ["E402", "E501"]
+"src/app_gui.py" = ["E402"]
+"adapters/storage/supabase_storage.py" = ["E402"]
+"src/core/services/upload_service.py" = ["E402"]
+"**/_archived/**" = ["E402"]  # Arquivos arquivados: imports podem não estar no topo
+"src/ui/hub_screen.py" = ["E402"]
+"src/ui/forms/pipeline.py" = ["E402"]
+"src/modules/clientes_v2/view.py" = ["N806"]  # AppearanceModeTracker é nome de classe (não variável)
+"src/modules/main_window/views/main_window_layout.py" = ["N806"]  # SEP_H é constante visual
+"src/ui/components/lists.py" = ["F811"]  # Redefinição intencional com assinatura estendida
+"src/third_party/**/*" = ["N806", "E722", "F401"]  # Vendor code: menos restritivo

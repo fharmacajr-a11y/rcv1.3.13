@@ -1,0 +1,33 @@
+# ============================================================================
+# Configuração do Bandit - Security Linter para Python
+# ============================================================================
+# Documentação: https://bandit.readthedocs.io/en/latest/config.html
+#
+# Uso:
+#   bandit -r src infra adapters data security -c bandit.yaml
+#
+# ============================================================================
+
+# Diretórios a excluir da análise
+exclude_dirs:
+  - '.venv'
+  - '.venv_backup_20251204'
+  - 'tests'
+  - '__pycache__'
+  - '.pytest_cache'
+  - '.ruff_cache'
+  - 'htmlcov'
+  - 'build'
+  - 'dist'
+  - '.git'
+  - 'docs'
+  - 'reports'
+
+# Testes a pular
+# B110: try-except-pass (comum em GUI cleanup - Tkinter/CustomTkinter)
+# B101: assert (usado em third_party code, não impacta produção)
+# B112 foi removido: agora tratado pontualmente com # nosec B112 onde necessário (fallback patterns)
+skips: ['B101', 'B110']
+
+# Plugins a carregar (vazio = todos os plugins padrão)
+# plugins: []

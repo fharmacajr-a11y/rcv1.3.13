@@ -1,43 +1,36 @@
-# Pre-commit hooks para RC-Gestor v1.0.29
-#
-# Instalação:
-#   pip install pre-commit black ruff
-#   pre-commit install
-#
-# Execução manual:
-#   pre-commit run --all-files
-#
-# Referências:
-# - Pre-commit: https://pre-commit.com/
-# - Black: https://black.readthedocs.io/
-# - Ruff: https://docs.astral.sh/ruff/
-
+# Pre-commit hooks for RC Gestor - Post cleanup version
 repos:
-  # Black - formatador de código Python
-  - repo: https://github.com/psf/black
-    rev: 24.8.0
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
     hooks:
-      - id: black
-        language_version: python3
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-ast
+      - id: debug-statements
 
-  # Ruff - linter Python extremamente rápido
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9
+    rev: v0.8.4
     hooks:
       - id: ruff
-        args: [--fix]
+        args: [--fix, --exit-non-zero-on-fix]
+        types_or: [python, pyi]
+      - id: ruff-format
+        types_or: [python, pyi]
 
-  # Hooks básicos do pre-commit
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+  - repo: local
     hooks:
-      # Garante que arquivos terminam com newline
-      - id: end-of-file-fixer
+      - id: compileall-check
+        name: Validar sintaxe Python (compileall)
+        language: system
+        entry: python -m compileall -q src
+        types: [python]
+        pass_filenames: false
 
-      # Normaliza line endings (CRLF -> LF em arquivos de texto)
-      - id: mixed-line-ending
-        args: ['--fix=lf']
-
-      # Remove espaços em branco no final das linhas
-      - id: trailing-whitespace
-        args: ['--markdown-linebreak-ext=md']
+fail_fast: false
+default_language_version:
+  python: python3.13

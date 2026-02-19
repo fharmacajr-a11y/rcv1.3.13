@@ -1,42 +1,33 @@
-# RC-Gestor v1.0.29 - Top-level dependencies
-# =============================================
-# Este arquivo contém apenas as dependências diretas do projeto.
-# Use pip-compile para gerar o requirements.txt com versões pinadas.
-#
-# Instalação:
-#   pip install pip-tools
-#
-# Gerar requirements.txt:
-#   pip-compile --upgrade -o requirements.txt requirements.in
-#
-# Atualizar dependências:
-#   pip-compile --upgrade requirements.in
-#
-# Referência: https://pip-tools.readthedocs.io/
+# requirements.in - Dependências diretas do projeto
+# Para recompilar: pip-compile --output-file=requirements.txt requirements.in
 
-# HTTP clients
-httpx
-requests
+# HTTP client com suporte HTTP/2
+httpx[http2]
+starlette>=0.49.3,<0.50.0  # CVE fix (0.47.2+), limitado por FastAPI
 
 # PDF processing
-pypdf
-pdfminer.six
+pdfminer-six>=20251107  # CVE fix: GHSA-wf5f-4jwr-ppcp, GHSA-f83h-ghpp-7wcc
 pymupdf
-PyPDF2  # mantido para compatibilidade com código legado
+pypdf>=6.1.3  # CVE fix: GHSA-vr63-x8vc-m265, GHSA-jfx9-29x2-rv3j
 
-# Image processing
 pillow
-pytesseract
 
-# Configuration and environment
-python-dotenv
-pyyaml
-
-# Supabase backend (versão mínima requerida)
-supabase>=2.6.0
+# Supabase client
+supabase
 
 # GUI toolkit
 ttkbootstrap
+customtkinter>=5.2.0
 
-# Timezone data
-tzdata
+# Configuração
+python-dotenv
+pyyaml
+
+# Requests HTTP library
+requests
+
+# OpenAI client
+openai>=1.40.0
+
+# Timezone local (para Bloco de Notas)
+tzlocal>=5.2,<6

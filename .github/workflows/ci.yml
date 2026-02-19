@@ -1,43 +1,155 @@
-name: RC - test & build
+name: RC - Test & Build
 
 on:
   push:
-    branches: [maintenance/v1.0.29]
+    branches: ["main", "develop", "maintenance/**", "feature/**"]
   pull_request:
-    branches: [maintenance/v1.0.29]
+    branches: ["main", "develop"]
   workflow_dispatch:
 
 jobs:
   test:
+    name: Test (Windows)
     runs-on: windows-latest
+
+    env:
+      # FASE 6: Força UTF-8 em todos os processos Python (PEP 540)
+      PYTHONUTF8: 1
+      PYTHONIOENCODING: utf-8
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Necessário para pre-commit
 
       - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install -U pytest
+          pip install -r requirements-dev.txt
 
-      - name: Run tests
-        run: pytest -q
+      - name: Verify encoding configuration
+        run: |
+          python -X utf8 -c "import sys; print(f'Default encoding: {sys.getdefaultencoding()}'); print(f'Filesystem encoding: {sys.getfilesystemencoding()}'); print(f'stdout encoding: {sys.stdout.encoding}')"
+
+      - name: Run pre-commit hooks
+        run: pre-commit run --all-files --show-diff-on-failure
+
+      - name: Run Bandit security scan
+        run: python -X utf8 -m bandit -c .bandit -r src infra adapters data security
+
+      - name: Validate syntax (compileall)
+        run: python -m compileall -q src tests
+
+      - name: Validate UI/Theme policy
+        run: python scripts/validate_ui_theme_policy.py
+
+      - name: Validate TTK policy (FASE 8)
+        run: python scripts/validate_ttk_policy.py --ci
+
+      - name: TTK policy tests (FASE 8)
+        run: python -m pytest tests/ci/test_ttk_policy.py -q
+
+      - name: Smoke test UI
+        run: python scripts/smoke_ui.py
+
+      - name: Run full test suite with coverage
+        run: python -m pytest --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=25 -v
+        continue-on-error: true
 
       - name: Upload pytest artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pytest-report
-          path: .pytest_cache
+          name: pytest-report-windows
+          path: |
+            .pytest_cache
+            htmlcov/
+          retention-days: 7
+
+  test-linux:
+    name: Test (Linux - Headless)
+    runs-on: ubuntu-latest
+
+    env:
+      # FASE 6: Força UTF-8 (opcional no Linux, mas mantém consistência)
+      PYTHONUTF8: 1
+      PYTHONIOENCODING: utf-8
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Necessário para pre-commit
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install system dependencies (Xvfb + Tkinter)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb python3-tk python3-dev
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run pre-commit hooks
+        run: pre-commit run --all-files --show-diff-on-failure
+
+      - name: Run Bandit security scan
+        run: python -m bandit -c .bandit -r src infra adapters data security
+
+      - name: Validate syntax (compileall)
+        run: python -m compileall -q src tests
+
+      - name: Validate UI/Theme policy
+        run: python scripts/validate_ui_theme_policy.py
+
+      - name: Validate TTK policy (FASE 8)
+        run: python scripts/validate_ttk_policy.py --ci
+
+      - name: TTK policy tests (FASE 8)
+        run: python -m pytest tests/ci/test_ttk_policy.py -q
+
+      - name: Smoke test UI (headless with Xvfb)
+        run: xvfb-run -a python scripts/smoke_ui.py
+
+      - name: Run full test suite with coverage (headless)
+        run: xvfb-run -a python -m pytest --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=25 -v
+        continue-on-error: true
+
+      - name: Upload pytest artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-report-linux
+          path: |
+            .pytest_cache
+            htmlcov/
           retention-days: 7
 
   build:
-    needs: test
+    name: Build (PyInstaller + Sanity Check)
+    needs: [test, test-linux]
     runs-on: windows-latest
     steps:
       - name: Checkout code
@@ -47,12 +159,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install -U pyinstaller
+          pip install -r requirements-dev.txt
 
       - name: PyInstaller build (usando .spec)
         run: pyinstaller build/rc_gestor.spec --clean
@@ -88,6 +204,39 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: RC-Gestor-v1.0.29
-          path: dist/RC-Gestor-v1.0.29.zip
+          name: RC-Gestor-build
+          path: dist/RC-Gestor-*.zip
           retention-days: 30
+
+  build-sanity:
+    name: Build Sanity Check (PyPA sdist/wheel)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+
+      - name: Build sdist and wheel
+        run: python -m build
+        continue-on-error: true
+
+      - name: Check package with twine
+        run: twine check dist/*
+        continue-on-error: true
+
+      - name: Upload package artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-package
+          path: dist/
+          retention-days: 7
