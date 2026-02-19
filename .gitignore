@@ -133,9 +133,10 @@ cleanup_repo.*
 gitignore_additions.txt
 EXECUTION_GUIDE.md
 
-# Exceção: tools/repo/ é versionado (arquiva os scripts de limpeza)
-!tools/repo/
-!tools/repo/**
+# Dev scripts and tools (removed from tracking in cleanup/remove-unused-files)
+/scripts/
+/tools/
+/_trash_quarantine/
 
 # Exceção: src/core/logs/ é código versionado (não deve ser ignorado)
 !src/core/logs/

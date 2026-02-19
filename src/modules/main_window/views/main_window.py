@@ -73,9 +73,8 @@ REFATORAÇÕES REALIZADAS:
 
 TESTING:
 ────────
-- Integração: testado via tests/test_ui_components.py
 - Coverage: ~19% direto (muito código de UI)
-- Smoke tests: scripts/dev_smoke.py
+- Smoke: executar `python main.py` e testar navegação
 
 TODO (futuro):
 ──────────────

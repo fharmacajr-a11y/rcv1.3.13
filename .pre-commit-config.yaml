@@ -84,11 +84,8 @@ repos:
       - id: debug-statements
         name: Detectar statements de debug (breakpoint, pdb)
 
-      - id: name-tests-test
-        name: Verificar nomes de arquivos de teste
-        args: ['--pytest-test-first']
-        files: ^tests/(unit|integration)/.*\.py$
-        exclude: (doubles|factories|helpers|conftest|LEGACY_).*\.py$
+      # name-tests-test: removido — diretório tests/ não mais rastreado pelo git
+      # (ver docs/CLEANUP_REMOVAL_REPORT.md)
 
   # ---------------------------------------------------------------------------
   # HOOKS LOCAIS - Políticas Customizadas do Projeto
@@ -168,7 +165,7 @@ repos:
       - id: compileall-check
         name: Validar sintaxe Python (compileall)
         language: system
-        entry: python -m compileall -q src tests
+        entry: python -m compileall -q src
         types: [python]
         pass_filenames: false
         description: |
@@ -190,7 +187,7 @@ repos:
         entry: python -X utf8 -m bandit -c .bandit -r src
         types: [python]
         pass_filenames: false
-        exclude: ^(tests/|src/third_party/|src/modules/clientes/forms/_archived/)
+        exclude: ^(src/third_party/|src/modules/clientes/forms/_archived/)
         description: |
           Análise de segurança Python com UTF-8 mode (resolve UnicodeEncodeError no Windows).
           Usa python -X utf8 para forçar encoding UTF-8 independente do locale do sistema.

@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.ruff]
-src = ["src", "tests"]
+src = ["src"]
 line-length = 120
 target-version = "py313"
 
@@ -35,14 +35,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*" = ["D", "ANN", "S101"]
-"tests/conftest.py" = ["E402"]  # Import após setup de ambiente é intencional
-"tests\\conftest.py" = ["E402"]  # Import após setup de ambiente é intencional (Windows)
-"tests/unit/core/test_auth_bootstrap_microfase.py" = ["E741", "F401"]
 "typings/**/*" = ["N801", "N802", "N803", "N806"]  # Typings refletem APIs externas
-"tests/unit/infra/test_archives.py" = ["N802"]  # Test name matches ZIP64 standard
-"tests/unit/adapters/test_adapters_supabase_storage_fase37.py" = ["N806"]  # Mock naming convention
-"tests/unit/modules/clientes/forms/test_prepare_round12.py" = ["N806"]  # Mock naming convention
 
 [tool.mypy]
 ignore_missing_imports = true
@@ -54,7 +47,6 @@ requirements_files_dev = ["requirements-dev.txt"]
 
 # Diretórios a excluir da análise
 extend_exclude = [
-    "tests",
     "docs",
     "htmlcov",
     "reports",
@@ -69,8 +61,6 @@ extend_exclude = [
     "third_party",
     "typings",
     "installer",
-    "scripts",
-    "tools",
 ]
 
 # Módulos first-party do projeto
@@ -130,6 +120,6 @@ DEP002 = [
 
 [tool.vulture]
 paths = ["src", "vulture_whitelist.py"]
-exclude = ["tests", "docs", "reports", "build", "dist", ".venv", "venv", ".pytest_cache", ".ruff_cache", "__pycache__"]
+exclude = ["docs", "reports", "build", "dist", ".venv", "venv", ".pytest_cache", ".ruff_cache", "__pycache__"]
 ignore_decorators = ["@overload"]
 min_confidence = 100
