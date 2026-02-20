@@ -144,3 +144,5 @@ EXECUTION_GUIDE.md
 # Exceção: src/core/logs/ é código versionado (não deve ser ignorado)
 !src/core/logs/
 !src/core/logs/**
+
+docs/_lint_artifacts/
