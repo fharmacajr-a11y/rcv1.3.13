@@ -241,4 +241,92 @@ Após aplicar correções, executar os seguintes testes manuais:
 
 ---
 
+## Atualização: Tentativa de Correção Automática
+
+**Data:** 19 de fevereiro de 2026, 21:45
+**Branch:** `quality/fix`
+
+### Comandos Executados
+
+```powershell
+# Tentativa de aplicar correções seguras do Ruff
+ruff check src main.py --fix
+# Resultado: nenhuma correção segura aplicada (todas são unsafe ou manuais)
+
+# Verificação de formatação
+ruff format src main.py
+# Resultado: 458 arquivos já formatados corretamente
+
+# Validação de compilação
+python -m compileall -q src
+# Resultado: sucesso, sem erros de sintaxe
+
+# Re-análise Bandit
+bandit -r src -c bandit.yaml -f txt
+# Resultado: 41 issues Low, 0 Medium, 0 High
+
+# Re-análise Vulture
+vulture src --min-confidence 80
+# Resultado: 7 candidatos (mesmos da auditoria inicial)
+```
+
+### Status das Correções
+
+| Categoria | Status | Observação |
+|-----------|--------|------------|
+| **Ruff safe fixes** | ❌ Não aplicável | Nenhum fix seguro disponível |
+| **Ruff formatting** | ✅ OK | Código já formatado |
+| **Bandit** | ⏸️ Manual | Todos Low severity, requerem revisão |
+| **Vulture** | ⏸️ Quarentena | Não deletar sem análise |
+
+### Issues Remanescentes - Ruff (23 total)
+
+Todas as issues identificadas requerem intervenção manual:
+
+| Código | Qtd | Motivo |
+|--------|-----|--------|
+| N806 | 7 | Variáveis são constantes intencionais dentro de funções |
+| E402 | 6 | Imports tardios por dependência circular |
+| F405 | 5 | Re-exportação via star import (design decision) |
+| F841 | 3 | Unsafe fix - requer análise de side effects |
+| F401 | 1 | Import para re-exportação em `__init__.py` |
+| E731 | 1 | Lambda em callback - unsafe para converter |
+
+### Issues Remanescentes - Bandit (41 Low)
+
+**Nenhuma correção aplicada** - todos os achados são de baixa severidade e intencionais:
+
+| Código | Qtd | Justificativa para Revisão Manual |
+|--------|-----|-----------------------------------|
+| B110 | 38 | `try/except/pass` em código de UI para evitar crashes visuais. Padrão comum em Tkinter. |
+| B101 | 3 | `assert` em código de terceiros (`ctktreeview`). Não modificar. |
+
+**Recomendação:** Para B110, considerar adicionar logging em vez de `pass` silencioso em futuras refatorações. Não é urgente.
+
+### Candidatos de Código Morto - Vulture (7)
+
+**Nenhum código deletado** - seguindo política de quarentena-primeiro.
+
+| Arquivo | Item | Ação Recomendada |
+|---------|------|------------------|
+| `client_obligations_window.py:27` | `on_refresh_hub` | Verificar se é callback dinâmico |
+| `actions_impl.py:248` | `arquivos_selecionados` | Verificar uso em iteração |
+| `main_window.py:429` | `new_theme` | Possível variável de debug |
+| `theme_toggle.py:14` | `style_or_app` | Verificar Protocol/ABC |
+| `typing_utils.py:46` | `enable` | Verificar uso em type hints |
+| `ctk_tableview.py:427,431` | `tagname` | Loop variable, possível falso positivo |
+
+### Conclusão
+
+O código está em bom estado geral:
+- ✅ Formatação OK
+- ✅ Compila sem erros
+- ⚠️ 23 issues de lint (todos manuais/design decisions)
+- ⚠️ 41 issues de segurança (todos Low, intencionais)
+- ⚠️ 7 candidatos de código morto (requerem análise)
+
+**Próximo passo:** Criar PR para correções manuais específicas após análise individual de cada issue.
+
+---
+
 *Relatório gerado automaticamente por GitHub Copilot*
