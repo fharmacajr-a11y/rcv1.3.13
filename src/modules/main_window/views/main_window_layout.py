@@ -15,7 +15,6 @@ Agora usa CustomTkinter como sistema principal de temas (light/dark).
 from __future__ import annotations
 
 import logging
-import os
 import tkinter as tk
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -280,38 +279,19 @@ def _build_layout_deferred(app: App, refs: MainWindowLayoutRefs) -> None:
 
 
 def _apply_window_icon(app: App, icon_path_relative: str) -> None:
-    """Aplica ícone da aplicação (private helper)."""
-    from src.modules.main_window.views.helpers import resource_path
+    """Aplica ícone da aplicação usando helper centralizado.
 
+    Usa apply_window_icon de window_utils que:
+    - Aplica iconbitmap(rc.ico) no Windows
+    - Aplica iconphoto com cache de PhotoImage (previne GC)
+    - Para root: iconphoto(True) define default para child windows
+    - Re-aplica após 250ms para contornar override do CTkToplevel
+    """
+    from src.ui.window_utils import apply_window_icon
+
+    log.info("Aplicando ícone: %s", icon_path_relative)
     try:
-        icon_path = resource_path(icon_path_relative)
-        # Logar apenas basename para evitar expor paths completos
-        icon_name = os.path.basename(icon_path)
-        log.info("Aplicando ícone: %s", icon_name)
-        if os.path.exists(icon_path):
-            try:
-                app.iconbitmap(icon_path)
-                log.debug("Ícone principal aplicado: %s", icon_name)
-
-                # Tentar definir como ícone default para novos Toplevels
-                try:
-                    app.iconbitmap(default=icon_path)
-                    log.debug("Ícone default aplicado para novos diálogos")
-                except Exception:
-                    log.debug("Ícone default não suportado neste ambiente", exc_info=True)
-
-            except Exception:
-                log.warning("iconbitmap falhou, tentando iconphoto com PNG", exc_info=True)
-                # Fallback: usar rc.png
-                try:
-                    png_path = resource_path("rc.png")
-                    if os.path.exists(png_path):
-                        img = tk.PhotoImage(file=png_path)
-                        app.iconphoto(True, img)
-                        log.info("iconphoto aplicado com sucesso usando rc.png")
-                except Exception:
-                    log.error("iconphoto com PNG também falhou", exc_info=True)
-        else:
-            log.warning("Ícone %s não encontrado em: %s", icon_path_relative, icon_path)
+        apply_window_icon(app)
+        log.debug("apply_window_icon executado com sucesso")
     except Exception:
         log.exception("Falha ao aplicar ícone da aplicação")
