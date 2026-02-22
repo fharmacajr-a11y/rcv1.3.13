@@ -168,12 +168,15 @@ class ChatGPTWindow(tk.Toplevel):
         try:
             result = self._send_fn(self._messages.copy())
         except RuntimeError as exc:
-            self.after(0, self._append_response, str(exc))
-            return
+            result = str(exc)
         except Exception as exc:
             result = f"[Erro ao chamar ChatGPT: {exc}]"
 
-        self.after(0, self._append_response, result)
+        try:
+            if self.winfo_exists():
+                self.after(0, self._append_response, result)
+        except Exception:  # noqa: BLE001
+            pass
 
     def _append_response(self, answer: str) -> None:
         if not answer:
