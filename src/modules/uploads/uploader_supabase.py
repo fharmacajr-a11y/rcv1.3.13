@@ -24,10 +24,37 @@ from src.modules.uploads.file_validator import (
     FileValidationResult,
 )
 from src.ui.components.progress_dialog import ProgressDialog
+from src.ui.ctk_config import ctk
 from src.ui.files_browser.utils import format_file_size
-from src.ui.window_utils import show_centered
+from src.ui.window_utils import apply_window_icon, prepare_hidden_window, show_centered, show_centered_no_flash
 
 log = logging.getLogger(__name__)
+
+
+def _show_msg(parent: tk.Misc, title: str, msg: str) -> None:
+    """Exibe mensagem modal com ícone RC correto (substitui tkinter.messagebox)."""
+    dlg = ctk.CTkToplevel(parent)
+    prepare_hidden_window(dlg)
+    dlg.title(title)
+    dlg.resizable(False, False)
+    try:
+        dlg.transient(parent)
+    except Exception:  # noqa: BLE001
+        pass
+    apply_window_icon(dlg)
+
+    frame = ctk.CTkFrame(dlg)
+    frame.pack(fill="both", expand=True, padx=24, pady=20)
+    ctk.CTkLabel(frame, text=msg, wraplength=360, justify="left").pack(pady=(0, 16))
+    ctk.CTkButton(frame, text="OK", width=90, command=dlg.destroy).pack()
+
+    dlg.update_idletasks()
+    show_centered_no_flash(dlg, parent)
+    dlg.grab_set()
+    try:
+        parent.wait_window(dlg)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def center_window(window: tk.Misc, *args: object, **kwargs: object) -> None:
@@ -580,7 +607,7 @@ def send_folder_to_supabase(
 
     resolved = _resolve_selected_cliente(app)
     if not resolved:
-        messagebox.showinfo("Envio", "Selecione um cliente primeiro.", parent=target)
+        _show_msg(target, "Envio", "Selecione um cliente primeiro.")
         return 0, 0
 
     client_id, row = resolved
@@ -590,25 +617,46 @@ def send_folder_to_supabase(
 
     folder = filedialog.askdirectory(title="Selecione a pasta com os PDFs", parent=target)
     if not folder:
-        messagebox.showinfo("Envio", "Nenhuma pasta selecionada.", parent=target)
+        _show_msg(target, "Envio", "Nenhuma pasta selecionada.")
         return 0, 0
 
-    items = collect_pdfs_from_folder(folder)
-    if not items:
-        messagebox.showinfo(
-            "Envio",
-            "Nenhum PDF encontrado nessa pasta.",
-            parent=target,
+    base = Path(folder)
+    if not base.is_dir():
+        # Caminho virtual (ex.: "Resultados da pesquisa" do Windows)
+        log.warning(
+            "Pasta selecionada não é um diretório válido: %s | exists=%s is_dir=%s",
+            folder,
+            base.exists(),
+            base.is_dir(),
         )
+        _show_msg(
+            target,
+            "Pasta inválida",
+            "A pasta selecionada não foi reconhecida pelo sistema.\n\n"
+            "Evite navegar por 'Resultados da pesquisa' do Windows.\n"
+            "Use a árvore lateral (Este Computador) para navegar até a pasta real.\n\n"
+            "Clique OK para selecionar os PDFs individualmente.",
+        )
+        paths = filedialog.askopenfilenames(
+            title="Selecione os PDFs",
+            parent=target,
+            filetypes=[("PDF", "*.pdf"), ("Todos os arquivos", "*.*")],
+        )
+        if not paths:
+            return 0, 0
+        items = build_items_from_files(list(paths))
+    else:
+        items = collect_pdfs_from_folder(folder)
+
+    if not items:
+        _show_msg(target, "Envio", "Nenhum PDF encontrado nessa pasta.")
         return 0, 0
 
     # Pedir subpasta em GERAL (com nome da pasta como default)
-    from pathlib import Path as _Path
-
-    default_name = _Path(folder).name
+    default_name = base.name
     sub = ask_storage_subfolder(target, default=default_name)
     if sub is None:
-        messagebox.showinfo("Envio", "Envio cancelado.", parent=target)
+        _show_msg(target, "Envio", "Envio cancelado.")
         return 0, 0
     sub = sub.strip()
     subpasta = sub or None
