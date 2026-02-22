@@ -10,18 +10,46 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from tkinter import filedialog, messagebox
+from tkinter import filedialog
 from typing import Any
 
 from src.modules.clientes.forms.client_subfolder_prompt import SubpastaDialog
 from src.modules.uploads.components.helpers import _cnpj_only_digits, get_clients_bucket, get_current_org_id
 from src.modules.uploads.file_validator import validate_upload_files
-from src.modules.uploads.service import collect_pdfs_from_folder, upload_items_for_client
+from src.modules.uploads.service import build_items_from_files, collect_pdfs_from_folder, upload_items_for_client
 from src.modules.uploads.upload_retry import classify_upload_exception
 from src.modules.uploads.views import UploadDialog, UploadDialogContext, UploadDialogResult
+from src.ui.ctk_config import ctk
 from src.ui.files_browser.utils import format_file_size
+from src.ui.window_utils import apply_window_icon, prepare_hidden_window, show_centered_no_flash
 
 logger = logging.getLogger(__name__)
+
+
+def _show_msg(parent: Any, title: str, msg: str) -> None:
+    """Exibe mensagem modal com ícone RC correto (substitui tkinter.messagebox)."""
+    dlg = ctk.CTkToplevel(parent)
+    prepare_hidden_window(dlg)
+    dlg.title(title)
+    dlg.resizable(False, False)
+    try:
+        dlg.transient(parent)
+    except Exception:  # noqa: BLE001
+        pass
+    apply_window_icon(dlg)
+
+    frame = ctk.CTkFrame(dlg)
+    frame.pack(fill="both", expand=True, padx=24, pady=20)
+    ctk.CTkLabel(frame, text=msg, wraplength=360, justify="left").pack(pady=(0, 16))
+    ctk.CTkButton(frame, text="OK", width=90, command=dlg.destroy).pack()
+
+    dlg.update_idletasks()
+    show_centered_no_flash(dlg, parent)
+    dlg.grab_set()
+    try:
+        parent.wait_window(dlg)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _format_validation_errors(results: list[Any] | None) -> list[str]:
@@ -77,13 +105,40 @@ def execute_upload_flow(
     # 1. Selecionar pasta
     folder = filedialog.askdirectory(title="Selecione a pasta com os PDFs", parent=parent_widget)
     if not folder:
-        messagebox.showinfo("Envio", "Nenhuma pasta selecionada.", parent=parent_widget)
+        _show_msg(parent_widget, "Envio", "Nenhuma pasta selecionada.")
         return
 
     # 2. Coletar PDFs da pasta
-    items = collect_pdfs_from_folder(folder)
+    base = Path(folder)
+    if not base.is_dir():
+        # Caminho virtual (ex.: "Resultados da pesquisa" do Windows) — não é um diretório real
+        logger.warning(
+            "Pasta selecionada não é um diretório válido: %s | exists=%s is_dir=%s",
+            folder,
+            base.exists(),
+            base.is_dir(),
+        )
+        _show_msg(
+            parent_widget,
+            "Pasta inválida",
+            "A pasta selecionada não foi reconhecida pelo sistema.\n\n"
+            "Evite navegar por 'Resultados da pesquisa' do Windows.\n"
+            "Use a árvore lateral (Este Computador) para navegar até a pasta real.\n\n"
+            "Clique OK para selecionar os PDFs individualmente.",
+        )
+        paths = filedialog.askopenfilenames(
+            title="Selecione os PDFs",
+            parent=parent_widget,
+            filetypes=[("PDF", "*.pdf"), ("Todos os arquivos", "*.*")],
+        )
+        if not paths:
+            return
+        items = build_items_from_files(list(paths))
+    else:
+        items = collect_pdfs_from_folder(folder)
+
     if not items:
-        messagebox.showinfo("Envio", "Nenhum PDF encontrado nessa pasta.", parent=parent_widget)
+        _show_msg(parent_widget, "Envio", "Nenhum PDF encontrado nessa pasta.")
         return
 
     # 3. Pedir nome da SUBPASTA em GERAL
@@ -91,7 +146,7 @@ def execute_upload_flow(
     parent_widget.wait_window(dlg)
     subfolder = dlg.result  # None se cancelado, "" se vazio
     if subfolder is None:
-        messagebox.showinfo("Envio", "Envio cancelado.", parent=parent_widget)
+        _show_msg(parent_widget, "Envio", "Envio cancelado.")
         return
     subfolder_upload = subfolder or None
 
@@ -99,14 +154,14 @@ def execute_upload_flow(
     valid_results, invalid_results = validate_upload_files([item.path for item in items])
     if not valid_results:
         body = "\n".join(_format_validation_errors(invalid_results)) or "Nenhum arquivo valido para envio."
-        messagebox.showwarning("Envio", body, parent=parent_widget)
+        _show_msg(parent_widget, "Envio", body)
         return
 
     # Filtrar items para manter somente os válidos (preservando relative_path)
     valid_set = {str(res.path) for res in valid_results}
     items = [it for it in items if str(it.path) in valid_set]
     if not items:
-        messagebox.showwarning("Envio", "Nenhum PDF valido foi selecionado.", parent=parent_widget)
+        _show_msg(parent_widget, "Envio", "Nenhum PDF valido foi selecionado.")
         return
 
     # 5. Verificar CNPJ
@@ -120,7 +175,7 @@ def execute_upload_flow(
 
     cnpj_digits = _cnpj_only_digits(cnpj_value)
     if not cnpj_digits:
-        messagebox.showwarning("Envio", "Informe o CNPJ antes de enviar.", parent=parent_widget)
+        _show_msg(parent_widget, "Envio", "Informe o CNPJ antes de enviar.")
         return
 
     # 6. Resolver org_id
@@ -172,8 +227,7 @@ def execute_upload_flow(
     def _on_upload_complete(outcome: UploadDialogResult) -> None:
         if outcome.error:
             title = "Envio cancelado" if "cancelado" in outcome.error.message.lower() else "Erro no upload"
-            handler = messagebox.showinfo if title.startswith("Envio cancelado") else messagebox.showerror
-            handler(title, outcome.error.message, parent=parent_widget)
+            _show_msg(parent_widget, title, outcome.error.message)
             return
 
         payload = outcome.result or {}
@@ -193,10 +247,10 @@ def execute_upload_flow(
         total_sent = payload.get("total") or items_total
 
         if total_failed == 0:
-            messagebox.showinfo(
+            _show_msg(
+                parent_widget,
                 "Envio concluído",
                 f"{ok_count} arquivo(s) enviados com sucesso.",
-                parent=parent_widget,
             )
             return
 
@@ -205,16 +259,16 @@ def execute_upload_flow(
             summary += f"\n... e mais {len(failure_msgs) - 6} arquivo(s)"
 
         if ok_count > 0:
-            messagebox.showwarning(
+            _show_msg(
+                parent_widget,
                 "Envio concluído com avisos",
                 f"{ok_count} enviado(s), {total_failed} falha(s) de {total_sent}.\n\n{summary}",
-                parent=parent_widget,
             )
         else:
-            messagebox.showerror(
+            _show_msg(
+                parent_widget,
                 "Falha no envio",
                 f"Não foi possível enviar os arquivos selecionados.\n\n{summary}",
-                parent=parent_widget,
             )
 
     # 9. Executar dialog de upload
