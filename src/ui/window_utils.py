@@ -313,31 +313,151 @@ def recenter_after_layout(*args: object, **kwargs: object) -> None:
 # ============================================================================
 
 
-def apply_window_icon(window: tk.Toplevel | tk.Tk) -> None:
-    """Aplica ícone do app em janela Toplevel ou Tk.
+# Module-level cache for PhotoImage to prevent garbage collection
+_icon_photo_cache: tk.PhotoImage | None = None
+_icon_png_path: str | None = None
+_icon_ico_path: str | None = None
 
-    Args:
-        window: Janela para aplicar ícone
-    """
+
+def _load_icon_paths() -> None:
+    """Load and cache icon paths on first use."""
+    global _icon_png_path, _icon_ico_path
+
+    if _icon_png_path is not None or _icon_ico_path is not None:
+        return  # Already loaded
+
     try:
         from src.utils.paths import resource_path
+        import os
 
-        window.iconbitmap(resource_path("rc.ico"))
-    except Exception as exc:  # noqa: BLE001
-        # Ícone pode não estar disponível
-        log.debug("iconbitmap falhou: %s", type(exc).__name__)
+        ico_path = resource_path("rc.ico")
+        if os.path.exists(ico_path):
+            _icon_ico_path = ico_path
+            log.debug(f"[WindowIcon] Found rc.ico: {ico_path}")
+
+        png_path = resource_path("rc.png")
+        if os.path.exists(png_path):
+            _icon_png_path = png_path
+            log.debug(f"[WindowIcon] Found rc.png: {png_path}")
+    except Exception as e:
+        log.debug(f"[WindowIcon] Error loading icon paths: {e}")
+
+
+def _get_cached_photo(window: tk.Misc) -> tk.PhotoImage | None:
+    """Get or create cached PhotoImage for icon.
+
+    Args:
+        window: A Tk window (needed to create PhotoImage)
+
+    Returns:
+        Cached PhotoImage or None if rc.png not available
+    """
+    global _icon_photo_cache, _icon_png_path
+
+    _load_icon_paths()
+
+    if _icon_png_path is None:
+        return None
+
+    if _icon_photo_cache is None:
+        try:
+            _icon_photo_cache = tk.PhotoImage(file=_icon_png_path)
+            log.debug(f"[WindowIcon] Created PhotoImage from: {_icon_png_path}")
+        except Exception as e:
+            log.debug(f"[WindowIcon] Failed to create PhotoImage: {e}")
+            return None
+
+    return _icon_photo_cache
+
+
+def apply_window_icon(window: tk.Toplevel | tk.Tk) -> None:
+    """Apply app icon to window with CTkToplevel override protection.
+
+    This improved version:
+    1. Tries iconbitmap(rc.ico) for Windows
+    2. Uses iconphoto with cached PhotoImage (prevents GC)
+    3. For root (Tk/CTk): iconphoto(True, ...) to set default for child windows
+    4. For Toplevel: iconphoto(False, ...)
+    5. Schedules a re-apply after 250ms to defeat CTkToplevel icon override
+
+    Args:
+        window: Janela para aplicar ícone (Tk, Toplevel, or CTkToplevel)
+    """
+    _load_icon_paths()
+
+    def _apply_icon_impl() -> None:
+        """Internal implementation that applies the icon."""
+        try:
+            if not window.winfo_exists():
+                return
+        except Exception:
+            return
+
+        # Try iconbitmap first (works best on Windows with .ico)
+        if _icon_ico_path:
+            try:
+                window.iconbitmap(_icon_ico_path)
+                log.debug(f"[WindowIcon] Applied iconbitmap to {type(window).__name__}")
+            except Exception as e:
+                log.debug(f"[WindowIcon] iconbitmap failed: {e}")
+
+        # Also apply iconphoto for better cross-platform support
+        photo = _get_cached_photo(window)
+        if photo is not None:
+            try:
+                # Determine if this is a root window (Tk/CTk) or child (Toplevel)
+                is_root = False
+                try:
+                    # Root window has no master or master is empty string
+                    master = getattr(window, "master", None)
+                    if master is None or (isinstance(master, str) and master == ""):
+                        is_root = True
+                    # Also check if it's the main CTk instance
+                    if hasattr(window, "_current_width"):  # CTk attribute
+                        is_root = True
+                except Exception:
+                    pass
+
+                if is_root:
+                    window.iconphoto(True, photo)  # True = default for child windows
+                    log.debug("[WindowIcon] Applied iconphoto(True) to root window")
+                else:
+                    window.iconphoto(False, photo)  # False = only this window
+                    log.debug("[WindowIcon] Applied iconphoto(False) to child window")
+            except Exception as e:
+                log.debug(f"[WindowIcon] iconphoto failed: {e}")
+
+    # Apply immediately
+    _apply_icon_impl()
+
+    # Schedule re-apply after 250ms to defeat CTkToplevel icon override
+    def _reapply_icon() -> None:
+        """Re-apply icon after delay to defeat CTkToplevel override."""
+        try:
+            if window.winfo_exists():
+                _apply_icon_impl()
+                log.debug("[WindowIcon] Reapplied icon after 250ms delay")
+        except Exception:
+            pass  # Window may have been destroyed
+
+    try:
+        window.after(250, _reapply_icon)
+    except Exception:
+        pass  # Window may not support after()
 
 
 def prepare_hidden_window(win: tk.Toplevel) -> None:
     """Prepara janela Toplevel para ser construída sem flash/splash.
 
     Deve ser chamado IMEDIATAMENTE após criar o Toplevel.
+    NÃO usa alpha (causa black frames no Windows).
 
     Args:
         win: Janela Toplevel recém criada
     """
     win.withdraw()
-    win.attributes("-alpha", 0.0)
+    # Posicionar offscreen para evitar que apareça mesmo se deiconify() acontecer
+    # NÃO usar alpha - causa black frames no Windows
     win.geometry("1x1+10000+10000")
 
 
@@ -350,6 +470,9 @@ def show_centered_no_flash(
 ) -> None:
     """Mostra janela Toplevel já centralizada, sem flash/splash.
 
+    Estratégia: deiconify OFFSCREEN → render → mover para posição final.
+    NÃO usa alpha (causa black frames no Windows).
+
     Deve ser chamado DEPOIS de construir todos os widgets.
 
     Args:
@@ -358,14 +481,14 @@ def show_centered_no_flash(
         width: Largura desejada (ou None para usar winfo_reqwidth)
         height: Altura desejada (ou None para usar winfo_reqheight)
     """
-    # Atualizar para medir tamanho real
+    # Step 1: Atualizar para medir tamanho real
     win.update_idletasks()
 
-    # Medir tamanho
+    # Step 2: Medir tamanho
     w = width if width is not None else win.winfo_reqwidth()
     h = height if height is not None else win.winfo_reqheight()
 
-    # Calcular centro relativo ao parent
+    # Step 3: Calcular centro relativo ao parent
     parent.update_idletasks()
     px = parent.winfo_rootx()
     py = parent.winfo_rooty()
@@ -373,11 +496,13 @@ def show_centered_no_flash(
     ph = parent.winfo_height()
 
     # Fallback: se parent ainda está "cru" (geometry incompleto), usar tela
+    screen_w = win.winfo_screenwidth()
+    screen_h = win.winfo_screenheight()
     if pw < 50 or ph < 50:
         px = 0
         py = 0
-        pw = win.winfo_screenwidth()
-        ph = win.winfo_screenheight()
+        pw = screen_w
+        ph = screen_h
 
     x = px + (pw - w) // 2
     y = py + (ph - h) // 2
@@ -388,16 +513,27 @@ def show_centered_no_flash(
     if y < 0:
         y = 0
 
-    # Aplicar geometria final
+    # Step 4: Posicionar OFFSCREEN com tamanho final (fora da área visível)
+    off_x = screen_w + 200
+    off_y = screen_h + 200
+    win.geometry(f"{w}x{h}+{off_x}+{off_y}")
+
+    # Step 5: Deiconify enquanto ainda está offscreen
+    win.deiconify()
+
+    # Step 6: Forçar render pass OFFSCREEN (CTk desenha após mapping)
+    win.update_idletasks()
+    try:
+        win.update()  # Força renderização completa dos widgets CTk
+    except tk.TclError:
+        pass  # Janela pode ter sido destruída
+
+    # Step 7: AGORA mover para posição final (já renderizado)
     win.geometry(f"{w}x{h}+{x}+{y}")
 
-    # Mostrar janela já no lugar certo
-    win.deiconify()
+    # Step 8: lift e foco
     win.lift()
-    win.focus_force()
-
-    # Restaurar alpha após desenhar
-    win.after(0, lambda: win.attributes("-alpha", 1.0))
+    win.after_idle(win.focus_force)
 
 
 def center_window_simple(window: tk.Toplevel, parent: tk.Misc) -> None:

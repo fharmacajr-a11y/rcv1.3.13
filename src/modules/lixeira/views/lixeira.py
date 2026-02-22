@@ -94,7 +94,7 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[ctk.CTkTo
             w.focus_force()
             # truque para garantir foco em algumas janelas
             w.attributes("-topmost", True)
-            w.after(120, lambda: w.attributes("-topmost", False))
+            w.after(120, lambda: w.attributes("-topmost", False) if w.winfo_exists() else None)
             if hasattr(w, "_carregar"):
                 w._carregar()  # type: ignore[attr-defined]
         except Exception:
@@ -397,7 +397,11 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[ctk.CTkTo
             except Exception as e:  # pragma: no cover - proteção extra
                 log.exception("Falha ao apagar definitivamente (thread)")
                 ok, errs = 0, [str(e)]
-            win.after(0, lambda: _on_purge_finished(wait, ok, errs, len(ids)))
+            try:
+                if win.winfo_exists():
+                    win.after(0, lambda: _on_purge_finished(wait, ok, errs, len(ids)))
+            except Exception as exc:  # noqa: BLE001
+                _log_ui_issue("Janela da Lixeira fechada antes do worker terminar", exc)
 
         threading.Thread(target=worker, daemon=True).start()
 
