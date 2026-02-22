@@ -118,12 +118,20 @@ def execute_upload_flow(
             base.exists(),
             base.is_dir(),
         )
+        items = []
+    else:
+        items = collect_pdfs_from_folder(folder)
+
+    if not items:
+        # Pasta vazia, virtual ou resultados de pesquisa do Windows que
+        # passam no is_dir() mas o glob não consegue listar os arquivos.
+        logger.warning("Nenhum PDF coletado da pasta: %s (is_dir=%s)", folder, base.is_dir())
         _show_msg(
             parent_widget,
-            "Pasta inválida",
-            "A pasta selecionada não foi reconhecida pelo sistema.\n\n"
-            "Evite navegar por 'Resultados da pesquisa' do Windows.\n"
-            "Use a árvore lateral (Este Computador) para navegar até a pasta real.\n\n"
+            "Nenhum PDF encontrado",
+            "Nenhum PDF foi encontrado na pasta selecionada.\n\n"
+            "Se você navegou por 'Resultados da pesquisa' do Windows,\n"
+            "isso pode causar esse problema.\n\n"
             "Clique OK para selecionar os PDFs individualmente.",
         )
         paths = filedialog.askopenfilenames(
@@ -134,12 +142,8 @@ def execute_upload_flow(
         if not paths:
             return
         items = build_items_from_files(list(paths))
-    else:
-        items = collect_pdfs_from_folder(folder)
-
-    if not items:
-        _show_msg(parent_widget, "Envio", "Nenhum PDF encontrado nessa pasta.")
-        return
+        if not items:
+            return
 
     # 3. Pedir nome da SUBPASTA em GERAL
     dlg = SubpastaDialog(parent_widget, default="")

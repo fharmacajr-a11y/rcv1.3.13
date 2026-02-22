@@ -622,19 +622,26 @@ def send_folder_to_supabase(
 
     base = Path(folder)
     if not base.is_dir():
-        # Caminho virtual (ex.: "Resultados da pesquisa" do Windows)
         log.warning(
             "Pasta selecionada não é um diretório válido: %s | exists=%s is_dir=%s",
             folder,
             base.exists(),
             base.is_dir(),
         )
+        items = []
+    else:
+        items = collect_pdfs_from_folder(folder)
+
+    if not items:
+        # Pasta vazia, virtual ou resultados de pesquisa do Windows que
+        # passam no is_dir() mas o glob não consegue listar os arquivos.
+        log.warning("Nenhum PDF coletado da pasta: %s (is_dir=%s)", folder, base.is_dir())
         _show_msg(
             target,
-            "Pasta inválida",
-            "A pasta selecionada não foi reconhecida pelo sistema.\n\n"
-            "Evite navegar por 'Resultados da pesquisa' do Windows.\n"
-            "Use a árvore lateral (Este Computador) para navegar até a pasta real.\n\n"
+            "Nenhum PDF encontrado",
+            "Nenhum PDF foi encontrado na pasta selecionada.\n\n"
+            "Se você navegou por 'Resultados da pesquisa' do Windows,\n"
+            "isso pode causar esse problema.\n\n"
             "Clique OK para selecionar os PDFs individualmente.",
         )
         paths = filedialog.askopenfilenames(
@@ -645,12 +652,8 @@ def send_folder_to_supabase(
         if not paths:
             return 0, 0
         items = build_items_from_files(list(paths))
-    else:
-        items = collect_pdfs_from_folder(folder)
-
-    if not items:
-        _show_msg(target, "Envio", "Nenhum PDF encontrado nessa pasta.")
-        return 0, 0
+        if not items:
+            return 0, 0
 
     # Pedir subpasta em GERAL (com nome da pasta como default)
     default_name = base.name
