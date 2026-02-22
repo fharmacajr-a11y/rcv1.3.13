@@ -13,7 +13,7 @@ def grid(widget, *args, **kw):
 def is_iterable(obj: Any) -> bool:
     try:
         iter(obj)
-    except:
+    except TypeError:
         return False
     return True
 
