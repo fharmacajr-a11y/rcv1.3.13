@@ -4,15 +4,24 @@ from __future__ import annotations
 import logging
 import mimetypes
 import os
+import random
 import time
 from pathlib import Path
 from typing import Iterable, Optional, Any
 
 # PERF-006: Import em nível de módulo
-from src.core.text_normalization import normalize_ascii
-from src.config.paths import CLOUD_ONLY
-from src.infra.supabase_client import supabase, baixar_pasta_zip, DownloadCancelledError
-from src.adapters.storage.port import StoragePort
+from src.core.text_normalization import normalize_ascii  # noqa: E402
+from src.config.paths import CLOUD_ONLY  # noqa: E402
+from src.infra.supabase_client import supabase, baixar_pasta_zip, DownloadCancelledError  # noqa: E402
+from src.adapters.storage.port import StoragePort  # noqa: E402
+
+# Alias patchável em testes (sem afetar time.sleep do restante do processo)
+_sleep = time.sleep
+
+# Constantes de retry do adapter
+_UPLOAD_MAX_ATTEMPTS: int = 3
+_UPLOAD_BACKOFF_BASE: float = 0.4  # segundos
+_UPLOAD_BACKOFF_MAX: float = 5.0  # segundos
 
 # Garante MIME de .docx em qualquer SO
 mimetypes.add_type(
@@ -56,6 +65,53 @@ def _guess_content_type(remote_key: str, explicit: Optional[str]) -> str:
     return guess or "application/octet-stream"
 
 
+def _is_duplicate_exc(exc: Exception) -> bool:
+    """Detecta StorageApiError 409/Duplicate ou resposta HTTP 400 com corpo 409."""
+    s = str(exc).lower()
+    return any(t in s for t in ("duplicate", "already exists", "\"409\"", "statuscode: 409", "status_code: 409"))
+
+def _is_transient_exc(exc: Exception) -> bool:
+    """Retorna True se o erro é transitório e merece retry.
+
+    Transitórios: timeouts, erros de conexão, 429, 5xx.
+    Não-transitórios: 4xx (exc. 429), 409 duplicado, erros de permissão.
+    """
+    if _is_duplicate_exc(exc):
+        return False
+
+    s = str(exc).lower()
+
+    # Bloqueio explícito de 400/401/403/404 (erros lógicos)
+    for code in ("400", "401", "403", "404"):
+        if code in s:
+            return False
+
+    # 429 rate-limit → transitório
+    if "429" in s or "rate limit" in s or "too many requests" in s:
+        return True
+
+    # 5xx → transitório
+    for code in range(500, 600):
+        if str(code) in s:
+            return True
+    for kw in ("internal server", "bad gateway", "service unavailable", "gateway timeout"):
+        if kw in s:
+            return True
+
+    # Erros de conexão / timeout pelo nome da classe ou mensagem
+    exc_cls = type(exc).__name__.lower()
+    transient_names = ("connection", "timeout", "network", "socket", "read", "write", "protocol", "dns")
+    if any(t in exc_cls for t in transient_names):
+        return True
+    if any(t in s for t in ("connection", "timeout", "network unreachable")):
+        return True
+
+    import socket  # import local: evita poluir namespace do módulo
+    if isinstance(exc, (socket.error, socket.timeout, OSError, TimeoutError, ConnectionError)):
+        return True
+
+    return False
+
 def _read_data(source: Any) -> bytes:
     if isinstance(source, (bytes, bytearray)):
         return bytes(source)
@@ -90,39 +146,101 @@ def _upload(
         data_size,
     )
 
-    try:
-        response = client.storage.from_(bucket).upload(key, data, file_options=file_options)
-        if isinstance(response, dict):
-            data_obj = response.get("data")
-            if isinstance(data_obj, dict):
-                result_path = data_obj.get("path", key)
+    last_exc: Exception | None = None
+    for attempt in range(1, _UPLOAD_MAX_ATTEMPTS + 1):
+        try:
+            response = client.storage.from_(bucket).upload(key, data, file_options=file_options)
+            if isinstance(response, dict):
+                data_obj = response.get("data")
+                if isinstance(data_obj, dict):
+                    result_path = data_obj.get("path", key)
+                else:
+                    result_path = key
             else:
                 result_path = key
-        else:
-            result_path = key
 
-        duration_ms = (time.perf_counter() - start) * 1000
-        logger.info(
-            "storage.op.success: op=upload, bucket=%s, key=%s, size=%d, duration_ms=%.2f",
-            bucket,
-            key,
-            data_size,
-            duration_ms,
-        )
-        return result_path
+            duration_ms = (time.perf_counter() - start) * 1000
+            if attempt > 1:
+                logger.info(
+                    "storage.op.success (tentativa %d/%d): op=upload, bucket=%s, key=%s, size=%d, duration_ms=%.2f",
+                    attempt,
+                    _UPLOAD_MAX_ATTEMPTS,
+                    bucket,
+                    key,
+                    data_size,
+                    duration_ms,
+                )
+            else:
+                logger.info(
+                    "storage.op.success: op=upload, bucket=%s, key=%s, size=%d, duration_ms=%.2f",
+                    bucket,
+                    key,
+                    data_size,
+                    duration_ms,
+                )
+            return result_path
 
-    except Exception as exc:
-        duration_ms = (time.perf_counter() - start) * 1000
-        logger.error(
-            "storage.op.error: op=upload, bucket=%s, key=%s, size=%d, duration_ms=%.2f, error=%s",
-            bucket,
-            key,
-            data_size,
-            duration_ms,
-            type(exc).__name__,
-            exc_info=True,
-        )
-        raise
+        except Exception as exc:
+            last_exc = exc
+            duration_ms = (time.perf_counter() - start) * 1000
+
+            if _is_duplicate_exc(exc):
+                logger.warning(
+                    "storage.op.duplicate: op=upload, bucket=%s, key=%s, size=%d, duration_ms=%.2f"
+                    " — arquivo já existe no storage (upsert não aplicado).",
+                    bucket,
+                    key,
+                    data_size,
+                    duration_ms,
+                )
+                raise  # duplicado não é transitório
+
+            if not _is_transient_exc(exc):
+                logger.error(
+                    "storage.op.error (não-transitório): op=upload, bucket=%s, key=%s, size=%d,"
+                    " duration_ms=%.2f, attempt=%d/%d, error=%s",
+                    bucket,
+                    key,
+                    data_size,
+                    duration_ms,
+                    attempt,
+                    _UPLOAD_MAX_ATTEMPTS,
+                    type(exc).__name__,
+                    exc_info=True,
+                )
+                raise  # sem retry
+
+            if attempt < _UPLOAD_MAX_ATTEMPTS:
+                delay = min(_UPLOAD_BACKOFF_BASE * (2 ** (attempt - 1)), _UPLOAD_BACKOFF_MAX)
+                delay += random.uniform(0, delay * 0.2)  # jitter 20%  # nosec B311
+                logger.warning(
+                    "storage.op.retry: op=upload, bucket=%s, key=%s, attempt=%d/%d,"
+                    " delay=%.2fs, error=%s — %s",
+                    bucket,
+                    key,
+                    attempt,
+                    _UPLOAD_MAX_ATTEMPTS,
+                    delay,
+                    type(exc).__name__,
+                    exc,
+                )
+                _sleep(delay)
+            else:
+                logger.error(
+                    "storage.op.error: op=upload, bucket=%s, key=%s, size=%d, duration_ms=%.2f,"
+                    " tentativas_esgotadas=%d, error=%s",
+                    bucket,
+                    key,
+                    data_size,
+                    duration_ms,
+                    _UPLOAD_MAX_ATTEMPTS,
+                    type(exc).__name__,
+                    exc_info=True,
+                )
+
+    # Relança última exceção após esgotar tentativas
+    assert last_exc is not None
+    raise last_exc
 
 
 def _download(client: Any, bucket: str, remote_key: str, local_path: Optional[str]) -> str | bytes:

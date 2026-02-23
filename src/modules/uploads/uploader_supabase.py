@@ -26,15 +26,18 @@ from src.modules.uploads.file_validator import (
 from src.ui.components.progress_dialog import ProgressDialog
 from src.ui.ctk_config import ctk
 from src.ui.files_browser.utils import format_file_size
-from src.ui.window_utils import apply_window_icon, prepare_hidden_window, show_centered, show_centered_no_flash
+from src.ui.window_utils import apply_window_icon, show_centered
 
 log = logging.getLogger(__name__)
 
 
 def _show_msg(parent: tk.Misc, title: str, msg: str) -> None:
-    """Exibe mensagem modal com ícone RC correto (substitui tkinter.messagebox)."""
+    """Exibe mensagem modal com ícone RC correto (substitui tkinter.messagebox).
+
+    Não usa prepare_hidden_window/show_centered_no_flash para evitar conflito
+    com a inicialização assíncrona do CTkToplevel no Windows (titlebar color).
+    """
     dlg = ctk.CTkToplevel(parent)
-    prepare_hidden_window(dlg)
     dlg.title(title)
     dlg.resizable(False, False)
     try:
@@ -49,8 +52,31 @@ def _show_msg(parent: tk.Misc, title: str, msg: str) -> None:
     ctk.CTkButton(frame, text="OK", width=90, command=dlg.destroy).pack()
 
     dlg.update_idletasks()
-    show_centered_no_flash(dlg, parent)
-    dlg.grab_set()
+    try:
+        w = max(dlg.winfo_reqwidth(), 380)
+        h = max(dlg.winfo_reqheight(), 130)
+        px = parent.winfo_rootx()
+        py = parent.winfo_rooty()
+        pw = parent.winfo_width()
+        ph = parent.winfo_height()
+        x = max(0, px + (pw - w) // 2)
+        y = max(0, py + (ph - h) // 2)
+        dlg.geometry(f"{w}x{h}+{x}+{y}")
+    except Exception:  # noqa: BLE001
+        pass
+
+    try:
+        dlg.update()
+    except Exception:  # noqa: BLE001
+        pass
+
+    try:
+        if dlg.winfo_exists():
+            dlg.grab_set()
+            dlg.focus_force()
+    except Exception:  # noqa: BLE001
+        pass
+
     try:
         parent.wait_window(dlg)
     except Exception:  # noqa: BLE001
