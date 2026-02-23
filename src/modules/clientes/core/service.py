@@ -308,7 +308,12 @@ def _resolve_current_org_id() -> str:
         res = exec_postgrest(
             supabase.table("memberships").select(MEMBERSHIPS_SELECT_ORG_ID).eq("user_id", uid).limit(1)
         )
-        org_id = res.data[0]["org_id"] if getattr(res, "data", None) else None
+        _rows: list = res.data if isinstance(getattr(res, "data", None), list) else []
+        if not _rows:
+            log.debug("_resolve_current_org_id: nenhuma membership para uid=%s", uid)
+            raise RuntimeError("Organiza��ǜo nǜo encontrada para o usuǭrio atual.")
+        row = _rows[0]
+        org_id = row.get("org_id") if isinstance(row, dict) else None
         if not org_id:
             raise RuntimeError("Organiza��ǜo nǜo encontrada para o usuǭrio atual.")
         return str(org_id)
