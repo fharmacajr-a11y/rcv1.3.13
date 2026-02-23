@@ -149,7 +149,7 @@ class TestCTkSplitPaneGuardPattern(unittest.TestCase):
         """Replica apenas os dois métodos guardados."""
 
         def __init__(self, fake_tcl_error: type[Exception]) -> None:
-            self._sash: "_FakeSash | None" = None
+            self._sash: "object | None" = None
             self._dragging: bool = False
             self._sash_hover_color: str = "blue"
             self._sash_color: str = "gray"
