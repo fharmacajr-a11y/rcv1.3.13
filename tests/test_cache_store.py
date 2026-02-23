@@ -187,29 +187,7 @@ class TestGetEntry(unittest.TestCase):
             self.assertIn("expire", entry)
             self.assertIn("timestamp", entry)
             self.assertIn("payload", entry)
-            self.assertEqual(
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                ["payload"], {"a": 1})
+            self.assertEqual(entry["payload"], {"a": 1})
 
     def test_get_entry_returns_none_when_expired(self):
         with tempfile.TemporaryDirectory() as d:

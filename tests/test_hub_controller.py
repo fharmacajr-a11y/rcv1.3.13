@@ -15,37 +15,65 @@ para que HubState funione corretamente.
 
 from __future__ import annotations
 
+import importlib
 import sys
 import threading
 import unittest
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 # ---------------------------------------------------------------------------
-# 1. Pre-mock de módulos pesados — deve acontecer ANTES do import do controller
+# 1. Stubs — construídos em _build_stubs(), aplicados em setUpModule
+#    NÃO modificam sys.modules em tempo de importação/discover
 # ---------------------------------------------------------------------------
-_LOGGER_MOCK = MagicMock()
-_LOGGER_MOCK.get_logger.return_value = MagicMock()
 
-_HEAVY_MOCKS: dict[str, MagicMock] = {
-    "src.core.logger": _LOGGER_MOCK,
-    "src.modules.hub.colors": MagicMock(),
-    "src.modules.hub.services": MagicMock(),
-    "src.modules.hub.services.authors_service": MagicMock(),
-    "src.modules.hub.format": MagicMock(),
-    "src.modules.hub.utils": MagicMock(),
-    "src.modules.notas": MagicMock(),
-    "src.modules.notas.service": MagicMock(),
-    "tkinter": MagicMock(),
-    "tkinter.messagebox": MagicMock(),
-}
+def _build_stubs() -> dict:
+    """Retorna dict de stubs para patch.dict(sys.modules). Sem side-effects."""
+    _logger_mock = MagicMock()
+    _logger_mock.get_logger.return_value = MagicMock()
+    return {
+        "src.core.logger":                          _logger_mock,
+        "src.modules.hub.colors":                   MagicMock(),
+        "src.modules.hub.services":                 MagicMock(),
+        "src.modules.hub.services.authors_service": MagicMock(),
+        "src.modules.hub.format":                   MagicMock(),
+        "src.modules.hub.utils":                    MagicMock(),
+        "src.modules.notas":                        MagicMock(),
+        "src.modules.notas.service":                MagicMock(),
+        "tkinter":                                  MagicMock(),
+        "tkinter.messagebox":                       MagicMock(),
+    }
 
-for _mod_name, _mock in _HEAVY_MOCKS.items():
-    sys.modules.setdefault(_mod_name, _mock)
 
-# Agora é seguro importar o controller
-import src.modules.hub.controller as _ctrl  # noqa: E402
-from src.modules.hub.controller import cancel_poll, schedule_poll  # noqa: E402
-from src.modules.hub.state import HubState  # noqa: E402
+# Placeholders — preenchidos em setUpModule
+_ctrl: Any = None
+cancel_poll: Any = None
+schedule_poll: Any = None
+HubState: Any = None
+_hc_patcher: Any = None
+
+
+def setUpModule() -> None:  # noqa: N802
+    global _ctrl, cancel_poll, schedule_poll, HubState, _hc_patcher
+    _hc_patcher = patch.dict(sys.modules, _build_stubs())
+    _hc_patcher.start()
+    _ctrl_mod = importlib.import_module("src.modules.hub.controller")
+    _state_mod = importlib.import_module("src.modules.hub.state")
+    _ctrl = _ctrl_mod
+    cancel_poll = _ctrl_mod.cancel_poll
+    schedule_poll = _ctrl_mod.schedule_poll
+    HubState = _state_mod.HubState
+
+
+def tearDownModule() -> None:  # noqa: N802
+    global _ctrl, cancel_poll, schedule_poll, HubState, _hc_patcher
+    _ctrl = None
+    cancel_poll = None
+    schedule_poll = None
+    HubState = None
+    if _hc_patcher is not None:
+        _hc_patcher.stop()
+    _hc_patcher = None
 
 
 # ---------------------------------------------------------------------------

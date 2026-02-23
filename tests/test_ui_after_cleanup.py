@@ -190,14 +190,20 @@ class TestSplashProgressJobStored(unittest.TestCase):
 # PARTE 2 — CTkAutocompleteEntry: stubs para importação sem UI real
 # ---------------------------------------------------------------------------
 
-def _install_autocomplete_stubs() -> None:
-    """Instala módulos stub necessários para importar ctk_autocomplete_entry."""
+import importlib
+import importlib.util
+from typing import cast
+from unittest.mock import patch
 
-    def _stub(name: str, **attrs) -> types.ModuleType:
+
+def _build_autocomplete_stubs() -> dict:
+    """Retorna dict de stubs para patch.dict(sys.modules).
+    NÃO modifica sys.modules — seguro em tempo de importação/discover."""
+
+    def _make_mod(name: str, **attrs) -> types.ModuleType:
         mod = types.ModuleType(name)
         for k, v in attrs.items():
             setattr(mod, k, v)
-        sys.modules.setdefault(name, mod)
         return mod
 
     # FakeFrame: base para CTkAutocompleteEntry
@@ -263,28 +269,44 @@ def _install_autocomplete_stubs() -> None:
         CTkScrollableFrame = _FakeCTkScrollableFrame
         CTkButton = _FakeCTkButton
 
-    fake_ctk_module = _stub("src.ui.ctk_config", ctk=_FakeCtk())
-    _stub("src.ui.typing_utils", TkInfoMixin=object, TkToplevelMixin=object)
-    _stub("src.ui", ctk_config=fake_ctk_module)
+    fake_ctk_config = _make_mod("src.ui.ctk_config", ctk=_FakeCtk())
+    fake_typing_utils = _make_mod("src.ui.typing_utils",
+                                  TkInfoMixin=object, TkToplevelMixin=object)
+    fake_ui = _make_mod("src.ui", ctk_config=fake_ctk_config)
+
+    return {
+        "src.ui.ctk_config": fake_ctk_config,
+        "src.ui.typing_utils": fake_typing_utils,
+        "src.ui": fake_ui,
+    }
 
 
-_install_autocomplete_stubs()
+_AC_MOD_NAME = "_test_ui_autocomplete_entry"
+_AC_MOD_PATH = r"c:\Users\Pichau\Desktop\v1.5.73\src\ui\widgets\ctk_autocomplete_entry.py"
 
-# Importa o módulo alvo via spec_from_file_location
-import importlib
-import importlib.util
-from typing import cast
+# Placeholders — preenchidos em setUpModule
+CTkAutocompleteEntry: Any = None
+_ac_patcher: Any = None
 
-_spec = importlib.util.spec_from_file_location(
-    "src.ui.widgets.ctk_autocomplete_entry",
-    r"c:\Users\Pichau\Desktop\v1.5.73\src\ui\widgets\ctk_autocomplete_entry.py",
-)
-_ac_mod = importlib.util.module_from_spec(_spec)
-sys.modules["src.ui.widgets.ctk_autocomplete_entry"] = _ac_mod
-_spec.loader.exec_module(_ac_mod)  # type: ignore[union-attr]
 
-_acmod = cast(Any, _ac_mod)
-CTkAutocompleteEntry = _acmod.CTkAutocompleteEntry
+def setUpModule() -> None:
+    global CTkAutocompleteEntry, _ac_patcher
+    _ac_patcher = patch.dict(sys.modules, _build_autocomplete_stubs())
+    _ac_patcher.start()
+    spec = importlib.util.spec_from_file_location(_AC_MOD_NAME, _AC_MOD_PATH)
+    mod = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+    sys.modules[_AC_MOD_NAME] = mod
+    spec.loader.exec_module(mod)  # type: ignore[union-attr]
+    CTkAutocompleteEntry = cast(Any, mod).CTkAutocompleteEntry
+
+
+def tearDownModule() -> None:
+    global CTkAutocompleteEntry, _ac_patcher
+    CTkAutocompleteEntry = None
+    sys.modules.pop(_AC_MOD_NAME, None)
+    if _ac_patcher is not None:
+        _ac_patcher.stop()
+    _ac_patcher = None
 
 
 def _make_entry() -> Any:

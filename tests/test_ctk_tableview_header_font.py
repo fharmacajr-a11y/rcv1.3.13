@@ -106,6 +106,17 @@ class TestCTkTableViewHeaderFont(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        # Salva estado anterior — restaurado em tearDownClass
+        _stub_keys = [
+            "customtkinter",
+            "src.ui.ctk_config",
+            "src.ui.table_ui_spec",
+            "src.ui.ttk_treeview_theme",
+            "CTkTable",
+            "src.ui.widgets.ctk_tableview",
+        ]
+        cls._saved_mods: dict = {k: sys.modules.get(k) for k in _stub_keys}
+
         cls.FakeCTkTable = _install_stubs()
         # Carrega o módulo diretamente (bypassa __init__.py que puxa ctk_treeview)
         spec = importlib.util.spec_from_file_location(
@@ -116,6 +127,16 @@ class TestCTkTableViewHeaderFont(unittest.TestCase):
         sys.modules["src.ui.widgets.ctk_tableview"] = cls.mod
         spec.loader.exec_module(cls.mod)
         cls.mod = cast(Any, cls.mod)  # evita reportAttributeAccessIssue
+
+    @classmethod
+    def tearDownClass(cls):
+        """Restaura sys.modules ao estado anterior aos stubs."""
+        for k, v in cls._saved_mods.items():
+            if v is None:
+                sys.modules.pop(k, None)
+            else:
+                sys.modules[k] = v
+        cls._saved_mods = {}
 
     def setUp(self):
         # Limpar instâncias entre testes

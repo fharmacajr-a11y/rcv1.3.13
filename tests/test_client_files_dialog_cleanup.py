@@ -20,59 +20,83 @@ from unittest.mock import MagicMock, call, patch
 # ---------------------------------------------------------------------------
 # 1. Pre-mock de módulos pesados (tkinter, ctk, supabase, etc.)
 # ---------------------------------------------------------------------------
-_mk = MagicMock
-
-for _name in [
-    "tkinter",
-    "tkinter.messagebox",
-    "tkinter.filedialog",
-    "customtkinter",
-    "PIL",
-    "PIL.Image",
-    "PIL.ImageDraw",
-    "PIL.ImageTk",
-    "yaml",
-    "src.ui.ctk_config",
-    "src.ui.widgets.button_factory",
-    "src.ui.ui_tokens",
-    "src.ui.ttk_treeview_theme",
-    "src.ui.widgets.ctk_treeview_container",
-    "src.ui.dark_window_helper",
-    "src.ui.window_utils",
-    "src.adapters.storage.supabase_storage",
-    "src.modules.uploads.components.helpers",
-    "src.modules.clientes.forms.client_subfolder_prompt",
-    "src.infra.supabase_client",
-    "src.infra.supabase.db_client",
-    "src.infra.supabase.auth_client",
-]:
-    sys.modules.setdefault(_name, _mk())
-
-# Tkinter precisa de TclError como exceção real para o código de shutdown
-_tk_mod = sys.modules["tkinter"]
-_tk_mod.TclError = type("TclError", (Exception,), {})  # type: ignore[attr-defined]
-_tk_mod.Misc = object  # type: ignore[attr-defined]
-
-# ctk_config: ctk.CTkToplevel deve ser uma classe simples, não MagicMock
-_ctk_toplevel_base = type("CTkToplevel", (object,), {"winfo_exists": lambda self: True})
-_ctk_mod = MagicMock()
-_ctk_mod.CTkToplevel = _ctk_toplevel_base
-sys.modules["src.ui.ctk_config"].ctk = _ctk_mod  # type: ignore[attr-defined]
+from typing import Any, cast
 
 # ---------------------------------------------------------------------------
-# 2. Importar ClientFilesDialog diretamente pelo arquivo (ignora __init__.py)
+# 1. Stubs — construídos em _build_stubs(), aplicados em setUpModule
+#    NÃO modificam sys.modules em tempo de importação/discover
 # ---------------------------------------------------------------------------
-_WORKSPACE = pathlib.Path(__file__).parent.parent
-_DIALOG_PATH = (
-    _WORKSPACE / "src" / "modules" / "clientes" / "ui" / "views" / "client_files_dialog.py"
+
+_DIALOG_MOD_NAME = "src.modules.clientes.ui.views.client_files_dialog"
+_DIALOG_MOD_PATH = (
+    pathlib.Path(__file__).parent.parent
+    / "src" / "modules" / "clientes" / "ui" / "views" / "client_files_dialog.py"
 )
-_spec = importlib.util.spec_from_file_location(
-    "src.modules.clientes.ui.views.client_files_dialog", _DIALOG_PATH
-)
-_dialog_module = importlib.util.module_from_spec(_spec)  # type: ignore[arg-type]
-sys.modules[str(_spec.name)] = _dialog_module
-_spec.loader.exec_module(_dialog_module)  # type: ignore[union-attr]
-ClientFilesDialog = _dialog_module.ClientFilesDialog
+
+
+def _build_stubs() -> dict:
+    """Retorna dict de stubs para patch.dict(sys.modules). Sem side-effects."""
+    _TclError = type("TclError", (Exception,), {})
+    _tk = types.ModuleType("tkinter")
+    _tk.TclError = _TclError  # type: ignore[attr-defined]
+    _tk.Misc = object          # type: ignore[attr-defined]
+
+    _ctk_toplevel_base = type("CTkToplevel", (object,), {"winfo_exists": lambda self: True})
+    _ctk_inner = MagicMock()
+    _ctk_inner.CTkToplevel = _ctk_toplevel_base
+    _ctk_config = MagicMock()
+    _ctk_config.ctk = _ctk_inner
+
+    stubs: dict = {
+        "tkinter":                                         _tk,
+        "tkinter.messagebox":                              MagicMock(),
+        "tkinter.filedialog":                              MagicMock(),
+        "customtkinter":                                   MagicMock(),
+        "PIL":                                             MagicMock(),
+        "PIL.Image":                                       MagicMock(),
+        "PIL.ImageDraw":                                   MagicMock(),
+        "PIL.ImageTk":                                     MagicMock(),
+        "yaml":                                            MagicMock(),
+        "src.ui.ctk_config":                               _ctk_config,
+        "src.ui.widgets.button_factory":                   MagicMock(),
+        "src.ui.ui_tokens":                                MagicMock(),
+        "src.ui.ttk_treeview_theme":                       MagicMock(),
+        "src.ui.widgets.ctk_treeview_container":           MagicMock(),
+        "src.ui.dark_window_helper":                       MagicMock(),
+        "src.ui.window_utils":                             MagicMock(),
+        "src.adapters.storage.supabase_storage":           MagicMock(),
+        "src.modules.uploads.components.helpers":          MagicMock(),
+        "src.modules.clientes.forms.client_subfolder_prompt": MagicMock(),
+        "src.infra.supabase_client":                       MagicMock(),
+        "src.infra.supabase.db_client":                    MagicMock(),
+        "src.infra.supabase.auth_client":                  MagicMock(),
+    }
+    return stubs
+
+
+# Placeholders — preenchidos em setUpModule
+ClientFilesDialog: Any = None
+_cf_patcher: Any = None
+
+
+def setUpModule() -> None:  # noqa: N802
+    global ClientFilesDialog, _cf_patcher
+    _cf_patcher = patch.dict(sys.modules, _build_stubs())
+    _cf_patcher.start()
+    spec = importlib.util.spec_from_file_location(_DIALOG_MOD_NAME, _DIALOG_MOD_PATH)
+    mod = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+    sys.modules[_DIALOG_MOD_NAME] = mod
+    spec.loader.exec_module(mod)  # type: ignore[union-attr]
+    ClientFilesDialog = cast(Any, mod).ClientFilesDialog
+
+
+def tearDownModule() -> None:  # noqa: N802
+    global ClientFilesDialog, _cf_patcher
+    ClientFilesDialog = None
+    sys.modules.pop(_DIALOG_MOD_NAME, None)
+    if _cf_patcher is not None:
+        _cf_patcher.stop()
+    _cf_patcher = None
 
 
 # ---------------------------------------------------------------------------

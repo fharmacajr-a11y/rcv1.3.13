@@ -14,30 +14,60 @@ import unittest
 import importlib.util
 import pathlib
 import types
-from unittest.mock import MagicMock
+from typing import Any, cast
+from unittest.mock import MagicMock, patch
 
-_tk_mock = types.ModuleType("tkinter")
 
-
-class _TclError(Exception):
+class _TclError(Exception):  # noqa: N801 — classe auxiliar
     pass
 
 
-_tk_mock.TclError = _TclError  # type: ignore[attr-defined]
-_tk_mock.Misc = object  # type: ignore[attr-defined]
-_tk_mock.messagebox = MagicMock()  # type: ignore[attr-defined]
-sys.modules.setdefault("tkinter", _tk_mock)
-sys.modules.setdefault("tkinter.messagebox", MagicMock())
+# ---------------------------------------------------------------------------
+# Stubs — construídos em _build_stubs(), aplicados em setUpModule
+# NÃO modificam sys.modules em tempo de importação/discover
+# ---------------------------------------------------------------------------
 
-# Importa async_runner diretamente pelo caminho do arquivo, ignorando o
-# hub/__init__.py que arrasta toda a cadeia views → HubScreen → tkinter pesado.
-_WORKSPACE = pathlib.Path(__file__).parent.parent
-_RUNNER_PATH = _WORKSPACE / "src" / "modules" / "hub" / "async_runner.py"
-_spec = importlib.util.spec_from_file_location("src.modules.hub.async_runner", _RUNNER_PATH)
-_runner_module = importlib.util.module_from_spec(_spec)  # type: ignore[arg-type]
-sys.modules["src.modules.hub.async_runner"] = _runner_module
-_spec.loader.exec_module(_runner_module)  # type: ignore[union-attr]
-HubAsyncRunner = _runner_module.HubAsyncRunner
+_RUNNER_MOD_NAME = "src.modules.hub.async_runner"
+_RUNNER_MOD_PATH = (
+    pathlib.Path(__file__).parent.parent / "src" / "modules" / "hub" / "async_runner.py"
+)
+
+
+def _build_stubs() -> dict:
+    """Retorna dict de stubs para patch.dict(sys.modules). Sem side-effects."""
+    _tk = types.ModuleType("tkinter")
+    _tk.TclError = _TclError  # type: ignore[attr-defined]
+    _tk.Misc = object          # type: ignore[attr-defined]
+    _tk.messagebox = MagicMock()  # type: ignore[attr-defined]
+    return {
+        "tkinter":           _tk,
+        "tkinter.messagebox": MagicMock(),
+    }
+
+
+# Placeholders — preenchidos em setUpModule
+HubAsyncRunner: Any = None
+_runner_patcher: Any = None
+
+
+def setUpModule() -> None:  # noqa: N802
+    global HubAsyncRunner, _runner_patcher
+    _runner_patcher = patch.dict(sys.modules, _build_stubs())
+    _runner_patcher.start()
+    spec = importlib.util.spec_from_file_location(_RUNNER_MOD_NAME, _RUNNER_MOD_PATH)
+    mod = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+    sys.modules[_RUNNER_MOD_NAME] = mod
+    spec.loader.exec_module(mod)  # type: ignore[union-attr]
+    HubAsyncRunner = cast(Any, mod).HubAsyncRunner
+
+
+def tearDownModule() -> None:  # noqa: N802
+    global HubAsyncRunner, _runner_patcher
+    HubAsyncRunner = None
+    sys.modules.pop(_RUNNER_MOD_NAME, None)
+    if _runner_patcher is not None:
+        _runner_patcher.stop()
+    _runner_patcher = None
 
 
 # ---------------------------------------------------------------------------

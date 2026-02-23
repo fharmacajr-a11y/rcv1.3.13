@@ -12,102 +12,112 @@ Cobre _resolve_current_org_id para garantir que:
 """
 from __future__ import annotations
 
+import importlib
+import importlib.util
+import re
 import sys
 import types
 import unittest
+from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
+_SVC_MOD_NAME = "src.modules.clientes.core.service"  # nome real → __package__ correto para imports relativos
+_SVC_MOD_PATH = r"c:\Users\Pichau\Desktop\v1.5.73\src\modules\clientes\core\service.py"
+
+
 # ---------------------------------------------------------------------------
-# Stubs mínimos para importar service.py sem dependências pesadas
+# Stubs mínimos — retorna dict (NÃO modifica sys.modules)
 # ---------------------------------------------------------------------------
 
-def _install_stubs() -> None:
-    """Injeta módulos stub em sys.modules antes de importar o alvo."""
+def _build_stubs() -> dict:
+    """Constrói stubs sem tocar em sys.modules (seguro em tempo de import)."""
 
-    def _stub(name: str, **attrs) -> types.ModuleType:
+    def _mk(name: str, **attrs) -> types.ModuleType:
         mod = types.ModuleType(name)
         for k, v in attrs.items():
             setattr(mod, k, v)
-        sys.modules.setdefault(name, mod)
         return mod
 
-    # src.adapters.storage.api
-    _stub(
+    class _FakeAdapter:
+        def __init__(self, **kw): ...
+
+    fake_storage_api = _mk(
         "src.adapters.storage.api",
         delete_file=MagicMock(),
         list_files=MagicMock(return_value=[]),
         using_storage_backend=MagicMock(),
     )
+    fake_supa_storage = _mk("src.adapters.storage.supabase_storage",
+                             SupabaseStorageAdapter=_FakeAdapter)
+    fake_storage     = _mk("src.adapters.storage",
+                            api=fake_storage_api, supabase_storage=fake_supa_storage)
+    fake_adapters    = _mk("src.adapters", storage=fake_storage)
+    fake_db_schemas  = _mk("src.infra.db_schemas", MEMBERSHIPS_SELECT_ORG_ID="org_id")
+    fake_supa_client = _mk("src.infra.supabase_client",
+                            supabase=MagicMock(), exec_postgrest=MagicMock())
+    fake_infra       = _mk("src.infra", supabase_client=fake_supa_client,
+                            db_schemas=fake_db_schemas)
+    fake_cnpj        = _mk("src.core.cnpj_norm", normalize_cnpj=lambda x: x)
+    fake_db_mgr      = _mk("src.core.db_manager",
+                            find_cliente_by_cnpj_norm=MagicMock(return_value=None),
+                            get_cliente_by_id=MagicMock(return_value=None),
+                            list_clientes_deletados=MagicMock(return_value=[]))
+    fake_cli_svc     = _mk("src.core.services.clientes_service",
+                            count_clients=MagicMock(return_value=0),
+                            checar_duplicatas_info=MagicMock(return_value={}),
+                            salvar_cliente=MagicMock())
+    fake_core_svcs   = _mk("src.core.services", clientes_service=fake_cli_svc)
+    fake_constants   = _mk("src.modules.clientes.core.constants",
+                            STATUS_PREFIX_RE=re.compile(r""))
+    fake_cli_core    = _mk("src.modules.clientes.core", constants=fake_constants)
+    fake_clientes    = _mk("src.modules.clientes", core=fake_cli_core)
+    fake_modules     = _mk("src.modules", clientes=fake_clientes)
 
-    # src.adapters.storage.supabase_storage
-    class _FakeAdapter:
-        def __init__(self, **kw): ...
-    _stub("src.adapters.storage.supabase_storage", SupabaseStorageAdapter=_FakeAdapter)
-    _stub("src.adapters.storage", supabase_storage=sys.modules["src.adapters.storage.supabase_storage"])
-    _stub("src.adapters", storage=sys.modules.get("src.adapters.storage"))
-
-    # src.infra.db_schemas
-    _stub("src.infra.db_schemas", MEMBERSHIPS_SELECT_ORG_ID="org_id")
-
-    # supabase_client fake — supabase e exec_postgrest patcháveis depois
-    _fake_supabase = MagicMock()
-    _stub("src.infra.supabase_client", supabase=_fake_supabase, exec_postgrest=MagicMock())
-    _stub("src.infra", supabase_client=sys.modules["src.infra.supabase_client"])
-
-    # src.core.cnpj_norm
-    _stub("src.core.cnpj_norm", normalize_cnpj=lambda x: x)
-
-    # src.core.db_manager
-    _stub(
-        "src.core.db_manager",
-        find_cliente_by_cnpj_norm=MagicMock(return_value=None),
-        get_cliente_by_id=MagicMock(return_value=None),
-        list_clientes_deletados=MagicMock(return_value=[]),
-    )
-
-    # src.core.services.clientes_service
-    _fake_legacy = MagicMock()
-    _fake_legacy.count_clients = MagicMock(return_value=0)
-    _fake_legacy.checar_duplicatas_info = MagicMock(return_value={})
-    _fake_legacy.salvar_cliente = MagicMock()
-    _stub("src.core.services.clientes_service", **{
-        "count_clients": _fake_legacy.count_clients,
-        "checar_duplicatas_info": _fake_legacy.checar_duplicatas_info,
-        "salvar_cliente": _fake_legacy.salvar_cliente,
-    })
-    _fake_core_services = types.ModuleType("src.core.services")
-    _fake_core_services.clientes_service = sys.modules["src.core.services.clientes_service"]
-    sys.modules.setdefault("src.core.services", _fake_core_services)
-
-    # src.modules.clientes.core.constants
-    import re
-    _stub("src.modules.clientes.core.constants", STATUS_PREFIX_RE=re.compile(r""))
-    _stub("src.modules.clientes.core", constants=sys.modules["src.modules.clientes.core.constants"])
-    _stub("src.modules.clientes", core=sys.modules.get("src.modules.clientes.core"))
-    _stub("src.modules", clientes=sys.modules.get("src.modules.clientes"))
-    _stub("src", modules=sys.modules.get("src.modules"),
-          core=sys.modules.get("src.core"),
-          infra=sys.modules.get("src.infra"),
-          adapters=sys.modules.get("src.adapters"),
-    )
+    return {
+        "src.adapters.storage.api":              fake_storage_api,
+        "src.adapters.storage.supabase_storage": fake_supa_storage,
+        "src.adapters.storage":                  fake_storage,
+        "src.adapters":                          fake_adapters,
+        "src.infra.db_schemas":                  fake_db_schemas,
+        "src.infra.supabase_client":             fake_supa_client,
+        "src.infra":                             fake_infra,
+        "src.core.cnpj_norm":                    fake_cnpj,
+        "src.core.db_manager":                   fake_db_mgr,
+        "src.core.services.clientes_service":    fake_cli_svc,
+        "src.core.services":                     fake_core_svcs,
+        "src.modules.clientes.core.constants":   fake_constants,
+        "src.modules.clientes.core":             fake_cli_core,
+        "src.modules.clientes":                  fake_clientes,
+        "src.modules":                           fake_modules,
+    }
 
 
-_install_stubs()
+# ---------------------------------------------------------------------------
+# Módulo-alvo e patcher — inicializados em setUpModule, limpos em tearDownModule
+# ---------------------------------------------------------------------------
 
-# Após stubs, importa o módulo alvo
-import importlib
-import importlib.util
+_patcher: Any = None
+svc: Any = None  # acessível pelos métodos de teste — definido em setUpModule
 
-_spec = importlib.util.spec_from_file_location(
-    "src.modules.clientes.core.service",
-    r"c:\Users\Pichau\Desktop\v1.5.73\src\modules\clientes\core\service.py",
-)
-_svc_mod = importlib.util.module_from_spec(_spec)
-sys.modules["src.modules.clientes.core.service"] = _svc_mod
-_spec.loader.exec_module(_svc_mod)  # type: ignore[union-attr]
 
-from typing import Any, cast
-svc = cast(Any, _svc_mod)
+def setUpModule() -> None:  # noqa: N802
+    global _patcher, svc
+    _patcher = patch.dict(sys.modules, _build_stubs())
+    _patcher.start()
+    spec = importlib.util.spec_from_file_location(_SVC_MOD_NAME, _SVC_MOD_PATH)
+    mod = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+    sys.modules[_SVC_MOD_NAME] = mod
+    spec.loader.exec_module(mod)  # type: ignore[union-attr]
+    svc = cast(Any, mod)
+
+
+def tearDownModule() -> None:  # noqa: N802
+    global _patcher, svc
+    svc = None
+    sys.modules.pop(_SVC_MOD_NAME, None)
+    if _patcher is not None:
+        _patcher.stop()
+    _patcher = None
 
 
 # ---------------------------------------------------------------------------
