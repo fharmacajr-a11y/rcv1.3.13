@@ -90,6 +90,10 @@ class ScrollableFrame(tk.Frame):
         # Bind de mousewheel para scroll
         self._bind_mousewheel()
 
+        # Cleanup: garantir que bind_all seja removido mesmo se widget destruído enquanto
+        # o mouse está sobre o canvas (Fase 13: evitar leak de bind global)
+        self.canvas.bind("<Destroy>", self._on_canvas_destroy)
+
     def _on_content_configure(self, event: Event | None = None) -> None:
         """Atualiza a scrollregion quando o conteúdo muda de tamanho.
 
@@ -148,6 +152,10 @@ class ScrollableFrame(tk.Frame):
             self.canvas.yview_scroll(-1, "units")
         elif event.num == 5 or event.delta < 0:
             self.canvas.yview_scroll(1, "units")
+
+    def _on_canvas_destroy(self, event: "Event | None" = None) -> None:
+        """Remove bind_all globais quando o canvas é destruído (Fase 13)."""
+        self._on_leave()
 
     def scroll_to_top(self) -> None:
         """Rola o conteúdo para o topo."""

@@ -13,6 +13,7 @@ from typing import Any, Callable, Optional, cast
 # CustomTkinter: fonte única centralizada (SSoT)
 from src.ui.ctk_config import ctk
 from src.ui.typing_utils import TkInfoMixin, TkToplevelMixin
+from src.ui.utils.binding_tracker import BindingTracker
 
 log = logging.getLogger(__name__)
 
@@ -62,6 +63,9 @@ class CTkAutocompleteEntry(ctk.CTkFrame):
         self._debounce_ms: int = 300
         self.on_pick: Optional[Callable[[dict[str, Any]], None]] = None
 
+        # Rastreador de bindings (Fase 13)
+        self._binding_tracker = BindingTracker()
+
         # Entry principal
         self.entry = ctk.CTkEntry(
             self,
@@ -70,13 +74,13 @@ class CTkAutocompleteEntry(ctk.CTkFrame):
         )
         self.entry.pack(fill="x", expand=True)
 
-        # Binds
-        self.entry.bind("<KeyRelease>", self._on_key_release)
-        self.entry.bind("<Down>", self._on_down)
-        self.entry.bind("<Up>", self._on_up)
-        self.entry.bind("<Return>", self._on_return)
-        self.entry.bind("<Escape>", self._on_escape)
-        self.entry.bind("<FocusOut>", self._on_focus_out)
+        # Binds (rastreados para cleanup — Fase 13)
+        self._binding_tracker.bind(self.entry, "<KeyRelease>", self._on_key_release)
+        self._binding_tracker.bind(self.entry, "<Down>", self._on_down)
+        self._binding_tracker.bind(self.entry, "<Up>", self._on_up)
+        self._binding_tracker.bind(self.entry, "<Return>", self._on_return)
+        self._binding_tracker.bind(self.entry, "<Escape>", self._on_escape)
+        self._binding_tracker.bind(self.entry, "<FocusOut>", self._on_focus_out)
 
     def get(self) -> str:
         """Retorna texto do entry."""
@@ -309,6 +313,9 @@ class CTkAutocompleteEntry(ctk.CTkFrame):
             except Exception:
                 pass
             self._dropdown = None
+
+        # Remover bindings do entry interno (Fase 13)
+        self._binding_tracker.unbind_all()
 
         # Destruir frame pai
         super().destroy()

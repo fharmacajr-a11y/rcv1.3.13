@@ -1,4 +1,5 @@
-# ui/utils.py
+# src/ui/utils — utilidades internas de UI
+# Conteúdo migrado de src/ui/utils.py ao criar o pacote (Fase 13)
 from __future__ import annotations
 
 import logging

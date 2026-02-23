@@ -9,6 +9,7 @@ import tkinter as tk
 from typing import Any, Literal, cast
 
 from src.ui.ctk_config import ctk
+from src.ui.utils.binding_tracker import BindingTracker
 
 
 class CTkSplitPane(ctk.CTkFrame):
@@ -48,6 +49,10 @@ class CTkSplitPane(ctk.CTkFrame):
         self._dragging = False
         self._drag_start_pos = 0
         self._ratio = 0.5  # Proporção inicial 50/50
+
+        # Rastreador de bindings para cleanup (Fase 13)
+        self._binding_tracker = BindingTracker()
+        self.bind("<Destroy>", self._on_splitpane_destroy)
         self._minsize1 = 50
         self._minsize2 = 50
 
@@ -79,12 +84,12 @@ class CTkSplitPane(ctk.CTkFrame):
             )
             self._sash.grid(row=1, column=0, sticky="ew")
 
-        # Bind drag events
-        self._sash.bind("<ButtonPress-1>", self._on_sash_press)
-        self._sash.bind("<B1-Motion>", self._on_sash_drag)
-        self._sash.bind("<ButtonRelease-1>", self._on_sash_release)
-        self._sash.bind("<Enter>", self._on_sash_enter)
-        self._sash.bind("<Leave>", self._on_sash_leave)
+        # Bind drag events (rastreados para cleanup — Fase 13)
+        self._binding_tracker.bind(self._sash, "<ButtonPress-1>", self._on_sash_press)
+        self._binding_tracker.bind(self._sash, "<B1-Motion>", self._on_sash_drag)
+        self._binding_tracker.bind(self._sash, "<ButtonRelease-1>", self._on_sash_release)
+        self._binding_tracker.bind(self._sash, "<Enter>", self._on_sash_enter)
+        self._binding_tracker.bind(self._sash, "<Leave>", self._on_sash_leave)
 
     def add(self, widget: tk.Widget, **kwargs: Any) -> None:
         """Adiciona um pane ao container.
@@ -181,6 +186,12 @@ class CTkSplitPane(ctk.CTkFrame):
     def _on_sash_release(self, event: Any) -> None:  # event: tkinter Event em runtime
         """Handler para fim do drag."""
         self._dragging = False
+
+    def _on_splitpane_destroy(self, event: Any) -> None:
+        """Remove bindings do sash ao destruir (Fase 13)."""
+        if event.widget is not self:
+            return
+        self._binding_tracker.unbind_all()
 
     def _on_sash_enter(self, event: Any) -> None:  # event: tkinter Event em runtime
         """Handler para mouse enter no sash."""

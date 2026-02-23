@@ -8,6 +8,7 @@ import tkinter.font as tkfont
 from typing import Protocol, Type
 
 from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+from src.ui.utils.binding_tracker import BindingTracker
 from src.ui.widgets.button_factory import make_btn
 
 __all__ = ["PlaceholderType"]
@@ -24,6 +25,7 @@ class _BasePlaceholder(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkF
 
     def __init__(self, master, *, on_back: _BackCb | None = None, **_):
         super().__init__(master)
+        self._binding_tracker = BindingTracker()
 
         # Configurar fonte para CTk e tk
         if HAS_CUSTOMTKINTER and ctk is not None:
@@ -57,12 +59,22 @@ class _BasePlaceholder(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkF
 
         if callable(on_back):
             btn.configure(command=on_back)
-            self.bind_all("<Escape>", lambda e: on_back(), add="+")
+            self._binding_tracker.bind_all(self, "<Escape>", lambda e: on_back())
+
+        # Cleanup: remover bind_all global quando este frame for destruído (Fase 13)
+        self.bind("<Destroy>", self._on_placeholder_destroy)
 
         try:
             self.master.pack_propagate(False)
         except Exception as exc:  # noqa: BLE001
             _log.debug("Falha ao desabilitar pack_propagate: %s", exc)
+
+
+    def _on_placeholder_destroy(self, event: tk.Event) -> None:  # type: ignore[override]
+        """Remove bind_all global ao destruir (Fase 13)."""
+        if event.widget is not self:
+            return
+        self._binding_tracker.unbind_all()
 
 
 class AuditoriaPlaceholder(_BasePlaceholder):
