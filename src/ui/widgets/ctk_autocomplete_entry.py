@@ -58,6 +58,7 @@ class CTkAutocompleteEntry(ctk.CTkFrame):
         self._dropdown_frame: Optional[ctk.CTkScrollableFrame] = None
         self._selected_index: int = -1
         self._debounce_id: Optional[str] = None
+        self._focus_out_job: Optional[str] = None  # after-id do delay de focus-out
         self._debounce_ms: int = 300
         self.on_pick: Optional[Callable[[dict[str, Any]], None]] = None
 
@@ -275,21 +276,39 @@ class CTkAutocompleteEntry(ctk.CTkFrame):
 
     def _on_focus_out(self, event: Any) -> None:
         """Fecha dropdown após perder foco (com delay)."""
-        # Delay para permitir clique no botão
-        self.after(200, self._close_dropdown)
+        # Delay para permitir clique no botão — armazena id para poder cancelar no cleanup
+        if self._focus_out_job:
+            try:
+                self.after_cancel(self._focus_out_job)
+            except Exception:
+                pass
+        self._focus_out_job = self.after(200, self._close_dropdown)
 
     def destroy(self) -> None:
-        """Cleanup ao destruir."""
-        # Cancelar debounce
+        """Cleanup ao destruir (idempotente)."""
+        # Cancelar debounce pendente
         if self._debounce_id:
-            self.after_cancel(self._debounce_id)
+            try:
+                self.after_cancel(self._debounce_id)
+            except Exception:
+                pass
+            self._debounce_id = None
 
-        # Destruir dropdown
-        if self._dropdown:
+        # Cancelar delay de focus-out pendente
+        if self._focus_out_job:
+            try:
+                self.after_cancel(self._focus_out_job)
+            except Exception:
+                pass
+            self._focus_out_job = None
+
+        # Destruir dropdown (se ainda existir)
+        if self._dropdown is not None:
             try:
                 self._dropdown.destroy()
             except Exception:
                 pass
+            self._dropdown = None
 
         # Destruir frame pai
         super().destroy()

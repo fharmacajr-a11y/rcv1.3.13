@@ -220,6 +220,7 @@ def show_splash(root: tk.Misc, min_ms: int = SPLASH_MIN_DURATION_MS) -> tk.Tople
         step = delay_ms / float(min_ms)
 
         def tick() -> None:
+            splash._progress_job = None  # type: ignore[attr-defined]  # job atual terminou
             try:
                 if not splash.winfo_exists():
                     return
@@ -233,7 +234,7 @@ def show_splash(root: tk.Misc, min_ms: int = SPLASH_MIN_DURATION_MS) -> tk.Tople
                 return
 
             if splash._pb < 1.0:  # type: ignore[attr-defined]
-                splash.after(delay_ms, tick)
+                splash._progress_job = splash.after(delay_ms, tick)  # type: ignore[attr-defined]
 
         tick()
     else:
