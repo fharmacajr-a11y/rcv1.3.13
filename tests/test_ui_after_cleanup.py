@@ -1,3 +1,4 @@
+# pyright: reportAttributeAccessIssue=false
 # -*- coding: utf-8 -*-
 """
 Testes unitários — Fase 11: cancelamento de after() no cleanup.

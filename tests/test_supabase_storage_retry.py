@@ -1,3 +1,4 @@
+# pyright: reportAttributeAccessIssue=false
 # -*- coding: utf-8 -*-
 """
 Testes unitários para retry em _upload() — Fase 9.

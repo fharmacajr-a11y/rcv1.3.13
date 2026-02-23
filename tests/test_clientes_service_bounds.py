@@ -1,3 +1,4 @@
+# pyright: reportAttributeAccessIssue=false
 # -*- coding: utf-8 -*-
 """
 Testes unitários — Fase 10: acesso seguro a response.data[0] em service.py.
