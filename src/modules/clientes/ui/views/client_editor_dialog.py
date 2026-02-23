@@ -15,7 +15,16 @@ from typing import Any, Callable, Optional
 
 from src.ui.ctk_config import ctk
 from src.ui.widgets.button_factory import make_btn
-from src.ui.ui_tokens import SURFACE, SURFACE_DARK, TEXT_PRIMARY, TEXT_MUTED, BORDER, APP_BG, PRIMARY_BLUE, PRIMARY_BLUE_HOVER
+from src.ui.ui_tokens import (
+    SURFACE,
+    SURFACE_DARK,
+    TEXT_PRIMARY,
+    TEXT_MUTED,
+    BORDER,
+    APP_BG,
+    PRIMARY_BLUE,
+    PRIMARY_BLUE_HOVER,
+)
 from src.modules.clientes.core.constants import STATUS_CHOICES
 from src.ui.dark_window_helper import set_win_dark_titlebar
 from src.ui.window_utils import prepare_hidden_window, show_centered_no_flash, apply_window_icon
@@ -114,6 +123,10 @@ class ClientEditorDialog(ctk.CTkToplevel):
         self.on_close = on_close
         self._client_data: Optional[dict] = None
 
+        # After-job IDs — cancelados em cleanup (Fase 12: TclError guard)
+        self._setup_modal_job: Optional[str] = None
+        self._placeholder_job: Optional[str] = None
+
         # ANTI-FLASH: Ocultar imediatamente (withdraw + offscreen multi-monitor safe)
         prepare_hidden_window(self)
         log.debug(f"[ClientEditorDialog:{self.session_id}] Janela preparada (hidden + offscreen)")
@@ -138,7 +151,7 @@ class ClientEditorDialog(ctk.CTkToplevel):
         # Construir UI completa (ainda invisível)
         self._build_ui()
         log.debug(f"[ClientEditorDialog:{self.session_id}] UI construída")
-        
+
         # Sincronizar altura do spacer direito após renderização (pixel-perfect)
         self.after_idle(self._sync_right_spacer_height)
 
@@ -157,11 +170,11 @@ class ClientEditorDialog(ctk.CTkToplevel):
         # Mostrar janela centralizada sem flash (offscreen → render → onscreen)
         show_centered_no_flash(self, parent, width=1100, height=700)
         log.debug(f"[ClientEditorDialog:{self.session_id}] Janela visível e centralizada")
-        
+
         # Ativar placeholders APÓS janela visível (Novo Cliente)
         # Delay de 30ms garante que a janela já está completamente renderizada
         if client_id is None:
-            self.after(30, self._activate_all_placeholders)
+            self._placeholder_job = self.after(30, self._activate_all_placeholders)
 
         # Aplicar titlebar escura (Windows) - APÓS deiconify (precisa de handle mapeado)
         try:
@@ -170,7 +183,7 @@ class ClientEditorDialog(ctk.CTkToplevel):
             log.debug(f"[ClientEditorDialog:{self.session_id}] Erro titlebar: {e}")
 
         # Modal: grab_set após janela visível (com retry se não-viewable)
-        self.after(10, lambda: self._setup_modal_safe())
+        self._setup_modal_job = self.after(10, lambda: self._setup_modal_safe())
 
         log.info(f"[ClientEditorDialog:{self.session_id}] PRONTO")
 
@@ -179,19 +192,19 @@ class ClientEditorDialog(ctk.CTkToplevel):
 
     def _setup_modal_safe(self, retry_count: int = 0) -> None:
         """Configura comportamento modal APENAS quando janela está viewable.
-        
+
         Args:
             retry_count: Contador de tentativas (máx 10 para evitar loop infinito)
         """
         max_retries = 10
         retry_delay_ms = 50
-        
+
         try:
             # Verificar se a janela ainda existe
             if not self.winfo_exists():
                 log.warning(f"[ClientEditorDialog:{self.session_id}] Janela não existe mais, abortando modal setup")
                 return
-                
+
             # Verificar se a janela está viewable (mapeada e visível)
             if not self.winfo_viewable():
                 if retry_count < max_retries:
@@ -209,16 +222,13 @@ class ClientEditorDialog(ctk.CTkToplevel):
                         f"abortando grab_set (modal pode não funcionar)"
                     )
                     return
-            
+
             # Janela está viewable, aplicar grab_set
             self.grab_set()
             log.info(f"[ClientEditorDialog:{self.session_id}] grab_set aplicado com sucesso (viewable=True)")
-            
+
         except Exception as e:
-            log.error(
-                f"[ClientEditorDialog:{self.session_id}] "
-                f"Erro ao aplicar grab_set: {e}"
-            )
+            log.error(f"[ClientEditorDialog:{self.session_id}] " f"Erro ao aplicar grab_set: {e}")
 
     def _set_window_title(self) -> None:
         """Define título da janela conforme legado."""
@@ -238,25 +248,35 @@ class ClientEditorDialog(ctk.CTkToplevel):
 
     def _cleanup_and_destroy(self) -> None:
         """Cleanup centralizado: libera grab, notifica parent e destrói janela.
-        
+
         Usado por:
         - _on_window_close (botão X)
         - _on_cancel (botão Cancelar / tecla ESC)
         """
+        # Cancelar after-jobs pendentes antes de destruir (Fase 12: TclError guard)
+        for _attr in ("_setup_modal_job", "_placeholder_job"):
+            _job = getattr(self, _attr, None)
+            if _job is not None:
+                try:
+                    self.after_cancel(_job)
+                except Exception:
+                    pass
+                setattr(self, _attr, None)
+
         try:
             # Liberar grab ANTES de destruir (previne grab preso)
             self.grab_release()
             log.debug(f"[ClientEditorDialog:{self.session_id}] grab_release executado")
         except Exception as e:
             log.debug(f"[ClientEditorDialog:{self.session_id}] Erro em grab_release: {e}")
-        
+
         try:
             # Notificar parent que diálogo foi fechado
             if self.on_close:
                 self.on_close()
         except Exception as e:
             log.error(f"[ClientEditorDialog:{self.session_id}] Erro no callback on_close: {e}")
-        
+
         try:
             # Destruir janela
             self.destroy()
@@ -278,7 +298,9 @@ class ClientEditorDialog(ctk.CTkToplevel):
         main_frame.rowconfigure(2, weight=0)  # Botões fixo
         main_frame.columnconfigure(0, weight=3)
         main_frame.columnconfigure(1, weight=0)
-        main_frame.columnconfigure(2, weight=4, minsize=440)  # Aumentado weight e minsize para dar mais espaço ao painel direito
+        main_frame.columnconfigure(
+            2, weight=4, minsize=440
+        )  # Aumentado weight e minsize para dar mais espaço ao painel direito
 
         # Divisão em duas colunas (como legado)
         left_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
@@ -403,10 +425,10 @@ class ClientEditorDialog(ctk.CTkToplevel):
         status_container.grid(row=row, column=0, sticky="w", padx=6, pady=(0, 6))
         status_container.columnconfigure(0, weight=0)  # Sem expansão
         status_container.columnconfigure(1, weight=0)  # Sem expansão
-        
+
         # Salvar referência para usar no painel direito (igualar alturas)
         self._status_container = status_container
-        
+
         # Bind para sincronizar altura do spacer direito em tempo real
         status_container.bind("<Configure>", lambda e: self._sync_right_spacer_height())
 
@@ -542,7 +564,7 @@ class ClientEditorDialog(ctk.CTkToplevel):
 
     def _sync_right_spacer_height(self) -> None:
         """Sincroniza altura do spacer direito com o bloco Status esquerdo (pixel-perfect).
-        
+
         Este método garante que o textbox "Contatos adicionais" termine exatamente
         na mesma linha que o textbox "Observações", compensando a altura do bloco
         "Status do Cliente" no painel esquerdo.
@@ -550,38 +572,38 @@ class ClientEditorDialog(ctk.CTkToplevel):
         try:
             # Forçar atualização de geometria
             self.update_idletasks()
-            
+
             # Obter altura real do status_container
             h = self._status_container.winfo_height()
             if h <= 1:
                 # Widget ainda não renderizado, usar altura requisitada
                 h = self._status_container.winfo_reqheight()
-            
+
             # Obter padding vertical do grid do status_container
             gi = self._status_container.grid_info()
             pady = gi.get("pady", 0)
-            
+
             # Calcular padding extra
             extra = 0
             if isinstance(pady, (tuple, list)):
                 extra = sum(int(p) for p in pady)
             else:
                 extra = int(pady) if pady else 0
-            
+
             # Altura alvo para o spacer (altura do container + padding)
             target = h + extra
-            
+
             # Aplicar no spacer (mínimo 50px para evitar valores negativos/zero)
             if target > 0:
                 self._right_spacer.configure(height=max(target, 50))
-                
+
         except Exception as e:
             # Silenciar erros durante destruição de widgets
             log.debug(f"[ClientEditor] Erro ao sincronizar spacer: {e}")
 
     def _set_entry_value(self, entry: ctk.CTkEntry, value: str) -> None:
         """Define valor em CTkEntry preservando placeholder quando vazio.
-        
+
         Args:
             entry: CTkEntry a ser preenchido
             value: Valor a ser inserido (ou vazio para ativar placeholder)
@@ -591,7 +613,7 @@ class ClientEditorDialog(ctk.CTkToplevel):
         if value:
             entry.insert(0, value)
             return
-        
+
         # Campo vazio: forçar ativação do placeholder (método interno do CustomTkinter)
         # NÃO mexer em foco aqui para evitar flash durante construção da UI
         if hasattr(entry, "_activate_placeholder"):
@@ -599,9 +621,14 @@ class ClientEditorDialog(ctk.CTkToplevel):
                 entry._activate_placeholder()
             except Exception:
                 pass
-    
+
     def _activate_all_placeholders(self) -> None:
         """Ativa placeholders em todos os CTkEntry vazios (usado no Novo Cliente)."""
+        try:
+            if not self.winfo_exists():
+                return
+        except Exception:
+            return
         entries = [
             self.razao_entry,
             self.cnpj_entry,
@@ -763,23 +790,25 @@ class ClientEditorDialog(ctk.CTkToplevel):
             from src.infra.supabase_client import get_supabase
 
             supabase = get_supabase()
-            response = supabase.table("cliente_contatos").select("nome,whatsapp").eq("cliente_id", int(cliente_id)).execute()
+            response = (
+                supabase.table("cliente_contatos").select("nome,whatsapp").eq("cliente_id", int(cliente_id)).execute()
+            )
 
             if response.data:
                 linhas = []
-                for contato in (response.data or []):
+                for contato in response.data or []:
                     # Robustez: verificar se é dict
                     if not isinstance(contato, dict):
                         continue
-                    
+
                     # Tratar NULL do banco (vira None em Python)
                     nome = (contato.get("nome") or "").strip()
                     whatsapp = (contato.get("whatsapp") or "").strip()
-                    
+
                     # Ignorar registros sem nome
                     if not nome:
                         continue
-                    
+
                     # Montar linha
                     if whatsapp:
                         linhas.append(f"{nome} - {whatsapp}")
@@ -1101,7 +1130,7 @@ class ClientEditorDialog(ctk.CTkToplevel):
 
     def _on_cancel(self) -> None:
         """Handler do botão Cancelar e tecla ESC.
-        
+
         Usa o mesmo cleanup centralizado que WM_DELETE_WINDOW.
         """
         log.info(f"[ClientEditorDialog:{self.session_id}] Cancelamento solicitado")

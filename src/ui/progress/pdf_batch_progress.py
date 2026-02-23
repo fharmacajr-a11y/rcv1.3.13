@@ -98,7 +98,10 @@ class PDFBatchProgressDialog(tk.Toplevel):
             if HAS_CUSTOMTKINTER and ctk is not None and hasattr(self.progress, "set"):
                 self.progress.set(percent / 100.0)  # CTk usa 0.0-1.0
             else:
-                # Canvas fallback
+                # Canvas fallback — checar existência antes de operar (Fase 12)
+                if not self.progress.winfo_exists():
+                    self._closed = True
+                    return
                 self.progress._progress_value = percent / 100.0  # type: ignore[attr-defined]
                 fill_w = int(320 * (percent / 100.0))
                 self.progress.delete("all")

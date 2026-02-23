@@ -184,13 +184,25 @@ class CTkSplitPane(ctk.CTkFrame):
 
     def _on_sash_enter(self, event: Any) -> None:  # event: tkinter Event em runtime
         """Handler para mouse enter no sash."""
-        if self._sash:
+        if self._sash is None:
+            return
+        try:
+            if not self.winfo_exists():
+                return
             self._sash.configure(fg_color=self._sash_hover_color)
+        except tk.TclError:
+            pass
 
     def _on_sash_leave(self, event: Any) -> None:  # event: tkinter Event em runtime
         """Handler para mouse leave no sash."""
-        if self._sash and not self._dragging:
+        if self._sash is None or self._dragging:
+            return
+        try:
+            if not self.winfo_exists():
+                return
             self._sash.configure(fg_color=self._sash_color)
+        except tk.TclError:
+            pass
 
 
 __all__ = ["CTkSplitPane"]
