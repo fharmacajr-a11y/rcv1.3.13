@@ -165,7 +165,7 @@ class TestCTkSplitPaneGuardPattern(unittest.TestCase):
             try:
                 if not self.winfo_exists():
                     return
-                self._sash.configure(fg_color=self._sash_hover_color)
+                self._sash.configure(fg_color=self._sash_hover_color)  # type: ignore[union-attr]
             except self._TclError:
                 pass
 
@@ -175,7 +175,7 @@ class TestCTkSplitPaneGuardPattern(unittest.TestCase):
             try:
                 if not self.winfo_exists():
                     return
-                self._sash.configure(fg_color=self._sash_color)
+                self._sash.configure(fg_color=self._sash_color)  # type: ignore[union-attr]
             except self._TclError:
                 pass
 
