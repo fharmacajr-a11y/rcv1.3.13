@@ -1,6 +1,6 @@
 import unittest
 
-from utils.text_utils import extract_company_fields
+from src.utils.text_utils import extract_company_fields
 
 
 class ExtractCompanyFieldsTests(unittest.TestCase):
