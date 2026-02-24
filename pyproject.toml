@@ -61,6 +61,7 @@ extend_exclude = [
     "third_party",
     "typings",
     "installer",
+    ".claude",
 ]
 
 # Módulos first-party do projeto
