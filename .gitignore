@@ -144,5 +144,11 @@ EXECUTION_GUIDE.md
 # Exceção: src/core/logs/ é código versionado (não deve ser ignorado)
 !src/core/logs/
 !src/core/logs/**
+# …mas __pycache__ dentro dele ainda deve ser ignorado
+src/core/logs/__pycache__/
 
 docs/_lint_artifacts/
+
+# Arquivos de saída temporária (análise local / scripts de diagnóstico)
+validate_*.txt
+test_result.txt
