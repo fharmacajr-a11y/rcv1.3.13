@@ -9,7 +9,7 @@ from __future__ import annotations
 import calendar
 import tkinter as tk
 from datetime import date, datetime
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 from src.ui.ctk_config import ctk  # SSoT
 from src.ui.utils.binding_tracker import BindingTracker
@@ -24,7 +24,7 @@ class CTkDatePicker(ctk.CTkFrame):
         dateformat: str = "%Y-%m-%d",
         startdate: Optional[date] = None,
         command: Optional[Callable[[date], None]] = None,
-        **kwargs: any,
+        **kwargs: Any,
     ) -> None:
         """Inicializa o DatePicker.
 

@@ -467,6 +467,8 @@ def build_section_card(
 
         return outer, inner
 
+    raise RuntimeError("CustomTkinter é obrigatório para build_section_card")
+
 
 def _build_section_frame(
     parent: tk.Frame,

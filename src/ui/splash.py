@@ -6,7 +6,7 @@ import os
 import time
 import tkinter as tk
 from collections.abc import Callable
-from typing import Optional
+from typing import Any, Optional
 from PIL import Image
 
 from src.ui.ctk_config import ctk
@@ -79,7 +79,7 @@ def _compute_remaining_ms(created_at: float, now: float, min_duration_ms: int) -
     return max(0, int(min_duration_ms) - elapsed_ms)
 
 
-def show_splash(root: tk.Misc, min_ms: int = SPLASH_MIN_DURATION_MS) -> tk.Toplevel:
+def show_splash(root: tk.Misc, min_ms: int = SPLASH_MIN_DURATION_MS) -> Any:
     # Criar invisível para evitar "piscada" no 0,0
     _perf_start = time.perf_counter()
 

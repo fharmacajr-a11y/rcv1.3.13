@@ -38,7 +38,7 @@ EXEMPLO DE USO:
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable
 
 if TYPE_CHECKING:
     import tkinter as tk
@@ -141,7 +141,7 @@ def safe_destroy(root: tk.Tk | tk.Toplevel) -> None:
         log.warning("Erro em root.destroy(): %s", e)
 
 
-def install_clean_shutdown(root: tk.Tk | tk.Toplevel, on_closing: callable | None = None) -> None:
+def install_clean_shutdown(root: tk.Tk | tk.Toplevel, on_closing: Callable[..., Any] | None = None) -> None:
     """Instala handler de shutdown limpo no WM_DELETE_WINDOW protocol.
 
     Args:

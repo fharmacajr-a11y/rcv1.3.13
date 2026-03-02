@@ -317,7 +317,7 @@ def _load_pending_tasks(
     return data_access.load_pending_tasks_impl(org_id, today, limit, fetch_client_names_fn=_fetch_client_names)
 
 
-def _load_obligations(org_id: str) -> list[dict[str, Any]]:
+def _load_obligations(org_id: str) -> list[Any]:
     """Load all obligations for the organization.
 
     Args:

@@ -305,8 +305,8 @@ def create_clients_treeview(
 
 def _setup_treeview_tooltip(tree: Any, columns: tuple) -> None:
     """Configura tooltip para mostrar texto completo de células truncadas."""
-    tooltip_window: tk.Toplevel | None = None
-    tooltip_label: tk.Label | None = None
+    tooltip_window: Any | None = None
+    tooltip_label: Any | None = None
 
     # Colunas que podem ter texto truncado
     tooltip_columns = {"Razao Social", "Nome", "Observacoes"}
@@ -475,36 +475,3 @@ def _setup_flex_column_resize(tree: Any, columns: tuple) -> None:
 
     # Fazer resize inicial após a janela ser mapeada
     tree.after(100, _do_resize)
-
-
-# =============================================================================
-# Microfase 4: Funções de reaplicação de estilos da Treeview
-# =============================================================================
-
-
-def reapply_clientes_treeview_tags(
-    tree: Any,
-    even_bg: str,
-    odd_bg: str,
-    fg: str = "",
-) -> None:
-    """Reaplica tags de zebra (even/odd) na Treeview do módulo Clientes.
-
-    Esta função é idempotente e pode ser chamada sempre que o tema muda.
-
-    Args:
-        tree: Instância da Treeview
-        even_bg: Cor de fundo para linhas pares
-        odd_bg: Cor de fundo para linhas ímpares
-        fg: Cor de texto para ambas (opcional)
-    """
-    try:
-        if fg:
-            tree.tag_configure("even", background=even_bg, foreground=fg)
-            tree.tag_configure("odd", background=odd_bg, foreground=fg)
-        else:
-            tree.tag_configure("even", background=even_bg)
-            tree.tag_configure("odd", background=odd_bg)
-        log.debug("Tags de zebra reaplicadas na Treeview")
-    except Exception:
-        log.exception("Erro ao reaplicar tags de zebra")

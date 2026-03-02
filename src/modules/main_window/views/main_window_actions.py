@@ -227,7 +227,7 @@ def _set_theme_legacy(app: App, theme: str) -> None:
     log.warning("_set_theme_legacy chamado mas ttkbootstrap foi removido")
 
 
-def patch_style_element_create(style: tb.Style) -> None:
+def patch_style_element_create(style: Any) -> None:
     """
     Patching de segurança: ignora exclusivamente erros
     'Duplicate element Combobox.*' gerados pelo ttkbootstrap

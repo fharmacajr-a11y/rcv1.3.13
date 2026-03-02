@@ -113,7 +113,7 @@ class HubState:
     author_tags: Dict[str, str] = field(default_factory=dict)
     poll_job: Optional[str] = None
     # RLock permite reentrada na mesma thread (finally → schedule_poll dentro de poll_notes_if_needed)
-    poll_lock: object = field(default_factory=threading.RLock, repr=False)
+    poll_lock: threading.RLock = field(default_factory=threading.RLock, repr=False)
     is_refreshing: bool = False
     last_refresh_ts: Optional[float] = None
     pending_notes: List[Any] = field(default_factory=list)

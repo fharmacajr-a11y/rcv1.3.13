@@ -12,6 +12,7 @@ from src.ui.dialogs.rc_dialogs import show_info, show_error, show_warning, ask_y
 
 from src.ui.controllers import NotificationVM, TopbarNotificationsController
 from src.ui.ctk_config import ctk
+from src.ui.widgets.ctk_tableview import CTkTableView
 from src.ui.widgets.button_factory import make_btn
 from src.utils.resource_path import resource_path
 

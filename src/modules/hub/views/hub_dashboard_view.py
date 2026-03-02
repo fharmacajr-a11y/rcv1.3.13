@@ -43,7 +43,7 @@ class HubDashboardView:
         self.center_spacer: tk.Frame | None = None
         self.dashboard_scroll: Any = None  # ScrollableFrame
 
-    def build(self) -> tk.Frame:
+    def build(self) -> Any:
         """Constrói e retorna o frame do painel de dashboard.
 
         Este método cria:

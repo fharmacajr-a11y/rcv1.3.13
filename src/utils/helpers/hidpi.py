@@ -44,7 +44,7 @@ def configure_hidpi_support(root: "tk.Tk | None" = None, scaling: float | None =
             try:
                 # Scaling recomendado: 1.6-2.0 para monitores 4K
                 scale_factor = scaling or _detect_linux_scaling(root)
-                enable_high_dpi_awareness(root, scale_factor)  # pyright: ignore[reportCallIssue]
+                enable_high_dpi_awareness(root, scale_factor)  # pyright: ignore[reportUndefinedVariable]
             except Exception as exc:
                 log.debug("HiDPI nao aplicado no Linux", exc_info=exc)
 

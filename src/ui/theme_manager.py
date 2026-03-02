@@ -19,7 +19,7 @@ import logging
 import os
 import tkinter as tk
 from pathlib import Path
-from typing import Final, Literal, Optional
+from typing import Final, Literal, Optional, cast
 
 # CustomTkinter: fonte única centralizada (Microfase 23 - SSoT)
 from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
@@ -174,7 +174,7 @@ def toggle_appearance_mode() -> ThemeMode:
 
     # Ciclo: light -> dark -> light
     mode_cycle = {"light": "dark", "dark": "light"}
-    new_mode: ThemeMode = mode_cycle[current_mode]
+    new_mode = cast(ThemeMode, mode_cycle[current_mode])
 
     # Salvar configuração
     save_theme_config(new_mode, current_color)

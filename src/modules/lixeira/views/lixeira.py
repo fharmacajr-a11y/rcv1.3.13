@@ -304,7 +304,7 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[ctk.CTkTo
         ):
             return
 
-        def _show_wait_dialog(count: int) -> Tuple[tk.Toplevel, ctk.CTkLabel, ctk.CTkProgressBar]:
+        def _show_wait_dialog(count: int) -> Tuple[ctk.CTkToplevel, ctk.CTkLabel, ctk.CTkProgressBar]:
             dlg = ctk.CTkToplevel(win)
             dlg.withdraw()
             try:

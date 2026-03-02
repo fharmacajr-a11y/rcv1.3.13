@@ -5,15 +5,15 @@ import os
 import shutil
 import logging
 from dataclasses import dataclass
-from typing import Optional, Iterable, Tuple
+from typing import Any, Optional, Iterable, Tuple
 
 try:
     # seu resolver já existente (sólido)
     from core.services.path_resolver import resolve_unique_path
 except Exception:  # fallback muito defensivo (não deve ocorrer)
 
-    def resolve_unique_path(pk: int, prefer: Optional[str] = None):
-        return None, None  # type: ignore[misc]
+    def resolve_unique_path(*args: Any, **kwargs: Any) -> tuple[str | None, str | None]:  # type: ignore[misc]
+        return None, None
 
 
 log = logging.getLogger(__name__)

@@ -33,7 +33,7 @@ class HubAsyncRunner:
 
     tk_root: tk.Misc
     logger: logging.Logger | None = None
-    _executor: ThreadPoolExecutor = field(default=None, init=False, repr=False)
+    _executor: ThreadPoolExecutor | None = field(default=None, init=False, repr=False)
     # set protegido por _pending_lock; nenhuma leitura/escrita fora do lock.
     _pending_after_ids: set = field(default_factory=set, init=False, repr=False)
     _pending_lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)

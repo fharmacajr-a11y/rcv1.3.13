@@ -297,8 +297,6 @@ def wire_session_and_health(app: "MainWindow") -> None:
                     log.debug("Footer controller atualizado: %s", state)
             except Exception as exc:  # noqa: BLE001
                 log.debug("Falha ao obter estado da nuvem no polling: %s", exc)
-            except Exception as exc:  # noqa: BLE001
-                log.debug("Falha ao obter estado da nuvem no polling: %s", exc)
             # Reagendar polling (P0 #2: cancelar anterior)
             if app._health_poll_job_id is not None:
                 try:
