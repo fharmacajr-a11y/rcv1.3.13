@@ -28,19 +28,17 @@ class _TclError(Exception):  # noqa: N801 — classe auxiliar
 # ---------------------------------------------------------------------------
 
 _RUNNER_MOD_NAME = "src.modules.hub.async_runner"
-_RUNNER_MOD_PATH = (
-    pathlib.Path(__file__).parent.parent / "src" / "modules" / "hub" / "async_runner.py"
-)
+_RUNNER_MOD_PATH = pathlib.Path(__file__).parent.parent / "src" / "modules" / "hub" / "async_runner.py"
 
 
 def _build_stubs() -> dict:
     """Retorna dict de stubs para patch.dict(sys.modules). Sem side-effects."""
     _tk = types.ModuleType("tkinter")
     _tk.TclError = _TclError  # type: ignore[attr-defined]
-    _tk.Misc = object          # type: ignore[attr-defined]
+    _tk.Misc = object  # type: ignore[attr-defined]
     _tk.messagebox = MagicMock()  # type: ignore[attr-defined]
     return {
-        "tkinter":           _tk,
+        "tkinter": _tk,
         "tkinter.messagebox": MagicMock(),
     }
 
@@ -78,7 +76,7 @@ class FakeRoot:
 
     def __init__(self) -> None:
         self._counter = 0
-        self._pending: dict[int, tuple] = {}   # id → (fn, args)
+        self._pending: dict[int, tuple] = {}  # id → (fn, args)
         self._cancelled: set[int] = set()
         self._destroyed = False
 
@@ -121,6 +119,7 @@ def _make_runner(root: FakeRoot | None = None) -> tuple[HubAsyncRunner, FakeRoot
 # ---------------------------------------------------------------------------
 # Testes
 # ---------------------------------------------------------------------------
+
 
 class TestPendingSetAddAndRemove(unittest.TestCase):
     """set de IDs: add ao agendar, remove ao executar."""

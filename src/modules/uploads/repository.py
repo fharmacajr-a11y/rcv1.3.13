@@ -11,6 +11,7 @@ from src.adapters.storage.api import list_files as _storage_list_files, upload_f
 from src.adapters.storage.supabase_storage import SupabaseStorageAdapter
 from src.infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ID
 from src.infra.supabase_client import exec_postgrest, supabase
+from src.modules.uploads.exceptions import UploadDuplicateError
 from src.modules.uploads.upload_retry import (
     DEFAULT_MAX_RETRIES,
     upload_with_retry,
@@ -135,13 +136,25 @@ def normalize_bucket(value: str | None) -> str:
     return raw or "rc-docs"
 
 
-def build_storage_adapter(*, bucket: str, supabase_client: Any | None = None) -> SupabaseStorageAdapter:
-    """Instantiate the storage adapter with defaults."""
+def build_storage_adapter(
+    *,
+    bucket: str,
+    supabase_client: Any | None = None,
+    overwrite: bool = False,
+) -> SupabaseStorageAdapter:
+    """Instantiate the storage adapter with defaults.
 
+    Args:
+        bucket: Nome do bucket de storage.
+        supabase_client: Cliente Supabase alternativo (testes/DI).
+        overwrite: Se True, usa upsert=True no upload (sobrescreve arquivo
+            existente silenciosamente).  Padrão False: arquivos existentes
+            geram UploadDuplicateError e NÃO são sobrescritos.
+    """
     return SupabaseStorageAdapter(
         client=supabase_client or supabase,
         bucket=bucket,
-        overwrite=False,
+        overwrite=overwrite,
     )
 
 
@@ -161,8 +174,9 @@ def upload_items_with_adapter(
     ok = 0
     failures: list[Tuple[_TUploadItem, Exception]] = []
     duplicates = 0
+    total = len(items)
 
-    for item in items:
+    for _i, item in enumerate(items, start=1):
         if progress_callback:
             progress_callback(item)
         try:
@@ -178,13 +192,19 @@ def upload_items_with_adapter(
             )
             local_path = getattr(item, "path")
 
-            logger.debug(
-                "Uploading file: %s -> %s (client_id=%s, org_id=%s, subfolder=%s)",
-                local_path,
+            try:
+                _mb = Path(local_path).stat().st_size / (1024 * 1024)
+                _size_str = f"{_mb:.2f} MB"
+            except Exception:
+                _size_str = "? MB"
+
+            logger.info(
+                "Enviando %d/%d: %s (%s) -> %s",
+                _i,
+                total,
+                Path(local_path).name,
+                _size_str,
                 remote_key,
-                client_id,
-                org_id,
-                subfolder,
             )
 
             # Usar upload_with_retry para lidar com erros transientes de rede/servidor
@@ -196,19 +216,26 @@ def upload_items_with_adapter(
                 max_retries=DEFAULT_MAX_RETRIES,
             )
             ok += 1
-            logger.info("Upload SUCCESS: %s -> %s", Path(local_path).name, remote_key)
+            logger.info(
+                "Upload concluído (%d/%d): %s -> %s",
+                _i,
+                total,
+                Path(local_path).name,
+                remote_key,
+            )
 
         except Exception as exc:  # pragma: no cover - integration behavior
             # Classificar exceção para tratamento apropriado
             classified_exc = classify_upload_exception(exc)
 
-            # Trata erro 409 Duplicate como "ja existe", nao como falha
-            # Verifica o detail (que contém "duplicate") ao invés da mensagem amigável
-            error_detail = getattr(classified_exc, "detail", "")
-            is_duplicate = "duplicate" in error_detail.lower()
-
-            if is_duplicate:
+            # UploadDuplicateError: arquivo já existe — SKIPPED, nunca SUCCESS
+            if isinstance(classified_exc, UploadDuplicateError):
                 duplicates += 1
+                dup_exc = UploadDuplicateError(
+                    "Arquivo já existe no destino; upload ignorado.",
+                    detail=classified_exc.detail,
+                )
+                failures.append((item, dup_exc))
                 logger.info(
                     "Upload SKIPPED (duplicate): %s -> %s (client_id=%s, org_id=%s)",
                     Path(getattr(item, "path")).name,
@@ -216,10 +243,9 @@ def upload_items_with_adapter(
                     client_id,
                     org_id,
                 )
-                # NAO adiciona em failures - arquivo ja existe na nuvem
                 continue
 
-            # Outros erros: registra como falha
+            # Outros erros: registra como falha real
             logger.error(
                 "Upload FAILED: %s -> %s (client_id=%s, org_id=%s): %s",
                 getattr(item, "path"),
@@ -229,6 +255,14 @@ def upload_items_with_adapter(
                 repr(classified_exc),
             )
             failures.append((item, classified_exc))
+
+    logger.info(
+        "Lote concluído: %d/%d enviados, %d duplicados, %d falhas.",
+        ok,
+        total,
+        duplicates,
+        len(failures),
+    )
     return ok, failures
 
 
@@ -243,4 +277,5 @@ __all__ = [
     "normalize_bucket",
     "build_storage_adapter",
     "upload_items_with_adapter",
+    "UploadDuplicateError",
 ]

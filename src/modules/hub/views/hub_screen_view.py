@@ -11,10 +11,14 @@ import logging
 import tkinter as tk
 from typing import Any, Callable, Protocol
 
+from src.ui.ctk_config import ctk
+
 
 from src.modules.hub.viewmodels import DashboardViewState
 from src.modules.hub.views.dashboard_center import build_dashboard_center, build_dashboard_error
 from src.modules.hub.views.notes_panel_view import NotesViewCallbacks, build_notes_side_panel
+
+from src.ui.widgets.ctk_section import CTkSection
 
 # ORG-006: Constantes e funções puras extraídas
 from src.modules.hub.views.hub_screen_view_constants import (
@@ -179,59 +183,59 @@ class HubScreenView:
         from src.modules.hub.constants import PAD_OUTER
 
         # Largura uniforme para todos os botões do painel
-        _BTN_WIDTH = 160
+        _btn_width = 160
 
         # Painel principal (container sem título)
-        self.modules_panel = tk.Frame(self.parent)
+        self.modules_panel = ctk.CTkFrame(self.parent)
 
-        inner = tk.Frame(self.modules_panel)
+        inner = ctk.CTkFrame(self.modules_panel)
         inner.pack(fill="both", expand=True, padx=PAD_OUTER, pady=PAD_OUTER)
 
         # BLOCO 1: Cadastros / Acesso
-        frame_cadastros = tk.LabelFrame(
+        frame_cadastros = CTkSection(
             inner,
-            text=SECTION_CADASTROS_LABEL,
+            title=SECTION_CADASTROS_LABEL,
             padding=FRAME_INNER_PADDING,
         )
         frame_cadastros.pack(fill="x", pady=FRAME_PACK_PADY)
 
-        btn_clientes = make_module_button(frame_cadastros, "Clientes", self.open_clientes, width=_BTN_WIDTH)
+        btn_clientes = make_module_button(frame_cadastros.content_frame, "Clientes", self.open_clientes, width=_btn_width)
         btn_clientes.pack(pady=BTN_GRID_PADY)
 
         # BLOCO 2: Gestão
-        frame_gestao = tk.LabelFrame(
+        frame_gestao = CTkSection(
             inner,
-            text="Gestão",
+            title="Gestão",
             padding=FRAME_INNER_PADDING,
         )
         frame_gestao.pack(fill="x", pady=FRAME_PACK_PADY)
 
-        btn_fluxo_caixa = make_module_button(frame_gestao, "Fluxo de Caixa", self.open_cashflow, width=_BTN_WIDTH)
+        btn_fluxo_caixa = make_module_button(frame_gestao.content_frame, "Fluxo de Caixa", self.open_cashflow, width=_btn_width)
         btn_fluxo_caixa.pack(pady=BTN_GRID_PADY)
 
         # BLOCO 3: Regulatório / Programas
-        frame_regulatorio = tk.LabelFrame(
+        frame_regulatorio = CTkSection(
             inner,
-            text=SECTION_REGULATORIO_LABEL,
+            title=SECTION_REGULATORIO_LABEL,
             padding=FRAME_INNER_PADDING,
         )
         frame_regulatorio.pack(fill="x", pady=(0, 0))
 
         btn_farmacia = make_module_button(
-            frame_regulatorio,
+            frame_regulatorio.content_frame,
             "Farmácia Popular",
             self.open_farmacia_popular,
-            width=_BTN_WIDTH,
+            width=_btn_width,
         )
         btn_farmacia.pack(pady=BTN_GRID_PADY)
 
     def _build_dashboard_panel(self) -> None:
         """Constrói o painel central para o dashboard (sem scrollbar)."""
         # Container da coluna central
-        self.center_spacer = tk.Frame(self.parent)
+        self.center_spacer = ctk.CTkFrame(self.parent)
 
         # Frame normal dentro do container (sem scrollbar)
-        self.dashboard_scroll = tk.Frame(self.center_spacer)
+        self.dashboard_scroll = ctk.CTkFrame(self.center_spacer)
         self.dashboard_scroll.pack(fill="both", expand=True)
 
         # Compatibilidade: quem chama espera .content
@@ -275,8 +279,8 @@ class HubScreenView:
 
         empty_state = NotesViewModel().state
 
-        # Cast parent para tk.Frame (parent é sempre Frame no HubScreen)
-        parent_frame = self.parent if isinstance(self.parent, tk.Frame) else tk.Frame(self.parent)
+        # Cast parent para tk.Frame (parent é sempre CTkFrame no HubScreen)
+        parent_frame = self.parent if isinstance(self.parent, tk.Frame) else ctk.CTkFrame(self.parent)
 
         self.notes_panel = build_notes_side_panel(
             parent=parent_frame,

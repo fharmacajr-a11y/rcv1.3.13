@@ -30,29 +30,36 @@ class AppActions:
 
     def editar_cliente(self) -> None:
         """Fluxo original de edição de cliente, movido da App."""
-        from tkinter import messagebox
+        from src.ui.dialogs.rc_dialogs import show_warning, show_error
         import src.core.app_core as app_core
 
         values = self._app._selected_main_values()
         if not values:
-            messagebox.showwarning("Atenção", "Selecione um cliente para editar.", parent=self._app)
+            show_warning(self._app, "Atenção", "Selecione um cliente para editar.")
             return
         try:
             pk = int(values[0])
         except Exception:
-            messagebox.showerror("Erro", "ID inválido.", parent=self._app)
+            show_error(self._app, "Erro", "ID inválido.")
             return
         app_core.editar_cliente(self._app, pk)
 
     def _excluir_cliente(self) -> None:
-        """Fluxo original de exclusão/movimento para lixeira, movido da App."""
-        from tkinter import messagebox
+        """Fluxo original de exclusão/movimento para lixeira, movido da App.
+
+        Modo ATIVOS  → soft delete (mover para lixeira).
+        Modo LIXEIRA → hard delete (exclusão definitiva).
+        """
+        from src.ui.dialogs.rc_dialogs import show_error, show_info, ask_yes_no
         from src.modules.clientes.core import service as clientes_service
         from src.modules.lixeira import refresh_if_open as refresh_lixeira_if_open
 
+        # Detectar se o frame atual está em modo lixeira
+        frame = self._app._main_screen_frame()
+        trash_mode: bool = getattr(frame, "_trash_mode", False)
+
         values = self._app._selected_main_values()
         if not values:
-            # Nenhum cliente selecionado: ignora comando sem exibir popup.
             try:
                 self._logger.info("Excluir cliente ignorado: nenhuma linha selecionada na lista principal.")
             except Exception as exc:  # noqa: BLE001
@@ -62,7 +69,7 @@ class AppActions:
         try:
             client_id = int(values[0])
         except (TypeError, ValueError):
-            messagebox.showerror("Erro", "Selecao invalida (ID ausente).", parent=self._app)
+            show_error(self._app, "Erro", "Selecao invalida (ID ausente).")
             self._logger.error("Invalid selected_values for exclusion: %s", values)
             return
 
@@ -74,33 +81,65 @@ class AppActions:
                 razao = ""
         label_cli = f"{razao} (ID {client_id})" if razao else f"ID {client_id}"
 
-        confirm = messagebox.askyesno(
-            "Enviar para Lixeira",
-            f"Deseja enviar o cliente {label_cli} para a Lixeira?",
-            parent=self._app,
-        )
-        if confirm is False:
-            return
+        if trash_mode:
+            # ── MODO LIXEIRA: exclusão definitiva ────────────────────────────
+            confirm = ask_yes_no(
+                self._app,
+                "Excluir definitivamente",
+                f"Tem certeza que deseja EXCLUIR DEFINITIVAMENTE o cliente {label_cli}?\n\nEsta ação não pode ser desfeita.",
+            )
+            if confirm is False:
+                return
 
-        try:
-            clientes_service.mover_cliente_para_lixeira(client_id)
-        except Exception as exc:
-            messagebox.showerror("Erro ao excluir", f"Falha ao enviar para a Lixeira: {exc}", parent=self._app)
-            self._logger.exception("Failed to soft-delete client %s", label_cli)
-            return
+            try:
+                ok, errs = clientes_service.excluir_clientes_definitivamente([client_id])
+                if errs:
+                    msgs = "\n".join(f"  • {e}" for _, e in errs)
+                    show_error(self._app, "Erro ao excluir", f"Falha ao excluir cliente {label_cli}:\n{msgs}")
+                    self._logger.error("Hard delete falhou para ID=%s: %s", client_id, errs)
+                    return
+            except Exception as exc:
+                show_error(self._app, "Erro ao excluir", f"Falha ao excluir definitivamente: {exc}")
+                self._logger.exception("Failed to hard-delete client %s", label_cli)
+                return
 
-        try:
-            self._app.carregar()
-        except Exception:
-            self._logger.exception("Failed to refresh client list after soft delete")
+            try:
+                self._app.carregar()
+            except Exception:
+                self._logger.exception("Failed to refresh client list after hard delete")
 
-        try:
-            refresh_lixeira_if_open()
-        except Exception:
-            self._logger.debug("Lixeira refresh skipped", exc_info=True)
+            show_info(self._app, "Excluído", f"Cliente {label_cli} excluído definitivamente.")
+            self._logger.info("Cliente %s excluído definitivamente com sucesso", label_cli)
 
-        messagebox.showinfo("Lixeira", f"Cliente {label_cli} enviado para a Lixeira.", parent=self._app)
-        self._logger.info("Cliente %s enviado para a Lixeira com sucesso", label_cli)
+        else:
+            # ── MODO ATIVOS: soft delete ──────────────────────────────────────
+            confirm = ask_yes_no(
+                self._app,
+                "Enviar para Lixeira",
+                f"Deseja enviar o cliente {label_cli} para a Lixeira?",
+            )
+            if confirm is False:
+                return
+
+            try:
+                clientes_service.mover_cliente_para_lixeira(client_id)
+            except Exception as exc:
+                show_error(self._app, "Erro ao excluir", f"Falha ao enviar para a Lixeira: {exc}")
+                self._logger.exception("Failed to soft-delete client %s", label_cli)
+                return
+
+            try:
+                self._app.carregar()
+            except Exception:
+                self._logger.exception("Failed to refresh client list after soft delete")
+
+            try:
+                refresh_lixeira_if_open()
+            except Exception:
+                self._logger.debug("Lixeira refresh skipped", exc_info=True)
+
+            show_info(self._app, "Lixeira", f"Cliente {label_cli} enviado para a Lixeira.")
+            self._logger.info("Cliente %s enviado para a Lixeira com sucesso", label_cli)
 
     def abrir_lixeira(self) -> None:
         """Abre a tela de Lixeira usando o módulo moderno.
@@ -116,29 +155,29 @@ class AppActions:
 
     def open_client_storage_subfolders(self) -> None:
         """Abre o navegador de arquivos do Supabase para o cliente selecionado."""
-        from tkinter import messagebox
+        from src.ui.dialogs.rc_dialogs import show_warning, show_error
         from src.modules.uploads import open_files_browser
         from src.modules.uploads.components.helpers import client_prefix_for_id, get_clients_bucket
 
         values = self._app._selected_main_values()
         if not values:
-            messagebox.showwarning("Atenção", "Selecione um cliente primeiro.", parent=self._app)
+            show_warning(self._app, "Atenção", "Selecione um cliente primeiro.")
             return
         try:
             client_id = int(values[0])
         except Exception:
-            messagebox.showerror("Erro", "ID inválido.", parent=self._app)
+            show_error(self._app, "Erro", "ID inválido.")
             return
         razao = (values[1] or "").strip()
         cnpj = (values[2] or "").strip()
 
         u = self._app._get_user_cached()
         if not u:
-            messagebox.showerror("Erro", "Usuário não autenticado.", parent=self._app)
+            show_error(self._app, "Erro", "Usuário não autenticado.")
             return
         org_id = self._app._get_org_id_cached(u["id"])
         if not org_id:
-            messagebox.showerror("Erro", "Organização não encontrada para o usuário.", parent=self._app)
+            show_error(self._app, "Erro", "Organização não encontrada para o usuário.")
             return
 
         base_prefix = client_prefix_for_id(client_id, org_id)
@@ -165,12 +204,12 @@ class AppActions:
 
         NOTA: Funcionalidade em desenvolvimento.
         """
-        from tkinter import messagebox
+        from src.ui.dialogs.rc_dialogs import show_info
 
-        messagebox.showinfo(
+        show_info(
+            self._app,
             "Em Desenvolvimento",
             "A funcionalidade de gerenciamento de obrigações está em desenvolvimento.",
-            parent=self._app,
         )
 
     def enviar_para_supabase(self) -> None:
@@ -182,7 +221,7 @@ class AppActions:
         Inclui fallback quando list_buckets() não funciona (RLS).
         Upload padrão: cliente/GERAL
         """
-        from tkinter import messagebox
+        from src.ui.dialogs.rc_dialogs import show_error
         import os
         from src.modules.uploads.uploader_supabase import send_to_supabase_interactive
 
@@ -234,12 +273,13 @@ class AppActions:
         except Exception as e:
             # Log de erro com stack trace completo
             self._logger.error("Erro ao enviar para Supabase (interativo): %s", e, exc_info=True)
-            messagebox.showerror("Erro", f"Erro ao enviar para Supabase:\n{str(e)}", parent=self._app)
+            show_error(self._app, "Erro", f"Erro ao enviar para Supabase:\n{str(e)}")
 
     def run_pdf_batch_converter(self) -> None:
         """Abre dialogo para converter imagens em PDFs por subpasta."""
         from pathlib import Path
-        from tkinter import filedialog, messagebox
+        from tkinter import filedialog
+        from src.ui.dialogs.rc_dialogs import show_error
         import threading
 
         from src.modules.pdf_tools.pdf_batch_from_images import convert_subfolders_images_to_pdf
@@ -256,10 +296,10 @@ class AppActions:
 
         root_path = Path(folder_str)
         if not root_path.is_dir():
-            messagebox.showerror(
+            show_error(
+                parent_window,
                 "Erro",
                 "Caminho invalido. Selecione uma pasta que contenha subpastas com imagens JPG, JPEG ou PNG.",
-                parent=parent_window,
             )
             return
 
@@ -282,7 +322,7 @@ class AppActions:
                 total_bytes += sum(path.stat().st_size for path in all_image_paths)
         except Exception as exc:
             self._logger.exception("Erro ao calcular totais para o conversor PDF")
-            messagebox.showerror("Erro", f"Erro ao analisar subpastas:\n{exc}", parent=parent_window)
+            show_error(parent_window, "Erro", f"Erro ao analisar subpastas:\n{exc}")
             return
 
         if total_bytes == 0:
@@ -337,10 +377,10 @@ class AppActions:
                             progress_dialog.close()
                     except Exception as exc:  # noqa: BLE001
                         self._logger.debug("progress_dialog.close() failed in on_error: %s", exc)
-                    messagebox.showerror(
+                    show_error(
+                        parent_window,
                         "Erro",
                         err_msg,
-                        parent=parent_window,
                     )
 
                 try:

@@ -5,8 +5,9 @@ import logging
 import os
 import tkinter as tk
 from tempfile import NamedTemporaryFile
-from tkinter import messagebox
 from typing import Iterable
+
+from src.ui.dialogs.rc_dialogs import show_error
 
 from src.adapters.storage.api import delete_file as storage_delete_file
 from src.adapters.storage.api import list_files as storage_list_files
@@ -39,7 +40,8 @@ def _get_supabase_and_org() -> tuple[object, str]:
         res = exec_postgrest(
             supabase.table("memberships").select(MEMBERSHIPS_SELECT_ORG_ID).eq("user_id", uid).limit(1)
         )
-        org_id = res.data[0]["org_id"] if getattr(res, "data", None) else None
+        data = getattr(res, "data", None)
+        org_id = data[0]["org_id"] if data else None
         if not org_id:
             raise RuntimeError("Organização não encontrada para o usuário atual.")
         return supabase, org_id
@@ -141,7 +143,7 @@ def restore_clients(client_ids: Iterable[int], parent: tk.Misc | None = None) ->
     try:
         supabase, org_id = _get_supabase_and_org()
     except Exception as e:
-        messagebox.showerror("Erro", str(e), parent=parent_widget)
+        show_error(parent_widget, "Erro", str(e))
         return 0, [(0, str(e))]
 
     for cid in client_ids:
@@ -172,19 +174,26 @@ def hard_delete_clients(client_ids: Iterable[int], parent: tk.Misc | None = None
     try:
         supabase, org_id = _get_supabase_and_org()
     except Exception as e:
-        messagebox.showerror("Erro", str(e), parent=parent_widget)
+        show_error(parent_widget, "Erro", str(e))
         return 0, [(0, str(e))]
 
     for cid in client_ids:
         cid = int(cid)
         try:
-            # 1) Limpa Storage
+            # 1) Limpa Storage — se falhar, NÃO prosseguir com o delete no DB
+            # (evita orphan files e garante atomicidade: storage OU banco, nunca
+            # só banco sem limpar arquivos).
+            storage_ok = True
             try:
                 removed = _remove_storage_prefix(org_id, cid)
                 log.info("Storage: removidos %s objeto(s) de %s/%s", removed, org_id, cid)
             except Exception as e:
-                log.exception("Falha ao limpar Storage de %s/%s", org_id, cid)
+                log.exception("Falha ao limpar Storage de %s/%s — abortando delete do DB", org_id, cid)
                 errs.append((cid, f"Storage: {e}"))
+                storage_ok = False
+
+            if not storage_ok:
+                continue  # Não remove do DB se Storage falhou
 
             # 2) FIX-SENHAS-015: Apaga todas as senhas do cliente
             try:

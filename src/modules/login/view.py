@@ -7,9 +7,6 @@ IMPLEMENTAÇÃO ATUAL:
   - LoginDialog: aponta para src.ui.login_dialog.LoginDialog (login moderno com Supabase)
   - show_splash: splash screen inicial da aplicação
 
-ARQUIVOS LEGACY (apenas compatibilidade):
-  - src.ui.login.login.LoginDialog: wrapper deprecated, não usar em código novo
-
 EXEMPLO DE USO:
   from src.modules.login.view import LoginDialog, show_splash
 

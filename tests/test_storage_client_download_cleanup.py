@@ -10,15 +10,14 @@ Estratégia de isolamento:
   - O diretório de destino é um tempfile.TemporaryDirectory() real,
     descartado após cada teste.
 """
+
 from __future__ import annotations
 
-import os
 import tempfile
 import threading
 import unittest
-from contextlib import contextmanager
 from pathlib import Path
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 from src.infra.supabase.storage_client import baixar_pasta_zip, DownloadCancelledError
 
@@ -26,6 +25,7 @@ from src.infra.supabase.storage_client import baixar_pasta_zip, DownloadCancelle
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_response(
     status_code: int = 200,
@@ -65,11 +65,13 @@ def _make_response(
     resp.raw.decode_content = False
 
     if raise_on_chunk is not None:
+
         def _iter_content(chunk_size=None):
             for i, chunk in enumerate(chunks):
                 if i == raise_on_chunk_index:
                     raise raise_on_chunk
                 yield chunk
+
         resp.iter_content = _iter_content
     else:
         resp.iter_content = MagicMock(return_value=iter(chunks))
@@ -87,8 +89,8 @@ def _make_session(resp: MagicMock) -> MagicMock:
 # Cenário (a): sucesso — arquivo final existe, temp não existe
 # ---------------------------------------------------------------------------
 
-class TestDownloadSuccess(unittest.TestCase):
 
+class TestDownloadSuccess(unittest.TestCase):
     def setUp(self):
         self.tmpdir = tempfile.TemporaryDirectory()
         self.out_dir = Path(self.tmpdir.name)
@@ -101,8 +103,10 @@ class TestDownloadSuccess(unittest.TestCase):
         resp = _make_response(chunks=chunks)
         sess = _make_session(resp)
 
-        with patch("src.infra.supabase.storage_client._sess", return_value=sess), \
-             patch("src.infra.supabase.storage_client.CLOUD_ONLY", False):
+        with (
+            patch("src.infra.supabase.storage_client._sess", return_value=sess),
+            patch("src.infra.supabase.storage_client.CLOUD_ONLY", False),
+        ):
             result = baixar_pasta_zip(
                 bucket="test-bucket",
                 prefix="org/client/",
@@ -117,8 +121,10 @@ class TestDownloadSuccess(unittest.TestCase):
         resp = _make_response(chunks=chunks)
         sess = _make_session(resp)
 
-        with patch("src.infra.supabase.storage_client._sess", return_value=sess), \
-             patch("src.infra.supabase.storage_client.CLOUD_ONLY", False):
+        with (
+            patch("src.infra.supabase.storage_client._sess", return_value=sess),
+            patch("src.infra.supabase.storage_client.CLOUD_ONLY", False),
+        ):
             result = baixar_pasta_zip(
                 bucket="test-bucket",
                 prefix="org/client/",
@@ -132,8 +138,10 @@ class TestDownloadSuccess(unittest.TestCase):
         resp = _make_response()
         sess = _make_session(resp)
 
-        with patch("src.infra.supabase.storage_client._sess", return_value=sess), \
-             patch("src.infra.supabase.storage_client.CLOUD_ONLY", False):
+        with (
+            patch("src.infra.supabase.storage_client._sess", return_value=sess),
+            patch("src.infra.supabase.storage_client.CLOUD_ONLY", False),
+        ):
             result = baixar_pasta_zip(
                 bucket="bucket",
                 prefix="a/b/",
@@ -147,8 +155,10 @@ class TestDownloadSuccess(unittest.TestCase):
         resp = _make_response(chunks=[data])
         sess = _make_session(resp)
 
-        with patch("src.infra.supabase.storage_client._sess", return_value=sess), \
-             patch("src.infra.supabase.storage_client.CLOUD_ONLY", False):
+        with (
+            patch("src.infra.supabase.storage_client._sess", return_value=sess),
+            patch("src.infra.supabase.storage_client.CLOUD_ONLY", False),
+        ):
             result = baixar_pasta_zip(
                 bucket="bucket",
                 prefix="a/b/",
@@ -162,8 +172,8 @@ class TestDownloadSuccess(unittest.TestCase):
 # Cenário (b): erro no meio — final não existe, temp removido
 # ---------------------------------------------------------------------------
 
-class TestDownloadErrorMidStream(unittest.TestCase):
 
+class TestDownloadErrorMidStream(unittest.TestCase):
     def setUp(self):
         self.tmpdir = tempfile.TemporaryDirectory()
         self.out_dir = Path(self.tmpdir.name)
@@ -181,8 +191,10 @@ class TestDownloadErrorMidStream(unittest.TestCase):
         )
         sess = _make_session(resp)
 
-        with patch("src.infra.supabase.storage_client._sess", return_value=sess), \
-             patch("src.infra.supabase.storage_client.CLOUD_ONLY", False):
+        with (
+            patch("src.infra.supabase.storage_client._sess", return_value=sess),
+            patch("src.infra.supabase.storage_client.CLOUD_ONLY", False),
+        ):
             with self.assertRaises(OSError):
                 baixar_pasta_zip(
                     bucket="bucket",
@@ -204,8 +216,10 @@ class TestDownloadErrorMidStream(unittest.TestCase):
         )
         sess = _make_session(resp)
 
-        with patch("src.infra.supabase.storage_client._sess", return_value=sess), \
-             patch("src.infra.supabase.storage_client.CLOUD_ONLY", False):
+        with (
+            patch("src.infra.supabase.storage_client._sess", return_value=sess),
+            patch("src.infra.supabase.storage_client.CLOUD_ONLY", False),
+        ):
             with self.assertRaises(RuntimeError):
                 baixar_pasta_zip(
                     bucket="bucket",
@@ -225,8 +239,10 @@ class TestDownloadErrorMidStream(unittest.TestCase):
         )
         sess = _make_session(resp)
 
-        with patch("src.infra.supabase.storage_client._sess", return_value=sess), \
-             patch("src.infra.supabase.storage_client.CLOUD_ONLY", False):
+        with (
+            patch("src.infra.supabase.storage_client._sess", return_value=sess),
+            patch("src.infra.supabase.storage_client.CLOUD_ONLY", False),
+        ):
             with self.assertRaises(IOError):
                 baixar_pasta_zip(
                     bucket="bucket",
@@ -243,8 +259,10 @@ class TestDownloadErrorMidStream(unittest.TestCase):
         resp = _make_response(chunks=[data], content_length="9999")
         sess = _make_session(resp)
 
-        with patch("src.infra.supabase.storage_client._sess", return_value=sess), \
-             patch("src.infra.supabase.storage_client.CLOUD_ONLY", False):
+        with (
+            patch("src.infra.supabase.storage_client._sess", return_value=sess),
+            patch("src.infra.supabase.storage_client.CLOUD_ONLY", False),
+        ):
             with self.assertRaises(IOError):
                 baixar_pasta_zip(
                     bucket="bucket",
@@ -260,8 +278,8 @@ class TestDownloadErrorMidStream(unittest.TestCase):
 # Cenário (c): erro antes de escrever — temp removido
 # ---------------------------------------------------------------------------
 
-class TestDownloadErrorBeforeWrite(unittest.TestCase):
 
+class TestDownloadErrorBeforeWrite(unittest.TestCase):
     def setUp(self):
         self.tmpdir = tempfile.TemporaryDirectory()
         self.out_dir = Path(self.tmpdir.name)
@@ -274,8 +292,10 @@ class TestDownloadErrorBeforeWrite(unittest.TestCase):
         resp = _make_response(chunks=[], content_length="100")
         sess = _make_session(resp)
 
-        with patch("src.infra.supabase.storage_client._sess", return_value=sess), \
-             patch("src.infra.supabase.storage_client.CLOUD_ONLY", False):
+        with (
+            patch("src.infra.supabase.storage_client._sess", return_value=sess),
+            patch("src.infra.supabase.storage_client.CLOUD_ONLY", False),
+        ):
             with self.assertRaises(IOError):
                 baixar_pasta_zip(
                     bucket="bucket",
@@ -298,8 +318,10 @@ class TestDownloadErrorBeforeWrite(unittest.TestCase):
         )
         sess = _make_session(resp)
 
-        with patch("src.infra.supabase.storage_client._sess", return_value=sess), \
-             patch("src.infra.supabase.storage_client.CLOUD_ONLY", False):
+        with (
+            patch("src.infra.supabase.storage_client._sess", return_value=sess),
+            patch("src.infra.supabase.storage_client.CLOUD_ONLY", False),
+        ):
             with self.assertRaises(Exception):
                 baixar_pasta_zip(
                     bucket="bucket",
@@ -315,8 +337,8 @@ class TestDownloadErrorBeforeWrite(unittest.TestCase):
 # Cenário (d): cancelamento via cancel_event — temp removido
 # ---------------------------------------------------------------------------
 
-class TestDownloadCancellation(unittest.TestCase):
 
+class TestDownloadCancellation(unittest.TestCase):
     def setUp(self):
         self.tmpdir = tempfile.TemporaryDirectory()
         self.out_dir = Path(self.tmpdir.name)
@@ -332,13 +354,13 @@ class TestDownloadCancellation(unittest.TestCase):
     def test_cancel_mid_stream_raises(self):
         cancel = threading.Event()
         resp = _make_response(chunks=[b"C1", b"C2"])
-        resp.iter_content = MagicMock(
-            return_value=self._chunks_with_cancel(cancel)
-        )
+        resp.iter_content = MagicMock(return_value=self._chunks_with_cancel(cancel))
         sess = _make_session(resp)
 
-        with patch("src.infra.supabase.storage_client._sess", return_value=sess), \
-             patch("src.infra.supabase.storage_client.CLOUD_ONLY", False):
+        with (
+            patch("src.infra.supabase.storage_client._sess", return_value=sess),
+            patch("src.infra.supabase.storage_client.CLOUD_ONLY", False),
+        ):
             with self.assertRaises(DownloadCancelledError):
                 baixar_pasta_zip(
                     bucket="bucket",
@@ -350,13 +372,13 @@ class TestDownloadCancellation(unittest.TestCase):
     def test_cancel_mid_stream_temp_removed(self):
         cancel = threading.Event()
         resp = _make_response(chunks=[b"C1", b"C2"])
-        resp.iter_content = MagicMock(
-            return_value=self._chunks_with_cancel(cancel)
-        )
+        resp.iter_content = MagicMock(return_value=self._chunks_with_cancel(cancel))
         sess = _make_session(resp)
 
-        with patch("src.infra.supabase.storage_client._sess", return_value=sess), \
-             patch("src.infra.supabase.storage_client.CLOUD_ONLY", False):
+        with (
+            patch("src.infra.supabase.storage_client._sess", return_value=sess),
+            patch("src.infra.supabase.storage_client.CLOUD_ONLY", False),
+        ):
             with self.assertRaises(DownloadCancelledError):
                 baixar_pasta_zip(
                     bucket="bucket",
@@ -371,13 +393,13 @@ class TestDownloadCancellation(unittest.TestCase):
     def test_cancel_mid_stream_no_final_file(self):
         cancel = threading.Event()
         resp = _make_response(chunks=[b"C1", b"C2"])
-        resp.iter_content = MagicMock(
-            return_value=self._chunks_with_cancel(cancel)
-        )
+        resp.iter_content = MagicMock(return_value=self._chunks_with_cancel(cancel))
         sess = _make_session(resp)
 
-        with patch("src.infra.supabase.storage_client._sess", return_value=sess), \
-             patch("src.infra.supabase.storage_client.CLOUD_ONLY", False):
+        with (
+            patch("src.infra.supabase.storage_client._sess", return_value=sess),
+            patch("src.infra.supabase.storage_client.CLOUD_ONLY", False),
+        ):
             with self.assertRaises(DownloadCancelledError):
                 baixar_pasta_zip(
                     bucket="bucket",

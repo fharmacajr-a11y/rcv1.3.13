@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 try:
     from src.core.logger import get_logger
-except Exception:
+except ImportError:
     import logging
 
     def get_logger(name: str) -> logging.Logger:

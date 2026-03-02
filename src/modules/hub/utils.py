@@ -23,7 +23,7 @@ def _hash_dict(d: dict) -> str:
     """Calcula hash estável de um dicionário para comparação."""
     try:
         payload = json.dumps(d or {}, sort_keys=True, ensure_ascii=False)
-    except Exception:
+    except (TypeError, ValueError):
         payload = str(sorted((d or {}).items()))
     return hashlib.sha256(payload.encode("utf-8", errors="ignore")).hexdigest()
 
@@ -83,7 +83,7 @@ def _normalize_note(n: Any) -> Dict[str, Any]:
     # 3) dataclass/objeto com atributos (ex.: NoteItemView)
     try:
         is_dc = is_dataclass(n)
-    except Exception:
+    except TypeError:
         is_dc = False
 
     if is_dc or any(hasattr(n, attr) for attr in ("body", "created_at", "author_email", "author_name", "id")):
@@ -112,7 +112,7 @@ def _normalize_note(n: Any) -> Dict[str, Any]:
                 "formatted_line": str(getattr(n, "formatted_line", "") or ""),
                 "tag_name": str(getattr(n, "tag_name", "") or ""),
             }
-        except Exception:
+        except (AttributeError, TypeError):
             logger.debug("Erro ao extrair campos do dataclass NoteItemView", exc_info=True)
             pass
 

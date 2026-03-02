@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Dialogo simples para definir subpastas de clientes.
+Dialogo CTkToplevel para definir subpastas de clientes.
 """
 
 from __future__ import annotations
@@ -10,10 +10,20 @@ import tkinter as tk
 from typing import Optional
 
 from src.ui.ctk_config import ctk
-
+from src.ui.ui_tokens import (
+    APP_BG,
+    SURFACE,
+    PRIMARY_BLUE,
+    PRIMARY_BLUE_HOVER,
+    TEXT_MUTED,
+    DIALOG_RADIUS,
+    INPUT_RADIUS,
+    FONT_SECTION,
+    FONT_BODY_SM,
+)
+from src.ui.widgets.button_factory import make_btn
 from src.utils.subfolders import sanitize_subfolder_name
-from src.ui.window_utils import show_centered
-from src.utils.resource_path import resource_path
+from src.ui.window_utils import apply_window_icon, show_centered
 
 logger = logging.getLogger(__name__)
 
@@ -21,11 +31,11 @@ logger = logging.getLogger(__name__)
 DEFAULT_IMPORT_SUBFOLDER = "GERAL"
 
 
-class SubpastaDialog(tk.Toplevel):
-    """Dialogo que coleta o nome da subpasta (ex.: usada em uploads de clientes)."""
+class SubpastaDialog(ctk.CTkToplevel):
+    """Dialogo CTkToplevel que coleta o nome da subpasta (ex.: usada em uploads de clientes)."""
 
-    DIALOG_MIN_WIDTH = 520
-    WRAP_LEN = 520
+    DIALOG_MIN_WIDTH = 500
+    WRAP_LEN = 440
 
     def __init__(self, parent: tk.Misc, default: str = ""):
         super().__init__(parent)
@@ -33,63 +43,82 @@ class SubpastaDialog(tk.Toplevel):
         self.title("Subpasta em GERAL")
         self.transient(parent)
         self.resizable(False, False)
-        try:
-            self.iconbitmap(resource_path("rc.ico"))
-        except Exception as exc:  # noqa: BLE001
-            logger.debug("Falha ao aplicar iconbitmap no SubpastaDialog: %s", exc)
+        self.configure(fg_color=APP_BG)
+        apply_window_icon(self)
 
-        # Grid layout compacto
-        self.rowconfigure(0, weight=0)
+        self.rowconfigure(0, weight=1)
         self.columnconfigure(0, weight=1)
 
-        frm = tk.Frame(self)
-        frm.grid(row=0, column=0, sticky="nsew", padx=16, pady=(12, 10))
-        frm.columnconfigure(0, weight=1)
+        # Card central arredondado
+        card = ctk.CTkFrame(
+            self,
+            corner_radius=DIALOG_RADIUS,
+            fg_color=SURFACE,
+            bg_color=APP_BG,
+        )
+        card.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
+        card.columnconfigure(0, weight=1)
 
-        # Labels com wraplength para evitar texto feio
+        # Label título
         ctk.CTkLabel(
-            frm,
+            card,
             text=f"Digite o nome da subpasta (ou deixe vazio para usar só '{DEFAULT_IMPORT_SUBFOLDER}/').",
-            wraplength=520,
+            font=FONT_SECTION,
+            wraplength=self.WRAP_LEN,
             justify="left",
-        ).grid(row=0, column=0, sticky="w", pady=(0, 6))
+            fg_color="transparent",
+        ).grid(row=0, column=0, sticky="w", padx=20, pady=(20, 4))
 
+        # Label descrição
         ctk.CTkLabel(
-            frm,
+            card,
             text="Ex.: SIFAP, VISA, Farmacia_Popular, Auditoria",
-            text_color="#6c757d",  # FIX: CTkLabel usa text_color, não foreground
-            wraplength=520,
+            font=FONT_BODY_SM,
+            text_color=TEXT_MUTED,
+            wraplength=self.WRAP_LEN,
             justify="left",
-        ).grid(row=1, column=0, sticky="w", pady=(0, 6))
+            fg_color="transparent",
+        ).grid(row=1, column=0, sticky="w", padx=20, pady=(0, 10))
 
+        # Entry arredondada
         self.var = tk.StringVar(value=default or "")
-        ent = ctk.CTkEntry(frm, textvariable=self.var, width=40)
-        ent.grid(row=2, column=0, sticky="ew", pady=(6, 8))
+        ent = ctk.CTkEntry(
+            card,
+            textvariable=self.var,
+            corner_radius=INPUT_RADIUS,
+            placeholder_text="Ex.: SIFAP, VISA, Farmacia_Popular, Auditoria",
+        )
+        ent.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 16))
 
-        # Botões no canto direito com padding mínimo
-        btns = tk.Frame(frm)
-        btns.grid(row=3, column=0, sticky="e", pady=(0, 0))
-        tk.Button(btns, text="OK", command=self._ok).pack(side="left", padx=4)
-        tk.Button(btns, text="Cancelar", command=self._cancel).pack(side="left", padx=4)
+        # Botões alinhados à direita
+        btns_frame = ctk.CTkFrame(card, fg_color="transparent")
+        btns_frame.grid(row=3, column=0, sticky="e", padx=20, pady=(0, 20))
+        make_btn(
+            btns_frame,
+            text="Cancelar",
+            command=self._cancel,
+            fg_color=("gray70", "gray40"),
+            hover_color=("gray60", "gray30"),
+        ).pack(side="left", padx=(0, 8))
+        make_btn(
+            btns_frame,
+            text="OK",
+            command=self._ok,
+            fg_color=PRIMARY_BLUE,
+            hover_color=PRIMARY_BLUE_HOVER,
+        ).pack(side="left")
 
         self.bind("<Return>", lambda e: self._ok())
         self.bind("<Escape>", lambda e: self._cancel())
-        _attach_close_handler(self)
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
 
-        # Forçar largura mínima e centralizar
+        # Centralizar e exibir
         try:
             self.update_idletasks()
+            req_w = max(self.DIALOG_MIN_WIDTH, self.winfo_reqwidth())
             req_h = self.winfo_reqheight()
-            self.minsize(self.DIALOG_MIN_WIDTH, req_h)
+            self.minsize(req_w, req_h)
             show_centered(self)
-
-            # Reaplicar geometry mantendo posição para garantir largura
-            self.update_idletasks()
-            x, y = self.winfo_x(), self.winfo_y()
-            w = max(self.DIALOG_MIN_WIDTH, self.winfo_reqwidth())
-            h = self.winfo_reqheight()
-            self.geometry(f"{w}x{h}+{x}+{y}")
-            self.minsize(w, h)
         except Exception as exc:  # noqa: BLE001
             logger.debug("Falha ao centralizar SubpastaDialog: %s", exc)
         self.grab_set()
@@ -113,13 +142,6 @@ class SubpastaDialog(tk.Toplevel):
         self.result = None
         self.cancelled = True
         self.destroy()
-
-    def protocol(self, name=None, func=None):
-        try:
-            return super().protocol(name, func)
-        except Exception as exc:  # noqa: BLE001
-            logger.debug("Falha ao registrar protocolo no SubpastaDialog: %s", exc)
-            return None
 
 
 def _attach_close_handler(dlg: SubpastaDialog) -> None:

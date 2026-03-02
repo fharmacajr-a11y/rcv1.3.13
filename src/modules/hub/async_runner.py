@@ -10,6 +10,7 @@ FASE 5A: Refatorado para usar ThreadPoolExecutor e suportar shutdown seguro.
 from __future__ import annotations
 
 import logging
+import threading
 import tkinter as tk
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -33,7 +34,9 @@ class HubAsyncRunner:
     tk_root: tk.Misc
     logger: logging.Logger | None = None
     _executor: ThreadPoolExecutor = field(default=None, init=False, repr=False)
-    _pending_after_ids: list[str] = field(default_factory=list, init=False, repr=False)
+    # set protegido por _pending_lock; nenhuma leitura/escrita fora do lock.
+    _pending_after_ids: set = field(default_factory=set, init=False, repr=False)
+    _pending_lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
     _shutdown: bool = field(default=False, init=False, repr=False)
 
     def __post_init__(self):
@@ -101,20 +104,29 @@ class HubAsyncRunner:
                 self.logger.debug("HubAsyncRunner: TclError ao verificar widget, ignorando callback")
             return
 
+        # Holder mutável: resolve o problema chicken-and-egg (after_id só é
+        # conhecido após after() retornar, mas a closure precisa dele).
+        holder: list = []
+
+        def _wrapped() -> None:
+            try:
+                callback()
+            except Exception as exc:  # noqa: BLE001
+                if self.logger:
+                    self.logger.exception("Erro ao executar callback do HUB", exc_info=exc)
+            finally:
+                if holder:
+                    with self._pending_lock:
+                        self._pending_after_ids.discard(holder[0])
+
         try:
-            after_id = self.tk_root.after(0, self._safe_callback_wrapper, callback)
-            self._pending_after_ids.append(after_id)
+            after_id = self.tk_root.after(0, _wrapped)
+            holder.append(after_id)
+            with self._pending_lock:
+                self._pending_after_ids.add(after_id)
         except tk.TclError:
             if self.logger:
                 self.logger.debug("HubAsyncRunner: TclError ao agendar callback")
-
-    def _safe_callback_wrapper(self, callback: Callable[[], None]) -> None:
-        """Wrapper que executa callback e remove ID da lista de pendentes."""
-        try:
-            callback()
-        except Exception as exc:  # noqa: BLE001
-            if self.logger:
-                self.logger.exception("Erro ao executar callback do HUB", exc_info=exc)
 
     def shutdown(self) -> None:
         """Encerra o runner: cancela callbacks pendentes e desliga executor.
@@ -129,15 +141,19 @@ class HubAsyncRunner:
         if self.logger:
             self.logger.debug("HubAsyncRunner.shutdown: iniciando cleanup...")
 
-        # Cancelar callbacks pendentes
+        # Cancelar callbacks pendentes: snapshot atômico + limpa dentro do lock;
+        # cancela fora para não segurar lock durante chamadas Tk.
+        with self._pending_lock:
+            ids_to_cancel = list(self._pending_after_ids)
+            self._pending_after_ids.clear()
+
         cancelled_count = 0
-        for after_id in self._pending_after_ids:
+        for after_id in ids_to_cancel:
             try:
                 self.tk_root.after_cancel(after_id)
                 cancelled_count += 1
             except (tk.TclError, Exception):
                 pass  # Ignorar se widget já destruído
-        self._pending_after_ids.clear()
 
         if self.logger and cancelled_count > 0:
             self.logger.debug(f"HubAsyncRunner.shutdown: {cancelled_count} callbacks cancelados")

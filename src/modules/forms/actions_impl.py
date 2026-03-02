@@ -16,9 +16,10 @@ import hashlib
 import logging
 import tkinter as tk
 from pathlib import Path
-from tkinter import filedialog, messagebox
+from tkinter import filedialog
 from typing import Any, Mapping, Protocol, cast
 from typing_extensions import TypedDict
+from src.ui.dialogs.rc_dialogs import show_error, show_warning
 from src.modules.clientes.core.service import extrair_dados_cartao_cnpj_em_pasta
 from src.modules.uploads.external_upload_service import (
     salvar_e_enviar_para_supabase_service,
@@ -105,7 +106,7 @@ def preencher_via_pasta(ents: Mapping[str, EntryLike]) -> None:
 
     # 3. VALIDAR RESULTADO E MOSTRAR AVISO SE NECESSÁRIO (UI)
     if not (cnpj or razao):
-        messagebox.showwarning("Atenção", "Nenhum Cartão CNPJ válido encontrado.")
+        show_warning(None, "Atenção", "Nenhum Cartão CNPJ válido encontrado.")
         return
 
     # 4. PREENCHER CAMPOS DO FORMULÁRIO (UI)
@@ -162,10 +163,10 @@ def salvar_e_enviar_para_supabase(
         service_result = salvar_e_enviar_para_supabase_service(ctx)
     except Exception as exc:  # noqa: BLE001
         log.error("UI: falha ao executar service de upload: %s", exc, exc_info=True)
-        messagebox.showerror(
+        show_error(
+            parent_widget,
             "Envio",
             "Ocorreu um erro inesperado ao enviar os arquivos. Tente novamente.",
-            parent=parent_widget,
         )
         return None
 
@@ -199,7 +200,8 @@ def list_storage_objects(bucket_name: str | None, prefix: str = "") -> list[Stor
     if not service_result["ok"]:
         error_type = service_result.get("error_type")
         if error_type == "bucket_not_found":
-            messagebox.showerror(
+            show_error(
+                None,
                 "Erro ao listar arquivos",
                 "Não foi possível acessar o bucket de arquivos. Verifique a configuração de storage e tente novamente.",
             )
@@ -258,18 +260,16 @@ def salvar_e_upload_docs(
     - src.modules.uploads.views.upload_dialog.UploadDialog
     - src.modules.uploads.service.upload_items_for_client
     """
-    from tkinter import messagebox
-
     log.warning(
         "DEPRECATED: salvar_e_upload_docs foi chamado. Use src.modules.uploads.views.upload_dialog.UploadDialog"
     )
 
     parent_widget = win if isinstance(win, tk.Misc) else (self if isinstance(self, tk.Misc) else None)
 
-    messagebox.showerror(
+    show_error(
+        parent_widget,
         "Função Removida",
         "Este fluxo de upload foi descontinuado.\n\nUse o botão 'Enviar documentos' no formulário de clientes.",
-        parent=parent_widget,
     )
 
     return None

@@ -16,11 +16,13 @@ from typing import Any
 from src.modules.clientes.forms.client_subfolder_prompt import SubpastaDialog
 from src.modules.uploads.components.helpers import _cnpj_only_digits, get_clients_bucket, get_current_org_id
 from src.modules.uploads.file_validator import validate_upload_files
+from src.modules.uploads import repository as _uploads_repo
 from src.modules.uploads.service import build_items_from_files, collect_pdfs_from_folder, upload_items_for_client
 from src.modules.uploads.upload_retry import classify_upload_exception
 from src.modules.uploads.views import UploadDialog, UploadDialogContext, UploadDialogResult
 from src.ui.ctk_config import ctk
 from src.ui.files_browser.utils import format_file_size
+from src.ui.ui_tokens import APP_BG, BUTTON_RADIUS, PRIMARY_BLUE, PRIMARY_BLUE_HOVER
 from src.ui.window_utils import apply_window_icon
 
 logger = logging.getLogger(__name__)
@@ -40,11 +42,20 @@ def _show_msg(parent: Any, title: str, msg: str) -> None:
     except Exception:  # noqa: BLE001
         pass
     apply_window_icon(dlg)
+    dlg.configure(fg_color=APP_BG)
 
-    frame = ctk.CTkFrame(dlg)
+    frame = ctk.CTkFrame(dlg, fg_color="transparent")
     frame.pack(fill="both", expand=True, padx=24, pady=20)
-    ctk.CTkLabel(frame, text=msg, wraplength=360, justify="left").pack(pady=(0, 16))
-    ctk.CTkButton(frame, text="OK", width=90, command=dlg.destroy).pack()
+    ctk.CTkLabel(frame, text=msg, wraplength=360, justify="left", fg_color="transparent").pack(pady=(0, 16))
+    ctk.CTkButton(
+        frame,
+        text="OK",
+        width=90,
+        command=dlg.destroy,
+        corner_radius=BUTTON_RADIUS,
+        fg_color=PRIMARY_BLUE,
+        hover_color=PRIMARY_BLUE_HOVER,
+    ).pack()
 
     # update_idletasks mede o tamanho; update() processa os eventos pendentes
     # do CTkToplevel (titlebar color async no Windows) antes do grab_set
@@ -196,7 +207,12 @@ def execute_upload_flow(
         _show_msg(parent_widget, "Envio", "Nenhum PDF valido foi selecionado.")
         return
 
-    # 5. Verificar CNPJ
+    # 5. Verificar client_id
+    if client_id is None:
+        _show_msg(parent_widget, "Envio", "Salve o cadastro do cliente antes de enviar documentos.")
+        return
+
+    # 6. Verificar CNPJ
     cnpj_widget = ents.get("CNPJ")
     cnpj_value = ""
     try:
@@ -210,18 +226,36 @@ def execute_upload_flow(
         _show_msg(parent_widget, "Envio", "Informe o CNPJ antes de enviar.")
         return
 
-    # 6. Resolver org_id
-    supabase_client = getattr(host, "supabase", None)
+    # 7. Resolver supabase_client e org_id
+    # Sempre garante um client válido (fallback para singleton global)
+    from src.infra.supabase_client import supabase as _global_supabase
+
+    supabase_client = getattr(host, "supabase", None) or _global_supabase
+
     org_id_val = ""
     try:
-        if supabase_client:
-            org_id_val = get_current_org_id(supabase_client)
+        org_id_val = get_current_org_id(supabase_client)
     except Exception as exc:  # noqa: BLE001
-        logger.debug("Falha ao resolver org_id para upload: %s", exc)
+        logger.debug("Falha ao resolver org_id via get_current_org_id: %s", exc)
+
+    if not org_id_val:
+        # Fallback via memberships do usuário autenticado
+        try:
+            org_id_val = _uploads_repo.resolve_org_id()
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Falha ao resolver org_id via resolve_org_id: %s", exc)
+
+    logger.info(
+        "UPLOAD prefix: org_id=%s client_id=%s (esperado: %s/%s/GERAL)",
+        org_id_val,
+        client_id,
+        org_id_val,
+        client_id,
+    )
 
     items_total = len(items)
 
-    # 7. Definir callable de upload (executado em thread)
+    # 8. Definir callable de upload (executado em thread)
     def _upload_callable(ctx: UploadDialogContext) -> dict[str, Any]:
         ctx.set_total(items_total)
 
@@ -255,7 +289,7 @@ def execute_upload_flow(
             "total": items_total,
         }
 
-    # 8. Definir callback de conclusão
+    # 9. Definir callback de conclusão
     def _on_upload_complete(outcome: UploadDialogResult) -> None:
         if outcome.error:
             title = "Envio cancelado" if "cancelado" in outcome.error.message.lower() else "Erro no upload"
@@ -303,7 +337,7 @@ def execute_upload_flow(
                 f"Não foi possível enviar os arquivos selecionados.\n\n{summary}",
             )
 
-    # 9. Executar dialog de upload
+    # 10. Executar dialog de upload
     dialog = UploadDialog(
         parent_widget,
         _upload_callable,

@@ -7,9 +7,9 @@ Contém lógica de validação de conflitos de CNPJ e Razão Social.
 
 from __future__ import annotations
 
-import tkinter as tk
-from tkinter import messagebox
 from typing import Any, Iterable, Mapping, Tuple
+
+from src.ui.dialogs.rc_dialogs import ask_ok_cancel, show_warning
 
 
 def _extract_conflict_attr(cliente: Any, attr: str) -> Any:
@@ -107,13 +107,6 @@ def build_razao_confirm(info: Mapping[str, Any]) -> Tuple[str, str]:
     return ("Razão Social repetida", message)
 
 
-def _parent_kwargs(parent: Any) -> dict:
-    """Retorna kwargs para messagebox (parent se for widget Tkinter)."""
-    if isinstance(parent, tk.Misc):
-        return {"parent": parent}
-    return {}
-
-
 def show_cnpj_warning_and_abort(parent: Any, info: Mapping[str, Any]) -> bool:
     """Mostra warning de CNPJ duplicado e retorna False (abortando operação).
 
@@ -125,7 +118,7 @@ def show_cnpj_warning_and_abort(parent: Any, info: Mapping[str, Any]) -> bool:
         False (sempre aborta por ser erro)
     """
     title, message = build_cnpj_warning(info)
-    messagebox.showwarning(title, message, **_parent_kwargs(parent))
+    show_warning(parent, title, message)
     return False
 
 
@@ -140,7 +133,7 @@ def ask_razao_confirm(parent: Any, info: Mapping[str, Any]) -> bool:
         True se usuário confirmou, False caso contrário
     """
     title, message = build_razao_confirm(info)
-    return messagebox.askokcancel(title, message, **_parent_kwargs(parent))
+    return ask_ok_cancel(parent, title, message)
 
 
 __all__ = [

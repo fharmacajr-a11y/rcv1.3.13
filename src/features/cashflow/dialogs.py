@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import logging
 from datetime import date
-from tkinter import DoubleVar, StringVar, messagebox
+from tkinter import DoubleVar, StringVar
 from typing import Any, Dict, Optional
+
+from src.ui.dialogs.rc_dialogs import show_error
 
 # CustomTkinter: fonte única centralizada
 from src.ui.ctk_config import ctk
+from src.ui.utils.binding_tracker import BindingTracker
 from src.ui.widgets.button_factory import make_btn
 from src.ui.window_utils import show_centered
 
@@ -43,6 +46,10 @@ class EntryDialog(ctk.CTkToplevel):
 
         self.result = None
 
+        # Rastreador de bindings para cleanup ao fechar o dialog
+        self._bindings = BindingTracker()
+        self.bind("<Destroy>", self._on_entry_dialog_destroy)
+
     def _build_form(self) -> None:
         frm = ctk.CTkFrame(self)
         frm.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
@@ -69,8 +76,8 @@ class EntryDialog(ctk.CTkToplevel):
             def on_date_change(event=None):
                 self.var_date.set(de.get())
 
-            de.bind("<Return>", on_date_change)
-            de.bind("<FocusOut>", on_date_change)
+            self._bindings.bind(de, "<Return>", on_date_change)
+            self._bindings.bind(de, "<FocusOut>", on_date_change)
         else:
             ctk.CTkEntry(frm, textvariable=self.var_date).grid(row=1, column=1, sticky="ew", pady=2)
 
@@ -112,6 +119,12 @@ class EntryDialog(ctk.CTkToplevel):
         except Exception as exc:  # noqa: BLE001
             log.debug("Falha ao exibir EntryDialog: %s", exc)
 
+    def _on_entry_dialog_destroy(self, event=None):
+        """Cleanup de bindings ao fechar o dialog."""
+        if event is not None and event.widget is not self:
+            return
+        self._bindings.unbind_all()
+
     def _cats(self):
         return CATEGORIES_IN if self.var_type.get() == "IN" else CATEGORIES_OUT
 
@@ -129,7 +142,7 @@ class EntryDialog(ctk.CTkToplevel):
             if amt <= 0:
                 raise ValueError("Valor deve ser > 0")
         except Exception:
-            messagebox.showerror("Valor invǭlido", "Informe um nǧmero maior que zero.")
+            show_error(self, "Valor invǭlido", "Informe um nǧmero maior que zero.")
             return
         self.result = {
             "type": self.var_type.get(),

@@ -10,6 +10,50 @@ logger = logging.getLogger(__name__)
 APP_DATETIME_FMT: Final[str] = "%Y-%m-%d %H:%M:%S"
 
 
+def format_whatsapp(raw: str | int | float | None) -> str:
+    """Formata número de telefone/WhatsApp no padrão brasileiro.
+
+    **Implementação canônica** de formatação de telefone no projeto.
+
+    Regras:
+    - Se raw for falsy (None, "", 0), retorna "".
+    - Extrai apenas dígitos.
+    - Remove prefixo internacional 55 se presente (ficando 10 ou 11 dígitos).
+    - 11 dígitos → (DD) 9XXXX-XXXX  (celular)
+    - 10 dígitos → (DD) XXXX-XXXX   (fixo)
+    - Outros → retorna dígitos sem máscara.
+
+    Args:
+        raw: Número como string, int, float ou None.
+
+    Returns:
+        Número formatado ou string vazia.
+
+    Examples:
+        >>> format_whatsapp("5511999887766")
+        '(11) 99988-7766'
+        >>> format_whatsapp("11999887766")
+        '(11) 99988-7766'
+        >>> format_whatsapp("1133445566")
+        '(11) 3344-5566'
+        >>> format_whatsapp(None)
+        ''
+    """
+    if raw is None or raw == "" or raw == 0:
+        return ""
+    digits = re.sub(r"\D", "", str(raw))
+    if not digits:
+        return ""
+    # Remover prefixo internacional 55
+    if len(digits) in (12, 13) and digits.startswith("55"):
+        digits = digits[2:]
+    if len(digits) == 11:
+        return f"({digits[:2]}) {digits[2:7]}-{digits[7:]}"
+    if len(digits) == 10:
+        return f"({digits[:2]}) {digits[2:6]}-{digits[6:]}"
+    return digits
+
+
 def format_cnpj(raw: str | int | float | None) -> str:
     """Formata CNPJ no padrão XX.XXX.XXX/XXXX-XX.
 
@@ -19,7 +63,7 @@ def format_cnpj(raw: str | int | float | None) -> str:
     Regras:
     - Se raw for falsy (None, "", 0), retorna "".
     - Converte raw para string, extrai apenas dígitos com regex.
-    - Se após a limpeza não houver exatamente 14 dígitos, retorna o valor original como string.
+    - Se após a limpeza não houver exatamente 14 dígitos, retorna apenas os dígitos extraídos (ou "" se nenhum dígito).
     - Se houver 14 dígitos, aplica a máscara XX.XXX.XXX/XXXX-XX e retorna.
 
     Args:
@@ -39,12 +83,16 @@ def format_cnpj(raw: str | int | float | None) -> str:
         ''
         >>> format_cnpj("123")
         '123'
+        >>> format_cnpj("1234-")
+        '1234'
     """
-    if not raw:
+    if raw is None or raw == "" or raw == 0:
         return ""
     digits = re.sub(r"\D", "", str(raw))
+    if not digits:
+        return ""
     if len(digits) != 14:
-        return str(raw)
+        return digits
     return f"{digits[0:2]}.{digits[2:5]}.{digits[5:8]}/{digits[8:12]}-{digits[12:14]}"
 
 

@@ -12,11 +12,12 @@ Responsabilidades:
 
 from __future__ import annotations
 
+import tkinter as tk
 from typing import TYPE_CHECKING
 
 try:
     from src.core.logger import get_logger
-except Exception:
+except ImportError:
     import logging
 
     def get_logger(name: str = __name__):
@@ -43,7 +44,7 @@ def setup_bindings(screen: HubScreen) -> None:
         # Get the toplevel window
         try:
             root = screen.winfo_toplevel()
-        except Exception:
+        except tk.TclError:
             root = screen
 
         # Ctrl+D para diagnóstico - use bind on root instead of bind_all

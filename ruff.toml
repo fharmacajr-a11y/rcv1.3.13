@@ -30,3 +30,7 @@ ignore = [
 "src/modules/main_window/views/main_window_layout.py" = ["N806"]  # SEP_H é constante visual
 "src/ui/components/lists.py" = ["F811"]  # Redefinição intencional com assinatura estendida
 "src/third_party/**/*" = ["N806", "E722", "F401"]  # Vendor code: menos restritivo
+"typings/**/*" = ["N803"]  # Type stubs espelham a API real (camelCase de tkinter)
+"src/modules/clientes/components/helpers.py" = ["E402", "F405"]  # Shim de compatibilidade
+"src/modules/clientes/forms/__init__.py" = ["E402"]  # Import após stub legado
+"tests/test_ui_after_cleanup.py" = ["E402"]  # Imports de seção dividida por comentário

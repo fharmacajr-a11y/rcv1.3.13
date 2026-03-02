@@ -148,12 +148,12 @@ class AutocompleteEntry(ctk.CTkEntry):
 
     def _create_dropdown(self) -> None:
         """Cria o Toplevel com Listbox."""
-        self._dropdown = tk.Toplevel(self)
+        self._dropdown = ctk.CTkToplevel(self)
         self._dropdown.withdraw()
         self._dropdown.overrideredirect(True)
 
         # Listbox com scrollbar (MICROFASE 27: CTkScrollbar)
-        frame = tk.Frame(self._dropdown)
+        frame = ctk.CTkFrame(self._dropdown)
         frame.pack(fill="both", expand=True)
 
         # Usar CTkScrollbar ao invés de ctk.CTkScrollbar

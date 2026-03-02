@@ -8,12 +8,14 @@ Cobre:
   - ctk_autocomplete_entry.py: destroy() cancela _debounce_id, _focus_out_job
                                 e destrói _dropdown; idempotência
 """
+
 from __future__ import annotations
 
 import sys
 import types
 import unittest
-from typing import Any, Optional
+from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock
 
 
@@ -21,12 +23,13 @@ from unittest.mock import MagicMock
 # Infraestrutura fake de after/after_cancel (sem Tk real)
 # ---------------------------------------------------------------------------
 
+
 class FakeAfterRoot:
     """Simula Tk.after / after_cancel sem loop de eventos real."""
 
     def __init__(self):
         self._counter = 0
-        self._pending: dict[str, tuple] = {}   # id → (ms, fn, args)
+        self._pending: dict[str, tuple] = {}  # id → (ms, fn, args)
         self.cancelled: set[str] = set()
         self.scheduled: list[str] = []
         self._exists = True
@@ -71,6 +74,7 @@ class FakeDropdown:
 # PARTE 1 — Splash: tick() armazena _progress_job e _do_close cancela
 # ---------------------------------------------------------------------------
 
+
 def _make_splash_tick(splash: FakeAfterRoot, delay_ms: int = 50, total_steps: int = 10):
     """
     Replica o padrão CORRIGIDO de tick() de splash.py:
@@ -78,8 +82,8 @@ def _make_splash_tick(splash: FakeAfterRoot, delay_ms: int = 50, total_steps: in
       - zera _progress_job ao entrar (job terminou)
     Retorna a função tick (sem executá-la).
     """
-    splash._progress_job = None   # type: ignore[attr-defined]
-    splash._pb = 0.0              # type: ignore[attr-defined]
+    splash._progress_job = None  # type: ignore[attr-defined]
+    splash._pb = 0.0  # type: ignore[attr-defined]
     step = 1.0 / total_steps
 
     def tick() -> None:
@@ -110,7 +114,6 @@ def _cancel_job(splash: Any, attr: str) -> None:
 
 
 class TestSplashProgressJobStored(unittest.TestCase):
-
     def test_tick_stores_progress_job_after_first_call(self):
         """tick() deve armazenar o after-id em _progress_job."""
         splash = FakeAfterRoot()
@@ -166,8 +169,7 @@ class TestSplashProgressJobStored(unittest.TestCase):
 
         # Simula execução futura do callback (o único agendado)
         tick()  # winfo_exists() == False → não agenda
-        self.assertEqual(len(splash.scheduled), scheduled_before,
-                         "nenhum novo after() deve ser chamado após destroy")
+        self.assertEqual(len(splash.scheduled), scheduled_before, "nenhum novo after() deve ser chamado após destroy")
 
     def test_progress_job_allows_proper_close(self):
         """Ao fechar, cancelar _progress_job resolve o problema do TclError."""
@@ -221,46 +223,93 @@ def _build_autocomplete_stubs() -> dict:
         def destroy(self):
             self._after_root.destroy()
 
-        def pack(self, **kw): pass
-        def update_idletasks(self): pass
-        def winfo_exists(self): return self._after_root.winfo_exists()
+        def pack(self, **kw):
+            pass
+
+        def update_idletasks(self):
+            pass
+
+        def winfo_exists(self):
+            return self._after_root.winfo_exists()
 
     class _FakeCTkEntry:
         def __init__(self, master=None, **kw):
             self.master = master
-        def pack(self, **kw): pass
-        def bind(self, *a, **kw): return ""
-        def get(self): return ""
-        def delete(self, *a): pass
-        def insert(self, *a): pass
-        def focus(self): pass
-        def focus_set(self): pass
-        def winfo_reqwidth(self): return 200
-        def winfo_rootx(self): return 0
-        def winfo_rooty(self): return 0
-        def winfo_height(self): return 30
-        def winfo_width(self): return 200
+
+        def pack(self, **kw):
+            pass
+
+        def bind(self, *a, **kw):
+            return ""
+
+        def get(self):
+            return ""
+
+        def delete(self, *a):
+            pass
+
+        def insert(self, *a):
+            pass
+
+        def focus(self):
+            pass
+
+        def focus_set(self):
+            pass
+
+        def winfo_reqwidth(self):
+            return 200
+
+        def winfo_rootx(self):
+            return 0
+
+        def winfo_rooty(self):
+            return 0
+
+        def winfo_height(self):
+            return 30
+
+        def winfo_width(self):
+            return 200
 
     class _FakeCTkToplevel:
         def __init__(self, master=None, **kw):
             self.master = master
             self.destroyed = False
-        def withdraw(self): pass
-        def deiconify(self): pass
-        def overrideredirect(self, *a): pass
-        def geometry(self, *a): pass
-        def winfo_viewable(self): return True
-        def winfo_exists(self): return not self.destroyed
-        def destroy(self): self.destroyed = True
+
+        def withdraw(self):
+            pass
+
+        def deiconify(self):
+            pass
+
+        def overrideredirect(self, *a):
+            pass
+
+        def geometry(self, *a):
+            pass
+
+        def winfo_viewable(self):
+            return True
+
+        def winfo_exists(self):
+            return not self.destroyed
+
+        def destroy(self):
+            self.destroyed = True
 
     class _FakeCTkScrollableFrame:
         def __init__(self, master=None, **kw): ...
-        def pack(self, **kw): pass
-        def winfo_children(self): return []
+        def pack(self, **kw):
+            pass
+
+        def winfo_children(self):
+            return []
 
     class _FakeCTkButton:
         def __init__(self, master=None, **kw): ...
-        def pack(self, **kw): pass
+        def pack(self, **kw):
+            pass
 
     class _FakeCtk:
         CTkFrame = _FakeCTkFrame
@@ -270,19 +319,32 @@ def _build_autocomplete_stubs() -> dict:
         CTkButton = _FakeCTkButton
 
     fake_ctk_config = _make_mod("src.ui.ctk_config", ctk=_FakeCtk())
-    fake_typing_utils = _make_mod("src.ui.typing_utils",
-                                  TkInfoMixin=object, TkToplevelMixin=object)
+    fake_typing_utils = _make_mod("src.ui.typing_utils", TkInfoMixin=object, TkToplevelMixin=object)
     fake_ui = _make_mod("src.ui", ctk_config=fake_ctk_config)
+
+    # Stub para BindingTracker (Fase 13 — novo import em ctk_autocomplete_entry)
+    class _FakeBindingTracker:
+        def bind(self, *a, **kw): pass
+        def bind_all(self, *a, **kw): pass
+        def unbind_all(self, *a, **kw): pass
+
+    fake_binding_tracker = _make_mod(
+        "src.ui.utils.binding_tracker",
+        BindingTracker=_FakeBindingTracker,
+    )
+    fake_ui_utils = _make_mod("src.ui.utils", binding_tracker=fake_binding_tracker)
 
     return {
         "src.ui.ctk_config": fake_ctk_config,
         "src.ui.typing_utils": fake_typing_utils,
         "src.ui": fake_ui,
+        "src.ui.utils": fake_ui_utils,
+        "src.ui.utils.binding_tracker": fake_binding_tracker,
     }
 
 
 _AC_MOD_NAME = "_test_ui_autocomplete_entry"
-_AC_MOD_PATH = r"c:\Users\Pichau\Desktop\v1.5.73\src\ui\widgets\ctk_autocomplete_entry.py"
+_AC_MOD_PATH = str(Path(__file__).resolve().parent.parent / "src" / "ui" / "widgets" / "ctk_autocomplete_entry.py")
 
 # Placeholders — preenchidos em setUpModule
 CTkAutocompleteEntry: Any = None
@@ -311,7 +373,7 @@ def tearDownModule() -> None:
 
 def _make_entry() -> Any:
     """Cria uma instância de CTkAutocompleteEntry com master fake."""
-    parent = MagicMock()
+    _parent = MagicMock()  # noqa: F841
     entry = object.__new__(CTkAutocompleteEntry)
     # Bootstrap manual sem chamar __init__ completo (evita Tk real)
     # Replicamos apenas os campos relevantes para cleanup
@@ -333,13 +395,13 @@ def _make_entry() -> Any:
 
     # super().destroy() não faz nada neste contexto
     import types as _types
+
     entry.destroy = _types.MethodType(CTkAutocompleteEntry.destroy, entry)
     # Patch super().destroy para no-op
     return entry
 
 
 class TestAutocompleteEntryCleanup(unittest.TestCase):
-
     # -----------------------------------------------------------------------
     # _debounce_id
     # -----------------------------------------------------------------------
@@ -507,13 +569,14 @@ class TestAutocompleteEntryCleanup(unittest.TestCase):
         """CTkAutocompleteEntry deve ter _focus_out_job inicializado."""
         # Verifica que __init__ define _focus_out_job
         import inspect
+
         source = inspect.getsource(CTkAutocompleteEntry.__init__)
         self.assertIn("_focus_out_job", source)
 
     def test_on_focus_out_stores_id(self):
         """_on_focus_out deve armazenar o id retornado por after()."""
         entry = _make_entry()
-        event = MagicMock()
+        _event = MagicMock()  # noqa: F841
 
         # Marca o estado antes
         entry._focus_out_job = None

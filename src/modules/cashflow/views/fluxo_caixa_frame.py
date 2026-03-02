@@ -3,8 +3,9 @@ from __future__ import annotations
 import logging
 import tkinter as tk
 from datetime import date, timedelta
-from tkinter import messagebox
 from typing import Any, Optional
+
+from src.ui.dialogs.rc_dialogs import show_info, show_error, show_warning, ask_yes_no
 
 from src.ui.ctk_config import ctk
 from src.ui.widgets.button_factory import make_btn
@@ -175,10 +176,10 @@ class CashflowFrame(ctk.CTkFrame):
         try:
             rows = repo.list_entries(dfrom, dto, tfilter, self.var_text.get().strip(), org_id=self._org_id)
         except Exception as e:
-            messagebox.showwarning(
+            show_warning(
+                self,
                 "Fluxo de Caixa",
                 f"{e}\n\nDica: verifique RLS e se 'org_id' está presente.",
-                parent=self,
             )
             rows = []
 
@@ -223,12 +224,12 @@ class CashflowFrame(ctk.CTkFrame):
                 repo.create_entry(payload, org_id=self._org_id)
                 self.refresh()
             except Exception as e:
-                messagebox.showerror("Fluxo de Caixa", str(e), parent=self)
+                show_error(self, "Fluxo de Caixa", str(e))
 
     def edit(self) -> None:
         iid = self._selected_id()
         if not iid:
-            messagebox.showinfo("Selecione", "Escolha um lançamento para editar.", parent=self)
+            show_info(self, "Selecione", "Escolha um lançamento para editar.")
             return
 
         item = self.tree.item(iid)["values"]
@@ -253,16 +254,16 @@ class CashflowFrame(ctk.CTkFrame):
                 repo.update_entry(iid, payload)
                 self.refresh()
             except Exception as e:
-                messagebox.showerror("Fluxo de Caixa", str(e), parent=self)
+                show_error(self, "Fluxo de Caixa", str(e))
 
     def delete(self) -> None:
         iid = self._selected_id()
         if not iid:
-            messagebox.showinfo("Selecione", "Escolha um lançamento para excluir.", parent=self)
+            show_info(self, "Selecione", "Escolha um lançamento para excluir.")
             return
-        if messagebox.askyesno("Confirma", "Excluir este lançamento?", parent=self):
+        if ask_yes_no(self, "Confirma", "Excluir este lançamento?"):
             try:
                 repo.delete_entry(iid)
                 self.refresh()
             except Exception as e:
-                messagebox.showerror("Fluxo de Caixa", str(e), parent=self)
+                show_error(self, "Fluxo de Caixa", str(e))

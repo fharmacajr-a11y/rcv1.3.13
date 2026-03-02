@@ -25,12 +25,12 @@ from __future__ import annotations
 import tkinter as tk
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+from src.ui.ctk_config import ctk
 from src.ui.ui_tokens import APP_BG
 
 try:
     from src.core.logger import get_logger
-except Exception:
+except ImportError:
     import logging
 
     def get_logger(name: str = __name__):
@@ -77,7 +77,7 @@ LOCAL_TZ = get_local_timezone()
 # logger disponível desde o topo do módulo
 
 
-class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame):  # type: ignore[misc]
+class HubScreen(ctk.CTkFrame):  # type: ignore[misc]
     """HubScreen - Orquestrador central do HUB.
 
     Responsável por:
@@ -122,8 +122,7 @@ class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame): 
         super().__init__(master, **kwargs)
 
         # MICROFASE 35: Configurar fg_color para evitar fundo cinza
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            self.configure(fg_color=APP_BG)
+        self.configure(fg_color=APP_BG)
 
         # Flag para evitar destroy duplo
         self._destroy_called = False
@@ -240,21 +239,12 @@ class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame): 
         self._dashboard_view: Optional[Any] = None
 
         # Criar placeholder simples
-        if HAS_CUSTOMTKINTER and ctk:
-            self._loading_placeholder = ctk.CTkLabel(
-                self,
-                text="Carregando Hub...",
-                font=("Segoe UI", 14),
-                text_color=("#666666", "#999999"),
-            )
-        else:
-            self._loading_placeholder = tk.Label(
-                self,
-                text="Carregando Hub...",
-                font=("Segoe UI", 14),
-                fg="#666666",
-                bg=APP_BG[0] if isinstance(APP_BG, (tuple, list)) else APP_BG,
-            )
+        self._loading_placeholder = ctk.CTkLabel(
+            self,
+            text="Carregando Hub...",
+            font=("Segoe UI", 14),
+            text_color=("#666666", "#999999"),
+        )
 
         self._loading_placeholder.pack(expand=True)
         logger.debug("HubScreen: skeleton UI criado (placeholder)")
@@ -392,7 +382,7 @@ class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame): 
             has_auth = auth is not None
             is_authenticated = has_auth and bool(getattr(auth, "is_authenticated", False))
             return is_auth_ready(has_app, has_auth, is_authenticated)
-        except Exception:
+        except (AttributeError, tk.TclError):
             return False
 
     def _get_org_id_safe(self) -> Optional[str]:
@@ -857,7 +847,7 @@ class HubScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame): 
 
         try:
             super().destroy()
-        except Exception as e:
+        except tk.TclError as e:
             logger.debug(f"Erro ao chamar super().destroy(): {e}")
 
     # ==============================================================================

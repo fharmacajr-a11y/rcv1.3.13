@@ -7,8 +7,10 @@ import threading
 import tkinter as tk
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from tkinter import filedialog, messagebox
+from tkinter import filedialog
 from typing import Any, Callable
+
+from src.ui.dialogs.rc_dialogs import show_info, show_error, ask_yes_no
 
 # CustomTkinter (fonte centralizada)
 from src.ui.ctk_config import ctk
@@ -40,7 +42,10 @@ from src.utils.resource_path import resource_path
 from .action_bar import ActionBar
 from .file_list import FileList
 
+import atexit as _atexit
+
 _executor = ThreadPoolExecutor(max_workers=4)
+_atexit.register(_executor.shutdown, wait=False)
 _log = logging.getLogger(__name__)
 
 
@@ -164,12 +169,16 @@ class UploadsBrowserWindow(ctk.CTkToplevel):  # type: ignore[misc]
         # BUGFIX: Mostrar janela sem flash usando show_centered_no_flash
         show_centered_no_flash(self, parent, width=1000, height=620)
 
+        # Registrar handler de fechamento
+        self.protocol("WM_DELETE_WINDOW", self._close_window)
+
+        # Bind ESC para fechar (usar mesmo handler)
+        self.bind("<Escape>", lambda e: self._close_window())
+
         if modal:
-            try:
-                self.grab_set()
-                self.focus_set()
-            except Exception as exc:  # noqa: BLE001
-                _log.debug("Falha ao configurar janela modal do UploadsBrowser: %s", exc)
+            # Aplicar grab_set APENAS quando janela estiver viewable
+            self.after(10, lambda: self._setup_modal_safe())
+
         self._populate_initial_state()
 
     # ------------------------------------------------------------------
@@ -227,17 +236,64 @@ class UploadsBrowserWindow(ctk.CTkToplevel):  # type: ignore[misc]
     # ------------------------------------------------------------------
     # UI actions
     # ------------------------------------------------------------------
+    def _setup_modal_safe(self, retry_count: int = 0) -> None:
+        """Configura comportamento modal APENAS quando janela está viewable.
+
+        Args:
+            retry_count: Contador de tentativas (máx 10 para evitar loop infinito)
+        """
+        max_retries = 10
+        retry_delay_ms = 50
+
+        try:
+            # Verificar se a janela ainda existe
+            if not self.winfo_exists():
+                _log.warning("[UploadsBrowser] Janela não existe mais, abortando modal setup")
+                return
+
+            # Verificar se a janela está viewable (mapeada e visível)
+            if not self.winfo_viewable():
+                if retry_count < max_retries:
+                    _log.info(
+                        f"[UploadsBrowser] Janela não-viewable (tentativa {retry_count + 1}/{max_retries}), "
+                        f"reagendando grab_set em {retry_delay_ms}ms"
+                    )
+                    self.after(retry_delay_ms, lambda: self._setup_modal_safe(retry_count + 1))
+                    return
+                else:
+                    _log.warning(
+                        f"[UploadsBrowser] Janela não ficou viewable após {max_retries} tentativas, "
+                        f"abortando grab_set (modal pode não funcionar)"
+                    )
+                    return
+
+            # Janela está viewable, aplicar grab_set
+            self.grab_set()
+            self.focus_set()
+            _log.info("[UploadsBrowser] grab_set aplicado com sucesso (viewable=True)")
+
+        except Exception as e:
+            _log.error(f"[UploadsBrowser] Erro ao aplicar grab_set: {e}")
+
     def _close_window(self) -> None:
-        """Fecha a janela respeitando o flag _is_closing."""
+        """Fecha a janela respeitando o flag _is_closing e liberando grab."""
         if not self._is_closing:
             self._is_closing = True
+
+            # Liberar grab ANTES de destruir (previne grab preso)
+            try:
+                self.grab_release()
+                _log.debug("[UploadsBrowser] grab_release executado")
+            except Exception as e:
+                _log.debug(f"[UploadsBrowser] Erro em grab_release: {e}")
+
             self.destroy()
 
     def _show_download_done_dialog(self, text: str) -> None:
         """Mostra messagebox nativo do Windows para download concluído."""
         # FIX: Usar messagebox.showinfo nativo do Windows em vez de Toplevel custom
         # Isso cria um diálogo padrão do sistema operacional (não Tk)
-        messagebox.showinfo("Download", text, parent=self)
+        show_info(self, "Download", text)
 
     # ------------------------------------------------------------------
     # Data loading
@@ -317,18 +373,18 @@ class UploadsBrowserWindow(ctk.CTkToplevel):  # type: ignore[misc]
     def _download_folder_zip(self) -> None:
         selected_info = self.file_list.get_selected_info()
         if not selected_info:
-            messagebox.showinfo("Baixar pasta", "Selecione uma pasta (ex.: GERAL, SIFAP).", parent=self)
+            show_info(self, "Baixar pasta", "Selecione uma pasta (ex.: GERAL, SIFAP).")
             return
 
         item_name, item_type, full_path = selected_info
         if item_type != "Pasta":
-            messagebox.showinfo("Baixar pasta", "Selecione uma pasta (ex.: GERAL, SIFAP).", parent=self)
+            show_info(self, "Baixar pasta", "Selecione uma pasta (ex.: GERAL, SIFAP).")
             return
 
         remote_prefix = full_path
         destination = self._ask_zip_destination(remote_prefix)
         if destination is None:
-            messagebox.showinfo("ZIP", "Operacao cancelada.", parent=self)
+            show_info(self, "ZIP", "Operacao cancelada.")
             return
 
         cancel_event = threading.Event()
@@ -376,17 +432,17 @@ class UploadsBrowserWindow(ctk.CTkToplevel):  # type: ignore[misc]
             try:
                 destino = future.result()
             except DownloadCancelledError:
-                messagebox.showinfo("Download cancelado", "Voce cancelou o download.", parent=self)
+                show_info(self, "Download cancelado", "Voce cancelou o download.")
             except TimeoutError:
-                messagebox.showerror(
+                show_error(
+                    self,
                     "Tempo esgotado",
                     "O servidor nao respondeu a tempo (conexao ou leitura). Verifique sua internet e tente novamente.",
-                    parent=self,
                 )
             except Exception as err:
-                messagebox.showerror("Erro ao baixar pasta", str(err), parent=self)
+                show_error(self, "Erro ao baixar pasta", str(err))
             else:
-                messagebox.showinfo("Download concluído", f"ZIP salvo em:\n{destino}", parent=self)
+                show_info(self, "Download concluído", f"ZIP salvo em:\n{destino}")
 
             try:
                 self.lift()
@@ -404,14 +460,14 @@ class UploadsBrowserWindow(ctk.CTkToplevel):  # type: ignore[misc]
 
         selected_info = self.file_list.get_selected_info()
         if not selected_info:
-            messagebox.showinfo("Arquivos", "Selecione um item para baixar.", parent=self)
+            show_info(self, "Arquivos", "Selecione um item para baixar.")
             return
 
         item_name, item_type, full_path = selected_info
 
         # Bloquear download de pasta pelo botão "Baixar"
         if item_type == "Pasta":
-            messagebox.showinfo("Baixar", "Para pasta, use o botão 'Baixar pasta (.zip)'.", parent=self)
+            show_info(self, "Baixar", "Para pasta, use o botão 'Baixar pasta (.zip)'.")
             return
 
         # Download de arquivo
@@ -427,10 +483,10 @@ class UploadsBrowserWindow(ctk.CTkToplevel):  # type: ignore[misc]
                 self._show_download_done_dialog(f"Arquivo salvo em {local_path}.")
             else:
                 error_msg = result.get("message", "Erro desconhecido ao baixar arquivo")
-                messagebox.showerror("Download", error_msg, parent=self)
+                show_error(self, "Download", error_msg)
         except Exception as exc:
             _log.exception("Download falhou")
-            messagebox.showerror("Download", f"Falha ao baixar arquivo: {exc}", parent=self)
+            show_error(self, "Download", f"Falha ao baixar arquivo: {exc}")
         finally:
             self._download_in_progress = False
 
@@ -443,10 +499,10 @@ class UploadsBrowserWindow(ctk.CTkToplevel):  # type: ignore[misc]
         remote_key = full_path
 
         if item_type == "Pasta":
-            if not messagebox.askyesno(
+            if not ask_yes_no(
+                self,
                 "Excluir pasta",
                 "Tem certeza que deseja excluir esta pasta e todo o conteudo? Esta acao nao pode ser desfeita.",
-                parent=self,
             ):
                 return
             if self._delete_folder_handler is not None:
@@ -454,40 +510,40 @@ class UploadsBrowserWindow(ctk.CTkToplevel):  # type: ignore[misc]
                     self._delete_folder_handler(self._bucket, remote_key)
                 except Exception as exc:  # noqa: BLE001
                     _log.exception("Erro ao excluir pasta via delete_folder_handler")
-                    messagebox.showerror("Excluir pasta", f"Falha ao excluir a pasta:\n{exc}", parent=self)
+                    show_error(self, "Excluir pasta", f"Falha ao excluir a pasta:\n{exc}")
                     return
             else:
                 try:
                     result = delete_storage_folder(remote_key, bucket=self._bucket)
                 except Exception as exc:  # noqa: BLE001
                     _log.exception("Erro ao excluir pasta (recursivo)")
-                    messagebox.showerror("Excluir pasta", f"Falha ao excluir a pasta:\n{exc}", parent=self)
+                    show_error(self, "Excluir pasta", f"Falha ao excluir a pasta:\n{exc}")
                     return
                 if not result.get("ok"):
                     error_txt = result.get("message") or "Falha ao excluir a pasta."
                     if result.get("errors"):
                         error_txt = f"{error_txt}\n{result['errors'][0]}"
-                    messagebox.showerror("Excluir pasta", error_txt, parent=self)
+                    show_error(self, "Excluir pasta", error_txt)
                     return
             self._refresh_listing()
-            messagebox.showinfo("Excluir", f"Pasta '{item_name}' excluida com sucesso.", parent=self)
+            show_info(self, "Excluir", f"Pasta '{item_name}' excluida com sucesso.")
         else:
-            if not messagebox.askyesno("Excluir", f"Deseja excluir '{item_name}'?", parent=self):
+            if not ask_yes_no(self, "Excluir", f"Deseja excluir '{item_name}'?"):
                 return
             try:
                 success = delete_storage_object(remote_key, bucket=self._bucket)
                 if success:
                     self._refresh_listing()
-                    messagebox.showinfo("Excluir", f"Arquivo '{item_name}' excluido com sucesso.", parent=self)
+                    show_info(self, "Excluir", f"Arquivo '{item_name}' excluido com sucesso.")
                 else:
-                    messagebox.showerror(
+                    show_error(
+                        self,
                         "Excluir",
                         f"Falha ao excluir '{item_name}'. Verifique as permissoes ou tente novamente.",
-                        parent=self,
                     )
             except Exception as exc:
                 _log.exception("Delete falhou")
-                messagebox.showerror("Excluir", f"Falha ao excluir arquivo: {exc}", parent=self)
+                show_error(self, "Excluir", f"Falha ao excluir arquivo: {exc}")
 
     def _open_pdf_viewer(
         self,
@@ -531,19 +587,19 @@ class UploadsBrowserWindow(ctk.CTkToplevel):  # type: ignore[misc]
         if not name:
             selected_info = self.file_list.get_selected_info()
             if not selected_info:
-                messagebox.showinfo(
+                show_info(
+                    self,
                     "Visualizar arquivo",
                     "Selecione um arquivo para visualizar.",
-                    parent=self,
                 )
                 return
             name, item_type, full_path = selected_info
 
         if item_type == "Pasta":
-            messagebox.showinfo(
+            show_info(
+                self,
                 "Visualizar arquivo",
                 "Selecione um ARQUIVO, não uma pasta.",
-                parent=self,
             )
             return
 
@@ -553,10 +609,10 @@ class UploadsBrowserWindow(ctk.CTkToplevel):  # type: ignore[misc]
         # Só permite tipos suportados pelo viewer interno
         if ext not in ("pdf", "jpg", "jpeg", "png", "gif"):
             sufixo = f".{ext}" if ext else ""
-            messagebox.showinfo(
+            show_info(
+                self,
                 "Visualizar arquivo",
                 f"Tipo de arquivo não suportado para visualização: {sufixo}",
-                parent=self,
             )
             return
 
@@ -566,18 +622,18 @@ class UploadsBrowserWindow(ctk.CTkToplevel):  # type: ignore[misc]
             data = download_bytes(self._bucket, remote_key)
         except Exception as exc:  # noqa: BLE001
             _log.exception("Erro ao baixar bytes do arquivo do Supabase para visualização")
-            messagebox.showerror(
+            show_error(
+                self,
                 "Visualizar arquivo",
                 f"Não foi possível carregar este arquivo:\n{exc}",
-                parent=self,
             )
             return
 
         if not data:
-            messagebox.showerror(
+            show_error(
+                self,
                 "Visualizar arquivo",
                 "Não foi possível carregar este arquivo.",
-                parent=self,
             )
             return
 
@@ -585,10 +641,10 @@ class UploadsBrowserWindow(ctk.CTkToplevel):  # type: ignore[misc]
             self._open_pdf_viewer(data_bytes=data, display_name=nome, signature=remote_key or nome)
         except Exception as exc:  # noqa: BLE001
             _log.exception("Erro ao abrir visualizador interno para arquivo do Supabase")
-            messagebox.showerror(
+            show_error(
+                self,
                 "Visualizar arquivo",
                 f"Falha ao abrir visualização:\n{exc}",
-                parent=self,
             )
 
 

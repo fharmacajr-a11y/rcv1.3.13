@@ -23,6 +23,8 @@ from src.core.logs.audit import log_client_action
 from src.core.session.session import get_current_user
 from src.utils.file_utils import ensure_subpastas, write_marker
 from src.utils.validators import normalize_text
+from src.utils.formatters import format_cnpj
+from src.utils.phone_utils import format_phone_br
 
 from src.core.cnpj_norm import normalize_cnpj as normalize_cnpj_norm
 
@@ -109,7 +111,12 @@ def count_clients(*, max_retries: int = 2, base_delay: float = 0.2) -> int:
 def _normalize_payload(valores: dict[str, Any]) -> Tuple[str, str, str, str, str, str]:
     """
     Normaliza campos vindos da UI/tabela para uso interno no serviço.
-    Retorna tupla (razao, cnpj, cnpj_norm, nome, numero, obs).
+    Retorna tupla (razao, cnpj_formatado, cnpj_norm, nome, numero_formatado, obs).
+
+    IMPORTANTE:
+    - cnpj é salvo FORMATADO (00.000.000/0000-00)
+    - cnpj_norm é calculado apenas com dígitos (para checagem de duplicidade)
+    - numero (WhatsApp) é salvo FORMATADO (+55 DD XXXXX-XXXX)
     """
 
     def _v(d: dict[str, Any], *keys: str) -> str:
@@ -122,13 +129,25 @@ def _normalize_payload(valores: dict[str, Any]) -> Tuple[str, str, str, str, str
         return ""
 
     razao: str = _v(valores, "Razão Social", "Razao Social", "razao_social")
-    cnpj: str = _v(valores, "CNPJ", "cnpj")
+    cnpj_raw: str = _v(valores, "CNPJ", "cnpj")
     nome: str = _v(valores, "Nome", "nome")
-    numero: str = _v(valores, "WhatsApp", "Whatsapp", "whatsapp", "Telefone", "telefone", "numero")
+    numero_raw: str = _v(valores, "WhatsApp", "Whatsapp", "whatsapp", "Telefone", "telefone", "numero")
     obs: str = _v(valores, "Observações", "Observacoes", "observacoes", "Obs", "obs")
 
-    cnpj_norm: str = normalize_cnpj_norm(cnpj)
-    return razao, cnpj, cnpj_norm, nome, numero, obs
+    # CNPJ: formatar para exibição, calcular norm para duplicidade
+    cnpj_formatado = format_cnpj(cnpj_raw) if cnpj_raw else cnpj_raw
+    # Se format_cnpj retornar o original (inválido), manter original
+    if not cnpj_formatado or cnpj_formatado == cnpj_raw:
+        cnpj_formatado = cnpj_raw
+    cnpj_norm: str = normalize_cnpj_norm(cnpj_raw)
+
+    # WhatsApp: formatar para padrão +55 DD XXXXX-XXXX
+    numero_formatado = format_phone_br(numero_raw) if numero_raw else numero_raw
+    # Se format_phone_br retornar vazio (inválido), manter original
+    if not numero_formatado:
+        numero_formatado = numero_raw
+
+    return razao, cnpj_formatado, cnpj_norm, nome, numero_formatado, obs
 
 
 def checar_duplicatas_info(
@@ -266,7 +285,7 @@ def salvar_cliente(row: tuple[Any, ...] | None, valores: dict[str, Any]) -> tupl
         if conflict:
             raiser: str = conflict.razao_social or "-"
             stored_cnpj: str = conflict.cnpj or "-"
-            raise ValueError(f'CNPJ já cadastrado para o cliente ID {conflict.id} é?" {raiser}. CNPJ: {stored_cnpj}.')
+            raise ValueError(f'CNPJ já cadastrado para o cliente ID {conflict.id} — "{raiser}". CNPJ: {stored_cnpj}.')
 
     real_pk: int
     old_path: str | None

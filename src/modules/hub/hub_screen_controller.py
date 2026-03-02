@@ -280,7 +280,7 @@ class HubScreenController:
             if hasattr(self.view, "render_notes"):
                 self.view.render_notes(self.state.cached_notes, force=True)  # type: ignore
         except Exception as exc:
-            self.logger.error(f"Erro ao renderizar nota incremental: {exc}")
+            self.logger.exception("Erro ao renderizar nota incremental: %s", exc)
 
         self.logger.debug(f"Nota {row.get('id')} adicionada incrementalmente")
 

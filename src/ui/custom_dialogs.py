@@ -23,22 +23,22 @@ def _apply_icon(window: tk.Toplevel) -> None:
         try:
             window.iconbitmap(icon_path)
             return
-        except Exception:  # noqa: BLE001
+        except tk.TclError:
             # FIX: Fallback deve usar rc.png (PhotoImage não funciona com .ico no Windows)
             try:
                 png_path = resource_path("rc.png")
                 if os.path.exists(png_path):
                     img = tk.PhotoImage(file=png_path)
                     window.iconphoto(True, img)
-            except Exception as inner_exc:  # noqa: BLE001
+            except tk.TclError as inner_exc:
                 logger.debug("Falha ao aplicar iconphoto: %s", inner_exc)
-    except Exception as exc:  # noqa: BLE001
+    except (OSError, tk.TclError) as exc:
         logger.debug("Falha ao configurar icone do dialogo: %s", exc)
 
 
 def show_info(parent: tk.Widget, title: str, message: str) -> None:
     """Mostra um diálogo de informação com ícone do app."""
-    top = tk.Toplevel(parent)
+    top = ctk.CTkToplevel(parent)
     top.withdraw()
     top.title(title)
     top.resizable(False, False)
@@ -48,7 +48,7 @@ def show_info(parent: tk.Widget, title: str, message: str) -> None:
     content = ctk.CTkFrame(top)  # TODO: padding=15 -> usar padx/pady no pack/grid
     content.pack(fill="both", expand=True)
 
-    icon_label = tk.Label(content, bitmap="info")
+    icon_label = ctk.CTkLabel(content, text="\u2139", font=("", 26, "bold"))
     icon_label.grid(row=0, column=0, padx=(5, 10), pady=5, sticky="n")
 
     message_label = ctk.CTkLabel(
@@ -67,7 +67,7 @@ def show_info(parent: tk.Widget, title: str, message: str) -> None:
     def _close(*_: Any) -> None:
         try:
             top.destroy()
-        except Exception as exc:  # noqa: BLE001
+        except tk.TclError as exc:
             logger.debug("Falha ao fechar dialogo de info: %s", exc)
 
     btn = make_btn(frm, text="OK", command=_close)
@@ -80,7 +80,7 @@ def show_info(parent: tk.Widget, title: str, message: str) -> None:
         show_centered(top)
         top.grab_set()
         top.focus_force()
-    except Exception as exc:  # noqa: BLE001
+    except tk.TclError as exc:
         logger.debug("Falha ao exibir dialogo de info: %s", exc)
     top.wait_window()
 
@@ -89,7 +89,7 @@ def ask_ok_cancel(parent: tk.Widget, title: str, message: str) -> bool:
     """Mostra um diálogo OK/Cancelar com ícone do app e retorna True/False."""
     result = {"ok": False}
 
-    top = tk.Toplevel(parent)
+    top = ctk.CTkToplevel(parent)
     top.withdraw()
     top.title(title)
     top.resizable(False, False)
@@ -126,14 +126,14 @@ def ask_ok_cancel(parent: tk.Widget, title: str, message: str) -> bool:
         result["ok"] = True
         try:
             top.destroy()
-        except Exception as exc:  # noqa: BLE001
+        except tk.TclError as exc:
             logger.debug("Falha ao fechar dialogo OK/Cancelar: %s", exc)
 
     def _cancel(*_: Any) -> None:
         result["ok"] = False
         try:
             top.destroy()
-        except Exception as exc:  # noqa: BLE001
+        except tk.TclError as exc:
             logger.debug("Falha ao fechar dialogo OK/Cancelar: %s", exc)
 
     btns = ctk.CTkFrame(frm)
@@ -149,7 +149,7 @@ def ask_ok_cancel(parent: tk.Widget, title: str, message: str) -> bool:
         show_centered(top)
         top.grab_set()
         top.focus_force()
-    except Exception as exc:  # noqa: BLE001
+    except tk.TclError as exc:
         logger.debug("Falha ao exibir dialogo OK/Cancelar: %s", exc)
     top.wait_window()
     return bool(result["ok"])

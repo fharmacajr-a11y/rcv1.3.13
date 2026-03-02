@@ -185,7 +185,7 @@ def _check_table_missing_error(exception: BaseException) -> None:
 
     # Verificar cÃ³digo PGRST205 ou mensagens relacionadas
 
-    if "pgrst205" in error_str or "relation" in error_str and "does not exist" in error_str:
+    if "pgrst205" in error_str or ("relation" in error_str and "does not exist" in error_str):
         raise NotesTableMissingError(
             f"Tabela '{TABLE}' ausente no Supabase. Execute a migration: migrations/rc_notes_migration.sql"
         )

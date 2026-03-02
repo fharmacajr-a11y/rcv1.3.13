@@ -63,6 +63,10 @@ TEXT_MUTED = ("#555555", "#bdbdbd")
 KPI_BLUE = ("#3b82f6", "#2563eb")
 KPI_BLUE_HOVER = ("#2563eb", "#1d4ed8")
 
+# Alias semântico: Azul primário do sistema (botões, setinhas, etc)
+PRIMARY_BLUE = KPI_BLUE
+PRIMARY_BLUE_HOVER = KPI_BLUE_HOVER
+
 # Vermelho (Pendências)
 KPI_RED = ("#ef4444", "#dc2626")
 KPI_RED_HOVER = ("#dc2626", "#b91c1c")
@@ -116,6 +120,15 @@ CARD_RADIUS = 12
 # Corner radius para KPI cards
 KPI_RADIUS = 12
 
+# Corner radius para diálogos modais (CTkToplevel)
+DIALOG_RADIUS = 16
+
+# Corner radius para inputs de formulário
+INPUT_RADIUS = 10
+
+# Corner radius para barra de progresso
+PROGRESS_RADIUS = 8
+
 # Border width padrão
 BORDER_WIDTH = 1
 
@@ -149,3 +162,12 @@ BUTTON_SM_H = 28
 
 # Botão ícone (quadrado, ex.: ⟳, 🔔)
 BUTTON_ICON = 32
+
+# --- Variante dialog (botões dentro de modais/popups) ---
+# Fonte de verdade: mesmo tamanho do botão "Upload" (BUTTON_SM)
+
+# Largura padrão de botões em diálogos modais (Sim/Não, Sair/Cancelar, OK)
+DIALOG_BTN_W = BUTTON_SM_W  # 110 — igual ao Upload
+
+# Altura padrão de botões em diálogos modais
+DIALOG_BTN_H = BUTTON_SM_H  # 28 — igual ao Upload

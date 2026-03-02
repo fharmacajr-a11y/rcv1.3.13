@@ -10,6 +10,23 @@ from src.core.string_utils import only_digits
 
 log = logging.getLogger(__name__)
 
+
+def safe_int(value: Any, default: int = 0) -> int:
+    """Converte value para int de forma segura (EAFP).
+
+    Args:
+        value: Valor a converter (str, int, float, None, etc.)
+        default: Valor retornado em caso de falha na conversão.
+
+    Returns:
+        int convertido ou default se ValueError/TypeError.
+    """
+    try:
+        return int(str(value).strip())
+    except (ValueError, TypeError):
+        return default
+
+
 # -------------------------- helpers básicos --------------------------
 
 
@@ -152,7 +169,7 @@ def check_duplicates(
             cur = conn.execute(q, tuple(params))
             for row in cur.fetchall():
                 k = row["K"]
-                idv = int(row["ID"])
+                idv = safe_int(row["ID"])
                 if exclude_id is not None and idv == exclude_id:
                     continue
                 if k in dup:
@@ -164,7 +181,7 @@ def check_duplicates(
     elif existing is not None:
         try:
             for row in existing:
-                rid = int(row.get("ID") or row.get("id") or 0)
+                rid = safe_int(row.get("ID") or row.get("id") or 0)
                 if exclude_id and rid == exclude_id:
                     continue
                 if cnpj_d and normalize_cnpj(row.get("CNPJ") or row.get("cnpj")) == cnpj_d:
@@ -225,6 +242,7 @@ def validate_cliente_payload(
 
 
 __all__ = [
+    "safe_int",
     "only_digits",
     "normalize_text",
     "normalize_whatsapp",

@@ -45,7 +45,7 @@ TkBindReturn = Literal["break"] | None
 TkCallback = Callable[..., TkBindReturn]
 
 
-class PdfViewerWin(tk.Toplevel):
+class PdfViewerWin(ctk.CTkToplevel):
     def __init__(
         self,
         master: tk.Misc,

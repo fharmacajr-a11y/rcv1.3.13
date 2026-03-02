@@ -5,11 +5,15 @@ from __future__ import annotations
 
 import logging
 import os
+import queue
+import threading
 from pathlib import Path
-from typing import Any, List, Optional, Sequence, Tuple, cast
+from typing import Any, Callable, List, Optional, Sequence, Tuple, cast
 
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog
+
+from src.ui.dialogs.rc_dialogs import show_info, show_error, show_warning, ask_yes_no
 
 from src.modules.uploads import service as uploads_service
 from src.modules.uploads.components.helpers import _cnpj_only_digits
@@ -26,13 +30,14 @@ from src.modules.uploads.file_validator import (
 from src.ui.components.progress_dialog import ProgressDialog
 from src.ui.ctk_config import ctk
 from src.ui.files_browser.utils import format_file_size
+from src.ui.ui_tokens import APP_BG, BUTTON_RADIUS, PRIMARY_BLUE, PRIMARY_BLUE_HOVER
 from src.ui.window_utils import apply_window_icon, show_centered
 
 log = logging.getLogger(__name__)
 
 
 def _show_msg(parent: tk.Misc, title: str, msg: str) -> None:
-    """Exibe mensagem modal com ícone RC correto (substitui tkinter.messagebox).
+    """Exibe mensagem modal com ícone RC correto (substitui tkinter messagebox).
 
     Não usa prepare_hidden_window/show_centered_no_flash para evitar conflito
     com a inicialização assíncrona do CTkToplevel no Windows (titlebar color).
@@ -42,14 +47,23 @@ def _show_msg(parent: tk.Misc, title: str, msg: str) -> None:
     dlg.resizable(False, False)
     try:
         dlg.transient(parent)
-    except Exception:  # noqa: BLE001
+    except tk.TclError:
         pass
     apply_window_icon(dlg)
+    dlg.configure(fg_color=APP_BG)
 
-    frame = ctk.CTkFrame(dlg)
+    frame = ctk.CTkFrame(dlg, fg_color="transparent")
     frame.pack(fill="both", expand=True, padx=24, pady=20)
-    ctk.CTkLabel(frame, text=msg, wraplength=360, justify="left").pack(pady=(0, 16))
-    ctk.CTkButton(frame, text="OK", width=90, command=dlg.destroy).pack()
+    ctk.CTkLabel(frame, text=msg, wraplength=360, justify="left", fg_color="transparent").pack(pady=(0, 16))
+    ctk.CTkButton(
+        frame,
+        text="OK",
+        width=90,
+        command=dlg.destroy,
+        corner_radius=BUTTON_RADIUS,
+        fg_color=PRIMARY_BLUE,
+        hover_color=PRIMARY_BLUE_HOVER,
+    ).pack()
 
     dlg.update_idletasks()
     try:
@@ -62,24 +76,24 @@ def _show_msg(parent: tk.Misc, title: str, msg: str) -> None:
         x = max(0, px + (pw - w) // 2)
         y = max(0, py + (ph - h) // 2)
         dlg.geometry(f"{w}x{h}+{x}+{y}")
-    except Exception:  # noqa: BLE001
+    except tk.TclError:
         pass
 
     try:
         dlg.update()
-    except Exception:  # noqa: BLE001
+    except tk.TclError:
         pass
 
     try:
         if dlg.winfo_exists():
             dlg.grab_set()
             dlg.focus_force()
-    except Exception:  # noqa: BLE001
+    except tk.TclError:
         pass
 
     try:
         parent.wait_window(dlg)
-    except Exception:  # noqa: BLE001
+    except tk.TclError:
         pass
 
 
@@ -115,18 +129,23 @@ class UploadProgressDialog:
         self._dialog.set_progress(0.0)
 
     def after(self, delay: int, callback: Any) -> Any:
-        return self._dialog.after(delay, callback)
+        try:
+            if self._dialog.winfo_exists():
+                return self._dialog.after(delay, callback)
+        except Exception:
+            pass
+        return None
 
     def update_idletasks(self) -> None:
         try:
             self._dialog.update_idletasks()
-        except Exception as exc:  # noqa: BLE001
+        except tk.TclError as exc:
             log.debug("Failed to update_idletasks on ProgressDialog: %s", exc)
 
     def update(self) -> None:
         try:
             self._dialog.update()
-        except Exception as exc:  # noqa: BLE001
+        except tk.TclError as exc:
             log.debug("Failed to update ProgressDialog: %s", exc)
 
     def advance(self, label: str) -> None:
@@ -136,20 +155,20 @@ class UploadProgressDialog:
             self._dialog.set_message(label)
             self._dialog.set_detail(detail)
             self._dialog.set_progress(self._value / self._total)
-        except Exception as exc:  # noqa: BLE001
+        except tk.TclError as exc:
             log.debug("Failed to update progress bar: %s", exc)
 
     def close(self) -> None:
         try:
             self._dialog.close()
-        except Exception as exc:  # noqa: BLE001
+        except tk.TclError as exc:
             log.debug("Failed to destroy progress window: %s", exc)
 
     def wait_window(self) -> None:
         """Bloqueia até que o diálogo seja fechado (via close() ou janela destruída)."""
         try:
             self._dialog.wait_window()
-        except Exception as exc:  # noqa: BLE001
+        except tk.TclError as exc:
             log.debug("wait_window encerrado: %s", exc)
 
     def _detail_text(self) -> str:
@@ -206,11 +225,18 @@ def _show_upload_summary(
     total_failed = len(failed_items) + (len(validation_errors) if validation_errors else 0)
 
     if total_failed == 0:
-        messagebox.showinfo(
-            "Envio concluído",
-            f"Todos os {ok_count} arquivo(s) foram enviados com sucesso.",
-            parent=parent,
-        )
+        if parent is not None:
+            _show_msg(
+                parent,
+                "Envio concluído",
+                f"Todos os {ok_count} arquivo(s) foram enviados com sucesso.",
+            )
+        else:
+            show_info(
+                parent,
+                "Envio concluído",
+                f"Todos os {ok_count} arquivo(s) foram enviados com sucesso.",
+            )
         return
 
     # Construir mensagem detalhada
@@ -253,17 +279,23 @@ def _show_upload_summary(
     message = "\n".join(lines).strip()
 
     if ok_count > 0:
-        messagebox.showwarning(
-            "Envio concluído com falhas",
-            message,
-            parent=parent,
-        )
+        if parent is not None:
+            _show_msg(parent, "Envio concluído com falhas", message)
+        else:
+            show_warning(
+                parent,
+                "Envio concluído com falhas",
+                message,
+            )
     else:
-        messagebox.showerror(
-            "Falha no envio",
-            message,
-            parent=parent,
-        )
+        if parent is not None:
+            _show_msg(parent, "Falha no envio", message)
+        else:
+            show_error(
+                parent,
+                "Falha no envio",
+                message,
+            )
 
 
 def ensure_client_saved_or_abort(app: tk.Misc, client_id: int) -> bool:
@@ -287,11 +319,119 @@ def _confirm_large_volume(parent: tk.Misc, total: int) -> bool:
     """Pergunta ao usuario se deve continuar quando o volume de arquivos excede o threshold."""
     if total <= VOLUME_CONFIRM_THRESHOLD:
         return True
-    return messagebox.askyesno(
+    return ask_yes_no(
+        parent,
         "Confirmar envio",
-        (f"Voce selecionou {total} arquivos.\n\nEsse volume pode levar algum tempo. Deseja continuar?"),
-        parent=parent,
+        f"Voce selecionou {total} arquivos.\n\nEsse volume pode levar algum tempo. Deseja continuar?",
     )
+
+
+class _ProgressPump:
+    """Polling não-bloqueante da fila de resultado do worker de upload.
+
+    Testável sem Tk real: basta injetar ``after_fn`` e ``close_fn`` como
+    callables (não há dependência direta de tkinter nesta classe).
+
+    Protocolo de mensagens da ``result_queue``:
+        ("success", ok: int, failures: list)   — worker concluiu com sucesso
+        ("error",   exc: Exception)             — worker lançou exceção
+
+    O ``done_event`` é obrigatoriamente setado no ``finally`` do worker,
+    garantindo que o diálogo **nunca** feche apenas porque a fila está vazia.
+
+    Fluxo de ``_tick``:
+        1. Drena *todas* as mensagens disponíveis na fila (loop while/break).
+        2. Se a fila ficou vazia E ``done_event`` ainda NÃO está setado
+           → reagenda o próximo tick com ``after_fn``.
+        3. Se a fila ficou vazia E ``done_event`` está setado
+           → chama ``_finalize()`` (fecha diálogo uma única vez).
+    """
+
+    POLL_MS = 50
+
+    def __init__(
+        self,
+        result_queue: "queue.Queue[tuple]",
+        done_event: threading.Event,
+        *,
+        after_fn: Callable[[int, Callable[[], None]], Any],
+        close_fn: Callable[[], None],
+        after_cancel_fn: Optional[Callable[[Any], None]] = None,
+        poll_ms: int = POLL_MS,
+    ) -> None:
+        self._queue = result_queue
+        self._done_event = done_event
+        self._after_fn = after_fn
+        self._close_fn = close_fn
+        self._after_cancel_fn = after_cancel_fn
+        self._poll_ms = poll_ms
+        self._finalized = False
+        self._after_id: Any = None
+        # Resultados preenchidos por _process_msg
+        self.result: Optional[Tuple[int, list]] = None
+        self.error: Optional[Exception] = None
+
+    # ------------------------------------------------------------------
+    # API pública
+    # ------------------------------------------------------------------
+
+    def start(self) -> None:
+        """Agenda o primeiro tick no loop de eventos do Tk."""
+        self._after_id = self._after_fn(self._poll_ms, self._tick)
+
+    def cancel(self) -> None:
+        """Cancela ticks futuros de forma idempotente (ex: diálogo fechado manualmente)."""
+        self._finalized = True
+        aid, self._after_id = self._after_id, None
+        if aid is not None and self._after_cancel_fn is not None:
+            try:
+                self._after_cancel_fn(aid)
+            except tk.TclError:
+                pass
+
+    # ------------------------------------------------------------------
+    # Internos
+    # ------------------------------------------------------------------
+
+    def _tick(self) -> None:
+        """Drena a fila e decide se finaliza ou reagenda."""
+        self._after_id = None
+        if self._finalized:
+            return
+
+        # Passo 1: drenar TODAS as mensagens disponíveis neste ciclo.
+        while True:
+            try:
+                msg = self._queue.get_nowait()
+            except queue.Empty:
+                break
+            self._process_msg(msg)
+
+        # Passo 2: decidir com base em done_event, nunca apenas na fila vazia.
+        if self._done_event.is_set():
+            self._finalize()
+        elif not self._finalized:
+            # Worker ainda vivo: reagenda próximo tick.
+            self._after_id = self._after_fn(self._poll_ms, self._tick)
+
+    def _process_msg(self, msg: tuple) -> None:
+        kind = msg[0]
+        if kind == "success":
+            self.result = (msg[1], msg[2])
+        elif kind == "error":
+            self.error = msg[1]
+        else:
+            log.debug("_ProgressPump: mensagem desconhecida: %s", kind)
+
+    def _finalize(self) -> None:
+        """Fecha o diálogo exatamente uma vez, com segurança."""
+        if self._finalized:
+            return
+        self._finalized = True
+        try:
+            self._close_fn()
+        except (tk.TclError, RuntimeError) as exc:
+            log.debug("_ProgressPump close_fn error: %s", exc)
 
 
 def _upload_batch(
@@ -305,24 +445,22 @@ def _upload_batch(
     client_id: Optional[int] = None,
     org_id: Optional[str] = None,
 ) -> Tuple[int, List[Tuple[UploadItem, Exception]]]:
-    """
-    Upload batch with threading support.
+    """Upload batch com threading + sinalização explícita via done_event.
 
-    PERF-002: Movido I/O de rede para thread background para evitar
-    travamento da GUI durante uploads. A janela de progresso é atualizada
-    via widget.after() chamado da thread de I/O.
+    PERF-002 / Fase 6:
+    - ``done_event`` é setado no ``finally`` do worker (sempre, mesmo em erro).
+    - ``_ProgressPump`` drena a fila em loop antes de decidir fechar.
+    - Diálogo nunca fecha enquanto ``done_event`` não estiver setado.
     """
-    import threading
-    import queue
-
     progress = UploadProgressDialog(parent, len(items))
-    result_queue: queue.Queue = queue.Queue()
+    result_queue: queue.Queue[tuple] = queue.Queue()
+    done_event = threading.Event()
 
     def _safe_after(delay: int, callback: Any) -> None:
-        """Schedule callback on main thread safely."""
+        """Agenda callback no main thread de forma segura."""
         try:
             progress.after(delay, callback)
-        except Exception as e:
+        except tk.TclError as e:
             log.debug("Failed to schedule callback: %s", e)
 
     def _progress(item: UploadItem) -> None:
@@ -334,11 +472,11 @@ def _upload_batch(
                 _safe_after(0, lambda: progress.advance(f"Enviando {label} ({size_str})"))
             else:
                 _safe_after(0, lambda: progress.advance(f"Enviando {label}"))
-        except Exception:  # noqa: BLE001
+        except OSError:
             _safe_after(0, lambda: progress.advance(f"Enviando {label}"))
 
     def _upload_worker() -> None:
-        """Execute upload em thread background."""
+        """Executa upload em thread background; sinaliza done_event sempre."""
         try:
             ok, failures = uploads_service.upload_items_for_client(
                 items,
@@ -354,57 +492,38 @@ def _upload_batch(
         except Exception as exc:
             log.error("Upload batch error: %s", exc, exc_info=True)
             result_queue.put(("error", exc))
+        finally:
+            # Sinaliza SEMPRE — garante que o pump nunca fica preso esperando.
+            done_event.set()
 
-    # Estado compartilhado para polling não-bloqueante
-    state = {"worker": None, "polling": False}
-
-    def _tick() -> None:
-        """Polling não-bloqueante: verifica se thread worker terminou."""
-        worker = state["worker"]
-        if worker is None:
-            return
-
-        if worker.is_alive():
-            # Thread ainda rodando: agenda próximo tick
-            state["polling"] = True
-            _safe_after(50, _tick)
-        else:
-            # Thread terminou: recupera resultado e fecha progresso
-            state["polling"] = False
-            try:
-                result = result_queue.get_nowait()
-                progress.close()
-
-                if result[0] == "success":
-                    # Armazena resultado no state para wait_window retornar
-                    state["result"] = (result[1], result[2])
-                else:
-                    # Se houve erro, armazena exceção
-                    state["error"] = result[1]
-            except queue.Empty:
-                progress.close()
-                state["error"] = RuntimeError("Upload thread finished without result")
+    pump = _ProgressPump(
+        result_queue,
+        done_event,
+        after_fn=progress.after,
+        close_fn=progress.close,
+    )
 
     # Inicia upload em background thread
     worker = threading.Thread(target=_upload_worker, daemon=True)
-    state["worker"] = worker
     worker.start()
 
-    # Inicia polling não-bloqueante
-    _tick()
+    # Inicia polling não-bloqueante (pump agenda o próprio after)
+    pump.start()
 
-    # Aguarda resultado bloqueando apenas esta janela, não a GUI principal
-    # wait_window() processa eventos Tk normalmente, sem busy-wait
+    # Aguarda resultado bloqueando apenas esta janela, não a GUI principal.
+    # wait_window() processa eventos Tk normalmente, sem busy-wait.
     progress.wait_window()
 
-    # Recupera resultado do state
-    if "error" in state:
-        raise state["error"]
-    elif "result" in state:
-        return state["result"]
-    else:
-        # Janela foi fechada antes do término (usuário fechou manualmente)
-        raise RuntimeError("Upload dialog closed before completion")
+    # Cancela ticks pendentes (idempotente se pump já finalizou normalmente)
+    pump.cancel()
+
+    # Recupera resultado
+    if pump.error is not None:
+        raise pump.error
+    if pump.result is not None:
+        return pump.result
+    # Janela foi fechada pelo usuário antes do término do worker.
+    raise RuntimeError("Upload dialog closed before completion")
 
 
 def upload_files_to_supabase(
@@ -445,10 +564,10 @@ def upload_files_to_supabase(
     cnpj_raw = cliente.get("cnpj")
     cnpj_digits = _cnpj_only_digits(cnpj_raw) if cnpj_raw else ""
     if not cnpj_digits:
-        messagebox.showwarning(
+        show_warning(
+            target,
             "Envio",
             "Este cliente não possui CNPJ cadastrado. Salve antes de enviar.",
-            parent=target,
         )
         return 0, len(items)
 
@@ -511,10 +630,10 @@ def upload_files_to_supabase(
         # Erro geral (ex: sem autenticação)
         log.error("Erro crítico no upload: %s", exc, exc_info=True)
         typed_exc = classify_upload_exception(exc)
-        messagebox.showerror(
+        show_error(
+            target,
             "Erro no envio",
             typed_exc.message,
-            parent=target,
         )
         return 0, len(items)
 
@@ -557,7 +676,7 @@ def _resolve_selected_cliente(app: tk.Misc) -> Optional[Tuple[int, dict[str, str
     try:
         client_id_raw = mapping.get("ID", str(values_seq[0]))
         client_id = int(str(client_id_raw).strip())
-    except Exception:
+    except (ValueError, IndexError):
         return None
 
     return client_id, mapping
@@ -578,7 +697,7 @@ def send_to_supabase_interactive(
 
     resolved = _resolve_selected_cliente(app)
     if not resolved:
-        messagebox.showinfo("Envio", "Selecione um cliente primeiro.", parent=target)
+        show_info(target, "Envio", "Selecione um cliente primeiro.")
         return 0, 0
 
     client_id, row = resolved
@@ -590,22 +709,22 @@ def send_to_supabase_interactive(
 
     files = _select_pdfs_dialog(parent=target)
     if not files:
-        messagebox.showinfo("Envio", "Nenhum arquivo selecionado.", parent=target)
+        show_info(target, "Envio", "Nenhum arquivo selecionado.")
         return 0, 0
 
     items = build_items_from_files(files)
     if not items:
-        messagebox.showwarning(
+        show_warning(
+            target,
             "Envio",
             "Nenhum PDF valido foi selecionado.",
-            parent=target,
         )
         return 0, 0
 
     # Pedir subpasta em GERAL
     sub = ask_storage_subfolder(target, default="")
     if sub is None:
-        messagebox.showinfo("Envio", "Envio cancelado.", parent=target)
+        show_info(target, "Envio", "Envio cancelado.")
         return 0, 0
     sub = sub.strip()
     subpasta = sub or None

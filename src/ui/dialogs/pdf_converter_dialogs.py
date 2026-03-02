@@ -49,7 +49,7 @@ def apply_app_icon(window: tk.Toplevel, parent: tk.Misc | None) -> None:
         logger.debug("Falha ao reaproveitar icone do parent no dialogo PDF: %s", exc)
 
 
-class _BaseDialog(tk.Toplevel):
+class _BaseDialog(ctk.CTkToplevel):
     def __init__(self, parent: tk.Misc, title: str) -> None:
         super().__init__(parent)
         self.withdraw()

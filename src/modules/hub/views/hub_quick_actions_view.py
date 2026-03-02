@@ -8,8 +8,8 @@ esquerdo com os botões de acesso rápido aos módulos.
 from typing import Any, Callable, Optional
 import tkinter as tk
 
-from src.ui.ctk_config import ctk, HAS_CUSTOMTKINTER
-from src.ui.ui_tokens import APP_BG, SURFACE_DARK, CARD_RADIUS
+from src.ui.ctk_config import ctk
+from src.ui.ui_tokens import APP_BG, SURFACE_DARK, CARD_RADIUS, PRIMARY_BLUE, PRIMARY_BLUE_HOVER
 from src.ui.widgets.button_factory import make_btn
 
 
@@ -64,33 +64,26 @@ class HubQuickActionsView:
         from src.modules.hub.constants import PAD_OUTER
         from src.ui.ui_tokens import SURFACE
 
-        # Helper para criar botão compatível CTk/Tk com estilo e largura fixa
+        # Helper para criar botão compatível CTk com estilo e largura fixa
         def mk_btn(parent, text, command=None):
-            if HAS_CUSTOMTKINTER and ctk is not None:
-                return make_btn(
-                    parent,
-                    text=text,
-                    command=command,
-                    width=140,  # Largura específica para botões do Hub (um pouco maior que padrão)
-                    fg_color=("#3b82f6", "#2563eb"),
-                    hover_color=("#2563eb", "#1d4ed8"),
-                    text_color="#ffffff",
-                )
-            else:
-                return tk.Button(parent, text=text, command=command, width=20)
+            return make_btn(
+                parent,
+                text=text,
+                command=command,
+                width=140,  # Largura específica para botões do Hub (um pouco maior que padrão)
+                fg_color=PRIMARY_BLUE,
+                hover_color=PRIMARY_BLUE_HOVER,
+                text_color="#ffffff",
+            )
 
         # Helper para criar um bloco (caixa) de seção
         def mk_section(parent_frame, title_text):
-            if HAS_CUSTOMTKINTER and ctk is not None:
-                box = ctk.CTkFrame(
-                    parent_frame,
-                    fg_color=SURFACE,
-                    corner_radius=8,
-                    border_width=0,
-                )
-            else:
-                box = tk.LabelFrame(parent_frame, text=title_text, padding=(8, 6))
-                return box, box  # para tk.LabelFrame o conteúdo vai direto
+            box = ctk.CTkFrame(
+                parent_frame,
+                fg_color=SURFACE,
+                corner_radius=8,
+                border_width=0,
+            )
 
             # Título dentro da caixa
             lbl = ctk.CTkLabel(
@@ -108,22 +101,16 @@ class HubQuickActionsView:
             return box, inner
 
         # Painel principal - fundo cinza escuro sem borda
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            self.modules_panel = ctk.CTkFrame(
-                self._parent,
-                fg_color=SURFACE_DARK,
-                bg_color=APP_BG,
-                border_width=0,
-                corner_radius=CARD_RADIUS,
-            )
-        else:
-            self.modules_panel = tk.Frame(self._parent)
+        self.modules_panel = ctk.CTkFrame(
+            self._parent,
+            fg_color=SURFACE_DARK,
+            bg_color=APP_BG,
+            border_width=0,
+            corner_radius=CARD_RADIUS,
+        )
 
         # Container de conteúdo com padding (sem título "Módulos")
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            content_container = ctk.CTkFrame(self.modules_panel, fg_color="transparent")
-        else:
-            content_container = tk.Frame(self.modules_panel)
+        content_container = ctk.CTkFrame(self.modules_panel, fg_color="transparent")
         content_container.pack(fill="both", expand=True, padx=PAD_OUTER, pady=PAD_OUTER)
 
         # BLOCO 1: Cadastros / Acesso

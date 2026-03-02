@@ -2,6 +2,12 @@
 """Diálogo de gerenciamento de arquivos do cliente - ClientesV2.
 
 Browser funcional de arquivos com Supabase Storage.
+
+Fase 5: Refatorado em mixins para melhor manutenção:
+  - _files_ui_mixin.py: Construção de UI e estado visual
+  - _files_navigation_mixin.py: Navegação na árvore, renderização
+  - _files_upload_mixin.py: Upload e exclusão de arquivos
+  - _files_download_mixin.py: Download, visualização e ZIP
 """
 
 from __future__ import annotations
@@ -9,26 +15,22 @@ from __future__ import annotations
 import importlib
 import logging
 import os
-import tempfile
+import queue
 import threading
 import time
-import zipfile
+import tkinter as tk
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
-from tkinter import filedialog, messagebox
 from typing import Any, Optional
-import queue
 
 from src.ui.ctk_config import ctk
-from src.ui.widgets.button_factory import make_btn
-from src.ui.ui_tokens import TEXT_PRIMARY, TEXT_MUTED, APP_BG
-from src.ui.ttk_treeview_theme import apply_zebra
-from src.ui.widgets.ctk_treeview_container import CTkTreeviewContainer
+from src.ui.ui_tokens import APP_BG
 from src.ui.dark_window_helper import set_win_dark_titlebar
-from src.adapters.storage.supabase_storage import SupabaseStorageAdapter
-from src.modules.uploads.components.helpers import get_clients_bucket, client_prefix_for_id, get_current_org_id
-from src.modules.clientes.forms.client_subfolder_prompt import SubpastaDialog
-from src.utils.paths import resource_path
+from src.ui.window_utils import apply_window_icon
+
+from src.modules.clientes.ui.views._files_ui_mixin import FilesUIMixin
+from src.modules.clientes.ui.views._files_navigation_mixin import FilesNavigationMixin
+from src.modules.clientes.ui.views._files_upload_mixin import FilesUploadMixin
+from src.modules.clientes.ui.views._files_download_mixin import FilesDownloadMixin, DownloadResultDialog  # noqa: F401 – re-export
 
 log = logging.getLogger(__name__)
 
@@ -45,8 +47,6 @@ def log_slow(op_name: str, start_monotonic: float, threshold_ms: float = 1000.0)
         Threshold aumentado de 250ms para 1000ms para reduzir ruído no console.
         Operações de rede de até 1s são consideradas normais.
     """
-    import os
-
     # Só logar se RC_DEBUG_SLOW_OPS=1 ou se ultrapassou threshold
     debug_enabled = os.getenv("RC_DEBUG_SLOW_OPS", "0") == "1"
 
@@ -85,10 +85,16 @@ def _resolve_supabase_client():
     return None
 
 
-class ClientFilesDialog(ctk.CTkToplevel):
+class ClientFilesDialog(FilesDownloadMixin, FilesUploadMixin, FilesNavigationMixin, FilesUIMixin, ctk.CTkToplevel):
     """Diálogo para gerenciar arquivos de um cliente.
 
     Browser funcional com operações: listar, upload, download, excluir.
+
+    Mixins (Fase 5):
+      - FilesUIMixin: _build_ui, progress, button states, title, header
+      - FilesNavigationMixin: tree events, refresh, render, navigate
+      - FilesUploadMixin: upload, delete file/folder
+      - FilesDownloadMixin: download, open/visualize, ZIP
     """
 
     def __init__(
@@ -140,15 +146,8 @@ class ClientFilesDialog(ctk.CTkToplevel):
         self._closing: bool = False
         self._after_ids: set[str] = set()
 
-        # Configurar janela
-        title_parts = ["Arquivos"]
-        if client_id:
-            title_parts.append(f"ID {client_id}")
-        if razao_social:
-            title_parts.append(razao_social)
-        if cnpj:
-            title_parts.append(cnpj)
-        self.title(" - ".join(title_parts))
+        # Configurar janela (titlebar) — CNPJ sempre visível, razão truncada
+        self._set_smart_title()
 
         # Usar cores do Hub (ANTES de geometry)
         self.configure(fg_color=APP_BG)
@@ -164,9 +163,9 @@ class ClientFilesDialog(ctk.CTkToplevel):
         except Exception:
             self.resizable(True, True)
 
-        # Configurar ícone
+        # Configurar ícone RC sem flash (antes de deiconify)
         try:
-            self.iconbitmap(resource_path("rc.ico"))
+            apply_window_icon(self)
         except Exception:
             pass  # Ignora se falhar (Linux/Mac ou ícone não encontrado)
 
@@ -179,11 +178,41 @@ class ClientFilesDialog(ctk.CTkToplevel):
         # Tornar modal (transient primeiro, grab depois)
         self.transient(parent)
 
+        # Pré-carregar ícones do TreeView com PIL (referência em self evita garbage-collect)
+        # Pastas NÃO usam image= — mantêm prefixo emoji no texto ("📁 nome")
+        # PDFs e arquivos genéricos usam ícone de documento desenhado por PIL
+        self._img_pdf: Any = None
+        self._img_file: Any = None
+        try:
+            from PIL import Image, ImageDraw
+            from PIL.ImageTk import PhotoImage as _ItkPhoto
+
+            def _doc_icon(page_rgba: tuple, border_rgba: tuple) -> Any:
+                """Desenha ícone de documento 14×16 com canto dobrado (dog-ear)."""
+                W, H, fold = 14, 16, 4  # noqa: N806
+                img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+                d = ImageDraw.Draw(img)
+                body = [(0, 0), (W - 1 - fold, 0), (W - 1, fold), (W - 1, H - 1), (0, H - 1)]
+                d.polygon(body, fill=page_rgba, outline=border_rgba)
+                d.polygon([(W - 1 - fold, 0), (W - 1, fold), (W - 1 - fold, fold)], fill=border_rgba)
+                return _ItkPhoto(img)
+
+            self._img_pdf = _doc_icon((220, 53, 69, 255), (150, 20, 40, 255))  # vermelho
+            self._img_file = _doc_icon((180, 180, 190, 255), (110, 110, 120, 255))  # cinza
+        except Exception as _icon_err:
+            log.debug(f"[ClientFiles] Ícones PIL indisponíveis, usando fallback: {_icon_err}")
+
+            # Fallback: quadrado de 1 pixel (invisível mas sem crash)
+            def _tiny(color: str) -> tk.PhotoImage:
+                im = tk.PhotoImage(width=1, height=1)
+                im.put(color)
+                return im
+
+            self._img_pdf = _tiny("#dc3545")
+            self._img_file = _tiny("#aaaaaa")
+
         # Construir UI completa ANTES de exibir
         self._build_ui()
-
-        # Processar layout (garante que tudo está renderizado)
-        self.update_idletasks()
 
         # Aplicar titlebar escura no Windows (após ter winfo_id)
         try:
@@ -205,16 +234,19 @@ class ClientFilesDialog(ctk.CTkToplevel):
 
     def _initialize(self) -> None:
         """Inicializa org_id e carrega arquivos."""
+        from src.ui.dialogs.rc_dialogs import show_error
+        from src.modules.uploads.components.helpers import get_current_org_id
+
         # Verificar se o cliente Supabase foi resolvido
         if self.supabase is None:
             log.error("[ClientFiles] Cliente Supabase não disponível")
             self.status_label.configure(
                 text="❌ Erro: Cliente Supabase não disponível. Verifique a configuração.", text_color="#ef4444"
             )
-            messagebox.showerror(
+            show_error(
+                self,
                 "Erro de Configuração",
                 "Não foi possível conectar ao Supabase.\nVerifique a configuração e tente novamente.",
-                parent=self,
             )
             return
 
@@ -227,231 +259,7 @@ class ClientFilesDialog(ctk.CTkToplevel):
 
         self._refresh_files()
 
-    def _build_ui(self) -> None:
-        """Constrói a interface do diálogo."""
-        # Container principal (flat, sem borda/moldura)
-        container = ctk.CTkFrame(self, fg_color=("#F5F5F5", "#1e1e1e"), corner_radius=0, border_width=0)
-        container.pack(fill="both", expand=True, padx=0, pady=0)
-
-        # Configurar grid: somente row 4 (tree_frame) expande
-        container.grid_columnconfigure(0, weight=1)
-        container.grid_rowconfigure(0, weight=0)  # header
-        container.grid_rowconfigure(1, weight=0)  # breadcrumb
-        container.grid_rowconfigure(2, weight=0)  # status label
-        container.grid_rowconfigure(3, weight=0)  # progress bar
-        container.grid_rowconfigure(4, weight=1)  # tree_frame (EXPANDE)
-        container.grid_rowconfigure(5, weight=0)  # footer
-
-        # Cabeçalho com título e botões
-        header = ctk.CTkFrame(container, fg_color="transparent", border_width=0)
-        header.grid(row=0, column=0, sticky="ew", padx=15, pady=(15, 5))
-        header.grid_columnconfigure(1, weight=1)
-
-        # Botão Voltar
-        self.btn_back = make_btn(
-            header,
-            text="⬅ Voltar",
-            command=self._on_back,
-            fg_color=("#6b7280", "#4b5563"),
-            hover_color=("#4b5563", "#374151"),
-            border_width=0,
-        )
-        self.btn_back.grid(row=0, column=0, sticky="w", padx=(0, 10))
-
-        # Título principal
-        title_parts = ["📁 Arquivos"]
-        if self.client_id:
-            title_parts.append(f"ID {self.client_id}")
-        if self.razao_social:
-            title_parts.append(self.razao_social)
-        if self.cnpj:
-            title_parts.append(self.cnpj)
-
-        title_text = " - ".join(title_parts)
-        ctk.CTkLabel(header, text=title_text, font=("Segoe UI", 14, "bold"), text_color=TEXT_PRIMARY).grid(
-            row=0, column=1, sticky="w"
-        )
-
-        # Botões de ação
-        btn_frame = ctk.CTkFrame(header, fg_color="transparent", border_width=0)
-        btn_frame.grid(row=0, column=2, sticky="e")
-
-        self.btn_refresh = make_btn(
-            btn_frame,
-            text="Atualizar",
-            command=self._refresh_files,
-            fg_color=("#2563eb", "#3b82f6"),
-            hover_color=("#1d4ed8", "#2563eb"),
-            border_width=0,
-        )
-        self.btn_refresh.pack(side="left", padx=2)
-
-        self.btn_upload = make_btn(
-            btn_frame,
-            text="Upload",
-            command=self._on_upload,
-            fg_color=("#059669", "#10b981"),
-            hover_color=("#047857", "#059669"),
-            border_width=0,
-        )
-        self.btn_upload.pack(side="left", padx=2)
-
-        # Breadcrumb (caminho atual)
-        breadcrumb_frame = ctk.CTkFrame(container, fg_color="transparent", border_width=0)
-        breadcrumb_frame.grid(row=1, column=0, sticky="ew", padx=15, pady=(5, 5))
-
-        ctk.CTkLabel(
-            breadcrumb_frame,
-            text="📂 Caminho:",
-            font=("Segoe UI", 10, "bold"),
-            text_color=TEXT_MUTED,
-        ).pack(side="left", padx=(0, 5))
-
-        self.breadcrumb_label = ctk.CTkLabel(
-            breadcrumb_frame,
-            text="/ (raiz)",
-            font=("Segoe UI", 10),
-            text_color=TEXT_PRIMARY,
-        )
-        self.breadcrumb_label.pack(side="left")
-
-        # Status label
-        self.status_label = ctk.CTkLabel(
-            container,
-            text="Carregando arquivos...",
-            font=("Segoe UI", 10),
-            text_color=TEXT_MUTED,
-        )
-        self.status_label.grid(row=2, column=0, sticky="ew", padx=15, pady=(0, 5))
-
-        # Barra de progresso (inicialmente oculta)
-        self.progress_bar = ctk.CTkProgressBar(container, mode="indeterminate", height=4)
-        self.progress_bar.grid(row=3, column=0, sticky="ew", padx=15, pady=(0, 5))
-        self.progress_bar.grid_remove()  # Ocultar inicialmente
-
-        # Body: CTkTreeviewContainer (substitui criação manual de TreeView + Scrollbar)
-        # FASE 4: Migração para CTkTreeviewContainer
-        self._tree_container = CTkTreeviewContainer(
-            container,
-            columns=("tipo",),
-            show="tree headings",
-            selectmode="browse",
-            rowheight=24,
-            zebra=True,
-            style_name="RC.Treeview",
-        )
-        self._tree_container.grid(row=4, column=0, sticky="nsew", padx=15, pady=(0, 10))
-
-        # Obter referência ao Treeview interno (preserva API existente)
-        self.tree = self._tree_container.get_treeview()
-
-        # Headings
-        self.tree.heading("#0", text="Nome do arquivo/pasta", anchor="w")
-        self.tree.heading("tipo", text="Tipo", anchor="w")
-
-        # Columns
-        self.tree.column("#0", stretch=True, minwidth=200)
-        self.tree.column("tipo", width=120, stretch=False, anchor="w")
-
-        # Double-click para navegar em pastas
-        self.tree.bind("<Double-Button-1>", self._on_tree_double_click)
-
-        # Bind para atualizar estados dos botões quando seleção muda
-        self.tree.bind("<<TreeviewSelect>>", self._on_tree_selection_change)
-
-        # Obter cores do tema (CTkTreeviewContainer já registrou no manager)
-        self._tree_colors = self._tree_container.get_colors()
-
-        # Footer: Botões de ação
-        footer_frame = ctk.CTkFrame(container, fg_color="transparent", border_width=0)
-        footer_frame.grid(row=5, column=0, sticky="ew", padx=15, pady=(0, 15))
-
-        self.btn_baixar = make_btn(
-            footer_frame,
-            text="Baixar",
-            command=self._on_baixar,
-            fg_color=("#059669", "#10b981"),
-            hover_color=("#047857", "#059669"),
-            border_width=0,
-            state="disabled",
-        )
-        self.btn_baixar.pack(side="left", padx=2)
-
-        self.btn_baixar_zip = make_btn(
-            footer_frame,
-            text="Baixar pasta (.zip)",
-            command=self._on_baixar_pasta_zip,
-            fg_color=("#7c3aed", "#8b5cf6"),
-            hover_color=("#6d28d9", "#7c3aed"),
-            border_width=0,
-            state="disabled",
-        )
-        self.btn_baixar_zip.pack(side="left", padx=2)
-
-        self.btn_excluir = make_btn(
-            footer_frame,
-            text="Excluir",
-            command=self._on_excluir,
-            fg_color=("#dc2626", "#ef4444"),
-            hover_color=("#b91c1c", "#dc2626"),
-            border_width=0,
-            state="disabled",
-        )
-        self.btn_excluir.pack(side="left", padx=2)
-
-        self.btn_visualizar = make_btn(
-            footer_frame,
-            text="Visualizar",
-            command=self._on_visualizar,
-            fg_color=("#2563eb", "#3b82f6"),
-            hover_color=("#1d4ed8", "#2563eb"),
-            border_width=0,
-            state="disabled",
-        )
-        self.btn_visualizar.pack(side="left", padx=2)
-
-        # Botão Fechar à direita
-        self.btn_fechar = make_btn(
-            footer_frame,
-            text="Fechar",
-            command=self._safe_close,
-            fg_color=("#6b7280", "#4b5563"),
-            hover_color=("#4b5563", "#374151"),
-            border_width=0,
-        )
-        self.btn_fechar.pack(side="right", padx=2)
-
-        # Aplicar tema inicial (via theme manager)
-        # Já aplicado no register_treeview
-
-        # Bind Escape para fechar
-        self.bind("<Escape>", lambda e: self._safe_close())
-
-        # Protocol WM_DELETE_WINDOW para cleanup
-        self.protocol("WM_DELETE_WINDOW", self._safe_close)
-
-        # Iniciar polling da fila de progresso
-        self._poll_progress_queue()
-
-    def _show_progress(self, mode: str = "indeterminate") -> None:
-        """Mostra barra de progresso.
-
-        Args:
-            mode: "indeterminate" ou "determinate"
-        """
-        self.progress_bar.configure(mode=mode)
-        self.progress_bar.grid()
-        if mode == "indeterminate":
-            self.progress_bar.start()
-
-    def _hide_progress(self) -> None:
-        """Oculta barra de progresso."""
-        self.progress_bar.stop()
-        self.progress_bar.grid_remove()
-
-    def _update_progress(self, value: float) -> None:
-        """Atualiza valor da barra de progresso (0.0 a 1.0)."""
-        self.progress_bar.set(value)
+    # ── Lifecycle helpers ─────────────────────────────────────────
 
     def _safe_after(self, ms: int, callback: Any) -> Optional[str]:
         """Agenda callback com proteção contra widgets destruídos."""
@@ -477,6 +285,30 @@ class ClientFilesDialog(ctk.CTkToplevel):
         """Verifica se UI ainda está viva e acessível."""
         return (not self._closing) and self.winfo_exists()
 
+    def _shutdown_executor(self) -> None:
+        """Encerra o ThreadPoolExecutor de forma idempotente e não-bloqueante.
+
+        Seguro para chamar múltiplas vezes — ignora silenciosamente se já
+        encerrado (self._executor is None).
+        """
+        executor = self._executor
+        if executor is None:
+            return
+        # Zera imediatamente para impedir novos submits antes do shutdown terminar
+        self._executor = None
+        try:
+            executor.shutdown(wait=False, cancel_futures=True)
+            log.debug("[ClientFiles] ThreadPoolExecutor finalizado (cancel_futures)")
+        except TypeError:
+            # Python < 3.9 não suporta cancel_futures
+            try:
+                executor.shutdown(wait=False)
+                log.debug("[ClientFiles] ThreadPoolExecutor finalizado (sem cancel_futures)")
+            except Exception as e:
+                log.warning(f"[ClientFiles] Erro ao finalizar executor (fallback): {e}")
+        except Exception as e:
+            log.warning(f"[ClientFiles] Erro ao finalizar executor: {e}")
+
     def _safe_close(self) -> None:
         """Fecha dialog com cleanup seguro."""
         if self._closing:
@@ -484,950 +316,14 @@ class ClientFilesDialog(ctk.CTkToplevel):
         self._closing = True
         self._cancel_afters()
 
-        # Shutdown do executor (espera workers terminarem, timeout 2s)
-        try:
-            self._executor.shutdown(wait=True, cancel_futures=True)
-            log.debug("[ClientFiles] ThreadPoolExecutor finalizado")
-        except Exception as e:
-            log.warning(f"[ClientFiles] Erro ao finalizar executor: {e}")
+        self._shutdown_executor()
 
         try:
             self.destroy()
         except Exception:
             pass
 
-    def _poll_progress_queue(self) -> None:
-        """Verifica fila de progresso e atualiza UI (thread-safe)."""
-        if not self._ui_alive():
-            return
-
-        try:
-            while True:
-                msg = self._progress_queue.get_nowait()
-                action = msg.get("action")
-
-                if action == "show":
-                    mode = msg.get("mode", "indeterminate")
-                    self._show_progress(mode)
-                elif action == "hide":
-                    self._hide_progress()
-                elif action == "update":
-                    value = msg.get("value", 0.0)
-                    self._update_progress(value)
-                elif action == "status":
-                    text = msg.get("text", "")
-                    self._update_status(text)
-        except queue.Empty:
-            pass
-
-        # Continuar polling apenas se ainda ativo
-        if self._ui_alive():
-            self._safe_after(100, self._poll_progress_queue)
-
-    def _on_tree_double_click(self, event: Any) -> None:
-        """Handler de duplo clique no tree."""
-        selection = self.tree.selection()
-        if not selection:
-            return
-
-        iid = selection[0]
-        metadata = self._tree_metadata.get(iid)
-        if not metadata:
-            return
-
-        if metadata.get("is_folder"):
-            # Navegar para pasta
-            folder_name = metadata.get("name", "")
-            self._navigate_to_folder(folder_name)
-
-    def _on_tree_selection_change(self, event: Any = None) -> None:
-        """Handler quando seleção do TreeView muda."""
-        self._update_button_states()
-
-    def _update_button_states(self) -> None:
-        """Atualiza estados dos botões baseado na seleção atual."""
-        selection = self.tree.selection()
-
-        if not selection:
-            # Nada selecionado: desabilitar tudo
-            self.btn_baixar.configure(state="disabled")
-            self.btn_baixar_zip.configure(state="disabled")
-            self.btn_excluir.configure(state="disabled")
-            self.btn_visualizar.configure(state="disabled")
-            return
-
-        iid = selection[0]
-        metadata = self._tree_metadata.get(iid)
-
-        if not metadata:
-            # Metadata não encontrado: desabilitar tudo
-            self.btn_baixar.configure(state="disabled")
-            self.btn_baixar_zip.configure(state="disabled")
-            self.btn_excluir.configure(state="disabled")
-            self.btn_visualizar.configure(state="disabled")
-            return
-
-        is_folder = metadata.get("is_folder", False)
-
-        if is_folder:
-            # Pasta selecionada
-            self.btn_baixar.configure(state="disabled")
-            self.btn_baixar_zip.configure(state="normal")  # Baixar pasta como ZIP
-            self.btn_excluir.configure(state="normal")
-            self.btn_visualizar.configure(state="disabled")
-        else:
-            # Arquivo selecionado
-            self.btn_baixar.configure(state="normal")
-            self.btn_baixar_zip.configure(state="disabled")
-            self.btn_excluir.configure(state="normal")
-            self.btn_visualizar.configure(state="normal")
-
-    def _refresh_files(self) -> None:
-        """Recarrega lista de arquivos em thread worker."""
-        if self._loading:
-            log.debug("[ClientFiles] Refresh já em andamento, ignorando")
-            return
-
-        self._loading = True
-        self._update_status("Carregando arquivos...")
-        self._disable_buttons()
-
-        def _load_thread():
-            start_time = time.monotonic()
-            try:
-                bucket = get_clients_bucket()
-                base_prefix = client_prefix_for_id(self.client_id, self._org_id)
-                current_path = "/".join(self._nav_stack)
-                full_prefix = f"{base_prefix}/{current_path}".strip("/") if current_path else base_prefix
-                log.info(f"[ClientFiles] Listando: bucket={bucket}, prefix={full_prefix}")
-
-                adapter = SupabaseStorageAdapter(bucket=bucket)
-                items = adapter.list_files(full_prefix)
-
-                # Instrumentação: log se list_files demorou muito
-                log_slow("list_files", start_time)
-
-                # Separar pastas e arquivos, adicionar full_path
-                folders = []
-                files = []
-                for item in items:
-                    name = item.get("name", "")
-                    # Ignorar arquivos .keep
-                    if name.endswith("/.keep") or name.endswith(".keep"):
-                        continue
-
-                    # Adicionar full_path (CRÍTICO para evitar 404)
-                    item["full_path"] = f"{full_prefix}/{name}".strip("/")
-
-                    # Se tem metadata, é arquivo; senão é pasta
-                    if item.get("metadata") is not None:
-                        files.append(item)
-                    else:
-                        folders.append(item)
-
-                # Combinar: pastas primeiro, depois arquivos
-                all_items = folders + files
-
-                log.info(f"[ClientFiles] {len(folders)} pasta(s), {len(files)} arquivo(s)")
-
-                # Atualizar UI na thread principal
-                self._safe_after(0, lambda items=all_items: self._on_files_loaded(items))
-
-            except Exception as e:
-                log.error(f"[ClientFiles] Erro ao listar arquivos: {e}", exc_info=True)
-                error_msg = str(e)
-                self._safe_after(0, lambda msg=error_msg: self._on_load_error(msg))
-
-        # Submeter para ThreadPoolExecutor (não mais threading.Thread direto)
-        self._executor.submit(_load_thread)
-
-    def _on_files_loaded(self, files: list[dict[str, Any]]) -> None:
-        """Callback quando arquivos foram carregados."""
-        if not self._ui_alive():
-            return
-
-        self._files = files
-        self._loading = False
-        self._enable_buttons()
-        self._render_files()
-        self._update_breadcrumb()
-        self._update_back_button()
-
-        count = len(files)
-        self._update_status(f"{count} arquivo(s) encontrado(s)")
-
-    def _on_load_error(self, error: str) -> None:
-        """Callback quando houve erro ao carregar."""
-        if not self._ui_alive():
-            return
-
-        self._loading = False
-        self._enable_buttons()
-        self._update_status(f"Erro ao carregar arquivos: {error}")
-
-        messagebox.showerror(
-            "Erro",
-            f"Não foi possível carregar os arquivos:\n\n{error}\n\nVerifique sua conexão e tente novamente.",
-            parent=self,
-        )
-
-    def _render_files(self) -> None:
-        """Renderiza lista de arquivos na UI (TreeView)."""
-        self._render_tree()
-
-    def _render_tree(self) -> None:
-        """Renderiza arquivos no TreeView."""
-        # Limpar tree
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-        self._tree_metadata.clear()
-
-        if not self._files:
-            # Inserir placeholder
-            self.tree.insert("", "end", text="📂 Nenhum arquivo encontrado", values=("",), tags=("even",))
-            return
-
-        # Renderizar cada item
-        for i, file_info in enumerate(self._files):
-            name = file_info.get("name", "")
-            full_path = file_info.get("full_path", name)
-            metadata = file_info.get("metadata", {}) or {}
-            is_folder = metadata is None or not metadata
-
-            # Ícone e tipo
-            if is_folder:
-                icon = "📁"
-                tipo = "Pasta"
-            elif name.lower().endswith(".pdf"):
-                icon = "📕"
-                tipo = "PDF"
-            elif name.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
-                icon = "🖼️"
-                tipo = "Imagem"
-            elif name.lower().endswith((".doc", ".docx")):
-                icon = "📄"
-                tipo = "Word"
-            elif name.lower().endswith((".xls", ".xlsx")):
-                icon = "📈"
-                tipo = "Excel"
-            else:
-                icon = "📄"
-                tipo = "Arquivo"
-
-            display_name = f"{icon} {Path(name).name}"
-            tag = "even" if i % 2 == 0 else "odd"
-
-            # Inserir no tree
-            iid = self.tree.insert("", "end", text=display_name, values=(tipo,), tags=(tag,))
-
-            # Armazenar metadata
-            self._tree_metadata[iid] = {
-                "name": name,
-                "full_path": full_path,
-                "is_folder": is_folder,
-                "metadata": metadata,
-            }
-
-        # Reaplicar zebra para garantir consistência visual
-        if self._tree_colors:
-            apply_zebra(self.tree, self._tree_colors)
-
-    def _navigate_to_folder(self, folder_name: str) -> None:
-        """Navega para uma subpasta."""
-        self._nav_stack.append(folder_name)
-        self._refresh_files()
-
-    def _get_selected_item(self) -> Optional[dict[str, Any]]:
-        """Retorna metadados do item selecionado no tree."""
-        selection = self.tree.selection()
-        if not selection:
-            return None
-        iid = selection[0]
-        return self._tree_metadata.get(iid)
-
-    def _on_visualizar(self) -> None:
-        """Visualiza/abre arquivo selecionado."""
-        item = self._get_selected_item()
-        if not item:
-            messagebox.showwarning("Atenção", "Selecione um arquivo para visualizar.", parent=self)
-            return
-        if item.get("is_folder"):
-            messagebox.showinfo("Info", "Selecione um arquivo, não uma pasta.", parent=self)
-            return
-        self._on_open_file_from_metadata(item)
-
-    def _on_baixar(self) -> None:
-        """Baixa arquivo selecionado."""
-        item = self._get_selected_item()
-        if not item:
-            messagebox.showwarning("Atenção", "Selecione um arquivo para baixar.", parent=self)
-            return
-        if item.get("is_folder"):
-            messagebox.showinfo("Info", "Selecione um arquivo, não uma pasta.", parent=self)
-            return
-        self._on_download_file_from_metadata(item)
-
-    def _on_excluir(self) -> None:
-        """Exclui arquivo selecionado."""
-        item = self._get_selected_item()
-        if not item:
-            messagebox.showwarning("Atenção", "Selecione um arquivo para excluir.", parent=self)
-            return
-        if item.get("is_folder"):
-            messagebox.showinfo("Info", "Não é possível excluir pastas (apenas arquivos).", parent=self)
-            return
-        self._on_delete_file_from_metadata(item)
-
-    def _on_back(self) -> None:
-        """Volta um nível na navegação."""
-        if self._nav_stack:
-            self._nav_stack.pop()
-            self._refresh_files()
-
-    def _update_breadcrumb(self) -> None:
-        """Atualiza label do breadcrumb."""
-        if not self._nav_stack:
-            path_text = "/ (raiz)"
-        else:
-            path_text = "/" + "/".join(self._nav_stack)
-
-        if hasattr(self, "breadcrumb_label") and self.breadcrumb_label.winfo_exists():
-            self.breadcrumb_label.configure(text=path_text)
-
-    def _update_back_button(self) -> None:
-        """Atualiza estado do botão Voltar."""
-        if hasattr(self, "btn_back") and self.btn_back.winfo_exists():
-            if self._nav_stack:
-                self.btn_back.configure(state="normal")
-            else:
-                self.btn_back.configure(state="disabled")
-
-    def _on_upload(self) -> None:
-        """Handler para upload de arquivos."""
-        if self._loading:
-            return
-
-        # Selecionar arquivos
-        files = filedialog.askopenfilenames(
-            title="Selecione os arquivos para upload",
-            parent=self,
-            filetypes=[
-                ("Arquivos PDF", "*.pdf"),
-                ("Imagens", "*.jpg;*.jpeg;*.png;*.gif"),
-                ("Todos os arquivos", "*.*"),
-            ],
-        )
-
-        if not files:
-            return
-
-        # Pedir subpasta
-        dlg = SubpastaDialog(self, default="GERAL")
-        self.wait_window(dlg)
-        subfolder = dlg.result
-
-        if subfolder is None:  # Cancelado
-            return
-
-        subfolder = subfolder.strip() or "GERAL"
-
-        self._upload_files(files, subfolder)
-
-    def _on_baixar_pasta_zip(self) -> None:
-        """Baixa pasta selecionada como ZIP."""
-        item = self._get_selected_item()
-        if not item:
-            messagebox.showwarning("Atenção", "Selecione uma pasta para baixar.", parent=self)
-            return
-        if not item.get("is_folder"):
-            messagebox.showinfo("Info", "Selecione uma pasta, não um arquivo.", parent=self)
-            return
-
-        # Baixar pasta selecionada como ZIP
-        folder_name = item.get("name", "pasta")
-        full_path = item.get("full_path", "")
-
-        # Definir nome padrão do ZIP
-        zip_name = f"{Path(folder_name).name}.zip"
-
-        # Pedir local para salvar
-        save_path = filedialog.asksaveasfilename(
-            title="Salvar pasta como ZIP",
-            initialfile=zip_name,
-            parent=self,
-            defaultextension=".zip",
-            filetypes=[("Arquivos ZIP", "*.zip")],
-        )
-
-        if not save_path:
-            return
-
-        self._download_folder_as_zip(full_path, save_path)
-
-    def _download_folder_as_zip(self, folder_prefix: str, save_path: str) -> None:
-        """Baixa pasta específica como ZIP."""
-        self._loading = True
-        self._update_status("Preparando download ZIP...")
-        self._disable_buttons()
-
-        # Mostrar progresso indeterminado
-        self._progress_queue.put({"action": "show", "mode": "indeterminate"})
-
-        def _download_zip_thread():
-            try:
-                bucket = get_clients_bucket()
-                log.info(f"[ClientFiles] Iniciando download ZIP: prefix={folder_prefix}")
-
-                adapter = SupabaseStorageAdapter(bucket=bucket)
-
-                # Criar ZIP temporário
-                temp_zip = Path(tempfile.gettempdir()) / f"rc_zip_{os.getpid()}.zip"
-
-                with zipfile.ZipFile(temp_zip, "w", zipfile.ZIP_DEFLATED) as zf:
-                    # Função recursiva para listar e baixar arquivos
-                    def _collect_files(prefix: str, relative_path: str = ""):
-                        items = adapter.list_files(prefix)
-                        file_count = 0
-
-                        for item in items:
-                            name = item.get("name", "")
-                            if name.endswith("/.keep") or name.endswith(".keep"):
-                                continue
-
-                            full_item_path = f"{prefix}/{name}".strip("/")
-                            relative_item_path = f"{relative_path}/{name}".strip("/") if relative_path else name
-
-                            metadata = item.get("metadata")
-                            if metadata is not None:
-                                # É arquivo - baixar e adicionar ao ZIP
-                                self._progress_queue.put(
-                                    {"action": "status", "text": f"Baixando {relative_item_path}..."}
-                                )
-
-                                try:
-                                    content = adapter.download_file(full_item_path)
-                                    if isinstance(content, bytes):
-                                        zf.writestr(relative_item_path, content)
-                                    else:
-                                        # content é path local
-                                        zf.write(content, relative_item_path)
-                                    file_count += 1
-                                except Exception as e:
-                                    log.warning(f"[ClientFiles] Erro ao baixar {full_item_path}: {e}")
-                            else:
-                                # É pasta - recursão
-                                file_count += _collect_files(full_item_path, relative_item_path)
-
-                        return file_count
-
-                    # Iniciar coleta recursiva
-                    total_files = _collect_files(folder_prefix)
-
-                log.info(f"[ClientFiles] ZIP criado com {total_files} arquivo(s)")
-
-                # Mover ZIP para local escolhido
-                import shutil
-
-                shutil.move(str(temp_zip), save_path)
-
-                self._safe_after(
-                    0, lambda count=total_files, path=save_path: self._on_download_zip_complete(count, path)
-                )
-
-            except Exception as e:
-                log.error(f"[ClientFiles] Erro no download ZIP: {e}", exc_info=True)
-                error_msg = str(e)
-                self._safe_after(0, lambda msg=error_msg: self._on_download_zip_error(msg))
-
-        # Submeter para ThreadPoolExecutor
-        self._executor.submit(_download_zip_thread)
-
-    def _on_download_zip(self) -> None:
-        """Baixa pasta atual completa como ZIP (recursivo)."""
-        if self._loading:
-            return
-
-        # Definir nome padrão do ZIP
-        if self._nav_stack:
-            zip_name = f"{self._nav_stack[-1]}.zip"
-        else:
-            zip_name = f"cliente_{self.client_id}_arquivos.zip"
-
-        # Pedir local para salvar
-        save_path = filedialog.asksaveasfilename(
-            title="Salvar pasta como ZIP",
-            initialfile=zip_name,
-            parent=self,
-            defaultextension=".zip",
-            filetypes=[("Arquivos ZIP", "*.zip")],
-        )
-
-        if not save_path:
-            return
-
-        self._loading = True
-        self._update_status("Preparando download ZIP...")
-        self._disable_buttons()
-
-        def _download_zip_thread():
-            try:
-                bucket = get_clients_bucket()
-                base_prefix = client_prefix_for_id(self.client_id, self._org_id)
-                current_path = "/".join(self._nav_stack)
-                full_prefix = f"{base_prefix}/{current_path}".strip("/") if current_path else base_prefix
-
-                log.info(f"[ClientFiles] Iniciando download ZIP: prefix={full_prefix}")
-
-                adapter = SupabaseStorageAdapter(bucket=bucket)
-
-                # Criar ZIP temporário
-                temp_zip = Path(tempfile.gettempdir()) / f"rc_zip_{os.getpid()}.zip"
-
-                with zipfile.ZipFile(temp_zip, "w", zipfile.ZIP_DEFLATED) as zf:
-                    # Função recursiva para listar e baixar arquivos
-                    def _collect_files(prefix: str, relative_path: str = ""):
-                        items = adapter.list_files(prefix)
-                        file_count = 0
-
-                        for item in items:
-                            name = item.get("name", "")
-                            if name.endswith("/.keep") or name.endswith(".keep"):
-                                continue
-
-                            full_item_path = f"{prefix}/{name}".strip("/")
-                            relative_item_path = f"{relative_path}/{name}".strip("/") if relative_path else name
-
-                            metadata = item.get("metadata")
-                            if metadata is not None:
-                                # É arquivo - baixar e adicionar ao ZIP
-                                self.after(0, lambda p=relative_item_path: self._update_status(f"Baixando {p}..."))
-
-                                try:
-                                    content = adapter.download_file(full_item_path)
-                                    if isinstance(content, bytes):
-                                        zf.writestr(relative_item_path, content)
-                                    else:
-                                        # content é path local
-                                        zf.write(content, relative_item_path)
-                                    file_count += 1
-                                except Exception as e:
-                                    log.warning(f"[ClientFiles] Erro ao baixar {full_item_path}: {e}")
-                            else:
-                                # É pasta - recursão
-                                file_count += _collect_files(full_item_path, relative_item_path)
-
-                        return file_count
-
-                    # Iniciar coleta recursiva
-                    total_files = _collect_files(full_prefix)
-
-                log.info(f"[ClientFiles] ZIP criado com {total_files} arquivo(s)")
-
-                # Mover ZIP para local escolhido
-                import shutil
-
-                shutil.move(str(temp_zip), save_path)
-
-                self._safe_after(
-                    0, lambda count=total_files, path=save_path: self._on_download_zip_complete(count, path)
-                )
-
-            except Exception as e:
-                log.error(f"[ClientFiles] Erro no download ZIP: {e}", exc_info=True)
-                error_msg = str(e)
-                self._safe_after(0, lambda msg=error_msg: self._on_download_zip_error(msg))
-
-        # Submeter para ThreadPoolExecutor
-        self._executor.submit(_download_zip_thread)
-
-    def _on_download_zip_complete(self, file_count: int, save_path: str) -> None:
-        """Callback quando download ZIP foi concluído."""
-        if not self._ui_alive():
-            return
-
-        self._loading = False
-        self._enable_buttons()
-        self._progress_queue.put({"action": "hide"})
-        self._update_status("ZIP criado com sucesso")
-
-        messagebox.showinfo(
-            "Download ZIP Concluído",
-            f"Pasta baixada com sucesso!\n\n{file_count} arquivo(s) no ZIP\n\nSalvo em:\n{save_path}",
-            parent=self,
-        )
-
-    def _on_download_zip_error(self, error: str) -> None:
-        """Callback quando houve erro no download ZIP."""
-        if not self._ui_alive():
-            return
-
-        self._loading = False
-        self._enable_buttons()
-        self._progress_queue.put({"action": "hide"})
-        self._update_status("Erro no download ZIP")
-
-        messagebox.showerror("Erro no Download ZIP", f"Não foi possível criar o ZIP:\n\n{error}", parent=self)
-
-    def _upload_files(self, file_paths: tuple[str, ...], subfolder: str) -> None:
-        """Executa upload de arquivos em thread."""
-        self._loading = True
-        self._update_status(f"Enviando {len(file_paths)} arquivo(s)...")
-        self._disable_buttons()
-
-        # Mostrar progresso determinado
-        self._progress_queue.put({"action": "show", "mode": "determinate"})
-
-        def _upload_thread():
-            try:
-                bucket = get_clients_bucket()
-                prefix = client_prefix_for_id(self.client_id, self._org_id)
-                adapter = SupabaseStorageAdapter(bucket=bucket)
-
-                uploaded_count = 0
-                total = len(file_paths)
-
-                for file_path in file_paths:
-                    file_name = Path(file_path).name
-                    remote_key = f"{prefix}/{subfolder}/{file_name}"
-
-                    log.info(f"[ClientFiles] Uploading: {file_name} -> {remote_key}")
-
-                    # Upload
-                    adapter.upload_file(file_path, remote_key)
-                    uploaded_count += 1
-
-                    # Atualizar progresso
-                    progress = uploaded_count / total
-                    self._progress_queue.put({"action": "update", "value": progress})
-                    self._progress_queue.put(
-                        {"action": "status", "text": f"Enviados {uploaded_count}/{total} arquivo(s)..."}
-                    )
-
-                log.info(f"[ClientFiles] Upload concluído: {uploaded_count} arquivo(s)")
-                self._safe_after(0, lambda: self._on_upload_complete(uploaded_count))
-
-            except Exception as e:
-                log.error(f"[ClientFiles] Erro no upload: {e}", exc_info=True)
-                self._safe_after(0, lambda: self._on_upload_error(str(e)))
-
-        # Submeter para ThreadPoolExecutor
-        self._executor.submit(_upload_thread)
-
-    def _on_upload_complete(self, count: int) -> None:
-        """Callback quando upload foi concluído."""
-        if not self._ui_alive():
-            return
-
-        self._loading = False
-        self._enable_buttons()
-        self._progress_queue.put({"action": "hide"})
-
-        messagebox.showinfo("Upload Concluído", f"{count} arquivo(s) enviado(s) com sucesso!", parent=self)
-
-        # Recarregar lista
-        self._refresh_files()
-
-    def _on_upload_error(self, error: str) -> None:
-        """Callback quando houve erro no upload."""
-        if not self._ui_alive():
-            return
-
-        self._loading = False
-        self._enable_buttons()
-        self._progress_queue.put({"action": "hide"})
-        self._update_status("Erro no upload")
-
-        messagebox.showerror("Erro no Upload", f"Não foi possível enviar os arquivos:\n\n{error}", parent=self)
-
-    def _on_open_file_from_metadata(self, metadata: dict[str, Any]) -> None:
-        """Abre arquivo (download temporário + abrir com sistema)."""
-        if self._loading:
-            return
-
-        name = metadata.get("name", "")
-        full_path = metadata.get("full_path", name)  # CRÍTICO: usar full_path
-
-        self._loading = True
-        self._update_status(f"Abrindo {Path(name).name}...")
-        self._disable_buttons()
-
-        def _open_thread():
-            try:
-                bucket = get_clients_bucket()
-                adapter = SupabaseStorageAdapter(bucket=bucket)
-
-                # Download para pasta temporária
-                temp_dir = tempfile.gettempdir()
-                file_name = Path(name).name
-                local_path = Path(temp_dir) / "rc_temp_files" / file_name
-                local_path.parent.mkdir(parents=True, exist_ok=True)
-
-                # Usar full_path completo (CRÍTICO para evitar 404)
-                remote_key = full_path
-                log.info(f"[ClientFiles] Downloading para abrir: {remote_key} -> {local_path}")
-
-                content = adapter.download_file(remote_key)
-
-                # Salvar conteúdo
-                if isinstance(content, bytes):
-                    local_path.write_bytes(content)
-                else:
-                    # content é path string
-                    import shutil
-
-                    shutil.copy(content, local_path)
-
-                log.info(f"[ClientFiles] Arquivo baixado, abrindo: {local_path}")
-
-                # Abrir com sistema (Windows: os.startfile)
-                if os.name == "nt":  # Windows
-                    os.startfile(str(local_path))  # nosec B606 - Local path controlado (download de Supabase Storage)
-                elif os.name == "posix":  # Linux/Mac
-                    import subprocess  # nosec B404 - Necessário para xdg-open em Linux
-
-                    subprocess.Popen(["xdg-open", str(local_path)])  # nosec B603, B607 - xdg-open com path local controlado
-
-                self._safe_after(0, lambda fn=file_name: self._on_open_complete(fn))
-
-            except Exception as e:
-                log.error(f"[ClientFiles] Erro ao abrir arquivo: {e}", exc_info=True)
-                error_msg = str(e)
-                self._safe_after(0, lambda msg=error_msg: self._on_open_error(msg))
-
-        # Submeter para ThreadPoolExecutor
-        self._executor.submit(_open_thread)
-
-    def _on_open_complete(self, file_name: str) -> None:
-        """Callback quando arquivo foi aberto."""
-        if not self._ui_alive():
-            return
-
-        self._loading = False
-        self._enable_buttons()
-        self._update_status(f"{file_name} aberto")
-
-    def _on_open_error(self, error: str) -> None:
-        """Callback quando houve erro ao abrir."""
-        if not self._ui_alive():
-            return
-
-        self._loading = False
-        self._enable_buttons()
-        self._update_status("Erro ao abrir arquivo")
-
-        messagebox.showerror("Erro", f"Não foi possível abrir o arquivo:\n\n{error}", parent=self)
-
-    def _on_download_file_from_metadata(self, metadata: dict[str, Any]) -> None:
-        """Download de arquivo para local escolhido pelo usuário."""
-        if self._loading:
-            return
-
-        name = metadata.get("name", "")
-        full_path = metadata.get("full_path", name)  # CRÍTICO: usar full_path
-        file_name = Path(name).name
-
-        # Pedir local para salvar
-        save_path = filedialog.asksaveasfilename(
-            title="Salvar arquivo como",
-            initialfile=file_name,
-            parent=self,
-            defaultextension=Path(file_name).suffix,
-        )
-
-        if not save_path:
-            return
-
-        self._loading = True
-        self._update_status(f"Baixando {file_name}...")
-        self._disable_buttons()
-
-        # Mostrar progresso indeterminado
-        self._progress_queue.put({"action": "show", "mode": "indeterminate"})
-
-        def _download_thread():
-            try:
-                bucket = get_clients_bucket()
-                adapter = SupabaseStorageAdapter(bucket=bucket)
-
-                # Usar full_path completo (CRÍTICO para evitar 404)
-                remote_key = full_path
-                log.info(f"[ClientFiles] Downloading: {remote_key} -> {save_path}")
-
-                content = adapter.download_file(remote_key)
-
-                # Salvar conteúdo
-                if isinstance(content, bytes):
-                    Path(save_path).write_bytes(content)
-                else:
-                    # content é path string
-                    import shutil
-
-                    shutil.copy(content, save_path)
-
-                log.info(f"[ClientFiles] Download concluído: {save_path}")
-                self._safe_after(0, lambda fn=file_name, sp=save_path: self._on_download_complete(fn, sp))
-
-            except Exception as e:
-                log.error(f"[ClientFiles] Erro no download: {e}", exc_info=True)
-                error_msg = str(e)
-                self._safe_after(0, lambda msg=error_msg: self._on_download_error(msg))
-
-        # Submeter para ThreadPoolExecutor
-        self._executor.submit(_download_thread)
-
-    def _on_download_complete(self, file_name: str, save_path: str) -> None:
-        """Callback quando download foi concluído."""
-        if not self._ui_alive():
-            return
-
-        self._loading = False
-        self._enable_buttons()
-        self._progress_queue.put({"action": "hide"})
-        self._update_status(f"{file_name} salvo")
-
-        messagebox.showinfo("Download Concluído", f"Arquivo salvo em:\n{save_path}", parent=self)
-
-    def _on_download_error(self, error: str) -> None:
-        """Callback quando houve erro no download."""
-        if not self._ui_alive():
-            return
-
-        self._loading = False
-        self._enable_buttons()
-        self._progress_queue.put({"action": "hide"})
-        self._update_status("Erro no download")
-
-        messagebox.showerror("Erro no Download", f"Não foi possível baixar o arquivo:\n\n{error}", parent=self)
-
-    def _on_delete_file_from_metadata(self, metadata: dict[str, Any]) -> None:
-        """Exclui arquivo após confirmação."""
-        if self._loading:
-            return
-
-        name = metadata.get("name", "")
-        full_path = metadata.get("full_path", name)  # CRÍTICO: usar full_path
-        file_name = Path(name).name
-
-        # Confirmar exclusão
-        confirm = messagebox.askyesno(
-            "Confirmar Exclusão",
-            f"Deseja realmente excluir o arquivo?\n\n{file_name}\n\nEsta ação não pode ser desfeita.",
-            parent=self,
-            icon="warning",
-        )
-
-        if not confirm:
-            return
-
-        self._loading = True
-        self._update_status(f"Excluindo {file_name}...")
-        self._disable_buttons()
-
-        def _delete_thread():
-            try:
-                bucket = get_clients_bucket()
-                adapter = SupabaseStorageAdapter(bucket=bucket)
-
-                # Usar full_path completo (CRÍTICO para evitar 404)
-                remote_key = full_path
-                log.info(f"[ClientFiles] Deleting: {remote_key}")
-
-                success = adapter.delete_file(remote_key)
-
-                if success:
-                    log.info(f"[ClientFiles] Arquivo excluído: {remote_key}")
-                    self._safe_after(0, lambda fn=file_name: self._on_delete_complete(fn))
-                else:
-                    error_msg = "Falha ao excluir arquivo"
-                    self._safe_after(0, lambda msg=error_msg: self._on_delete_error(msg))
-
-            except Exception as e:
-                log.error(f"[ClientFiles] Erro ao excluir: {e}", exc_info=True)
-                error_msg = str(e)
-                self._safe_after(0, lambda msg=error_msg: self._on_delete_error(msg))
-
-        # Submeter para ThreadPoolExecutor
-        self._executor.submit(_delete_thread)
-
-    def _on_delete_complete(self, file_name: str) -> None:
-        """Callback quando arquivo foi excluído."""
-        if not self._ui_alive():
-            return
-
-        self._loading = False
-        self._enable_buttons()
-
-        messagebox.showinfo("Arquivo Excluído", f"{file_name} foi excluído com sucesso.", parent=self)
-
-        # Recarregar lista
-        self._refresh_files()
-
-    def _on_delete_error(self, error: str) -> None:
-        """Callback quando houve erro ao excluir."""
-        if not self._ui_alive():
-            return
-
-        self._loading = False
-        self._enable_buttons()
-        self._update_status("Erro ao excluir arquivo")
-
-        messagebox.showerror(
-            "Erro",
-            f"Não foi possível excluir o arquivo:\n\n{error}\n\nVerifique se você tem permissão para esta operação.",
-            parent=self,
-        )
-
-    def _update_status(self, text: str) -> None:
-        """Atualiza texto do status."""
-        if hasattr(self, "status_label") and self.status_label.winfo_exists():
-            self.status_label.configure(text=text)
-
-    def _disable_buttons(self) -> None:
-        """Desabilita botões durante operações."""
-        if not self._ui_alive():
-            return
-
-        import tkinter as tk
-
-        buttons = [
-            "btn_refresh",
-            "btn_upload",
-            "btn_back",
-            "btn_visualizar",
-            "btn_baixar",
-            "btn_baixar_zip",
-            "btn_excluir",
-        ]
-
-        for btn_name in buttons:
-            if hasattr(self, btn_name):
-                btn = getattr(self, btn_name)
-                if btn is not None and btn.winfo_exists():
-                    try:
-                        btn.configure(state="disabled")
-                    except tk.TclError:
-                        pass
-
-    def _enable_buttons(self) -> None:
-        """Habilita botões após operações."""
-        if not self._ui_alive():
-            return
-
-        import tkinter as tk
-
-        # Botões que sempre devem ser habilitados
-        for btn_name in ["btn_refresh", "btn_upload"]:
-            if hasattr(self, btn_name):
-                btn = getattr(self, btn_name)
-                if btn is not None and btn.winfo_exists():
-                    try:
-                        btn.configure(state="normal")
-                    except tk.TclError:
-                        pass
-
-        # Atualizar estados dos botões do footer baseado na seleção
-        self._update_button_states()
-        self._update_back_button()  # Atualiza estado do botão Voltar
+    # ── Utilidades estáticas ──────────────────────────────────────
 
     @staticmethod
     def _format_size(size: int) -> str:

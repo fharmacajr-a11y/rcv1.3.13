@@ -17,8 +17,9 @@ from __future__ import annotations
 
 import logging
 import tkinter as tk
-from tkinter import messagebox
 from typing import TYPE_CHECKING, Callable, Literal, Protocol, runtime_checkable
+
+from src.ui.dialogs.rc_dialogs import show_error, show_info, show_warning, ask_ok_cancel
 
 if TYPE_CHECKING:
     from src.ui.components.progress_dialog import BusyDialog as _BusyDialogType
@@ -291,43 +292,28 @@ class TkFeedback:
     ) -> bool:
         """Tenta exibir toast nativo CTk/tk. Retorna True se sucesso."""
         try:
-            from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+            from src.ui.ctk_config import ctk
 
             parent = self._resolve_parent()
             if parent is None:
                 return False
 
             # Criar toplevel para o toast
-            if HAS_CUSTOMTKINTER and ctk is not None:
-                toast = ctk.CTkToplevel(parent)
-            else:
-                toast = tk.Toplevel(parent)
+            toast = ctk.CTkToplevel(parent)
 
             toast.withdraw()
             toast.overrideredirect(True)
             toast.attributes("-topmost", True)
 
             # Container com padding
-            if HAS_CUSTOMTKINTER and ctk is not None:
-                frame = ctk.CTkFrame(toast)
-                frame.pack(fill="both", expand=True, padx=10, pady=10)
-                label = ctk.CTkLabel(
-                    frame,
-                    text=f"{title}\n{message}",
-                    justify="left",
-                    anchor="w",
-                )
-            else:
-                frame = tk.Frame(toast, bg="#333333", padx=10, pady=10)
-                frame.pack(fill="both", expand=True)
-                label = tk.Label(
-                    frame,
-                    text=f"{title}\n{message}",
-                    justify="left",
-                    anchor="w",
-                    bg="#333333",
-                    fg="white",
-                )
+            frame = ctk.CTkFrame(toast)
+            frame.pack(fill="both", expand=True, padx=10, pady=10)
+            label = ctk.CTkLabel(
+                frame,
+                text=f"{title}\n{message}",
+                justify="left",
+                anchor="w",
+            )
             label.pack()
 
             # Posicionar no canto inferior direito
@@ -341,23 +327,31 @@ class TkFeedback:
             toast.geometry(f"{w}x{h}+{x}+{y}")
             toast.deiconify()
 
-            # Auto-fechar após duration
-            toast.after(duration_ms, toast.destroy)
+            # Auto-fechar após duration (com guard para widget destruído)
+            def _auto_close_toast(t=toast):
+                try:
+                    if t.winfo_exists():
+                        t.destroy()
+                except Exception:
+                    pass
+            toast.after(duration_ms, _auto_close_toast)
             return True
         except Exception as exc:  # noqa: BLE001
             logger.debug("Falha ao exibir toast: %s", exc)
             return False
 
     def _show_modal(self, kind: FeedbackKind, title: str, message: str) -> None:
-        """Exibe mensagem modal via messagebox."""
+        """Exibe mensagem modal via rc_dialogs."""
         parent = self._resolve_parent()
+        if parent is None:
+            return
         if kind == "error":
-            messagebox.showerror(title, message, parent=parent)
+            show_error(parent, title, message)
         elif kind == "warning":
-            messagebox.showwarning(title, message, parent=parent)
+            show_warning(parent, title, message)
         else:
             # info ou success
-            messagebox.showinfo(title, message, parent=parent)
+            show_info(parent, title, message)
 
     def info(self, title: str, message: str) -> None:
         self.notify("info", title, message, toast=False)
@@ -370,7 +364,9 @@ class TkFeedback:
 
     def confirm(self, title: str, message: str) -> bool:
         parent = self._resolve_parent()
-        return bool(messagebox.askokcancel(title, message, parent=parent))
+        if parent is None:
+            return False
+        return ask_ok_cancel(parent, title, message)
 
     def busy(self, text: str = "Processando...") -> BusyHandle:
         parent = self._resolve_parent()

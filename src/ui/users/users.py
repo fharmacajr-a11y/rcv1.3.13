@@ -1,7 +1,9 @@
 # ui/users/users.py — gerenciador com políticas de admin + layout clássico
 import tkinter as tk
-from tkinter import messagebox
 import ttkbootstrap as tb
+
+from src.ui.ctk_config import ctk
+from ui.dialogs.rc_dialogs import ask_yes_no, show_error, show_warning
 import sqlite3
 import logging
 from datetime import datetime
@@ -18,7 +20,7 @@ ADMIN_ID = 1  # considera id 1 como admin raiz
 ADMIN_NAME = "admin"
 
 
-class UserManagerDialog(tk.Toplevel):
+class UserManagerDialog(ctk.CTkToplevel):
     def __init__(self, master=None, current_role="admin"):
         super().__init__(master)
         self.title("Gerenciar Usuários")
@@ -112,7 +114,7 @@ class UserManagerDialog(tk.Toplevel):
     def edit_user(self):
         sel = self.tree.selection()
         if not sel:
-            messagebox.showwarning("Editar", "Selecione um usuário.")
+            show_warning(self, "Editar", "Selecione um usuário.")
             return
         vals = self.tree.item(sel[0], "values")
         try:
@@ -125,19 +127,19 @@ class UserManagerDialog(tk.Toplevel):
     def delete_user(self):
         sel = self.tree.selection()
         if not sel:
-            messagebox.showwarning("Excluir", "Selecione um usuário.")
+            show_warning(self, "Excluir", "Selecione um usuário.")
             return
         vals = self.tree.item(sel[0], "values")
         try:
             user_id = int(vals[0])
         except Exception:
-            messagebox.showwarning("Excluir", "Este registro não pode ser excluído.")
+            show_warning(self, "Excluir", "Este registro não pode ser excluído.")
             return
         if user_id == ADMIN_ID:
-            messagebox.showwarning("Excluir", "O usuário 'admin' não pode ser excluído.")
+            show_warning(self, "Excluir", "O usuário 'admin' não pode ser excluído.")
             return
 
-        if messagebox.askyesno("Excluir", "Deseja realmente excluir/desativar este usuário?"):
+        if ask_yes_no(self, "Excluir", "Deseja realmente excluir/desativar este usuário?"):
             try:
                 with self._conn() as con:
                     cur = con.cursor()
@@ -152,7 +154,7 @@ class UserManagerDialog(tk.Toplevel):
                 self.load_users()
             except Exception as e:
                 log.exception("Erro ao excluir usuário: %s", e)
-                messagebox.showerror("Excluir", f"Erro ao excluir: {e}")
+                show_error(self, "Excluir", f"Erro ao excluir: {e}")
 
     # ---------------- Formulário clássico ----------------
     def _user_form(self, title: str, user_id=None, username: str = ""):
@@ -208,12 +210,12 @@ class UserManagerDialog(tk.Toplevel):
             pwd2 = ent_pwd2.get()
 
             if not uname and not (user_id == ADMIN_ID):
-                messagebox.showwarning(title, "Informe o usuário.")
+                show_warning(top, title, "Informe o usuário.")
                 return
 
             if (user_id is None and not pwd) or (pwd or pwd2):
                 if pwd != pwd2:
-                    messagebox.showwarning(title, "As senhas não coincidem.")
+                    show_warning(top, title, "As senhas não coincidem.")
                     return
 
             try:
@@ -246,7 +248,7 @@ class UserManagerDialog(tk.Toplevel):
                 _close()
             except Exception as e:
                 log.exception("Falha ao salvar usuário: %s", e)
-                messagebox.showerror(title, f"Erro ao salvar: {e}")
+                show_error(top, title, f"Erro ao salvar: {e}")
 
         btns = tb.Frame(frm)
         btns.grid(row=6, column=0, pady=(12, 0), sticky="e")

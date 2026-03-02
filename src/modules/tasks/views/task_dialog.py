@@ -6,11 +6,11 @@ from __future__ import annotations
 import logging
 import tkinter as tk
 from datetime import date
-from tkinter import messagebox
 from tkinter.constants import W
 from typing import Callable, Optional
 
 from src.ui.ctk_config import ctk  # SSoT: import via ctk_config
+from src.ui.dialogs.rc_dialogs import show_error
 from src.ui.widgets.button_factory import make_btn
 from src.db.domain_types import ClientRow
 from src.core.app import apply_rc_icon
@@ -208,11 +208,7 @@ class NovaTarefaDialog(ctk.CTkToplevel):
         # Validar título
         title = self.title_var.get().strip()
         if not title:
-            messagebox.showerror(
-                "Campo obrigatório",
-                "Por favor, preencha o título da tarefa.",
-                parent=self,
-            )
+            show_error(self, "Campo obrigatório", "Por favor, preencha o título da tarefa.")
             self.title_entry.focus_force()
             return
 
@@ -227,11 +223,7 @@ class NovaTarefaDialog(ctk.CTkToplevel):
         try:
             due_date = date.fromisoformat(date_str)
         except ValueError:
-            messagebox.showerror(
-                "Data inválida",
-                f"Data inválida: '{date_str}'. Use o formato AAAA-MM-DD.",
-                parent=self,
-            )
+            show_error(self, "Data inválida", f"Data inválida: '{date_str}'. Use o formato AAAA-MM-DD.")
             self.date_entry.focus_force()
             return
 
@@ -270,8 +262,4 @@ class NovaTarefaDialog(ctk.CTkToplevel):
 
         except Exception as exc:
             logger.exception("Erro ao criar tarefa")
-            messagebox.showerror(
-                "Erro",
-                f"Erro ao criar tarefa: {exc}",
-                parent=self,
-            )
+            show_error(self, "Erro", f"Erro ao criar tarefa: {exc}")

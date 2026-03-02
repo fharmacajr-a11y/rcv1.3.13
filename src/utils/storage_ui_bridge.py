@@ -114,9 +114,9 @@ def open_client_files_window(parent: Any, sb: Any, client_id: int) -> None:
     e falhas ao abrir o browser externo, exibindo mensagens apropriadas.
     """
     if not sb:
-        from tkinter import messagebox
+        from src.ui.dialogs.rc_dialogs import show_warning
 
-        messagebox.showwarning("Arquivos", "Modo offline.")
+        show_warning(parent, "Arquivos", "Modo offline.")
         return
 
     # Busca dados do cliente para montar título
@@ -124,15 +124,15 @@ def open_client_files_window(parent: Any, sb: Any, client_id: int) -> None:
         res = sb.table("clients").select("*").eq("id", client_id).limit(1).execute()
         data = getattr(res, "data", []) or []
         if not data:
-            from tkinter import messagebox
+            from src.ui.dialogs.rc_dialogs import show_warning
 
-            messagebox.showwarning("Arquivos", f"Cliente #{client_id} não encontrado.")
+            show_warning(parent, "Arquivos", f"Cliente #{client_id} não encontrado.")
             return
         row = data[0]
     except Exception as e:
-        from tkinter import messagebox
+        from src.ui.dialogs.rc_dialogs import show_warning
 
-        messagebox.showwarning("Arquivos", f"Não foi possível carregar o cliente #{client_id}.\n{e}")
+        show_warning(parent, "Arquivos", f"Não foi possível carregar o cliente #{client_id}.\n{e}")
         return
 
     razao, cnpj = _client_title(row)
@@ -140,7 +140,7 @@ def open_client_files_window(parent: Any, sb: Any, client_id: int) -> None:
     # Obtém org_id do usuário logado
     org_id = _get_org_id_from_supabase(sb) or ""
 
-    from tkinter import messagebox
+    from src.ui.dialogs.rc_dialogs import show_warning
 
     browser = _get_open_files_browser()
     if browser is not None:
@@ -148,7 +148,7 @@ def open_client_files_window(parent: Any, sb: Any, client_id: int) -> None:
             browser(parent, org_id=org_id, client_id=client_id, razao=razao, cnpj=cnpj)
             return
         except Exception:
-            messagebox.showwarning("Arquivos", "Falha ao abrir janela de arquivos.")
+            show_warning(parent, "Arquivos", "Falha ao abrir janela de arquivos.")
             return
 
-    messagebox.showwarning("Arquivos", "Falha ao abrir janela de arquivos.")
+    show_warning(parent, "Arquivos", "Falha ao abrir janela de arquivos.")

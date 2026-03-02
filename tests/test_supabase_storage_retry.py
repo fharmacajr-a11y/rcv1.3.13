@@ -8,10 +8,11 @@ Estratégia:
   - Patchar src.adapters.storage.supabase_storage._sleep para velocidade.
   - Patchar src.adapters.storage.supabase_storage._UPLOAD_MAX_ATTEMPTS para controlar ciclos.
 """
+
 from __future__ import annotations
 
 import unittest
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 import src.adapters.storage.supabase_storage as mod
 
@@ -19,6 +20,7 @@ import src.adapters.storage.supabase_storage as mod
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_client(side_effects: list):
     """Cria mock de client com .storage.from_(...).upload() com efeitos colaterais."""
@@ -34,8 +36,7 @@ def _make_client(side_effects: list):
 
 def _run_upload(client, side_effects, data=b"bytes", max_attempts=3):
     """Executa _upload com sleep e _UPLOAD_MAX_ATTEMPTS patchados."""
-    with patch.object(mod, "_sleep"), \
-         patch.object(mod, "_UPLOAD_MAX_ATTEMPTS", max_attempts):
+    with patch.object(mod, "_sleep"), patch.object(mod, "_UPLOAD_MAX_ATTEMPTS", max_attempts):
         client, upload_mock = _make_client(side_effects)
         return mod._upload(
             client=client,
@@ -50,8 +51,8 @@ def _run_upload(client, side_effects, data=b"bytes", max_attempts=3):
 # (a) Falha transitória 2x → sucesso na 3ª → upload chamado 3 vezes
 # ---------------------------------------------------------------------------
 
-class TestRetryTransientSuccess(unittest.TestCase):
 
+class TestRetryTransientSuccess(unittest.TestCase):
     def test_two_transient_failures_then_success(self):
         """Falha 2× com erro transitório → sucesso na 3ª tentativa."""
         transient = ConnectionError("connection refused")
@@ -62,8 +63,7 @@ class TestRetryTransientSuccess(unittest.TestCase):
         def fake_sleep(secs):
             sleep_calls.append(secs)
 
-        with patch.object(mod, "_sleep", side_effect=fake_sleep), \
-             patch.object(mod, "_UPLOAD_MAX_ATTEMPTS", 3):
+        with patch.object(mod, "_sleep", side_effect=fake_sleep), patch.object(mod, "_UPLOAD_MAX_ATTEMPTS", 3):
             client, upload_mock = _make_client(side_effects)
             result = mod._upload(
                 client=client,
@@ -82,8 +82,7 @@ class TestRetryTransientSuccess(unittest.TestCase):
         timeout_exc = TimeoutError("read timeout")
         side_effects = [timeout_exc, {"data": {"path": "org/1/file.pdf"}}]
 
-        with patch.object(mod, "_sleep"), \
-             patch.object(mod, "_UPLOAD_MAX_ATTEMPTS", 3):
+        with patch.object(mod, "_sleep"), patch.object(mod, "_UPLOAD_MAX_ATTEMPTS", 3):
             client, upload_mock = _make_client(side_effects)
             result = mod._upload(
                 client=client,
@@ -99,8 +98,10 @@ class TestRetryTransientSuccess(unittest.TestCase):
     def test_sleep_not_called_on_first_success(self):
         """Sem falha → sleep nunca é chamado."""
         sleep_tracker = []
-        with patch.object(mod, "_sleep", side_effect=lambda s: sleep_tracker.append(s)), \
-             patch.object(mod, "_UPLOAD_MAX_ATTEMPTS", 3):
+        with (
+            patch.object(mod, "_sleep", side_effect=lambda s: sleep_tracker.append(s)),
+            patch.object(mod, "_UPLOAD_MAX_ATTEMPTS", 3),
+        ):
             client, _ = _make_client(["ok"])
             mod._upload(
                 client=client,
@@ -117,15 +118,14 @@ class TestRetryTransientSuccess(unittest.TestCase):
 # (b) Falha sempre → N tentativas, relança última exceção
 # ---------------------------------------------------------------------------
 
-class TestRetryExhausted(unittest.TestCase):
 
+class TestRetryExhausted(unittest.TestCase):
     def test_all_attempts_fail_raises_last_exception(self):
         """Esgotados todas as tentativas → relança última exceção transitória."""
         exc = OSError("network down")
         side_effects = [exc, exc, exc]
 
-        with patch.object(mod, "_sleep"), \
-             patch.object(mod, "_UPLOAD_MAX_ATTEMPTS", 3):
+        with patch.object(mod, "_sleep"), patch.object(mod, "_UPLOAD_MAX_ATTEMPTS", 3):
             client, upload_mock = _make_client(side_effects)
             with self.assertRaises(OSError) as ctx:
                 mod._upload(
@@ -143,8 +143,7 @@ class TestRetryExhausted(unittest.TestCase):
         server_err = RuntimeError("500 Internal Server Error")
         side_effects = [server_err] * 5
 
-        with patch.object(mod, "_sleep"), \
-             patch.object(mod, "_UPLOAD_MAX_ATTEMPTS", 5):
+        with patch.object(mod, "_sleep"), patch.object(mod, "_UPLOAD_MAX_ATTEMPTS", 5):
             client, upload_mock = _make_client(side_effects)
             with self.assertRaises(RuntimeError):
                 mod._upload(
@@ -163,8 +162,10 @@ class TestRetryExhausted(unittest.TestCase):
         side_effects = [exc, exc, exc]
         sleep_calls = []
 
-        with patch.object(mod, "_sleep", side_effect=lambda s: sleep_calls.append(s)), \
-             patch.object(mod, "_UPLOAD_MAX_ATTEMPTS", 3):
+        with (
+            patch.object(mod, "_sleep", side_effect=lambda s: sleep_calls.append(s)),
+            patch.object(mod, "_UPLOAD_MAX_ATTEMPTS", 3),
+        ):
             client, _ = _make_client(side_effects)
             with self.assertRaises(ConnectionError):
                 mod._upload(
@@ -182,12 +183,11 @@ class TestRetryExhausted(unittest.TestCase):
 # (c) Erro não-transitório → sem retry (1 chamada)
 # ---------------------------------------------------------------------------
 
-class TestNoRetryForPermanentErrors(unittest.TestCase):
 
+class TestNoRetryForPermanentErrors(unittest.TestCase):
     def _assert_no_retry(self, exc, **kwargs):
         side_effects = [exc]
-        with patch.object(mod, "_sleep") as sleep_mock, \
-             patch.object(mod, "_UPLOAD_MAX_ATTEMPTS", 3):
+        with patch.object(mod, "_sleep") as sleep_mock, patch.object(mod, "_UPLOAD_MAX_ATTEMPTS", 3):
             client, upload_mock = _make_client(side_effects)
             with self.assertRaises(type(exc)):
                 mod._upload(
@@ -216,8 +216,7 @@ class TestNoRetryForPermanentErrors(unittest.TestCase):
         """409 duplicado não deve ter retry."""
         exc = RuntimeError("duplicate key value — statuscode: 409")
         side_effects = [exc]
-        with patch.object(mod, "_sleep") as sleep_mock, \
-             patch.object(mod, "_UPLOAD_MAX_ATTEMPTS", 3):
+        with patch.object(mod, "_sleep") as sleep_mock, patch.object(mod, "_UPLOAD_MAX_ATTEMPTS", 3):
             client, upload_mock = _make_client(side_effects)
             with self.assertRaises(RuntimeError):
                 mod._upload(
@@ -235,16 +234,18 @@ class TestNoRetryForPermanentErrors(unittest.TestCase):
 # Backoff cresce com as tentativas
 # ---------------------------------------------------------------------------
 
-class TestBackoffBehavior(unittest.TestCase):
 
+class TestBackoffBehavior(unittest.TestCase):
     def test_backoff_increases_between_attempts(self):
         exc = ConnectionError("transient")
         side_effects = [exc, exc, exc, exc]
         sleep_calls = []
 
-        with patch.object(mod, "_sleep", side_effect=lambda s: sleep_calls.append(s)), \
-             patch.object(mod, "_UPLOAD_MAX_ATTEMPTS", 4), \
-             patch("random.uniform", return_value=0.0):  # zera jitter
+        with (
+            patch.object(mod, "_sleep", side_effect=lambda s: sleep_calls.append(s)),
+            patch.object(mod, "_UPLOAD_MAX_ATTEMPTS", 4),
+            patch("random.uniform", return_value=0.0),
+        ):  # zera jitter
             client, _ = _make_client(side_effects)
             with self.assertRaises(ConnectionError):
                 mod._upload(
@@ -258,16 +259,17 @@ class TestBackoffBehavior(unittest.TestCase):
         self.assertEqual(len(sleep_calls), 3, "3 sleeps para 4 tentativas")
         # backoff: 0.4, 0.8, 1.6 (base 0.4, exp 2**attempt-1)
         for i in range(len(sleep_calls) - 1):
-            self.assertLessEqual(sleep_calls[i], sleep_calls[i + 1],
-                                 "delays devem crescer (ou igualar) a cada tentativa")
+            self.assertLessEqual(
+                sleep_calls[i], sleep_calls[i + 1], "delays devem crescer (ou igualar) a cada tentativa"
+            )
 
 
 # ---------------------------------------------------------------------------
 # 429 rate-limit → deve ter retry
 # ---------------------------------------------------------------------------
 
-class TestRateLimitRetry(unittest.TestCase):
 
+class TestRateLimitRetry(unittest.TestCase):
     def test_429_is_transient(self):
         exc = RuntimeError("429 Too Many Requests")
         self.assertTrue(mod._is_transient_exc(exc))
@@ -276,8 +278,7 @@ class TestRateLimitRetry(unittest.TestCase):
         rate_exc = RuntimeError("429 Too Many Requests")
         side_effects = [rate_exc, "ok"]
 
-        with patch.object(mod, "_sleep"), \
-             patch.object(mod, "_UPLOAD_MAX_ATTEMPTS", 3):
+        with patch.object(mod, "_sleep"), patch.object(mod, "_UPLOAD_MAX_ATTEMPTS", 3):
             client, upload_mock = _make_client(side_effects)
             mod._upload(
                 client=client,
@@ -294,8 +295,8 @@ class TestRateLimitRetry(unittest.TestCase):
 # _is_transient_exc diretamente
 # ---------------------------------------------------------------------------
 
-class TestIsTransientExc(unittest.TestCase):
 
+class TestIsTransientExc(unittest.TestCase):
     def test_connection_error_transient(self):
         self.assertTrue(mod._is_transient_exc(ConnectionError("refused")))
 

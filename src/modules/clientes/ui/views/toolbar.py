@@ -11,7 +11,7 @@ import tkinter as tk
 from typing import Callable
 
 from src.ui.ctk_config import ctk
-from src.ui.ui_tokens import SURFACE, SURFACE_DARK, TEXT_PRIMARY, TEXT_MUTED, BORDER
+from src.ui.ui_tokens import SURFACE, SURFACE_DARK, TEXT_PRIMARY, TEXT_MUTED, BORDER, PRIMARY_BLUE, PRIMARY_BLUE_HOVER
 from src.ui.widgets.button_factory import make_btn
 
 log = logging.getLogger(__name__)
@@ -89,8 +89,8 @@ class ClientesV2Toolbar(ctk.CTkFrame):
             self,
             text="Buscar",
             command=self._trigger_search,
-            fg_color=("#2563eb", "#3b82f6"),
-            hover_color=("#1d4ed8", "#2563eb"),
+            fg_color=PRIMARY_BLUE,
+            hover_color=PRIMARY_BLUE_HOVER,
         ).pack(side="left", padx=5, pady=10)
 
         # Botão Limpar
@@ -121,7 +121,7 @@ class ClientesV2Toolbar(ctk.CTkFrame):
             command=self._trigger_order_change,
             fg_color=SURFACE,
             button_color=SURFACE,
-            button_hover_color=("#2563eb", "#3b82f6"),
+            button_hover_color=PRIMARY_BLUE,
             text_color=TEXT_PRIMARY,
             dropdown_fg_color=SURFACE_DARK,
             dropdown_hover_color=BORDER,
@@ -148,7 +148,7 @@ class ClientesV2Toolbar(ctk.CTkFrame):
             command=self._trigger_status_change,
             fg_color=SURFACE,
             button_color=SURFACE,
-            button_hover_color=("#2563eb", "#3b82f6"),
+            button_hover_color=PRIMARY_BLUE,
             text_color=TEXT_PRIMARY,
             dropdown_fg_color=SURFACE_DARK,
             dropdown_hover_color=BORDER,

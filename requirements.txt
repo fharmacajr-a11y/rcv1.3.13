@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # ============================================================================
-# DEPENDENCIAS DE PRODUCAO - RC Gestor v1.4.52
+# DEPENDENCIAS DE PRODUCAO - RC Gestor v1.5.87
 # ============================================================================
 # Apenas dependencias essenciais para execucao do aplicativo.
 # Para desenvolvimento, use: pip install -r requirements-dev.txt

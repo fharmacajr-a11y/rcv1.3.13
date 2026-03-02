@@ -54,7 +54,7 @@ def _apply_status(app: Any, status: Status) -> None:
         if hasattr(app, "status_var_dot"):
             app.status_var_dot.set(_STATUS_DOT)
         if hasattr(app, "status_dot"):
-            _STATUS_COLORS = {
+            _status_colors = {
                 "warning": ("#f39c12", "#f39c12"),
                 "success": ("#2ecc71", "#2ecc71"),
                 "danger": ("#e74c3c", "#e74c3c"),
@@ -68,11 +68,11 @@ def _apply_status(app: Any, status: Status) -> None:
                 color_tag = "danger"
                 env_text = "OFFLINE"
             try:
-                app.status_dot.configure(text_color=_STATUS_COLORS[color_tag])
+                app.status_dot.configure(text_color=_status_colors[color_tag])
             except Exception:  # noqa: BLE001
                 # Fallback para widget sem text_color (tk.Label liso)
                 try:
-                    app.status_dot.configure(foreground=_STATUS_COLORS[color_tag][0])
+                    app.status_dot.configure(foreground=_status_colors[color_tag][0])
                 except Exception:  # noqa: BLE001
                     pass
             _set_env_text(app, env_text)

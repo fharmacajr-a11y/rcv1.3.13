@@ -26,6 +26,7 @@ _SESSION_MOD = "src.core.session.session"
 # Helpers para construir fakes mínimos
 # ---------------------------------------------------------------------------
 
+
 def _make_supabase_fake(uid: str, email: str, memberships: list[dict]) -> MagicMock:
     """
     Constrói um fake de supabase com:
@@ -72,6 +73,7 @@ def _reset_state() -> None:
 # ---------------------------------------------------------------------------
 # Testes
 # ---------------------------------------------------------------------------
+
 
 class TestRefreshCurrentUser(unittest.TestCase):
     def setUp(self) -> None:

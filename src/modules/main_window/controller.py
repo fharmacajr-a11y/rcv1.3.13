@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import logging
-from tkinter import messagebox
 from typing import Any, Callable, Optional
+
+from src.ui.dialogs.rc_dialogs import show_warning
 
 import time
 
@@ -297,7 +298,7 @@ def start_client_pick_mode(
     # Obter frame de clientes
     frame = getattr(app, "_main_frame_ref", None)
     if frame is None or not hasattr(frame, "start_pick"):
-        messagebox.showwarning("Atenção", "Tela de clientes não está disponível.")
+        show_warning(app, "Atenção", "Tela de clientes não está disponível.")
         return
 
     # Iniciar modo pick com callback customizado

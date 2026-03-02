@@ -55,13 +55,13 @@ def load_dashboard_data_async(controller: "HubScreenController") -> None:
         try:
             if hasattr(controller.view, "_dashboard_view") and controller.view._dashboard_view:
                 # Criar uma mensagem temporária
-                import tkinter as tk
+                from src.ui.ctk_config import ctk
 
                 dashboard_view = controller.view._dashboard_view
                 if dashboard_view.dashboard_scroll:
                     for widget in dashboard_view.dashboard_scroll.content.winfo_children():
                         widget.destroy()
-                    waiting_label = tk.Label(
+                    waiting_label = ctk.CTkLabel(
                         dashboard_view.dashboard_scroll.content,
                         text="Aguardando autenticação...",
                         font=("Segoe UI", 12),

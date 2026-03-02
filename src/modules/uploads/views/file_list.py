@@ -47,16 +47,14 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
         self.tree.column("#0", width=400, anchor="w", stretch=True)
         self.tree.column("type", width=100, anchor="center", stretch=False)
 
-        self.tree.grid(row=0, column=0, sticky="nsew")
+        self.tree.grid(row=0, column=0, sticky="nsew")  # type: ignore[attr-defined]
 
         # Scrollbar vertical (CustomTkinter)
-        scroll_y = ctk.CTkScrollbar(self, command=self.tree.yview)
+        scroll_y = ctk.CTkScrollbar(self, command=self.tree.yview)  # type: ignore[attr-defined]
         scroll_y.grid(row=0, column=1, sticky="ns")
 
-        # Para scrollbar horizontal, usar tkinter padrão pois CTkScrollbar não suporta horizontal
-        import tkinter as tk
-
-        scroll_x = tk.Scrollbar(self, orient="horizontal", command=self.tree.xview)
+        # Scrollbar horizontal (CustomTkinter)
+        scroll_x = ctk.CTkScrollbar(self, orientation="horizontal", command=self.tree.xview)  # type: ignore[attr-defined]
         scroll_x.grid(row=1, column=0, sticky="ew")
 
         self.tree.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
@@ -161,7 +159,7 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
 
     def _on_tree_open(self) -> None:
         """Evento disparado ao expandir pasta - carrega filhos sob demanda."""
-        focused = self.tree.focus()
+        focused = self.tree.focus()  # type: ignore[attr-defined]
         if focused:
             self._populate_folder(focused)
 
@@ -257,7 +255,7 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
             return
 
         name, item_type, full_path = info
-        item_id = self.tree.focus()
+        item_id = self.tree.focus()  # type: ignore[attr-defined]
         if not item_id:
             return
 
@@ -295,12 +293,12 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
     def _on_right_click(self, event) -> None:
         """Handler para clique direito - mostra menu de contexto."""
         # Identificar o item sob o cursor
-        iid = self.tree.identify_row(event.y)
+        iid = self.tree.identify_row(event.y)  # type: ignore[attr-defined]
         if not iid:
             return
 
         # Selecionar o item clicado
-        self.tree.selection_set(iid)
+        self.tree.selection_set(iid)  # type: ignore[attr-defined]
 
         # Obter informações do item
         info = self.get_selected_info()

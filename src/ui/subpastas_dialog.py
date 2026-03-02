@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import logging
 import tkinter as tk
-from tkinter import messagebox
 from typing import Optional
+
+from src.ui.dialogs.rc_dialogs import show_error
 
 from src.ui.ctk_config import ctk
 from src.ui.widgets.button_factory import make_btn
@@ -160,11 +161,7 @@ class SubpastaDialog(ctk.CTkToplevel):
 
         except Exception as exc:
             logger.exception("Erro ao listar subpastas do Storage: %s", exc)
-            messagebox.showerror(
-                "Erro",
-                f"Não foi possível listar subpastas:\n{exc}",
-                parent=self,
-            )
+            show_error(self, "Erro", f"Não foi possível listar subpastas:\n{exc}")
 
     def _select_subpasta(self, subpasta: str):
         """Seleciona subpasta ao clicar no botão."""

@@ -22,15 +22,6 @@ repos:
       - id: ruff-format
         types_or: [python, pyi]
 
-  - repo: local
-    hooks:
-      - id: compileall-check
-        name: Validar sintaxe Python (compileall)
-        language: system
-        entry: python -m compileall -q src
-        types: [python]
-        pass_filenames: false
-
 fail_fast: false
 default_language_version:
   python: python3.13

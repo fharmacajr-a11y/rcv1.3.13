@@ -5,6 +5,7 @@ import logging
 import mimetypes
 import os
 import random
+import re
 import time
 from pathlib import Path
 from typing import Iterable, Optional, Any
@@ -34,9 +35,47 @@ logger = logging.getLogger("infra.supabase.storage")
 DEFAULT_BUCKET = (os.getenv("SUPABASE_BUCKET") or "rc-docs").strip() or "rc-docs"
 
 
+class InvalidBucketNameError(ValueError):
+    """Levantada quando o nome do bucket não atende às regras S3/DNS."""
+
+
+# Regex: apenas [a-z0-9.-], começa e termina com [a-z0-9], pelo menos 2 bordas
+_BUCKET_VALID_RE = re.compile(r"^[a-z0-9][a-z0-9.\-]*[a-z0-9]$")
+# Detecta formato de IP (ex: 192.168.0.1)
+_BUCKET_IP_RE = re.compile(r"^\d{1,3}(\.\d{1,3}){3}$")
+
+
 def _normalize_bucket(bucket: Optional[str]) -> str:
-    value = (bucket or DEFAULT_BUCKET).strip() or DEFAULT_BUCKET
-    return value
+    """Normaliza e valida o nome do bucket conforme regras S3/DNS.
+
+    - None  → usa DEFAULT_BUCKET (constante controlada, considerada válida)
+    - str vazia/espaços → InvalidBucketNameError
+    - Demais strings → lowercase + validação estrutural
+
+    Raises:
+        InvalidBucketNameError: se o nome resultante for inválido.
+    """
+    if bucket is None:
+        return DEFAULT_BUCKET
+
+    name = bucket.strip().lower()
+
+    if not name:
+        raise InvalidBucketNameError("Nome de bucket inválido: string vazia ou apenas espaços.")
+    if len(name) < 3 or len(name) > 63:
+        raise InvalidBucketNameError(
+            f"Nome de bucket inválido {name!r}: deve ter entre 3 e 63 caracteres " f"(tamanho atual: {len(name)})."
+        )
+    if ".." in name:
+        raise InvalidBucketNameError(f"Nome de bucket inválido {name!r}: não pode conter '..'.")
+    if not _BUCKET_VALID_RE.match(name):
+        raise InvalidBucketNameError(
+            f"Nome de bucket inválido {name!r}: apenas [a-z0-9.-] são permitidos e "
+            "o nome deve começar e terminar com [a-z0-9]."
+        )
+    if _BUCKET_IP_RE.match(name):
+        raise InvalidBucketNameError(f"Nome de bucket inválido {name!r}: não pode ser um endereço IP.")
+    return name
 
 
 def normalize_key_for_storage(key: str) -> str:
@@ -68,7 +107,8 @@ def _guess_content_type(remote_key: str, explicit: Optional[str]) -> str:
 def _is_duplicate_exc(exc: Exception) -> bool:
     """Detecta StorageApiError 409/Duplicate ou resposta HTTP 400 com corpo 409."""
     s = str(exc).lower()
-    return any(t in s for t in ("duplicate", "already exists", "\"409\"", "statuscode: 409", "status_code: 409"))
+    return any(t in s for t in ("duplicate", "already exists", '"409"', "statuscode: 409", "status_code: 409"))
+
 
 def _is_transient_exc(exc: Exception) -> bool:
     """Retorna True se o erro é transitório e merece retry.
@@ -107,10 +147,12 @@ def _is_transient_exc(exc: Exception) -> bool:
         return True
 
     import socket  # import local: evita poluir namespace do módulo
+
     if isinstance(exc, (socket.error, socket.timeout, OSError, TimeoutError, ConnectionError)):
         return True
 
     return False
+
 
 def _read_data(source: Any) -> bytes:
     if isinstance(source, (bytes, bytearray)):
@@ -214,8 +256,7 @@ def _upload(
                 delay = min(_UPLOAD_BACKOFF_BASE * (2 ** (attempt - 1)), _UPLOAD_BACKOFF_MAX)
                 delay += random.uniform(0, delay * 0.2)  # jitter 20%  # nosec B311
                 logger.warning(
-                    "storage.op.retry: op=upload, bucket=%s, key=%s, attempt=%d/%d,"
-                    " delay=%.2fs, error=%s — %s",
+                    "storage.op.retry: op=upload, bucket=%s, key=%s, attempt=%d/%d," " delay=%.2fs, error=%s — %s",
                     bucket,
                     key,
                     attempt,
@@ -351,6 +392,61 @@ def _delete(client: Any, bucket: str, remote_key: str) -> bool:
         raise
 
 
+def _remove_batch(
+    client: Any,
+    bucket: str,
+    keys: list[str],
+    *,
+    chunk_size: int = 1000,
+) -> int:
+    """Remove múltiplos arquivos do storage em lotes de até *chunk_size*.
+
+    Returns:
+        Quantidade de chaves enviadas para remoção com sucesso.
+    """
+    if not keys:
+        return 0
+
+    normalized = [_normalize_key(k) for k in keys]
+    total = len(normalized)
+    removed = 0
+
+    start = time.perf_counter()
+    logger.info(
+        "storage.op.start: op=remove_batch, bucket=%s, total_keys=%d",
+        bucket,
+        total,
+    )
+
+    try:
+        for i in range(0, total, chunk_size):
+            chunk = normalized[i : i + chunk_size]
+            client.storage.from_(bucket).remove(chunk)
+            removed += len(chunk)
+
+        duration_ms = (time.perf_counter() - start) * 1000
+        logger.info(
+            "storage.op.success: op=remove_batch, bucket=%s, removed=%d, duration_ms=%.2f",
+            bucket,
+            removed,
+            duration_ms,
+        )
+        return removed
+
+    except Exception as exc:
+        duration_ms = (time.perf_counter() - start) * 1000
+        logger.error(
+            "storage.op.error: op=remove_batch, bucket=%s, removed=%d/%d, duration_ms=%.2f, error=%s",
+            bucket,
+            removed,
+            total,
+            duration_ms,
+            type(exc).__name__,
+            exc_info=True,
+        )
+        raise
+
+
 def _list(client: Any, bucket: str, prefix: str = "") -> list[dict[str, Any]]:
     base = prefix.strip("/")
     path = f"{base}/" if base else ""
@@ -435,6 +531,10 @@ class SupabaseStorageAdapter(StoragePort):
     def delete_file(self, remote_key: str) -> bool:
         return _delete(self._client, self._bucket, remote_key)
 
+    def remove_files(self, keys: list[str], *, chunk_size: int = 1000) -> int:
+        """Remove múltiplos arquivos em lotes (max *chunk_size* por chamada API)."""
+        return _remove_batch(self._client, self._bucket, keys, chunk_size=chunk_size)
+
     def list_files(self, prefix: str = "") -> list[dict[str, Any]]:
         return _list(self._client, self._bucket, prefix)
 
@@ -475,6 +575,11 @@ def delete_file(remote_key: str) -> bool:
     return _default_adapter.delete_file(remote_key)
 
 
+def remove_files(keys: list[str], *, chunk_size: int = 1000) -> int:
+    """Remove múltiplos arquivos do bucket padrão em lotes."""
+    return _default_adapter.remove_files(keys, chunk_size=chunk_size)
+
+
 def list_files(prefix: str = "") -> Iterable[dict[str, Any]]:
     return _default_adapter.list_files(prefix)
 
@@ -506,9 +611,11 @@ def get_default_adapter() -> SupabaseStorageAdapter:
 
 __all__ = [
     "SupabaseStorageAdapter",
+    "InvalidBucketNameError",
     "upload_file",
     "download_file",
     "delete_file",
+    "remove_files",
     "list_files",
     "download_folder_zip",
     "DownloadCancelledError",

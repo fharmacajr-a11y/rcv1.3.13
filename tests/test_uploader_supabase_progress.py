@@ -6,6 +6,7 @@ Testes unitários para _ProgressPump (Fase 6 — race do progress/result_queue).
 Estratégia: _ProgressPump não depende de Tk; injetamos after_fn / close_fn
 como callables simples.  Todos os cenários rodam sem display real.
 """
+
 from __future__ import annotations
 
 import queue
@@ -18,6 +19,7 @@ from src.modules.uploads.uploader_supabase import _ProgressPump
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_pump(
     rq: "queue.Queue",
@@ -58,6 +60,7 @@ def _drain(pump: _ProgressPump, after_calls: list, max_iter: int = 50) -> None:
 # Cenário (a): fila vazia + done_event=False => NÃO finaliza (reagenda)
 # ---------------------------------------------------------------------------
 
+
 class TestNotFinalizeWhenQueueEmptyAndNotDone(unittest.TestCase):
     """Diálogo nunca deve fechar apenas porque a fila está vazia."""
 
@@ -72,7 +75,7 @@ class TestNotFinalizeWhenQueueEmptyAndNotDone(unittest.TestCase):
         pump.start()
 
         after_calls.clear()  # remove o after do start()
-        pump._tick()          # executa manualmente
+        pump._tick()  # executa manualmente
 
         self.assertEqual(len(after_calls), 1, "deve reagendar exatamente uma vez")
         self.assertFalse(closed, "não deve fechar o diálogo")
@@ -100,6 +103,7 @@ class TestNotFinalizeWhenQueueEmptyAndNotDone(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # Cenário (b): worker coloca resultado + seta done_event => finaliza
 # ---------------------------------------------------------------------------
+
 
 class TestSuccessFlow(unittest.TestCase):
     """Worker envia resultado e seta done_event → pump fecha corretamente."""
@@ -152,7 +156,7 @@ class TestSuccessFlow(unittest.TestCase):
         pump = _make_pump(rq, done_event, after_calls, closed)
         pump.start()
 
-        done_event.set()         # sinaliza antes de colocar na fila
+        done_event.set()  # sinaliza antes de colocar na fila
         rq.put(("success", 1, []))
 
         _drain(pump, after_calls)
@@ -164,6 +168,7 @@ class TestSuccessFlow(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # Cenário (c): erro enviado => registra erro, não fecha silenciosamente
 # ---------------------------------------------------------------------------
+
 
 class TestErrorFlow(unittest.TestCase):
     """Erro do worker deve ser armazenado e o diálogo fechado."""
@@ -232,8 +237,8 @@ class TestErrorFlow(unittest.TestCase):
 # Robustez: idempotência, cancel, close exception
 # ---------------------------------------------------------------------------
 
-class TestIdempotenceAndCancel(unittest.TestCase):
 
+class TestIdempotenceAndCancel(unittest.TestCase):
     def test_finalize_twice_calls_close_once(self):
         rq: queue.Queue = queue.Queue()
         done_event = threading.Event()
@@ -319,8 +324,8 @@ class TestIdempotenceAndCancel(unittest.TestCase):
 # Drenagem em lote: múltiplas mensagens em um único tick
 # ---------------------------------------------------------------------------
 
-class TestQueueDrain(unittest.TestCase):
 
+class TestQueueDrain(unittest.TestCase):
     def test_all_messages_drained_in_single_tick(self):
         """Múltiplas mensagens na fila são processadas em um único tick."""
         rq: queue.Queue = queue.Queue()
@@ -348,11 +353,13 @@ class TestQueueDrain(unittest.TestCase):
 # Integração: thread real + done_event + queue, sem Tk
 # ---------------------------------------------------------------------------
 
+
 class TestThreadedIntegration(unittest.TestCase):
     """Verifica comportamento com thread de worker real (sem UI)."""
 
     def _run_pump_sync(self, pump, after_calls, max_iter=200):
         import time
+
         for _ in range(max_iter):
             if pump._finalized:
                 break
@@ -372,6 +379,7 @@ class TestThreadedIntegration(unittest.TestCase):
 
         def worker():
             import time
+
             time.sleep(0.01)
             rq.put(("success", 10, []))
             done_event.set()
@@ -399,6 +407,7 @@ class TestThreadedIntegration(unittest.TestCase):
 
         def worker():
             import time
+
             time.sleep(0.01)
             rq.put(("error", exc))
             done_event.set()

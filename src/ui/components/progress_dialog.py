@@ -6,16 +6,23 @@ import logging
 import tkinter as tk
 from typing import Callable
 
-from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+from src.ui.ctk_config import ctk
+from src.ui.ui_tokens import (
+    APP_BG,
+    SURFACE,
+    DIALOG_RADIUS,
+    PROGRESS_RADIUS,
+    KPI_RED,
+    KPI_RED_HOVER,
+)
 from src.ui.widgets.button_factory import make_btn
 from src.ui.win_titlebar import set_immersive_dark_mode
-from src.ui.window_utils import show_centered
-from src.utils.resource_path import resource_path
+from src.ui.window_utils import apply_window_icon, show_centered
 
 logger = logging.getLogger(__name__)
 
 
-class BusyDialog(tk.Toplevel):
+class BusyDialog(ctk.CTkToplevel):
     """Progress dialog clássico com suporte a modo indeterminado/determinado."""
 
     def __init__(self, parent: tk.Misc, text: str = "Processando..."):
@@ -25,32 +32,33 @@ class BusyDialog(tk.Toplevel):
         self.resizable(False, False)
         self.transient(parent)
         self.protocol("WM_DELETE_WINDOW", lambda: None)  # não fecha
-        try:
-            self.iconbitmap(resource_path("rc.ico"))
-        except Exception as exc:  # noqa: BLE001
-            logger.debug("Falha ao aplicar iconbitmap no BusyDialog: %s", exc)
+        self.configure(fg_color=APP_BG)
+        apply_window_icon(self)
 
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            body = ctk.CTkFrame(self)
-        else:
-            body = tk.Frame(self, padx=12, pady=12)
-        body.pack(fill="both", expand=True)
+        self.rowconfigure(0, weight=1)
+        self.columnconfigure(0, weight=1)
 
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            self._lbl = ctk.CTkLabel(body, text=text, anchor="center", justify="center")
-        else:
-            self._lbl = tk.Label(body, text=text, anchor="center", justify="center")
-        self._lbl.pack(pady=(0, 8), fill="x")
+        body = ctk.CTkFrame(
+            self,
+            corner_radius=DIALOG_RADIUS,
+            fg_color=SURFACE,
+            bg_color=APP_BG,
+        )
+        body.grid(row=0, column=0, sticky="nsew", padx=12, pady=12)
 
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            self._pb = ctk.CTkProgressBar(body, width=280, mode="indeterminate")
-            self._pb.set(0)
-            self._pb.start()  # CTk requer start() para indeterminate
-        else:
-            # Fallback tk puro (sem CTk)
-            self._pb = tk.Canvas(body, width=280, height=22, bg="#e0e0e0", highlightthickness=0)
-            self._pb.pack(fill="x")
-            self._pb_anim = 0  # type: ignore[attr-defined]
+        self._lbl = ctk.CTkLabel(body, text=text, anchor="center", justify="center", fg_color="transparent")
+        self._lbl.pack(pady=(16, 8), fill="x", padx=16)
+
+        self._pb = ctk.CTkProgressBar(
+            body,
+            width=280,
+            mode="indeterminate",
+            corner_radius=PROGRESS_RADIUS,
+            height=12,
+        )
+        self._pb.set(0)
+        self._pb.start()  # CTk requer start() para indeterminate
+        self._pb.pack(fill="x", padx=16, pady=(0, 16))
 
         try:
             self.update_idletasks()
@@ -58,22 +66,17 @@ class BusyDialog(tk.Toplevel):
         except Exception as exc:  # noqa: BLE001
             logger.debug("Falha ao centralizar BusyDialog: %s", exc)
 
-        # Aplicar titlebar dark/light conforme tema
-        try:
-            if HAS_CUSTOMTKINTER:
-                # CustomTkinter já gerencia tema automaticamente
-                pass
-            else:
-                # Sem CTk, tema light padrão
-                set_immersive_dark_mode(self, enabled=False)
-        except Exception as exc:  # noqa: BLE001
-            logger.debug("Falha ao aplicar titlebar no BusyDialog: %s", exc)
-
-        self._pb.start(12)
+        self._pb.start(12)  # type: ignore[attr-defined]
         self.lift()
         try:
             self.attributes("-topmost", True)
-            self.after(50, lambda: self.attributes("-topmost", False))
+            def _remove_topmost_busy():
+                try:
+                    if self.winfo_exists():
+                        self.attributes("-topmost", False)
+                except Exception:
+                    pass
+            self.after(50, _remove_topmost_busy)
         except Exception as exc:  # noqa: BLE001
             logger.debug("Falha ao ajustar topmost do BusyDialog: %s", exc)
         self.update()
@@ -94,12 +97,9 @@ class BusyDialog(tk.Toplevel):
             self._det_total = max(int(total), 1)
             self._det_value = 0
             if hasattr(self._pb, "stop"):
-                self._pb.stop()
-            if HAS_CUSTOMTKINTER and ctk is not None and hasattr(self._pb, "set"):
-                self._pb.configure(mode="determinate")
-                self._pb.set(0)
-            else:
-                self._pb.configure(mode="determinate", maximum=self._det_total, value=0)
+                self._pb.stop()  # type: ignore[attr-defined]
+            self._pb.configure(mode="determinate")
+            self._pb.set(0)  # type: ignore[attr-defined]
             self.update_idletasks()
         except Exception as exc:  # noqa: BLE001
             logger.debug("Falha ao configurar progresso determinado: %s", exc)
@@ -108,19 +108,16 @@ class BusyDialog(tk.Toplevel):
         try:
             if self._det_total:
                 self._det_value = min(self._det_total, self._det_value + inc)
-                if HAS_CUSTOMTKINTER and ctk is not None and hasattr(self._pb, "set"):
-                    # CTkProgressBar usa valores 0.0 a 1.0
-                    progress_fraction = self._det_value / self._det_total
-                    self._pb.set(progress_fraction)
-                else:
-                    self._pb.configure(value=self._det_value)
+                # CTkProgressBar usa valores 0.0 a 1.0
+                progress_fraction = self._det_value / self._det_total
+                self._pb.set(progress_fraction)  # type: ignore[attr-defined]
             self.update_idletasks()
         except Exception as exc:  # noqa: BLE001
             logger.debug("Falha ao avancar BusyDialog: %s", exc)
 
     def close(self) -> None:
         try:
-            self._pb.stop()
+            self._pb.stop()  # type: ignore[attr-defined]
         except Exception as exc:  # noqa: BLE001
             logger.debug("Falha ao parar progress bar do BusyDialog: %s", exc)
         try:
@@ -129,7 +126,7 @@ class BusyDialog(tk.Toplevel):
             logger.debug("Falha ao destruir BusyDialog: %s", exc)
 
 
-class ProgressDialog(tk.Toplevel):
+class ProgressDialog(ctk.CTkToplevel):
     """Diálogo canônico de progresso com mensagens, ETA e botão Cancelar opcional."""
 
     DIALOG_MIN_WIDTH = 460
@@ -157,10 +154,8 @@ class ProgressDialog(tk.Toplevel):
         except Exception:  # noqa: BLE001
             owner = parent
 
-        try:
-            self.iconbitmap(resource_path("rc.ico"))
-        except Exception as exc:  # noqa: BLE001
-            logger.debug("Falha ao aplicar iconbitmap no ProgressDialog: %s", exc)
+        apply_window_icon(self)
+        self.configure(fg_color=APP_BG)
 
         self.title(title)
         self.resizable(False, False)
@@ -168,14 +163,16 @@ class ProgressDialog(tk.Toplevel):
         self.protocol("WM_DELETE_WINDOW", self._handle_wm_delete)
 
         # Grid layout limpo e compacto
-        self.rowconfigure(0, weight=0)
+        self.rowconfigure(0, weight=1)
         self.columnconfigure(0, weight=1)
 
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            body = ctk.CTkFrame(self)
-        else:
-            body = tk.Frame(self, padx=16, pady=12)
-        body.grid(row=0, column=0, sticky="nsew")
+        body = ctk.CTkFrame(
+            self,
+            corner_radius=DIALOG_RADIUS,
+            fg_color=SURFACE,
+            bg_color=APP_BG,
+        )
+        body.grid(row=0, column=0, sticky="nsew", padx=12, pady=12)
         body.columnconfigure(0, weight=1)
         body.columnconfigure(1, weight=0)
 
@@ -184,85 +181,58 @@ class ProgressDialog(tk.Toplevel):
         self._eta_var = tk.StringVar(value="")
 
         # Linha 1: Mensagem principal em negrito
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            msg_label = ctk.CTkLabel(
-                body,
-                textvariable=self._message_var,
-                anchor="w",
-                justify="left",
-                wraplength=self.WRAP_LEN,
-            )
-        else:
-            msg_label = tk.Label(
-                body,
-                textvariable=self._message_var,
-                anchor="w",
-                justify="left",
-                wraplength=self.WRAP_LEN,
-                font=("Segoe UI", 10),
-            )
-        msg_label.grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 6))
+        msg_label = ctk.CTkLabel(
+            body,
+            textvariable=self._message_var,
+            anchor="w",
+            justify="left",
+            wraplength=self.WRAP_LEN,
+            fg_color="transparent",
+        )
+        msg_label.grid(row=0, column=0, columnspan=2, sticky="w", padx=(16, 8), pady=(16, 6))
 
         # Linha 2: Status (esquerda: x/y %) (direita: Tempo/ETA)
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            detail_label = ctk.CTkLabel(
-                body,
-                textvariable=self._detail_var,
-                anchor="w",
-                justify="left",
-                wraplength=280,
-            )
-        else:
-            detail_label = tk.Label(
-                body,
-                textvariable=self._detail_var,
-                anchor="w",
-                justify="left",
-                wraplength=280,
-                foreground="#6c757d",
-            )
-        detail_label.grid(row=1, column=0, sticky="w", pady=(0, 4))
+        detail_label = ctk.CTkLabel(
+            body,
+            textvariable=self._detail_var,
+            anchor="w",
+            justify="left",
+            wraplength=280,
+            fg_color="transparent",
+        )
+        detail_label.grid(row=1, column=0, sticky="w", padx=(16, 4), pady=(0, 4))
 
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            eta_label = ctk.CTkLabel(
-                body,
-                textvariable=self._eta_var,
-                anchor="e",
-                justify="right",
-                wraplength=140,
-            )
-        else:
-            eta_label = tk.Label(
-                body,
-                textvariable=self._eta_var,
-                anchor="e",
-                justify="right",
-                wraplength=140,
-                foreground="#6c757d",
-            )
-        eta_label.grid(row=1, column=1, sticky="e", pady=(0, 4))
+        eta_label = ctk.CTkLabel(
+            body,
+            textvariable=self._eta_var,
+            anchor="e",
+            justify="right",
+            wraplength=140,
+            fg_color="transparent",
+        )
+        eta_label.grid(row=1, column=1, sticky="e", padx=(4, 16), pady=(0, 4))
 
         # Linha 3: Barra de progresso azul clara
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            self._progress = ctk.CTkProgressBar(body, width=420, mode="determinate")
-            self._progress.set(0)
-        else:
-            # Fallback tk puro (Canvas simples para visualizar progresso)
-            self._progress = tk.Canvas(body, width=420, height=20, bg="#e0e0e0", highlightthickness=0)
-            self._progress._progress_value = 0.0  # type: ignore[attr-defined]
-        self._progress.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(0, 8))
+        self._progress = ctk.CTkProgressBar(
+            body,
+            width=420,
+            mode="determinate",
+            corner_radius=PROGRESS_RADIUS,
+            height=12,
+        )
+        self._progress.set(0)
+        self._progress.grid(row=2, column=0, columnspan=2, sticky="ew", padx=16, pady=(0, 8))
 
         # Botão Cancelar: canto direito, vermelho
         if can_cancel:
-            if HAS_CUSTOMTKINTER and ctk is not None:
-                self._cancel_button = make_btn(
-                    body, text="Cancelar", command=self._handle_cancel, fg_color="#dc3545", hover_color="#c82333"
-                )
-            else:
-                self._cancel_button = tk.Button(
-                    body, text="Cancelar", command=self._handle_cancel, bg="#dc3545", fg="white"
-                )
-            self._cancel_button.grid(row=3, column=1, sticky="e", pady=(8, 0))
+            self._cancel_button = make_btn(
+                body,
+                text="Cancelar",
+                command=self._handle_cancel,
+                fg_color=KPI_RED,
+                hover_color=KPI_RED_HOVER,
+            )
+            self._cancel_button.grid(row=3, column=1, sticky="e", padx=(4, 16), pady=(4, 16))
 
         # Forçar altura exata para evitar espaço branco extra
         try:
@@ -286,17 +256,6 @@ class ProgressDialog(tk.Toplevel):
         except Exception as exc:  # noqa: BLE001
             logger.debug("Falha ao exibir ProgressDialog: %s", exc)
 
-        # Aplicar titlebar dark/light conforme tema
-        try:
-            if HAS_CUSTOMTKINTER:
-                # CustomTkinter já gerencia tema automaticamente
-                pass
-            else:
-                # Sem CTk, tema light padrão
-                set_immersive_dark_mode(self, enabled=False)
-        except Exception as exc:  # noqa: BLE001
-            logger.debug("Falha ao aplicar titlebar no ProgressDialog: %s", exc)
-
     def set_message(self, text: str) -> None:
         try:
             self._message_var.set(text)
@@ -314,32 +273,19 @@ class ProgressDialog(tk.Toplevel):
     def set_progress(self, fraction: float | None) -> None:
         """Atualiza a barra de progresso. Use None para modo indeterminado."""
         try:
-            if HAS_CUSTOMTKINTER and ctk is not None and hasattr(self._progress, "set"):
-                # CTkProgressBar
-                if fraction is None:
-                    if not self._indeterminate:
-                        self._indeterminate = True
-                        self._progress.configure(mode="indeterminate")
-                        self._progress.start()
-                else:
-                    if self._indeterminate:
-                        self._indeterminate = False
-                        self._progress.stop()
-                        self._progress.configure(mode="determinate")
-                    percent = self._clamp_percent(fraction)
-                    self._progress.set(percent / 100.0)  # CTk usa 0.0-1.0
+            # CTkProgressBar
+            if fraction is None:
+                if not self._indeterminate:
+                    self._indeterminate = True
+                    self._progress.configure(mode="indeterminate")
+                    self._progress.start()  # type: ignore[attr-defined]
             else:
-                # Fallback Canvas (desenhar retângulo de progresso)
-                if fraction is not None:
+                if self._indeterminate:
                     self._indeterminate = False
-                    percent = self._clamp_percent(fraction)
-                    self._progress._progress_value = percent / 100.0  # type: ignore[attr-defined]
-                    # Desenhar retângulo proporcional
-                    w = 420
-                    h = 20
-                    fill_w = int(w * self._progress._progress_value)  # type: ignore[attr-defined]
-                    self._progress.delete("all")
-                    self._progress.create_rectangle(0, 0, fill_w, h, fill="#007bff", outline="")
+                    self._progress.stop()  # type: ignore[attr-defined]
+                    self._progress.configure(mode="determinate")
+                percent = self._clamp_percent(fraction)
+                self._progress.set(percent / 100.0)  # type: ignore[attr-defined]  # CTk usa 0.0-1.0
             self.update_idletasks()
         except Exception as exc:  # noqa: BLE001
             logger.debug("Falha ao atualizar progresso do ProgressDialog: %s", exc)
@@ -361,8 +307,8 @@ class ProgressDialog(tk.Toplevel):
 
     def close(self) -> None:
         try:
-            if self._indeterminate and HAS_CUSTOMTKINTER and ctk is not None:
-                self._progress.stop()
+            if self._indeterminate:
+                self._progress.stop()  # type: ignore[attr-defined]
         except Exception as exc:  # noqa: BLE001
             logger.debug("Falha ao parar progresso do ProgressDialog: %s", exc)
         try:
@@ -380,28 +326,20 @@ class ProgressDialog(tk.Toplevel):
 
     def _handle_cancel(self) -> None:
         if self._cancel_button:
-            # Para CustomTkinter, verificar se tem o atributo _state ou usar try/except
+            # Verificar se botão está desabilitado
             try:
-                if HAS_CUSTOMTKINTER and ctk is not None and hasattr(self._cancel_button, "_state"):
+                if hasattr(self._cancel_button, "_state"):
                     if self._cancel_button._state == "disabled":  # type: ignore[attr-defined]
                         return
                 elif hasattr(self._cancel_button, "cget"):
-                    # Tkinter padrão
                     if str(self._cancel_button.cget("state")) == "disabled":  # type: ignore[attr-defined]
                         return
             except Exception:
-                # Se falhar ao verificar state, continua com o cancelamento
                 pass
 
         if self._cancel_button:
             try:
-                if HAS_CUSTOMTKINTER and ctk is not None and hasattr(self._cancel_button, "configure"):
-                    # CTkButton usa configure diferente
-                    self._cancel_button.configure(text="Cancelando...")  # type: ignore[attr-defined]
-                    # CTkButton não tem state="disabled", usar outros métodos
-                else:
-                    # Tkinter padrão
-                    self._cancel_button.configure(state="disabled", text="Cancelando...")  # type: ignore[attr-defined]
+                self._cancel_button.configure(text="Cancelando...")  # type: ignore[attr-defined]
             except Exception as exc:  # noqa: BLE001
                 logger.debug("Falha ao desabilitar botão de cancelamento: %s", exc)
 

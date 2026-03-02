@@ -111,10 +111,18 @@ class CTkTableView(ctk.CTkFrame):
 
         try:
             # Usar fonte padronizada do TABLE_UI_SPEC
-            body_font = get_ctk_font_string(heading=False)
+            _body_font = get_ctk_font_string(heading=False)  # noqa: F841
             header_font = get_ctk_font_string(heading=True)
 
-            # Configurar parâmetros base da tabela
+            # header_font não é suportado pelo construtor de CTkTable;
+            # é aplicado via edit_row(0) após a criação.
+            header_font = (
+                TABLE_UI_SPEC.font_family,
+                TABLE_UI_SPEC.heading_font_size,
+                TABLE_UI_SPEC.heading_font_weight,
+            )
+
+            # Configurar parâmetros base da tabela (sem header_font)
             table_params = {
                 "master": self,
                 "values": data if data and data != [[]] else [["Sem dados"]],
@@ -123,11 +131,6 @@ class CTkTableView(ctk.CTkFrame):
                 "hover": TABLE_UI_SPEC.hover_enabled,
                 "command": self._on_cell_click,
                 "font": (TABLE_UI_SPEC.font_family, TABLE_UI_SPEC.font_size),
-                "header_font": (
-                    TABLE_UI_SPEC.font_family,
-                    TABLE_UI_SPEC.heading_font_size,
-                    TABLE_UI_SPEC.heading_font_weight,
-                ),
             }
 
             # Adicionar cores apenas se zebra estiver ativo e houver dados
@@ -136,18 +139,32 @@ class CTkTableView(ctk.CTkFrame):
                 zebra_colors = zebra_colors[: len(data)]
                 table_params["colors"] = zebra_colors
 
+            log.debug("CTkTable kwargs efetivos: %s", list(table_params.keys()))
             self._table = CTkTable(**table_params)
             self._table.pack(fill="both", expand=True)
-        except ImportError as e:
-            log.error(
-                "CTkTable não está instalado: %s\nInstale as dependências com: pip install -r requirements.txt",
-                e,
+
+            # Aplica font do header via edit_row(0) — CTkTable não aceita
+            # header_font no construtor.
+            if self._headers and header_font:
+                try:
+                    self._table.edit_row(0, font=header_font)
+                except Exception as hr_exc:  # noqa: BLE001
+                    log.debug("edit_row(0, font=header_font) falhou: %s", hr_exc)
+
+        except ImportError:
+            log.exception(
+                "CTkTable não está instalado. kwargs=%s. "
+                "Instale as dependências com: pip install -r requirements.txt",
+                list(table_params.keys()) if "table_params" in dir() else "(desconhecido)",
             )
             self._table = None
             # Mostrar label de erro no lugar da tabela
             self._show_import_error()
-        except Exception as e:
-            log.error(f"Falha ao criar CTkTable: {e}")
+        except Exception:
+            log.exception(
+                "Falha ao criar CTkTable. kwargs=%s",
+                list(table_params.keys()) if "table_params" in dir() else "(desconhecido)",
+            )
             self._table = None
 
     def _show_import_error(self) -> None:
@@ -354,7 +371,10 @@ class CTkTableView(ctk.CTkFrame):
             return
 
         if sequence == "<<TreeviewSelect>>":
-            new_cb: Callable[[int], None] = lambda _idx: callback(None)
+
+            def new_cb(_idx: int) -> None:
+                callback(None)
+
             if should_chain and self._row_select_callback is not None:
                 prev = self._row_select_callback
 

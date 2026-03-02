@@ -7,6 +7,7 @@ Expandido na MF-15 para suportar separação View/Controller.
 
 from __future__ import annotations
 
+import threading
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Tuple
@@ -111,6 +112,8 @@ class HubState:
     # ═══════════════════════════════════════════════════════════════════════
     author_tags: Dict[str, str] = field(default_factory=dict)
     poll_job: Optional[str] = None
+    # RLock permite reentrada na mesma thread (finally → schedule_poll dentro de poll_notes_if_needed)
+    poll_lock: object = field(default_factory=threading.RLock, repr=False)
     is_refreshing: bool = False
     last_refresh_ts: Optional[float] = None
     pending_notes: List[Any] = field(default_factory=list)

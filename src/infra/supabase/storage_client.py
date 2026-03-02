@@ -24,6 +24,7 @@ logger = logging.getLogger("infra.supabase.storage_client")
 EDGE_FUNCTION_ZIPPER_URL: Final[str] = f"{SUPABASE_URL}/functions/v1/zipper"
 
 _session = None
+_session_lock = threading.Lock()
 
 
 def _downloads_dir() -> Path:
@@ -53,7 +54,9 @@ def _sess():
     """Retorna sessão reutilizável com retry e timeout configurados."""
     global _session
     if _session is None:
-        _session = make_session()
+        with _session_lock:
+            if _session is None:
+                _session = make_session()
     return _session
 
 
@@ -169,51 +172,44 @@ def baixar_pasta_zip(
             tmp_path: Path = out_path.with_suffix(out_path.suffix + ".part")
             written: int = 0
             resp.raw.decode_content = True
+            _promoted = False  # True apenas após os.replace bem-sucedido
 
-            with open(tmp_path, "wb") as f:
-                for chunk in resp.iter_content(chunk_size=1024 * 256):
-                    if cancel_event is not None and cancel_event.is_set():
-                        try:
-                            resp.close()
-                        finally:
+            try:
+                with open(tmp_path, "wb") as f:
+                    for chunk in resp.iter_content(chunk_size=1024 * 256):
+                        if cancel_event is not None and cancel_event.is_set():
+                            raise DownloadCancelledError("Operação cancelada pelo usuário.")
+
+                        if not chunk:
+                            continue
+
+                        f.write(chunk)
+                        written += len(chunk)
+
+                        if progress_cb is not None:
                             try:
-                                f.close()
+                                progress_cb(len(chunk))
                             except Exception as exc:
-                                logger.debug("Erro ao fechar arquivo temporário", exc_info=exc)
-                            try:
-                                tmp_path.unlink(missing_ok=True)
-                            except Exception as exc:
-                                logger.debug("Erro ao remover arquivo temporário cancelado", exc_info=exc)
-                        raise DownloadCancelledError("Operação cancelada pelo usuário.")
+                                logger.debug("Callback de progresso falhou", exc_info=exc)
 
-                    if not chunk:
-                        continue
+                if cancel_event is not None and cancel_event.is_set():
+                    raise DownloadCancelledError("Operação cancelada no final do download.")
 
-                    f.write(chunk)
-                    written += len(chunk)
+                if expected and written != expected:
+                    raise IOError(f"Download truncado: {written}B != {expected}B")
 
-                    if progress_cb is not None:
-                        try:
-                            progress_cb(len(chunk))
-                        except Exception as exc:
-                            logger.debug("Callback de progresso falhou", exc_info=exc)
+                os.replace(tmp_path, out_path)
+                _promoted = True
+                return out_path
 
-            if cancel_event is not None and cancel_event.is_set():
-                try:
-                    tmp_path.unlink(missing_ok=True)
-                except Exception as exc:
-                    logger.debug("Erro ao remover arquivo após cancelamento", exc_info=exc)
-                raise DownloadCancelledError("Operação cancelada no final do download.")
-
-            if expected and written != expected:
-                try:
-                    tmp_path.unlink(missing_ok=True)
-                except Exception as exc:
-                    logger.debug("Erro ao limpar arquivo truncado", exc_info=exc)
-                raise IOError(f"Download truncado: {written}B != {expected}B")
-
-            os.replace(tmp_path, out_path)
-            return out_path
+            finally:
+                # Cobre todos os caminhos de falha: erro de escrita, cancelamento,
+                # truncamento e qualquer exceção inesperada.
+                if not _promoted:
+                    try:
+                        tmp_path.unlink(missing_ok=True)
+                    except Exception as exc:  # noqa: BLE001
+                        logger.debug("Erro ao remover arquivo temporário: %s", exc)
 
     except (req_exc.ConnectTimeout, req_exc.ReadTimeout, req_exc.Timeout, ReadTimeoutError) as e:
         logger.warning(

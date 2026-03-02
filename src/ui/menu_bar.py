@@ -16,8 +16,9 @@ from __future__ import annotations
 
 import logging
 import tkinter as tk
-from tkinter import messagebox
 from typing import Callable, Optional
+
+from src.ui.dialogs.rc_dialogs import show_info
 
 _log = logging.getLogger(__name__)
 
@@ -96,7 +97,7 @@ class AppMenuBar(tk.Menu):
 
     def _about(self) -> None:
         try:
-            messagebox.showinfo("Sobre", "RC - Gestor de Clientes", parent=self.master)
+            show_info(self.master, "Sobre", "RC - Gestor de Clientes")
         except Exception as exc:  # noqa: BLE001
             _log.debug("Falha ao exibir diálogo Sobre: %s", exc)
 

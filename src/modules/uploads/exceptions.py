@@ -8,6 +8,7 @@ Hierarquia:
     ├── UploadValidationError (arquivo inválido antes do upload)
     ├── UploadNetworkError (falha de conexão/timeout)
     └── UploadServerError (5xx, servidor fora, RLS bloqueou)
+        └── UploadDuplicateError (409 / 400 "already exists" — arquivo já existe)
 
 Cada exceção carrega:
     - message: mensagem amigável para o usuário
@@ -19,9 +20,10 @@ CONTRATO DE ERROS (Opção A - UP-01):
     TypeError, etc.) são preservadas em __cause__ para debug/logging, mas
     não vazam diretamente para o chamador.
 
-    Tratamento de HTTP 409 (duplicado): Classificado como UploadServerError
-    via make_server_error("duplicate"), mas em upload_items_with_adapter
-    é tratado como operação bem-sucedida (arquivo já existe = não é falha).
+    Tratamento de HTTP 409 / 400 "already exists" (duplicado): classificado
+    como UploadDuplicateError.  Em upload_items_with_adapter, duplicados NÃO
+    são contados como sucesso (ok) e são registrados no relatório de falhas
+    para que a UI informe o usuário de forma distinta.
 """
 
 from __future__ import annotations
@@ -80,6 +82,17 @@ class UploadServerError(UploadError):
     pass
 
 
+class UploadDuplicateError(UploadServerError):
+    """Arquivo já existe no destino (HTTP 409 ou 400 'already exists').
+
+    Não é uma falha de rede/servidor — o upload foi ignorado porque o
+    arquivo já está presente no storage.  Deve ser reportado ao usuário
+    como SKIPPED/DUPLICADO, nunca como sucesso.
+    """
+
+    pass
+
+
 # Mensagens padronizadas para UX consistente
 ERROR_MESSAGES = {
     "extension": "Tipo de arquivo não permitido. Apenas arquivos PDF são aceitos.",
@@ -90,7 +103,7 @@ ERROR_MESSAGES = {
     "timeout": "A conexão demorou muito. Tente novamente em alguns instantes.",
     "server": "Erro temporário no servidor. Tente novamente em alguns minutos.",
     "permission": "Sem permissão para enviar arquivos. Contate o administrador.",
-    "duplicate": "Este arquivo já existe no servidor.",
+    "duplicate": "Arquivo já existe no destino; upload ignorado.",
     "unknown": "Ocorreu um erro inesperado ao enviar o arquivo.",
 }
 
@@ -138,7 +151,7 @@ def make_server_error(
     original: Exception | None = None,
     status_code: int | None = None,
 ) -> UploadServerError:
-    """Cria UploadServerError com mensagem padronizada.
+    """Cria UploadServerError (ou subclasse) com mensagem padronizada.
 
     Args:
         error_type: Chave em ERROR_MESSAGES (server, permission, duplicate).
@@ -146,7 +159,8 @@ def make_server_error(
         status_code: Código HTTP se disponível.
 
     Returns:
-        UploadServerError com mensagem e detalhes técnicos.
+        UploadDuplicateError se error_type=="duplicate",
+        UploadServerError para os demais tipos.
     """
     message = ERROR_MESSAGES.get(error_type, ERROR_MESSAGES["server"])
     parts = [error_type]
@@ -155,6 +169,8 @@ def make_server_error(
     if original:
         parts.append(f"{type(original).__name__}: {original}")
     detail = " | ".join(parts)
+    if error_type == "duplicate":
+        return UploadDuplicateError(message, detail=detail)
     return UploadServerError(message, detail=detail)
 
 
@@ -163,6 +179,7 @@ __all__ = [
     "UploadValidationError",
     "UploadNetworkError",
     "UploadServerError",
+    "UploadDuplicateError",
     "ERROR_MESSAGES",
     "make_validation_error",
     "make_network_error",

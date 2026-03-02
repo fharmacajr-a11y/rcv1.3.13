@@ -114,8 +114,10 @@ def _start_health_checker() -> None:
     """
     global _HEALTH_CHECKER_STARTED
 
-    if _HEALTH_CHECKER_STARTED:
-        return
+    with _STATE_LOCK:
+        if _HEALTH_CHECKER_STARTED:
+            return
+        _HEALTH_CHECKER_STARTED = True
 
     # OFFLINE-SUPABASE-UX-002: Não iniciar health checker se cloud-only E offline
     # (para evitar spam de warnings quando sem internet)
@@ -128,11 +130,11 @@ def _start_health_checker() -> None:
 
             if not check_internet_connectivity(timeout=1.0):
                 log.info("Cloud-only offline: health checker não iniciado para evitar ruído no console.")
+                with _STATE_LOCK:
+                    _HEALTH_CHECKER_STARTED = False
                 return
         except Exception as exc:
             log.debug("Erro ao verificar internet para health checker: %s", exc)
-
-    _HEALTH_CHECKER_STARTED = True
 
     def _checker():
         global _IS_ONLINE, _LAST_SUCCESS_TIMESTAMP
@@ -371,6 +373,8 @@ def get_supabase() -> Client:
         options: ClientOptions = ClientOptions(
             httpx_client=HTTPX_CLIENT,
             postgrest_client_timeout=HTTPX_TIMEOUT_LIGHT,
+            # storage3 usa int segundos – evita ReadTimeout em uploads lentos
+            storage_client_timeout=180,
         )
 
         _SUPABASE_SINGLETON = create_client(url, key, options=options)

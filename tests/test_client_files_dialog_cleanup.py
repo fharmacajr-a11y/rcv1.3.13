@@ -12,10 +12,9 @@ from __future__ import annotations
 import importlib.util
 import pathlib
 import sys
-import threading
 import types
 import unittest
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 # ---------------------------------------------------------------------------
 # 1. Pre-mock de módulos pesados (tkinter, ctk, supabase, etc.)
@@ -29,17 +28,16 @@ from typing import Any, cast
 
 _DIALOG_MOD_NAME = "src.modules.clientes.ui.views.client_files_dialog"
 _DIALOG_MOD_PATH = (
-    pathlib.Path(__file__).parent.parent
-    / "src" / "modules" / "clientes" / "ui" / "views" / "client_files_dialog.py"
+    pathlib.Path(__file__).parent.parent / "src" / "modules" / "clientes" / "ui" / "views" / "client_files_dialog.py"
 )
 
 
 def _build_stubs() -> dict:
     """Retorna dict de stubs para patch.dict(sys.modules). Sem side-effects."""
-    _TclError = type("TclError", (Exception,), {})
+    _tcl_error_cls = type("TclError", (Exception,), {})
     _tk = types.ModuleType("tkinter")
-    _tk.TclError = _TclError  # type: ignore[attr-defined]
-    _tk.Misc = object          # type: ignore[attr-defined]
+    _tk.TclError = _tcl_error_cls  # type: ignore[attr-defined]
+    _tk.Misc = object  # type: ignore[attr-defined]
 
     _ctk_toplevel_base = type("CTkToplevel", (object,), {"winfo_exists": lambda self: True})
     _ctk_inner = MagicMock()
@@ -47,29 +45,58 @@ def _build_stubs() -> dict:
     _ctk_config = MagicMock()
     _ctk_config.ctk = _ctk_inner
 
+    # ------------------------------------------------------------------
+    # Mixin stubs — classes vazias para herança (MagicMock não funciona
+    # como base em MRO). Módulos fabricados evitam acionar a cadeia
+    # src.modules.clientes.__init__ → service → pypdf → PIL.__version__
+    # ------------------------------------------------------------------
+    _files_ui_cls = type("FilesUIMixin", (), {})
+    _files_nav_cls = type("FilesNavigationMixin", (), {})
+    _files_upload_cls = type("FilesUploadMixin", (), {})
+    _files_download_cls = type("FilesDownloadMixin", (), {})
+    _download_result_cls = type("DownloadResultDialog", (), {})
+
+    _files_ui_mod = types.ModuleType("src.modules.clientes.ui.views._files_ui_mixin")
+    _files_ui_mod.FilesUIMixin = _files_ui_cls  # type: ignore[attr-defined]
+
+    _files_nav_mod = types.ModuleType("src.modules.clientes.ui.views._files_navigation_mixin")
+    _files_nav_mod.FilesNavigationMixin = _files_nav_cls  # type: ignore[attr-defined]
+
+    _files_upload_mod = types.ModuleType("src.modules.clientes.ui.views._files_upload_mixin")
+    _files_upload_mod.FilesUploadMixin = _files_upload_cls  # type: ignore[attr-defined]
+
+    _files_download_mod = types.ModuleType("src.modules.clientes.ui.views._files_download_mixin")
+    _files_download_mod.FilesDownloadMixin = _files_download_cls  # type: ignore[attr-defined]
+    _files_download_mod.DownloadResultDialog = _download_result_cls  # type: ignore[attr-defined]
+
     stubs: dict = {
-        "tkinter":                                         _tk,
-        "tkinter.messagebox":                              MagicMock(),
-        "tkinter.filedialog":                              MagicMock(),
-        "customtkinter":                                   MagicMock(),
-        "PIL":                                             MagicMock(),
-        "PIL.Image":                                       MagicMock(),
-        "PIL.ImageDraw":                                   MagicMock(),
-        "PIL.ImageTk":                                     MagicMock(),
-        "yaml":                                            MagicMock(),
-        "src.ui.ctk_config":                               _ctk_config,
-        "src.ui.widgets.button_factory":                   MagicMock(),
-        "src.ui.ui_tokens":                                MagicMock(),
-        "src.ui.ttk_treeview_theme":                       MagicMock(),
-        "src.ui.widgets.ctk_treeview_container":           MagicMock(),
-        "src.ui.dark_window_helper":                       MagicMock(),
-        "src.ui.window_utils":                             MagicMock(),
-        "src.adapters.storage.supabase_storage":           MagicMock(),
-        "src.modules.uploads.components.helpers":          MagicMock(),
+        "tkinter": _tk,
+        "tkinter.messagebox": MagicMock(),
+        "tkinter.filedialog": MagicMock(),
+        "customtkinter": MagicMock(),
+        "PIL": MagicMock(),
+        "PIL.Image": MagicMock(),
+        "PIL.ImageDraw": MagicMock(),
+        "PIL.ImageTk": MagicMock(),
+        "yaml": MagicMock(),
+        "src.ui.ctk_config": _ctk_config,
+        "src.ui.widgets.button_factory": MagicMock(),
+        "src.ui.ui_tokens": MagicMock(),
+        "src.ui.ttk_treeview_theme": MagicMock(),
+        "src.ui.widgets.ctk_treeview_container": MagicMock(),
+        "src.ui.dark_window_helper": MagicMock(),
+        "src.ui.window_utils": MagicMock(),
+        "src.adapters.storage.supabase_storage": MagicMock(),
+        "src.modules.uploads.components.helpers": MagicMock(),
         "src.modules.clientes.forms.client_subfolder_prompt": MagicMock(),
-        "src.infra.supabase_client":                       MagicMock(),
-        "src.infra.supabase.db_client":                    MagicMock(),
-        "src.infra.supabase.auth_client":                  MagicMock(),
+        "src.infra.supabase_client": MagicMock(),
+        "src.infra.supabase.db_client": MagicMock(),
+        "src.infra.supabase.auth_client": MagicMock(),
+        # Mixin modules — evita import real e cadeia transitiva
+        "src.modules.clientes.ui.views._files_ui_mixin": _files_ui_mod,
+        "src.modules.clientes.ui.views._files_navigation_mixin": _files_nav_mod,
+        "src.modules.clientes.ui.views._files_upload_mixin": _files_upload_mod,
+        "src.modules.clientes.ui.views._files_download_mixin": _files_download_mod,
     }
     return stubs
 
@@ -103,6 +130,7 @@ def tearDownModule() -> None:  # noqa: N802
 # 3. Helper: cria instância sem __init__
 # ---------------------------------------------------------------------------
 
+
 def _bare_instance() -> ClientFilesDialog:
     """Cria ClientFilesDialog com __new__, setando apenas atributos mínimos."""
     obj = ClientFilesDialog.__new__(ClientFilesDialog)
@@ -115,8 +143,8 @@ def _bare_instance() -> ClientFilesDialog:
 # 4. Testes de _shutdown_executor
 # ---------------------------------------------------------------------------
 
-class TestShutdownExecutor(unittest.TestCase):
 
+class TestShutdownExecutor(unittest.TestCase):
     def test_shutdown_calls_shutdown_with_cancel_futures(self):
         """Deve chamar shutdown(wait=False, cancel_futures=True) no executor."""
         obj = _bare_instance()
@@ -198,8 +226,8 @@ class TestShutdownExecutor(unittest.TestCase):
 # 5. Testes de _safe_close (usa _shutdown_executor)
 # ---------------------------------------------------------------------------
 
-class TestSafeClose(unittest.TestCase):
 
+class TestSafeClose(unittest.TestCase):
     def _make_closeable(self) -> ClientFilesDialog:
         obj = _bare_instance()
         obj._executor = MagicMock()

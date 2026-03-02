@@ -222,6 +222,17 @@ def upload_with_retry(
 
             # Erros de cliente (4xx) - sem retry
             if is_client:
+                # 409 Duplicate: não é falha real — arquivo já existe no storage
+                if _is_duplicate_error(exc):
+                    logger.warning(
+                        "Upload (tentativa %d/%d): arquivo já existe no storage (HTTP 409 Duplicate)."
+                        " Pulando sem retry.",
+                        attempt,
+                        max_retries + 1,
+                        extra=base_extra,
+                    )
+                    raise make_server_error("duplicate", original=exc, status_code=client_code) from exc
+
                 logger.warning(
                     "Upload falhou com erro de cliente (HTTP %s): %s",
                     client_code,
@@ -238,8 +249,6 @@ def upload_with_retry(
                 )
                 if _is_permission_error(exc):
                     raise make_server_error("permission", original=exc, status_code=client_code) from exc
-                if _is_duplicate_error(exc):
-                    raise make_server_error("duplicate", original=exc, status_code=client_code) from exc
                 # Outros 4xx - erro genérico sem retry
                 raise UploadError(
                     f"Erro ao enviar arquivo (código {client_code}).",
@@ -268,7 +277,11 @@ def upload_with_retry(
                 break
 
             logger.warning(
-                "Falha de upload, será feito retry",
+                "Falha de upload (tentativa %d/%d), %s: %s. Será feito retry...",
+                attempt,
+                max_retries + 1,
+                error_type_name,
+                str(exc)[:200],
                 extra={
                     **base_extra,
                     "attempt": attempt,
@@ -285,10 +298,11 @@ def upload_with_retry(
 
             error_type = "rede" if is_network else f"servidor (HTTP {server_code})"
             logger.info(
-                "Upload tentativa %d/%d falhou (%s). Retry em %.1fs...",
+                "Upload tentativa %d/%d falhou (%s: %s). Retry em %.1fs...",
                 attempt,
                 max_retries + 1,
                 error_type,
+                type(exc).__name__,
                 delay,
             )
 

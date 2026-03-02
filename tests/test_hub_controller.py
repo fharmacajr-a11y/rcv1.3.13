@@ -27,21 +27,22 @@ from unittest.mock import MagicMock, patch
 #    NÃO modificam sys.modules em tempo de importação/discover
 # ---------------------------------------------------------------------------
 
+
 def _build_stubs() -> dict:
     """Retorna dict de stubs para patch.dict(sys.modules). Sem side-effects."""
     _logger_mock = MagicMock()
     _logger_mock.get_logger.return_value = MagicMock()
     return {
-        "src.core.logger":                          _logger_mock,
-        "src.modules.hub.colors":                   MagicMock(),
-        "src.modules.hub.services":                 MagicMock(),
+        "src.core.logger": _logger_mock,
+        "src.modules.hub.colors": MagicMock(),
+        "src.modules.hub.services": MagicMock(),
         "src.modules.hub.services.authors_service": MagicMock(),
-        "src.modules.hub.format":                   MagicMock(),
-        "src.modules.hub.utils":                    MagicMock(),
-        "src.modules.notas":                        MagicMock(),
-        "src.modules.notas.service":                MagicMock(),
-        "tkinter":                                  MagicMock(),
-        "tkinter.messagebox":                       MagicMock(),
+        "src.modules.hub.format": MagicMock(),
+        "src.modules.hub.utils": MagicMock(),
+        "src.modules.notas": MagicMock(),
+        "src.modules.notas.service": MagicMock(),
+        "tkinter": MagicMock(),
+        "tkinter.messagebox": MagicMock(),
     }
 
 
@@ -80,6 +81,7 @@ def tearDownModule() -> None:  # noqa: N802
 # 2. Fakes mínimos
 # ---------------------------------------------------------------------------
 
+
 class _FakeScreenState:
     def __init__(self, live_sync_on: bool = False) -> None:
         self.live_sync_on = live_sync_on
@@ -94,7 +96,7 @@ class FakeScreen:
     def __init__(self, live_sync_on: bool = False) -> None:
         self.state = _FakeScreenState(live_sync_on=live_sync_on)
         self._after_counter = 0
-        self._after_callbacks: dict[str, object] = {}   # id → callable
+        self._after_callbacks: dict[str, object] = {}  # id → callable
         self._cancelled: set[str] = set()
         # Instância real de HubState para que _ensure_poll_attrs funcione
         self._hub_state = HubState()
@@ -115,8 +117,8 @@ class FakeScreen:
 # 3. Testes
 # ---------------------------------------------------------------------------
 
-class TestSchedulePoll(unittest.TestCase):
 
+class TestSchedulePoll(unittest.TestCase):
     def test_live_sync_off_does_not_schedule(self):
         """Com live_sync_on=False, schedule_poll não deve criar poll_job."""
         screen = FakeScreen(live_sync_on=False)
@@ -150,7 +152,6 @@ class TestSchedulePoll(unittest.TestCase):
 
 
 class TestCancelPoll(unittest.TestCase):
-
     def test_cancel_clears_job_and_calls_after_cancel(self):
         """cancel_poll deve cancelar o job pendente e zerar poll_job."""
         screen = FakeScreen(live_sync_on=True)
@@ -173,7 +174,6 @@ class TestCancelPoll(unittest.TestCase):
 
 
 class TestToggleLiveSyncOnOff(unittest.TestCase):
-
     def test_toggle_true_then_false_cancels_and_does_not_reschedule(self):
         """
         Sequência: live_sync_on=True → schedule_poll → live_sync_on=False →

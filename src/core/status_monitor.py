@@ -43,9 +43,12 @@ class _NetStatusWorker:
 
     def stop(self) -> None:
         self._stop_event.set()
-        if self._thread and self._thread.is_alive():
-            self._thread.join(timeout=1.5)
+        t = self._thread
         self._thread = None
+        if t is not None and t.is_alive():
+            t.join(timeout=3.0)
+            if t.is_alive():
+                log.debug("StatusMonitor: thread ainda ativa após join(3s)")
 
     def _run(self) -> None:
         """Loop de sondagem que aplica callback enquanto não recebe sinal de parada."""

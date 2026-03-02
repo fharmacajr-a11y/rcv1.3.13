@@ -8,7 +8,6 @@ import logging
 import os
 import threading
 import tkinter as tk
-from tkinter import messagebox as tkmsg
 from typing import Any, Callable, Iterable, List, Optional, Tuple
 
 from src.ui.ctk_config import ctk
@@ -21,6 +20,7 @@ from src.modules.clientes.core.service import (
     restaurar_clientes_da_lixeira,
 )
 from src.ui.window_utils import show_centered
+from src.ui.dialogs.rc_dialogs import ask_yes_no, show_info, show_warning, show_error
 
 # ui/lixeira/lixeira.py
 
@@ -156,28 +156,16 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[ctk.CTkTo
 
     # -------- helpers locais (com parent=win) --------
     def _info(title: str, msg: str) -> None:
-        try:
-            tkmsg.showinfo(title, msg, parent=win)
-        except Exception:
-            tkmsg.showinfo(title, msg)
+        show_info(win, title, msg)
 
     def _warn(title: str, msg: str) -> None:
-        try:
-            tkmsg.showwarning(title, msg, parent=win)
-        except Exception:
-            tkmsg.showwarning(title, msg)
+        show_warning(win, title, msg)
 
     def _err(title: str, msg: str) -> None:
-        try:
-            tkmsg.showerror(title, msg, parent=win)
-        except Exception:
-            tkmsg.showerror(title, msg)
+        show_error(win, title, msg)
 
     def _ask_yesno(title: str, msg: str) -> bool:
-        try:
-            return tkmsg.askyesno(title, msg, parent=win)
-        except Exception:
-            return tkmsg.askyesno(title, msg)
+        return ask_yes_no(win, title, msg)
 
     def get_selected_ids() -> List[int]:
         ids: List[int] = []
@@ -317,7 +305,7 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[ctk.CTkTo
             return
 
         def _show_wait_dialog(count: int) -> Tuple[tk.Toplevel, ctk.CTkLabel, ctk.CTkProgressBar]:
-            dlg = tk.Toplevel(win)
+            dlg = ctk.CTkToplevel(win)
             dlg.withdraw()
             try:
                 dlg.title("Aguarde")

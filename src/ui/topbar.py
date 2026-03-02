@@ -13,7 +13,7 @@ import logging
 import tkinter as tk
 from typing import Any, Callable, Optional
 
-from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+from src.ui.ctk_config import ctk
 from src.ui.ui_tokens import APP_BG, BORDER, BORDER_WIDTH, CARD_RADIUS, SURFACE_DARK
 
 from src.ui.components.topbar_actions import TopbarActions
@@ -21,8 +21,8 @@ from src.ui.components.topbar_nav import TopbarNav
 
 _log = logging.getLogger(__name__)
 
-# Classe base dinâmica: CTkFrame se CTk disponível, senão tk.Frame
-BaseTopBar = ctk.CTkFrame if (HAS_CUSTOMTKINTER and ctk is not None) else tk.Frame
+# Classe base: CTkFrame
+BaseTopBar = ctk.CTkFrame
 
 
 class _NavCallbacks:
@@ -121,10 +121,7 @@ class TopBar(BaseTopBar):
             on_delete_all_notifications_for_me: Callback para excluir todas notificações (só para o usuário)
         """
         # Wrapper transparente — quem desenha o fundo arredondado é o "bar" interno
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            super().__init__(master, fg_color=APP_BG, corner_radius=0, **kwargs)
-        else:
-            super().__init__(master, bg=APP_BG[0], **kwargs)
+        super().__init__(master, fg_color=APP_BG, corner_radius=0, **kwargs)
 
         # Guardar callbacks
         self._on_home = on_home
@@ -138,26 +135,20 @@ class TopBar(BaseTopBar):
         self._on_delete_all_notifications_for_me = on_delete_all_notifications_for_me
 
         # "Card" arredondado — fundo cinza, borda fina, altura fixa
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            bar = ctk.CTkFrame(
-                self,
-                fg_color=SURFACE_DARK,
-                bg_color=APP_BG,
-                corner_radius=CARD_RADIUS,
-                border_width=BORDER_WIDTH,
-                border_color=BORDER,
-                height=48,
-            )
-        else:
-            bar = tk.Frame(self, bg=SURFACE_DARK[0], height=48)
+        bar = ctk.CTkFrame(
+            self,
+            fg_color=SURFACE_DARK,
+            bg_color=APP_BG,
+            corner_radius=CARD_RADIUS,
+            border_width=BORDER_WIDTH,
+            border_color=BORDER,
+            height=48,
+        )
         bar.pack(side="top", fill="x", padx=10, pady=(0, 8))
         bar.pack_propagate(False)  # respeitar height fixa
 
         # Container transparente dentro do bar
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            container = ctk.CTkFrame(bar, fg_color="transparent")
-        else:
-            container = tk.Frame(bar, bg=SURFACE_DARK[0])
+        container = ctk.CTkFrame(bar, fg_color="transparent")
         container.pack(fill="both", expand=True, padx=8, pady=6)
 
         # Criar componentes com padding interno p/ não encostar nos cantos

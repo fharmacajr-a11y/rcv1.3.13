@@ -68,7 +68,9 @@ def _with_retries(fn: Callable[[], Any], tries: int = 3, base_delay: float = RET
             delay: float = base_delay * (2 ** (attempt - 1)) + random.uniform(0, 0.15)  # nosec B311 - jitter de backoff, não criptografia
             time.sleep(delay)
 
-    raise last_exc  # pyright: ignore[reportGeneralTypeIssues]
+    if last_exc is not None:
+        raise last_exc
+    raise RuntimeError("Todas as tentativas de retry falharam sem capturar exceção específica.")
 
 
 def _current_user_email() -> str:

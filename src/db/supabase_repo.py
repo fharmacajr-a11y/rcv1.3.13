@@ -275,9 +275,14 @@ def with_retries(fn: Callable[[], T], tries: int = 3, base_delay: float = 0.4) -
         try:
             return fn()
         except RETRY_ERRORS as e:
-            # WinError 10035 é transitório
-            if isinstance(e, OSError) and getattr(e, "errno", None) not in (10035,):
+            # WinError 10035 (WSAEWOULDBLOCK) é transitório – permite retry/backoff.
+            # Outros erros de OSError são não-transitórios e devem ser relevantados.
+            if isinstance(e, OSError) and getattr(e, "winerror", None) == 10035:
+                # transitório: recurso temporariamente indisponível em socket non-blocking
                 last_exc = e
+            elif isinstance(e, OSError):
+                # não-transitório: re-levanta imediatamente sem mais tentativas
+                raise
             else:
                 last_exc = e
         except Exception as e:

@@ -15,7 +15,7 @@ Padrão de uso recomendado para Toplevels:
 6. (Opcional) Chamar grab_set() e/ou focus_force() se for modal
 
 Exemplo:
-    win = tk.Toplevel(parent)
+    win = ctk.CTkToplevel(parent)
     win.withdraw()
     win.transient(parent)
     # ... montar UI completa ...
@@ -186,31 +186,26 @@ def show_centered(window: tk.Toplevel | tk.Tk) -> None:
     garantir comportamento consistente em todo o app.
     """
     window_title = getattr(window, "title", lambda: "Unknown")()
-    log.debug(f"[SHOW_CENTERED] Iniciando para janela: {window_title}")
 
     # Garante que tamanho final foi calculado
     try:
         window.update_idletasks()
     except tk.TclError as e:
-        log.warning(f"[SHOW_CENTERED] Falha em update_idletasks: {e}")
+        log.warning("[SHOW_CENTERED] Falha em update_idletasks para '%s': %s", window_title, e)
         return
 
-    # Log do estado inicial
-    try:
-        initial_state = window.state()
-        log.debug(f"[SHOW_CENTERED] Estado inicial: {initial_state}")
-    except Exception as e:
-        log.debug(f"[SHOW_CENTERED] Não foi possível obter estado inicial: {e}")
-
-    # Log das dimensões ANTES da centralização
-    try:
-        w_before = window.winfo_width()
-        h_before = window.winfo_height()
-        req_w = window.winfo_reqwidth()
-        req_h = window.winfo_reqheight()
-        log.debug(f"[SHOW_CENTERED] Dimensões: winfo={w_before}x{h_before}, req={req_w}x{req_h}")
-    except Exception as e:
-        log.debug(f"[SHOW_CENTERED] Não foi possível obter dimensões: {e}")
+    # Coleta dimensões iniciais para o log consolidado de debug
+    _dbg: dict = {"title": window_title}
+    if log.isEnabledFor(logging.DEBUG):
+        try:
+            _dbg["state_before"] = window.state()
+        except Exception:
+            pass
+        try:
+            _dbg["winfo"] = "%dx%d" % (window.winfo_width(), window.winfo_height())
+            _dbg["req"] = "%dx%d" % (window.winfo_reqwidth(), window.winfo_reqheight())
+        except Exception:
+            pass
 
     # Para janelas Toplevel (diálogos), centraliza na TELA para melhor UX
     # Para janelas Tk (principal), centraliza no parent se houver
@@ -220,84 +215,78 @@ def show_centered(window: tk.Toplevel | tk.Tk) -> None:
     except TypeError:
         # Em cenários de teste (monkeypatch ou stubs), tk.Toplevel pode não ser um tipo real
         # Nesses casos, tratamos como não-Toplevel para evitar quebra
-        log.debug(
-            "[SHOW_CENTERED] isinstance(window, tk.Toplevel) lançou TypeError; "
-            "tratando como não-Toplevel para evitar falha em testes."
-        )
         is_toplevel = False
 
     if is_toplevel:
         center_on_screen(window)
-        log.debug("[SHOW_CENTERED] Centralizado na tela (Toplevel)")
+        _dbg["center"] = "screen"
     else:
         centered_on_parent = center_on_parent(window)
-        log.debug(f"[SHOW_CENTERED] Centralizado no parent: {centered_on_parent}")
-
+        _dbg["center"] = "parent" if centered_on_parent else "screen(fallback)"
         if not centered_on_parent:
             center_on_screen(window)
-            log.debug("[SHOW_CENTERED] Fallback para centralização na tela")
 
-    # Log da geometria aplicada APÓS a centralização - DEVE SER LIDO AQUI, APÓS center_on_parent/screen
+    # Captura geometry calculada APÓS centralização para reaplicar depois do deiconify
     target_geometry = ""
     try:
         target_geometry = window.geometry()
-        log.debug(f"[SHOW_CENTERED] Geometry final após centralização: {target_geometry}")
-    except Exception as e:
-        log.debug(f"[SHOW_CENTERED] Não foi possível obter geometry: {e}")
+        _dbg["geo_after_center"] = target_geometry
+    except Exception:
+        pass
 
     # Garante que a janela sai do estado withdrawn/iconic e fica visível
     try:
-        # Força estado normal ANTES de deiconify para garantir
         window.state("normal")
-        log.debug("[SHOW_CENTERED] Estado forçado para 'normal'")
-    except tk.TclError as e:
-        log.debug(f"[SHOW_CENTERED] Não foi possível forçar estado normal: {e}")
+    except tk.TclError:
+        pass
 
     try:
         window.deiconify()
-        log.debug("[SHOW_CENTERED] deiconify() executado")
     except tk.TclError as e:
-        log.warning(f"[SHOW_CENTERED] Falha em deiconify(): {e}")
+        log.warning("[SHOW_CENTERED] Falha em deiconify() para '%s': %s", window_title, e)
 
     # CRÍTICO: Reaplicar geometry APÓS deiconify para garantir posição correta
     # O Tkinter pode ignorar a posição se aplicada antes do deiconify
     if target_geometry:
         try:
             window.geometry(target_geometry)
-            log.debug(f"[SHOW_CENTERED] Geometry reaplicada após deiconify: {target_geometry}")
-        except Exception as e:
-            log.debug(f"[SHOW_CENTERED] Não foi possível reaplicar geometry: {e}")
+        except Exception:
+            pass
 
-    # Verifica estado APÓS deiconify
+    # Verifica estado APÓS deiconify; força novamente se necessário
     try:
         final_state = window.state()
-        log.debug(f"[SHOW_CENTERED] Estado após deiconify: {final_state}")
-
-        # Se não ficou normal, força novamente
         if final_state != "normal":
-            log.warning(f"[SHOW_CENTERED] Estado não é 'normal' (é '{final_state}'), forçando...")
+            log.warning(
+                "[SHOW_CENTERED] Estado não é 'normal' (é '%s') para '%s', forçando...",
+                final_state,
+                window_title,
+            )
             window.state("normal")
             window.deiconify()
-    except Exception as e:
-        log.debug(f"[SHOW_CENTERED] Não foi possível verificar estado final: {e}")
+        _dbg["state_after"] = final_state
+    except Exception:
+        pass
 
     # Garante que aparece em cima de outras janelas e recebe foco
     try:
         window.lift()
         window.focus_set()
-        log.debug("[SHOW_CENTERED] lift() e focus_set() executados")
     except tk.TclError as e:
-        log.debug(f"[SHOW_CENTERED] Falha em lift/focus: {e}")
+        log.debug("[SHOW_CENTERED] Falha em lift/focus para '%s': %s", window_title, e)
 
-    # Log final de confirmação
-    try:
-        x = window.winfo_x()
-        y = window.winfo_y()
-        w = window.winfo_width()
-        h = window.winfo_height()
-        log.debug(f"[SHOW_CENTERED] Janela '{window_title}' exibida em: x={x}, y={y}, size={w}x{h}")
-    except Exception as e:
-        log.debug(f"[SHOW_CENTERED] Não foi possível obter posição final: {e}")
+    # Log único consolidado com todo contexto relevante (só avaliado se DEBUG ligado)
+    if log.isEnabledFor(logging.DEBUG):
+        try:
+            _dbg["final_pos"] = "%dx%d+%d+%d" % (
+                window.winfo_width(),
+                window.winfo_height(),
+                window.winfo_x(),
+                window.winfo_y(),
+            )
+        except Exception:
+            pass
+        log.debug("[SHOW_CENTERED] %s", _dbg)
 
 
 def recenter_after_layout(*args: object, **kwargs: object) -> None:
@@ -400,6 +389,11 @@ def apply_window_icon(window: tk.Toplevel | tk.Tk) -> None:
                 log.debug(f"[WindowIcon] Applied iconbitmap to {type(window).__name__}")
             except Exception as e:
                 log.debug(f"[WindowIcon] iconbitmap failed: {e}")
+            # iconbitmap(default=) define ícone padrão para novas janelas filhas
+            try:
+                window.iconbitmap(default=_icon_ico_path)
+            except Exception:
+                pass
 
         # Also apply iconphoto for better cross-platform support
         photo = _get_cached_photo(window)
@@ -452,13 +446,30 @@ def prepare_hidden_window(win: tk.Toplevel) -> None:
     Deve ser chamado IMEDIATAMENTE após criar o Toplevel.
     NÃO usa alpha (causa black frames no Windows).
 
+    Usa virtual root (winfo_vrootx/y) para calcular posição offscreen
+    que funciona em setups multi-monitor.
+
     Args:
         win: Janela Toplevel recém criada
     """
     win.withdraw()
-    # Posicionar offscreen para evitar que apareça mesmo se deiconify() acontecer
-    # NÃO usar alpha - causa black frames no Windows
-    win.geometry("1x1+10000+10000")
+
+    # Calcular posição offscreen usando virtual root (multi-monitor safe)
+    # Virtual root representa o desktop virtual completo (todos os monitores)
+    try:
+        vrootx = win.winfo_vrootx()
+        vrooty = win.winfo_vrooty()
+    except Exception:
+        vrootx, vrooty = 0, 0
+
+    # Posicionar à ESQUERDA e ACIMA do desktop virtual
+    # Usa margem grande para garantir que não apareça em nenhum monitor
+    off_x = vrootx - 5000
+    off_y = vrooty - 5000
+
+    # Geometry mínima offscreen (será redimensionada depois)
+    win.geometry(f"1x1+{off_x}+{off_y}")
+    log.debug(f"[window_utils] prepare_hidden_window: offscreen=({off_x}, {off_y})")
 
 
 def show_centered_no_flash(
@@ -470,7 +481,13 @@ def show_centered_no_flash(
 ) -> None:
     """Mostra janela Toplevel já centralizada, sem flash/splash.
 
-    Estratégia: deiconify OFFSCREEN → render → mover para posição final.
+    Estratégia anti-flash (NOVA):
+    1. Calcula tamanho e posição final ENQUANTO janela está withdraw
+    2. Seta geometry final (ainda invisível)
+    3. Deiconify UMA ÚNICA VEZ já no lugar certo
+    4. NÃO usa win.update() após deiconify (evita flash)
+
+    Multi-monitor safe: usa virtual root para clamping correto.
     NÃO usa alpha (causa black frames no Windows).
 
     Deve ser chamado DEPOIS de construir todos os widgets.
@@ -481,59 +498,117 @@ def show_centered_no_flash(
         width: Largura desejada (ou None para usar winfo_reqwidth)
         height: Altura desejada (ou None para usar winfo_reqheight)
     """
-    # Step 1: Atualizar para medir tamanho real
+    # Step 1: Atualizar geometria para medir tamanho real (janela ainda withdraw)
     win.update_idletasks()
 
-    # Step 2: Medir tamanho
+    # Step 2: Medir tamanho desejado
     w = width if width is not None else win.winfo_reqwidth()
     h = height if height is not None else win.winfo_reqheight()
 
-    # Step 3: Calcular centro relativo ao parent
-    parent.update_idletasks()
-    px = parent.winfo_rootx()
-    py = parent.winfo_rooty()
-    pw = parent.winfo_width()
-    ph = parent.winfo_height()
+    # Step 3: Calcular posição CENTRALIZADA no parent (MULTI-MONITOR SAFE)
+    try:
+        parent.update_idletasks()
+        px = parent.winfo_rootx()
+        py = parent.winfo_rooty()
+        pw = parent.winfo_width()
+        ph = parent.winfo_height()
 
-    # Fallback: se parent ainda está "cru" (geometry incompleto), usar tela
-    screen_w = win.winfo_screenwidth()
-    screen_h = win.winfo_screenheight()
-    if pw < 50 or ph < 50:
-        px = 0
-        py = 0
-        pw = screen_w
-        ph = screen_h
+        # Obter bounds do desktop virtual (multi-monitor)
+        try:
+            vroot_x = win.winfo_vrootx()
+            vroot_y = win.winfo_vrooty()
+            vroot_w = win.winfo_vrootwidth()
+            vroot_h = win.winfo_vrootheight()
+            log.debug(f"[show_centered_no_flash] Virtual root: x={vroot_x}, y={vroot_y}, w={vroot_w}, h={vroot_h}")
+        except Exception as e:
+            # Fallback: usar screenwidth/height se vrootx/y falharem
+            log.debug(f"[show_centered_no_flash] vroot* não disponível: {e}, usando screen*")
+            vroot_x = 0
+            vroot_y = 0
+            vroot_w = win.winfo_screenwidth()
+            vroot_h = win.winfo_screenheight()
 
-    x = px + (pw - w) // 2
-    y = py + (ph - h) // 2
+        # Fallback: se parent ainda está "cru" (geometry incompleto), usar tela
+        if pw < 50 or ph < 50:
+            log.debug(f"[show_centered_no_flash] Parent muito pequeno ({pw}x{ph}), usando bounds do virtual root")
+            px = vroot_x
+            py = vroot_y
+            pw = vroot_w
+            ph = vroot_h
 
-    # Clamp para não ficar fora da tela
-    if x < 0:
-        x = 0
-    if y < 0:
-        y = 0
+        # Centro do parent
+        center_x = px + (pw // 2)
+        center_y = py + (ph // 2)
 
-    # Step 4: Posicionar OFFSCREEN com tamanho final (fora da área visível)
-    off_x = screen_w + 200
-    off_y = screen_h + 200
-    win.geometry(f"{w}x{h}+{off_x}+{off_y}")
+        # Posição da janela para ficar centralizada
+        final_x = center_x - (w // 2)
+        final_y = center_y - (h // 2)
 
-    # Step 5: Deiconify enquanto ainda está offscreen
+        # MULTI-MONITOR FIX: Clampar usando bounds do virtual root (NÃO usar 0!)
+        # Permite coordenadas negativas em setups multi-monitor
+        min_x = vroot_x
+        min_y = vroot_y
+        max_x = vroot_x + vroot_w - w
+        max_y = vroot_y + vroot_h - h
+
+        final_x = max(min_x, min(final_x, max_x))
+        final_y = max(min_y, min(final_y, max_y))
+
+        log.debug(
+            f"[show_centered_no_flash] Posição calculada: ({final_x}, {final_y}), bounds: x[{min_x},{max_x}] y[{min_y},{max_y}]"
+        )
+
+    except Exception as e:
+        # Fallback: centralizar na tela principal
+        log.warning(f"[show_centered_no_flash] Erro ao calcular posição: {e}")
+        screen_w = win.winfo_screenwidth()
+        screen_h = win.winfo_screenheight()
+        final_x = (screen_w - w) // 2
+        final_y = (screen_h - h) // 2
+
+    # Step 4: Setar geometry FINAL (janela ainda withdraw - NÃO VISÍVEL)
+    win.geometry(f"{w}x{h}+{final_x}+{final_y}")
+
+    # Step 5: Tornar janela invisível (alpha=0) antes do deiconify
+    # Isso permite que CustomTkinter desenhe tudo sem mostrar frames intermediários
+    try:
+        win.attributes("-alpha", 0.0)
+    except Exception:
+        pass  # Algumas plataformas não suportam alpha
+
+    # Step 6: Deiconify e forçar renderização COMPLETA do CustomTkinter
+    # IMPORTANTE: win.update() aqui é INTENCIONAL para forçar CTk desenhar tudo
+    # enquanto alpha=0 (invisível). Isso evita o "frame cinza" inicial.
     win.deiconify()
-
-    # Step 6: Forçar render pass OFFSCREEN (CTk desenha após mapping)
     win.update_idletasks()
     try:
-        win.update()  # Força renderização completa dos widgets CTk
+        win.update()  # Forçar renderização completa dos widgets CustomTkinter
     except tk.TclError:
         pass  # Janela pode ter sido destruída
 
-    # Step 7: AGORA mover para posição final (já renderizado)
-    win.geometry(f"{w}x{h}+{x}+{y}")
+    # Step 7: Revelar janela com delay (após CustomTkinter terminar de desenhar)
+    # Delay de 60ms garante que:
+    # - CustomTkinter terminou de renderizar todos os widgets
+    # - set_win_dark_titlebar foi aplicado (se chamado após show_centered_no_flash)
+    # - Titlebar escura não causa repaint visível
+    def _reveal() -> None:
+        """Revela janela após renderização completa."""
+        try:
+            win.attributes("-alpha", 1.0)
+        except Exception:
+            pass
+        try:
+            win.lift()
+            win.focus_force()
+        except Exception:
+            pass
 
-    # Step 8: lift e foco
-    win.lift()
-    win.after_idle(win.focus_force)
+    win.after(60, _reveal)
+
+    log.info(
+        f"[show_centered_no_flash] Janela preparada (alpha=0): "
+        f"posição=({final_x}, {final_y}), size={w}x{h}, reveal em 60ms"
+    )
 
 
 def center_window_simple(window: tk.Toplevel, parent: tk.Misc) -> None:

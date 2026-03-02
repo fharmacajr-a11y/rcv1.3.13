@@ -12,11 +12,13 @@ from src.ui.ctk_config import ctk
 import tkinter as tk
 from typing import TYPE_CHECKING
 
+from src.ui.utils.binding_tracker import BindingTracker
+
 if TYPE_CHECKING:
     from tkinter import Event
 
 
-class ScrollableFrame(tk.Frame):
+class ScrollableFrame(ctk.CTkFrame):
     """Frame com barra de rolagem vertical automática.
 
     Usa Canvas + Frame interno para permitir conteúdo rolável.
@@ -68,7 +70,7 @@ class ScrollableFrame(tk.Frame):
         self.canvas.configure(yscrollcommand=self.vscrollbar.set)
 
         # Frame interno onde o conteúdo será adicionado
-        self.content = tk.Frame(self.canvas)
+        self.content = ctk.CTkFrame(self.canvas)
 
         # Criar janela no canvas para o frame de conteúdo
         self._canvas_window = self.canvas.create_window(
@@ -88,6 +90,7 @@ class ScrollableFrame(tk.Frame):
         self.canvas.bind("<Configure>", self._on_canvas_configure)
 
         # Bind de mousewheel para scroll
+        self._bindings = BindingTracker()  # bind_all global rastreado para cleanup
         self._bind_mousewheel()
 
         # Cleanup: garantir que bind_all seja removido mesmo se widget destruído enquanto

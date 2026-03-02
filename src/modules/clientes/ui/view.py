@@ -7,6 +7,8 @@ FASE 2.5: Dados reais, busca/filtros funcionais, tema global completo.
 from __future__ import annotations
 
 import logging
+import threading
+import time
 import tkinter as tk
 from tkinter import font as tkfont
 from tkinter import ttk
@@ -17,6 +19,8 @@ from src.ui.widgets.button_factory import make_btn
 from src.ui.ui_tokens import APP_BG, SURFACE, SURFACE_DARK, TEXT_PRIMARY, BORDER
 from src.ui.ttk_treeview_theme import apply_zebra
 from src.ui.widgets.ctk_treeview_container import CTkTreeviewContainer
+from src.ui.dialogs.rc_dialogs import ask_yes_no as _ask_yes_no, show_info as _show_info, show_error as _show_error, show_warning as _show_warning
+from src.utils.formatters import format_cnpj as _fmt_cnpj, format_whatsapp as _fmt_whatsapp
 from src.modules.clientes.ui.views.toolbar import ClientesV2Toolbar
 from src.modules.clientes.ui.views.actionbar import ClientesV2ActionBar
 
@@ -78,6 +82,7 @@ class ClientesV2Frame(ctk.CTkFrame):
         # Estado de controles
         self._search_debounce_job: Optional[str] = None
         self._load_job: Optional[str] = None
+        self._load_gen: int = 0  # Geração de load p/ descartar resultados obsoletos
         self._row_data_map: dict[str, ClienteRow] = {}  # iid -> ClienteRow
 
         self._build_ui()
@@ -124,8 +129,8 @@ class ClientesV2Frame(ctk.CTkFrame):
                 self,
                 on_new=self._on_new_client,
                 on_edit=self._on_edit_client,
-                on_files=self._on_client_files,
                 on_delete=self._on_delete_client,
+                on_restore=self._on_restore_client,
             )
             self.actionbar.pack(side="bottom", fill="x", padx=10, pady=(5, 10))
 
@@ -166,14 +171,15 @@ class ClientesV2Frame(ctk.CTkFrame):
         # Specs de colunas para layout responsívo
         # Estrutura: (base_width, min_width, stretch, weight)
         # IMPORTANTE: razao_social com prioridade máxima, observacoes compacta
+        # ATUALIZADO: Nome e WhatsApp reduzidos, Observações aumentadas para melhor distribuição
         self._column_specs = {
             "id": (70, 60, False, 0),
-            "razao_social": (540, 340, True, 0.80),  # Coluna FLEX principal (80% do espaço) - prioridade máxima
+            "razao_social": (520, 340, True, 0.80),  # Coluna FLEX principal (80% do espaço) - prioridade máxima
             "cnpj": (190, 170, False, 0),
-            "nome": (240, 180, True, 0.20),  # Coluna FLEX secundária (20% do espaço)
-            "whatsapp": (160, 140, False, 0),
+            "nome": (220, 165, True, 0.20),  # Coluna FLEX secundária (20% do espaço) - reduzida
+            "whatsapp": (150, 135, False, 0),  # Reduzida para dar espaço a Observações
             "status": (210, 180, False, 0),
-            "observacoes": (100, 80, False, 0),  # Coluna FIXA compacta com mais espaço após
+            "observacoes": (135, 110, False, 0),  # Coluna FIXA aumentada para melhor visualização
             "ultima_alteracao": (
                 ultima_alt_width,
                 max(ultima_alt_width - 10, 180),
@@ -435,6 +441,46 @@ class ClientesV2Frame(ctk.CTkFrame):
         # Substituir \r e \n por espaço, depois remover múltiplos espaços
         return " ".join(str(text).replace("\r", " ").replace("\n", " ").split())
 
+    @staticmethod
+    def _first_line_preview(text: str | None, max_len: int = 40) -> str:
+        """Extrai primeira linha do texto para preview na TreeView.
+
+        Mostra apenas a primeira linha, adicionando "…" se houver mais conteúdo
+        ou se o texto exceder max_len caracteres.
+
+        Args:
+            text: Texto completo (pode ter múltiplas linhas)
+            max_len: Comprimento máximo antes de truncar
+
+        Returns:
+            Primeira linha truncada com "…" se necessário
+        """
+        if not text:
+            return ""
+
+        # Normalizar quebras de linha
+        normalized = str(text).replace("\r\n", "\n").replace("\r", "\n")
+
+        # Separar em linhas
+        lines = normalized.split("\n")
+
+        # Pegar primeira linha (strip para remover espaços)
+        first_line = lines[0].strip() if lines else ""
+
+        # Verificar se há mais conteúdo além da primeira linha
+        has_more_lines = len(lines) > 1 and any(line.strip() for line in lines[1:])
+
+        # Truncar se necessário
+        if len(first_line) > max_len:
+            # Truncar e adicionar "…"
+            return first_line[: max_len - 1].rstrip() + "…"
+        elif has_more_lines:
+            # Tem mais linhas, adicionar "…"
+            return first_line + "…" if first_line else ""
+        else:
+            # Apenas uma linha, sem truncamento
+            return first_line
+
     def _on_tree_select(self, event: Any = None) -> None:
         """Handler quando uma linha é selecionada na Treeview.
 
@@ -472,6 +518,35 @@ class ClientesV2Frame(ctk.CTkFrame):
         except Exception as e:
             log.error(f"[Clientes] Erro no handler de seleção: {e}", exc_info=True)
             self._selected_client_id = None
+
+    def _get_selected_values(self) -> tuple | None:
+        """Retorna os valores da linha selecionada, compatível com a interface legada.
+
+        Returns:
+            Tupla onde [0] = client_id (str), [1] = razao_social, demais colunas
+            conforme a Treeview; ou None se nenhum cliente estiver selecionado.
+        """
+        if not self._selected_client_id:
+            return None
+        # Primeira escolha: valores direto da Treeview (exato para _excluir_cliente)
+        try:
+            if hasattr(self, "tree") and self.tree:
+                selection = self.tree.selection()
+                if selection:
+                    values = self.tree.item(selection[0], "values")
+                    if values:
+                        return tuple(values)
+        except Exception:
+            pass
+        # Fallback: reconstruir a partir de _row_data_map
+        for row in self._row_data_map.values():
+            try:
+                if int(row.id) == self._selected_client_id:
+                    return (str(self._selected_client_id), row.razao_social or "")
+            except (ValueError, TypeError):
+                continue
+        # ID conhecido mas fora do mapa (ex.: linha ainda carregando)
+        return (str(self._selected_client_id),)
 
     def _on_column_lock(self, event: Any) -> str | None:
         """Handler para bloquear resize e reorder de colunas.
@@ -545,19 +620,7 @@ class ClientesV2Frame(ctk.CTkFrame):
 
             make_btn(
                 container,
-                text="📁 Arquivos",
-                command=lambda: [menu.destroy(), self._on_client_files()],
-                width=btn_width,
-                height=btn_height,
-                fg_color="transparent",
-                hover_color=BORDER,
-                text_color=TEXT_PRIMARY,
-                anchor="w",
-            ).pack(padx=4, pady=2)
-
-            make_btn(
-                container,
-                text="📤 Enviar documentos",
+                text=" Enviar documentos",
                 command=lambda: [menu.destroy(), self._on_enviar_documentos()],
                 width=btn_width,
                 height=btn_height,
@@ -567,9 +630,10 @@ class ClientesV2Frame(ctk.CTkFrame):
                 anchor="w",
             ).pack(padx=4, pady=2)
 
+            delete_text = "🗑️ Excluir definitivamente" if self._trash_mode else "🗑️ Enviar para Lixeira"
             make_btn(
                 container,
-                text="🗑️ Excluir / Lixeira",
+                text=delete_text,
                 command=lambda: [menu.destroy(), self._on_delete_client()],
                 width=btn_width,
                 height=btn_height,
@@ -577,7 +641,21 @@ class ClientesV2Frame(ctk.CTkFrame):
                 hover_color=BORDER,
                 text_color=TEXT_PRIMARY,
                 anchor="w",
-            ).pack(padx=4, pady=(2, 4))
+            ).pack(padx=4, pady=(2, 4 if not self._trash_mode else 2))
+
+            # Botão Restaurar (somente em modo LIXEIRA)
+            if self._trash_mode:
+                make_btn(
+                    container,
+                    text="♻️ Restaurar",
+                    command=lambda: [menu.destroy(), self._on_restore_client()],
+                    width=btn_width,
+                    height=btn_height,
+                    fg_color="transparent",
+                    hover_color=BORDER,
+                    text_color=TEXT_PRIMARY,
+                    anchor="w",
+                ).pack(padx=4, pady=(2, 4))
 
             # Posicionar menu no cursor
             menu.update_idletasks()
@@ -611,7 +689,7 @@ class ClientesV2Frame(ctk.CTkFrame):
 
         try:
             # AppearanceModeTracker do CustomTkinter (ÚNICA fonte de verdade)
-            AppearanceModeTracker = ctk.AppearanceModeTracker  # type: ignore[attr-defined]
+            AppearanceModeTracker = ctk.AppearanceModeTracker  # type: ignore[attr-defined]  # noqa: N806
 
             def on_appearance_change(mode: str | None = None) -> None:
                 """Callback do AppearanceModeTracker.
@@ -704,6 +782,18 @@ class ClientesV2Frame(ctk.CTkFrame):
         except Exception as e:
             log.error(f"[Clientes] Erro ao carregar dados: {e}", exc_info=True)
 
+    def carregar(self) -> None:
+        """Recarrega a lista respeitando filtros e modo (lixeira/ativo) atuais."""
+        search_text = self.toolbar.get_search_text()
+        order_label = self.toolbar.get_order()
+        status = self.toolbar.get_status()
+        self.load_async(
+            search=search_text,
+            order_label=order_label,
+            status=status,
+            show_trash=self._trash_mode,
+        )
+
     def _safe_get(self, obj: Any, key: str, default: Any = "") -> Any:
         """Extrai valor de dict OU objeto (suporta ambos).
 
@@ -747,7 +837,10 @@ class ClientesV2Frame(ctk.CTkFrame):
         return mapping.get(order_label, ("id", True))  # Default: ID descendente
 
     def load_async(self, search: str = "", order_label: str = "", status: str = "", show_trash: bool = False) -> None:
-        """Carrega dados com filtros aplicados (assíncrono).
+        """Carrega dados com filtros aplicados (assíncrono via thread).
+
+        O fetch de dados roda em background thread para não congelar a UI.
+        Somente a renderização roda na main thread (via self.after).
 
         Args:
             search: Texto de busca
@@ -755,7 +848,7 @@ class ClientesV2Frame(ctk.CTkFrame):
             status: Filtro de status
             show_trash: Se True, mostra apenas lixeira; se False, mostra clientes ativos
         """
-        # Cancelar job pendente
+        # Cancelar job pendente (after timer)
         if self._load_job:
             try:
                 self.after_cancel(self._load_job)
@@ -763,102 +856,113 @@ class ClientesV2Frame(ctk.CTkFrame):
                 pass
             self._load_job = None
 
-        def _do_load():
+        # Incrementar geração — descarta resultados de loads anteriores
+        self._load_gen += 1
+        gen = self._load_gen
+
+        def _fetch_data() -> None:
+            """Busca dados em background thread."""
+            t0 = time.perf_counter()
+            mode = "LIXEIRA" if show_trash else "ATIVOS"
+            log.debug(f"[Clientes] fetch_start mode={mode} gen={gen}")
             try:
                 if show_trash:
-                    # Modo lixeira: usar serviço específico
                     from src.modules.clientes.core import service as clientes_service
+                    from src.modules.clientes.core.viewmodel import ClienteRow as _Row
 
-                    # Mapear ordenação do toolbar para parâmetros do service
                     order_by, descending = self._map_order_label_to_params(order_label)
-
                     deleted_clients = clientes_service.listar_clientes_na_lixeira(
                         order_by=order_by, descending=descending
                     )
+                    t_fetch = time.perf_counter()
+                    log.debug(f"[Clientes] fetch_end rows={len(deleted_clients)} elapsed={t_fetch - t0:.3f}s")
 
-                    # Converter para ClienteRow (suporta dict E objeto)
-                    from src.modules.clientes.core.viewmodel import ClienteRow
-
-                    rows = []
-                    for idx, client in enumerate(deleted_clients):
-                        obs_raw = self._safe_get(client, "obs", "")
-
-                        # Parsear status legado das observações usando STATUS_PREFIX_RE
-                        # Formato esperado: "[Status Real] observações..."
-                        status_real = "[LIXEIRA]"  # Default
-                        obs_clean = obs_raw
-
-                        if obs_raw:
-                            from src.modules.clientes.core.constants import STATUS_PREFIX_RE
-
-                            match = STATUS_PREFIX_RE.match(obs_raw)
-                            if match:
-                                status_real = (match.group("st") or "").strip() or "[LIXEIRA]"
-                                obs_clean = STATUS_PREFIX_RE.sub("", obs_raw, count=1).strip()
-
-                        row = ClienteRow(
-                            id=str(self._safe_get(client, "id", "")),
-                            razao_social=self._safe_get(client, "razao_social", ""),
-                            cnpj=self._safe_get(client, "cnpj", ""),
-                            nome=self._safe_get(client, "nome", ""),
-                            whatsapp=self._safe_get(client, "numero", ""),
-                            observacoes=obs_clean,  # Obs sem prefixo de status
-                            status=status_real,  # Status parseado das obs
-                            ultima_alteracao=self._safe_get(client, "deleted_at", ""),
-                            search_norm="",
-                            raw=client,
-                        )
+                    # Pipeline idêntico ao modo ATIVOS:
+                    # _build_row_from_cliente usa normalize_br_whatsapp, fmt_datetime_br,
+                    # format_cnpj e extract_status_and_observacoes — exatamente como a treeview normal.
+                    rows: list[_Row] = []
+                    for client in deleted_clients:
+                        row = self._vm._build_row_from_cliente(client)
+                        # Se obs não tinha prefixo [status], marcar como lixeira
+                        if not row.status:
+                            row.status = "[LIXEIRA]"
                         rows.append(row)
 
-                    # Filtro client-side: busca (caso o service não suporte)
                     if search:
                         search_lower = search.lower()
                         rows = [
-                            r
-                            for r in rows
+                            r for r in rows
                             if search_lower in (r.razao_social or "").lower()
                             or search_lower in (r.cnpj or "").lower()
                             or search_lower in (r.nome or "").lower()
                             or search_lower in (r.whatsapp or "").lower()
                         ]
 
-                    # Filtro client-side: status (case-insensitive no status parseado)
                     if status:
                         status_norm = status.strip().lower()
                         rows = [r for r in rows if r.status.strip().lower() == status_norm]
 
-                    # Renderizar diretamente
-                    self._render_rows_from_list(rows)
-                    log.debug(
-                        f"[Clientes] Lixeira carregada: {len(rows)} clientes (busca='{search}', status='{status}')"
-                    )
+                    # Agendar render na main thread (só se geração ainda é válida)
+                    if gen == self._load_gen:
+                        self.after(0, lambda: self._finish_load_trash(gen, rows, search, status))
                 else:
-                    # Modo normal: usar ViewModel
-                    # CRITICAL FIX: Refresh data from service BEFORE applying filters
-                    # (fixes bug where edited clients don't update until app restart)
+                    # Modo normal: refresh + rebuild no ViewModel
                     self._vm.refresh_from_service()
-
+                    t_fetch = time.perf_counter()
+                    log.debug(f"[Clientes] fetch_end elapsed={t_fetch - t0:.3f}s")
                     self._vm.set_search_text(search if search else None, rebuild=False)
                     self._vm.set_status_filter(status if status else None, rebuild=False)
                     if order_label:
                         self._vm.set_order_label(order_label, rebuild=False)
-
-                    # Rebuild com todos filtros aplicados
                     self._vm._rebuild_rows()
 
-                    # Renderizar
-                    self._render_rows()
+                    if gen == self._load_gen:
+                        self.after(0, lambda: self._finish_load_normal(gen, search, status))
 
-                    log.debug(
-                        f"[Clientes] Carregado: {len(self._vm.get_rows())} clientes (busca='{search}', status='{status}')"
-                    )
             except Exception as e:
                 log.error(f"[Clientes] Erro ao carregar dados: {e}", exc_info=True)
-            finally:
-                self._load_job = None
+                if gen == self._load_gen:
+                    self.after(0, self._re_enable_trash_btn)
 
-        # Agendar load
-        self._load_job = self.after(50, _do_load)
+        # Disparar em background thread
+        t = threading.Thread(target=_fetch_data, daemon=True, name="clientes-load")
+        t.start()
+
+    # ── Callbacks de render (rodam na main thread) ────────────────
+
+    def _re_enable_trash_btn(self) -> None:
+        """Reabilita o botão lixeira após término do load."""
+        try:
+            if hasattr(self, "toolbar") and self.toolbar and hasattr(self.toolbar, "trash_btn"):
+                self.toolbar.trash_btn.configure(state="normal")
+        except Exception:
+            pass
+
+    def _finish_load_trash(self, gen: int, rows: list, search: str, status: str) -> None:
+        """Renderiza resultado da lixeira na main thread."""
+        if gen != self._load_gen:
+            self._re_enable_trash_btn()
+            return  # Resultado obsoleto
+        t0 = time.perf_counter()
+        self._render_rows_from_list(rows)
+        log.debug(
+            f"[Clientes] render_end LIXEIRA rows={len(rows)} elapsed={time.perf_counter() - t0:.3f}s "
+            f"(busca='{search}', status='{status}')"
+        )
+        self._re_enable_trash_btn()
+
+    def _finish_load_normal(self, gen: int, search: str, status: str) -> None:
+        """Renderiza resultado normal na main thread."""
+        if gen != self._load_gen:
+            self._re_enable_trash_btn()
+            return  # Resultado obsoleto
+        t0 = time.perf_counter()
+        self._render_rows()
+        log.debug(
+            f"[Clientes] render_end ATIVOS rows={len(self._vm.get_rows())} elapsed={time.perf_counter() - t0:.3f}s "
+            f"(busca='{search}', status='{status}')"
+        )
+        self._re_enable_trash_btn()
 
     def _render_rows(self) -> None:
         """Renderiza rows do ViewModel na Treeview com zebra tags.
@@ -884,7 +988,8 @@ class ClientesV2Frame(ctk.CTkFrame):
             # Sanitizar textos para evitar quebras de linha
             razao_social = self._one_line(row.razao_social)
             nome = self._one_line(row.nome)
-            observacoes = self._one_line(row.observacoes)
+            # AJUSTE 2: Mostrar apenas primeira linha das observações
+            observacoes = self._first_line_preview(row.observacoes)
 
             iid = self.tree_widget.insert(
                 "",
@@ -892,11 +997,11 @@ class ClientesV2Frame(ctk.CTkFrame):
                 values=(
                     row.id,
                     razao_social,
-                    row.cnpj,
+                    _fmt_cnpj(row.cnpj) or row.cnpj,
                     nome,
-                    row.whatsapp,
+                    _fmt_whatsapp(row.whatsapp) or row.whatsapp,
                     row.status,
-                    observacoes or "",  # FASE C: Observações
+                    observacoes or "",  # FASE C: Observações (primeira linha)
                     ultima_alt_str,  # FASE C: Última alteração formatada
                 ),
             )
@@ -931,7 +1036,8 @@ class ClientesV2Frame(ctk.CTkFrame):
             # Sanitizar textos para evitar quebras de linha
             razao_social = self._one_line(row.razao_social)
             nome = self._one_line(row.nome)
-            observacoes = self._one_line(row.observacoes)
+            # AJUSTE 2: Mostrar apenas primeira linha das observações
+            observacoes = self._first_line_preview(row.observacoes)
 
             iid = self.tree_widget.insert(
                 "",
@@ -939,9 +1045,9 @@ class ClientesV2Frame(ctk.CTkFrame):
                 values=(
                     row.id,
                     razao_social,
-                    row.cnpj,
+                    _fmt_cnpj(row.cnpj) or row.cnpj,
                     nome,
-                    row.whatsapp,
+                    _fmt_whatsapp(row.whatsapp) or row.whatsapp,
                     row.status,
                     observacoes or "",
                     ultima_alt_str,
@@ -1050,17 +1156,17 @@ class ClientesV2Frame(ctk.CTkFrame):
         Abre diálogo para escolher formato (CSV/XLSX) e local de salvamento.
         Exporta dados visíveis/filtrados da tree usando src/modules/clientes/export.py
         """
-        from tkinter import filedialog, messagebox
+        from tkinter import filedialog
         from pathlib import Path
         from src.modules.clientes.core import export
 
         try:
             # Verificar se há dados para exportar
             if not self._row_data_map:
-                messagebox.showinfo(
+                _show_info(
+                    self.winfo_toplevel(),  # type: ignore[attr-defined]
                     "Exportação",
                     "Nenhum dado disponível para exportar.",
-                    parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
                 )
                 return
 
@@ -1068,10 +1174,10 @@ class ClientesV2Frame(ctk.CTkFrame):
             rows_to_export = list(self._row_data_map.values())
 
             if not rows_to_export:
-                messagebox.showinfo(
+                _show_info(
+                    self.winfo_toplevel(),  # type: ignore[attr-defined]
                     "Exportação",
                     "Nenhum cliente para exportar.",
-                    parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
                 )
                 return
 
@@ -1106,30 +1212,30 @@ class ClientesV2Frame(ctk.CTkFrame):
                 format_name = "CSV"
 
             # Sucesso
-            messagebox.showinfo(
+            _show_info(
+                self.winfo_toplevel(),  # type: ignore[attr-defined]
                 "Sucesso",
                 f"Dados exportados com sucesso!\n\n"
                 f"Arquivo: {filepath_obj.name}\n"
                 f"Formato: {format_name}\n"
                 f"Clientes: {len(rows_to_export)}",
-                parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
             )
 
             log.info(f"[Clientes] Exportados {len(rows_to_export)} clientes para {filepath_obj}")
 
         except ImportError as e:
             log.error(f"[Clientes] Erro de importação ao exportar: {e}")
-            messagebox.showerror(
+            _show_error(
+                self.winfo_toplevel(),  # type: ignore[attr-defined]
                 "Erro",
                 f"Biblioteca necessária não está disponível:\n{e}",
-                parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
             )
         except Exception as e:
             log.error(f"[Clientes] Erro ao exportar: {e}", exc_info=True)
-            messagebox.showerror(
+            _show_error(
+                self.winfo_toplevel(),  # type: ignore[attr-defined]
                 "Erro",
                 f"Erro ao exportar dados:\n{e}",
-                parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
             )
 
     def _update_toolbar_status_list(self) -> None:
@@ -1158,7 +1264,22 @@ class ClientesV2Frame(ctk.CTkFrame):
         if hasattr(self.toolbar, "update_trash_mode"):
             self.toolbar.update_trash_mode(self._trash_mode)
 
+        # Atualizar label do botão Excluir na actionbar
+        if hasattr(self, "actionbar") and self.actionbar:
+            delete_label = "Excluir definitivamente" if self._trash_mode else "Excluir"
+            self.actionbar.set_delete_label(delete_label)
+            self.actionbar.set_trash_mode(self._trash_mode)
+
+        # Desabilitar botão durante o load para evitar toggles duplos
+        if hasattr(self.toolbar, "trash_btn"):
+            try:
+                self.toolbar.trash_btn.configure(state="disabled")
+            except Exception:
+                pass
+
         # Recarregar com filtro de lixeira
+        t_toggle = time.perf_counter()
+        log.debug(f"[Clientes] toggle_start mode={'LIXEIRA' if self._trash_mode else 'ATIVOS'} t={t_toggle:.3f}")
         search_text = self.toolbar.get_search_text() if self.toolbar else ""
         order_label = self.toolbar.get_order() if self.toolbar else ""
         status = self.toolbar.get_status() if self.toolbar else ""
@@ -1213,12 +1334,10 @@ class ClientesV2Frame(ctk.CTkFrame):
         """
         if not self.app:
             log.error("[Clientes] App não disponível para novo cliente")
-            from tkinter import messagebox
-
-            messagebox.showerror(
+            _show_error(
+                self.winfo_toplevel(),  # type: ignore[attr-defined]
                 "Erro",
                 "Não foi possível acessar o controlador do aplicativo.\nTente recarregar o módulo.",
-                parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
             )
             return "break" if event else None
 
@@ -1329,23 +1448,19 @@ class ClientesV2Frame(ctk.CTkFrame):
         # Validações
         if not self.app:
             log.error(f"[Clientes:{session_id}] App não disponível")
-            from tkinter import messagebox
-
-            messagebox.showerror(
+            _show_error(
+                self.winfo_toplevel(),  # type: ignore[attr-defined]
                 "Erro",
                 "Não foi possível acessar o controlador do aplicativo.\nTente recarregar o módulo.",
-                parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
             )
             return
 
         if not self._selected_client_id:
             log.warning(f"[Clientes:{session_id}] Nenhum cliente selecionado")
-            from tkinter import messagebox
-
-            messagebox.showwarning(
+            _show_warning(
+                self.winfo_toplevel(),  # type: ignore[attr-defined]
                 "Atenção",
                 "Selecione um cliente para editar.",
-                parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
             )
             return
 
@@ -1385,84 +1500,16 @@ class ClientesV2Frame(ctk.CTkFrame):
             self._editor_dialog = None
             self._opening_editor = False
 
-    def _on_client_files(self) -> None:
-        """Handler para botão Arquivos do Cliente.
-
-        FASE 4: Abre gerenciador de arquivos via diálogo CTk.
-        """
-        if not self.app:
-            log.error("[Clientes] App não disponível para arquivos")
-            from tkinter import messagebox
-
-            messagebox.showerror(
-                "Erro",
-                "Não foi possível acessar o controlador do aplicativo.\nTente recarregar o módulo.",
-                parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
-            )
-            return
-
-        if not self._selected_client_id:
-            from tkinter import messagebox
-
-            messagebox.showwarning(
-                "Atenção",
-                "Selecione um cliente para ver os arquivos.",
-                parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
-            )
-            return
-
-        log.info(f"[Clientes] Arquivos do cliente ID={self._selected_client_id} (abrindo ClientFilesDialog)")
-
-        try:
-            # Buscar dados do cliente
-            from src.modules.clientes.core import service as clientes_service
-
-            cliente = clientes_service.fetch_cliente_by_id(self._selected_client_id)
-
-            if not cliente:
-                from tkinter import messagebox
-
-                messagebox.showerror(
-                    "Erro",
-                    "Cliente não encontrado.",
-                    parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
-                )
-                return
-
-            # Abrir diálogo de arquivos funcional (browser real de Supabase Storage)
-            from src.modules.clientes.ui.views.client_files_dialog import ClientFilesDialog
-
-            ClientFilesDialog(
-                parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
-                client_id=self._selected_client_id,
-                client_name=cliente.get("razao_social", "Cliente"),
-                razao_social=cliente.get("razao_social", ""),
-                cnpj=cliente.get("cnpj", ""),
-            )
-            # Não precisa chamar focus() - diálogo já faz grab_set no __init__
-
-        except Exception as e:
-            log.error(f"[Clientes] Erro ao abrir arquivos: {e}", exc_info=True)
-            from tkinter import messagebox
-
-            messagebox.showerror(
-                "Erro",
-                f"Erro ao abrir arquivos: {e}",
-                parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
-            )
-
     def _on_enviar_documentos(self) -> None:
         """Handler para enviar documentos do cliente (via context menu).
 
         Abre o dialog de editor com foco no botão de upload.
         """
         if not self._selected_client_id:
-            from tkinter import messagebox
-
-            messagebox.showwarning(
+            _show_warning(
+                self.winfo_toplevel(),  # type: ignore[attr-defined]
                 "Atenção",
                 "Selecione um cliente para enviar documentos.",
-                parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
             )
             return
 
@@ -1500,8 +1547,9 @@ class ClientesV2Frame(ctk.CTkFrame):
     def _on_delete_client(self, event: Any = None) -> str | None:
         """Handler para botão Excluir Cliente.
 
-        FASE 4: Move para lixeira usando fluxo legacy.
-        FASE 3.8: Aceita event opcional para atalho Delete.
+        Modo ATIVOS  → soft delete (mover para lixeira).
+        Modo LIXEIRA → hard delete (exclusão definitiva no banco + storage).
+        Aceita event opcional para atalho Delete.
 
         Args:
             event: Evento de teclado (opcional)
@@ -1509,73 +1557,151 @@ class ClientesV2Frame(ctk.CTkFrame):
         Returns:
             'break' se event fornecido, None caso contrário
         """
-        if not self.app:
-            log.error("[Clientes] App não disponível para excluir")
-            from tkinter import messagebox
-
-            messagebox.showerror(
-                "Erro",
-                "Não foi possível acessar o controlador do aplicativo.\nTente recarregar o módulo.",
-                parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
-            )
-            return "break" if event else None
-
         if not self._selected_client_id:
-            # Sem seleção: ignora silenciosamente (comportamento legacy)
             return "break" if event else None
 
         # Pegar dados do cliente selecionado
         row_data = None
-        for iid, data in self._row_data_map.items():
+        for _iid, data in self._row_data_map.items():
             if int(data.id) == self._selected_client_id:
                 row_data = data
                 break
 
         razao = row_data.razao_social if row_data else ""
         label_cli = f"{razao} (ID {self._selected_client_id})" if razao else f"ID {self._selected_client_id}"
+        client_id = self._selected_client_id
 
-        from tkinter import messagebox
+        from src.modules.clientes.core import service as clientes_service
+        from src.modules.lixeira import refresh_if_open as refresh_lixeira_if_open
 
-        confirm = messagebox.askyesno(
-            "Enviar para Lixeira",
-            f"Deseja enviar o cliente {label_cli} para a Lixeira?",
-            parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
-        )
+        top = self.winfo_toplevel()
 
-        if not confirm:
-            return "break" if event else None
-
-        log.info(f"[Clientes] Excluir cliente ID={self._selected_client_id}")
-
-        try:
-            # Chamar service legacy
-            from src.modules.clientes.core import service as clientes_service
-            from src.modules.lixeira import refresh_if_open as refresh_lixeira_if_open
-
-            clientes_service.mover_cliente_para_lixeira(self._selected_client_id)
-
-            messagebox.showinfo(
-                "Sucesso",
-                f"Cliente {label_cli} movido para a Lixeira.",
-                parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
+        if self._trash_mode:
+            # ── MODO LIXEIRA: exclusão definitiva ──────────────────────────────
+            confirm = _ask_yes_no(
+                top,
+                "Excluir definitivamente",
+                f"Tem certeza que deseja EXCLUIR DEFINITIVAMENTE o cliente {label_cli}?\n\nEsta ação não pode ser desfeita.",
             )
+            if not confirm:
+                return "break" if event else None
 
-            # Refresh lixeira se aberta
-            refresh_lixeira_if_open()
+            log.info(f"[Clientes] Hard delete: cliente ID={client_id}")
+            try:
+                ok, errs = clientes_service.excluir_clientes_definitivamente([client_id])
+                if errs:
+                    msgs = "\n".join(f"  • {e}" for _, e in errs)
+                    _show_error(
+                        top,
+                        "Erro ao excluir",
+                        f"Falha ao excluir cliente {label_cli}:\n{msgs}",
+                    )
+                    log.error("[Clientes] Hard delete falhou para ID=%s: %s", client_id, errs)
+                    return "break" if event else None
 
-            # Refresh lista
-            self._selected_client_id = None
-            self.load_async()
+                _show_info(
+                    top,
+                    "Excluído",
+                    f"Cliente {label_cli} excluído definitivamente.",
+                )
+                log.info("[Clientes] Hard delete OK: cliente ID=%s", client_id)
 
-        except Exception as e:
-            log.error(f"[Clientes] Erro ao excluir cliente: {e}", exc_info=True)
-            messagebox.showerror(
-                "Erro",
-                f"Erro ao enviar cliente para lixeira: {e}",
-                parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
+                # Refresh da lista permanecendo em modo LIXEIRA
+                self._selected_client_id = None
+                self.carregar()
+
+            except Exception as e:
+                log.error(f"[Clientes] Erro no hard delete do cliente ID={client_id}: {e}", exc_info=True)
+                _show_error(
+                    top,
+                    "Erro",
+                    f"Erro ao excluir definitivamente: {e}",
+                )
+        else:
+            # ── MODO ATIVOS: soft delete (mover para lixeira) ──────────────────
+            confirm = _ask_yes_no(
+                top,
+                "Enviar para Lixeira",
+                f"Deseja enviar o cliente {label_cli} para a Lixeira?",
             )
+            if not confirm:
+                return "break" if event else None
+
+            log.info(f"[Clientes] Soft delete: cliente ID={client_id}")
+            try:
+                clientes_service.mover_cliente_para_lixeira(client_id)
+
+                _show_info(
+                    top,
+                    "Lixeira",
+                    f"Cliente {label_cli} movido para a Lixeira.",
+                )
+                log.info("[Clientes] Soft delete OK: cliente ID=%s", client_id)
+
+                refresh_lixeira_if_open()
+
+                # Refresh da lista permanecendo em modo ATIVOS
+                self._selected_client_id = None
+                self.carregar()
+
+            except Exception as e:
+                log.error(f"[Clientes] Erro ao mover cliente para lixeira ID={client_id}: {e}", exc_info=True)
+                _show_error(
+                    top,
+                    "Erro",
+                    f"Erro ao enviar cliente para lixeira: {e}",
+                )
 
         return "break" if event else None
+
+    def _on_restore_client(self) -> None:
+        """Restaura cliente da lixeira (undo soft delete)."""
+        if not self._selected_client_id or not self._trash_mode:
+            return
+
+        row_data = None
+        for _iid, data in self._row_data_map.items():
+            if int(data.id) == self._selected_client_id:
+                row_data = data
+                break
+
+        razao = row_data.razao_social if row_data else ""
+        label_cli = f"{razao} (ID {self._selected_client_id})" if razao else f"ID {self._selected_client_id}"
+        client_id = self._selected_client_id
+
+        top = self.winfo_toplevel()
+
+        confirm = _ask_yes_no(
+            top,
+            "Restaurar Cliente",
+            f"Deseja restaurar o cliente {label_cli} para a lista de ativos?",
+        )
+        if not confirm:
+            return
+
+        from src.modules.clientes.core import service as clientes_service
+
+        log.info("[Clientes] Restaurando cliente ID=%s da lixeira", client_id)
+        try:
+            clientes_service.restaurar_clientes_da_lixeira([client_id])
+
+            _show_info(
+                top,
+                "Restaurado",
+                f"Cliente {label_cli} restaurado com sucesso.\n\nEle voltará a aparecer na lista de ativos.",
+            )
+            log.info("[Clientes] Restauração OK: cliente ID=%s", client_id)
+
+            self._selected_client_id = None
+            self.carregar()
+
+        except Exception as e:
+            log.error("[Clientes] Erro ao restaurar cliente ID=%s: %s", client_id, e, exc_info=True)
+            _show_error(
+                top,
+                "Erro",
+                f"Erro ao restaurar cliente: {e}",
+            )
 
     def _on_tree_click(self, event: Any) -> None:
         """Handler para clique simples na Treeview.
@@ -1702,7 +1828,7 @@ class ClientesV2Frame(ctk.CTkFrame):
 
         # Remover do AppearanceModeTracker
         try:
-            AppearanceModeTracker = ctk.AppearanceModeTracker  # type: ignore[attr-defined]
+            AppearanceModeTracker = ctk.AppearanceModeTracker  # type: ignore[attr-defined]  # noqa: N806
 
             AppearanceModeTracker.remove(self)
         except Exception:
@@ -1757,12 +1883,10 @@ class ClientesV2Frame(ctk.CTkFrame):
         # Obter seleção atual
         selection = self.tree.selection()
         if not selection:
-            from tkinter import messagebox
-
-            messagebox.showwarning(
+            _show_warning(
+                self.winfo_toplevel(),  # type: ignore[attr-defined]
                 "Atenção",
                 "Selecione um cliente primeiro.",
-                parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
             )
             return
 

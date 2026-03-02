@@ -26,8 +26,8 @@ class ClientesV2ActionBar(ctk.CTkFrame):
         *,
         on_new: Callable[[], None] | None = None,
         on_edit: Callable[[], None] | None = None,
-        on_files: Callable[[], None] | None = None,
         on_delete: Callable[[], None] | None = None,
+        on_restore: Callable[[], None] | None = None,
     ):
         """Inicializa actionbar.
 
@@ -35,16 +35,16 @@ class ClientesV2ActionBar(ctk.CTkFrame):
             master: Widget pai
             on_new: Callback para novo cliente
             on_edit: Callback para editar cliente
-            on_files: Callback para arquivos
             on_delete: Callback para excluir cliente
+            on_restore: Callback para restaurar cliente (lixeira)
         """
         # TAREFA 2: Container com SURFACE_DARK (igual Hub)
         super().__init__(master, fg_color=SURFACE_DARK, corner_radius=10, border_width=0)
 
         self.on_new = on_new
         self.on_edit = on_edit
-        self.on_files = on_files
         self.on_delete = on_delete
+        self.on_restore = on_restore
 
         self._build_ui()
 
@@ -74,19 +74,6 @@ class ClientesV2ActionBar(ctk.CTkFrame):
         )
         self.edit_btn.pack(side="left", padx=5, pady=10)
 
-        # Botão Arquivos (desabilitado por padrão)
-        self.files_btn = make_btn(
-            self,
-            text="Arquivos",
-            command=self._trigger_files,
-            fg_color=("#2563eb", "#3b82f6"),
-            hover_color=("#1d4ed8", "#2563eb"),
-            text_color="#ffffff",
-            font=("Segoe UI", 11),
-            state="disabled",
-        )
-        self.files_btn.pack(side="left", padx=5, pady=10)
-
         # Botão Excluir (desabilitado por padrão)
         self.delete_btn = make_btn(
             self,
@@ -100,6 +87,19 @@ class ClientesV2ActionBar(ctk.CTkFrame):
         )
         self.delete_btn.pack(side="left", padx=5, pady=10)
 
+        # Botão Restaurar (oculto por padrão — visivel somente em modo lixeira)
+        self.restore_btn = make_btn(
+            self,
+            text="Restaurar",
+            command=self._trigger_restore,
+            fg_color=("#0ea5e9", "#0284c7"),
+            hover_color=("#0284c7", "#0369a1"),
+            text_color="#ffffff",
+            font=("Segoe UI", 11),
+            state="disabled",
+        )
+        # Inicia oculto — pack() será chamado via set_trash_mode(True)
+
     def _trigger_new(self) -> None:
         """Dispara callback de novo cliente."""
         if self.on_new:
@@ -110,15 +110,15 @@ class ClientesV2ActionBar(ctk.CTkFrame):
         if self.on_edit:
             self.on_edit()
 
-    def _trigger_files(self) -> None:
-        """Dispara callback de arquivos."""
-        if self.on_files:
-            self.on_files()
-
     def _trigger_delete(self) -> None:
         """Dispara callback de excluir."""
         if self.on_delete:
             self.on_delete()
+
+    def _trigger_restore(self) -> None:
+        """Dispara callback de restaurar."""
+        if self.on_restore:
+            self.on_restore()
 
     def set_selection_state(self, has_selection: bool) -> None:
         """Habilita/desabilita botões baseado na seleção.
@@ -129,11 +129,32 @@ class ClientesV2ActionBar(ctk.CTkFrame):
         state = "normal" if has_selection else "disabled"
         try:
             self.edit_btn.configure(state=state)
-            self.files_btn.configure(state=state)
             self.delete_btn.configure(state=state)
+            self.restore_btn.configure(state=state)
             log.debug(f"[ActionBar] Botões {state}")
         except Exception as e:
             log.error(f"[ActionBar] Erro ao atualizar estado dos botões: {e}")
+
+    def set_delete_label(self, text: str) -> None:
+        """Atualiza o texto do botão Excluir.
+
+        Args:
+            text: Novo rótulo do botão (ex: 'Excluir definitivamente')
+        """
+        try:
+            self.delete_btn.configure(text=text)
+        except Exception as e:
+            log.error(f"[ActionBar] Erro ao atualizar label do botão excluir: {e}")
+
+    def set_trash_mode(self, is_trash: bool) -> None:
+        """Mostra/oculta botão Restaurar conforme modo lixeira."""
+        try:
+            if is_trash:
+                self.restore_btn.pack(side="left", padx=5, pady=10)
+            else:
+                self.restore_btn.pack_forget()
+        except Exception as e:
+            log.error(f"[ActionBar] Erro ao alternar modo lixeira: {e}")
 
     def refresh_theme(self) -> None:
         """Atualiza cores da actionbar quando tema muda.

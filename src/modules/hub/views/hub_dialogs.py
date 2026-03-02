@@ -14,10 +14,15 @@ from __future__ import annotations
 
 import logging
 import tkinter as tk
-from tkinter import messagebox
 from typing import Any
 
 from src.ui.ctk_config import ctk
+from src.ui.dialogs.rc_dialogs import (
+    ask_yes_no as _ask_yes_no,
+    show_error as _rc_show_error,
+    show_info as _rc_show_info,
+    show_warning as _rc_show_warning,
+)
 from src.ui.widgets.button_factory import make_btn
 
 logger = logging.getLogger(__name__)
@@ -43,7 +48,7 @@ def show_note_editor(
         - is_done: bool - Se está marcada como concluída
     """
     # Dialog setup
-    dialog = tk.Toplevel(parent)
+    dialog = ctk.CTkToplevel(parent)
     dialog.title("Editar Nota" if note_data else "Nova Nota")
     dialog.geometry("500x350")
     dialog.transient(parent)
@@ -90,10 +95,10 @@ def show_note_editor(
         """Handler para confirmação."""
         body = text_widget.get("1.0", "end-1c").strip()
         if not body:
-            messagebox.showwarning(
+            _rc_show_warning(
+                dialog,
                 "Campo vazio",
                 "O texto da nota não pode estar vazio.",
-                parent=dialog,
             )
             return
 
@@ -147,10 +152,10 @@ def confirm_delete_note(parent: tk.Misc, note_data: dict[str, Any]) -> bool:
     """
     body = note_data.get("body", "")
     preview = body[:50] + "..." if len(body) > 50 else body
-    return messagebox.askyesno(
+    return _ask_yes_no(
+        parent,
         "Confirmar exclusão",
         f"Excluir anotação:\n\n{preview}",
-        parent=parent,
     )
 
 
@@ -162,7 +167,7 @@ def show_error(parent: tk.Misc, title: str, message: str) -> None:
         title: Título do diálogo
         message: Mensagem de erro
     """
-    messagebox.showerror(title, message, parent=parent)
+    _rc_show_error(parent, title, message)
 
 
 def show_info(parent: tk.Misc, title: str, message: str) -> None:
@@ -173,4 +178,4 @@ def show_info(parent: tk.Misc, title: str, message: str) -> None:
         title: Título do diálogo
         message: Mensagem informativa
     """
-    messagebox.showinfo(title, message, parent=parent)
+    _rc_show_info(parent, title, message)

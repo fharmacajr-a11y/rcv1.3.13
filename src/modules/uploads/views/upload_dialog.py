@@ -17,11 +17,11 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 import tkinter as tk
-from tkinter import messagebox
 
 from src.modules.uploads.exceptions import UploadError
 from src.modules.uploads.upload_retry import classify_upload_exception
 from src.ui.components.progress_dialog import ProgressDialog
+from src.ui.dialogs.rc_dialogs import show_error
 
 logger = logging.getLogger(__name__)
 
@@ -149,6 +149,7 @@ class UploadDialog:
     ) -> None:
         self._parent = parent
         self._upload_callable = upload_callable
+        self._owns_executor = executor is None
         self._executor = executor or ThreadPoolExecutor(max_workers=1)
         self._on_complete = on_complete
         self._context = UploadDialogContext(self, total_items)
@@ -193,6 +194,12 @@ class UploadDialog:
         except Exception as exc:  # noqa: BLE001
             logger.debug("Falha ao fechar ProgressDialog: %s", exc)
 
+        if self._owns_executor:
+            try:
+                self._executor.shutdown(wait=False)
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Falha ao encerrar executor interno: %s", exc)
+
         if self._on_complete:
             try:
                 self._on_complete(outcome)
@@ -203,7 +210,7 @@ class UploadDialog:
         # Fallback de UX se nenhum callback for fornecido
         if outcome.error:
             parent = self._parent if isinstance(self._parent, tk.Misc) else None
-            messagebox.showerror("Erro no upload", outcome.error.message, parent=parent)
+            show_error(parent, "Erro no upload", outcome.error.message)
 
     # ---- AtualizaÇõÇœes de UI -------------------------------------------
     def _update_progress(

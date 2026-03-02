@@ -22,6 +22,7 @@ Histórico: MF-24
 from __future__ import annotations
 
 import logging
+import tkinter as tk
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 if TYPE_CHECKING:
@@ -205,7 +206,7 @@ class HubLifecycleFacade:
             if notes_history is not None:
                 try:
                     is_empty = notes_history.index("end-1c") == "1.0"
-                except Exception:
+                except tk.TclError:
                     is_empty = True
 
             # Acessa state.notes_last_data via parent

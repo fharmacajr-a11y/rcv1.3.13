@@ -139,10 +139,7 @@ def _build_layout_skeleton(
             log.debug("Falha ao ocultar janela: %s", exc)
 
     # 6. Container de conteúdo VAZIO (NÃO empacotar ainda - será feito em deferred após topbar)
-    if ctk is not None:
-        content_container = ctk.CTkFrame(app, fg_color=APP_BG, corner_radius=0)
-    else:
-        content_container = tk.Frame(app)
+    content_container = ctk.CTkFrame(app, fg_color=APP_BG, corner_radius=0)
     # NÃO pack aqui - ordem importa: topbar/menu primeiro, footer depois, container por último
 
     # 7. Variáveis Tkinter

@@ -139,10 +139,27 @@ def upload_items_for_client(
     progress_callback: Optional[Callable[[UploadItem], None]] = None,
     client_id: int | None = None,
     org_id: str | None = None,
+    overwrite: bool = False,
 ) -> Tuple[int, list[Tuple[UploadItem, Exception]]]:
+    """Faz upload de itens para o storage do cliente.
+
+    Args:
+        overwrite: Se True, sobrescreve arquivos existentes (upsert).  Padrão
+            False: arquivos duplicados são ignorados e reportados como
+            UploadDuplicateError em failures, nunca contados como sucesso.
+    """
+    # Fallback: se client_id conhecido mas org_id não foi resolvido, buscar agora
+    if client_id is not None and not org_id:
+        try:
+            org_id = repository.resolve_org_id()
+            logger.info("upload_items_for_client: org_id resolvido via fallback = %s", org_id)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("upload_items_for_client: não foi possível resolver org_id: %s", exc)
+
     adapter = repository.build_storage_adapter(
         bucket=repository.normalize_bucket(bucket),
         supabase_client=supabase_client,
+        overwrite=overwrite,
     )
     return repository.upload_items_with_adapter(
         adapter,

@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import socket
+import threading
 import urllib.request
 from typing import Final
 from urllib.error import HTTPError, URLError
@@ -14,8 +15,9 @@ logger = logging.getLogger(__name__)
 
 SOCKET_TEST_HOST = ("8.8.8.8", 53)
 
-# Flag global para log único de WinError 10013
+# Flag global para log único de WinError 10013 + lock para thread-safety
 _winerror_10013_logged = False
+_WINERROR_10013_LOCK = threading.Lock()
 
 
 def _socket_check(timeout: float) -> bool:
@@ -27,11 +29,15 @@ def _socket_check(timeout: float) -> bool:
         global _winerror_10013_logged
         # Se for WinError 10013, é típico de firewall/VPN bloqueando esse tipo de socket.
         if getattr(exc, "winerror", None) == 10013:
-            if not _winerror_10013_logged:
+            should_log = False
+            with _WINERROR_10013_LOCK:
+                if not _winerror_10013_logged:
+                    _winerror_10013_logged = True
+                    should_log = True
+            if should_log:
                 logger.debug(
                     "Internet connectivity check blocked by local policy (WinError 10013). Will try HTTP fallback."
                 )
-                _winerror_10013_logged = True
         else:
             logger.warning("Internet connectivity check failed (socket): %s", exc)
         return False
@@ -110,8 +116,10 @@ def require_internet_or_alert() -> bool:
             import tkinter as tk
             from tkinter import messagebox
 
+            from src.ui.ctk_config import ctk
+
             # Create minimal root if needed
-            root = tk.Tk()
+            root = ctk.CTk()
             root.withdraw()
 
             result = messagebox.askokcancel(

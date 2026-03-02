@@ -11,8 +11,6 @@ Para novos códigos, importe diretamente de:
 from __future__ import annotations
 
 import logging
-import os  # noqa: F401  # Necessário para testes que patcheiam os.path
-from tkinter import messagebox  # noqa: F401  # Necessário para testes que patcheiam messagebox
 from typing import Any, Callable, Dict, Iterable, Optional
 
 # Re-exports do novo local (ORG-003)

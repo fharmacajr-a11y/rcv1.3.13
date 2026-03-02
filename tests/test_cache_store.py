@@ -184,6 +184,7 @@ class TestGetEntry(unittest.TestCase):
                 entry = store.get_entry("k")
 
             self.assertIsNotNone(entry)
+            assert entry is not None  # narrowing para Pylance
             self.assertIn("expire", entry)
             self.assertIn("timestamp", entry)
             self.assertIn("payload", entry)

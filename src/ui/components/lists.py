@@ -8,6 +8,7 @@ import tkinter.font as tkfont
 from typing import Any, Callable
 
 from src.ui.ctk_config import ctk
+from src.ui.ui_tokens import PRIMARY_BLUE
 
 from src.config.constants import (
     COL_CNPJ_WIDTH,
@@ -22,7 +23,7 @@ from src.config.constants import (
     COL_WHATSAPP_WIDTH,
 )
 
-OBS_FG = "#0d6efd"
+OBS_FG = PRIMARY_BLUE[0]  # Use light mode color from PRIMARY_BLUE tuple
 
 # Style name exclusivo para Treeview de clientes (não afeta outras telas)
 CLIENTS_TREEVIEW_STYLE = "Clientes.Treeview"
@@ -353,23 +354,20 @@ def _setup_treeview_tooltip(tree: Any, columns: tuple) -> None:
 
             # Criar/atualizar tooltip
             if tooltip_window is None:
-                tooltip_window = tk.Toplevel(tree)
+                tooltip_window = ctk.CTkToplevel(tree)
                 tooltip_window.wm_overrideredirect(True)
                 tooltip_window.wm_attributes("-topmost", True)
-                tooltip_label = tk.Label(
+                tooltip_label = ctk.CTkLabel(
                     tooltip_window,
                     text=cell_text,
-                    background="#ffffe0",
-                    foreground="#000000",
-                    relief="solid",
-                    borderwidth=1,
+                    fg_color="#ffffe0",
+                    text_color="#000000",
                     font=("Segoe UI", 9),
                     wraplength=400,
                     justify="left",
-                    padx=5,
-                    pady=3,
+                    corner_radius=0,
                 )
-                tooltip_label.pack()
+                tooltip_label.pack(padx=5, pady=3)
             else:
                 tooltip_label.configure(text=cell_text)  # type: ignore
 

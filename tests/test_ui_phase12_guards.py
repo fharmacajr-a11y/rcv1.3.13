@@ -3,10 +3,15 @@
 Estratégia: replicar apenas o padrão lógico de cada guarda em classes fake,
 sem carregar modules que dependem de Tcl/Display, garantindo execução headless.
 
+NOTA: Este arquivo testa PADRÕES / CONTRATOS de comportamento, e não o código
+real dos widgets.  As classes fake replicam a *lógica de guarda* esperada.
+Se o código real mudar o padrão, estes testes continuarão passando — a
+proteção contra regressão vem dos testes de integração / UI futuros.
+Mantido como teste de contrato para validação headless.
+
 Cobertura:
   Part 1 — ClientEditorDialog: after-job IDs, cancel em cleanup, winfo_exists
   Part 2 — CTkSplitPane: winfo_exists + TclError em _on_sash_enter/_on_sash_leave
-  Part 3 — PDFBatchProgressDialog: winfo_exists no canvas fallback
 """
 
 from __future__ import annotations
@@ -98,8 +103,10 @@ class TestClientEditorAfterJobCancelPattern(unittest.TestCase):
 
     def test_cancel_survives_after_cancel_raising(self) -> None:
         """Se after_cancel lançar exceção interna, não deve propagar."""
+
         def _bad_cancel(job_id: str) -> None:
             raise RuntimeError("timer already fired")
+
         self.dlg.after_cancel = _bad_cancel  # type: ignore[method-assign]
         self.dlg._setup_modal_job = "job_x"
         self.dlg._cancel_pending_jobs()  # não deve lançar
@@ -120,6 +127,7 @@ class TestClientEditorAfterJobCancelPattern(unittest.TestCase):
     def test_activate_skips_when_winfo_raises(self) -> None:
         def _bad() -> bool:
             raise RuntimeError("destroyed")
+
         self.dlg.winfo_exists = _bad  # type: ignore[method-assign]
         self.dlg._activate_all_placeholders()  # não deve lançar
         self.assertFalse(self.dlg._entries_activated)
@@ -204,6 +212,7 @@ class TestCTkSplitPaneGuardPattern(unittest.TestCase):
     def test_enter_silences_tclerror(self) -> None:
         def _bad(**kwargs: object) -> None:
             raise self._FakeTclError("widget destroyed")
+
         self.sash.configure = _bad  # type: ignore[method-assign]
         self.pane._on_sash_enter()  # não deve propagar
 
@@ -231,6 +240,7 @@ class TestCTkSplitPaneGuardPattern(unittest.TestCase):
     def test_leave_silences_tclerror(self) -> None:
         def _bad(**kwargs: object) -> None:
             raise self._FakeTclError("widget destroyed")
+
         self.sash.configure = _bad  # type: ignore[method-assign]
         self.pane._on_sash_leave()  # não deve propagar
 
@@ -246,116 +256,6 @@ class TestCTkSplitPaneGuardPattern(unittest.TestCase):
         self.pane.winfo_exists = _bad_exists  # type: ignore[method-assign]
         self.pane._on_sash_leave()
         self.assertEqual(called, [], "winfo_exists não deve ser chamado se dragging")
-
-
-# ---------------------------------------------------------------------------
-# Part 3 — PDFBatchProgressDialog: winfo_exists no canvas fallback
-# ---------------------------------------------------------------------------
-
-
-class TestPDFCanvasGuardPattern(unittest.TestCase):
-    """Testa o bloco Canvas fallback com guarda winfo_exists (sem Tcl)."""
-
-    class _FakeCanvas:
-        def __init__(self, exists: bool = True) -> None:
-            self._exists = exists
-            self.deleted: bool = False
-            self.rectangles: list[tuple] = []
-            self._progress_value: float = 0.0
-
-        def winfo_exists(self) -> bool:
-            return self._exists
-
-        def delete(self, tag: str) -> None:
-            self.deleted = True
-
-        def create_rectangle(self, *args: object, **kwargs: object) -> None:
-            self.rectangles.append((args, kwargs))
-
-    class _FakeProgressDialog:
-        """Replica APENAS o bloco canvas fallback com guarda Fase 12."""
-
-        def __init__(self, canvas: "TestPDFCanvasGuardPattern._FakeCanvas") -> None:
-            self._closed = False
-            self.progress = canvas
-
-        def _update_canvas_fallback(self, percent: float) -> None:
-            """Réplica exacta do bloco canvas fallback de pdf_batch_progress.py."""
-            # Canvas fallback — checar existência antes de operar (Fase 12)
-            if not self.progress.winfo_exists():
-                self._closed = True
-                return
-            self.progress._progress_value = percent / 100.0
-            fill_w = int(320 * (percent / 100.0))
-            self.progress.delete("all")
-            self.progress.create_rectangle(0, 0, fill_w, 22, fill="#007bff", outline="")
-
-    def _make(self, exists: bool = True) -> tuple["_FakeCanvas", "_FakeProgressDialog"]:
-        canvas = self._FakeCanvas(exists=exists)
-        dlg = self._FakeProgressDialog(canvas)
-        return canvas, dlg
-
-    # canvas exists — caminho normal
-
-    def test_canvas_updated_when_exists(self) -> None:
-        canvas, dlg = self._make(exists=True)
-        dlg._update_canvas_fallback(50.0)
-        self.assertTrue(canvas.deleted)
-        self.assertEqual(len(canvas.rectangles), 1)
-        self.assertFalse(dlg._closed)
-
-    def test_progress_value_set_correctly(self) -> None:
-        canvas, dlg = self._make(exists=True)
-        dlg._update_canvas_fallback(75.0)
-        self.assertAlmostEqual(canvas._progress_value, 0.75)
-
-    def test_fill_width_zero_at_zero_percent(self) -> None:
-        canvas, dlg = self._make(exists=True)
-        dlg._update_canvas_fallback(0.0)
-        fill_w = canvas.rectangles[0][0][2]  # 3rd positional arg → x2
-        self.assertEqual(fill_w, 0)
-
-    def test_fill_width_full_at_100_percent(self) -> None:
-        canvas, dlg = self._make(exists=True)
-        dlg._update_canvas_fallback(100.0)
-        fill_w = canvas.rectangles[0][0][2]
-        self.assertEqual(fill_w, 320)
-
-    def test_fill_width_half_at_50_percent(self) -> None:
-        canvas, dlg = self._make(exists=True)
-        dlg._update_canvas_fallback(50.0)
-        fill_w = canvas.rectangles[0][0][2]
-        self.assertEqual(fill_w, 160)
-
-    # canvas destruído — guarda deve bloquear
-
-    def test_canvas_not_modified_when_destroyed(self) -> None:
-        canvas, dlg = self._make(exists=False)
-        dlg._update_canvas_fallback(50.0)
-        self.assertFalse(canvas.deleted)
-        self.assertEqual(len(canvas.rectangles), 0)
-
-    def test_closed_set_true_when_canvas_destroyed(self) -> None:
-        canvas, dlg = self._make(exists=False)
-        dlg._update_canvas_fallback(50.0)
-        self.assertTrue(dlg._closed)
-
-    def test_progress_value_not_set_when_destroyed(self) -> None:
-        canvas, dlg = self._make(exists=False)
-        dlg._update_canvas_fallback(90.0)
-        self.assertAlmostEqual(canvas._progress_value, 0.0)
-
-    def test_closed_flag_prevents_further_operations(self) -> None:
-        """Primeira chamada com widget destruído seta _closed; segunda não toca canvas."""
-        canvas, dlg = self._make(exists=False)
-        dlg._update_canvas_fallback(50.0)
-        # restaurar canvas e chamar de novo (simulando _closed=True check na camada acima)
-        canvas._exists = True
-        canvas.deleted = False
-        # _closed já é True; o código acima desta função retorna antes, mas
-        # _update_canvas_fallback em si não verifica _closed — isso é feito pelo chamador.
-        # Aqui apenas verificamos que _closed fica True após a primeira chamada destruída.
-        self.assertTrue(dlg._closed)
 
 
 if __name__ == "__main__":

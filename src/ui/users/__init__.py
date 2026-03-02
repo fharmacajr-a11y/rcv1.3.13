@@ -1,1 +1,1 @@
-from .users import UserManagerDialog
+from .users import UserManagerDialog as UserManagerDialog

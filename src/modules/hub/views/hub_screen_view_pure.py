@@ -41,18 +41,15 @@ def make_module_button(
         >>> btn = make_module_button(frame, "Clientes", open_clientes)
         >>> btn.grid(row=0, column=0)
     """
-    from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+    from src.ui.ctk_config import ctk
     from src.ui.widgets.button_factory import make_btn
-    import tkinter as tk
 
-    if HAS_CUSTOMTKINTER and ctk is not None:
-        return make_btn(
-            parent,
-            text=text,
-            command=command,
-            corner_radius=corner_radius,
-        )
-    return tk.Button(parent, text=text, command=command, width=width)
+    return make_btn(
+        parent,
+        text=text,
+        command=command,
+        corner_radius=corner_radius,
+    )
 
 
 def extract_time_from_timestamp(timestamp: str) -> str:
@@ -84,7 +81,7 @@ def extract_time_from_timestamp(timestamp: str) -> str:
             return dt.strftime("%H:%M")
         # Assume que já é uma string de hora
         return timestamp[:5] if len(timestamp) >= 5 else ""
-    except Exception:
+    except (ValueError, AttributeError):
         return ""
 
 

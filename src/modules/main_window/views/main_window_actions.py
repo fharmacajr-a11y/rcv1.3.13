@@ -17,8 +17,9 @@ import logging
 import os
 import threading
 import tkinter as tk
-from tkinter import messagebox
 from typing import TYPE_CHECKING, Any, Callable, Optional
+
+from src.ui.dialogs.rc_dialogs import ask_yes_no, show_error, show_info, show_warning
 
 # CustomTkinter: fonte única centralizada (Microfase 23 - SSoT)
 from src.ui.ctk_config import HAS_CUSTOMTKINTER
@@ -150,10 +151,10 @@ def apply_online_state(app: App, is_online: Optional[bool]) -> None:
     # Verificar se deve mostrar alerta usando helper
     if should_show_offline_alert(was_online, new_state.is_online, new_state.offline_alerted):
         try:
-            messagebox.showwarning(
+            show_warning(
+                app,
                 "Sem conexão",
                 "Este aplicativo exige internet para funcionar. Verifique sua conexão e tente novamente.",
-                parent=app,
             )
             # Atualizar flag de alerta mostrado
             app._connectivity_state = ConnectivityState(
@@ -209,10 +210,10 @@ def _set_theme_ctk(app: App, mode: str) -> None:
         log.info(f"Modo de tema aplicado via ThemeManager: {validated_mode}")
     except Exception:
         log.exception(f"Falha ao aplicar modo via ThemeManager: {mode}")
-        messagebox.showerror(
+        show_error(
+            app,
             "Erro",
             f"Falha ao aplicar modo de tema: {mode}",
-            parent=app,
         )
 
 
@@ -448,7 +449,7 @@ def on_menu_logout(app: App) -> None:
         confirm = custom_dialogs.ask_ok_cancel(app, title, message)
     except Exception:
         try:
-            confirm = messagebox.askyesno(title, message, parent=app)
+            confirm = ask_yes_no(app, title, message)
         except Exception:
             confirm = True
     if not confirm:
@@ -512,12 +513,12 @@ def show_changelog(app: App) -> None:
         with open(resource_path("runtime_docs/CHANGELOG.md"), "r", encoding="utf-8") as f:
             conteudo = f.read()
         preview = "\n".join(conteudo.splitlines()[:20])
-        messagebox.showinfo("Changelog", preview, parent=app)
+        show_info(app, "Changelog", preview)
     except Exception:
-        messagebox.showinfo(
+        show_info(
+            app,
             "Changelog",
             "Arquivo CHANGELOG.md não encontrado.",
-            parent=app,
         )
 
 
@@ -668,15 +669,25 @@ def get_user_cached(app: App) -> Optional[dict[str, Any]]:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+def _ask_exit_dialog(app: "App") -> bool:
+    """Diálogo modal de confirmação de saída — reutiliza rc_dialogs.ask_yes_no.
+
+    Garante visual 100% consistente com Confirmar Exclusão e outros dialogs:
+    - Ícone RC, anti-flash, grab_set, botões padronizados (DIALOG_BTN_W × DIALOG_BTN_H).
+    """
+    from src.ui.dialogs.rc_dialogs import ask_yes_no
+
+    return ask_yes_no(
+        app,
+        "Sair",
+        "Tem certeza de que deseja sair do RC Gestor?",
+    )
+
+
 def confirm_exit(app: App, *_) -> None:
     """Confirmação de saída da aplicação com shutdown limpo."""
     try:
-        confirm = messagebox.askokcancel(
-            "Sair",
-            "Tem certeza de que deseja sair do RC Gestor?",
-            parent=app,
-            icon="question",
-        )
+        confirm = _ask_exit_dialog(app)
     except Exception:
         confirm = True
 
@@ -735,14 +746,14 @@ def update_status_dot(app: App, is_online: Optional[bool]) -> None:
         log.debug("Falha ao definir texto do status_var_dot: %s", exc)
 
     # Aplicar cor do dot (CTk text_color ou tk foreground)
-    _DOT_COLORS = {
+    _dot_colors = {
         "success": ("#2ecc71", "#2ecc71"),
         "danger": ("#e74c3c", "#e74c3c"),
         "warning": ("#f39c12", "#f39c12"),
     }
     try:
         if app.status_dot:
-            color = _DOT_COLORS.get(dot_style.bootstyle, ("#f39c12", "#f39c12"))
+            color = _dot_colors.get(dot_style.bootstyle, ("#f39c12", "#f39c12"))
             try:
                 app.status_dot.configure(text_color=color)
             except (tk.TclError, Exception):  # noqa: BLE001
@@ -770,10 +781,10 @@ def enviar_pasta_supabase(app: App) -> None:
         )
     except Exception as exc:
         log.error("Erro ao enviar pasta para Supabase: %s", exc)
-        messagebox.showerror(
+        show_error(
+            app,
             "Erro",
             f"Erro ao enviar pasta para Supabase:\n{exc}",
-            parent=app,
         )
 
 

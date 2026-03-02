@@ -4,9 +4,10 @@ import os
 import re
 import time
 import tkinter as tk
-from tkinter import messagebox
 
-from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+from src.ui.dialogs.rc_dialogs import show_error
+
+from src.ui.ctk_config import ctk
 from src.ui.widgets.button_factory import make_btn
 from src.db.auth_bootstrap import _get_access_token
 from src.infra.healthcheck import healthcheck  # <-- ADICIONADO: health check pós-login
@@ -21,7 +22,7 @@ from src.utils import prefs as prefs_utils
 log = logging.getLogger(__name__)
 
 
-class LoginDialog(tk.Toplevel):
+class LoginDialog(ctk.CTkToplevel):
     """Diálogo simples de login para Supabase."""
 
     def __init__(self, master):
@@ -66,7 +67,7 @@ class LoginDialog(tk.Toplevel):
         self._icon_email_ctk = None
         self._icon_senha_ctk = None
 
-        if HAS_CUSTOMTKINTER and ctk is not None:
+        if ctk is not None:
             # Modo CTk: usar PIL + CTkImage
             try:
                 from PIL import Image
@@ -79,138 +80,66 @@ class LoginDialog(tk.Toplevel):
                     self._icon_senha_ctk = ctk.CTkImage(light_image=pil_senha, dark_image=pil_senha, size=(16, 16))
             except Exception as exc:
                 log.debug("Falha ao criar CTkImage para ícones de login: %s", exc)
-        else:
-            # Modo tk: usar PhotoImage
-            if email_icon_path:
-                try:
-                    self._icon_email = tk.PhotoImage(file=email_icon_path)
-                except Exception:
-                    self._icon_email = None
-
-            if senha_icon_path:
-                try:
-                    self._icon_senha = tk.PhotoImage(file=senha_icon_path)
-                except Exception:
-                    self._icon_senha = None
 
         # Layout
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            self.email_label = ctk.CTkLabel(
-                self,
-                text="E-mail",
-                image=self._icon_email_ctk,
-                compound="left" if self._icon_email_ctk is not None else "none",
-                anchor="w",
-            )
-        else:
-            self.email_label = tk.Label(
-                self,
-                text="E-mail",
-                image=self._icon_email,
-                compound="left" if self._icon_email is not None else "none",
-                anchor="w",
-            )
+        self.email_label = ctk.CTkLabel(
+            self,
+            text="E-mail",
+            image=self._icon_email_ctk,
+            compound="left" if self._icon_email_ctk is not None else "none",
+            anchor="w",
+        )
         self.email_label.grid(row=0, column=0, sticky="w", padx=8, pady=(8, 2))
 
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            self.email_entry = ctk.CTkEntry(self, textvariable=self.email_var, width=280)
-        else:
-            self.email_entry = tk.Entry(self, textvariable=self.email_var, width=36)
+        self.email_entry = ctk.CTkEntry(self, textvariable=self.email_var, width=280)
         self.email_entry.grid(row=1, column=0, padx=8, pady=(0, 8))
 
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            self.pass_label = ctk.CTkLabel(
-                self,
-                text="Senha",
-                image=self._icon_senha_ctk,
-                compound="left" if self._icon_senha_ctk is not None else "none",
-                anchor="w",
-            )
-        else:
-            self.pass_label = tk.Label(
-                self,
-                text="Senha",
-                image=self._icon_senha,
-                compound="left" if self._icon_senha is not None else "none",
-                anchor="w",
-            )
+        self.pass_label = ctk.CTkLabel(
+            self,
+            text="Senha",
+            image=self._icon_senha_ctk,
+            compound="left" if self._icon_senha_ctk is not None else "none",
+            anchor="w",
+        )
         self.pass_label.grid(row=2, column=0, sticky="w", padx=8, pady=(8, 2))
 
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            self.pass_entry = ctk.CTkEntry(self, textvariable=self.pass_var, width=280, show="•")
-        else:
-            self.pass_entry = tk.Entry(self, textvariable=self.pass_var, width=36, show="•")
+        self.pass_entry = ctk.CTkEntry(self, textvariable=self.pass_var, width=280, show="•")
         self.pass_entry.grid(row=3, column=0, padx=8, pady=(0, 8))
 
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            self.remember_email_check = ctk.CTkCheckBox(
-                self,
-                text="Lembrar e-mail",
-                variable=self.remember_email_var,
-            )
-        else:
-            self.remember_email_check = tk.Checkbutton(
-                self,
-                text="Lembrar e-mail",
-                variable=self.remember_email_var,
-            )
+        self.remember_email_check = ctk.CTkCheckBox(
+            self,
+            text="Lembrar e-mail",
+            variable=self.remember_email_var,
+        )
         self.remember_email_check.grid(row=4, column=0, padx=8, pady=(0, 4), sticky="w")
 
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            self.keep_logged_check = ctk.CTkCheckBox(
-                self,
-                text="Não pedir senha por 7 dias",
-                variable=self.keep_logged_var,
-            )
-        else:
-            self.keep_logged_check = tk.Checkbutton(
-                self,
-                text="Não pedir senha por 7 dias",
-                variable=self.keep_logged_var,
-            )
+        self.keep_logged_check = ctk.CTkCheckBox(
+            self,
+            text="Não pedir senha por 7 dias",
+            variable=self.keep_logged_var,
+        )
         self.keep_logged_check.grid(row=5, column=0, padx=8, pady=(0, 4), sticky="w")
 
         self.separator_bottom = ctk.CTkFrame(self, height=2, corner_radius=0, fg_color=("#cccccc", "#444444"))
         self.separator_bottom.grid(row=6, column=0, columnspan=2, padx=8, pady=(12, 8), sticky="ew")
 
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            self.buttons_frame = ctk.CTkFrame(self, fg_color="transparent")
-        else:
-            self.buttons_frame = tk.Frame(self)
+        self.buttons_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.buttons_frame.grid(row=7, column=0, columnspan=2, padx=8, pady=(8, 12))
 
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            self.exit_btn = make_btn(
-                self.buttons_frame,
-                text="Sair",
-                command=self._on_exit,
-                fg_color="#dc3545",
-                hover_color="#c82333",
-            )
-        else:
-            self.exit_btn = tk.Button(
-                self.buttons_frame,
-                text="Sair",
-                command=self._on_exit,
-                bg="#dc3545",
-                fg="white",
-            )
+        self.exit_btn = make_btn(
+            self.buttons_frame,
+            text="Sair",
+            command=self._on_exit,
+            fg_color="#dc3545",
+            hover_color="#c82333",
+        )
         self.exit_btn.pack(side="left", padx=(0, 8))
 
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            self.login_btn = make_btn(
-                self.buttons_frame,
-                text="Entrar",
-                command=self._do_login,
-            )
-        else:
-            self.login_btn = tk.Button(
-                self.buttons_frame,
-                text="Entrar",
-                command=self._do_login,
-                bg="#007bff",
-                fg="white",
-            )
+        self.login_btn = make_btn(
+            self.buttons_frame,
+            text="Entrar",
+            command=self._do_login,
+        )
         self.login_btn.pack(side="left")
 
         # Bindings
@@ -274,7 +203,7 @@ class LoginDialog(tk.Toplevel):
         password = self.pass_var.get()
 
         if not email or not password:
-            messagebox.showerror("Erro", "Preencha e-mail e senha.", parent=self)
+            show_error(self, "Erro", "Preencha e-mail e senha.")
             return
 
         client = get_supabase()
@@ -293,11 +222,7 @@ class LoginDialog(tk.Toplevel):
             log.info(f"Login OK: user.id={uid} | token={'presente' if token else 'ausente'}")
 
             if not token:
-                messagebox.showerror(
-                    "Erro",
-                    "Login não gerou token. Verifique credenciais/E-mail confirmado.",
-                    parent=self,
-                )
+                show_error(self, "Erro", "Login não gerou token. Verifique credenciais/E-mail confirmado.")
                 return
 
             # >>>>>>> ATUALIZA USUÁRIO ATUAL (carrega org_id da memberships)
@@ -347,7 +272,7 @@ class LoginDialog(tk.Toplevel):
             self.login_success = True
             self.destroy()
         else:
-            messagebox.showerror("Erro no login", msg, parent=self)
+            show_error(self, "Erro no login", msg)
             # Se bloqueado, disable botão por segundos
             m = re.search(r"Aguarde (\d+)s", msg)
             if m:
@@ -361,7 +286,13 @@ class LoginDialog(tk.Toplevel):
     def _disable_for(self, seconds: int):
         self.login_btn.config(state="disabled")
         self._unbind_enter()  # Desabilita Enter
-        self.after(seconds * 1000, lambda: self._enable_btn())
+        def _re_enable():
+            try:
+                if self.winfo_exists():
+                    self._enable_btn()
+            except Exception:
+                pass
+        self.after(seconds * 1000, _re_enable)
 
     def _enable_btn(self):
         self.login_btn.config(state="normal")

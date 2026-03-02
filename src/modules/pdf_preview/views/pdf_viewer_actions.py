@@ -46,7 +46,7 @@ def download_pdf(viewer: PdfViewerWin) -> None:
     Args:
         viewer: Instância do PdfViewerWin
     """
-    from tkinter import messagebox
+    from src.ui.dialogs.rc_dialogs import show_error, show_info, show_warning
     from src.modules.pdf_preview.download_service import (
         DownloadContext,
         get_default_download_dir,
@@ -65,15 +65,15 @@ def download_pdf(viewer: PdfViewerWin) -> None:
         pdf_path = getattr(viewer, "_pdf_path", None)
 
         if not pdf_bytes and not (pdf_path and os.path.exists(pdf_path)):
-            messagebox.showwarning("Baixar PDF", "Nenhum PDF carregado.", parent=viewer)
+            show_warning(viewer, "Baixar PDF", "Nenhum PDF carregado.")
             return
 
         dst = save_pdf(pdf_bytes, pdf_path, ctx)
-        messagebox.showinfo("Baixar PDF", f"Salvo em:\n{dst}", parent=viewer)
+        show_info(viewer, "Baixar PDF", f"Salvo em:\n{dst}")
 
     except Exception as e:
         try:
-            messagebox.showerror("Baixar PDF", f"Erro ao salvar: {e}", parent=viewer)
+            show_error(viewer, "Baixar PDF", f"Erro ao salvar: {e}")
         except Exception as exc:
             logger.debug("Falha ao exibir erro ao salvar PDF: %s", exc)
 
@@ -84,7 +84,7 @@ def download_image(viewer: PdfViewerWin) -> None:
     Args:
         viewer: Instância do PdfViewerWin
     """
-    from tkinter import messagebox
+    from src.ui.dialogs.rc_dialogs import show_error, show_info
     from src.modules.pdf_preview.download_service import (
         DownloadContext,
         get_default_download_dir,
@@ -117,12 +117,12 @@ def download_image(viewer: PdfViewerWin) -> None:
 
     try:
         dst = save_image(pil, ctx)
-        messagebox.showinfo("Baixar imagem", f"Salvo em:\n{dst}", parent=viewer)
+        show_info(viewer, "Baixar imagem", f"Salvo em:\n{dst}")
     except Exception as exc:  # noqa: BLE001
         # Salvar pode falhar - mostra erro ao usuário
         logger.debug("Falha ao salvar imagem: %s", type(exc).__name__)
         try:
-            messagebox.showerror("Baixar imagem", "Erro ao salvar a imagem.", parent=viewer)
+            show_error(viewer, "Baixar imagem", "Erro ao salvar a imagem.")
         except Exception as msg_exc:
             logger.debug("Falha ao exibir erro ao salvar imagem: %s", msg_exc)
 

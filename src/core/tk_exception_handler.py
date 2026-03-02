@@ -57,16 +57,15 @@ def install_global_exception_handler(tk_root: Any) -> None:
                     f"Veja o log completo no console.",
                     parent=tk_root,
                 )
-            except Exception:
-                # Não falhar se messagebox der erro
-                pass
+            except Exception as _mb_exc:  # noqa: BLE001
+                log.debug("Falha ao exibir messagebox de erro dev: %s", _mb_exc)
 
         # Chamar handler original se existir
         if original_handler and callable(original_handler):
             try:
                 original_handler(exc_type, exc_value, exc_tb)
-            except Exception:
-                pass
+            except Exception as _orig_exc:  # noqa: BLE001
+                log.debug("Falha no handler original de exceção Tk: %s", _orig_exc)
 
     # Instalar handler
     tk_root.report_callback_exception = _handle_exception

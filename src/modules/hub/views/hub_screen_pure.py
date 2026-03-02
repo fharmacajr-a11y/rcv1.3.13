@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 
 try:
     from src.core.logger import get_logger
-except Exception:
+except ImportError:
     import logging
 
     def get_logger(name: str = __name__):
@@ -31,9 +31,9 @@ def get_local_timezone():
         import tzlocal  # type: ignore[import-not-found]
 
         return tzlocal.get_localzone()
-    except Exception:
+    except ImportError:
         # Fallback: usa tzinfo do sistema
         try:
             return datetime.now().astimezone().tzinfo
-        except Exception:
+        except OSError:
             return timezone.utc

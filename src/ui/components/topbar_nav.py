@@ -9,6 +9,7 @@ from __future__ import annotations
 from src.ui.ctk_config import ctk
 
 from src.ui.widgets.button_factory import make_btn
+from src.ui.ui_tokens import PRIMARY_BLUE, PRIMARY_BLUE_HOVER
 
 import logging
 import os
@@ -146,8 +147,8 @@ class TopbarNav(ctk.CTkFrame):
             self,
             text="Inicio",
             command=self._handle_home,
-            fg_color=("#2563eb", "#3b82f6"),
-            hover_color=("#1d4ed8", "#2563eb"),
+            fg_color=PRIMARY_BLUE,
+            hover_color=PRIMARY_BLUE_HOVER,
             text_color="#ffffff",
             font=("Segoe UI", 11, "bold"),
         )

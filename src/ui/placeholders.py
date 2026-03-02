@@ -7,7 +7,7 @@ import tkinter as tk
 import tkinter.font as tkfont
 from typing import Protocol, Type
 
-from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+from src.ui.ctk_config import ctk
 from src.ui.utils.binding_tracker import BindingTracker
 from src.ui.widgets.button_factory import make_btn
 
@@ -20,38 +20,25 @@ class _BackCb(Protocol):
     def __call__(self) -> None: ...
 
 
-class _BasePlaceholder(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame):  # type: ignore[misc]
+class _BasePlaceholder(ctk.CTkFrame):  # type: ignore[misc]
     title: str = "Em breve"
 
     def __init__(self, master, *, on_back: _BackCb | None = None, **_):
         super().__init__(master)
         self._binding_tracker = BindingTracker()
 
-        # Configurar fonte para CTk e tk
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            header_font = ("Arial", 16, "bold")  # CTk aceita tuplas
-        else:
-            header_font = tkfont.nametofont("TkDefaultFont").copy()
-            header_font.configure(size=16, weight="bold")
+        # Configurar fonte para CTk
+        header_font = ("Arial", 16, "bold")  # CTk aceita tuplas
 
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            top = ctk.CTkFrame(self, fg_color="transparent")
-            center = ctk.CTkFrame(self, fg_color="transparent")
-        else:
-            top = tk.Frame(self)
-            center = tk.Frame(self)
+        top = ctk.CTkFrame(self, fg_color="transparent")
+        center = ctk.CTkFrame(self, fg_color="transparent")
 
         top.pack(fill="x", padx=10, pady=(10, 0))
         center.pack(expand=True, fill="both")
 
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            header = ctk.CTkLabel(center, text=self.title, font=header_font)
-            desc = ctk.CTkLabel(center, text="Funcionalidade em desenvolvimento.")
-            btn = make_btn(center, text="Voltar")
-        else:
-            header = tk.Label(center, text=self.title, font=header_font)
-            desc = tk.Label(center, text="Funcionalidade em desenvolvimento.")
-            btn = tk.Button(center, text="Voltar")
+        header = ctk.CTkLabel(center, text=self.title, font=header_font)
+        desc = ctk.CTkLabel(center, text="Funcionalidade em desenvolvimento.")
+        btn = make_btn(center, text="Voltar")
 
         header.pack(pady=(0, 6))
         desc.pack(pady=(0, 16))
@@ -68,7 +55,6 @@ class _BasePlaceholder(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkF
             self.master.pack_propagate(False)
         except Exception as exc:  # noqa: BLE001
             _log.debug("Falha ao desabilitar pack_propagate: %s", exc)
-
 
     def _on_placeholder_destroy(self, event: tk.Event) -> None:  # type: ignore[override]
         """Remove bind_all global ao destruir (Fase 13)."""
@@ -104,17 +90,12 @@ except NameError:
         ComingSoonScreen = _BasePlaceholder  # type: ignore[name-defined]
     except Exception:
 
-        class ComingSoonScreen(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkFrame):  # type: ignore[misc]
+        class ComingSoonScreen(ctk.CTkFrame):  # type: ignore[misc]
             def __init__(self, master=None, text: str = "Em breve...", **kwargs):
                 super().__init__(master, **kwargs)
-                if HAS_CUSTOMTKINTER and ctk is not None:
-                    container = ctk.CTkFrame(self)
-                    container.pack(fill="both", expand=True, padx=24, pady=24)
-                    title = ctk.CTkLabel(container, text=text)
-                else:
-                    container = tk.Frame(self)
-                    container.pack(fill="both", expand=True, padx=24, pady=24)
-                    title = tk.Label(container, text=text)
+                container = ctk.CTkFrame(self)
+                container.pack(fill="both", expand=True, padx=24, pady=24)
+                title = ctk.CTkLabel(container, text=text)
                 title.pack(anchor="center", pady=8)
 
 

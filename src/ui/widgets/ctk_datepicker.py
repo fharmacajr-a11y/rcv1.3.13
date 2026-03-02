@@ -12,6 +12,7 @@ from datetime import date, datetime
 from typing import Callable, Optional
 
 from src.ui.ctk_config import ctk  # SSoT
+from src.ui.utils.binding_tracker import BindingTracker
 
 
 class CTkDatePicker(ctk.CTkFrame):
@@ -40,6 +41,10 @@ class CTkDatePicker(ctk.CTkFrame):
         self._command = command
         self._selected_date = startdate or date.today()
 
+        # Rastreador de bindings para cleanup no destroy
+        self._bindings = BindingTracker()
+        self._popup: ctk.CTkToplevel | None = None
+
         # Entry para exibir data
         self.entry_var = tk.StringVar(value=self._selected_date.strftime(dateformat))
         self.entry = ctk.CTkEntry(
@@ -59,8 +64,23 @@ class CTkDatePicker(ctk.CTkFrame):
         self.calendar_button.pack(side="left")
 
         # Validação ao sair do Entry
-        self.entry.bind("<FocusOut>", self._validate_entry)
-        self.entry.bind("<Return>", self._validate_entry)
+        self._bindings.bind(self.entry, "<FocusOut>", self._validate_entry)
+        self._bindings.bind(self.entry, "<Return>", self._validate_entry)
+
+        # Cleanup de bindings ao destruir o widget
+        self.bind("<Destroy>", self._on_datepicker_destroy)
+
+    def _on_datepicker_destroy(self, event: tk.Event | None = None) -> None:
+        """Cleanup de bindings ao destruir o DatePicker."""
+        if event is not None and event.widget is not self:
+            return
+        if self._popup is not None:
+            try:
+                self._popup.destroy()
+            except (tk.TclError, AttributeError):
+                pass
+            self._popup = None
+        self._bindings.unbind_all()
 
     def _validate_entry(self, event: Optional[tk.Event] = None) -> None:
         """Valida o texto do Entry e atualiza a data selecionada."""
@@ -80,7 +100,16 @@ class CTkDatePicker(ctk.CTkFrame):
 
     def _show_calendar(self) -> None:
         """Abre popup com calendário para seleção."""
+        # Destroi popup anterior se existir (evita janelas zumbi)
+        if self._popup is not None:
+            try:
+                self._popup.destroy()
+            except (tk.TclError, AttributeError):
+                pass
+            self._popup = None
+
         popup = ctk.CTkToplevel(self)
+        self._popup = popup
         popup.title("Selecionar Data")
         popup.resizable(False, False)
         popup.transient(self.winfo_toplevel())
@@ -181,7 +210,7 @@ class CTkDatePicker(ctk.CTkFrame):
             width=80,
             fg_color="gray",
             hover_color="darkgray",
-            command=popup.destroy,
+            command=lambda: (setattr(self, '_popup', None), popup.destroy()),
         ).pack(side="left", padx=5)
 
         # Mostrar calendário inicial
@@ -230,6 +259,7 @@ class CTkDatePicker(ctk.CTkFrame):
         self.entry_var.set(selected.strftime(self.dateformat))
         if self._command:
             self._command(selected)
+        self._popup = None
         popup.destroy()
 
     def get(self) -> str:

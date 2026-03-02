@@ -333,6 +333,8 @@ class CTkTreeview(ttk.Treeview):
                 return
 
         column_box = self.bbox(selected_iid, column)
+        if not column_box:
+            return
 
         x, y, w, h = cast("tuple[int, int, int, int]", column_box)
 

@@ -14,7 +14,7 @@ from src.ui.window_utils import show_centered
 log = logging.getLogger(__name__)
 
 
-class ChatGPTWindow(tk.Toplevel):
+class ChatGPTWindow(ctk.CTkToplevel):
     """Janela de chat simples integrada a API da OpenAI."""
 
     def __init__(
@@ -80,7 +80,7 @@ class ChatGPTWindow(tk.Toplevel):
         main = ctk.CTkFrame(self)  # TODO: padding=10 -> usar padx/pady no pack/grid
         main.pack(fill="both", expand=True)
 
-        self._history = tk.Text(main, wrap="word", state="disabled", height=20)
+        self._history = ctk.CTkTextbox(main, wrap="word", state="disabled", height=20)
         scroll = ctk.CTkScrollbar(main, command=self._history.yview)
         self._history.configure(yscrollcommand=scroll.set)
 

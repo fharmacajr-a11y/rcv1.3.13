@@ -17,7 +17,6 @@ from src.ui.ui_tokens import (
     CARD_RADIUS,
 )
 
-from src.ui.ctk_config import HAS_CUSTOMTKINTER
 from src.modules.hub.constants import HUB_TITLE, NEW_NOTE_LABEL, PAD_OUTER
 from src.modules.hub.views.notes_text_renderer import render_notes_text
 from src.modules.hub.views.notes_text_interactions import install_notes_context_menu
@@ -73,47 +72,29 @@ def build_notes_panel(
     content_frame.rowconfigure(0, weight=1)  # history expands
 
     # --- History (read-only) ---
-    if HAS_CUSTOMTKINTER and ctk is not None:
-        history_frame = ctk.CTkFrame(content_frame)
-    else:
-        history_frame = tk.Frame(content_frame)
+    history_frame = ctk.CTkFrame(content_frame)
     history_frame.grid(row=0, column=0, sticky="nsew", pady=(0, 8))
     history_frame.columnconfigure(0, weight=1)
     history_frame.rowconfigure(0, weight=1)
 
-    if HAS_CUSTOMTKINTER and ctk is not None:
-        notes_history = ctk.CTkTextbox(
-            history_frame,
-            width=480,
-            height=400,
-            wrap="word",
-            font=FONT_BODY,
-            fg_color=INNER_SURFACE,
-        )
-        # Ajustar padding interno do textbox (acesso ao tk.Text interno)
-        try:
-            notes_history._textbox.configure(padx=10, pady=8)
-            notes_history._textbox.configure(spacing1=2, spacing3=2)  # line spacing
-        except (AttributeError, Exception):
-            pass
-        # Para read-only no CTkTextbox, usar helper em vez de state=disabled
-        from src.ui.ctk_text_compat import configure_text_readonly
+    notes_history = ctk.CTkTextbox(
+        history_frame,
+        width=480,
+        height=400,
+        wrap="word",
+        font=FONT_BODY,
+        fg_color=INNER_SURFACE,
+    )
+    # Ajustar padding interno do textbox (acesso ao tk.Text interno)
+    try:
+        notes_history._textbox.configure(padx=10, pady=8)
+        notes_history._textbox.configure(spacing1=2, spacing3=2)  # line spacing
+    except (AttributeError, Exception):
+        pass
+    # Para read-only no CTkTextbox, usar helper em vez de state=disabled
+    from src.ui.ctk_text_compat import configure_text_readonly
 
-        configure_text_readonly(notes_history)
-    else:
-        notes_history = tk.Text(
-            history_frame,
-            width=48,
-            height=20,
-            wrap="word",
-            font=FONT_BODY,
-            state="disabled",  # read-only
-        )
-        # Usar ctk.CTkScrollbar apenas se CTk disponível
-        if HAS_CUSTOMTKINTER and ctk is not None:
-            scrollbar = ctk.CTkScrollbar(history_frame, command=notes_history.yview)
-            scrollbar.grid(row=0, column=1, sticky="ns")
-            notes_history.configure(yscrollcommand=scrollbar.set)
+    configure_text_readonly(notes_history)
 
     notes_history.grid(row=0, column=0, sticky="nsew")
 
@@ -128,37 +109,21 @@ def build_notes_panel(
     )
 
     # --- New note entry ---
-    if HAS_CUSTOMTKINTER and ctk is not None:
-        entry_frame = ctk.CTkFrame(content_frame, fg_color=SURFACE_DARK, corner_radius=8)
-    else:
-        entry_frame = tk.Frame(content_frame)
+    entry_frame = ctk.CTkFrame(content_frame, fg_color=SURFACE_DARK, corner_radius=8)
     entry_frame.grid(row=1, column=0, sticky="ew", pady=(8, 0))
     entry_frame.columnconfigure(0, weight=1)
 
-    if HAS_CUSTOMTKINTER and ctk is not None:
-        label = ctk.CTkLabel(entry_frame, text=NEW_NOTE_LABEL, font=("", 9))
-    else:
-        label = tk.Label(entry_frame, text=NEW_NOTE_LABEL, font=("", 9))
+    label = ctk.CTkLabel(entry_frame, text=NEW_NOTE_LABEL, font=("", 9))
     label.grid(row=0, column=0, sticky="w", pady=(0, 4))
 
-    if HAS_CUSTOMTKINTER and ctk is not None:
-        new_note_entry = ctk.CTkTextbox(entry_frame, height=60, wrap="word", fg_color=INNER_SURFACE, corner_radius=6)
-    else:
-        new_note_entry = tk.Text(entry_frame, height=3, wrap="word")
+    new_note_entry = ctk.CTkTextbox(entry_frame, height=60, wrap="word", fg_color=INNER_SURFACE, corner_radius=6)
     new_note_entry.grid(row=1, column=0, sticky="ew", pady=(0, 6))
 
-    if HAS_CUSTOMTKINTER and ctk is not None:
-        btn_add_note = make_btn(
-            entry_frame,
-            text="Adicionar",
-            command=on_add_note_click if on_add_note_click else None,
-        )
-    else:
-        btn_add_note = tk.Button(
-            entry_frame,
-            text="Adicionar",
-            command=on_add_note_click if on_add_note_click else None,
-        )
+    btn_add_note = make_btn(
+        entry_frame,
+        text="Adicionar",
+        command=on_add_note_click if on_add_note_click else None,
+    )
     btn_add_note.grid(row=2, column=0, sticky="e")
 
     # Store widgets for external access (HubScreen compatibility)
@@ -265,7 +230,7 @@ def _render_notes_to_text_widget(text_widget, state: "NotesViewState") -> None:
 
             # 3) Fallback: prefixo do email
             return email.split("@")[0].replace(".", " ").title()
-        except Exception:
+        except (OSError, KeyError, ValueError):
             # Fallback seguro
             return email.split("@")[0].replace(".", " ").title() if email else "Usuário"
 

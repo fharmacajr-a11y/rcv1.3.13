@@ -8,6 +8,7 @@ Verifica que:
   b) edit_row(0, font=header_font) é chamado quando headers estão presentes
   c) quando não há headers, edit_row não é chamado
 """
+
 from __future__ import annotations
 
 import importlib
@@ -15,13 +16,15 @@ import importlib.util
 import sys
 import types
 import unittest
+from pathlib import Path
 from typing import Any, cast
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock
 
 
 # ---------------------------------------------------------------------------
 # Stubs mínimos para importar ctk_tableview sem UI real
 # ---------------------------------------------------------------------------
+
 
 def _build_fake_ctk():
     """Cria um módulo ctk fake suficiente para importar CTkTableView."""
@@ -31,9 +34,14 @@ def _build_fake_ctk():
         def __init__(self, master=None, **kw):
             self.master = master
 
-        def pack(self, **kw): pass
-        def destroy(self): pass
-        def winfo_exists(self): return True
+        def pack(self, **kw):
+            pass
+
+        def destroy(self):
+            pass
+
+        def winfo_exists(self):
+            return True
 
     fake.CTkFrame = FakeCTkFrame
     fake.CTkLabel = MagicMock()
@@ -86,8 +94,11 @@ def _install_stubs():
             FakeCTkTable._instances.append(self)
             self.edit_row_calls: list = []
 
-        def pack(self, **kw): pass
-        def destroy(self): pass
+        def pack(self, **kw):
+            pass
+
+        def destroy(self):
+            pass
 
         def edit_row(self, row, **kwargs):
             self.edit_row_calls.append((row, kwargs))
@@ -102,8 +113,8 @@ def _install_stubs():
 # Fixture para obter a instância da FakeCTkTable criada durante os testes
 # ---------------------------------------------------------------------------
 
-class TestCTkTableViewHeaderFont(unittest.TestCase):
 
+class TestCTkTableViewHeaderFont(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Salva estado anterior — restaurado em tearDownClass
@@ -121,7 +132,7 @@ class TestCTkTableViewHeaderFont(unittest.TestCase):
         # Carrega o módulo diretamente (bypassa __init__.py que puxa ctk_treeview)
         spec = importlib.util.spec_from_file_location(
             "src.ui.widgets.ctk_tableview",
-            r"c:\Users\Pichau\Desktop\v1.5.73\src\ui\widgets\ctk_tableview.py",
+            str(Path(__file__).resolve().parent.parent / "src" / "ui" / "widgets" / "ctk_tableview.py"),
         )
         cls.mod = importlib.util.module_from_spec(spec)
         sys.modules["src.ui.widgets.ctk_tableview"] = cls.mod
@@ -210,6 +221,7 @@ class TestCTkTableViewHeaderFont(unittest.TestCase):
     def test_edit_row_font_matches_spec(self):
         """A font passada para edit_row deve usar os valores de TABLE_UI_SPEC."""
         from src.ui.table_ui_spec import TABLE_UI_SPEC
+
         self._make_view(headers=["X"], rows=[["y"]])
         inst = self.FakeCTkTable._instances[-1]
         _, kwargs = inst.edit_row_calls[0]

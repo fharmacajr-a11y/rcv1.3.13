@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import logging
 from datetime import date, timedelta
-from tkinter import StringVar, messagebox
+from tkinter import StringVar
 from typing import Optional
+
+from src.ui.dialogs.rc_dialogs import show_info, show_error, show_warning, ask_yes_no
 
 from src.ui.ctk_config import ctk
 from src.ui.widgets.button_factory import make_btn
@@ -125,7 +127,7 @@ class CashflowWindow(ctk.CTkToplevel):
             dto = date.fromisoformat(self.var_to.get())
             return dfrom, dto
         except Exception:
-            messagebox.showerror("Datas inv?lidas", "Use o formato YYYY-MM-DD", parent=self)
+            show_error(self, "Datas inv?lidas", "Use o formato YYYY-MM-DD")
             return None
 
     def _get_type_filter(self) -> Optional[str]:
@@ -141,10 +143,10 @@ class CashflowWindow(ctk.CTkToplevel):
         try:
             return repo.list_entries(dfrom, dto, tfilter, self.var_text.get().strip(), org_id=self._org_id)
         except Exception as e:
-            messagebox.showwarning(
+            show_warning(
+                self,
                 "Fluxo de Caixa",
                 f"{e}\n\nDica: verifique RLS e se 'org_id' está presente.",
-                parent=self,
             )
             return []
 
@@ -255,12 +257,12 @@ class CashflowWindow(ctk.CTkToplevel):
                 repo.create_entry(payload, org_id=self._org_id)
                 self.refresh()
             except Exception as e:
-                messagebox.showerror("Fluxo de Caixa", str(e), parent=self)
+                show_error(self, "Fluxo de Caixa", str(e))
 
     def edit(self) -> None:
         iid = self._selected_id()
         if not iid:
-            messagebox.showinfo("Selecione", "Escolha um lançamento para editar.", parent=self)
+            show_info(self, "Selecione", "Escolha um lançamento para editar.")
             return
 
         # Pegar dados da linha selecionada
@@ -289,19 +291,19 @@ class CashflowWindow(ctk.CTkToplevel):
                 repo.update_entry(iid, payload)
                 self.refresh()
             except Exception as e:
-                messagebox.showerror("Fluxo de Caixa", str(e), parent=self)
+                show_error(self, "Fluxo de Caixa", str(e))
 
     def delete(self) -> None:
         iid = self._selected_id()
         if not iid:
-            messagebox.showinfo("Selecione", "Escolha um lançamento para excluir.", parent=self)
+            show_info(self, "Selecione", "Escolha um lançamento para excluir.")
             return
-        if messagebox.askyesno("Confirma", "Excluir este lançamento?", parent=self):
+        if ask_yes_no(self, "Confirma", "Excluir este lançamento?"):
             try:
                 repo.delete_entry(iid)
                 self.refresh()
             except Exception as e:
-                messagebox.showerror("Fluxo de Caixa", str(e), parent=self)
+                show_error(self, "Fluxo de Caixa", str(e))
 
 
 def open_cashflow_window(master) -> None:

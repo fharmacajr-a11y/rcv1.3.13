@@ -36,9 +36,8 @@ class PdfPageView(ctk.CTkFrame):
 
         self.canvas = tk.Canvas(self, highlightthickness=0, bg="#f3f3f3")
         self._current_image: tk.PhotoImage | None = None
-        # Usa tk.Scrollbar ao invés de ctk.CTkScrollbar para evitar crash de
-        # access violation em Python 3.13 + ttkbootstrap (element_create bug)
-        vs = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        # Scrollbar vertical (CustomTkinter)
+        vs = ctk.CTkScrollbar(self, orientation="vertical", command=self.canvas.yview)
         self.canvas.configure(yscrollcommand=vs.set)
         self.canvas.pack(side="left", fill="both", expand=True)
         vs.pack(side="right", fill="y")

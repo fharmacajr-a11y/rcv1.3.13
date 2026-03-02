@@ -6,10 +6,13 @@ from __future__ import annotations
 import logging
 import os
 import tkinter as tk
-from tkinter import messagebox
 from typing import Any, Callable, Optional
 
+from src.ui.dialogs.rc_dialogs import show_info, show_error, show_warning, ask_yes_no
+
 from src.ui.controllers import NotificationVM, TopbarNotificationsController
+from src.ui.ctk_config import ctk
+from src.ui.widgets.button_factory import make_btn
 from src.utils.resource_path import resource_path
 
 _log = logging.getLogger(__name__)
@@ -136,7 +139,7 @@ class NotificationsPopup:
         from src.ui.window_utils import prepare_hidden_window, show_centered_no_flash
 
         # Criar popup
-        popup = tk.Toplevel(self._parent)
+        popup = ctk.CTkToplevel(self._parent)
         popup.title("Notificações")
         popup.geometry("520x330")
         popup.minsize(480, 300)
@@ -208,17 +211,18 @@ class NotificationsPopup:
         buttons_frame = ctk.CTkFrame(main_frame)
         buttons_frame.pack(fill="x", pady=(10, 0))
 
-        btn_mark_read = tk.Button(
+        btn_mark_read = make_btn(
             buttons_frame,
             text="Marcar Tudo como Lido",
             command=self._handle_mark_all_read,
-            bg="#28a745",
-            fg="white",
+            fg_color="#28a745",
+            hover_color="#1e7e34",
+            text_color="white",
         )
         btn_mark_read.pack(side="left", padx=(0, 10))
 
         # Botão Excluir Selecionada (pra mim)
-        btn_delete_selected = tk.Button(
+        btn_delete_selected = make_btn(
             buttons_frame,
             text="Excluir Selecionada",
             command=self._handle_delete_selected,
@@ -226,12 +230,13 @@ class NotificationsPopup:
         btn_delete_selected.pack(side="left", padx=(0, 10))
 
         # Botão Excluir Todas (pra mim)
-        btn_delete_all = tk.Button(
+        btn_delete_all = make_btn(
             buttons_frame,
             text="Excluir Todas (pra mim)",
             command=self._handle_delete_all,
-            bg="#dc3545",
-            fg="white",
+            fg_color="#dc3545",
+            hover_color="#c82333",
+            text_color="white",
         )
         btn_delete_all.pack(side="left", padx=(0, 10))
 
@@ -245,7 +250,7 @@ class NotificationsPopup:
         )
         chk_mute.pack(side="left")
 
-        btn_close = tk.Button(
+        btn_close = make_btn(
             buttons_frame,
             text="Fechar",
             command=self.close,
@@ -339,7 +344,7 @@ class NotificationsPopup:
             f"Usuário: {payload['user']}"
         )
 
-        messagebox.showinfo("Detalhes da Notificação", details, parent=self._popup)
+        show_info(self._popup, "Detalhes da Notificação", details)
 
     def _handle_mute_toggled(self) -> None:
         """Callback quando usuário alterna o estado de silenciar."""
@@ -362,18 +367,18 @@ class NotificationsPopup:
             try:
                 success = self._on_mark_all_read()
                 if not success:
-                    messagebox.showerror(
+                    show_error(
+                        self._popup,
                         "Erro",
                         "Falha ao marcar notificações como lidas. Tente novamente.",
-                        parent=self._popup,
                     )
                     return
             except Exception as exc:  # noqa: BLE001
                 _log.exception("Falha ao executar on_mark_all_read: %s", exc)
-                messagebox.showerror(
+                show_error(
+                    self._popup,
                     "Erro",
                     f"Erro ao marcar notificações como lidas: {exc}",
-                    parent=self._popup,
                 )
                 return
 
@@ -399,10 +404,10 @@ class NotificationsPopup:
         # Obter item selecionado
         selection = self._tree.selection()
         if not selection:
-            messagebox.showwarning(
+            show_warning(
+                self._popup,
                 "Aviso",
                 "Selecione uma notificação para excluir.",
-                parent=self._popup,
             )
             return
 
@@ -414,10 +419,10 @@ class NotificationsPopup:
             return
 
         # Confirmar exclusão
-        confirm = messagebox.askyesno(
+        confirm = ask_yes_no(
+            self._popup,
             "Confirmar Exclusão",
             "Excluir esta notificação da SUA lista?\n\n(Outros usuários ainda verão esta notificação)",
-            parent=self._popup,
         )
         if not confirm:
             return
@@ -427,18 +432,18 @@ class NotificationsPopup:
             try:
                 success = self._on_delete_selected(iid)
                 if not success:
-                    messagebox.showerror(
+                    show_error(
+                        self._popup,
                         "Erro",
                         "Falha ao excluir notificação. Tente novamente.",
-                        parent=self._popup,
                     )
                     return
             except Exception as exc:  # noqa: BLE001
                 _log.exception("Falha ao executar on_delete_selected: %s", exc)
-                messagebox.showerror(
+                show_error(
+                    self._popup,
                     "Erro",
                     f"Erro ao excluir notificação: {exc}",
-                    parent=self._popup,
                 )
                 return
 
@@ -452,13 +457,13 @@ class NotificationsPopup:
     def _handle_delete_all(self) -> None:
         """Exclui todas as notificações (apenas para o usuário atual)."""
         # Confirmar exclusão
-        confirm = messagebox.askyesno(
+        confirm = ask_yes_no(
+            self._popup,
             "Confirmar Exclusão",
             "Excluir TODAS as notificações da SUA lista?\n\n"
             "⚠️ Isso limpa apenas a SUA lista de notificações.\n"
             "Outros usuários não serão afetados.\n\n"
             "Novas notificações continuarão aparecendo normalmente.",
-            parent=self._popup,
         )
         if not confirm:
             return
@@ -468,18 +473,18 @@ class NotificationsPopup:
             try:
                 success = self._on_delete_all()
                 if not success:
-                    messagebox.showerror(
+                    show_error(
+                        self._popup,
                         "Erro",
                         "Falha ao excluir notificações. Tente novamente.",
-                        parent=self._popup,
                     )
                     return
             except Exception as exc:  # noqa: BLE001
                 _log.exception("Falha ao executar on_delete_all: %s", exc)
-                messagebox.showerror(
+                show_error(
+                    self._popup,
                     "Erro",
                     f"Erro ao excluir notificações: {exc}",
-                    parent=self._popup,
                 )
                 return
 

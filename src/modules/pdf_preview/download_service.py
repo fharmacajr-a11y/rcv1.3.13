@@ -69,15 +69,27 @@ def build_unique_path(ctx: DownloadContext) -> Path:
 def save_pdf(bytes_data: Optional[bytes], source_path: Optional[str], ctx: DownloadContext) -> Path:
     """
     Salva um PDF vindo de bytes ou copia a partir de um caminho existente.
+
+    Raises:
+        OSError: Se a escrita/cópia falhar (disco cheio, permissão, etc.).
+        FileNotFoundError: Se nenhum dado de PDF for fornecido.
     """
     target = build_unique_path(ctx)
     if bytes_data:
-        target.write_bytes(bytes_data)
+        try:
+            target.write_bytes(bytes_data)
+        except OSError as exc:
+            logger.error("Falha ao salvar PDF em '%s': %s", target, exc)
+            raise OSError(f"Não foi possível salvar o PDF em '{target}': {exc}") from exc
         return target
     if source_path:
         src = Path(source_path)
         if src.exists():
-            shutil.copyfile(src, target)
+            try:
+                shutil.copyfile(src, target)
+            except OSError as exc:
+                logger.error("Falha ao copiar PDF para '%s': %s", target, exc)
+                raise OSError(f"Não foi possível copiar o PDF para '{target}': {exc}") from exc
             return target
     raise FileNotFoundError("Nenhum PDF carregado.")
 

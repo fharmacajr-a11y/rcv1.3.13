@@ -308,7 +308,13 @@ class App(BaseApp):  # type: ignore[misc]
         frame = self._main_screen_frame()
         if frame is None:
             return None
-        values = frame._get_selected_values()
+        # Suporta tanto _get_selected_values (legado) quanto get_selected_values
+        fn = getattr(frame, "_get_selected_values", None) or getattr(
+            frame, "get_selected_values", None
+        )
+        if not callable(fn):
+            return None
+        values = fn()
         if values is None:
             return None
         return tuple(values)
@@ -421,9 +427,9 @@ class App(BaseApp):  # type: ignore[misc]
             log.info(f"Tema alternado para: {new_mode}")
         except Exception as exc:
             log.exception("Falha ao alternar tema: %s", exc)
-            from tkinter import messagebox
+            from src.ui.dialogs.rc_dialogs import show_error
 
-            messagebox.showerror("Erro", f"Falha ao alternar tema: {exc}", parent=self)
+            show_error(self, "Erro", f"Falha ao alternar tema: {exc}")
 
     # Manter métodos legados para compatibilidade com código antigo
     def _set_theme(self, new_theme: str) -> None:

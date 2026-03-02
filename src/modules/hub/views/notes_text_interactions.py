@@ -142,14 +142,14 @@ def install_notes_context_menu(
             if meta:
                 note_author_email = meta.get("author_email", "").strip().lower()
                 if note_author_email and current_user_email.strip().lower() != note_author_email:
-                    # Mostrar aviso usando messagebox
+                    # Mostrar aviso usando rc_dialogs
                     try:
-                        from tkinter import messagebox
+                        from src.ui.dialogs.rc_dialogs import show_info
 
-                        messagebox.showinfo("Permissão negada", "Você só pode apagar mensagens enviadas por você.")
+                        show_info(None, "Permissão negada", "Você só pode apagar mensagens enviadas por você.")
                     except Exception as msg_exc:  # noqa: BLE001
-                        # UI defensiva: messagebox pode falhar se widget foi destruído
-                        log.debug("Falha ao exibir messagebox de permissão: %s", type(msg_exc).__name__)
+                        # UI defensiva: dialog pode falhar se widget foi destruído
+                        log.debug("Falha ao exibir dialog de permissão: %s", type(msg_exc).__name__)
                     return
 
         # Chamar callback de deleção

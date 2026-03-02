@@ -94,7 +94,13 @@ def apply_fit_policy(win: tk.Misc) -> None:
             window.lift()
             window.focus_force()
             window.wm_attributes("-topmost", True)
-            window.after(10, lambda: window.wm_attributes("-topmost", False))
+            def _remove_topmost(w=window):
+                try:
+                    if w.winfo_exists():
+                        w.wm_attributes("-topmost", False)
+                except Exception:
+                    pass
+            window.after(10, _remove_topmost)
         else:
             if os.getenv("RC_DEBUG_STARTUP_UI") == "1":
                 log.info("[UI] Pulando lift/focus (janela não visível): state=%s", window.state())

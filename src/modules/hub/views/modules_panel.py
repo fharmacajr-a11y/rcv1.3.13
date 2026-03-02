@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Callable
 
 from src.ui.ctk_config import ctk
 from src.ui.ui_tokens import APP_BG, SURFACE_DARK, SURFACE, TITLE_FONT, TEXT_PRIMARY, CARD_RADIUS
+from src.ui.widgets.button_factory import make_btn
 
 
 from src.modules.hub.constants import (
@@ -39,21 +40,19 @@ class ToolTip:
             return
         x = self.widget.winfo_rootx() + 20
         y = self.widget.winfo_rooty() + self.widget.winfo_height() + 5
-        self.tipwindow = tw = tk.Toplevel(self.widget)
+        self.tipwindow = tw = ctk.CTkToplevel(self.widget)
         tw.wm_overrideredirect(True)
         tw.wm_geometry(f"+{x}+{y}")
-        label = tk.Label(
+        label = ctk.CTkLabel(
             tw,
             text=self.text,
-            justify=tk.LEFT,
-            background="#ffffe0",
-            relief=tk.SOLID,
-            borderwidth=1,
+            justify="left",
+            fg_color="#ffffe0",
+            text_color="#000000",
             wraplength=self.wraplength,
-            padx=4,
-            pady=2,
+            corner_radius=0,
         )
-        label.pack()
+        label.pack(padx=4, pady=2)
 
     def _on_leave(self, event=None):
         if self.tipwindow:
@@ -155,7 +154,7 @@ def _build_quick_actions_by_category(
             col = row_idx % 2
             row = row_idx // 2
 
-            btn = tk.Button(
+            btn = make_btn(
                 frame_category,
                 text=action.label,
                 command=lambda a_id=action.id: on_action_click(a_id),

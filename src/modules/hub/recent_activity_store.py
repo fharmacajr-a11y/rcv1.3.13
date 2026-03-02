@@ -81,7 +81,7 @@ class ActivityEvent:
         if isinstance(created_at, str):
             try:
                 created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-            except Exception:
+            except (ValueError, AttributeError):
                 created_at = None
 
         return cls(
@@ -335,7 +335,7 @@ class RecentActivityStore:
                         try:
                             event = ActivityEvent.from_dict(row)
                             events.append(event)
-                        except Exception as exc:
+                        except (KeyError, TypeError, ValueError) as exc:
                             log.warning(f"[RecentActivityStore] Erro ao converter evento do DB: {exc}")
 
                     # Enriquecer eventos antigos com razão social (bulk query)
@@ -346,7 +346,7 @@ class RecentActivityStore:
                         try:
                             event_str = format_activity_event(event)
                             self._events.append(event_str)
-                        except Exception as exc:
+                        except (AttributeError, KeyError, TypeError) as exc:
                             log.warning(f"[RecentActivityStore] Erro ao formatar evento: {exc}")
 
                     log.info(f"[RecentActivityStore] Carregados {len(self._events)} eventos do Supabase")
@@ -421,17 +421,20 @@ class RecentActivityStore:
 
 # Singleton global
 _store_instance: RecentActivityStore | None = None
+_store_lock: RLock = RLock()
 
 
 def get_recent_activity_store() -> RecentActivityStore:
-    """Retorna instância singleton do store.
+    """Retorna instância singleton do store (thread-safe).
 
     Returns:
         Instância do RecentActivityStore.
     """
     global _store_instance
     if _store_instance is None:
-        _store_instance = RecentActivityStore()
+        with _store_lock:
+            if _store_instance is None:
+                _store_instance = RecentActivityStore()
     return _store_instance
 
 
@@ -512,12 +515,12 @@ def format_activity_event(event: ActivityEvent) -> str:
 
                 tz_local = ZoneInfo("America/Sao_Paulo")
                 dt_local = dt_utc.astimezone(tz_local)
-            except Exception:
+            except (ImportError, KeyError):
                 # Fallback: usar timezone do sistema
                 dt_local = dt_utc.astimezone()
 
             timestamp = dt_local.strftime("%d/%m - %H:%M")
-        except Exception as exc:
+        except (OSError, ValueError, AttributeError) as exc:
             log.debug(f"[format_activity_event] Erro ao converter timezone: {exc}")
             timestamp = event.created_at.strftime("%d/%m - %H:%M")
     else:

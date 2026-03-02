@@ -9,7 +9,7 @@ from collections.abc import Callable
 from typing import Optional
 from PIL import Image
 
-from src.ui.ctk_config import HAS_CUSTOMTKINTER, ctk
+from src.ui.ctk_config import ctk
 from src.utils.resource_path import resource_path
 from src.version import get_version
 
@@ -83,11 +83,8 @@ def show_splash(root: tk.Misc, min_ms: int = SPLASH_MIN_DURATION_MS) -> tk.Tople
     # Criar invisível para evitar "piscada" no 0,0
     _perf_start = time.perf_counter()
 
-    # Usar CTkToplevel se disponível, senão tk.Toplevel
-    if HAS_CUSTOMTKINTER and ctk is not None:
-        splash = ctk.CTkToplevel(root)  # type: ignore[assignment]
-    else:
-        splash = tk.Toplevel(root)
+    # Usar CTkToplevel
+    splash = ctk.CTkToplevel(root)  # type: ignore[assignment]
 
     splash.withdraw()
     splash.overrideredirect(True)
@@ -99,27 +96,22 @@ def show_splash(root: tk.Misc, min_ms: int = SPLASH_MIN_DURATION_MS) -> tk.Tople
     splash._on_closed: Optional[Callable[[], None]] = None  # type: ignore[attr-defined]
 
     # Geometria + "cantos transparentes" (para SUMIR o quadrado externo)
-    if HAS_CUSTOMTKINTER and ctk is not None:
-        splash.geometry(f"{SPLASH_W}x{SPLASH_H}")
-        splash.resizable(False, False)
+    splash.geometry(f"{SPLASH_W}x{SPLASH_H}")
+    splash.resizable(False, False)
 
-        # Tentar ativar transparência de cantos (Windows)
-        try:
-            splash.configure(fg_color=TRANSPARENT_KEY)
-            splash.overrideredirect(True)
-            splash.wm_attributes("-transparentcolor", TRANSPARENT_KEY)
-            splash.wm_attributes("-topmost", True)
-        except Exception:
-            # fallback: janela normal (vai ter quadrado externo), mas mantém layout OK
-            splash.configure(fg_color=CARD_GRAY)
-            try:
-                splash.overrideredirect(False)
-            except Exception:
-                pass
-    else:
-        # Para Tk padrão
+    # Tentar ativar transparência de cantos (Windows)
+    try:
+        splash.configure(fg_color=TRANSPARENT_KEY)
         splash.overrideredirect(True)
-        splash.attributes("-topmost", True)
+        splash.wm_attributes("-transparentcolor", TRANSPARENT_KEY)
+        splash.wm_attributes("-topmost", True)
+    except Exception:
+        # fallback: janela normal (vai ter quadrado externo), mas mantém layout OK
+        splash.configure(fg_color=CARD_GRAY)
+        try:
+            splash.overrideredirect(False)
+        except Exception:
+            pass
 
     def _fit(w, h, max_w, max_h):
         """Helper para calcular tamanho proporcional mantendo aspect ratio"""
@@ -127,121 +119,73 @@ def show_splash(root: tk.Misc, min_ms: int = SPLASH_MIN_DURATION_MS) -> tk.Tople
         return max(1, int(w * s)), max(1, int(h * s))
 
     # Card único (SEM "quadrado dentro")
-    if HAS_CUSTOMTKINTER and ctk is not None:
-        card = ctk.CTkFrame(
-            splash,
-            fg_color=CARD_GRAY,
-            corner_radius=CARD_RADIUS,
-            border_width=0,
-        )
-        card.pack(fill="both", expand=True, padx=0, pady=0)
+    card = ctk.CTkFrame(
+        splash,
+        fg_color=CARD_GRAY,
+        corner_radius=CARD_RADIUS,
+        border_width=0,
+    )
+    card.pack(fill="both", expand=True, padx=0, pady=0)
 
-        content = ctk.CTkFrame(card, fg_color="transparent")
-        content.pack(fill="both", expand=True, padx=PADX, pady=PADY)
-    else:
-        content = tk.Frame(splash)
-        content.pack(fill="both", expand=True, padx=20, pady=20)
+    content = ctk.CTkFrame(card, fg_color="transparent")
+    content.pack(fill="both", expand=True, padx=PADX, pady=PADY)
 
     # Logo RC (se existir PNG)
     logo_path = _find_logo_path()
     if logo_path:
         try:
-            if HAS_CUSTOMTKINTER and ctk is not None:
-                # Logo maior SEM distorcer (aspect fit)
-                pil = Image.open(logo_path).convert("RGBA")
-                rw, rh = _fit(pil.size[0], pil.size[1], LOGO_MAX_W, LOGO_MAX_H)
-                logo_img = ctk.CTkImage(light_image=pil, dark_image=pil, size=(rw, rh))
-                splash._logo_img = logo_img  # manter referência
+            # Logo maior SEM distorcer (aspect fit)
+            pil = Image.open(logo_path).convert("RGBA")
+            rw, rh = _fit(pil.size[0], pil.size[1], LOGO_MAX_W, LOGO_MAX_H)
+            logo_img = ctk.CTkImage(light_image=pil, dark_image=pil, size=(rw, rh))
+            splash._logo_img = logo_img  # manter referência
 
-                logo_label = ctk.CTkLabel(content, image=logo_img, text="")
-                logo_label.pack(pady=(0, 10))
-            else:
-                # Para tk tradicional, usar PhotoImage
-                logo_image = tk.PhotoImage(file=logo_path)
-                # Reduzir se estiver muito grande (p.ex. 512x512)
-                max_size = 128
-                width, height = logo_image.width(), logo_image.height()
-                scale = max(width / max_size, height / max_size, 1)
-                if scale > 1:
-                    # subsample aceita apenas inteiro; arredonda pra cima/fator mínimo 1
-                    factor = int(scale)
-                    if factor < 1:
-                        factor = 1
-                    logo_image = logo_image.subsample(factor, factor)
-
-                logo_label = tk.Label(content, image=logo_image)
-                # Manter referência pra não ser coletado
-                splash._logo_image = logo_image  # type: ignore[attr-defined]
-                logo_label.pack(pady=(0, 10))
+            logo_label = ctk.CTkLabel(content, image=logo_img, text="")
+            logo_label.pack(pady=(0, 10))
         except Exception as exc:  # noqa: BLE001
             # Se falhar por qualquer motivo, apenas segue sem logo
             _log.debug("Falha ao carregar logo em splash: %s", exc)
 
     # Textos + separador (título maior + separador mais cinza)
-    if HAS_CUSTOMTKINTER and ctk is not None:
-        title = ctk.CTkLabel(content, text=f"Gestor de Clientes {APP_VERSION}", font=("Segoe UI", 14, "bold"))
-        title.pack(pady=(0, 10))
+    title = ctk.CTkLabel(content, text=f"Gestor de Clientes {APP_VERSION}", font=("Segoe UI", 14, "bold"))
+    title.pack(pady=(0, 10))
 
-        sep = ctk.CTkFrame(content, height=1, corner_radius=0, fg_color=("#e6e6e6", "#3a3a3a"))
-        sep.pack(fill="x", padx=110, pady=(0, 12))
+    sep = ctk.CTkFrame(content, height=1, corner_radius=0, fg_color=("#e6e6e6", "#3a3a3a"))
+    sep.pack(fill="x", padx=110, pady=(0, 12))
 
-        msg = ctk.CTkLabel(content, text="Carregando, por favor aguarde...", font=("Segoe UI", 12))
-        msg.pack(pady=(0, 14))
-    else:
-        title = tk.Label(
-            content,
-            text=f"Gestor de Clientes {APP_VERSION}",
-            font=("", 11, "bold"),  # pyright: ignore[reportArgumentType]
-        )
-        title.pack(pady=(0, 10))
-
-        sep = tk.Frame(content, height=2, bg="#cccccc")
-        sep.pack(fill="x", pady=(0, 12))
-
-        msg = tk.Label(
-            content,
-            text="Carregando, por favor aguarde...",
-            anchor="center",
-            justify="center",
-        )
-        msg.pack(pady=(0, 14))
+    msg = ctk.CTkLabel(content, text="Carregando, por favor aguarde...", font=("Segoe UI", 12))
+    msg.pack(pady=(0, 14))
     splash.separator = sep  # type: ignore[attr-defined]
 
     # Progressbar DETERMINATE (sempre visível e enchendo)
-    if HAS_CUSTOMTKINTER and ctk is not None:
-        bar = ctk.CTkProgressBar(content, mode="determinate", height=PROG_H, corner_radius=8)
-        bar.set(0.0)
-        bar.pack(fill="x", pady=(0, 0))
+    bar = ctk.CTkProgressBar(content, mode="determinate", height=PROG_H, corner_radius=8)
+    bar.set(0.0)
+    bar.pack(fill="x", pady=(0, 0))
 
-        # Atualização manual usando after (NÃO usar bar.start())
-        splash._pb = 0.0  # type: ignore[attr-defined]
-        delay_ms = 50
-        min_ms = 5000
-        step = delay_ms / float(min_ms)
+    # Atualização manual usando after (NÃO usar bar.start())
+    splash._pb = 0.0  # type: ignore[attr-defined]
+    delay_ms = 50
+    min_ms = 5000
+    step = delay_ms / float(min_ms)
 
-        def tick() -> None:
-            splash._progress_job = None  # type: ignore[attr-defined]  # job atual terminou
-            try:
-                if not splash.winfo_exists():
-                    return
-            except Exception:
+    def tick() -> None:
+        splash._progress_job = None  # type: ignore[attr-defined]  # job atual terminou
+        try:
+            if not splash.winfo_exists():
                 return
+        except Exception:
+            return
 
-            splash._pb = min(1.0, splash._pb + step)  # type: ignore[attr-defined]
-            try:
-                bar.set(splash._pb)  # type: ignore[attr-defined]
-            except Exception:
-                return
+        splash._pb = min(1.0, splash._pb + step)  # type: ignore[attr-defined]
+        try:
+            bar.set(splash._pb)  # type: ignore[attr-defined]
+        except Exception:
+            return
 
-            if splash._pb < 1.0:  # type: ignore[attr-defined]
-                splash._progress_job = splash.after(delay_ms, tick)  # type: ignore[attr-defined]
+        if splash._pb < 1.0:  # type: ignore[attr-defined]
+            splash._progress_job = splash.after(delay_ms, tick)  # type: ignore[attr-defined]
 
-        tick()
-    else:
-        # Fallback Canvas para tk puro
-        bar = tk.Canvas(content, width=240, height=20, bg="#e0e0e0", highlightthickness=0)
-        bar._progress_value = 0.0  # type: ignore[attr-defined]
-        bar.pack(fill="x", padx=20, pady=(0, 20))
+    tick()
     splash.progress = bar  # type: ignore[attr-defined]
 
     def _cancel_job(attr: str) -> None:
@@ -280,11 +224,7 @@ def show_splash(root: tk.Misc, min_ms: int = SPLASH_MIN_DURATION_MS) -> tk.Tople
         sw, sh = 1366, 768
 
     # Tamanho fixo (para ficar sempre no mesmo tamanho do splash antigo)
-    if HAS_CUSTOMTKINTER and ctk is not None:
-        w, h = SPLASH_W, SPLASH_H
-    else:
-        w = splash.winfo_reqwidth() or 360
-        h = splash.winfo_reqheight() or 200
+    w, h = SPLASH_W, SPLASH_H
     x, y = _center_coords(sw, sh, w, h)
     splash.geometry(f"{w}x{h}+{x}+{y}")
 

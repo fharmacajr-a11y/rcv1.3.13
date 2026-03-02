@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 from src.core.search import search_clientes
 from src.core.string_utils import only_digits
 from src.core.textnorm import join_and_normalize
+from src.ui.dialogs.rc_dialogs import show_error, show_info, show_warning
 from src.utils.phone_utils import normalize_br_whatsapp
 
 # Import do módulo core (mesma pasta)
@@ -291,9 +292,8 @@ class ClientesViewModel:
         # Import local para evitar circular import
         from ..core.export import export_clients_to_csv, export_clients_to_xlsx, is_xlsx_available
 
-        # Imports tkinter locais (usados apenas em runtime, não em type checking)
+        # Import tkinter local (usado apenas em runtime, não em type checking)
         import tkinter.filedialog as filedialog
-        import tkinter.messagebox as messagebox
 
         # Verificar cloud-only
         if check_cloud_only_block("Exportação de clientes"):
@@ -301,7 +301,7 @@ class ClientesViewModel:
 
         # Validar seleção
         if not ids:
-            messagebox.showwarning("Exportar Clientes", "Nenhum cliente selecionado para exportação.")
+            show_warning(None, "Exportar Clientes", "Nenhum cliente selecionado para exportação.")
             return
 
         logger.info("Export batch solicitado para %d cliente(s): %s", len(ids), ids)
@@ -311,7 +311,7 @@ class ClientesViewModel:
         selected_rows = [row for row in self._rows if row.id in ids_set]
 
         if not selected_rows:
-            messagebox.showwarning("Exportar Clientes", "Clientes selecionados não encontrados.")
+            show_warning(None, "Exportar Clientes", "Clientes selecionados não encontrados.")
             return
 
         # Determinar tipos de arquivo suportados
@@ -349,7 +349,8 @@ class ClientesViewModel:
         try:
             if extension == ".xlsx":
                 if not xlsx_available:
-                    messagebox.showerror(
+                    show_error(
+                        None,
                         "Erro de Exportação",
                         "Exportação XLSX não disponível.\n\n"
                         "Instale openpyxl com: pip install openpyxl\n"
@@ -357,21 +358,24 @@ class ClientesViewModel:
                     )
                     return
                 export_clients_to_xlsx(selected_rows, output_path_obj)
-                messagebox.showinfo(
+                show_info(
+                    None,
                     "Exportação Concluída",
                     f"{len(selected_rows)} cliente(s) exportado(s) para:\n{output_path}",
                 )
             else:
                 # Default para CSV
                 export_clients_to_csv(selected_rows, output_path_obj)
-                messagebox.showinfo(
+                show_info(
+                    None,
                     "Exportação Concluída",
                     f"{len(selected_rows)} cliente(s) exportado(s) para:\n{output_path}",
                 )
 
         except Exception as exc:
             logger.error("Erro ao exportar clientes: %s", exc)
-            messagebox.showerror(
+            show_error(
+                None,
                 "Erro de Exportação",
                 f"Falha ao exportar clientes:\n{exc}",
             )

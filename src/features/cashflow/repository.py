@@ -77,7 +77,10 @@ def _accumulate_totals(rows: list[dict[str, Any]]) -> dict[str, float]:
     t_in: float = 0.0
     t_out: float = 0.0
     for r in rows:
-        amt: float = float(r.get("amount", 0) or 0)
+        try:
+            amt: float = float(r.get("amount", 0) or 0)
+        except (ValueError, TypeError):
+            amt = 0.0
         if (r.get("type") or "").upper() == "IN":
             t_in += amt
         else:

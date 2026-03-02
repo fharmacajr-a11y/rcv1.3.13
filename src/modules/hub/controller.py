@@ -5,8 +5,10 @@
 from __future__ import annotations
 
 import threading
-from tkinter import messagebox
+from functools import partial
 from typing import Any, Dict, List
+
+from src.ui.dialogs.rc_dialogs import show_warning
 
 from src.core.logger import get_logger
 from src.modules.hub.colors import _ensure_author_tag
@@ -30,6 +32,8 @@ def _ensure_poll_attrs(screen):
     if not hasattr(screen, "_last_render_hash"):
         screen._last_render_hash = None
 
+    # poll_lock é declarado como field(default_factory=threading.RLock) em HubState;
+    # nenhuma inicialização adicional necessária aqui.
     return hub_state
 
 
@@ -39,10 +43,6 @@ def schedule_poll(screen, ms: int = 6000) -> None:
     BUG-007: Thread-safe scheduling com lock para evitar race condition.
     """
     hub_state = _ensure_poll_attrs(screen)
-
-    # BUG-007: Lock para operações atômicas
-    if not hasattr(hub_state, "poll_lock"):
-        hub_state.poll_lock = threading.Lock()
 
     with hub_state.poll_lock:
         if not screen.state.live_sync_on:
@@ -55,7 +55,7 @@ def schedule_poll(screen, ms: int = 6000) -> None:
         except Exception as exc:  # noqa: BLE001
             log.debug("after_cancel failed in schedule_poll: %s", exc)
 
-        hub_state.poll_job = screen.after(ms, lambda: poll_notes_if_needed(screen))
+        hub_state.poll_job = screen.after(ms, partial(poll_notes_if_needed, screen))
 
 
 def cancel_poll(screen) -> None:
@@ -64,10 +64,6 @@ def cancel_poll(screen) -> None:
     BUG-007: Thread-safe cancellation com lock.
     """
     hub_state = _ensure_poll_attrs(screen)
-
-    # BUG-007: Lock para operações atômicas
-    if not hasattr(hub_state, "poll_lock"):
-        hub_state.poll_lock = threading.Lock()
 
     with hub_state.poll_lock:
         if hub_state.poll_job:
@@ -85,7 +81,7 @@ def poll_notes_if_needed(screen) -> None:
 
     BUG-005: Verifica estado antes de reagendar para evitar loop infinito.
     """
-    _ensure_poll_attrs(screen)
+    hub_state = _ensure_poll_attrs(screen)
 
     # BUG-005: Verificação early return antes de qualquer processamento
     if not screen.state.live_sync_on:
@@ -121,8 +117,11 @@ def poll_notes_if_needed(screen) -> None:
         log.debug("poll_notes_if_needed error: %s", exc)
 
     finally:
-        # BUG-005: Verificação de estado antes de reagendar
-        if screen.state.live_sync_on:
+        # BUG-005 / BUG-007: snapshot atômico de live_sync_on sob lock antes de reagendar.
+        # RLock permite reentrada: schedule_poll também adquire hub_state.poll_lock.
+        with hub_state.poll_lock:
+            should_reschedule = screen.state.live_sync_on
+        if should_reschedule:
             schedule_poll(screen)
         else:
             log.debug("Polling interrompido: live_sync_on=False")
@@ -132,7 +131,7 @@ def on_realtime_note(screen, payload: Dict[str, Any]) -> None:
     """Handle realtime payload on the UI thread."""
 
     try:
-        screen.after(0, lambda: append_note_incremental(screen, payload))
+        screen.after(0, partial(append_note_incremental, screen, payload))
 
     except Exception as exc:  # noqa: BLE001
         log.debug("on_realtime_note failed: %s", exc)
@@ -251,7 +250,7 @@ def refresh_notes_async(screen, force: bool = False) -> None:
 
         screen._notes_after_handle = screen.after(
             screen.state.notes_retry_ms,
-            lambda: retry_after_table_missing(screen),
+            partial(retry_after_table_missing, screen),
         )
 
         return
@@ -261,7 +260,7 @@ def refresh_notes_async(screen, force: bool = False) -> None:
     if not screen._auth_ready():
         log.debug("HubScreen: Autentica├º├úo n├úo pronta para refresh_notes, aguardando...")
 
-        screen._notes_after_handle = screen.after(auth_retry_ms, lambda: refresh_notes_async(screen, force))
+        screen._notes_after_handle = screen.after(auth_retry_ms, partial(refresh_notes_async, screen, force))
 
         return
 
@@ -270,7 +269,7 @@ def refresh_notes_async(screen, force: bool = False) -> None:
     if not org_id:
         log.debug("HubScreen: org_id n├úo dispon├¡vel para refresh_notes, aguardando...")
 
-        screen._notes_after_handle = screen.after(auth_retry_ms, lambda: refresh_notes_async(screen, force))
+        screen._notes_after_handle = screen.after(auth_retry_ms, partial(refresh_notes_async, screen, force))
 
         return
 
@@ -290,7 +289,7 @@ def refresh_notes_async(screen, force: bool = False) -> None:
             def _schedule_transient_retry():
                 if screen.state.polling_active:
                     try:
-                        screen._notes_after_handle = screen.after(2000, lambda: refresh_notes_async(screen))
+                        screen._notes_after_handle = screen.after(2000, partial(refresh_notes_async, screen))
 
                     except Exception as exc:  # noqa: BLE001
                         log.debug("after() failed for transient retry: %s", exc)
@@ -316,17 +315,17 @@ def refresh_notes_async(screen, force: bool = False) -> None:
                     screen.set_notes_table_missing_notified(True)
 
                     try:
-                        messagebox.showwarning(
+                        show_warning(
+                            screen,
                             "Anotações Indisponíveis",
                             "Bloco de anotações indisponível:\n\n"
                             "A tabela 'rc_notes' não existe no Supabase.\n"
                             "Execute a migração em: migrations/rc_notes_migration.sql\n\n"
                             "Tentaremos novamente em 60 segundos.",
-                            parent=screen,
                         )
 
                     except Exception as exc:  # noqa: BLE001
-                        log.debug("messagebox.showwarning failed for table missing: %s", exc)
+                        log.debug("show_warning failed for table missing: %s", exc)
 
             try:
                 screen.after(0, _notify_table_missing)
@@ -343,14 +342,14 @@ def refresh_notes_async(screen, force: bool = False) -> None:
 
             def _notify_auth_error():
                 try:
-                    messagebox.showwarning(
+                    show_warning(
+                        screen,
                         "Sem Permissão",
                         "Sem permissão para anotar nesta organização.\nVerifique seu cadastro em 'profiles'.",
-                        parent=screen,
                     )
 
                 except Exception as exc:  # noqa: BLE001
-                    log.debug("messagebox.showwarning failed for auth error: %s", exc)
+                    log.debug("show_warning failed for auth error: %s", exc)
 
             try:
                 screen.after(0, _notify_auth_error)
@@ -375,7 +374,7 @@ def refresh_notes_async(screen, force: bool = False) -> None:
                 screen.update_notes_data(notes, update_snapshot=True)
 
                 try:
-                    screen.after(0, lambda: screen.render_notes(notes))
+                    screen.after(0, partial(screen.render_notes, notes))
 
                 except Exception as exc:  # noqa: BLE001
                     log.debug("after(0) failed for render_notes: %s", exc)
@@ -394,7 +393,7 @@ def refresh_notes_async(screen, force: bool = False) -> None:
             try:
                 screen._notes_after_handle = screen.after(
                     getattr(screen, "_notes_poll_ms", 10000),
-                    lambda: refresh_notes_async(screen),
+                    partial(refresh_notes_async, screen),
                 )
 
             except Exception as exc:  # noqa: BLE001

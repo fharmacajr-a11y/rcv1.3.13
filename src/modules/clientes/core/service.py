@@ -25,6 +25,7 @@ from src.core.db_manager import (
     list_clientes_deletados as _list_clientes_deletados_core,
 )
 from src.core.services import clientes_service as _legacy_clientes_service
+from src.core.session.session import get_current_user as _get_current_user
 from ..core.constants import STATUS_PREFIX_RE
 
 RowData = Tuple[Any, ...]
@@ -32,6 +33,7 @@ FormValues = Mapping[str, Any]
 
 __all__ = [
     "ClienteCNPJDuplicadoError",
+    "ClienteStorageRemovalError",
     "checar_duplicatas_para_form",
     "extrair_dados_cartao_cnpj_em_pasta",
     "mover_cliente_para_lixeira",
@@ -66,8 +68,27 @@ class ClienteCNPJDuplicadoError(ClienteServiceError):
         )
 
 
+class ClienteStorageRemovalError(ClienteServiceError):
+    """Falha ao remover arquivos do storage; exclusao do cliente abortada."""
+
+
 def _current_utc_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _current_user_label() -> str:
+    """Retorna e-mail (ou identificador) do usuário autenticado atual.
+
+    Usado para preencher app-side o campo 'ultima_por' (texto) em operacoes
+    de lixeira/restauracao.  As colunas UUID de auditoria (updated_by,
+    deleted_by, restored_by) SAO preenchidas automaticamente pelo trigger
+    DB-side fn_clients_audit_trail() e NAO devem ser gravadas pelo app.
+    """
+    try:
+        cu = _get_current_user()
+        return (getattr(cu, "email", "") or "").strip()
+    except Exception:
+        return ""
 
 
 def _extract_cliente_id(row: RowData | None) -> int | None:
@@ -272,26 +293,48 @@ def salvar_cliente_a_partir_do_form(row: RowData | None, valores: FormValues) ->
 
 def mover_cliente_para_lixeira(cliente_id: int) -> None:
     """
-    Marca o cliente como deletado (soft delete) atualizando os campos deleted_at/ultima_alteracao.
-    """
+    Marca o cliente como deletado (soft delete) atualizando os campos
+    deleted_at / ultima_alteracao / ultima_por.
 
+    As colunas UUID de auditoria (deleted_by, updated_by) SAO preenchidas
+    automaticamente pelo trigger trg_clients_audit_trail (DB-side).
+    """
     deleted_at = _current_utc_iso()
-    payload = {"deleted_at": deleted_at, "ultima_alteracao": deleted_at}
-    exec_postgrest(supabase.table("clients").update(payload).eq("id", cliente_id))
+    payload: dict[str, Any] = {
+        "deleted_at": deleted_at,
+        "ultima_alteracao": deleted_at,
+        "ultima_por": _current_user_label(),
+    }
+    try:
+        exec_postgrest(supabase.table("clients").update(payload).eq("id", cliente_id))
+    except Exception:
+        # Compatibilidade: ambientes antigos sem a coluna ultima_por
+        payload.pop("ultima_por", None)
+        exec_postgrest(supabase.table("clients").update(payload).eq("id", cliente_id))
 
 
 def restaurar_clientes_da_lixeira(ids: Iterable[int]) -> None:
     """
     Restaura clientes da lixeira (remove marcacao de deleted_at).
-    """
 
+    As colunas UUID de auditoria (restored_by, updated_by) SAO preenchidas
+    automaticamente pelo trigger trg_clients_audit_trail (DB-side).
+    """
     now = _current_utc_iso()
-    payload = {"deleted_at": None, "ultima_alteracao": now}
+    payload: dict[str, Any] = {
+        "deleted_at": None,
+        "ultima_alteracao": now,
+        "ultima_por": _current_user_label(),
+    }
     ids_list = list(ids)
     if not ids_list:
         return
-
-    exec_postgrest(supabase.table("clients").update(payload).in_("id", ids_list))
+    try:
+        exec_postgrest(supabase.table("clients").update(payload).in_("id", ids_list))
+    except Exception:
+        # Compatibilidade: ambientes antigos sem a coluna ultima_por
+        payload.pop("ultima_por", None)
+        exec_postgrest(supabase.table("clients").update(payload).in_("id", ids_list))
 
 
 def _resolve_current_org_id() -> str:
@@ -346,21 +389,37 @@ def _gather_paths(bucket: str, root_prefix: str) -> list[str]:
     return paths
 
 
-def _remove_cliente_storage(bucket: str, org_id: str, cid_int: int, errs: list[tuple[int, str]]) -> None:
+def _remove_cliente_storage(bucket: str, org_id: str, cid_int: int) -> None:
+    """Remove todos os arquivos do cliente no storage.
+
+    Raises:
+        ClienteStorageRemovalError: se qualquer arquivo nao puder ser removido
+            ou se ocorrer erro ao listar/acessar o storage.  Nao silencia falhas;
+            o chamador e responsavel por decidir se aborta a delecao no banco.
+    """
     prefix = f"{org_id}/{cid_int}"
     try:
         paths = _gather_paths(bucket, prefix)
+        failed: list[str] = []
         removed = 0
         for key in paths:
             try:
                 if storage_delete_file(key):
                     removed += 1
+                else:
+                    failed.append(key)
             except Exception as e:
-                errs.append((cid_int, f"Storage: {e}"))
+                failed.append(f"{key}: {e}")
         if removed:
             log.info("Storage: removidos %s objeto(s) de %s", removed, prefix)
+        if failed:
+            raise ClienteStorageRemovalError(
+                f"Falha ao remover {len(failed)} arquivo(s) do storage para cliente {cid_int}: {failed}"
+            )
+    except ClienteStorageRemovalError:
+        raise
     except Exception as e:
-        errs.append((cid_int, f"Storage: {e}"))
+        raise ClienteStorageRemovalError(f"Erro ao acessar storage para cliente {cid_int}: {e}") from e
 
 
 def excluir_clientes_definitivamente(
@@ -391,8 +450,22 @@ def excluir_clientes_definitivamente(
         total = len(ids_list)
         for idx, cid in enumerate(ids_list, start=1):
             cid_int = int(cid)
-            _remove_cliente_storage(bucket, org_id, cid_int, errs)
 
+            # --- 1) Remover storage PRIMEIRO; abortar banco se falhar ---
+            try:
+                _remove_cliente_storage(bucket, org_id, cid_int)
+            except ClienteStorageRemovalError as exc:
+                msg = f"Falha ao remover arquivos do storage; exclusao cancelada. ({exc})"
+                log.error("[excluir_clientes_definitivamente] cliente=%s: %s", cid_int, msg)
+                errs.append((cid_int, msg))
+                if progress_cb is not None:
+                    try:
+                        progress_cb(idx, total, cid_int)
+                    except Exception:
+                        log.exception("Erro no callback de progresso em excluir_clientes_definitivamente")
+                continue  # NAO remove do banco — evita arquivo orfao
+
+            # --- 2) Storage ok: remover do banco ---
             try:
                 exec_postgrest(supabase.table("clients").delete().eq("id", cid_int))
                 ok += 1

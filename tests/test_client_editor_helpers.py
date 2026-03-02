@@ -1,38 +1,35 @@
 # pyright: reportAttributeAccessIssue=false
 # -*- coding: utf-8 -*-
-"""Testes para helpers do ClientEditorDialog."""
+"""Testes para helpers do ClientEditorDialog.
 
-import pytest
+Importa _safe_get e _conflict_desc **diretamente do código-fonte real**
+via AST (sem carregar o módulo inteiro, que depende de Tk/CTk).
+"""
+
+from collections.abc import Mapping
 from dataclasses import dataclass
+from pathlib import Path
 
+from conftest import extract_functions_from_source
 
-# Importar helpers do módulo
-# Nota: Usamos importação direta para testes, mas os helpers são internos ao dialog
-def _safe_get(obj, key: str, default=""):
-    """Cópia local para testes (espelho do helper no dialog)."""
-    from collections.abc import Mapping
+_SRC_FILE = (
+    Path(__file__).resolve().parent.parent
+    / "src"
+    / "modules"
+    / "clientes"
+    / "ui"
+    / "views"
+    / "client_editor_dialog.py"
+)
 
-    if obj is None:
-        return default
-    if isinstance(obj, Mapping):
-        return obj.get(key, default)
-    return getattr(obj, key, default)
-
-
-def _conflict_desc(conflict):
-    """Cópia local para testes (espelho do helper no dialog)."""
-    if conflict is None:
-        return "cliente desconhecido"
-
-    cid = _safe_get(conflict, "id", "?")
-    razao = _safe_get(conflict, "razao_social", "cliente desconhecido")
-    cnpj = _safe_get(conflict, "cnpj", "")
-
-    desc = f"ID {cid} - {razao}"
-    if cnpj:
-        desc += f" ({cnpj})"
-
-    return desc
+_fns = extract_functions_from_source(
+    _SRC_FILE,
+    "_safe_get",
+    "_conflict_desc",
+    extra_namespace={"Mapping": Mapping},
+)
+_safe_get = _fns["_safe_get"]
+_conflict_desc = _fns["_conflict_desc"]
 
 
 class TestSafeGet:
@@ -52,6 +49,7 @@ class TestSafeGet:
 
     def test_object_access(self):
         """Acesso a objeto com atributos funciona."""
+
         @dataclass
         class Cliente:
             id: int
@@ -101,6 +99,7 @@ class TestConflictDesc:
 
     def test_object_with_all_fields(self):
         """Objeto com todos os campos."""
+
         @dataclass
         class Cliente:
             id: int

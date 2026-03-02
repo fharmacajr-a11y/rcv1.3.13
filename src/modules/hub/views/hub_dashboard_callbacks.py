@@ -7,8 +7,9 @@ para reduzir tamanho de hub_screen.py.
 
 from __future__ import annotations
 
-from tkinter import messagebox
 from typing import TYPE_CHECKING, Any, Callable, Optional
+
+from src.ui.dialogs.rc_dialogs import show_error, show_info, show_warning
 
 from src.modules.hub.views.hub_dashboard_callbacks_constants import (
     BANNER_CLIENT_PICK_OBLIGATIONS,
@@ -61,11 +62,7 @@ def handle_new_task_click(
         user_id = get_user_id()
 
         if not org_id or not user_id:
-            messagebox.showwarning(
-                TITLE_AUTH_REQUIRED,
-                MSG_LOGIN_REQUIRED_TASKS,
-                parent=parent,
-            )
+            show_warning(parent, TITLE_AUTH_REQUIRED, MSG_LOGIN_REQUIRED_TASKS)
             return
 
         # Carregar lista de clientes
@@ -91,11 +88,7 @@ def handle_new_task_click(
 
     except Exception as e:  # noqa: BLE001
         logger.exception("Erro ao abrir diálogo de nova tarefa")
-        messagebox.showerror(
-            TITLE_ERROR,
-            MSG_ERROR_OPEN_DIALOG.format(error=e),
-            parent=parent,
-        )
+        show_error(parent, TITLE_ERROR, MSG_ERROR_OPEN_DIALOG.format(error=e))
 
 
 def handle_new_obligation_click(
@@ -120,21 +113,13 @@ def handle_new_obligation_click(
         user_id = get_user_id()
 
         if not org_id or not user_id:
-            messagebox.showwarning(
-                TITLE_AUTH_REQUIRED,
-                MSG_LOGIN_REQUIRED_OBLIGATIONS,
-                parent=parent,
-            )
+            show_warning(parent, TITLE_AUTH_REQUIRED, MSG_LOGIN_REQUIRED_OBLIGATIONS)
             return
 
         # Abrir modo seleção de Clientes usando API explícita
         app = get_main_app()
         if not app:
-            messagebox.showwarning(
-                TITLE_ERROR,
-                MSG_APP_NOT_FOUND,
-                parent=parent,
-            )
+            show_warning(parent, TITLE_ERROR, MSG_APP_NOT_FOUND)
             return
 
         from src.modules.main_window.controller import navigate_to, start_client_pick_mode
@@ -149,11 +134,7 @@ def handle_new_obligation_click(
 
     except Exception as e:  # noqa: BLE001
         logger.exception("Erro ao iniciar fluxo de nova obrigação")
-        messagebox.showerror(
-            TITLE_ERROR,
-            MSG_ERROR_START_FLOW.format(error=e),
-            parent=parent,
-        )
+        show_error(parent, TITLE_ERROR, MSG_ERROR_START_FLOW.format(error=e))
 
 
 def handle_view_all_activity_click(parent: Any) -> None:
@@ -163,18 +144,10 @@ def handle_view_all_activity_click(parent: Any) -> None:
         parent: Widget pai para o diálogo
     """
     try:
-        messagebox.showinfo(
-            TITLE_IN_DEVELOPMENT,
-            MSG_ACTIVITY_VIEW_COMING_SOON,
-            parent=parent,
-        )
+        show_info(parent, TITLE_IN_DEVELOPMENT, MSG_ACTIVITY_VIEW_COMING_SOON)
     except Exception as e:  # noqa: BLE001
         logger.exception("Erro ao abrir visualização de atividades")
-        messagebox.showerror(
-            TITLE_ERROR,
-            MSG_ERROR_OPEN_VIEW.format(error=e),
-            parent=parent,
-        )
+        show_error(parent, TITLE_ERROR, MSG_ERROR_OPEN_VIEW.format(error=e))
 
 
 def handle_client_picked_for_obligation(
@@ -243,11 +216,7 @@ def handle_client_picked_for_obligation(
 
     except Exception as e:  # noqa: BLE001
         logger.exception("Erro ao processar cliente selecionado para obrigações")
-        messagebox.showerror(
-            TITLE_ERROR,
-            MSG_ERROR_PROCESS_SELECTION.format(error=e),
-            parent=parent,
-        )
+        show_error(parent, TITLE_ERROR, MSG_ERROR_PROCESS_SELECTION.format(error=e))
 
 
 def handle_card_click(
@@ -275,8 +244,4 @@ def handle_card_click(
             logger.warning(f"Tipo de card desconhecido: {card_type}")
     except Exception as e:  # noqa: BLE001
         logger.exception(f"Erro ao navegar a partir do card {card_type}")
-        messagebox.showerror(
-            TITLE_ERROR,
-            MSG_ERROR_PROCESS_ACTION.format(error=e),
-            parent=parent,
-        )
+        show_error(parent, TITLE_ERROR, MSG_ERROR_PROCESS_ACTION.format(error=e))

@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import gc
 import os
 import logging
 
@@ -23,26 +22,19 @@ _KEYRING_USERNAME = "rc_client_secret_key"
 
 def _secure_delete(data: bytes) -> None:
     """
-    Limpa referências a bytes sensíveis para permitir coleta de lixo.
+    Descarta referência a bytes sensíveis.
 
-    SEC-001: Previne key material de permanecer em memória indefinidamente.
-    CORREÇÃO: Removida tentativa insegura de sobrescrever memória imutável com ctypes.
-    Python bytes são imutáveis e id(obj) não é um ponteiro seguro para o buffer.
-    Apenas limpamos a referência e forçamos GC.
+    AVISO DE SEGURANÇA: Em Python puro não é possível garantir a zeroi-
+    zação de memória para objetos imutáveis (bytes/str). Esta função
+    apenas remove a referência local. O GC decidirá quando liberar
+    o buffer — sem garantias de timing ou sobrescrita.
 
-    Args:
-        data: Bytes a serem descartados (não usado diretamente)
+    Para wipe real, use bytearray + memoryview desde a criação do
+    segredo. Chaves Fernet são bytes imutáveis, portanto zeroi-
+    zação não é possível após a criação.
     """
-    if not data:
-        return
-    try:
-        # Força coleta de lixo para liberar memória de objetos não referenciados
-        # Nota: Para zeros reais, usaríamos bytearray + memoryview, mas aqui
-        # a chave já está em bytes imutáveis do Fernet, então apenas liberamos
-        del data
-        gc.collect()
-    except Exception as exc:
-        log.warning("Falha ao liberar memória sensível: %s", exc)
+    # Apenas remove a referência local; coleta forçada não garante wipe real.
+    del data
 
 
 def _keyring_is_available() -> bool:
@@ -73,7 +65,7 @@ def _keyring_is_available() -> bool:
             return False
 
         return True
-    except Exception as exc:  # noqa: BLE001
+    except (ImportError, RuntimeError, OSError, AttributeError) as exc:
         log.debug("Keyring não disponível: %s", exc)
         return False
 
@@ -95,7 +87,7 @@ def _keyring_get_secret_key() -> str | None:
         if key:
             log.debug("Chave Fernet carregada do keyring com sucesso")
         return key
-    except Exception as exc:  # noqa: BLE001
+    except (ImportError, RuntimeError, OSError) as exc:
         log.warning("Erro ao ler chave do keyring: %s", exc)
         return None
 
@@ -119,7 +111,7 @@ def _keyring_set_secret_key(key: str) -> bool:
         keyring.set_password(_KEYRING_SERVICE, _KEYRING_USERNAME, key)
         log.info("Chave Fernet armazenada no keyring com sucesso")
         return True
-    except Exception as exc:  # noqa: BLE001
+    except (ImportError, RuntimeError, OSError) as exc:
         log.warning("Erro ao salvar chave no keyring: %s", exc)
         return False
 
@@ -128,16 +120,11 @@ def _reset_fernet_cache() -> None:
     """
     Limpa o cache singleton da instância Fernet.
     USO EXCLUSIVO PARA TESTES.
+
+    AVISO: não é possível garantir zeroi-zação do key material em
+    Python puro — apenas a referência é removida.
     """
     global _fernet_instance
-    if _fernet_instance is not None:
-        # Tenta limpar key material antes de descartar
-        try:
-            key_bytes = _fernet_instance._signing_key + _fernet_instance._encryption_key
-            _secure_delete(key_bytes)
-        except Exception as exc:  # noqa: BLE001
-            # Logging mínimo: falha na limpeza de memória não é crítica
-            log.debug("Falha ao limpar key material do Fernet: %s", type(exc).__name__)
     _fernet_instance = None
 
 

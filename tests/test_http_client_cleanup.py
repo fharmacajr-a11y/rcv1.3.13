@@ -9,14 +9,14 @@ Estratégia de isolamento:
     httpx.Client e atexit.register em cada teste sem depender do singleton
     real já instanciado pelo resto da suíte.
 """
+
 from __future__ import annotations
 
-import atexit
 import importlib
 import sys
 import threading
 import unittest
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 
 # Módulo alvo — mantemos o caminho explícito para reload controlado.
@@ -26,8 +26,7 @@ _MODULE_PATH = "src.infra.supabase.http_client"
 def _reload_module(mock_client_cls, mock_atexit_register):
     """Recarrega o módulo com httpx.Client e atexit.register patchados."""
     mod = sys.modules.get(_MODULE_PATH)
-    with patch("httpx.Client", mock_client_cls), \
-         patch("atexit.register", mock_atexit_register):
+    with patch("httpx.Client", mock_client_cls), patch("atexit.register", mock_atexit_register):
         if mod is None:
             mod = importlib.import_module(_MODULE_PATH)
         else:

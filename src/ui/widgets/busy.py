@@ -33,7 +33,7 @@ class BusyOverlay:
             text: Texto a exibir acima da barra de progresso
         """
         self.parent = parent
-        self.top = tk.Toplevel(parent)
+        self.top = ctk.CTkToplevel(parent)
         self.top.withdraw()
         self.top.overrideredirect(True)
         self.top.transient(parent)

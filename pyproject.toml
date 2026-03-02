@@ -9,7 +9,7 @@ target-version = "py313"
 
 [project]
 name = "rcgestor"
-version = "1.5.62"
+version = "1.5.87"
 description = "Sistema de Gestão de Clientes"
 readme = "README.md"
 license = "MIT"
@@ -123,3 +123,11 @@ paths = ["src", "vulture_whitelist.py"]
 exclude = ["docs", "reports", "build", "dist", ".venv", "venv", ".pytest_cache", ".ruff_cache", "__pycache__"]
 ignore_decorators = ["@overload"]
 min_confidence = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+addopts = "-v --tb=short"

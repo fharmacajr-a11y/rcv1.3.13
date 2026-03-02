@@ -121,7 +121,7 @@ def format_timestamp(iso_timestamp: str) -> str:
         # Tentar parsear ISO timestamp
         dt = datetime.fromisoformat(iso_timestamp.replace("Z", "+00:00"))
         return dt.strftime("%H:%M")
-    except Exception:
+    except (ValueError, AttributeError):
         return "??:??"
 
 
@@ -165,5 +165,5 @@ def format_full_timestamp(iso_timestamp: str) -> str:
         # Tentar parsear ISO timestamp
         dt = datetime.fromisoformat(iso_timestamp.replace("Z", "+00:00"))
         return dt.strftime("%d/%m/%Y %H:%M:%S")
-    except Exception:
+    except (ValueError, AttributeError):
         return "Data inválida"

@@ -37,8 +37,8 @@ def set_win_dark_titlebar(window: Any) -> None:
 
         # DWMWA_USE_IMMERSIVE_DARK_MODE = 20 (Windows 11)
         # DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1 = 19 (Windows 10 build < 19041)
-        DWMWA_USE_IMMERSIVE_DARK_MODE = 20
-        DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1 = 19
+        DWMWA_USE_IMMERSIVE_DARK_MODE = 20  # noqa: N806
+        DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1 = 19  # noqa: N806
 
         # Valor 1 = dark mode, 0 = light mode
         use_dark = c_int(1)

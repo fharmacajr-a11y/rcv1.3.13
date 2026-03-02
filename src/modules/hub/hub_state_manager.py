@@ -25,7 +25,7 @@ from src.modules.hub.state import AuthorCache, HubState
 
 try:
     from src.core.logger import get_logger
-except Exception:
+except ImportError:
     import logging
 
     def get_logger(name: str):

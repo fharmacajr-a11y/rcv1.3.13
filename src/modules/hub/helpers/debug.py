@@ -32,8 +32,9 @@ import json
 import os
 import time
 from datetime import datetime
-from tkinter import messagebox
 from typing import Any, Callable, Dict, Iterable, Optional
+
+from src.ui.dialogs.rc_dialogs import show_error as _rc_show_error, show_info as _rc_show_info
 
 try:
     from src.core.logger import get_logger
@@ -161,10 +162,10 @@ def show_debug_info(
             json.dump(debug_data, f, ensure_ascii=False, indent=2)
 
         # Mostra mensagem com o caminho do arquivo
-        messagebox.showinfo(
+        _rc_show_info(
+            parent,
             "Relatório de Debug Gerado",
             f"Relatório salvo em:\n{filepath}",
-            parent=parent,
         )
 
         # Imprime no console como backup
@@ -174,7 +175,7 @@ def show_debug_info(
 
     except Exception as e:
         logger.error("Erro ao gerar relatório de debug: %s", e)
-        messagebox.showerror("Erro", f"Erro ao gerar relatório: {e}", parent=parent)
+        _rc_show_error(parent, "Erro", f"Erro ao gerar relatório: {e}")
 
 
 def collect_full_notes_debug(

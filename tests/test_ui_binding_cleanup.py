@@ -104,9 +104,9 @@ class TestBindingTrackerBind(unittest.TestCase):
         self.assertEqual(len(self.bt), 0)
 
     def test_multiple_bindings_all_unbound(self) -> None:
-        fid1 = self.bt.bind(self.w, "<KeyPress>", lambda e: None)
-        fid2 = self.bt.bind(self.w, "<Return>", lambda e: None)
-        fid3 = self.bt.bind(self.w, "<Escape>", lambda e: None)
+        _fid1 = self.bt.bind(self.w, "<KeyPress>", lambda e: None)
+        _fid2 = self.bt.bind(self.w, "<Return>", lambda e: None)
+        _fid3 = self.bt.bind(self.w, "<Escape>", lambda e: None)
         self.bt.unbind_all()
         seqs = [seq for seq, _ in self.w.unbind_calls]
         self.assertIn("<KeyPress>", seqs)
