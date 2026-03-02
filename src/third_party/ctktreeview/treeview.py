@@ -355,7 +355,7 @@ class CTkTreeview(ttk.Treeview):
         entry.bind("<FocusOut>", on_focus_out)
         entry.bind("<Return>", functools.partial(self.on_entry_enter_pressed, **user_data))
 
-    def on_entry_focus_out(self, _event: Event[ctk.CTkEntry], **kw) -> None:
+    def on_entry_focus_out(self, _event: Event[Any], **kw) -> None:
         entry: ctk.CTkEntry = kw["entry"]
         assert isinstance(entry, ctk.CTkEntry)
         entry.destroy()

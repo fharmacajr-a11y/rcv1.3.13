@@ -8,7 +8,7 @@ Não acessa diretamente ViewModels ou Controllers - recebe state e callbacks.
 from __future__ import annotations
 
 import tkinter as tk
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from src.ui.ctk_config import ctk
 from src.ui.ui_tokens import APP_BG, SURFACE_DARK, SURFACE, TITLE_FONT, TEXT_PRIMARY, CARD_RADIUS
@@ -64,7 +64,7 @@ def build_modules_panel(
     parent: tk.Misc,
     state: "QuickActionsViewState",
     on_action_click: Callable[[str], None],
-) -> tk.LabelFrame:
+) -> Any:
     """Constrói o painel de módulos (menu vertical à esquerda) com Quick Actions.
 
     Args:

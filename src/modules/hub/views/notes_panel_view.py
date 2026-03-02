@@ -7,7 +7,7 @@ Usa build_notes_panel de panels.py para renderizar a lista de notas.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 import tkinter as tk
 
@@ -51,7 +51,7 @@ def build_notes_side_panel(
     parent: tk.Frame,
     state: "NotesViewState",
     callbacks: NotesViewCallbacks,
-) -> tk.LabelFrame:
+) -> Any:
     """Constrói o painel de notas compartilhadas (lateral direita).
 
     Delega para build_notes_panel de panels.py para renderizar a lista.

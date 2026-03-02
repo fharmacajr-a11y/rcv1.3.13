@@ -6,7 +6,6 @@ esquerdo com os botões de acesso rápido aos módulos.
 """
 
 from typing import Any, Callable, Optional
-import tkinter as tk
 
 from src.ui.ctk_config import ctk
 from src.ui.ui_tokens import APP_BG, SURFACE_DARK, CARD_RADIUS, PRIMARY_BLUE, PRIMARY_BLUE_HOVER
@@ -53,9 +52,9 @@ class HubQuickActionsView:
         self._on_open_sngpc = on_open_sngpc
         self._on_open_mod_sifap = on_open_mod_sifap
 
-        self.modules_panel: Optional[tk.LabelFrame] = None
+        self.modules_panel: Optional[Any] = None
 
-    def build(self) -> tk.LabelFrame:
+    def build(self) -> Any:
         """Constrói e retorna o frame do painel de Quick Actions.
 
         Returns:
