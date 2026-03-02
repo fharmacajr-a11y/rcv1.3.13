@@ -24,9 +24,9 @@
   "reportUnknownArgumentType": "none",
   "reportUnknownVariableType": "none",
   "reportOptionalMemberAccess": "none",
-  "reportMissingTypeStubs": "none",
+  "reportMissingTypeStubs": "warning",
   "reportInvalidTypeForm": "none",
   "reportMissingModuleSource": "none",
   "reportArgumentType": "none",
-  "reportConstantRedefinition": "none"
+  "reportConstantRedefinition": "warning"
 }
