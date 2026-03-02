@@ -37,8 +37,8 @@ class AuthController:
         # integração best-effort com sessão, se existir
         with contextlib.suppress(Exception):
             from src.core.session import (
-                set_user,
-            )  # ajuste se o nome real for diferente  # pyright: ignore[reportAttributeAccessIssue]
+                set_user,  # pyright: ignore[reportAttributeAccessIssue]
+            )
 
             set_user(self._user)
         if callable(self._on_user_change):
