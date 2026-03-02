@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import tkinter as tk
-import tkinter.font as tkfont
 from typing import Protocol, Type
 
 from src.ui.ctk_config import ctk

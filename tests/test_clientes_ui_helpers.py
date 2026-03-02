@@ -7,21 +7,14 @@ Importa _first_line_preview e _one_line **diretamente do código-fonte real**
 inteiro, que depende de Tk/CTk.
 """
 
+import ast as _ast
 from pathlib import Path
 
 from conftest import extract_functions_from_source
 
-_SRC_FILE = (
-    Path(__file__).resolve().parent.parent
-    / "src"
-    / "modules"
-    / "clientes"
-    / "ui"
-    / "view.py"
-)
+_SRC_FILE = Path(__file__).resolve().parent.parent / "src" / "modules" / "clientes" / "ui" / "view.py"
 
 # Buscar qual classe contém os métodos
-import ast as _ast
 
 _tree = _ast.parse(_SRC_FILE.read_text(encoding="utf-8"))
 _view_class_name: str | None = None

@@ -3,10 +3,10 @@
 Garante que TclError nas operações Tk não propagam para fora dos diálogos
 e que OSError em resource_path também é silenciado corretamente.
 """
+
 from __future__ import annotations
 
 from tkinter import TclError
-import tkinter as tk
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -31,6 +31,7 @@ class TestApplyIcon(unittest.TestCase):
             mock_img = MagicMock()
             mock_photo.return_value = mock_img
             from src.ui.custom_dialogs import _apply_icon
+
             _apply_icon(window)  # não deve propagar
 
         window.iconphoto.assert_called_once_with(True, mock_img)
@@ -47,6 +48,7 @@ class TestApplyIcon(unittest.TestCase):
             patch("tkinter.PhotoImage"),
         ):
             from src.ui.custom_dialogs import _apply_icon
+
             _apply_icon(window)  # não deve propagar
 
     def test_resource_path_oserror_is_silenced(self) -> None:
@@ -55,6 +57,7 @@ class TestApplyIcon(unittest.TestCase):
 
         with patch("src.ui.custom_dialogs.resource_path", side_effect=OSError("no file")):
             from src.ui.custom_dialogs import _apply_icon
+
             _apply_icon(window)  # não deve propagar
 
         window.iconbitmap.assert_not_called()
@@ -68,6 +71,7 @@ class TestApplyIcon(unittest.TestCase):
             patch("os.path.exists", return_value=False),
         ):
             from src.ui.custom_dialogs import _apply_icon
+
             _apply_icon(window)
 
         window.iconbitmap.assert_not_called()
@@ -82,6 +86,7 @@ class TestApplyIcon(unittest.TestCase):
             patch("os.path.exists", return_value=True),
         ):
             from src.ui.custom_dialogs import _apply_icon
+
             _apply_icon(window)
 
         window.iconbitmap.assert_called_once_with("/fake/rc.ico")
@@ -107,6 +112,7 @@ class TestApplyIcon(unittest.TestCase):
             patch("os.path.exists", return_value=True),
         ):
             from src.ui.custom_dialogs import _apply_icon
+
             _apply_icon(window)  # não deve propagar
 
 
@@ -115,6 +121,7 @@ class TestNoExceptExceptionRemaining(unittest.TestCase):
 
     def test_no_noqa_ble001(self) -> None:
         import pathlib
+
         src = pathlib.Path(__file__).parent.parent / "src" / "ui" / "custom_dialogs.py"
         text = src.read_text(encoding="utf-8")
         count = text.count("noqa: BLE001")
@@ -128,6 +135,7 @@ class TestNoExceptExceptionRemaining(unittest.TestCase):
         """Não deve haver `except Exception:` sem tipo específico no arquivo."""
         import pathlib
         import re
+
         src = pathlib.Path(__file__).parent.parent / "src" / "ui" / "custom_dialogs.py"
         text = src.read_text(encoding="utf-8")
         # Procura padrão: except Exception: ou except Exception as x:

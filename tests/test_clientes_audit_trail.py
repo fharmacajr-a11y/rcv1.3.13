@@ -10,8 +10,9 @@ Garante que:
   ultima_por e tenta novamente
 - update_cliente_status_and_observacoes funciona sem erro de KeyError/IndexError
 """
+
 import unittest
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 _SVC = "src.modules.clientes.core.service"
 
@@ -19,6 +20,7 @@ _SVC = "src.modules.clientes.core.service"
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _mock_exec():
     """Mock de exec_postgrest que retorna resposta genérica."""
@@ -42,16 +44,19 @@ def _mock_supabase():
 # mover_cliente_para_lixeira
 # ---------------------------------------------------------------------------
 
-class TestMoverClienteParaLixeira(unittest.TestCase):
 
+class TestMoverClienteParaLixeira(unittest.TestCase):
     def _run(self, user_label: str = "ana@teste.com"):
         sb, tbl = _mock_supabase()
         exec_mock = _mock_exec()
-        with patch(f"{_SVC}.supabase", sb), \
-             patch(f"{_SVC}.exec_postgrest", exec_mock), \
-             patch(f"{_SVC}._current_user_label", return_value=user_label), \
-             patch(f"{_SVC}._current_utc_iso", return_value="2026-02-23T00:00:00+00:00"):
+        with (
+            patch(f"{_SVC}.supabase", sb),
+            patch(f"{_SVC}.exec_postgrest", exec_mock),
+            patch(f"{_SVC}._current_user_label", return_value=user_label),
+            patch(f"{_SVC}._current_utc_iso", return_value="2026-02-23T00:00:00+00:00"),
+        ):
             from src.modules.clientes.core.service import mover_cliente_para_lixeira
+
             mover_cliente_para_lixeira(42)
         return sb, tbl, exec_mock
 
@@ -76,7 +81,7 @@ class TestMoverClienteParaLixeira(unittest.TestCase):
         self.assertIn("ultima_por", payload)
         self.assertEqual(payload["ultima_por"], "ana@teste.com")
 
-    def test_payload_NAO_inclui_updated_by_app_side(self):
+    def test_payload_nao_inclui_updated_by_app_side(self):
         """Colunas UUID de auditoria NÃO devem ser gravadas pelo app (responsabilidade do trigger)."""
         sb, tbl, _ = self._run()
         payload = tbl.update.call_args[0][0]
@@ -99,11 +104,14 @@ class TestMoverClienteParaLixeira(unittest.TestCase):
                 raise RuntimeError("column ultima_por does not exist")
             return MagicMock(data=[])
 
-        with patch(f"{_SVC}.supabase", sb), \
-             patch(f"{_SVC}.exec_postgrest", side_effect=exec_side_effect), \
-             patch(f"{_SVC}._current_user_label", return_value="x@y.com"), \
-             patch(f"{_SVC}._current_utc_iso", return_value="2026-02-23T00:00:00+00:00"):
+        with (
+            patch(f"{_SVC}.supabase", sb),
+            patch(f"{_SVC}.exec_postgrest", side_effect=exec_side_effect),
+            patch(f"{_SVC}._current_user_label", return_value="x@y.com"),
+            patch(f"{_SVC}._current_utc_iso", return_value="2026-02-23T00:00:00+00:00"),
+        ):
             from src.modules.clientes.core.service import mover_cliente_para_lixeira
+
             # Não deve levantar exceção
             mover_cliente_para_lixeira(99)
 
@@ -117,27 +125,33 @@ class TestMoverClienteParaLixeira(unittest.TestCase):
 # restaurar_clientes_da_lixeira
 # ---------------------------------------------------------------------------
 
-class TestRestaurarClientesDaLixeira(unittest.TestCase):
 
+class TestRestaurarClientesDaLixeira(unittest.TestCase):
     def _run(self, ids=(1, 2, 3), user_label: str = "bob@teste.com"):
         sb, tbl = _mock_supabase()
         exec_mock = _mock_exec()
-        with patch(f"{_SVC}.supabase", sb), \
-             patch(f"{_SVC}.exec_postgrest", exec_mock), \
-             patch(f"{_SVC}._current_user_label", return_value=user_label), \
-             patch(f"{_SVC}._current_utc_iso", return_value="2026-02-23T01:00:00+00:00"):
+        with (
+            patch(f"{_SVC}.supabase", sb),
+            patch(f"{_SVC}.exec_postgrest", exec_mock),
+            patch(f"{_SVC}._current_user_label", return_value=user_label),
+            patch(f"{_SVC}._current_utc_iso", return_value="2026-02-23T01:00:00+00:00"),
+        ):
             from src.modules.clientes.core.service import restaurar_clientes_da_lixeira
+
             restaurar_clientes_da_lixeira(ids)
         return sb, tbl, exec_mock
 
     def test_lista_vazia_nao_chama_exec(self):
         sb, tbl = _mock_supabase()
         exec_mock = _mock_exec()
-        with patch(f"{_SVC}.supabase", sb), \
-             patch(f"{_SVC}.exec_postgrest", exec_mock), \
-             patch(f"{_SVC}._current_user_label", return_value=""), \
-             patch(f"{_SVC}._current_utc_iso", return_value="t"):
+        with (
+            patch(f"{_SVC}.supabase", sb),
+            patch(f"{_SVC}.exec_postgrest", exec_mock),
+            patch(f"{_SVC}._current_user_label", return_value=""),
+            patch(f"{_SVC}._current_utc_iso", return_value="t"),
+        ):
             from src.modules.clientes.core.service import restaurar_clientes_da_lixeira
+
             restaurar_clientes_da_lixeira([])
         exec_mock.assert_not_called()
 
@@ -158,7 +172,7 @@ class TestRestaurarClientesDaLixeira(unittest.TestCase):
         self.assertIn("ultima_por", payload)
         self.assertEqual(payload["ultima_por"], "bob@teste.com")
 
-    def test_payload_NAO_inclui_colunas_uuid_auditoria(self):
+    def test_payload_nao_inclui_colunas_uuid_auditoria(self):
         """Trigger é responsável por updated_by/restored_by; app não deve gravá-los."""
         _, tbl, _ = self._run()
         payload = tbl.update.call_args[0][0]
@@ -181,11 +195,14 @@ class TestRestaurarClientesDaLixeira(unittest.TestCase):
                 raise RuntimeError("column ultima_por does not exist")
             return MagicMock(data=[])
 
-        with patch(f"{_SVC}.supabase", sb), \
-             patch(f"{_SVC}.exec_postgrest", side_effect=exec_side_effect), \
-             patch(f"{_SVC}._current_user_label", return_value="x@y.com"), \
-             patch(f"{_SVC}._current_utc_iso", return_value="t"):
+        with (
+            patch(f"{_SVC}.supabase", sb),
+            patch(f"{_SVC}.exec_postgrest", side_effect=exec_side_effect),
+            patch(f"{_SVC}._current_user_label", return_value="x@y.com"),
+            patch(f"{_SVC}._current_utc_iso", return_value="t"),
+        ):
             from src.modules.clientes.core.service import restaurar_clientes_da_lixeira
+
             restaurar_clientes_da_lixeira([77])
 
         second_payload = tbl.update.call_args_list[1][0][0]
@@ -197,13 +214,14 @@ class TestRestaurarClientesDaLixeira(unittest.TestCase):
 # _current_user_label
 # ---------------------------------------------------------------------------
 
-class TestCurrentUserLabel(unittest.TestCase):
 
+class TestCurrentUserLabel(unittest.TestCase):
     def test_retorna_email_do_usuario(self):
         user = MagicMock()
         user.email = "alice@exemplo.com"
         with patch(f"{_SVC}._get_current_user", return_value=user):
             from src.modules.clientes.core.service import _current_user_label
+
             self.assertEqual(_current_user_label(), "alice@exemplo.com")
 
     def test_retorna_vazio_quando_sem_email(self):
@@ -211,11 +229,13 @@ class TestCurrentUserLabel(unittest.TestCase):
         user.email = None
         with patch(f"{_SVC}._get_current_user", return_value=user):
             from src.modules.clientes.core.service import _current_user_label
+
             self.assertEqual(_current_user_label(), "")
 
     def test_retorna_vazio_quando_excecao(self):
         with patch(f"{_SVC}._get_current_user", side_effect=RuntimeError("sem sessão")):
             from src.modules.clientes.core.service import _current_user_label
+
             self.assertEqual(_current_user_label(), "")
 
 
@@ -223,6 +243,7 @@ class TestCurrentUserLabel(unittest.TestCase):
 # Invariante: colunas UUID de auditoria nunca aparecem em payloads app-side
 # (regressão guard)
 # ---------------------------------------------------------------------------
+
 
 class TestAuditColumnsNeverWrittenByApp(unittest.TestCase):
     """Verifica que as colunas UUID gerenciadas pelo trigger não surgem em
@@ -234,18 +255,20 @@ class TestAuditColumnsNeverWrittenByApp(unittest.TestCase):
         """Executa fn_name e coleta todos os dicts passados a .update()."""
         sb, tbl = _mock_supabase()
         payloads = []
-        original_update = tbl.update.side_effect
 
         def capture_update(payload, *a, **kw):
             payloads.append(dict(payload))
             return tbl
 
         tbl.update.side_effect = capture_update
-        with patch(f"{_SVC}.supabase", sb), \
-             patch(f"{_SVC}.exec_postgrest", MagicMock(return_value=MagicMock(data=[]))), \
-             patch(f"{_SVC}._current_user_label", return_value=""), \
-             patch(f"{_SVC}._current_utc_iso", return_value="t"):
+        with (
+            patch(f"{_SVC}.supabase", sb),
+            patch(f"{_SVC}.exec_postgrest", MagicMock(return_value=MagicMock(data=[]))),
+            patch(f"{_SVC}._current_user_label", return_value=""),
+            patch(f"{_SVC}._current_utc_iso", return_value="t"),
+        ):
             import importlib
+
             svc = importlib.import_module("src.modules.clientes.core.service")
             getattr(svc, fn_name)(*args)
         return payloads

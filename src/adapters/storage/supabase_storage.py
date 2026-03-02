@@ -64,7 +64,7 @@ def _normalize_bucket(bucket: Optional[str]) -> str:
         raise InvalidBucketNameError("Nome de bucket inválido: string vazia ou apenas espaços.")
     if len(name) < 3 or len(name) > 63:
         raise InvalidBucketNameError(
-            f"Nome de bucket inválido {name!r}: deve ter entre 3 e 63 caracteres " f"(tamanho atual: {len(name)})."
+            f"Nome de bucket inválido {name!r}: deve ter entre 3 e 63 caracteres (tamanho atual: {len(name)})."
         )
     if ".." in name:
         raise InvalidBucketNameError(f"Nome de bucket inválido {name!r}: não pode conter '..'.")
@@ -256,7 +256,7 @@ def _upload(
                 delay = min(_UPLOAD_BACKOFF_BASE * (2 ** (attempt - 1)), _UPLOAD_BACKOFF_MAX)
                 delay += random.uniform(0, delay * 0.2)  # jitter 20%  # nosec B311
                 logger.warning(
-                    "storage.op.retry: op=upload, bucket=%s, key=%s, attempt=%d/%d," " delay=%.2fs, error=%s — %s",
+                    "storage.op.retry: op=upload, bucket=%s, key=%s, attempt=%d/%d, delay=%.2fs, error=%s — %s",
                     bucket,
                     key,
                     attempt,

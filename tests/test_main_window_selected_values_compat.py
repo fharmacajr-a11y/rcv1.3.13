@@ -6,6 +6,7 @@ Cobre:
 - MainWindow._selected_main_values() não lança AttributeError quando o frame
   não implementa _get_selected_values (blindagem via getattr).
 """
+
 from __future__ import annotations
 
 import types
@@ -53,9 +54,7 @@ def _make_main_window_stub(frame: Any) -> Any:
             frame = self._main_screen_frame()
             if frame is None:
                 return None
-            fn = getattr(frame, "_get_selected_values", None) or getattr(
-                frame, "get_selected_values", None
-            )
+            fn = getattr(frame, "_get_selected_values", None) or getattr(frame, "get_selected_values", None)
             if not callable(fn):
                 return None
             values = fn()
@@ -130,9 +129,7 @@ class TestGetSelectedValuesLogic(unittest.TestCase):
     def test_returns_tree_values_when_tree_has_selection(self) -> None:
         """Quando a Treeview tem seleção ativa, deve retornar os valores da linha."""
         tree_values = ("42", "Acme Corp", "00.000.000/0001-00")
-        frame = self._make_frame_with_selection(
-            client_id=42, tree_values=tree_values
-        )
+        frame = self._make_frame_with_selection(client_id=42, tree_values=tree_values)
 
         result = frame._get_selected_values()
         self.assertIsNotNone(result)
@@ -142,9 +139,7 @@ class TestGetSelectedValuesLogic(unittest.TestCase):
     def test_tree_values_castable_to_int(self) -> None:
         """values[0] retornado deve ser conversível para int (contrato _excluir_cliente)."""
         tree_values = ("123", "Beta SA")
-        frame = self._make_frame_with_selection(
-            client_id=123, tree_values=tree_values
-        )
+        frame = self._make_frame_with_selection(client_id=123, tree_values=tree_values)
 
         result = frame._get_selected_values()
         self.assertIsNotNone(result)

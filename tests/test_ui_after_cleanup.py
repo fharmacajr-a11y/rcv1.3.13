@@ -324,9 +324,14 @@ def _build_autocomplete_stubs() -> dict:
 
     # Stub para BindingTracker (Fase 13 — novo import em ctk_autocomplete_entry)
     class _FakeBindingTracker:
-        def bind(self, *a, **kw): pass
-        def bind_all(self, *a, **kw): pass
-        def unbind_all(self, *a, **kw): pass
+        def bind(self, *a, **kw):
+            pass
+
+        def bind_all(self, *a, **kw):
+            pass
+
+        def unbind_all(self, *a, **kw):
+            pass
 
     fake_binding_tracker = _make_mod(
         "src.ui.utils.binding_tracker",

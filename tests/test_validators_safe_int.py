@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Testes para safe_int em src/utils/validators.py."""
+
 import unittest
 
 from src.utils.validators import safe_int

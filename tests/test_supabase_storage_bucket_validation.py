@@ -10,8 +10,8 @@ Cobre as regras S3/DNS:
 - string vazia/espaços => inválido
 - None => usa DEFAULT_BUCKET
 """
+
 import unittest
-from unittest.mock import patch
 
 from src.adapters.storage.supabase_storage import (
     DEFAULT_BUCKET,
@@ -26,8 +26,8 @@ _DEFAULT = DEFAULT_BUCKET
 # Casos válidos
 # ---------------------------------------------------------------------------
 
-class TestBucketValido(unittest.TestCase):
 
+class TestBucketValido(unittest.TestCase):
     def test_none_retorna_default(self):
         self.assertEqual(_normalize_bucket(None), _DEFAULT)
 
@@ -67,8 +67,8 @@ class TestBucketValido(unittest.TestCase):
 # Casos inválidos — tipo de exceção
 # ---------------------------------------------------------------------------
 
-class TestBucketInvalido(unittest.TestCase):
 
+class TestBucketInvalido(unittest.TestCase):
     def _assert_invalido(self, value):
         with self.assertRaises(InvalidBucketNameError, msg=f"Esperava erro para {value!r}"):
             _normalize_bucket(value)
@@ -138,8 +138,8 @@ class TestBucketInvalido(unittest.TestCase):
 # InvalidBucketNameError é subclasse de ValueError
 # ---------------------------------------------------------------------------
 
-class TestInvalidBucketNameError(unittest.TestCase):
 
+class TestInvalidBucketNameError(unittest.TestCase):
     def test_eh_subclasse_de_value_error(self):
         self.assertTrue(issubclass(InvalidBucketNameError, ValueError))
 
@@ -168,25 +168,29 @@ class TestInvalidBucketNameError(unittest.TestCase):
 # Integração: SupabaseStorageAdapter.__init__ propaga InvalidBucketNameError
 # ---------------------------------------------------------------------------
 
-class TestAdapterInit(unittest.TestCase):
 
+class TestAdapterInit(unittest.TestCase):
     def test_adapter_invalido_levanta_ao_instanciar(self):
         from src.adapters.storage.supabase_storage import SupabaseStorageAdapter
+
         with self.assertRaises(InvalidBucketNameError):
             SupabaseStorageAdapter(bucket="invalid_name!")
 
     def test_adapter_valido_nao_levanta(self):
         from src.adapters.storage.supabase_storage import SupabaseStorageAdapter
+
         adapter = SupabaseStorageAdapter(bucket="valid-bucket")
         self.assertEqual(adapter._bucket, "valid-bucket")
 
     def test_adapter_none_usa_default(self):
         from src.adapters.storage.supabase_storage import SupabaseStorageAdapter
+
         adapter = SupabaseStorageAdapter(bucket=None)
         self.assertEqual(adapter._bucket, _DEFAULT)
 
     def test_adapter_uppercase_normaliza(self):
         from src.adapters.storage.supabase_storage import SupabaseStorageAdapter
+
         adapter = SupabaseStorageAdapter(bucket="MyBucket")
         self.assertEqual(adapter._bucket, "mybucket")
 
@@ -195,10 +199,11 @@ class TestAdapterInit(unittest.TestCase):
 # Exportação em __all__
 # ---------------------------------------------------------------------------
 
-class TestExportacao(unittest.TestCase):
 
+class TestExportacao(unittest.TestCase):
     def test_invalido_bucket_name_error_em_all(self):
         import src.adapters.storage.supabase_storage as mod
+
         self.assertIn("InvalidBucketNameError", mod.__all__)
 
 

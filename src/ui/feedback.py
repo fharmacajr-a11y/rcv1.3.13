@@ -334,6 +334,7 @@ class TkFeedback:
                         t.destroy()
                 except Exception:
                     pass
+
             toast.after(duration_ms, _auto_close_toast)
             return True
         except Exception as exc:  # noqa: BLE001

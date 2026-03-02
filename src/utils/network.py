@@ -113,7 +113,6 @@ def require_internet_or_alert() -> bool:
     # Show GUI alert unless RC_NO_GUI_ERRORS=1
     if os.getenv("RC_NO_GUI_ERRORS") != "1":
         try:
-            import tkinter as tk
             from tkinter import messagebox
 
             from src.ui.ctk_config import ctk

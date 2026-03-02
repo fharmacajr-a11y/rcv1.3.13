@@ -10,6 +10,7 @@ API pública:
 
 Fallback automático para emoji se Pillow não estiver disponível.
 """
+
 from __future__ import annotations
 
 from typing import Any, Literal
@@ -103,9 +104,9 @@ def _draw_error(size: int) -> Any:
 
     sw = max(2, size // 10)
     m = int(size * 0.28)
-    M = size - m
-    d.line([(m, m), (M, M)], fill=(255, 255, 255, 255), width=sw)
-    d.line([(M, m), (m, M)], fill=(255, 255, 255, 255), width=sw)
+    m_max = size - m
+    d.line([(m, m), (m_max, m_max)], fill=(255, 255, 255, 255), width=sw)
+    d.line([(m_max, m), (m, m_max)], fill=(255, 255, 255, 255), width=sw)
 
     return img
 

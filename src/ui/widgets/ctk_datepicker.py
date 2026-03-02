@@ -210,7 +210,7 @@ class CTkDatePicker(ctk.CTkFrame):
             width=80,
             fg_color="gray",
             hover_color="darkgray",
-            command=lambda: (setattr(self, '_popup', None), popup.destroy()),
+            command=lambda: (setattr(self, "_popup", None), popup.destroy()),
         ).pack(side="left", padx=5)
 
         # Mostrar calendário inicial

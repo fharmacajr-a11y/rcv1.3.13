@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Testes para format_cnpj em src/utils/formatters.py."""
+
 import unittest
 
 from src.utils.formatters import format_cnpj

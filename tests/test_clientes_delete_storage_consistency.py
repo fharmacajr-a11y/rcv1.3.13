@@ -4,8 +4,9 @@
 Garante que a remoção do registro no banco NUNCA ocorre quando a
 remoção de arquivos no storage falha, prevenindo arquivos órfãos.
 """
+
 import unittest
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 from src.modules.clientes.core.service import (
     ClienteStorageRemovalError,
@@ -48,8 +49,13 @@ class TestExcluirClientesStorageConsistency(unittest.TestCase):
     def test_banco_nao_chamado_quando_storage_falha(self):
         """Se _remove_cliente_storage levanta, exec_postgrest NÃO deve ser invocado."""
         patches = self._patches(storage_side_effect=ClienteStorageRemovalError("erro simulado"))
-        with patches["org"], patches["adapter"], patches["ctx"] as mock_ctx, \
-             patches["storage"] as mock_storage, patches["exec_pg"] as mock_exec:
+        with (
+            patches["org"],
+            patches["adapter"],
+            patches["ctx"] as mock_ctx,
+            patches["storage"] as mock_storage,
+            patches["exec_pg"] as mock_exec,
+        ):
             mock_ctx.return_value = _make_ctx_mock()
 
             ok, errs = excluir_clientes_definitivamente([42])
@@ -64,8 +70,13 @@ class TestExcluirClientesStorageConsistency(unittest.TestCase):
     def test_banco_nao_chamado_para_cada_id_com_falha_de_storage(self):
         """Cada ID com storage falhando não deve gerar deleção no banco."""
         patches = self._patches(storage_side_effect=ClienteStorageRemovalError("falha"))
-        with patches["org"], patches["adapter"], patches["ctx"] as mock_ctx, \
-             patches["storage"], patches["exec_pg"] as mock_exec:
+        with (
+            patches["org"],
+            patches["adapter"],
+            patches["ctx"] as mock_ctx,
+            patches["storage"],
+            patches["exec_pg"] as mock_exec,
+        ):
             mock_ctx.return_value = _make_ctx_mock()
 
             ok, errs = excluir_clientes_definitivamente([1, 2, 3])
@@ -81,8 +92,13 @@ class TestExcluirClientesStorageConsistency(unittest.TestCase):
     def test_banco_chamado_quando_storage_ok(self):
         """Se _remove_cliente_storage é bem-sucedido, exec_postgrest deve ser invocado."""
         patches = self._patches(storage_return=None)
-        with patches["org"], patches["adapter"], patches["ctx"] as mock_ctx, \
-             patches["storage"] as mock_storage, patches["exec_pg"] as mock_exec:
+        with (
+            patches["org"],
+            patches["adapter"],
+            patches["ctx"] as mock_ctx,
+            patches["storage"] as mock_storage,
+            patches["exec_pg"] as mock_exec,
+        ):
             mock_ctx.return_value = _make_ctx_mock()
             mock_exec.return_value = MagicMock()
 
@@ -96,8 +112,13 @@ class TestExcluirClientesStorageConsistency(unittest.TestCase):
     def test_banco_chamado_para_cada_id_com_storage_ok(self):
         """Múltiplos IDs com storage ok devem gerar uma deleção no banco cada."""
         patches = self._patches(storage_return=None)
-        with patches["org"], patches["adapter"], patches["ctx"] as mock_ctx, \
-             patches["storage"], patches["exec_pg"] as mock_exec:
+        with (
+            patches["org"],
+            patches["adapter"],
+            patches["ctx"] as mock_ctx,
+            patches["storage"],
+            patches["exec_pg"] as mock_exec,
+        ):
             mock_ctx.return_value = _make_ctx_mock()
             mock_exec.return_value = MagicMock()
 
@@ -110,8 +131,13 @@ class TestExcluirClientesStorageConsistency(unittest.TestCase):
     def test_lista_vazia_nao_chama_nada(self):
         """Lista vazia de IDs não deve chamar storage nem banco."""
         patches = self._patches()
-        with patches["org"], patches["adapter"], patches["ctx"] as mock_ctx, \
-             patches["storage"] as mock_storage, patches["exec_pg"] as mock_exec:
+        with (
+            patches["org"],
+            patches["adapter"],
+            patches["ctx"] as mock_ctx,
+            patches["storage"] as mock_storage,
+            patches["exec_pg"] as mock_exec,
+        ):
             mock_ctx.return_value = _make_ctx_mock()
 
             ok, errs = excluir_clientes_definitivamente([])
@@ -136,9 +162,13 @@ class TestExcluirClientesStorageConsistency(unittest.TestCase):
                 raise ClienteStorageRemovalError("falha no cliente 2")
 
         patches = self._patches()
-        with patches["org"], patches["adapter"], patches["ctx"] as mock_ctx, \
-             patch(f"{_MOD}._remove_cliente_storage", side_effect=storage_side_effect), \
-             patches["exec_pg"] as mock_exec:
+        with (
+            patches["org"],
+            patches["adapter"],
+            patches["ctx"] as mock_ctx,
+            patch(f"{_MOD}._remove_cliente_storage", side_effect=storage_side_effect),
+            patches["exec_pg"] as mock_exec,
+        ):
             mock_ctx.return_value = _make_ctx_mock()
             mock_exec.return_value = MagicMock()
 
@@ -157,8 +187,13 @@ class TestExcluirClientesStorageConsistency(unittest.TestCase):
     def test_banco_falha_contabilizado_no_errs(self):
         """Falha no banco (após storage ok) deve ser registrada em errs."""
         patches = self._patches(storage_return=None)
-        with patches["org"], patches["adapter"], patches["ctx"] as mock_ctx, \
-             patches["storage"], patches["exec_pg"] as mock_exec:
+        with (
+            patches["org"],
+            patches["adapter"],
+            patches["ctx"] as mock_ctx,
+            patches["storage"],
+            patches["exec_pg"] as mock_exec,
+        ):
             mock_ctx.return_value = _make_ctx_mock()
             mock_exec.side_effect = RuntimeError("DB timeout")
 
@@ -176,8 +211,7 @@ class TestExcluirClientesStorageConsistency(unittest.TestCase):
         """Callback de progresso deve ser invocado mesmo quando storage falha."""
         patches = self._patches(storage_side_effect=ClienteStorageRemovalError("err"))
         calls = []
-        with patches["org"], patches["adapter"], patches["ctx"] as mock_ctx, \
-             patches["storage"], patches["exec_pg"]:
+        with patches["org"], patches["adapter"], patches["ctx"] as mock_ctx, patches["storage"], patches["exec_pg"]:
             mock_ctx.return_value = _make_ctx_mock()
 
             excluir_clientes_definitivamente([7], progress_cb=lambda idx, total, cid: calls.append((idx, total, cid)))

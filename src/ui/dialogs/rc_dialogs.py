@@ -13,9 +13,9 @@ API pública:
     show_warning(parent, title, message) -> None
     show_error(parent, title, message) -> None
 """
+
 from __future__ import annotations
 
-import tkinter as tk
 from typing import Any
 
 from src.ui.ctk_config import ctk
@@ -51,7 +51,7 @@ def _make_dialog(parent: Any, title: str) -> Any:
     dlg.title(title)
     dlg.resizable(False, False)
     dlg.configure(fg_color=APP_BG)
-    apply_window_icon(dlg)      # ícone RC antes de deiconify
+    apply_window_icon(dlg)  # ícone RC antes de deiconify
     try:
         dlg.transient(parent)
     except Exception:
@@ -210,6 +210,7 @@ def show_info(parent: Any, title: str, message: str) -> None:
     except Exception:
         pass
 
+
 def ask_ok_cancel(parent: Any, title: str, message: str) -> bool:
     """Diálogo modal de confirmação OK/Cancelar com ícone RC.
 
@@ -360,6 +361,7 @@ def ask_retry_cancel(parent: Any, title: str, message: str) -> bool:
         pass
 
     return result["ok"]
+
 
 def show_error(parent: Any, title: str, message: str) -> None:
     """Diálogo modal de erro (OK) com ícone RC.

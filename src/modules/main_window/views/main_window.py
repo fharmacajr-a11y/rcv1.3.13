@@ -309,9 +309,7 @@ class App(BaseApp):  # type: ignore[misc]
         if frame is None:
             return None
         # Suporta tanto _get_selected_values (legado) quanto get_selected_values
-        fn = getattr(frame, "_get_selected_values", None) or getattr(
-            frame, "get_selected_values", None
-        )
+        fn = getattr(frame, "_get_selected_values", None) or getattr(frame, "get_selected_values", None)
         if not callable(fn):
             return None
         values = fn()

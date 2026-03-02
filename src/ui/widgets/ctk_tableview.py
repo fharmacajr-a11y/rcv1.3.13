@@ -153,8 +153,7 @@ class CTkTableView(ctk.CTkFrame):
 
         except ImportError:
             log.exception(
-                "CTkTable não está instalado. kwargs=%s. "
-                "Instale as dependências com: pip install -r requirements.txt",
+                "CTkTable não está instalado. kwargs=%s. Instale as dependências com: pip install -r requirements.txt",
                 list(table_params.keys()) if "table_params" in dir() else "(desconhecido)",
             )
             self._table = None

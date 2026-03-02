@@ -10,7 +10,6 @@ REFATORAÇÃO P2 (Microfase 1):
 from __future__ import annotations
 
 import logging
-import tkinter as tk
 from typing import Any, Callable, Optional
 
 from src.ui.ctk_config import ctk

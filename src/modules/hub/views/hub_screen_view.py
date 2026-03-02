@@ -199,7 +199,9 @@ class HubScreenView:
         )
         frame_cadastros.pack(fill="x", pady=FRAME_PACK_PADY)
 
-        btn_clientes = make_module_button(frame_cadastros.content_frame, "Clientes", self.open_clientes, width=_btn_width)
+        btn_clientes = make_module_button(
+            frame_cadastros.content_frame, "Clientes", self.open_clientes, width=_btn_width
+        )
         btn_clientes.pack(pady=BTN_GRID_PADY)
 
         # BLOCO 2: Gestão
@@ -210,7 +212,9 @@ class HubScreenView:
         )
         frame_gestao.pack(fill="x", pady=FRAME_PACK_PADY)
 
-        btn_fluxo_caixa = make_module_button(frame_gestao.content_frame, "Fluxo de Caixa", self.open_cashflow, width=_btn_width)
+        btn_fluxo_caixa = make_module_button(
+            frame_gestao.content_frame, "Fluxo de Caixa", self.open_cashflow, width=_btn_width
+        )
         btn_fluxo_caixa.pack(pady=BTN_GRID_PADY)
 
         # BLOCO 3: Regulatório / Programas

@@ -4,6 +4,7 @@
 O padrão correto usa _WINERROR_10013_LOCK para garantir que o log de
 WinError 10013 seja emitido exatamente UMA vez, mesmo sob alta concorrência.
 """
+
 import threading
 import unittest
 from unittest.mock import patch
@@ -15,6 +16,7 @@ import src.utils.network as net_mod
 # Helpers compartilhados
 # ---------------------------------------------------------------------------
 
+
 def _winerror_exc() -> OSError:
     """Cria OSError com winerror=10013."""
     exc = OSError("Access is denied")
@@ -24,6 +26,7 @@ def _winerror_exc() -> OSError:
 
 def _run_concurrent(n: int, fn, barrier: threading.Barrier) -> None:
     """Dispara n threads que chamam fn sincronizadas pela barrier."""
+
     def worker():
         barrier.wait()
         fn()
@@ -39,6 +42,7 @@ def _run_concurrent(n: int, fn, barrier: threading.Barrier) -> None:
 # Fixture base: reseta estado global a cada teste
 # ---------------------------------------------------------------------------
 
+
 class _NetBase(unittest.TestCase):
     def setUp(self):
         net_mod._winerror_10013_logged = False
@@ -53,8 +57,8 @@ class _NetBase(unittest.TestCase):
 # Estrutura do módulo
 # ---------------------------------------------------------------------------
 
-class TestModuleStructure(_NetBase):
 
+class TestModuleStructure(_NetBase):
     def test_lock_existe(self):
         """_WINERROR_10013_LOCK deve existir e ser um Lock."""
         self.assertTrue(hasattr(net_mod, "_WINERROR_10013_LOCK"))
@@ -74,13 +78,15 @@ class TestModuleStructure(_NetBase):
 # Comportamento single-thread
 # ---------------------------------------------------------------------------
 
-class TestSingleThread(_NetBase):
 
+class TestSingleThread(_NetBase):
     def test_uma_chamada_loga_uma_vez(self):
         calls: list[str] = []
 
-        with patch("socket.create_connection", side_effect=_winerror_exc()), \
-             patch.object(net_mod.logger, "debug", side_effect=lambda m, *a, **kw: calls.append(str(m))):
+        with (
+            patch("socket.create_connection", side_effect=_winerror_exc()),
+            patch.object(net_mod.logger, "debug", side_effect=lambda m, *a, **kw: calls.append(str(m))),
+        ):
             net_mod._socket_check(0.01)
 
         matching = [m for m in calls if "10013" in m]
@@ -89,8 +95,10 @@ class TestSingleThread(_NetBase):
     def test_10_chamadas_sequenciais_logam_uma_vez(self):
         calls: list[str] = []
 
-        with patch("socket.create_connection", side_effect=_winerror_exc()), \
-             patch.object(net_mod.logger, "debug", side_effect=lambda m, *a, **kw: calls.append(str(m))):
+        with (
+            patch("socket.create_connection", side_effect=_winerror_exc()),
+            patch.object(net_mod.logger, "debug", side_effect=lambda m, *a, **kw: calls.append(str(m))),
+        ):
             for _ in range(10):
                 net_mod._socket_check(0.01)
 
@@ -98,24 +106,21 @@ class TestSingleThread(_NetBase):
         self.assertEqual(len(matching), 1)
 
     def test_flag_true_apos_log(self):
-        with patch("socket.create_connection", side_effect=_winerror_exc()), \
-             patch.object(net_mod.logger, "debug"):
+        with patch("socket.create_connection", side_effect=_winerror_exc()), patch.object(net_mod.logger, "debug"):
             net_mod._socket_check(0.01)
 
         self.assertTrue(net_mod._winerror_10013_logged)
 
     def test_oserror_generico_nao_seta_flag(self):
         """OSError sem winerror=10013 não deve alterar a flag."""
-        with patch("socket.create_connection", side_effect=OSError("refused")), \
-             patch.object(net_mod.logger, "warning"):
+        with patch("socket.create_connection", side_effect=OSError("refused")), patch.object(net_mod.logger, "warning"):
             net_mod._socket_check(0.01)
 
         self.assertFalse(net_mod._winerror_10013_logged)
 
     def test_oserror_generico_nao_usa_lock(self):
         """Erros genéricos não alteram _winerror_10013_logged via lock."""
-        with patch("socket.create_connection", side_effect=OSError("refused")), \
-             patch.object(net_mod.logger, "warning"):
+        with patch("socket.create_connection", side_effect=OSError("refused")), patch.object(net_mod.logger, "warning"):
             for _ in range(5):
                 net_mod._socket_check(0.01)
 
@@ -126,8 +131,8 @@ class TestSingleThread(_NetBase):
 # Comportamento multi-thread — núcleo dos testes de thread-safety
 # ---------------------------------------------------------------------------
 
-class TestConcurrency(_NetBase):
 
+class TestConcurrency(_NetBase):
     def _count_10013_logs(self, n_threads: int) -> int:
         """Retorna quantas vezes o log de WinError 10013 foi emitido com n threads."""
         calls: list[str] = []
@@ -141,8 +146,10 @@ class TestConcurrency(_NetBase):
         def task():
             net_mod._socket_check(0.01)
 
-        with patch("socket.create_connection", side_effect=_winerror_exc()), \
-             patch.object(net_mod.logger, "debug", side_effect=fake_debug):
+        with (
+            patch("socket.create_connection", side_effect=_winerror_exc()),
+            patch.object(net_mod.logger, "debug", side_effect=fake_debug),
+        ):
             _run_concurrent(n_threads, task, barrier)
 
         return sum(1 for m in calls if "10013" in m)
@@ -167,8 +174,7 @@ class TestConcurrency(_NetBase):
         """Após disparo concorrente, a flag deve ser True."""
         barrier = threading.Barrier(20)
 
-        with patch("socket.create_connection", side_effect=_winerror_exc()), \
-             patch.object(net_mod.logger, "debug"):
+        with patch("socket.create_connection", side_effect=_winerror_exc()), patch.object(net_mod.logger, "debug"):
             _run_concurrent(20, lambda: net_mod._socket_check(0.01), barrier)
 
         self.assertTrue(net_mod._winerror_10013_logged)
@@ -187,8 +193,10 @@ class TestConcurrency(_NetBase):
                 with calls_lock:
                     calls.append(str(msg))
 
-            with patch("socket.create_connection", side_effect=_winerror_exc()), \
-                 patch.object(net_mod.logger, "debug", side_effect=fake_debug):
+            with (
+                patch("socket.create_connection", side_effect=_winerror_exc()),
+                patch.object(net_mod.logger, "debug", side_effect=fake_debug),
+            ):
                 _run_concurrent(20, lambda: net_mod._socket_check(0.01), barrier)
 
             matching = [m for m in calls if "10013" in m]
@@ -212,13 +220,15 @@ class TestConcurrency(_NetBase):
                 if acquired:
                     net_mod._WINERROR_10013_LOCK.release()
 
-        with patch("socket.create_connection", side_effect=_winerror_exc()), \
-             patch.object(net_mod.logger, "debug", side_effect=fake_debug):
+        with (
+            patch("socket.create_connection", side_effect=_winerror_exc()),
+            patch.object(net_mod.logger, "debug", side_effect=fake_debug),
+        ):
             net_mod._socket_check(0.01)
 
         self.assertTrue(
             any(lock_was_free_during_log),
-            "O lock parece estar sendo mantido durante o logger.debug (deveria estar livre)"
+            "O lock parece estar sendo mantido durante o logger.debug (deveria estar livre)",
         )
 
 

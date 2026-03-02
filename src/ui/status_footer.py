@@ -111,12 +111,14 @@ class StatusFooter(ctk.CTkFrame):
             except tk.TclError:
                 # Retry via after(0) se widget ainda não pronto
                 try:
+
                     def _update_dot(c=color):
                         try:
                             if self.winfo_exists():
                                 self._dot.itemconfig(self._dot_oval_id, fill=c)
                         except Exception:
                             pass
+
                     self.after(0, _update_dot)
                 except Exception:
                     pass  # Ignorar se after também falhar

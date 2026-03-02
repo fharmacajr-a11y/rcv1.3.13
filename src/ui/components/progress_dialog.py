@@ -16,7 +16,6 @@ from src.ui.ui_tokens import (
     KPI_RED_HOVER,
 )
 from src.ui.widgets.button_factory import make_btn
-from src.ui.win_titlebar import set_immersive_dark_mode
 from src.ui.window_utils import apply_window_icon, show_centered
 
 logger = logging.getLogger(__name__)
@@ -70,12 +69,14 @@ class BusyDialog(ctk.CTkToplevel):
         self.lift()
         try:
             self.attributes("-topmost", True)
+
             def _remove_topmost_busy():
                 try:
                     if self.winfo_exists():
                         self.attributes("-topmost", False)
                 except Exception:
                     pass
+
             self.after(50, _remove_topmost_busy)
         except Exception as exc:  # noqa: BLE001
             logger.debug("Falha ao ajustar topmost do BusyDialog: %s", exc)

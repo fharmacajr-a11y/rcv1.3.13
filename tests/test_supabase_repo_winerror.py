@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Testes para lógica WinError 10035 em src/db/supabase_repo.py."""
+
 import unittest
 from unittest.mock import patch
 
@@ -99,4 +100,3 @@ class TestWithRetriesWinError(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

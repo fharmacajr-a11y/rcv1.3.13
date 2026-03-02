@@ -41,7 +41,6 @@ def make_module_button(
         >>> btn = make_module_button(frame, "Clientes", open_clientes)
         >>> btn.grid(row=0, column=0)
     """
-    from src.ui.ctk_config import ctk
     from src.ui.widgets.button_factory import make_btn
 
     return make_btn(

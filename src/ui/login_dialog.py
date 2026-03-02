@@ -286,12 +286,14 @@ class LoginDialog(ctk.CTkToplevel):
     def _disable_for(self, seconds: int):
         self.login_btn.config(state="disabled")
         self._unbind_enter()  # Desabilita Enter
+
         def _re_enable():
             try:
                 if self.winfo_exists():
                     self._enable_btn()
             except Exception:
                 pass
+
         self.after(seconds * 1000, _re_enable)
 
     def _enable_btn(self):

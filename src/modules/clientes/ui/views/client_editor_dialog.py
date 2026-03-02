@@ -227,7 +227,7 @@ class ClientEditorDialog(EditorActionsMixin, EditorDataMixin, EditorUIMixin, ctk
             log.info(f"[ClientEditorDialog:{self.session_id}] grab_set aplicado com sucesso (viewable=True)")
 
         except Exception as e:
-            log.error(f"[ClientEditorDialog:{self.session_id}] " f"Erro ao aplicar grab_set: {e}")
+            log.error(f"[ClientEditorDialog:{self.session_id}] Erro ao aplicar grab_set: {e}")
 
     def _set_window_title(self) -> None:
         """Define título da janela conforme legado."""

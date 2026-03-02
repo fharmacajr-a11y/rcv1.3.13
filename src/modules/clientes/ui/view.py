@@ -19,7 +19,12 @@ from src.ui.widgets.button_factory import make_btn
 from src.ui.ui_tokens import APP_BG, SURFACE, SURFACE_DARK, TEXT_PRIMARY, BORDER
 from src.ui.ttk_treeview_theme import apply_zebra
 from src.ui.widgets.ctk_treeview_container import CTkTreeviewContainer
-from src.ui.dialogs.rc_dialogs import ask_yes_no as _ask_yes_no, show_info as _show_info, show_error as _show_error, show_warning as _show_warning
+from src.ui.dialogs.rc_dialogs import (
+    ask_yes_no as _ask_yes_no,
+    show_info as _show_info,
+    show_error as _show_error,
+    show_warning as _show_warning,
+)
 from src.utils.formatters import format_cnpj as _fmt_cnpj, format_whatsapp as _fmt_whatsapp
 from src.modules.clientes.ui.views.toolbar import ClientesV2Toolbar
 from src.modules.clientes.ui.views.actionbar import ClientesV2ActionBar
@@ -891,7 +896,8 @@ class ClientesV2Frame(ctk.CTkFrame):
                     if search:
                         search_lower = search.lower()
                         rows = [
-                            r for r in rows
+                            r
+                            for r in rows
                             if search_lower in (r.razao_social or "").lower()
                             or search_lower in (r.cnpj or "").lower()
                             or search_lower in (r.nome or "").lower()

@@ -9,15 +9,14 @@ Verifica que:
 - overwrite=False não passa upsert=True ao adapter (por padrão)
 - overwrite=True passa upsert=True ao adapter
 """
+
 import unittest
-from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 from src.modules.uploads.exceptions import (
     UploadDuplicateError,
-    UploadNetworkError,
     UploadServerError,
     make_server_error,
 )
@@ -33,6 +32,7 @@ _RET_MOD = "src.modules.uploads.upload_retry"
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_item(path: str = "/tmp/doc.pdf", relative_path: str = "doc.pdf") -> SimpleNamespace:
     return SimpleNamespace(path=path, relative_path=relative_path)
@@ -51,6 +51,7 @@ def _remote_path_builder(cnpj: str, rel: str, sub: str | None, **kw: object) -> 
 # ---------------------------------------------------------------------------
 # Testes para make_server_error / UploadDuplicateError
 # ---------------------------------------------------------------------------
+
 
 class TestMakeServerError(unittest.TestCase):
     """Verifica que make_server_error retorna o tipo correto."""
@@ -82,6 +83,7 @@ class TestMakeServerError(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # Testes para upload_items_with_adapter
 # ---------------------------------------------------------------------------
+
 
 class TestUploadItemsWithAdapterDuplicates(unittest.TestCase):
     """Verifica comportamento de duplicatas no lote de uploads."""
@@ -182,7 +184,10 @@ class TestUploadItemsWithAdapterDuplicates(unittest.TestCase):
 
         with patch(f"{_MOD}.upload_with_retry", side_effect=side_effect):
             ok, failures = upload_items_with_adapter(
-                adapter, items, "12345678000190", None,
+                adapter,
+                items,
+                "12345678000190",
+                None,
                 remote_path_builder=_remote_path_builder,
             )
 
@@ -204,7 +209,10 @@ class TestUploadItemsWithAdapterDuplicates(unittest.TestCase):
 
         with patch(f"{_MOD}.upload_with_retry", side_effect=side_effect):
             ok, failures = upload_items_with_adapter(
-                adapter, items, "12345678000190", None,
+                adapter,
+                items,
+                "12345678000190",
+                None,
                 remote_path_builder=_remote_path_builder,
             )
 
@@ -226,38 +234,36 @@ class TestUploadItemsWithAdapterDuplicates(unittest.TestCase):
 # Testes para build_storage_adapter
 # ---------------------------------------------------------------------------
 
+
 class TestBuildStorageAdapter(unittest.TestCase):
     """Verifica parâmetro overwrite de build_storage_adapter."""
 
     def _build(self, overwrite: bool) -> Any:
-        with patch(
-            "src.modules.uploads.repository.SupabaseStorageAdapter"
-        ) as MockAdapter, patch(
-            "src.modules.uploads.repository.supabase", MagicMock()
+        with (
+            patch("src.modules.uploads.repository.SupabaseStorageAdapter") as mock_adapter,
+            patch("src.modules.uploads.repository.supabase", MagicMock()),
         ):
             build_storage_adapter(bucket="test-bucket", overwrite=overwrite)
-            return MockAdapter.call_args
+            return mock_adapter.call_args
 
     def test_overwrite_false_por_padrao_passa_false_ao_adapter(self):
         """Padrão overwrite=False não deve usar upsert no Supabase."""
-        with patch(
-            "src.modules.uploads.repository.SupabaseStorageAdapter"
-        ) as MockAdapter, patch(
-            "src.modules.uploads.repository.supabase", MagicMock()
+        with (
+            patch("src.modules.uploads.repository.SupabaseStorageAdapter") as mock_adapter,
+            patch("src.modules.uploads.repository.supabase", MagicMock()),
         ):
             build_storage_adapter(bucket="b")
-            _, kwargs = MockAdapter.call_args
+            _, kwargs = mock_adapter.call_args
             self.assertFalse(kwargs.get("overwrite", False))
 
     def test_overwrite_true_passa_true_ao_adapter(self):
         """overwrite=True deve ser propagado ao SupabaseStorageAdapter."""
-        with patch(
-            "src.modules.uploads.repository.SupabaseStorageAdapter"
-        ) as MockAdapter, patch(
-            "src.modules.uploads.repository.supabase", MagicMock()
+        with (
+            patch("src.modules.uploads.repository.SupabaseStorageAdapter") as mock_adapter,
+            patch("src.modules.uploads.repository.supabase", MagicMock()),
         ):
             build_storage_adapter(bucket="b", overwrite=True)
-            _, kwargs = MockAdapter.call_args
+            _, kwargs = mock_adapter.call_args
             self.assertTrue(kwargs.get("overwrite", False))
 
 

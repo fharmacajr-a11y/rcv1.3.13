@@ -1,5 +1,4 @@
 # ui/users/users.py — gerenciador com políticas de admin + layout clássico
-import tkinter as tk
 import ttkbootstrap as tb
 
 from src.ui.ctk_config import ctk
