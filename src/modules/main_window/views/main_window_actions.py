@@ -59,7 +59,7 @@ def poll_notifications(app: App) -> None:
             except Exception as cancel_exc:  # noqa: BLE001
                 # Não crítico: job pode já ter sido cancelado
                 log.debug("Job notifications já cancelado: %s", type(cancel_exc).__name__)
-        app._notifications_poll_job_id = app.after(20000, lambda: poll_notifications(app))
+        app._notifications_poll_job_id = app.after(20000, lambda: poll_notifications(app))  # pyright: ignore[reportAttributeAccessIssue]
         return
 
     try:
@@ -94,7 +94,7 @@ def poll_notifications(app: App) -> None:
         except Exception as cancel_exc:  # noqa: BLE001
             # Não crítico: job pode já ter sido cancelado
             log.debug("Job notifications já cancelado: %s", type(cancel_exc).__name__)
-    app._notifications_poll_job_id = app.after(20000, lambda: poll_notifications(app))
+    app._notifications_poll_job_id = app.after(20000, lambda: poll_notifications(app))  # pyright: ignore[reportAttributeAccessIssue]
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -135,7 +135,7 @@ def apply_online_state(app: App, is_online: Optional[bool]) -> None:
         # P0 #3: Usar hasattr para compatibilidade com ClientesV2Frame e outros frames
         if hasattr(frame, "_update_main_buttons_state"):
             try:
-                frame._update_main_buttons_state()
+                frame._update_main_buttons_state()  # pyright: ignore[reportAttributeAccessIssue]
             except Exception as exc:  # noqa: BLE001
                 log.warning(
                     "Falha ao atualizar estado dos botões do frame %s: %s",
@@ -494,10 +494,10 @@ def schedule_user_status_refresh(app: App) -> None:
                 # Não crítico: job pode já ter sido cancelado
                 log.debug("Job status_refresh já cancelado: %s", type(cancel_exc).__name__)
         try:
-            app._status_refresh_job_id = app.after(STATUS_REFRESH_INTERVAL, lambda: schedule_user_status_refresh(app))
+            app._status_refresh_job_id = app.after(STATUS_REFRESH_INTERVAL, lambda: schedule_user_status_refresh(app))  # pyright: ignore[reportAttributeAccessIssue]
         except Exception as exc:  # noqa: BLE001
             log.debug("Falha ao agendar refresh de status de usuário: %s", exc)
-            app._status_refresh_job_id = None
+            app._status_refresh_job_id = None  # pyright: ignore[reportAttributeAccessIssue]
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -593,7 +593,7 @@ def destroy_window(app: App) -> None:
         try:
             listener = getattr(app, "_theme_listener", None)
             if listener is not None:
-                theme_manager.remove_listener(listener)
+                theme_manager.remove_listener(listener)  # pyright: ignore[reportAttributeAccessIssue]
         except Exception as exc:  # noqa: BLE001
             log.debug("Falha ao remover theme_listener: %s", exc)
 

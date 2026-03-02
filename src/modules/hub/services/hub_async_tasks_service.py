@@ -53,11 +53,11 @@ def load_dashboard_data_async(controller: "HubScreenController") -> None:
         controller.logger.debug("org_id não disponível, aguardando para carregar dashboard...")
         # Mostrar mensagem de aguardando autenticação no dashboard
         try:
-            if hasattr(controller.view, "_dashboard_view") and controller.view._dashboard_view:
+            if hasattr(controller.view, "_dashboard_view") and controller.view._dashboard_view:  # pyright: ignore[reportAttributeAccessIssue]
                 # Criar uma mensagem temporária
                 from src.ui.ctk_config import ctk
 
-                dashboard_view = controller.view._dashboard_view
+                dashboard_view = controller.view._dashboard_view  # pyright: ignore[reportAttributeAccessIssue]
                 if dashboard_view.dashboard_scroll:
                     for widget in dashboard_view.dashboard_scroll.content.winfo_children():
                         widget.destroy()
@@ -302,11 +302,11 @@ def refresh_author_names_cache_async(controller: "HubScreenController", *, force
         """Thread target: busca nomes de autores ausentes."""
         try:
             authors_map = controller.notes_vm.fetch_missing_authors(missing_emails)
-            controller.view.after(0, lambda: on_success(authors_map))
+            controller.view.after(0, lambda: on_success(authors_map))  # pyright: ignore[reportAttributeAccessIssue]
         except Exception as exc:
             # Capturar exceção para usar no lambda (closure)
             error = exc
-            controller.view.after(0, lambda: on_error(error))
+            controller.view.after(0, lambda: on_error(error))  # pyright: ignore[reportAttributeAccessIssue]
 
     import threading
 

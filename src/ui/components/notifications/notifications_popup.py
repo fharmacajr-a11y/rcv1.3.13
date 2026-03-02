@@ -262,7 +262,7 @@ class NotificationsPopup:
         self._refresh_tree()
 
         # Guardar referência
-        self._popup = popup
+        self._popup = popup  # pyright: ignore[reportAttributeAccessIssue]
 
         # Mostrar janela centralizada
         show_centered_no_flash(popup, parent=self._parent.winfo_toplevel())

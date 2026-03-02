@@ -362,7 +362,7 @@ class NotesController:
                     self._vm.after_note_updated(updated_note)
                 else:
                     # Fallback: hard delete se update_note não existir
-                    self._log.warning("NotesService não tem update_note, usando delete_note como fallback")
+                    self._log.warning("NotesService não tem update_note, usando delete_note como fallback")  # pyright: ignore[reportAttributeAccessIssue]
                     self._notes_service.delete_note(note_id)
                     self._vm.after_note_deleted(note_id)
 

@@ -125,7 +125,7 @@ def create_frame(app: Any, frame_cls: Any, options: Optional[dict[str, Any]]) ->
         _forget_widget(current)
 
     try:
-        frame.pack(fill="both", expand=True)
+        frame.pack(fill="both", expand=True)  # pyright: ignore[reportAttributeAccessIssue]
     except Exception as exc:  # noqa: BLE001
         log.debug("frame.pack() failed in create_frame: %s", exc)
 
@@ -212,7 +212,7 @@ def _show_passwords(app: Any) -> Any:
         _forget_widget(current)
 
     try:
-        frame.lift()
+        frame.lift()  # pyright: ignore[reportAttributeAccessIssue]
     except Exception as exc:  # noqa: BLE001
         log.debug("passwords frame.lift() failed: %s", exc)
 
@@ -222,7 +222,7 @@ def _show_passwords(app: Any) -> Any:
         log.debug("set app.nav._current failed: %s", exc)
 
     try:
-        frame.on_show()
+        frame.on_show()  # pyright: ignore[reportAttributeAccessIssue]
     except Exception:
         log.exception("Erro ao chamar on_show da tela de senhas")
 

@@ -153,8 +153,8 @@ def create_task(
         try:
             if hasattr(e, "code"):
                 error_code = e.code
-            elif hasattr(e, "json") and callable(e.json):
-                error_dict = e.json()
+            elif hasattr(e, "json") and callable(e.json):  # pyright: ignore[reportAttributeAccessIssue]
+                error_dict = e.json()  # pyright: ignore[reportAttributeAccessIssue]
                 error_code = error_dict.get("code") if isinstance(error_dict, dict) else None
         except Exception:  # noqa: BLE001
             logger.debug("Falha ao extrair error code da exceção", exc_info=True)

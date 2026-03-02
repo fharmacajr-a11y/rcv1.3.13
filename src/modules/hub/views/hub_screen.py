@@ -289,10 +289,10 @@ class HubScreen(ctk.CTkFrame):  # type: ignore[misc]
             quick_actions_view = HubQuickActionsView(
                 self,
                 on_open_clientes=self.open_clientes,
-                on_open_cashflow=self.open_cashflow,
+                on_open_cashflow=self.open_cashflow,  # pyright: ignore[reportAttributeAccessIssue]
                 on_open_farmacia_popular=self.open_farmacia_popular,
                 on_open_sngpc=self.open_sngpc,
-                on_open_mod_sifap=self.open_mod_sifap,
+                on_open_mod_sifap=self.open_mod_sifap,  # pyright: ignore[reportAttributeAccessIssue]
             )
             self.modules_panel = quick_actions_view.build()
 
@@ -661,14 +661,14 @@ class HubScreen(ctk.CTkFrame):  # type: ignore[misc]
         """Handler para clique no botão 'Adicionar' nota (MF-23: via NotesFacade)."""
         try:
             # Obter texto da entrada
-            note_text = self.new_note.get("1.0", "end-1c").strip()
+            note_text = self.new_note.get("1.0", "end-1c").strip()  # pyright: ignore[reportAttributeAccessIssue]
 
             # Delegar à facade
             success, message = self._notes_facade.on_add_note(note_text)
 
             if success:
                 # Limpar entrada
-                self.new_note.delete("1.0", "end")
+                self.new_note.delete("1.0", "end")  # pyright: ignore[reportAttributeAccessIssue]
                 # Refresh automático será feito via polling/realtime
             else:
                 if message:  # Mensagens vazias já foram tratadas

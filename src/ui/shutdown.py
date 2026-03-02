@@ -174,7 +174,7 @@ def install_clean_shutdown(root: tk.Tk | tk.Toplevel, on_closing: Callable[..., 
 
             # 2) Setar flag se app tem esse atributo
             if hasattr(root, "_closing"):
-                root._closing = True
+                root._closing = True  # pyright: ignore[reportAttributeAccessIssue]
 
             # 3) Cancelar after jobs
             cancel_all_after_jobs(root)

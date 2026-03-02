@@ -85,7 +85,7 @@ def center_on_parent(window: tk.Misc) -> bool:
         # Pega dimensões através de wm_minsize (mais confiável)
         if hasattr(window, "wm_minsize"):
             try:
-                minsize_result = window.wm_minsize()
+                minsize_result = window.wm_minsize()  # pyright: ignore[reportAttributeAccessIssue]
                 if minsize_result and len(minsize_result) == 2:
                     min_from_wm_w, min_from_wm_h = minsize_result
                     # Usar o MAIOR entre reqwidth e minsize
@@ -105,7 +105,7 @@ def center_on_parent(window: tk.Misc) -> bool:
     x = max(0, x)
     y = max(0, y)
 
-    window.geometry(f"{w}x{h}+{x}+{y}")
+    window.geometry(f"{w}x{h}+{x}+{y}")  # pyright: ignore[reportAttributeAccessIssue]
     window.update_idletasks()  # Força Tkinter a processar a geometry
     log.debug(f"[center_on_parent] Geometry aplicada: {w}x{h}+{x}+{y}")
     return True
@@ -146,7 +146,7 @@ def center_on_screen(window: tk.Misc) -> None:
     try:
         if hasattr(window, "wm_minsize"):
             try:
-                minsize_result = window.wm_minsize()
+                minsize_result = window.wm_minsize()  # pyright: ignore[reportAttributeAccessIssue]
                 if minsize_result and len(minsize_result) == 2:
                     min_from_wm_w, min_from_wm_h = minsize_result
                     # Usar o MAIOR entre reqwidth e minsize
@@ -166,7 +166,7 @@ def center_on_screen(window: tk.Misc) -> None:
     x = max(0, x)
     y = max(0, y)
 
-    window.geometry(f"{w}x{h}+{x}+{y}")
+    window.geometry(f"{w}x{h}+{x}+{y}")  # pyright: ignore[reportAttributeAccessIssue]
     window.update_idletasks()  # Força Tkinter a processar a geometry
     log.debug(f"[center_on_screen] Geometry aplicada: {w}x{h}+{x}+{y}")
 

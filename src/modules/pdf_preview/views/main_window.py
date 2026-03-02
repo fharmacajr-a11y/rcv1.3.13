@@ -201,9 +201,9 @@ class PdfViewerWin(ctk.CTkToplevel):
         self.update_idletasks()
 
         # Centraliza a janela (ainda oculta)
-        logger.debug("PDF VIEWER: antes show_centered - state=%s geometry=%s", self.state(), self.geometry())
+        logger.debug("PDF VIEWER: antes show_centered - state=%s geometry=%s", self.state(), self.geometry())  # pyright: ignore[reportAttributeAccessIssue]
         show_centered(self)
-        logger.debug("PDF VIEWER: após show_centered - state=%s geometry=%s", self.state(), self.geometry())
+        logger.debug("PDF VIEWER: após show_centered - state=%s geometry=%s", self.state(), self.geometry())  # pyright: ignore[reportAttributeAccessIssue]
 
         # Carrega conteúdo e revela janela apenas após renderização
         try:
@@ -690,7 +690,7 @@ class PdfViewerWin(ctk.CTkToplevel):
         if not self.winfo_exists():
             return
 
-        logger.debug("PDF VIEWER: revelando janela - id=%s state=%s", id(self), self.state())
+        logger.debug("PDF VIEWER: revelando janela - id=%s state=%s", id(self), self.state())  # pyright: ignore[reportAttributeAccessIssue]
 
         try:
             self.deiconify()

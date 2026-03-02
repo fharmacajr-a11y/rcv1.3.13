@@ -137,8 +137,8 @@ class HubScreenView:
         self.open_sites = open_sites
 
         # Widgets principais (criados em build_layout)
-        self.modules_panel: tk.Frame | None = None
-        self.center_spacer: tk.Frame | None = None
+        self.modules_panel: Any = None
+        self.center_spacer: Any = None
         self.dashboard_scroll: Any | None = None
         self.notes_panel: Any | None = None
         self.notes_history: Any | None = None

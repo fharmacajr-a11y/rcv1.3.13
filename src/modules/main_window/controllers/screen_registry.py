@@ -50,7 +50,7 @@ def register_main_window_screens(router: ScreenRouter, app: App) -> None:
         # BUGFIX-UX-STARTUP-HUB-001 (C2): after_idle para on_show evitar travar primeiro paint
         # Em vez de chamar on_show() sincronamente, agendamos para após o frame estar pronto
         try:
-            frame.after_idle(frame.on_show)
+            frame.after_idle(frame.on_show)  # pyright: ignore[reportAttributeAccessIssue]
         except Exception as exc:
             _log.warning("Erro ao agendar on_show do Hub: %s", exc)
         return frame

@@ -70,7 +70,7 @@ class ChatGPTWindow(ctk.CTkToplevel):
 
         # Verifica estado da janela
         try:
-            window_state = self.state()
+            window_state = self.state()  # pyright: ignore[reportAttributeAccessIssue]
             geometry = self.geometry()
             log.debug(f"[CHATGPT_WINDOW] Janela exibida: state={window_state}, geometry={geometry}")
         except Exception as exc:  # noqa: BLE001
@@ -124,12 +124,12 @@ class ChatGPTWindow(ctk.CTkToplevel):
     def on_minimize(self) -> None:
         """Minimiza a janela sem destruí-la."""
         # Usar iconify() ao invés de withdraw() para minimizar corretamente
-        self.iconify()
+        self.iconify()  # pyright: ignore[reportAttributeAccessIssue]
 
     def show(self) -> None:
         """Mostra a janela e traz para frente."""
         self.deiconify()
-        self.state("normal")
+        self.state("normal")  # pyright: ignore[reportAttributeAccessIssue]
         self.lift()
         self.focus_force()
 

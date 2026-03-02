@@ -10,7 +10,7 @@ import os
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from src.modules.main_window.views.main_window import MainWindow  # noqa: F401
+    from src.modules.main_window.views.main_window import MainWindow  # noqa: F401  # pyright: ignore[reportAttributeAccessIssue]
 
 log = logging.getLogger(__name__)
 

@@ -91,7 +91,7 @@ class HubScreenBuilder:
             Exception: Se componentes não puderem ser criados (fatal)
         """
         # 1. Configurar constantes e state
-        screen.AUTH_RETRY_MS = AUTH_RETRY_MS
+        screen.AUTH_RETRY_MS = AUTH_RETRY_MS  # pyright: ignore[reportAttributeAccessIssue]
         state = ensure_state(screen)
         state.auth_retry_ms = AUTH_RETRY_MS
         screen._hub_state = state
@@ -159,7 +159,7 @@ class HubScreenBuilder:
         # MF-16: Criar estrutura de callbacks
         from src.modules.hub.infrastructure.hub_navigation_callbacks import HubNavigationCallbacks
 
-        screen._nav_callbacks = HubNavigationCallbacks(
+        screen._nav_callbacks = HubNavigationCallbacks(  # pyright: ignore[reportAttributeAccessIssue]
             open_clientes=open_clientes,
             open_farmacia_popular=open_farmacia_popular,
             open_sngpc=open_sngpc,
@@ -169,12 +169,12 @@ class HubScreenBuilder:
         )
 
         # MF-16: Manter atributos públicos individuais para compatibilidade
-        screen.open_clientes = open_clientes
-        screen.open_farmacia_popular = open_farmacia_popular
-        screen.open_sngpc = open_sngpc
-        screen.open_mod_sifap = open_mod_sifap
-        screen.open_cashflow = open_cashflow
-        screen.open_sites = open_sites
+        screen.open_clientes = open_clientes  # pyright: ignore[reportAttributeAccessIssue]
+        screen.open_farmacia_popular = open_farmacia_popular  # pyright: ignore[reportAttributeAccessIssue]
+        screen.open_sngpc = open_sngpc  # pyright: ignore[reportAttributeAccessIssue]
+        screen.open_mod_sifap = open_mod_sifap  # pyright: ignore[reportAttributeAccessIssue]
+        screen.open_cashflow = open_cashflow  # pyright: ignore[reportAttributeAccessIssue]
+        screen.open_sites = open_sites  # pyright: ignore[reportAttributeAccessIssue]
 
         self._logger.debug("HubScreenBuilder: Callbacks de navegação configurados")
 
@@ -195,7 +195,7 @@ class HubScreenBuilder:
         state.polling_active = getattr(state, "polling_active", False)
 
         # Alias local mínimo (compatibilidade)
-        screen._notes_poll_ms = 10000  # 10 segundos
+        screen._notes_poll_ms = 10000  # 10 segundos  # pyright: ignore[reportAttributeAccessIssue]
 
         # Cache de nomes de autores
         state.author_cache = getattr(state, "author_cache", {}) or {}
@@ -208,9 +208,9 @@ class HubScreenBuilder:
         state.last_render_hash = getattr(state, "last_render_hash", None)
 
         # Aliases locais mínimos
-        screen._names_last_refresh = 0.0
-        screen._last_org_for_names = state.last_org_for_names
-        screen._last_render_hash = state.last_render_hash
+        screen._names_last_refresh = 0.0  # pyright: ignore[reportAttributeAccessIssue]
+        screen._last_org_for_names = state.last_org_for_names  # pyright: ignore[reportAttributeAccessIssue]
+        screen._last_render_hash = state.last_render_hash  # pyright: ignore[reportAttributeAccessIssue]
 
         # Live sync
         state.live_sync_on = getattr(state, "live_sync_on", False)

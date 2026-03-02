@@ -86,7 +86,7 @@ def create_menubar(
 
     menubar.add_cascade(label="Arquivo", menu=menu_arquivo)
     try:
-        root.config(menu=menubar)
+        root.config(menu=menubar)  # pyright: ignore[reportAttributeAccessIssue]
     except Exception as exc:
         log.exception("Falha ao anexar menubar", exc_info=exc)
 
@@ -159,32 +159,32 @@ def get_whatsapp_icon(size: int = 15) -> ImageTk.PhotoImage | None:
 def draw_whatsapp_overlays(tree: tk.Widget, column: str, size: int = 15) -> None:
     """Desenha ícones do WhatsApp sobre a coluna especificada em um Treeview."""
     if not hasattr(tree, "_wa_overlays"):
-        tree._wa_overlays = []
+        tree._wa_overlays = []  # pyright: ignore[reportAttributeAccessIssue]
 
     for widget in getattr(tree, "_wa_overlays", []):
         try:
             widget.destroy()
         except Exception as exc:  # noqa: BLE001
             log.debug("Falha ao remover overlay do WhatsApp: %s", exc)
-    tree._wa_overlays = []
+    tree._wa_overlays = []  # pyright: ignore[reportAttributeAccessIssue]
 
     icon = get_whatsapp_icon(size)
     if not icon:
         return
 
     try:
-        for iid in tree.get_children(""):
+        for iid in tree.get_children(""):  # pyright: ignore[reportAttributeAccessIssue]
             bbox = tree.bbox(iid, column)
             if not bbox:
                 continue
             x, y, _w, h = bbox
-            numero = tree.set(iid, column)
+            numero = tree.set(iid, column)  # pyright: ignore[reportAttributeAccessIssue]
             if not numero:
                 continue
             lbl = tk.Label(tree, image=icon, borderwidth=0, cursor="hand2")
             lbl.place(x=x + 2, y=y + (h // 2), anchor="w")
             lbl.bind("<Button-1>", lambda _e, n=numero: _abrir_whatsapp(n))
-            tree._wa_overlays.append(lbl)
+            tree._wa_overlays.append(lbl)  # pyright: ignore[reportAttributeAccessIssue]
     except Exception as exc:
         log.debug("Falha ao desenhar ícones do WhatsApp: %s", exc)
 

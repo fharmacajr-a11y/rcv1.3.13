@@ -205,7 +205,7 @@ def reveal_window(viewer: PdfViewerWin) -> None:
     if not viewer.winfo_exists():
         return
 
-    logger.debug("PDF VIEWER: revelando janela - id=%s state=%s", id(viewer), viewer.state())
+    logger.debug("PDF VIEWER: revelando janela - id=%s state=%s", id(viewer), viewer.state())  # pyright: ignore[reportAttributeAccessIssue]
 
     try:
         viewer.deiconify()

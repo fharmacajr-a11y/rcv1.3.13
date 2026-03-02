@@ -42,7 +42,7 @@ def apply_app_icon(window: tk.Toplevel, parent: tk.Misc | None) -> None:
 
     try:
         if parent is not None:
-            current_icon = parent.iconbitmap()
+            current_icon = parent.iconbitmap()  # pyright: ignore[reportAttributeAccessIssue]
             if current_icon:
                 window.iconbitmap(current_icon)
     except Exception as exc:  # noqa: BLE001

@@ -147,7 +147,7 @@ class ClientFilesDialog(FilesDownloadMixin, FilesUploadMixin, FilesNavigationMix
         self._after_ids: set[str] = set()
 
         # Configurar janela (titlebar) — CNPJ sempre visível, razão truncada
-        self._set_smart_title()
+        self._set_smart_title()  # pyright: ignore[reportAttributeAccessIssue]
 
         # Usar cores do Hub (ANTES de geometry)
         self.configure(fg_color=APP_BG)
@@ -212,7 +212,7 @@ class ClientFilesDialog(FilesDownloadMixin, FilesUploadMixin, FilesNavigationMix
             self._img_file = _tiny("#aaaaaa")
 
         # Construir UI completa ANTES de exibir
-        self._build_ui()
+        self._build_ui()  # pyright: ignore[reportAttributeAccessIssue]
 
         # Aplicar titlebar escura no Windows (após ter winfo_id)
         try:
@@ -257,7 +257,7 @@ class ClientFilesDialog(FilesDownloadMixin, FilesUploadMixin, FilesNavigationMix
             log.error(f"[ClientFiles] Erro ao resolver org_id: {e}", exc_info=True)
             self._org_id = ""
 
-        self._refresh_files()
+        self._refresh_files()  # pyright: ignore[reportAttributeAccessIssue]
 
     # ── Lifecycle helpers ─────────────────────────────────────────
 
@@ -295,7 +295,7 @@ class ClientFilesDialog(FilesDownloadMixin, FilesUploadMixin, FilesNavigationMix
         if executor is None:
             return
         # Zera imediatamente para impedir novos submits antes do shutdown terminar
-        self._executor = None
+        self._executor = None  # pyright: ignore[reportAttributeAccessIssue]
         try:
             executor.shutdown(wait=False, cancel_futures=True)
             log.debug("[ClientFiles] ThreadPoolExecutor finalizado (cancel_futures)")

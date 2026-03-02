@@ -50,6 +50,7 @@ class AppProtocol(Protocol):
 
     footer: Any
     _status_monitor: Any
+    layout_refs: Any
 
     def wait_window(self, window: Any) -> None: ...
 

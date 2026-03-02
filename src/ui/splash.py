@@ -138,7 +138,7 @@ def show_splash(root: tk.Misc, min_ms: int = SPLASH_MIN_DURATION_MS) -> Any:
             pil = Image.open(logo_path).convert("RGBA")
             rw, rh = _fit(pil.size[0], pil.size[1], LOGO_MAX_W, LOGO_MAX_H)
             logo_img = ctk.CTkImage(light_image=pil, dark_image=pil, size=(rw, rh))
-            splash._logo_img = logo_img  # manter referência
+            splash._logo_img = logo_img  # manter referência  # pyright: ignore[reportAttributeAccessIssue]
 
             logo_label = ctk.CTkLabel(content, image=logo_img, text="")
             logo_label.pack(pady=(0, 10))

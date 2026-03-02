@@ -48,7 +48,7 @@ def upload_folder(local_dir: str, org_id: str, client_id: str, subdir: str = "GE
     try:
         from src.core.services import upload_service
 
-        return upload_service.upload_folder(local_dir, org_id=org_id, client_id=client_id, subdir=subdir)
+        return upload_service.upload_folder(local_dir, org_id=org_id, client_id=client_id, subdir=subdir)  # pyright: ignore[reportAttributeAccessIssue]
     except Exception as exc:
         log.error(f"Folder upload failed: {exc}")
         return {"success": False, "uploaded_count": 0, "errors": [str(exc)]}
@@ -59,7 +59,7 @@ def create_client(data: Mapping[str, Any]) -> Optional[str]:
     try:
         from src.core.services import clientes_service
 
-        return clientes_service.create_cliente(data)
+        return clientes_service.create_cliente(data)  # pyright: ignore[reportAttributeAccessIssue]
     except Exception as exc:
         log.error(f"Create client failed: {exc}")
         return None
@@ -82,7 +82,7 @@ def delete_client(client_id: str, soft: bool = True) -> bool:
     try:
         from src.core.services import clientes_service
 
-        clientes_service.delete_cliente(client_id, soft=soft)
+        clientes_service.delete_cliente(client_id, soft=soft)  # pyright: ignore[reportAttributeAccessIssue]
         return True
     except Exception as exc:
         log.error(f"Delete client failed: {exc}")

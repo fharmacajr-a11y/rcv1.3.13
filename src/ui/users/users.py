@@ -7,7 +7,7 @@ import sqlite3
 import logging
 from datetime import datetime
 
-from core.auth.auth import ensure_users_db, create_user, _pbkdf2_hash
+from core.auth.auth import ensure_users_db, create_user, _pbkdf2_hash  # pyright: ignore[reportAttributeAccessIssue]
 from core.logs.audit import last_action_of_user
 from config.paths import USERS_DB_PATH
 from utils.file_utils import format_datetime
@@ -71,7 +71,7 @@ class UserManagerDialog(ctk.CTkToplevel):
 
     # ---------------- CRUD ----------------
     def load_users(self):
-        for iid in self.tree.get_children():
+        for iid in self.tree.get_children():  # pyright: ignore[reportAttributeAccessIssue]
             self.tree.delete(iid)
         rows = []
         try:

@@ -39,6 +39,8 @@ if TYPE_CHECKING:
 
         def _refresh_author_names_cache_async(self, force: bool = False) -> None: ...
 
+        def clear_author_cache(self) -> None: ...
+
 
 logger = logging.getLogger(__name__)
 

@@ -30,7 +30,7 @@ def list_trash_clients(org_id: str) -> list[dict[str, Any]]:
     try:
         from src.core.services import lixeira_service
 
-        return lixeira_service.list_trash_clients(org_id)
+        return lixeira_service.list_trash_clients(org_id)  # pyright: ignore[reportAttributeAccessIssue]
     except Exception as exc:
         log.error(f"List trash clients failed: {exc}")
         return []
@@ -53,7 +53,7 @@ def purge_from_trash(org_id: str, client_ids: Sequence[str]) -> bool:
     try:
         from src.core.services import lixeira_service
 
-        lixeira_service.purge_clients(org_id, client_ids)
+        lixeira_service.purge_clients(org_id, client_ids)  # pyright: ignore[reportAttributeAccessIssue]
         return True
     except Exception as exc:
         log.error(f"Purge from trash failed: {exc}")

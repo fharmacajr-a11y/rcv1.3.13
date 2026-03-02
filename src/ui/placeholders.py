@@ -51,7 +51,7 @@ class _BasePlaceholder(ctk.CTkFrame):  # type: ignore[misc]
         self.bind("<Destroy>", self._on_placeholder_destroy)
 
         try:
-            self.master.pack_propagate(False)
+            self.master.pack_propagate(False)  # pyright: ignore[reportAttributeAccessIssue]
         except Exception as exc:  # noqa: BLE001
             _log.debug("Falha ao desabilitar pack_propagate: %s", exc)
 

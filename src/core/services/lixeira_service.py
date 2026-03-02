@@ -148,7 +148,7 @@ def restore_clients(client_ids: Iterable[int], parent: tk.Misc | None = None) ->
 
     for cid in client_ids:
         try:
-            exec_postgrest(supabase.table("clients").update({"deleted_at": None}).eq("id", int(cid)))
+            exec_postgrest(supabase.table("clients").update({"deleted_at": None}).eq("id", int(cid)))  # pyright: ignore[reportAttributeAccessIssue]
             prefix = f"{org_id}/{int(cid)}"
             try:
                 _ensure_mandatory_subfolders(prefix)
@@ -204,7 +204,7 @@ def hard_delete_clients(client_ids: Iterable[int], parent: tk.Misc | None = None
                 errs.append((cid, f"Senhas: {e}"))
 
             # 3) Remove do DB (linha do cliente)
-            exec_postgrest(supabase.table("clients").delete().eq("id", cid))
+            exec_postgrest(supabase.table("clients").delete().eq("id", cid))  # pyright: ignore[reportAttributeAccessIssue]
 
             ok += 1
         except Exception as e:

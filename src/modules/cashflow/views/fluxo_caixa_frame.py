@@ -129,7 +129,7 @@ class CashflowFrame(ctk.CTkFrame):
         except Exception as exc:  # noqa: BLE001
             logger.debug("Falha ao resolver org_id a partir do app em CashflowFrame: %s", exc)
         try:
-            master = self.master
+            master = self.master  # pyright: ignore[reportAttributeAccessIssue]
             if hasattr(master, "_get_org_id_safe"):
                 self._org_id = master._get_org_id_safe()
         except Exception as exc:  # noqa: BLE001
@@ -216,7 +216,7 @@ class CashflowFrame(ctk.CTkFrame):
         from src.features.cashflow.dialogs import EntryDialog
 
         dlg = EntryDialog(self, title="Novo Lançamento")
-        self.wait_window(dlg)
+        self.wait_window(dlg)  # pyright: ignore[reportAttributeAccessIssue]
 
         if dlg.result:
             try:
@@ -246,7 +246,7 @@ class CashflowFrame(ctk.CTkFrame):
         from src.features.cashflow.dialogs import EntryDialog
 
         dlg = EntryDialog(self, initial=current, title="Editar Lançamento")
-        self.wait_window(dlg)
+        self.wait_window(dlg)  # pyright: ignore[reportAttributeAccessIssue]
 
         if dlg.result:
             try:

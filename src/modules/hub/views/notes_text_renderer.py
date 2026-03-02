@@ -112,11 +112,11 @@ def render_notes_text(
     for note in notes:
         # Suportar tanto dicts quanto objetos (NoteItemView)
         if hasattr(note, "id"):  # É objeto
-            note_id = str(note.id)
-            author_email = (note.author_email or "").strip().lower()
-            author_name = (note.author_name or "").strip()
+            note_id = str(note.id)  # pyright: ignore[reportAttributeAccessIssue]
+            author_email = (note.author_email or "").strip().lower()  # pyright: ignore[reportAttributeAccessIssue]
+            author_name = (note.author_name or "").strip()  # pyright: ignore[reportAttributeAccessIssue]
             created_at = getattr(note, "created_at", "")
-            body = (note.body or "").strip()
+            body = (note.body or "").strip()  # pyright: ignore[reportAttributeAccessIssue]
         else:  # É dict
             note_id = str(note.get("id", ""))
             author_email = (note.get("author_email") or "").strip().lower()

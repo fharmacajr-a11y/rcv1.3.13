@@ -130,7 +130,7 @@ class HubLifecycle:
         self._auth_retry_job_id = None
 
         # SHUTDOWN FIX: Não reagendar se app está fechando
-        if hasattr(self.tk_root, "_closing") and self.tk_root._closing:
+        if hasattr(self.tk_root, "_closing") and self.tk_root._closing:  # pyright: ignore[reportAttributeAccessIssue]
             return
 
         try:
@@ -177,7 +177,7 @@ class HubLifecycle:
         self._authors_refresh_job_id = None
 
         # SHUTDOWN FIX: Não reagendar se app está fechando
-        if hasattr(self.tk_root, "_closing") and self.tk_root._closing:
+        if hasattr(self.tk_root, "_closing") and self.tk_root._closing:  # pyright: ignore[reportAttributeAccessIssue]
             return
 
         try:
@@ -218,7 +218,7 @@ class HubLifecycle:
         """
         self._notes_poll_job_id = None
         # SHUTDOWN FIX: Não reagendar se app está fechando
-        if hasattr(self.tk_root, "_closing") and self.tk_root._closing:
+        if hasattr(self.tk_root, "_closing") and self.tk_root._closing:  # pyright: ignore[reportAttributeAccessIssue]
             return
         try:
             # MF-15: Chamar serviço de polling ao invés de HubScreen._*_impl

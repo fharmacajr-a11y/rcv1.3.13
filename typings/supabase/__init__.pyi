@@ -22,6 +22,7 @@ class Client:
     postgrest: Postgrest
     storage: Storage
     auth: Any
+    realtime: Any
     def table(self, name: str) -> Any: ...
     def rpc(self, fn: str, *args: Any, **kwargs: Any) -> Any: ...
 

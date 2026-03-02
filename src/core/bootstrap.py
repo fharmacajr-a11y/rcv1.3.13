@@ -160,7 +160,7 @@ def schedule_healthcheck_after_gui(
                 try:
                     if hasattr(app, "footer"):
                         status = "online" if has_internet else "offline"
-                        footer = app.footer
+                        footer = app.footer  # pyright: ignore[reportAttributeAccessIssue]
                         # Try multiple API patterns for compatibility
                         if hasattr(footer, "set_cloud"):
                             footer.set_cloud(status)

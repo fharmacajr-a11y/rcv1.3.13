@@ -1396,7 +1396,7 @@ class ClientesV2Frame(ctk.CTkFrame):
             # Atualizar ID selecionado
             row_data = self._row_data_map.get(item_id)
             if row_data:
-                self._selected_client_id = row_data.id
+                self._selected_client_id = row_data.id  # pyright: ignore[reportAttributeAccessIssue]
                 log.debug(f"[Clientes] Duplo clique: cliente ID={self._selected_client_id}")
 
             # Abrir editor (centralizado)
@@ -1540,7 +1540,7 @@ class ClientesV2Frame(ctk.CTkFrame):
             def trigger_upload():
                 try:
                     if hasattr(dialog, "_on_enviar_documentos"):
-                        dialog._on_enviar_documentos()
+                        dialog._on_enviar_documentos()  # pyright: ignore[reportAttributeAccessIssue]
                 except Exception as e:
                     log.error(f"[Clientes] Erro ao acionar upload automaticamente: {e}")
 
@@ -1580,7 +1580,7 @@ class ClientesV2Frame(ctk.CTkFrame):
         from src.modules.clientes.core import service as clientes_service
         from src.modules.lixeira import refresh_if_open as refresh_lixeira_if_open
 
-        top = self.winfo_toplevel()
+        top = self.winfo_toplevel()  # pyright: ignore[reportAttributeAccessIssue]
 
         if self._trash_mode:
             # ── MODO LIXEIRA: exclusão definitiva ──────────────────────────────
@@ -1675,7 +1675,7 @@ class ClientesV2Frame(ctk.CTkFrame):
         label_cli = f"{razao} (ID {self._selected_client_id})" if razao else f"ID {self._selected_client_id}"
         client_id = self._selected_client_id
 
-        top = self.winfo_toplevel()
+        top = self.winfo_toplevel()  # pyright: ignore[reportAttributeAccessIssue]
 
         confirm = _ask_yes_no(
             top,

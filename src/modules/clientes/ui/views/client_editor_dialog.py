@@ -148,16 +148,16 @@ class ClientEditorDialog(EditorActionsMixin, EditorDataMixin, EditorUIMixin, ctk
         self.transient(parent)
 
         # Construir UI completa (ainda invisível)
-        self._build_ui()
+        self._build_ui()  # pyright: ignore[reportAttributeAccessIssue]
         log.debug(f"[ClientEditorDialog:{self.session_id}] UI construída")
 
         # Sincronizar altura do spacer direito após renderização (pixel-perfect)
-        self.after_idle(self._sync_right_spacer_height)
+        self.after_idle(self._sync_right_spacer_height)  # pyright: ignore[reportAttributeAccessIssue]
 
         # Carregar dados ANTES de exibir (se editando)
         # CRÍTICO: Previne flash de campos vazios
         if client_id is not None:
-            self._load_client_data()
+            self._load_client_data()  # pyright: ignore[reportAttributeAccessIssue]
             log.debug(f"[ClientEditorDialog:{self.session_id}] Dados carregados")
 
         # Forçar renderização completa ANTES de mostrar
@@ -173,7 +173,7 @@ class ClientEditorDialog(EditorActionsMixin, EditorDataMixin, EditorUIMixin, ctk
         # Ativar placeholders APÓS janela visível (Novo Cliente)
         # Delay de 30ms garante que a janela já está completamente renderizada
         if client_id is None:
-            self._placeholder_job = self.after(30, self._activate_all_placeholders)
+            self._placeholder_job = self.after(30, self._activate_all_placeholders)  # pyright: ignore[reportAttributeAccessIssue]
 
         # Aplicar titlebar escura (Windows) - APÓS deiconify (precisa de handle mapeado)
         try:

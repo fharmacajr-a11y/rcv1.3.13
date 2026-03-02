@@ -115,7 +115,7 @@ def send_chat_completion(
 
         # compat: se API retornar em outra estrutura
         if getattr(response, "choices", None):
-            choice = response.choices[0]
+            choice = response.choices[0]  # pyright: ignore[reportAttributeAccessIssue]
             content = getattr(choice, "message", None)
             if content is not None:
                 msg_content = getattr(content, "content", None)

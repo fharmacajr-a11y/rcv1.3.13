@@ -224,10 +224,10 @@ class HubGatewayImpl:
         """
         try:
             if hasattr(self._parent, "refresh_notes_async"):
-                self._parent.refresh_notes_async(force=True)
+                self._parent.refresh_notes_async(force=True)  # pyright: ignore[reportAttributeAccessIssue]
                 logger.debug("HubGatewayImpl.reload_notes: refresh solicitado")
             elif hasattr(self._parent, "_hub_controller"):
-                self._parent._hub_controller.refresh_notes(force=True)
+                self._parent._hub_controller.refresh_notes(force=True)  # pyright: ignore[reportAttributeAccessIssue]
                 logger.debug("HubGatewayImpl.reload_notes: refresh via controller")
             else:
                 logger.warning("HubGatewayImpl.reload_notes: método de refresh não encontrado")
@@ -242,14 +242,14 @@ class HubGatewayImpl:
         """
         try:
             # Tentar através do controller (método preferido)
-            if hasattr(self._parent, "_hub_controller") and self._parent._hub_controller:
-                self._parent._hub_controller.refresh_dashboard()
+            if hasattr(self._parent, "_hub_controller") and self._parent._hub_controller:  # pyright: ignore[reportAttributeAccessIssue]
+                self._parent._hub_controller.refresh_dashboard()  # pyright: ignore[reportAttributeAccessIssue]
                 logger.debug("HubGatewayImpl.reload_dashboard: refresh solicitado via controller")
                 return
 
             # Fallback: tentar método direto
             if hasattr(self._parent, "_load_dashboard"):
-                self._parent._load_dashboard()
+                self._parent._load_dashboard()  # pyright: ignore[reportAttributeAccessIssue]
                 logger.debug("HubGatewayImpl.reload_dashboard: refresh via _load_dashboard")
                 return
 

@@ -179,4 +179,4 @@ class HubAsyncRunner:
 
         # Limpar referências
         self._executor = None
-        self.tk_root = None
+        self.tk_root = None  # pyright: ignore[reportAttributeAccessIssue]

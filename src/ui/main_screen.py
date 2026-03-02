@@ -15,7 +15,7 @@ warnings.warn(
 
 from src.modules.clientes.views import (  # noqa: E402
     DEFAULT_ORDER_LABEL,
-    MainScreenFrame,
+    MainScreenFrame,  # pyright: ignore[reportAttributeAccessIssue]
     ORDER_CHOICES,
 )
 

@@ -26,6 +26,8 @@ class Scheduler(Protocol):
         """Cancela job agendado."""
         ...
 
+    _closing: bool
+
 
 class MainWindowPollers:
     """Gerenciador de pollers periódicos do MainWindow.

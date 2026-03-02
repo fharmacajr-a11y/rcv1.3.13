@@ -72,13 +72,13 @@ def build_notes_panel(screen: HubScreen) -> None:
         current_user_email=screen._get_email_safe(),
     )
     # MF-34: Guardar referência para usar em render_notes
-    screen._notes_view = notes_view
+    screen._notes_view = notes_view  # pyright: ignore[reportAttributeAccessIssue]
     screen.notes_panel = notes_view.build()
 
     # Store references to widgets for compatibility with existing code
-    screen.notes_history = notes_view.notes_history
-    screen.new_note = notes_view.new_note
-    screen.btn_add_note = notes_view.btn_add_note
+    screen.notes_history = notes_view.notes_history  # pyright: ignore[reportAttributeAccessIssue]
+    screen.new_note = notes_view.new_note  # pyright: ignore[reportAttributeAccessIssue]
+    screen.btn_add_note = notes_view.btn_add_note  # pyright: ignore[reportAttributeAccessIssue]
 
     # Renderizar estado inicial (evita painel em branco)
     if org_id:

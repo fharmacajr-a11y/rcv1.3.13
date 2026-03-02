@@ -112,13 +112,13 @@ class CTkDatePicker(ctk.CTkFrame):
         self._popup = popup
         popup.title("Selecionar Data")
         popup.resizable(False, False)
-        popup.transient(self.winfo_toplevel())
+        popup.transient(self.winfo_toplevel())  # pyright: ignore[reportAttributeAccessIssue]
         popup.grab_set()
 
         # Centralizar popup
         popup.update_idletasks()
-        x = self.winfo_rootx() + (self.winfo_width() // 2) - (popup.winfo_width() // 2)
-        y = self.winfo_rooty() + self.winfo_height() + 5
+        x = self.winfo_rootx() + (self.winfo_width() // 2) - (popup.winfo_width() // 2)  # pyright: ignore[reportAttributeAccessIssue]
+        y = self.winfo_rooty() + self.winfo_height() + 5  # pyright: ignore[reportAttributeAccessIssue]
         popup.geometry(f"+{x}+{y}")
 
         # Variáveis de navegação

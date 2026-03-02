@@ -57,7 +57,7 @@ class HubDashboardView:
             O frame container do painel de dashboard (center_spacer)
         """
         # Container da coluna central - MICROFASE 35: fundo APP_BG
-        self.center_spacer = ctk.CTkFrame(
+        self.center_spacer = ctk.CTkFrame(  # pyright: ignore[reportAttributeAccessIssue]
             self._parent,
             fg_color=APP_BG,
             corner_radius=0,

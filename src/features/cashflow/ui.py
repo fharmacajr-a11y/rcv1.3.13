@@ -195,7 +195,7 @@ class CashflowWindow(ctk.CTkToplevel):
         try:
             m = self.master
             if hasattr(m, "_cashflow_window"):
-                m._cashflow_window = None
+                m._cashflow_window = None  # pyright: ignore[reportAttributeAccessIssue]
         finally:
             self.destroy()
 

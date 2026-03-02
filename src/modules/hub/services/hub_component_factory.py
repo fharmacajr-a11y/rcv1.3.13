@@ -485,11 +485,11 @@ class HubComponentFactory:
 
             def on_debug_shortcut(self) -> None:
                 if hasattr(self.hub, "_debug_info"):
-                    self.hub._debug_info()
+                    self.hub._debug_info()  # pyright: ignore[reportAttributeAccessIssue]
 
             def on_refresh_authors_cache(self, force: bool = False) -> None:
                 if hasattr(self.hub, "_reload_names_cache"):
-                    self.hub._reload_names_cache(force=force)
+                    self.hub._reload_names_cache(force=force)  # pyright: ignore[reportAttributeAccessIssue]
 
         return HubScreenCallbacks(screen)
 
@@ -537,7 +537,7 @@ class HubComponentFactory:
 
             def get_notes_view(self):
                 """Retorna a instância do HubNotesView."""
-                return self.hub._notes_view
+                return self.hub._notes_view  # pyright: ignore[reportAttributeAccessIssue]
 
             def get_state(self):
                 """Retorna o estado atual do Hub."""
@@ -546,7 +546,7 @@ class HubComponentFactory:
             def get_debug_logger(self):
                 """Retorna função de debug logging (opcional)."""
                 if hasattr(self.hub, "_dlog"):
-                    return self.hub._dlog
+                    return self.hub._dlog  # pyright: ignore[reportAttributeAccessIssue]
                 return None
 
         return NotesRendererCallbacks(screen)

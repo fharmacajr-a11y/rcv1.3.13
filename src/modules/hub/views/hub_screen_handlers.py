@@ -43,7 +43,7 @@ def setup_bindings(screen: HubScreen) -> None:
         # CTkFrame doesn't support bind_all, use bind on root/winfo_toplevel instead
         # Get the toplevel window
         try:
-            root = screen.winfo_toplevel()
+            root = screen.winfo_toplevel()  # pyright: ignore[reportAttributeAccessIssue]
         except tk.TclError:
             root = screen
 
@@ -60,7 +60,7 @@ def setup_bindings(screen: HubScreen) -> None:
             "<Control-L>",
             lambda e: screen._refresh_author_names_cache_async(force=True),
         )
-        screen._binds_ready = True
+        screen._binds_ready = True  # pyright: ignore[reportAttributeAccessIssue]
 
 
 def start_timers(screen: HubScreen) -> None:

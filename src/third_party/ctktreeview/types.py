@@ -5,9 +5,9 @@ import tkinter as _tk
 if TYPE_CHECKING:
     from typing import TypeAlias
 
-Anchor: TypeAlias = _tk._Anchor
+Anchor: TypeAlias = _tk._Anchor  # pyright: ignore[reportAttributeAccessIssue]
 Color: TypeAlias = str | tuple[str, str]
-ImageSpec: TypeAlias = _tk._ImageSpec
+ImageSpec: TypeAlias = _tk._ImageSpec  # pyright: ignore[reportAttributeAccessIssue]
 ScreenUnits: TypeAlias = str | float
 Padding: TypeAlias = (
     ScreenUnits

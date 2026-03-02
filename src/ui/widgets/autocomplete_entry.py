@@ -148,7 +148,7 @@ class AutocompleteEntry(ctk.CTkEntry):
 
     def _create_dropdown(self) -> None:
         """Cria o Toplevel com Listbox."""
-        self._dropdown = ctk.CTkToplevel(self)
+        self._dropdown = ctk.CTkToplevel(self)  # pyright: ignore[reportAttributeAccessIssue]
         self._dropdown.withdraw()
         self._dropdown.overrideredirect(True)
 
@@ -185,8 +185,8 @@ class AutocompleteEntry(ctk.CTkEntry):
         self.update_idletasks()
 
         # Posição do Entry
-        x = self.winfo_rootx()
-        y = self.winfo_rooty() + self.winfo_height()
+        x = self.winfo_rootx()  # pyright: ignore[reportAttributeAccessIssue]
+        y = self.winfo_rooty() + self.winfo_height()  # pyright: ignore[reportAttributeAccessIssue]
         width = self.winfo_width()
 
         # Definir geometria do dropdown

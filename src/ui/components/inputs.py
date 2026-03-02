@@ -96,7 +96,7 @@ def create_search_controls(
     def _lookup(style_name: str, option: str, default: str) -> str:
         try:
             if hasattr(style, "lookup"):
-                return style.lookup(style_name, option) or default
+                return style.lookup(style_name, option) or default  # pyright: ignore[reportAttributeAccessIssue]
         except Exception:
             return default
         return default
@@ -123,7 +123,7 @@ def create_search_controls(
     combo_style = "Filtro.TCombobox"
     try:
         # Estilo proprio para manter comboboxes de filtro ativas (sem fundo cinza)
-        style.configure(
+        style.configure(  # pyright: ignore[reportAttributeAccessIssue]
             combo_style,
             fieldbackground=theme_palette.get("combo_bg", entry_bg) if theme_palette else entry_bg,
             background=theme_palette.get("combo_bg", entry_bg) if theme_palette else entry_bg,
@@ -178,7 +178,7 @@ def create_search_controls(
     # Entry de busca (a caixinha visivel)
     entry_style = "Search.TEntry"
     try:
-        style.configure(
+        style.configure(  # pyright: ignore[reportAttributeAccessIssue]
             entry_style,
             padding=(6, 6, 6, 6),
             foreground=entry_fg,
