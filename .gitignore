@@ -100,6 +100,7 @@ bandit_*.json
 ruff_*.json
 pyright_*.json
 pyright_final.json
+pyright_*.txt
 
 # Workspaces temporários de ferramentas
 _codex_workspace/
@@ -120,7 +121,7 @@ assets/*.tmp
 
 # Pastas de artefatos (diagnostics já estava descomitada acima)
 /diagnostics/
-/artifacts/local/
+/artifacts/
 
 # Arquivos temporários de auditoria/testes
 audit_*.txt
@@ -144,5 +145,7 @@ EXECUTION_GUIDE.md
 # Exceção: src/core/logs/ é código versionado (não deve ser ignorado)
 !src/core/logs/
 !src/core/logs/**
+# Re-ignore bytecode dentro de logs (a exceção acima era ampla demais)
+src/core/logs/__pycache__/
 
 docs/_lint_artifacts/
