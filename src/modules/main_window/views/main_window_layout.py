@@ -142,6 +142,19 @@ def _build_layout_skeleton(
     # 6. Container de conteúdo VAZIO (NÃO empacotar ainda - será feito em deferred após topbar)
     if ctk is not None:
         content_container = ctk.CTkFrame(app, fg_color=APP_BG, corner_radius=0)
+        # Correção para FIX 4 (v2): Define bg do Canvas interno usando cor correta
+        # para o modo de aparência ATUAL (light/dark), em vez de hardcodar dark mode.
+        try:
+            if isinstance(APP_BG, tuple):
+                from customtkinter import get_appearance_mode  # type: ignore[import-untyped]
+
+                mode_idx = 1 if get_appearance_mode().lower() == "dark" else 0
+                bg_color = APP_BG[mode_idx]
+            else:
+                bg_color = APP_BG
+            content_container._canvas.configure(bg=bg_color)  # pyright: ignore[reportAttributeAccessIssue]
+        except (AttributeError, Exception):  # noqa: BLE001
+            pass  # Ignora se _canvas não existir ou falhar
     else:
         content_container = tk.Frame(app)
     # NÃO pack aqui - ordem importa: topbar/menu primeiro, footer depois, container por último

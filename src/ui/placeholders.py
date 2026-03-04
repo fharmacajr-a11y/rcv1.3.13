@@ -23,7 +23,13 @@ class _BasePlaceholder(tk.Frame if not (HAS_CUSTOMTKINTER and ctk) else ctk.CTkF
     title: str = "Em breve"
 
     def __init__(self, master, *, on_back: _BackCb | None = None, **_):
-        super().__init__(master)
+        # Auditoria Anti-Flash: fg_color=APP_BG evita flash cinza do CTkFrame padrão
+        from src.ui.ui_tokens import APP_BG
+
+        if HAS_CUSTOMTKINTER and ctk is not None:
+            super().__init__(master, fg_color=APP_BG)
+        else:
+            super().__init__(master)
 
         # Configurar fonte para CTk e tk
         if HAS_CUSTOMTKINTER and ctk is not None:

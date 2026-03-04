@@ -15,6 +15,8 @@ Responsável por:
 from __future__ import annotations
 
 import logging
+import sys
+import tkinter as tk
 from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
@@ -183,7 +185,129 @@ def bootstrap_main_window(app: App) -> None:
     # ═══════════════════════════════════════════════════════════════
     # 9. BINDINGS FINAIS
     # ═══════════════════════════════════════════════════════════════
-    app.bind("<FocusIn>", lambda e: app._update_user_status(), add="+")
+
+    # Correção para FIX 3: Filtra para evitar rajada de chamadas em sub-widgets
+    app.bind("<FocusIn>", lambda e: app._update_user_status() if e.widget is app else None, add="+")
+
+    # ── FIX RESTORE #3: Helper robusto para resolver APP_BG ──────
+    # Correção para FIX RESTORE #3: Resolve APP_BG (str ou tuple) para cor flat.
+    from src.ui.ui_tokens import APP_BG
+
+    def _resolve_bg() -> str:
+        """Retorna cor flat do APP_BG respeitando o modo de aparência atual."""
+        try:
+            if isinstance(APP_BG, tuple):
+                import customtkinter as _ctk  # noqa: PLC0415
+
+                idx = 1 if _ctk.get_appearance_mode().lower() == "dark" else 0
+                return APP_BG[idx]  # type: ignore[return-value]
+            return APP_BG  # type: ignore[return-value]
+        except Exception:  # noqa: BLE001
+            return "#0b0b0b"
+
+    # ── FIX RESTORE #1 + #2: Restore robusto via cover + sequência agendada ──
+    # Correção para FIX RESTORE #1: Detecção min→restore e cover nativo.
+    # Correção para FIX RESTORE #2: Pollers só retomam após repaint completo.
+    app._was_iconic = False  # type: ignore[attr-defined]
+    app._restore_job_id = None  # type: ignore[attr-defined]  # Correção para FIX RESTORE #1: controle de after pendente
+    app._restore_cover = None  # type: ignore[attr-defined]  # Correção para FIX RESTORE #1: ref do cover nativo
+
+    def _on_unmap(event: tk.Event) -> None:  # type: ignore[type-arg]
+        """Correção para FIX RESTORE #1: Marca minimização real + pausa pollers."""
+        if event.widget is not app:
+            return
+        try:
+            if app.state() == "iconic":
+                app._was_iconic = True
+                # Correção para FIX RESTORE #2: Pausa pollers imediatamente no minimize
+                try:
+                    app._pollers.stop()
+                except Exception:  # noqa: BLE001
+                    pass
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _place_cover() -> None:
+        """Correção para FIX RESTORE #1: Cover nativo tk.Frame sobre a área do app."""
+        try:
+            if app._restore_cover is not None:
+                return  # já existe
+            cover = tk.Frame(app, bg=_resolve_bg())
+            cover.place(x=0, y=0, relwidth=1, relheight=1)
+            cover.lift()
+            app._restore_cover = cover
+        except Exception:  # noqa: BLE001
+            app._restore_cover = None
+
+    def _remove_cover() -> None:
+        """Correção para FIX RESTORE #1: Remove cover best-effort."""
+        try:
+            cover = app._restore_cover
+            app._restore_cover = None
+            if cover is not None and cover.winfo_exists():
+                cover.place_forget()
+                cover.destroy()
+        except Exception:  # noqa: BLE001
+            app._restore_cover = None
+
+    def _restore_sequence() -> None:
+        """Correção para FIX RESTORE #1: Sequência controlada de repaint pós-restore."""
+        app._restore_job_id = None
+        try:
+            if not app.winfo_exists():
+                _remove_cover()
+                return
+            # Um ciclo completo de processamento de eventos do WM
+            app.update()
+            app.update_idletasks()
+            # Remover cover no próximo tick (após repaint)
+            app.after(0, _remove_cover)
+            # Correção para FIX RESTORE #2: Retomar pollers e status após repaint
+            try:
+                app.after(150, app._pollers.start)
+            except Exception:  # noqa: BLE001
+                pass
+            try:
+                app.after(200, app._update_user_status)
+            except Exception:  # noqa: BLE001
+                pass
+        except Exception:  # noqa: BLE001
+            _remove_cover()
+
+    def _on_map(event: tk.Event) -> None:  # type: ignore[type-arg]
+        """Correção para FIX RESTORE #1: Handler de restore real (apenas após minimize)."""
+        if event.widget is not app:
+            return
+        if not app._was_iconic:
+            return
+        try:
+            state = app.state()
+        except Exception:  # noqa: BLE001
+            return
+        if state not in ("normal", "zoomed"):
+            return
+        app._was_iconic = False
+        # Correção para FIX RESTORE #1: Só aplica cover+sequência no Windows
+        if sys.platform != "win32":
+            # Em outros SOs, apenas retomar pollers normalmente
+            try:
+                app._pollers.start()
+            except Exception:  # noqa: BLE001
+                pass
+            return
+        # Coloca cover nativo para mascarar preto imediatamente
+        _place_cover()
+        # Cancelar job anterior se existir (minimize/restore rápido)
+        try:
+            if app._restore_job_id is not None:
+                app.after_cancel(app._restore_job_id)
+        except Exception:  # noqa: BLE001
+            pass
+        # Agendar sequência de restore (~100ms para dar tempo ao WM)
+        app._restore_job_id = app.after(100, _restore_sequence)
+
+    app.bind("<Unmap>", _on_unmap, add="+")
+    app.bind("<Map>", _on_map, add="+")
 
     # MICROFASE 24: Usar tema global do CustomTkinter
     from src.ui.theme_manager import theme_manager as global_theme_manager

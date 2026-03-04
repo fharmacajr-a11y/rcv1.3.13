@@ -735,14 +735,14 @@ def update_status_dot(app: App, is_online: Optional[bool]) -> None:
         log.debug("Falha ao definir texto do status_var_dot: %s", exc)
 
     # Aplicar cor do dot (CTk text_color ou tk foreground)
-    _DOT_COLORS = {
+    _dot_colors = {
         "success": ("#2ecc71", "#2ecc71"),
         "danger": ("#e74c3c", "#e74c3c"),
         "warning": ("#f39c12", "#f39c12"),
     }
     try:
         if app.status_dot:
-            color = _DOT_COLORS.get(dot_style.bootstyle, ("#f39c12", "#f39c12"))
+            color = _dot_colors.get(dot_style.bootstyle, ("#f39c12", "#f39c12"))
             try:
                 app.status_dot.configure(text_color=color)
             except (tk.TclError, Exception):  # noqa: BLE001
@@ -890,21 +890,49 @@ def set_user_status(app: App, email: Optional[str], role: Optional[str] = None) 
     app._refresh_status_display()
 
 
+# Correção para FIX 2: Lock para evitar sobreposição de health polling
+_health_poll_lock = threading.Lock()
+
+
 def poll_health_impl(app: App) -> None:
     """Implementação headless de health check (sem lógica de reagendamento)."""
+    # Correção para FIX 2: Move I/O para thread com proteção contra sobreposição
+    if not _health_poll_lock.acquire(False):
+        return  # Já existe polling em andamento
+
+    def _do_health():
+        try:
+            from src.infra.supabase_client import get_supabase_state
+
+            state, _ = get_supabase_state()
+
+            # Callback no main thread via after(0)
+            try:
+                if app.winfo_exists():
+                    app.after(
+                        0,
+                        lambda: _apply_health_result(app, state),
+                    )
+            except Exception:  # noqa: BLE001
+                pass  # App já foi destruído
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao obter estado da nuvem no polling: %s", exc)
+        finally:
+            _health_poll_lock.release()
+
+    threading.Thread(target=_do_health, daemon=True).start()
+
+
+def _apply_health_result(app: App, state: Any) -> None:
+    """Aplica resultado do health check no main thread."""
     try:
-        from src.infra.supabase_client import get_supabase_state
-
-        state, _ = get_supabase_state()
-
-        # FASE 5A FIX: Usar FooterController (sempre existe)
         if hasattr(app, "layout_refs") and app.layout_refs and hasattr(app.layout_refs, "footer_controller"):
             app.layout_refs.footer_controller.set_cloud(state)
             log.debug("Footer controller atualizado: cloud = %s", state)
         else:
             log.debug("Footer controller ainda não disponível")
     except Exception as exc:  # noqa: BLE001
-        log.debug("Falha ao obter estado da nuvem no polling: %s", exc)
+        log.debug("Falha ao aplicar resultado de health: %s", exc)
 
 
 def refresh_current_view(app: App) -> None:

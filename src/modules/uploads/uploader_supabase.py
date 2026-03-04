@@ -27,7 +27,85 @@ from src.ui.components.progress_dialog import ProgressDialog
 from src.ui.files_browser.utils import format_file_size
 from src.ui.window_utils import show_centered
 
+# Anti-flash: imports para _show_msg
+from src.ui.ctk_config import ctk
+from src.ui.ui_tokens import APP_BG, BUTTON_RADIUS, KPI_BLUE, KPI_BLUE_HOVER
+from src.ui.window_utils import apply_window_icon
+
+# Aliases para consistência interna
+PRIMARY_BLUE = KPI_BLUE
+PRIMARY_BLUE_HOVER = KPI_BLUE_HOVER
+
 log = logging.getLogger(__name__)
+
+
+def _show_msg(parent: tk.Misc, title: str, msg: str) -> None:
+    """Exibe mensagem modal com ícone RC correto (substitui tkinter messagebox).
+
+    Não usa prepare_hidden_window/show_centered_no_flash para evitar conflito
+    com a inicialização assíncrona do CTkToplevel no Windows (titlebar color).
+    """
+    dlg = ctk.CTkToplevel(parent)
+    # Auditoria Anti-Flash: withdraw imediato para construir UI sem flash
+    dlg.withdraw()
+    dlg.title(title)
+    dlg.resizable(False, False)
+    try:
+        dlg.transient(parent)
+    except tk.TclError:
+        pass
+    apply_window_icon(dlg)
+    dlg.configure(fg_color=APP_BG)
+
+    frame = ctk.CTkFrame(dlg, fg_color="transparent")
+    frame.pack(fill="both", expand=True, padx=24, pady=20)
+    ctk.CTkLabel(frame, text=msg, wraplength=360, justify="left", fg_color="transparent").pack(pady=(0, 16))
+    ctk.CTkButton(
+        frame,
+        text="OK",
+        width=90,
+        command=dlg.destroy,
+        corner_radius=BUTTON_RADIUS,
+        fg_color=PRIMARY_BLUE,
+        hover_color=PRIMARY_BLUE_HOVER,
+    ).pack()
+
+    dlg.update_idletasks()
+    try:
+        w = max(dlg.winfo_reqwidth(), 380)
+        h = max(dlg.winfo_reqheight(), 130)
+        px = parent.winfo_rootx()
+        py = parent.winfo_rooty()
+        pw = parent.winfo_width()
+        ph = parent.winfo_height()
+        x = max(0, px + (pw - w) // 2)
+        y = max(0, py + (ph - h) // 2)
+        dlg.geometry(f"{w}x{h}+{x}+{y}")
+    except tk.TclError:
+        pass
+
+    # Auditoria Anti-Flash: deiconify APÓS UI construída e posicionada
+    try:
+        dlg.deiconify()
+    except tk.TclError:
+        pass
+
+    try:
+        dlg.update()
+    except tk.TclError:
+        pass
+
+    try:
+        if dlg.winfo_exists():
+            dlg.grab_set()
+            dlg.focus_force()
+    except tk.TclError:
+        pass
+
+    try:
+        parent.wait_window(dlg)
+    except tk.TclError:
+        pass
 
 
 def center_window(window: tk.Misc, *args: object, **kwargs: object) -> None:

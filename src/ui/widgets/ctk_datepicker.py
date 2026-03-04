@@ -81,16 +81,13 @@ class CTkDatePicker(ctk.CTkFrame):
     def _show_calendar(self) -> None:
         """Abre popup com calendário para seleção."""
         popup = ctk.CTkToplevel(self)
+        # Correção para BUG #4: withdraw imediato para evitar flash em (0,0)
+        popup.withdraw()
+        self._popup = popup
         popup.title("Selecionar Data")
         popup.resizable(False, False)
         popup.transient(self.winfo_toplevel())
         popup.grab_set()
-
-        # Centralizar popup
-        popup.update_idletasks()
-        x = self.winfo_rootx() + (self.winfo_width() // 2) - (popup.winfo_width() // 2)
-        y = self.winfo_rooty() + self.winfo_height() + 5
-        popup.geometry(f"+{x}+{y}")
 
         # Variáveis de navegação
         current_year = self._selected_date.year
@@ -189,6 +186,13 @@ class CTkDatePicker(ctk.CTkFrame):
 
         # Armazenar função de update para navegação
         popup.update_calendar_func = update_calendar  # type: ignore[attr-defined]
+
+        # Correção para BUG #4: posicionar e mostrar APÓS toda UI construída
+        popup.update_idletasks()
+        x = self.winfo_rootx() + (self.winfo_width() // 2) - (popup.winfo_width() // 2)  # pyright: ignore[reportAttributeAccessIssue]
+        y = self.winfo_rooty() + self.winfo_height() + 5  # pyright: ignore[reportAttributeAccessIssue]
+        popup.geometry(f"+{x}+{y}")
+        popup.deiconify()
 
     def _prev_month(
         self,

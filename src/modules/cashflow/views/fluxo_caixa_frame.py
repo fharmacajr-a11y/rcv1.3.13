@@ -12,6 +12,8 @@ from src.ui.widgets import CTkTableView
 
 from src.features.cashflow import repository as repo
 
+from src.ui.ui_tokens import APP_BG  # Correção para BUG #2
+
 logger = logging.getLogger(__name__)
 
 
@@ -31,6 +33,8 @@ class CashflowFrame(ctk.CTkFrame):
     TYPE_CODE_TO_LABEL = {"IN": "Entrada", "OUT": "Saída"}
 
     def __init__(self, master: tk.Widget, app: Any | None = None, **kwargs: Any) -> None:
+        # Correção para BUG #2: fg_color=APP_BG evita flash cinza padrão do CTkFrame
+        kwargs.setdefault("fg_color", APP_BG)
         super().__init__(master, **kwargs)
         self.app = app
 

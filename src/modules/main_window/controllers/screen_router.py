@@ -98,10 +98,19 @@ class ScreenRouter:
 
         # Esconder tela atual (se houver)
         if self._current_screen is not None and self._current_screen is not screen:
+            # Correção para BUG #6: cover temporário com APP_BG para evitar
+            # exposição do content_container preto durante a transição.
+            cover = self._place_transition_cover()
             self._hide_screen(self._current_screen)
+        else:
+            cover = None
 
         # Mostrar nova tela
         self._show_screen(screen)
+
+        # Correção para BUG #6: remover cover após nova tela estar visível
+        if cover is not None:
+            self._remove_transition_cover(cover)
 
         # Atualizar estado
         self._current_name = name
@@ -160,3 +169,45 @@ class ScreenRouter:
             screen.lift()
         except Exception as exc:  # noqa: BLE001
             self._log.debug("lift failed: %s", exc)
+
+    # Correção para BUG #6: helpers de cover temporário
+
+    def _place_transition_cover(self) -> Any:
+        """Cria frame opaco sobre o container para mascarar transição."""
+        try:
+            import tkinter as _tk
+            from src.ui.ui_tokens import APP_BG
+            from src.ui.ctk_config import ctk as _ctk
+
+            if _ctk is not None:
+                cover = _ctk.CTkFrame(
+                    self._container,
+                    fg_color=APP_BG,
+                    corner_radius=0,
+                )
+            else:
+                # Auditoria Anti-Flash: respeitar modo de aparência atual
+                if isinstance(APP_BG, tuple):
+                    try:
+                        import customtkinter as _ctk_mod
+
+                        bg = APP_BG[1] if _ctk_mod.get_appearance_mode().lower() == "dark" else APP_BG[0]
+                    except Exception:  # noqa: BLE001
+                        bg = APP_BG[1]
+                else:
+                    bg = APP_BG
+                cover = _tk.Frame(self._container, bg=bg)
+            cover.place(relx=0, rely=0, relwidth=1, relheight=1)
+            cover.lift()
+            return cover
+        except Exception as exc:  # noqa: BLE001
+            self._log.debug("Falha ao criar transition cover: %s", exc)
+            return None
+
+    @staticmethod
+    def _remove_transition_cover(cover: Any) -> None:
+        """Remove cover temporário."""
+        try:
+            cover.destroy()
+        except Exception:  # noqa: BLE001
+            pass
