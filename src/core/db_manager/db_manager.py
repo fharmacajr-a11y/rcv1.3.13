@@ -3,20 +3,45 @@ from __future__ import annotations
 
 import logging
 import os
-import random
-import time
 from datetime import datetime, timezone
-from typing import Any, Callable, Iterable
-
-import httpx
+from typing import Any, Iterable
 
 from src.infra.supabase_client import exec_postgrest, supabase
-from src.config.constants import RETRY_BASE_DELAY
 from src.core.cnpj_norm import normalize_cnpj as normalize_cnpj_norm
 from src.core.models import Cliente
 from src.core.session.session import get_current_user
 
+try:
+    from postgrest.exceptions import APIError as _PostgrestAPIError
+except Exception:  # pragma: no cover – fallback se lib mudar
+    _PostgrestAPIError = Exception  # type: ignore[assignment,misc]
+
 log = logging.getLogger("db_manager")
+
+
+# ---------------------------------------------------------------------------
+# Detecção de erro "coluna inexistente" (PostgREST / PostgreSQL 42703)
+# ---------------------------------------------------------------------------
+_UNKNOWN_COL_CODES: frozenset[str] = frozenset({"42703", "PGRST204"})
+_UNKNOWN_COL_KEYWORDS: tuple[str, ...] = (
+    "undefined_column",
+    "unknown column",
+    'column "ultima_por" of relation',
+    "is not a column",
+)
+
+
+def _is_unknown_column_error(exc: BaseException) -> bool:
+    """Retorna True se *exc* indicar coluna inexistente no PostgREST/Postgres.
+
+    Verifica ``code`` (SQLSTATE 42703 / PGRST204) e palavras-chave na mensagem.
+    """
+    code = getattr(exc, "code", None) or ""
+    if code in _UNKNOWN_COL_CODES:
+        return True
+    msg = (getattr(exc, "message", None) or getattr(exc, "details", None) or str(exc)).lower()
+    return any(kw in msg for kw in _UNKNOWN_COL_KEYWORDS)
+
 
 # Mapa de ordenação: (coluna, descending_default)
 _ORDER_MAP: dict[str | None, tuple[str, bool]] = {
@@ -36,49 +61,39 @@ ClienteRow = dict[str, Any]
 # -----------------------------------------------------------------------------
 # Retry helper com backoff exponencial (compatível com data/supabase_repo.py)
 # -----------------------------------------------------------------------------
-RETRY_ERRORS: tuple[type[BaseException], ...] = (
-    httpx.ReadError,
-    httpx.WriteError,
-    httpx.ConnectError,
-    httpx.ConnectTimeout,
-    OSError,
-)
-
-
-def _with_retries(fn: Callable[[], Any], tries: int = 3, base_delay: float = RETRY_BASE_DELAY) -> Any:
-    """
-    Executa fn() com tentativas e backoff exponencial + jitter.
-    Re-tenta em erros de rede/transientes (inclui WinError 10035) e 5xx.
-    """
-    last_exc: BaseException | None = None
-    attempt: int
-    for attempt in range(1, tries + 1):
-        try:
-            return fn()
-        except RETRY_ERRORS as e:
-            last_exc = e
-        except Exception as e:
-            msg: str = str(e).lower()
-            if "502" in msg or "bad gateway" in msg or "5xx" in msg or "503" in msg:
-                last_exc = e
-            else:
-                raise
-
-        if attempt < tries:
-            delay: float = base_delay * (2 ** (attempt - 1)) + random.uniform(0, 0.15)  # nosec B311 - jitter de backoff, não criptografia
-            time.sleep(delay)
-
-    if last_exc is not None:
-        raise last_exc
-    raise RuntimeError("Todas as tentativas de retry falharam sem capturar exceção específica.")
-
-
 def _current_user_email() -> str:
     try:
         cu: Any = get_current_user()
         return (getattr(cu, "email", "") or "").strip()
     except Exception:
         return ""
+
+
+# ---------------------------------------------------------------------------
+# Org-id do usuário corrente (defesa em profundidade — PR18)
+# ---------------------------------------------------------------------------
+DEFAULT_PAGE_LIMIT: int = 200
+
+
+def _current_org_id() -> str | None:
+    """Retorna o org_id do usuário autenticado, ou None se indisponível."""
+    try:
+        resp = supabase.auth.get_user()
+        user = getattr(resp, "user", None) or resp
+        uid = getattr(user, "id", None)
+        if not uid and isinstance(resp, dict):
+            d = resp.get("data") or {}
+            u = resp.get("user") or d.get("user") or {}
+            uid = u.get("id") or u.get("uid")
+        if not uid:
+            return None
+        res = exec_postgrest(supabase.table("memberships").select("org_id").eq("user_id", uid).limit(1))
+        rows: list[Any] = res.data if isinstance(getattr(res, "data", None), list) else []
+        if rows and rows[0].get("org_id"):
+            return str(rows[0]["org_id"])
+    except Exception as exc:
+        log.debug("_current_org_id: falha ao resolver org_id: %s", exc)
+    return None
 
 
 def init_db() -> None:
@@ -133,48 +148,84 @@ def list_clientes_by_org(
     org_id: str,
     order_by: str | None = None,
     descending: bool | None = None,
+    *,
+    limit: int | None = DEFAULT_PAGE_LIMIT,
+    offset: int = 0,
 ) -> list[Cliente]:
     """
-    Lista clientes filtrando por org_id (obrigatório).
+    Lista clientes filtrando por org_id (obrigatório) com paginação.
     """
     if org_id is None:
         raise ValueError("org_id obrigatório")
     col: str
     desc: bool
     col, desc = _resolve_order(order_by, descending)
-    resp: Any = exec_postgrest(
+    query: Any = (
         supabase.table("clients")
         .select(CLIENT_COLUMNS)
         .is_("deleted_at", "null")
         .eq("org_id", org_id)
         .order(col, desc=desc)
+        .order("id", desc=True)  # tiebreaker estável
     )
+    if limit is not None:
+        query = query.range(offset, offset + limit - 1)
+    resp: Any = exec_postgrest(query)
     return [_to_cliente(r) for r in (resp.data or [])]
 
 
-def list_clientes(order_by: str | None = None, descending: bool | None = None) -> list[Cliente]:
+def list_clientes(
+    order_by: str | None = None,
+    descending: bool | None = None,
+    *,
+    limit: int | None = DEFAULT_PAGE_LIMIT,
+    offset: int = 0,
+) -> list[Cliente]:
+    """Lista clientes ativos com filtro explícito por org_id e paginação.
+
+    PR18: defesa em profundidade — sempre aplica org_id quando disponível.
+    Se org_id não puder ser resolvido, emite warning e executa sem filtro
+    (RLS do Supabase continua protegendo).
+    """
     col: str
     desc: bool
     col, desc = _resolve_order(order_by, descending)
-    resp: Any = exec_postgrest(
-        supabase.table("clients")
-        .select(CLIENT_COLUMNS)
-        .is_("deleted_at", "null")  # somente ativos
-        .order(col, desc=desc)
-    )
+    query: Any = supabase.table("clients").select(CLIENT_COLUMNS).is_("deleted_at", "null")
+    org = _current_org_id()
+    if org:
+        query = query.eq("org_id", org)
+    else:
+        log.warning("list_clientes: org_id indisponível; confiando apenas no RLS.")
+    query = query.order(col, desc=desc).order("id", desc=True)
+    if limit is not None:
+        query = query.range(offset, offset + limit - 1)
+    else:
+        log.warning("list_clientes: chamado sem limite de paginação (fetch_all).")
+    resp: Any = exec_postgrest(query)
     return [_to_cliente(r) for r in (resp.data or [])]
 
 
-def list_clientes_deletados(order_by: str | None = None, descending: bool | None = None) -> list[Cliente]:
+def list_clientes_deletados(
+    order_by: str | None = None,
+    descending: bool | None = None,
+    *,
+    limit: int | None = DEFAULT_PAGE_LIMIT,
+    offset: int = 0,
+) -> list[Cliente]:
+    """Lista clientes na lixeira com filtro explícito por org_id e paginação."""
     col: str
     desc: bool
     col, desc = _resolve_order(order_by, descending)
-    resp: Any = exec_postgrest(
-        supabase.table("clients")
-        .select(CLIENT_COLUMNS)
-        .not_.is_("deleted_at", "null")  # somente marcados como deletados
-        .order(col, desc=desc)
-    )
+    query: Any = supabase.table("clients").select(CLIENT_COLUMNS).not_.is_("deleted_at", "null")
+    org = _current_org_id()
+    if org:
+        query = query.eq("org_id", org)
+    else:
+        log.warning("list_clientes_deletados: org_id indisponível; confiando apenas no RLS.")
+    query = query.order(col, desc=desc).order("id", desc=True)
+    if limit is not None:
+        query = query.range(offset, offset + limit - 1)
+    resp: Any = exec_postgrest(query)
     return [_to_cliente(r) for r in (resp.data or [])]
 
 
@@ -237,7 +288,10 @@ def insert_cliente(
         resp: Any
         try:
             resp = exec_postgrest(supabase.table("clients").insert(payload))
-        except Exception:
+        except _PostgrestAPIError as exc:
+            if not _is_unknown_column_error(exc):
+                raise
+            log.warning("insert_cliente: coluna 'ultima_por' não existe na tabela; aplicando fallback.")
             payload.pop("ultima_por", None)
             resp = exec_postgrest(supabase.table("clients").insert(payload))
 
@@ -261,7 +315,7 @@ def insert_cliente(
         raise RuntimeError("Falha ao obter ID do cliente inserido.")
 
     try:
-        return _with_retries(_do, tries=3, base_delay=RETRY_BASE_DELAY)
+        return _do()
     except Exception as e:
         log.warning(f"Falha ao inserir cliente após retries: {e}")
         raise
@@ -295,7 +349,10 @@ def update_cliente(
         resp: Any
         try:
             resp = exec_postgrest(supabase.table("clients").update(payload).eq("id", cliente_id))
-        except Exception:
+        except _PostgrestAPIError as exc:
+            if not _is_unknown_column_error(exc):
+                raise
+            log.warning("update_cliente: coluna 'ultima_por' não existe na tabela; aplicando fallback.")
             payload.pop("ultima_por", None)
             resp = exec_postgrest(supabase.table("clients").update(payload).eq("id", cliente_id))
         # count pode vir None; usa tamanho de data como alternativa
@@ -304,7 +361,7 @@ def update_cliente(
         return len(resp.data or [])
 
     try:
-        return _with_retries(_do, tries=3, base_delay=RETRY_BASE_DELAY)
+        return _do()
     except Exception as e:
         log.warning(f"Falha ao atualizar cliente {cliente_id} após retries: {e}")
         raise
@@ -320,7 +377,10 @@ def update_status_only(cliente_id: int, obs: str) -> int:
         resp: Any
         try:
             resp = exec_postgrest(supabase.table("clients").update(payload).eq("id", cliente_id))
-        except Exception:
+        except _PostgrestAPIError as exc:
+            if not _is_unknown_column_error(exc):
+                raise
+            log.warning("update_status_only: coluna 'ultima_por' não existe na tabela; aplicando fallback.")
             payload.pop("ultima_por", None)
             resp = exec_postgrest(supabase.table("clients").update(payload).eq("id", cliente_id))
         if getattr(resp, "count", None) is not None:
@@ -328,7 +388,7 @@ def update_status_only(cliente_id: int, obs: str) -> int:
         return len(resp.data or [])
 
     try:
-        return _with_retries(_do, tries=3, base_delay=RETRY_BASE_DELAY)
+        return _do()
     except Exception as e:
         log.warning(f"Falha ao atualizar status do cliente {cliente_id}: {e}")
         raise
@@ -352,7 +412,10 @@ def soft_delete_clientes(ids: Iterable[int]) -> int:
     resp: Any
     try:
         resp = exec_postgrest(supabase.table("clients").update(dict(data)).in_("id", id_list))
-    except Exception:
+    except _PostgrestAPIError as exc:
+        if not _is_unknown_column_error(exc):
+            raise
+        log.warning("soft_delete_clientes: coluna 'ultima_por' não existe na tabela; aplicando fallback.")
         data_fb: dict[str, Any] = dict(data)
         data_fb.pop("ultima_por", None)
         resp = exec_postgrest(supabase.table("clients").update(data_fb).in_("id", id_list))
@@ -373,7 +436,10 @@ def restore_clientes(ids: Iterable[int]) -> int:
     resp: Any
     try:
         resp = exec_postgrest(supabase.table("clients").update(dict(data)).in_("id", id_list))
-    except Exception:
+    except _PostgrestAPIError as exc:
+        if not _is_unknown_column_error(exc):
+            raise
+        log.warning("restore_clientes: coluna 'ultima_por' não existe na tabela; aplicando fallback.")
         data_fb: dict[str, Any] = dict(data)
         data_fb.pop("ultima_por", None)
         resp = exec_postgrest(supabase.table("clients").update(data_fb).in_("id", id_list))

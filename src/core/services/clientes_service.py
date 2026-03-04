@@ -6,7 +6,6 @@ import logging
 import os
 import shutil
 import threading
-import time
 from dataclasses import dataclass, field
 from typing import Any, Optional, Tuple
 
@@ -54,58 +53,27 @@ def _count_clients_raw() -> int:
 
 def count_clients(*, max_retries: int = 2, base_delay: float = 0.2) -> int:
     """
-    Conta clientes ativos do Supabase com retry leve e tratamento resiliente.
+    Conta clientes ativos do Supabase com retry via retry_policy e tratamento resiliente.
 
-    - Se der WSAEWOULDBLOCK (WinError 10035), faz alguns retries com backoff leve.
+    - Erros transitórios (WinError 10035 etc.) são retentados por exec_postgrest.
     - Se falhar, retorna o último valor conhecido sem quebrar a UI.
     - Mantém cache thread-safe em _clients_cache para evitar race conditions.
     """
     global _clients_cache
 
-    attempt: int = 0
-    while True:
-        try:
-            # Chamada real (sem englobar lock para não bloquear outras threads)
-            total: int = _count_clients_raw()
-
-            # Atualiza o cache com lock
-            with _clients_cache.lock:
-                _clients_cache.count = int(total)
-                return _clients_cache.count
-
-        except OSError as e:
-            # WinError 10035 = WSAEWOULDBLOCK (socket non-blocking)
-            if getattr(e, "winerror", 0) == 10035:
-                if attempt < max_retries:
-                    delay: float = base_delay * (attempt + 1)
-                    log.warning("Clientes: socket ocupada (10035); retry em %.1fs...", delay)
-                    time.sleep(delay)
-                    attempt += 1
-                    continue
-
-                # Devolve o último valor conhecido com lock
-                with _clients_cache.lock:
-                    log.info("Clientes: usando last-known=%s após 10035", _clients_cache.count)
-                    return _clients_cache.count
-
-            # Outros erros de rede -> warning + last-known
-            log.warning(
-                "Clientes: erro de rede ao contar; usando last-known=%s (%r)",
-                _clients_cache.count,
-                e,
-            )
-            with _clients_cache.lock:
-                return _clients_cache.count
-
-        except Exception as e:
-            # Último guarda-chuva: não quebrar UI por causa do contador
-            log.warning(
-                "Clientes: falha inesperada ao contar; usando last-known=%s (%r)",
-                _clients_cache.count,
-                e,
-            )
-            with _clients_cache.lock:
-                return _clients_cache.count
+    try:
+        total: int = _count_clients_raw()
+        with _clients_cache.lock:
+            _clients_cache.count = int(total)
+            return _clients_cache.count
+    except Exception as e:
+        log.warning(
+            "Clientes: erro ao contar; usando last-known=%s (%r)",
+            _clients_cache.count,
+            e,
+        )
+        with _clients_cache.lock:
+            return _clients_cache.count
 
 
 def _normalize_payload(valores: dict[str, Any]) -> Tuple[str, str, str, str, str, str]:
@@ -196,7 +164,7 @@ def checar_duplicatas_info(
         except Exception as exc:
             log.warning("Falha ao buscar conflitos de razão social no Supabase: %s", exc)
             # Fallback para método local
-            for cliente in list_clientes():
+            for cliente in list_clientes(limit=None):
                 if exclude_id and cliente.id == exclude_id:
                     continue
                 if normalize_text(cliente.razao_social or "") != razao_norm:
@@ -214,7 +182,7 @@ def checar_duplicatas_info(
                 razao_conflicts.append(cliente)
     elif razao_norm:
         # Modo local: usa list_clientes()
-        for cliente in list_clientes():
+        for cliente in list_clientes(limit=None):
             if exclude_id and cliente.id == exclude_id:
                 continue
             if normalize_text(cliente.razao_social or "") != razao_norm:

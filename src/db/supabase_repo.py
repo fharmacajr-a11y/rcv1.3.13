@@ -3,9 +3,12 @@
 """Repositório Supabase para operações CRUD e helpers genéricos.
 
 Este módulo centraliza:
-- Helpers genéricos de acesso a tabelas Supabase (get_client, error formatting, retry logic)
+- Helpers genéricos de acesso a tabelas Supabase (get_client, error formatting)
 - CRUD específico para client_passwords (senhas criptografadas)
 - Autocomplete de clientes
+
+Retry é tratado de forma centralizada por ``exec_postgrest`` (via
+``src.infra.retry_policy.retry_call``). Não há retry local neste módulo.
 
 PADRÃO DE IMPORTAÇÃO PARA REPOSITORIES:
 ---------------------------------------
@@ -14,7 +17,6 @@ Os repositories em src/features/* podem usar os helpers genéricos deste módulo
     from src.db.supabase_repo import (
         get_supabase_client,
         format_api_error,
-        with_retries,
         PostgrestAPIError,
     )
 
@@ -22,25 +24,19 @@ HELPERS DISPONÍVEIS:
 -------------------
 - get_supabase_client(): Retorna cliente Supabase único (tenta vários paths)
 - format_api_error(exc, operation): Formata erro da API Supabase
-- with_retries(fn, tries, base_delay): Executa fn com retry + backoff
 - PostgrestAPIError: Exceção base da API Supabase
 """
 
 from __future__ import annotations
 
 import logging
-import random
-import time
 from collections.abc import Sequence
 from datetime import datetime, timezone
-from typing import Any, Callable, TypedDict, TypeVar, cast
+from typing import Any, TypedDict, cast
 
-import httpx
 from src.db.domain_types import ClientRow, PasswordRow
 from src.infra.supabase_client import exec_postgrest, get_supabase
 from src.security.crypto import decrypt_text, encrypt_text
-
-T = TypeVar("T")
 
 log = logging.getLogger(__name__)
 
@@ -223,7 +219,7 @@ def _rls_precheck_membership(client: Any, org_id: str, user_id: str) -> None:
             .limit(1)
         )
 
-    res: Any = with_retries(_query)  # Type: APIResponse from postgrest
+    res: Any = _query()
 
     # res pode ser None se a lib lançar algo estranho; trate tudo defensivamente
     data = getattr(res, "data", None)
@@ -251,56 +247,6 @@ class _SupabaseProxy:
 
 
 supabase = _SupabaseProxy()
-
-
-# -----------------------------------------------------------------------------
-# Retry helper com backoff exponencial
-# -----------------------------------------------------------------------------
-RETRY_ERRORS = (
-    httpx.ReadError,
-    httpx.WriteError,
-    httpx.ConnectError,
-    httpx.ConnectTimeout,
-    OSError,
-)
-
-
-def with_retries(fn: Callable[[], T], tries: int = 3, base_delay: float = 0.4) -> T:
-    """
-    Executa fn() com tentativas e backoff exponencial + jitter.
-    Re-tenta em erros de rede/transientes (inclui WinError 10035) e 5xx.
-    """
-    last_exc = None
-    for attempt in range(1, tries + 1):
-        try:
-            return fn()
-        except RETRY_ERRORS as e:
-            # WinError 10035 (WSAEWOULDBLOCK) é transitório – permite retry/backoff.
-            # Outros erros de OSError são não-transitórios e devem ser relevantados.
-            if isinstance(e, OSError) and getattr(e, "winerror", None) == 10035:
-                # transitório: recurso temporariamente indisponível em socket non-blocking
-                last_exc = e
-            elif isinstance(e, OSError):
-                # não-transitório: re-levanta imediatamente sem mais tentativas
-                raise
-            else:
-                last_exc = e
-        except Exception as e:
-            msg = str(e).lower()
-            # respostas 5xx às vezes chegam encapsuladas
-            if "502" in msg or "bad gateway" in msg or "5xx" in msg or "503" in msg:
-                last_exc = e
-            else:
-                raise
-
-        if attempt < tries:
-            # jitter de backoff; n?o usado como RNG criptogr?fico
-            delay = base_delay * (2 ** (attempt - 1)) + random.uniform(0, 0.15)  # nosec B311
-            time.sleep(delay)
-
-    if last_exc is None:
-        raise RuntimeError("Unexpected None error from Postgrest")
-    raise last_exc
 
 
 def _now_iso() -> str:
@@ -351,7 +297,7 @@ def list_passwords(org_id: str, limit: int | None = None, offset: int = 0) -> li
 
             return exec_postgrest(query)
 
-        res: Any = with_retries(_do)
+        res: Any = _do()
         raw_data = getattr(res, "data", None)
 
         # Achata os dados do JOIN para facilitar o uso
@@ -444,7 +390,7 @@ def add_password(
         def _insert() -> Any:
             return exec_postgrest(supabase.table("client_passwords").insert(payload))
 
-        res: Any = with_retries(_insert)
+        res: Any = _insert()
         raw_data = getattr(res, "data", None)
         data: list[PasswordRow] = list(raw_data) if raw_data is not None else []
         if not data:
@@ -494,7 +440,7 @@ def update_password(
         def _do() -> Any:
             return exec_postgrest(supabase.table("client_passwords").update(payload).eq("id", id))
 
-        res: Any = with_retries(_do)
+        res: Any = _do()
         raw_data = getattr(res, "data", None)
         data: list[PasswordRow] = list(raw_data) if raw_data is not None else []
         if not data:
@@ -519,7 +465,7 @@ def delete_password(id: str) -> None:
         def _do() -> Any:
             return exec_postgrest(supabase.table("client_passwords").delete().eq("id", id))
 
-        with_retries(_do)
+        _do()
         log.info("delete_password: registro id=%s removido", id)
     except Exception as e:
         log.exception("Erro ao excluir senha id=%s", id)
@@ -550,7 +496,7 @@ def delete_passwords_by_client(org_id: str, client_id: str) -> int:
                 supabase.table("client_passwords").delete().eq("org_id", org_id).eq("client_id", client_id)
             )
 
-        res: Any = with_retries(_do)
+        res: Any = _do()
         # O Supabase retorna os registros deletados em res.data
         raw_data = getattr(res, "data", None)
         count = len(raw_data) if raw_data else 0
@@ -616,7 +562,7 @@ def search_clients(org_id: str, query: str, limit: int = 20) -> list[ClientRow]:
         return exec_postgrest(sel)
 
     try:
-        res: Any = with_retries(_do)
+        res: Any = _do()
         raw_data = getattr(res, "data", None)
         data: list[ClientRow] = list(raw_data) if raw_data is not None else []
         log.debug("search_clients: %d resultado(s) para query='%s' org_id=%s", len(data), q, org_id)
@@ -653,7 +599,7 @@ def list_clients_for_picker(org_id: str, limit: int = 200) -> list[ClientRow]:
         )
 
     try:
-        res: Any = with_retries(_do)
+        res: Any = _do()
         raw_data = getattr(res, "data", None)
         data: list[ClientRow] = list(raw_data) if raw_data is not None else []
         log.debug("list_clients_for_picker: %d cliente(s) carregados para org_id=%s", len(data), org_id)
@@ -671,7 +617,6 @@ __all__ = [
     "get_supabase_client",
     "format_api_error",
     "to_iso_date",
-    "with_retries",
     "PostgrestAPIError",
     # CRUD de senhas (específico deste módulo)
     "list_passwords",

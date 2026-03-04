@@ -177,7 +177,9 @@ class NotificationsService:
                 initial = prefix[0].upper()
                 return (display_name, initial)
         except Exception as exc:
-            self._log.debug("Falha ao extrair iniciais de %s: %s", actor_email, exc)
+            from src.utils.log_sanitizer import mask_email
+
+            self._log.debug("Falha ao extrair iniciais de %s: %s", mask_email(actor_email), exc)
 
         # Fallback final: usar email completo
         return (actor_email, actor_email[0].upper() if actor_email else "")

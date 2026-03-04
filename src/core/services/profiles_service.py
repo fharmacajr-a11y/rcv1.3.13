@@ -104,7 +104,9 @@ def get_display_name_by_email(email: str) -> str | None:
             dn = (rows[0].get("display_name") or "").strip()
             return dn or None
     except Exception as e:
-        log.debug("Erro ao buscar display_name para %s: %s", email_lc, e)
+        from src.utils.log_sanitizer import mask_email
+
+        log.debug("Erro ao buscar display_name para %s: %s", mask_email(email_lc), e)
     return None
 
 

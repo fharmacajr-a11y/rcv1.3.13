@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from src.core.db_manager import db_manager as db_manager
 
 from .db_manager import (
+    DEFAULT_PAGE_LIMIT,
     delete_cliente,
     find_cliente_by_cnpj_norm,
     get_cliente,
@@ -16,6 +17,7 @@ from .db_manager import (
     init_or_upgrade,
     insert_cliente,
     list_clientes,
+    list_clientes_by_org,
     list_clientes_deletados,
     purge_clientes,
     restore_clientes,
@@ -25,10 +27,12 @@ from .db_manager import (
 )
 
 __all__ = [
+    "DEFAULT_PAGE_LIMIT",
     "db_manager",
     "init_db",
     "init_or_upgrade",
     "list_clientes",
+    "list_clientes_by_org",
     "list_clientes_deletados",
     "get_cliente",
     "get_cliente_by_id",

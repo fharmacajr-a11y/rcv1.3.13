@@ -138,7 +138,14 @@ def count_unread(org_id: str, exclude_actor_email: str | None = None) -> int:
         response = query.execute()
 
         count = getattr(response, "count", 0) or 0
-        log.debug("[Notifications] %d não lida(s) (org_id=%s, exclude_actor=%s)", count, org_id, exclude_actor_email)
+        from src.utils.log_sanitizer import mask_email
+
+        log.debug(
+            "[Notifications] %d não lida(s) (org_id=%s, exclude_actor=%s)",
+            count,
+            org_id,
+            mask_email(exclude_actor_email),
+        )
 
         return count
 

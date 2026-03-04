@@ -8,7 +8,7 @@ from typing import Any, Final, TypeVar
 
 from supabase import Client, ClientOptions, create_client  # type: ignore[import-untyped]
 
-from src.infra.http.retry import retry_call
+from src.infra.retry_policy import retry_call
 from src.infra.supabase import types as supa_types
 from src.infra.supabase.http_client import HTTPX_CLIENT, HTTPX_TIMEOUT_LIGHT
 
@@ -387,7 +387,7 @@ def get_supabase() -> Client:
                 original_url = storage_client._base_url
                 if not original_url.endswith("/"):
                     storage_client._base_url = original_url + "/"
-                    log.debug(f"Storage endpoint normalizado: {storage_client._base_url}")
+                    log.debug("Storage endpoint normalizado")
         except Exception as e:
             log.debug(f"Não foi possível normalizar endpoint de Storage: {e}")
 
@@ -426,4 +426,4 @@ def exec_postgrest(request_builder: Any) -> Any:
         - Jitter de 0.3s para evitar thundering herd
         - Type hint Any devido à API dinâmica do PostgREST
     """
-    return retry_call(request_builder.execute, tries=3, backoff=0.7, jitter=0.3)
+    return retry_call(request_builder.execute, max_attempts=3, base_delay=0.7, jitter=0.3)

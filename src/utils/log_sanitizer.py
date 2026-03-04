@@ -4,12 +4,69 @@ SEC-006: Utilitários para sanitização de logs e prevenção de vazamento de d
 
 Este módulo fornece funções para mascarar informações sensíveis em logs,
 prevenindo a exposição de senhas, tokens, CPFs, etc.
+
+PR6: Adicionadas funções de máscara pontual (mask_email, mask_phone, mask_ip)
+e SensitiveDataFilter (logging.Filter) para proteção automática.
 """
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any
+
+
+# ---------------------------------------------------------------------------
+# Máscaras pontuais (para uso direto em log statements)
+# ---------------------------------------------------------------------------
+
+
+def mask_email(email: str | None) -> str:
+    """Mascara um email preservando apenas o primeiro caractere e o domínio.
+
+    Exemplos:
+        mask_email("joao@empresa.com")  → "j***@empresa.com"
+        mask_email("ab@x.io")           → "a***@x.io"
+        mask_email(None)                → "***"
+        mask_email("")                  → "***"
+    """
+    if not email or "@" not in str(email):
+        return "***"
+    local, domain = str(email).split("@", 1)
+    if not local:
+        return f"***@{domain}"
+    return f"{local[0]}***@{domain}"
+
+
+def mask_phone(phone: str | None) -> str:
+    """Mascara um telefone preservando apenas os 2 primeiros e 2 últimos dígitos.
+
+    Exemplos:
+        mask_phone("21999887766")       → "21*****66"
+        mask_phone("(21) 99988-7766")   → "21*****66"
+        mask_phone(None)                → "***"
+    """
+    if not phone:
+        return "***"
+    digits = re.sub(r"\D", "", str(phone))
+    if len(digits) < 5:
+        return "***"
+    return f"{digits[:2]}*****{digits[-2:]}"
+
+
+def mask_ip(ip: str | None) -> str:
+    """Mascara os dois últimos octetos de um endereço IPv4.
+
+    Exemplos:
+        mask_ip("192.168.1.42")  → "192.168.*.*"
+        mask_ip(None)            → "***"
+    """
+    if not ip:
+        return "***"
+    parts = str(ip).split(".")
+    if len(parts) == 4:
+        return f"{parts[0]}.{parts[1]}.*.*"
+    return "***"
 
 
 def sanitize_for_log(value: Any, mask_char: str = "*") -> str:
@@ -179,6 +236,34 @@ def sanitize_dict_for_log(data: dict[str, Any], sensitive_keys: set[str] | None 
 
 
 __all__ = [
-    "sanitize_for_log",
+    "mask_email",
+    "mask_ip",
+    "mask_phone",
     "sanitize_dict_for_log",
+    "sanitize_for_log",
+    "SensitiveDataFilter",
 ]
+
+
+# ---------------------------------------------------------------------------
+# logging.Filter global — aplica sanitize_for_log em toda mensagem formatada
+# ---------------------------------------------------------------------------
+
+
+class SensitiveDataFilter(logging.Filter):
+    """Remove/mascaras padrões sensíveis (tokens, CPF, cartões) de log records.
+
+    Uso:
+        logging.getLogger().addFilter(SensitiveDataFilter())
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:  # noqa: A003 – shadowing builtin ok for logging.Filter
+        # Sanitizar a mensagem já formatada
+        record.msg = sanitize_for_log(record.msg)
+        # Se houver args, limpar para evitar dupla-formatação
+        if record.args:
+            if isinstance(record.args, dict):
+                record.args = {k: sanitize_for_log(v) for k, v in record.args.items()}
+            elif isinstance(record.args, tuple):
+                record.args = tuple(sanitize_for_log(a) for a in record.args)
+        return True

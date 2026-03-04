@@ -6,6 +6,8 @@ from __future__ import annotations
 import json
 import logging
 import os
+import tempfile
+import time
 from typing import Any, Optional, cast
 
 try:
@@ -24,6 +26,63 @@ BROWSER_STATE_FILENAME: str = "browser_state.json"
 BROWSER_STATUS_FILENAME: str = "browser_status.json"
 LOGIN_PREFS_FILENAME: str = "login_prefs.json"
 AUTH_SESSION_FILENAME: str = "auth_session.json"
+
+
+# ---------------------------------------------------------------------------
+# Atomic write + resilient load helpers  (PR17)
+# ---------------------------------------------------------------------------
+
+
+def _atomic_write_json(path: str, data: object) -> None:
+    """Grava *data* como JSON em *path* de forma atômica.
+
+    Cria tempfile no mesmo diretório, escreve + fsync, depois usa
+    ``os.replace`` para substituir o arquivo final.  Se qualquer etapa
+    falhar antes do replace, o arquivo original permanece intacto.
+    """
+    target_dir = os.path.dirname(path) or "."
+    os.makedirs(target_dir, exist_ok=True)
+    fd = -1
+    tmp_path: str | None = None
+    try:
+        fd, tmp_path = tempfile.mkstemp(dir=target_dir, suffix=".tmp")
+        with os.fdopen(fd, "w", encoding="utf-8") as fp:
+            fd = -1  # fdopen assume ownership
+            json.dump(data, fp, ensure_ascii=False, indent=2)
+            fp.flush()
+            os.fsync(fp.fileno())
+        os.replace(tmp_path, path)
+        tmp_path = None  # replace succeeded – nothing to clean up
+    finally:
+        if fd >= 0:
+            os.close(fd)
+        if tmp_path is not None:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
+
+def _resilient_load_json(path: str) -> Any:
+    """Carrega JSON de *path*; em caso de corrupção, quarantina o arquivo.
+
+    Se ``json.load`` lançar ``JSONDecodeError``, o arquivo é renomeado para
+    ``<path>.corrupt.<timestamp>`` e a função retorna ``None``.
+    """
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        ts = str(int(time.time()))
+        corrupt_path = f"{path}.corrupt.{ts}"
+        try:
+            os.replace(path, corrupt_path)
+        except OSError:
+            pass
+        log.warning("Arquivo de preferências corrompido; renomeado para quarentena " "e defaults serão usados.")
+        return None
+    except Exception:
+        return None
 
 
 def _get_base_dir() -> str:
@@ -75,6 +134,10 @@ def _keyring_is_available() -> bool:
     """
     # Detectar ambiente de teste
     if os.getenv("PYTEST_CURRENT_TEST") or os.getenv("RC_TESTING") == "1":
+        return False
+
+    # Forçar fallback para arquivo criptografado (debug/testes manuais)
+    if os.getenv("RC_FORCE_FILE_SESSION") == "1":
         return False
 
     try:
@@ -168,12 +231,10 @@ def load_columns_visibility(user_key: str) -> dict[str, bool]:
 
 def _load_prefs_unlocked(path: str, user_key: str) -> dict[str, bool]:
     """Lê preferências sem lock (internal)."""
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            data: Any = json.load(f)
-        return cast(dict[str, bool], data.get(user_key, {}))
-    except Exception:
+    data = _resilient_load_json(path)
+    if not isinstance(data, dict):
         return {}
+    return cast(dict[str, bool], data.get(user_key, {}))
 
 
 def save_columns_visibility(user_key: str, mapping: dict[str, bool]) -> None:
@@ -196,17 +257,14 @@ def save_columns_visibility(user_key: str, mapping: dict[str, bool]) -> None:
 
 
 def _save_prefs_unlocked(path: str, user_key: str, mapping: dict[str, bool]) -> None:
-    """Salva preferências sem lock (internal)."""
+    """Salva preferências sem lock (internal) — escrita atômica."""
     db: dict[str, Any] = {}
     if os.path.exists(path):
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                db = json.load(f) or {}
-        except Exception:
-            db = {}
+        loaded = _resilient_load_json(path)
+        if isinstance(loaded, dict):
+            db = loaded
     db[user_key] = mapping
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(db, f, ensure_ascii=False, indent=2)
+    _atomic_write_json(path, db)
 
 
 def load_login_prefs() -> dict[str, Any]:
@@ -214,18 +272,12 @@ def load_login_prefs() -> dict[str, Any]:
     path: str = _login_prefs_path()
     if not os.path.exists(path):
         return {}
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            data: Any = json.load(f) or {}
-        if not isinstance(data, dict):
-            log.warning("login_prefs: estrutura inválida (esperado dict).")
-            return {}
-        email: str = str(data.get("email", "")).strip()
-        remember_email: bool = bool(data.get("remember_email", True))
-        return {"email": email, "remember_email": remember_email}
-    except Exception as exc:
-        log.warning("Erro ao ler preferências de login: %s", exc)
+    data = _resilient_load_json(path)
+    if not isinstance(data, dict):
         return {}
+    email: str = str(data.get("email", "")).strip()
+    remember_email: bool = bool(data.get("remember_email", True))
+    return {"email": email, "remember_email": remember_email}
 
 
 def save_login_prefs(email: str, remember_email: bool) -> None:
@@ -247,24 +299,47 @@ def save_login_prefs(email: str, remember_email: bool) -> None:
         lock: Optional[Any] = FileLock(lock_path, timeout=5) if HAS_FILELOCK and lock_path else None  # type: ignore[misc]
         if lock:
             with lock:
-                with open(path, "w", encoding="utf-8") as f:
-                    json.dump(data, f, ensure_ascii=False, indent=2)
+                _atomic_write_json(path, data)
         else:
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
+            _atomic_write_json(path, data)
     except Exception as exc:
         log.exception("Erro ao salvar preferências de login: %s", exc)
+
+
+def _validate_session_dict(data: dict[str, Any]) -> dict[str, Any] | None:
+    """Valida campos obrigatórios e retorna dict normalizado, ou *None*."""
+    access_token = data.get("access_token") or ""
+    refresh_token = data.get("refresh_token") or ""
+    created_at = data.get("created_at") or ""
+    keep_logged: bool = bool(data.get("keep_logged", False))
+
+    if not access_token or not refresh_token or not created_at:
+        return None
+
+    return {
+        "access_token": str(access_token),
+        "refresh_token": str(refresh_token),
+        "created_at": str(created_at),
+        "keep_logged": keep_logged,
+    }
 
 
 def load_auth_session() -> dict[str, Any]:
     """
     Carrega sessão persistida (tokens) do Supabase.
 
-    P1-001: Migração para keyring (DPAPI no Windows):
-    1. Tenta carregar do keyring (armazenamento seguro)
-    2. Se não houver no keyring, tenta carregar do arquivo auth_session.json
-    3. Se carregar do arquivo com sucesso, migra para keyring e remove arquivo
+    Ordem de tentativa:
+    1. Keyring (DPAPI no Windows) — armazenamento mais seguro
+    2. Arquivo criptografado ``auth_session.enc`` (fallback DPAPI)
+    3. Arquivo legado ``auth_session.json`` (plain JSON) → migra
     """
+    from src.utils.session_store import (
+        encrypted_file_load,
+        migrate_legacy_file,
+    )
+
+    base_dir = _get_base_dir()
+
     # 1. Tentar carregar do keyring primeiro (armazenamento seguro)
     keyring_json = _keyring_get_session_json()
     if keyring_json:
@@ -296,74 +371,43 @@ def load_auth_session() -> dict[str, Any]:
             _keyring_clear_session()
             return {}
 
-    # 2. Fallback: tentar carregar do arquivo (legado)
-    path: str = _auth_session_path()
-    if not os.path.exists(path):
-        return {}
+    # 2. Fallback: arquivo criptografado (DPAPI)
+    enc_data = encrypted_file_load(base_dir)
+    if enc_data:
+        session = _validate_session_dict(enc_data)
+        if session:
+            return session
 
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            data: Any = json.load(f) or {}
-        if not isinstance(data, dict):
-            return {}
+    # 3. Migração de arquivo legado (plain JSON → encrypted)
+    legacy_data = migrate_legacy_file(base_dir)
+    if legacy_data:
+        session = _validate_session_dict(legacy_data)
+        if session:
+            return session
 
-        access_token: Any = data.get("access_token") or ""
-        refresh_token: Any = data.get("refresh_token") or ""
-        created_at: Any = data.get("created_at") or ""
-        keep_logged: bool = bool(data.get("keep_logged", False))
-
-        if not access_token or not refresh_token or not created_at:
-            return {}
-
-        session_data = {
-            "access_token": str(access_token),
-            "refresh_token": str(refresh_token),
-            "created_at": str(created_at),
-            "keep_logged": keep_logged,
-        }
-
-        # 3. Migração automática: se carregou do arquivo, tentar migrar para keyring
-        if _keyring_is_available():
-            try:
-                session_json = json.dumps(session_data, ensure_ascii=False)
-                if _keyring_set_session_json(session_json):
-                    log.info("Sessão migrada de arquivo para keyring (armazenamento seguro)")
-                    # Remover arquivo após migração bem-sucedida
-                    try:
-                        os.remove(path)
-                        log.info("Arquivo auth_session.json removido após migração")
-                    except Exception as rm_exc:
-                        log.debug("Não foi possível remover arquivo após migração: %s", rm_exc)
-            except Exception as mig_exc:
-                log.debug("Não foi possível migrar sessão para keyring: %s", mig_exc)
-
-        return session_data
-
-    except Exception as exc:
-        log.warning("Erro ao ler sessão persistida: %s", exc, exc_info=True)
-        try:
-            os.remove(path)
-        except Exception as rm_exc:
-            log.warning("Falha ao remover sessão inválida: %s", rm_exc, exc_info=True)
-        return {}
+    return {}
 
 
 def save_auth_session(access_token: str, refresh_token: str, keep_logged: bool) -> None:
     """
     Persiste tokens de sessão quando 'continuar conectado' estiver ativo.
 
-    P1-001: Prioriza keyring (DPAPI no Windows), fallback para arquivo se necessário.
+    Prioriza keyring (DPAPI no Windows).  Se indisponível, grava em arquivo
+    criptografado (``auth_session.enc``) via DPAPI.  Tokens **nunca** são
+    salvos em texto plano.
     """
-    path: str = _auth_session_path()
+    from src.utils.session_store import (
+        _IS_WINDOWS,
+        encrypted_file_clear,
+        encrypted_file_save,
+    )
+
+    base_dir = _get_base_dir()
 
     # Se não deve manter logado, limpar tudo
     if not keep_logged:
         _keyring_clear_session()
-        if os.path.exists(path):
-            try:
-                os.remove(path)
-            except Exception as exc:
-                log.warning("Erro ao limpar sessão persistida: %s", exc, exc_info=True)
+        encrypted_file_clear(base_dir)
         return
 
     from datetime import datetime, timezone
@@ -376,52 +420,39 @@ def save_auth_session(access_token: str, refresh_token: str, keep_logged: bool) 
         "keep_logged": True,
     }
 
-    # Tentar salvar no keyring (armazenamento seguro)
+    # 1. Tentar salvar no keyring (armazenamento seguro)
     session_json = json.dumps(data, ensure_ascii=False)
     if _keyring_set_session_json(session_json):
-        log.debug("Sessão salva no keyring (armazenamento seguro)")
-        # Se salvou no keyring, garantir que não há arquivo com tokens em texto plano
-        if os.path.exists(path):
-            try:
-                os.remove(path)
-                log.debug("Arquivo auth_session.json removido (tokens agora no keyring)")
-            except Exception as rm_exc:
-                log.debug("Não foi possível remover arquivo legado: %s", rm_exc)
+        log.debug("Sessão salva no keyring, token_present=True")
+        # Garantir que não há arquivo legado ou criptografado
+        encrypted_file_clear(base_dir)
         return
 
-    # Fallback: salvar em arquivo (comportamento legado)
-    log.debug("Keyring não disponível, usando fallback para arquivo")
-    try:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        lock_path: Optional[str] = path + ".lock" if HAS_FILELOCK else None
-        lock: Optional[Any] = FileLock(lock_path, timeout=5) if HAS_FILELOCK and lock_path else None  # type: ignore[misc]
-        if lock:
-            with lock:
-                with open(path, "w", encoding="utf-8") as f:
-                    json.dump(data, f, ensure_ascii=False, indent=2)
-        else:
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-    except Exception:
-        log.exception("Erro ao salvar sessão de autenticação", exc_info=True)
+    # 2. Fallback: arquivo criptografado (DPAPI) — somente Windows
+    if _IS_WINDOWS:
+        try:
+            encrypted_file_save(base_dir, data)
+            log.debug("Sessão salva em arquivo DPAPI-encrypted, token_present=True")
+            return
+        except Exception:
+            log.exception("Erro ao salvar sessão em arquivo criptografado")
+    else:
+        log.warning(
+            "Keyring indisponível e DPAPI não suportado neste SO. "
+            "Sessão NÃO será persistida (tokens apenas em memória)."
+        )
 
 
 def clear_auth_session() -> None:
     """
     Remove sessão persistida (best-effort).
 
-    P1-001: Limpa tanto keyring quanto arquivo legado.
+    Limpa keyring + arquivo criptografado + arquivo legado.
     """
-    # Limpar keyring
-    _keyring_clear_session()
+    from src.utils.session_store import encrypted_file_clear
 
-    # Limpar arquivo legado
-    path: str = _auth_session_path()
-    try:
-        if os.path.exists(path):
-            os.remove(path)
-    except Exception as exc:
-        log.warning("Erro ao limpar sessão persistida: %s", exc, exc_info=True)
+    _keyring_clear_session()
+    encrypted_file_clear(_get_base_dir())
 
 
 # --- Browser state helpers ---
@@ -442,13 +473,10 @@ def load_last_prefix(key: str) -> str:
     path: str = _browser_state_path()
     if not os.path.exists(path):
         return ""
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            data: Any = json.load(f) or {}
-        value: Any = data.get(key, "")
-        return str(value or "")
-    except Exception:
+    data = _resilient_load_json(path)
+    if not isinstance(data, dict):
         return ""
+    return str(data.get(key, "") or "")
 
 
 def save_last_prefix(key: str, prefix: str) -> None:
@@ -456,15 +484,11 @@ def save_last_prefix(key: str, prefix: str) -> None:
     path: str = _browser_state_path()
     db: dict[str, str] = {}
     if os.path.exists(path):
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                loaded_data: Any = json.load(f)
-                db = loaded_data or {}
-        except Exception:
-            db = {}
+        loaded = _resilient_load_json(path)
+        if isinstance(loaded, dict):
+            db = loaded
     db[key] = prefix
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(db, f, ensure_ascii=False, indent=2)
+    _atomic_write_json(path, db)
 
 
 def load_browser_status_map(key: str) -> dict[str, str]:
@@ -472,14 +496,12 @@ def load_browser_status_map(key: str) -> dict[str, str]:
     path: str = _browser_status_path()
     if not os.path.exists(path):
         return {}
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            data: Any = json.load(f) or {}
-        raw: Any = data.get(key, {})
-        if isinstance(raw, dict):
-            return {str(k): str(v) for k, v in raw.items()}
-    except Exception as exc:
-        log.debug("Erro ao ler browser_status para %s", key, exc_info=exc)
+    data = _resilient_load_json(path)
+    if not isinstance(data, dict):
+        return {}
+    raw: Any = data.get(key, {})
+    if isinstance(raw, dict):
+        return {str(k): str(v) for k, v in raw.items()}
     return {}
 
 
@@ -488,12 +510,8 @@ def save_browser_status_map(key: str, mapping: dict[str, str]) -> None:
     path: str = _browser_status_path()
     db: dict[str, dict[str, str]] = {}
     if os.path.exists(path):
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                loaded_data: Any = json.load(f)
-                db = loaded_data or {}
-        except Exception:
-            db = {}
+        loaded = _resilient_load_json(path)
+        if isinstance(loaded, dict):
+            db = loaded
     db[key] = mapping
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(db, f, ensure_ascii=False, indent=2)
+    _atomic_write_json(path, db)

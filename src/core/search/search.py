@@ -96,15 +96,21 @@ def _filter_clientes(clientes: Sequence[Cliente], term: str) -> list[Cliente]:
     return [cli for cli in clientes if query_norm in _cliente_search_blob(cli)]
 
 
-def search_clientes(term: str | None, order_by: str | None = None, org_id: str | None = None) -> list[Cliente]:
+def search_clientes(
+    term: str | None,
+    order_by: str | None = None,
+    org_id: str | None = None,
+    *,
+    limit: int | None = None,
+    offset: int = 0,
+) -> list[Cliente]:
     """
     Busca clientes por *term* (nome/razao/CNPJ/numero) priorizando Supabase.
     Fallback para filtro local quando offline ou em falha.
 
-    - Quando online: exige org_id, consulta Supabase, aplica filtro local adicional
-      se houver termo e reconsulta se nenhum resultado inicial.
-    - Quando offline ou em falha: consulta repositório local; levanta ValueError
-      se org_id for ausente.
+    Args:
+        limit: Se fornecido, aplica paginação server-side (range + order estável por id).
+        offset: Posição inicial da página (ignorado se *limit* for None).
     """
     if org_id is None:
         current_user = get_current_user()
@@ -127,6 +133,10 @@ def search_clientes(term: str | None, order_by: str | None = None, org_id: str |
                     )
                 if col:
                     qb = qb.order(col, desc=desc)
+                # Ordem estável por id para paginação determinística
+                qb = qb.order("id")
+                if limit is not None:
+                    qb = qb.range(offset, offset + limit - 1)
                 resp_inner = exec_postgrest(qb)
                 return list(resp_inner.data or [])
 

@@ -9,11 +9,7 @@ import errno
 
 import logging
 
-import secrets
-
-import time
-
-from typing import Any, Callable
+from typing import Any
 
 
 from src.infra.db_schemas import RC_NOTES_SELECT_FIELDS_LIST
@@ -91,72 +87,6 @@ def _is_transient_net_error(e: BaseException) -> bool:
         return True
 
     return False
-
-
-def _with_retry(fn: Callable[[], Any], *, retries: int = 3, base_sleep: float = 0.25) -> Any:
-    """
-
-    Wrapper de retry com backoff exponencial + jitter para erros transitÃ³rios.
-
-
-
-    Args:
-
-        fn: FunÃ§Ã£o a ser executada (sem argumentos)
-
-        retries: NÃºmero mÃ¡ximo de tentativas
-
-        base_sleep: Tempo base de espera (serÃ¡ multiplicado exponencialmente)
-
-
-
-    Returns:
-
-        Resultado da funÃ§Ã£o
-
-
-
-    Raises:
-
-        NotesTransientError: Se todas as tentativas falharem com erro transitÃ³rio
-
-        Exception: Se houver erro nÃ£o transitÃ³rio (propaga imediatamente)
-
-    """
-
-    last_exc: BaseException | None = None
-
-    for attempt in range(1, retries + 1):
-        try:
-            return fn()
-
-        except Exception as ex:
-            if _is_transient_net_error(ex):
-                # Backoff exponencial + jitter (usando secrets para evitar B311)
-                jitter = secrets.randbelow(1500) / 10000.0  # 0.0 <= jitter < 0.15
-                sleep = (base_sleep * (2 ** (attempt - 1))) + jitter
-
-                log.debug(
-                    "notes_service: falha transitÃ³ria (%s). retry %d/%d em %.2fs",
-                    ex,
-                    attempt,
-                    retries,
-                    sleep,
-                )
-
-                time.sleep(sleep)
-
-                last_exc = ex
-
-                continue
-
-            # NÃ£o transitÃ³rio -> propaga imediatamente
-
-            raise
-
-    # Esgotou todas as tentativas
-
-    raise NotesTransientError(str(last_exc) if last_exc else "Falha transitÃ³ria esgotada")
 
 
 # -------------------- Helpers de Tratamento de Erro --------------------
@@ -400,21 +330,12 @@ def _insert_note_with_retry(payload: dict[str, str], org_id: str, email_prefix: 
         return (resp.data or [{}])[0]
 
     try:
-        return _with_retry(_call, retries=3, base_sleep=0.25)
-
-    except NotesTransientError as e:
-        log.warning("Falha transitï¿½ï¿½ria ao adicionar nota: %s", e)
-
-        raise
+        return _call()
 
     except NotesTableMissingError:
-        # Re-raise para tratamento especï¿½ï¿½fico no caller
-
         raise
 
     except NotesAuthError:
-        # Re-raise para tratamento especï¿½ï¿½fico no caller
-
         raise
 
     except Exception as e:
@@ -422,7 +343,9 @@ def _insert_note_with_retry(payload: dict[str, str], org_id: str, email_prefix: 
 
         _handle_auth_error_logged(e, org_id, email_prefix)
 
-        # Outro tipo de erro
+        if _is_transient_net_error(e):
+            log.warning("Falha transitória ao adicionar nota: %s", e)
+            raise NotesTransientError(str(e)) from e
 
         log.error("Erro ao adicionar nota: %s", e)
 
@@ -459,24 +382,17 @@ def list_notes(org_id: str, limit: int = 500) -> list[dict[str, Any]]:
     """
 
     try:
-        return _with_retry(lambda: _fetch_notes(org_id, limit), retries=3, base_sleep=0.25)
-
-    except NotesTransientError as e:
-        # Reduzir ru??do: WARNING ?nico
-
-        log.warning("Falha transit??ria ao listar notas: %s", e)
-
-        raise
+        return _fetch_notes(org_id, limit)
 
     except NotesTableMissingError:
-        # Re-raise para tratamento espec??fico no caller
-
         raise
 
     except Exception as e:
         _handle_table_missing_error_logged(e)
 
-        # Outro tipo de erro
+        if _is_transient_net_error(e):
+            log.warning("Falha transitória ao listar notas: %s", e)
+            raise NotesTransientError(str(e)) from e
 
         log.error("Erro ao listar notas: %s", e)
 
@@ -580,7 +496,7 @@ def list_notes_since(org_id: str, since_iso: str | None) -> list[dict[str, Any]]
         return _normalize_author_emails(rows, org_id)
 
     try:
-        return _with_retry(_call, retries=2, base_sleep=0.1)
+        return _call()
 
     except Exception as e:
         log.debug("Erro ao buscar notas incrementais: %s", e)
