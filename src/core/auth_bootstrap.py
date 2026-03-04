@@ -324,11 +324,15 @@ def _update_footer_email(app: AppProtocol) -> None:
         # FASE 5A FIX: Usar FooterController (sempre existe, aplica via after)
         if hasattr(app, "layout_refs") and app.layout_refs and hasattr(app.layout_refs, "footer_controller"):
             app.layout_refs.footer_controller.set_user(email)
-            log.info("Footer controller atualizado: %s", email[:20] + "..." if len(email) > 20 else email)
+            from src.utils.log_sanitizer import mask_email
+
+            log.info("Footer controller atualizado: %s", mask_email(email))
         elif hasattr(app, "footer") and hasattr(app.footer, "set_user"):
             # Fallback para testes que usam DummyApp com footer direto
             app.footer.set_user(email)
-            log.debug("Footer direto atualizado: %s", email[:20] + "..." if len(email) > 20 else email)
+            from src.utils.log_sanitizer import mask_email as _me
+
+            log.debug("Footer direto atualizado: %s", _me(email))
         else:
             log.debug("Footer controller ainda não disponível")
     except Exception as exc:

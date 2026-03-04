@@ -147,9 +147,49 @@ jobs:
             htmlcov/
           retention-days: 7
 
+  quality-gates:
+    name: Quality Gates (ruff + pytest + bandit + pip-audit)
+    runs-on: windows-latest
+
+    env:
+      PYTHONUTF8: 1
+      PYTHONIOENCODING: utf-8
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run quality gates (with coverage)
+        env:
+          RC_WITH_COV: '1'
+        run: .\scripts\verify.ps1
+
+      - name: Upload coverage JSON
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-json
+          path: reports/coverage.json
+          retention-days: 30
+
   build:
     name: Build (PyInstaller + Sanity Check)
-    needs: [test, test-linux]
+    needs: [test, test-linux, quality-gates]
     runs-on: windows-latest
     steps:
       - name: Checkout code

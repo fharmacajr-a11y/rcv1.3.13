@@ -157,7 +157,7 @@ def _get_fernet() -> Fernet:
     # PRIORIDADE 1: Variável de ambiente (usuário escolheu gestão manual)
     env_key = os.getenv("RC_CLIENT_SECRET_KEY")
     if env_key:
-        log.info("Usando RC_CLIENT_SECRET_KEY da variável de ambiente")
+        log.debug("Usando RC_CLIENT_SECRET_KEY da variável de ambiente")
         key_str = env_key
     else:
         # PRIORIDADE 2: Keyring (chave única por instalação)

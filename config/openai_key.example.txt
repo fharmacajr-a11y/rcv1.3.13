@@ -1,4 +1,0 @@
-# Cole aqui a sua chave da API OpenAI (formato sk-...).
-# Use apenas uma linha, sem aspas e sem espaços extras.
-# Exemplo:
-# sk-proj-XXXXXXXXXXXXXXXXXXXXXXXXXXXX

@@ -40,6 +40,8 @@ def _safe_import_yaml() -> Any | None:
 # Import opcional de yaml para leitura de config
 yaml = _safe_import_yaml()
 
+_pepper_warned: bool = False
+
 
 def _get_auth_pepper() -> str:
     """
@@ -88,6 +90,15 @@ def _get_auth_pepper() -> str:
         else:
             # não revelar detalhes para não vazar path/pepper
             log.debug("Falha ao obter AUTH_PEPPER via arquivo: %s", exc)
+
+    global _pepper_warned  # noqa: PLW0603
+    if not _pepper_warned:
+        log.warning(
+            "SEC-006: AUTH_PEPPER não configurado. "
+            "Defina AUTH_PEPPER ou RC_AUTH_PEPPER como variável de ambiente, "
+            "ou configure auth_pepper em config.yml."
+        )
+        _pepper_warned = True
     return ""
 
 
@@ -174,7 +185,9 @@ def check_rate_limit(email: str, ip_address: str | None = None) -> tuple[bool, f
     email_key: str = email.strip().lower()
     email_allowed, email_remaining = _check_key_limit(email_key, now)
     if not email_allowed:
-        log.warning("Tentativas excedidas para email %s (aguardar %.1fs)", email_key, email_remaining)
+        from src.utils.log_sanitizer import mask_email
+
+        log.warning("Tentativas excedidas para email %s (aguardar %.1fs)", mask_email(email_key), email_remaining)
         return False, email_remaining
 
     # SEC-002: Verifica rate limit por IP (se fornecido)
@@ -182,7 +195,9 @@ def check_rate_limit(email: str, ip_address: str | None = None) -> tuple[bool, f
         ip_key = f"ip:{ip_address}"
         ip_allowed, ip_remaining = _check_key_limit(ip_key, now)
         if not ip_allowed:
-            log.warning("Tentativas excedidas para IP %s (aguardar %.1fs)", ip_address, ip_remaining)
+            from src.utils.log_sanitizer import mask_ip
+
+            log.warning("Tentativas excedidas para IP %s (aguardar %.1fs)", mask_ip(ip_address), ip_remaining)
             return False, ip_remaining
 
     return True, 0.0
@@ -277,16 +292,38 @@ def ensure_users_db() -> None:
         con.close()
 
 
-def create_user(username: str, password: str | None = None) -> int:
+# SEC-004: Senhas triviais bloqueadas na criação de usuários
+_BLOCKED_PASSWORDS: frozenset[str] = frozenset(
+    {
+        "admin123",
+        "password",
+        "123456",
+        "12345678",
+    }
+)
+
+
+def create_user(username: str, password: str) -> int:
     """
     Cria usuário local (SQLite). Se já existir, atualiza a senha se fornecida e retorna o ID.
 
     SEC-003: Valida username antes de qualquer query SQL.
+    SEC-004: Senha é obrigatória e não pode ser trivial.
+
+    Raises:
+        ValueError: Se username inválido, senha vazia ou senha bloqueada.
     """
     # SEC-003: Validação de username
     validation_error = _validate_username(username)
     if validation_error:
         raise ValueError(validation_error)
+
+    # SEC-004: Validação de senha obrigatória
+    if not password or not password.strip():
+        raise ValueError("Senha é obrigatória.")
+
+    if password in _BLOCKED_PASSWORDS:
+        raise ValueError("Senha muito fraca ou conhecida. Escolha outra senha.")
 
     ensure_users_db()
     now: str = datetime.now(timezone.utc).isoformat()

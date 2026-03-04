@@ -4,14 +4,13 @@ Esta pasta contém configurações para integração com a API da OpenAI.
 
 ## Como configurar a chave da API OpenAI
 
-⚠️ **IMPORTANTE - SEGURANÇA**: Por razões de segurança, a chave OpenAI deve ser configurada APENAS via variável de ambiente. Não armazene chaves em arquivos que possam ser distribuídos com o aplicativo.
+⚠️ **IMPORTANTE**: A chave OpenAI é lida **exclusivamente** da variável de
+ambiente `OPENAI_API_KEY`.  Nenhum arquivo local é consultado.
 
-### Configuração via Variável de Ambiente (OBRIGATÓRIA)
-
-Configure a variável de ambiente `OPENAI_API_KEY` antes de iniciar o aplicativo:
+### Configuração via Variável de Ambiente
 
 ```powershell
-# PowerShell
+# PowerShell (sessão)
 $env:OPENAI_API_KEY = "sk-proj-XXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 python -m src.app_gui
 ```
@@ -22,11 +21,7 @@ export OPENAI_API_KEY="sk-proj-XXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 python -m src.app_gui
 ```
 
-### ⛔ Opção DESCONTINUADA: Arquivo de configuração
-
-**NÃO use mais** `config/openai_key.txt` para armazenar chaves. Esta opção foi removida por questões de segurança (risco de distribuição acidental da chave no executável).
-
-O arquivo `openai_key.example.txt` é mantido apenas como referência de formato.
+Ou adicione ao arquivo `.env` na raiz do projeto (já listado no `.gitignore`).
 
 ## Obtendo uma chave da API
 
@@ -38,13 +33,11 @@ O arquivo `openai_key.example.txt` é mantido apenas como referência de formato
 
 ## Troubleshooting
 
-- Se o ChatGPT mostrar "biblioteca 'openai' não está instalada":
-  - Certifique-se de que está com o venv ativado
-  - Execute: `python -m pip install --upgrade "openai>=1.40.0"`
+- **"biblioteca 'openai' não está instalada"** — ative o venv e execute:
+  `python -m pip install --upgrade "openai>=1.40.0"`
 
-- Se mostrar "variável de ambiente OPENAI_API_KEY não está definida...":
-  - Configure a chave usando uma das opções acima
+- **"variável de ambiente OPENAI_API_KEY não está definida"** — defina a
+  variável conforme instruções acima.
 
-- Se der erro de autenticação:
-  - Verifique se a chave está correta
-  - Confirme que sua conta OpenAI tem créditos disponíveis
+- **Erro de autenticação** — verifique se a chave está correta e se a conta
+  OpenAI tem créditos disponíveis.
