@@ -500,7 +500,7 @@ def listar_clientes_na_lixeira(
     """
 
     try:
-        return _list_clientes_deletados_core(order_by=order_by, descending=descending) or []
+        return _list_clientes_deletados_core(order_by=order_by, descending=descending, limit=None) or []
     except Exception:
         # fallback direto ao Supabase para manter compatibilidade se o core mudar
         col = order_by or "id"

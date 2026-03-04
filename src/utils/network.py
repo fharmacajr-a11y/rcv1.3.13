@@ -90,11 +90,15 @@ def check_internet_connectivity(timeout: float = 1.0) -> bool:
     return False
 
 
-def require_internet_or_alert() -> bool:
+def require_internet_or_alert(parent: object | None = None) -> bool:
     """Check internet connectivity and show alert if unavailable in cloud-only mode.
 
     Only performs check if RC_NO_LOCAL_FS=1 (cloud-only mode).
     Shows a GUI alert if internet is unavailable.
+
+    Args:
+        parent: Janela tkinter/CTk existente para usar como parent do diálogo.
+                Se None, tenta ``tk._default_root``.
 
     Returns:
         True if internet is available or not required, False if unavailable
@@ -113,13 +117,17 @@ def require_internet_or_alert() -> bool:
     # Show GUI alert unless RC_NO_GUI_ERRORS=1
     if os.getenv("RC_NO_GUI_ERRORS") != "1":
         try:
+            import tkinter as tk
             from tkinter import messagebox
 
-            from src.ui.ctk_config import ctk
+            # Determinar parent efetivo (nunca criar novo CTk/Tk)
+            effective_parent = parent or getattr(tk, "_default_root", None)
 
-            # Create minimal root if needed
-            root = ctk.CTk()
-            root.withdraw()
+            if effective_parent is None:
+                logger.warning(
+                    "require_internet_or_alert: sem janela root disponível; " "alerta de internet não será exibido."
+                )
+                return False
 
             result = messagebox.askokcancel(
                 "Internet Necessária",
@@ -128,12 +136,10 @@ def require_internet_or_alert() -> bool:
                     "Verifique sua conexão e tente novamente."
                 ),
                 icon="warning",
+                parent=effective_parent,
             )
 
-            root.destroy()
-
-            # If user clicked Cancel, return False
-            return result if result else False
+            return bool(result)
 
         except Exception as e:
             logger.warning("Failed to show internet alert dialog: %s", e)

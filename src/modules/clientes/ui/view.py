@@ -124,6 +124,17 @@ class ClientesV2Frame(ctk.CTkFrame):
         # Criar Treeview com style correto
         self._create_treeview(list_container)
 
+        # PR5 — Botão "Carregar mais" para paginação
+        self._load_more_btn = make_btn(
+            self,
+            text="Carregar mais…",
+            command=self._on_load_more,
+            width=180,
+            height=30,
+        )
+        # Não empacotar inicialmente; será mostrado quando houver mais páginas
+        self._load_more_visible = False
+
         # FASE 3.4: ActionBar ou PickBar no rodapé
         if self._pick_mode:
             # Modo pick: botões Selecionar/Cancelar
@@ -780,6 +791,7 @@ class ClientesV2Frame(ctk.CTkFrame):
         try:
             self._vm.refresh_from_service()
             self._render_rows()
+            self._sync_load_more_btn()
             log.info(f"[Clientes] Dados carregados: {len(self._vm.get_rows())} clientes")
 
             # Atualizar lista de status do toolbar com dados do ViewModel
@@ -956,6 +968,7 @@ class ClientesV2Frame(ctk.CTkFrame):
             f"(busca='{search}', status='{status}')"
         )
         self._re_enable_trash_btn()
+        self._sync_load_more_btn()  # Esconder na lixeira
 
     def _finish_load_normal(self, gen: int, search: str, status: str) -> None:
         """Renderiza resultado normal na main thread."""
@@ -969,6 +982,61 @@ class ClientesV2Frame(ctk.CTkFrame):
             f"(busca='{search}', status='{status}')"
         )
         self._re_enable_trash_btn()
+        self._sync_load_more_btn()
+
+    # ── Paginação (PR5) ──────────────────────────────────────────
+
+    def _sync_load_more_btn(self) -> None:
+        """Mostra/esconde botão 'Carregar mais' conforme has_more do ViewModel."""
+        try:
+            should_show = self._vm.has_more and not self._trash_mode
+            if should_show and not self._load_more_visible:
+                self._load_more_btn.pack(side="top", pady=(2, 4))
+                self._load_more_visible = True
+            elif not should_show and self._load_more_visible:
+                self._load_more_btn.pack_forget()
+                self._load_more_visible = False
+        except Exception:
+            pass
+
+    def _on_load_more(self) -> None:
+        """Handler do botão 'Carregar mais'."""
+        self._load_more_btn.configure(state="disabled", text="Carregando…")
+
+        self._load_gen += 1
+        gen = self._load_gen
+
+        def _fetch_next() -> None:
+            try:
+                had_new = self._vm.load_next_page()
+                # Reaplicar filtros em memória sobre o conjunto expandido
+                search = self.toolbar.get_search_text()
+                status = self.toolbar.get_status()
+                order_label = self.toolbar.get_order()
+                self._vm.set_search_text(search if search else None, rebuild=False)
+                self._vm.set_status_filter(status if status else None, rebuild=False)
+                if order_label:
+                    self._vm.set_order_label(order_label, rebuild=False)
+                self._vm._rebuild_rows()
+            except Exception as exc:
+                log.error("[Clientes] Erro ao carregar mais: %s", exc, exc_info=True)
+                had_new = False
+
+            if gen == self._load_gen:
+                self.after(0, lambda: self._finish_load_more(gen, had_new))
+
+        t = threading.Thread(target=_fetch_next, daemon=True, name="clientes-load-more")
+        t.start()
+
+    def _finish_load_more(self, gen: int, had_new: bool) -> None:
+        """Callback na main thread após carregar mais registros."""
+        if gen != self._load_gen:
+            return
+        self._render_rows()
+        self._load_more_btn.configure(state="normal", text="Carregar mais…")
+        self._sync_load_more_btn()
+        if had_new:
+            log.info("[Clientes] Página adicional carregada — total: %d", len(self._vm.get_rows()))
 
     def _render_rows(self) -> None:
         """Renderiza rows do ViewModel na Treeview com zebra tags.
@@ -1354,7 +1422,7 @@ class ClientesV2Frame(ctk.CTkFrame):
 
             def on_saved(data: dict) -> None:
                 """Callback após salvar."""
-                log.info(f"[Clientes] Cliente criado: {data.get('Razão Social')}")
+                log.info("[Clientes] Cliente criado com sucesso")
                 self.load_async()
 
             # Abrir diálogo modal
@@ -1749,7 +1817,7 @@ class ClientesV2Frame(ctk.CTkFrame):
 
             if phone_normalized:
                 url = self._whatsapp_url(phone_normalized)
-                log.info(f"[Clientes] Abrindo WhatsApp: {url}")
+                log.info("[Clientes] Abrindo WhatsApp para contato")
 
                 import webbrowser
 
@@ -1914,7 +1982,7 @@ class ClientesV2Frame(ctk.CTkFrame):
             "status": client_row.status or "",
         }
 
-        log.info(f"[Clientes][Pick] Cliente selecionado: {client_data['razao_social']} (ID: {client_data['id']})")
+        log.info("[Clientes][Pick] Cliente selecionado: ID=%s", client_data["id"])
 
         # Chamar callback se fornecido
         if self._on_cliente_selected:

@@ -171,6 +171,18 @@ pytest tests/modules/hub --no-cov -q
 pytest tests/ --maxfail=3 -q
 ```
 
+### Verificação completa (Quality Gates)
+
+Roda **ruff → pytest → bandit → pip-audit** em sequência; falha no primeiro erro:
+
+```powershell
+# Windows (PowerShell)
+.\scripts\verify.ps1
+
+# Linux / macOS
+bash scripts/verify.sh
+```
+
 ### Verificação de qualidade de código
 
 ```bash

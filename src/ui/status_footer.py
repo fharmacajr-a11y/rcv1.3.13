@@ -93,7 +93,9 @@ class StatusFooter(ctk.CTkFrame):
     def set_user(self, email: str | None):
         self._user_email = email or "-"
         self._user_var.set(f"Usuário: {self._user_email}")
-        log.debug(f"StatusFooter: user atualizado -> {self._user_email}")
+        from src.utils.log_sanitizer import mask_email
+
+        log.debug("StatusFooter: user atualizado -> %s", mask_email(self._user_email))
 
     def set_cloud(self, state: Optional[str]) -> None:
         state = (state or "UNKNOWN").upper()

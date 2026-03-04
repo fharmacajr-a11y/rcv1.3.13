@@ -218,8 +218,11 @@ class LoginDialog(ctk.CTkToplevel):
             uid = getattr(sess, "user", None) and getattr(sess.user, "id", None)
             token = _get_access_token(client)
 
-            # Usando f-string para evitar problemas de formatação
-            log.info(f"Login OK: user.id={uid} | token={'presente' if token else 'ausente'}")
+            log.info(
+                "Login OK: user.id=%s | token=%s",
+                str(uid)[:8] + "…" if uid else "?",
+                "presente" if token else "ausente",
+            )
 
             if not token:
                 show_error(self, "Erro", "Login não gerou token. Verifique credenciais/E-mail confirmado.")

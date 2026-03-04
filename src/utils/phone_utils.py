@@ -64,11 +64,11 @@ def format_phone_br(raw: str | None) -> str:
 
     # Validar comprimento mínimo: DDD (2) + número (8 ou 9) = 10 ou 11 dígitos
     if len(digits) < 10:
-        log.debug(f"[phone_utils] Telefone muito curto para formatar: {raw} ({len(digits)} dígitos)")
+        log.debug("[phone_utils] Telefone muito curto para formatar: %d dígitos", len(digits))
         return ""
 
     if len(digits) > 11:
-        log.debug(f"[phone_utils] Telefone muito longo para formatar: {raw} ({len(digits)} dígitos)")
+        log.debug("[phone_utils] Telefone muito longo para formatar: %d dígitos", len(digits))
         return ""
 
     # Extrair DDD e número

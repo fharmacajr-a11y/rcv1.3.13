@@ -56,11 +56,9 @@ logger = logging.getLogger(__name__)
 # Constante para TTL do cache (em segundos)
 CACHE_TTL_SECONDS = 60
 
-# Mapa de e-mail -> nome curto preferido (sempre em minúsculas)
-AUTHOR_NAMES = {
-    "farmacajr@gmail.com": "Júnior",
-    "fharmaca2013@hotmail.com": "Elisabete",
-}
+# Mapa de e-mail -> nome curto preferido (sempre em minúsculas).
+# PR14: emails removidos — use RC_INITIALS_MAP no .env.
+AUTHOR_NAMES: Dict[str, str] = {}
 
 
 def load_env_author_names() -> Dict[str, str]:
@@ -101,8 +99,8 @@ def load_env_author_names() -> Dict[str, str]:
             logger.debug("[authors_service] json.loads falhou, tentando ast.literal_eval", exc_info=exc)
             try:
                 raw_map = ast.literal_eval(rc_initials_map)
-            except (SyntaxError, ValueError) as e:
-                logger.debug(f"[authors_service] Falha ao parsear RC_INITIALS_MAP: {e}")
+            except (SyntaxError, ValueError):
+                logger.warning("SEC-014: RC_INITIALS_MAP contém JSON inválido; usando mapa vazio.")
                 return {}
 
         # Normalizar: emails lowercase, nomes stripped, ignorar vazios
@@ -115,8 +113,8 @@ def load_env_author_names() -> Dict[str, str]:
 
         return normalized
 
-    except Exception as exc:
-        logger.debug(f"[authors_service] Erro ao carregar RC_INITIALS_MAP: {exc}")
+    except Exception:
+        logger.warning("SEC-014: Erro ao carregar RC_INITIALS_MAP; usando mapa vazio.")
         return {}
 
 

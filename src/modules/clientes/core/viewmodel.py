@@ -21,6 +21,9 @@ from . import constants as status_helpers
 
 logger = logging.getLogger(__name__)
 
+#: Tamanho padrão de página para busca paginada no Supabase.
+PAGE_SIZE: int = 200
+
 
 class ClientesViewModelError(Exception):
     """Erro base para o viewmodel de clientes."""
@@ -100,25 +103,62 @@ class ClientesViewModel:
         # Cache de rows processadas (após filtros e ordenação)
         self._rows: List[ClienteRow] = []
 
+        # Estado de paginação (PR5)
+        self._page_size: int = PAGE_SIZE
+        self._current_offset: int = 0
+        self._has_more: bool = False
+
     # ------------------------------------------------------------------ #
     # Carregamento de dados
     # ------------------------------------------------------------------ #
 
     def refresh_from_service(self) -> None:
-        """Carrega clientes via search_clientes sem aplicar filtros/ordenação.
+        """Carrega primeira página de clientes via search_clientes.
 
-        MS-4: Simplificado para ser apenas um loader de dados brutos.
+        Reseta offset para 0 e busca até *PAGE_SIZE* registros.
         Filtros e ordenação são responsabilidade do controller headless.
         """
+        self._current_offset = 0
         try:
-            # Carregar todos os clientes sem filtro de busca
-            clientes = search_clientes("", None)
+            clientes = search_clientes("", None, limit=self._page_size, offset=0)
         except Exception as exc:  # pragma: no cover - erros propagados
             raise ClientesViewModelError(str(exc)) from exc
 
+        self._has_more = len(clientes) >= self._page_size
+        self._current_offset = len(clientes)
         self._clientes_raw = list(clientes)
         self._update_status_choices()
         self._rebuild_rows()
+
+    def load_next_page(self) -> bool:
+        """Carrega próxima página e acrescenta aos dados existentes.
+
+        Returns:
+            True se novos registros foram carregados, False se não há mais.
+        """
+        if not self._has_more:
+            return False
+
+        try:
+            clientes = search_clientes("", None, limit=self._page_size, offset=self._current_offset)
+        except Exception as exc:  # pragma: no cover
+            raise ClientesViewModelError(str(exc)) from exc
+
+        if not clientes:
+            self._has_more = False
+            return False
+
+        self._has_more = len(clientes) >= self._page_size
+        self._current_offset += len(clientes)
+        self._clientes_raw.extend(clientes)
+        self._update_status_choices()
+        self._rebuild_rows()
+        return True
+
+    @property
+    def has_more(self) -> bool:  # noqa: D401
+        """True se há mais páginas a carregar do servidor."""
+        return self._has_more
 
     def load_from_iterable(self, clientes: Iterable[Any]) -> None:
         """Utilitário para testes: injeta dados fake."""

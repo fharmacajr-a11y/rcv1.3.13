@@ -10,12 +10,15 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
 from typing import TYPE_CHECKING, Any
 
 from src.utils.formatters import format_cnpj
 from src.utils.phone_utils import format_phone_br
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from src.modules.clientes.ui.views._dialogs_typing import EditorDialogProto
 
 log = logging.getLogger(__name__)
@@ -51,6 +54,35 @@ def _conflict_desc(conflict: Any) -> str:
 
 class EditorDataMixin:
     """Mixin responsável por dados e persistência do ClientEditorDialog."""
+
+    # -- helper genérico para I/O em background ------------------------------
+
+    def _run_in_thread(
+        self: EditorDialogProto,
+        work: Callable[[], Any],
+        on_success: Callable[[Any], None] | None = None,
+        on_error: Callable[[Exception], None] | None = None,
+    ) -> None:
+        """Execute *work* in a daemon thread; dispatch result to UI thread.
+
+        Callbacks are scheduled via ``self.after(0, ...)`` so they run safely
+        on the Tk main-loop.  If the widget has already been destroyed
+        (``winfo_exists()`` returns *False*) the callback is silently dropped.
+        """
+
+        def _wrapper() -> None:
+            try:
+                result = work()
+            except Exception as exc:
+                if on_error and self.winfo_exists():
+                    self.after(0, on_error, exc)
+                return
+            if on_success and self.winfo_exists():
+                self.after(0, on_success, result)
+
+        threading.Thread(target=_wrapper, daemon=True).start()
+
+    # -- parse helpers -------------------------------------------------------
 
     def _parse_contatos_from_textbox(self: EditorDialogProto) -> list[dict]:
         """Parse contatos do textbox.
@@ -97,81 +129,107 @@ class EditorDataMixin:
         return contatos
 
     def _load_contatos_from_db(self: EditorDialogProto, cliente_id: int) -> None:
-        """Carrega contatos do Supabase e preenche textbox.
+        """Carrega contatos do Supabase **em background** e preenche textbox.
+
+        A query de rede roda numa daemon-thread; o preenchimento do widget
+        acontece de volta na thread principal via ``self.after()``.
 
         Args:
             cliente_id: ID do cliente (BIGINT)
         """
-        try:
+
+        def _fetch() -> list[str]:
             from src.infra.supabase_client import get_supabase
 
             supabase = get_supabase()
             response = (
                 supabase.table("cliente_contatos").select("nome,whatsapp").eq("cliente_id", int(cliente_id)).execute()  # pyright: ignore[reportAttributeAccessIssue]
             )
+            linhas: list[str] = []
+            for contato in response.data or []:
+                if not isinstance(contato, dict):
+                    continue
+                nome = (contato.get("nome") or "").strip()
+                whatsapp = (contato.get("whatsapp") or "").strip()
+                if not nome:
+                    continue
+                if whatsapp:
+                    linhas.append(f"{nome} - {whatsapp}")
+                else:
+                    linhas.append(nome)
+            return linhas
 
-            if response.data:
-                linhas = []
-                for contato in response.data or []:
-                    # Robustez: verificar se é dict
-                    if not isinstance(contato, dict):
-                        continue
+        def _on_loaded(linhas: list[str]) -> None:
+            if linhas:
+                texto_contatos = "\n".join(linhas)
+                self.contatos_text.delete("1.0", "end")
+                self.contatos_text.insert("1.0", texto_contatos)
 
-                    # Tratar NULL do banco (vira None em Python)
-                    nome = (contato.get("nome") or "").strip()
-                    whatsapp = (contato.get("whatsapp") or "").strip()
+        def _on_error(exc: Exception) -> None:
+            log.error(
+                "[ClientEditor] Erro ao carregar contatos do Supabase: %s",
+                exc,
+                exc_info=exc,
+            )
 
-                    # Ignorar registros sem nome
-                    if not nome:
-                        continue
+        self._run_in_thread(_fetch, on_success=_on_loaded, on_error=_on_error)
 
-                    # Montar linha
-                    if whatsapp:
-                        linhas.append(f"{nome} - {whatsapp}")
-                    else:
-                        linhas.append(nome)
+    def _save_contatos_to_db(
+        self: EditorDialogProto,
+        cliente_id: int,
+        *,
+        on_done: Callable[[], None] | None = None,
+    ) -> None:
+        """Salva contatos no Supabase **em background** (delete + insert).
 
-                # Preencher textbox
-                if linhas:
-                    texto_contatos = "\n".join(linhas)
-                    self.contatos_text.delete("1.0", "end")
-                    self.contatos_text.insert("1.0", texto_contatos)
-
-        except Exception as e:
-            log.error(f"[ClientEditor] Erro ao carregar contatos do Supabase: {e}", exc_info=True)
-
-    def _save_contatos_to_db(self: EditorDialogProto, cliente_id: int) -> None:
-        """Salva contatos no Supabase (delete + insert).
+        O parse do textbox é feito na thread principal (leitura de widget),
+        enquanto as operações de rede rodam em daemon-thread.
+        Ao terminar (sucesso ou erro), *on_done* é chamado na UI thread.
 
         Args:
             cliente_id: ID do cliente (BIGINT)
+            on_done: callback opcional executado na UI thread após conclusão.
         """
-        try:
-            from src.infra.supabase_client import get_supabase
+        # Ler widget na UI thread (obrigatório)
+        contatos = self._parse_contatos_from_textbox()
+        cliente_id_int = int(cliente_id)
+
+        # Desabilitar botão para evitar duplo-clique
+        self.save_btn.configure(state="disabled")
+
+        def _persist() -> None:
+            from src.infra.supabase_client import exec_postgrest, get_supabase
 
             supabase = get_supabase()
-            cliente_id_int = int(cliente_id)
 
-            # 1. Delete antigos
-            supabase.table("cliente_contatos").delete().eq("cliente_id", cliente_id_int).execute()  # pyright: ignore[reportAttributeAccessIssue]
+            # Montar payload JSONB (lista de contatos)
+            payload: list[dict[str, str | None]] = [
+                {"nome": c["nome"], "whatsapp": c["whatsapp"] or None} for c in contatos
+            ]
 
-            # 2. Parse contatos do textbox
-            contatos = self._parse_contatos_from_textbox()
+            # Chamada RPC atômica — DELETE + INSERT dentro de uma transação PG
+            exec_postgrest(
+                supabase.rpc(
+                    "rc_save_cliente_contatos",
+                    {"p_cliente_id": cliente_id_int, "p_contatos": payload},
+                )
+            )
 
-            # 3. Insert em lote
-            if contatos:
-                records = [
-                    {
-                        "cliente_id": cliente_id_int,
-                        "nome": c["nome"],
-                        "whatsapp": c["whatsapp"] or None,
-                    }
-                    for c in contatos
-                ]
-                supabase.table("cliente_contatos").insert(records).execute()  # pyright: ignore[reportAttributeAccessIssue]
+        def _on_saved(_result: Any) -> None:
+            if on_done:
+                on_done()
 
-        except Exception as e:
-            log.error(f"[ClientEditor] Erro ao salvar contatos no Supabase: {e}", exc_info=True)
+        def _on_error(exc: Exception) -> None:
+            log.error(
+                "[ClientEditor] Erro ao salvar contatos no Supabase: %s",
+                exc,
+                exc_info=exc,
+            )
+            # Prosseguir mesmo com erro nos contatos (cliente já foi salvo)
+            if on_done:
+                on_done()
+
+        self._run_in_thread(_persist, on_success=_on_saved, on_error=_on_error)
 
     def _load_client_data(self: EditorDialogProto) -> None:
         """Carrega dados do cliente para edição."""
@@ -398,7 +456,7 @@ class EditorDataMixin:
                     return
 
             # 3. Se passou as validações, salvar
-            log.debug(f"[ClientEditor] Salvando cliente: {valores['Razão Social']}")
+            log.debug("[ClientEditor] Salvando cliente (id=%s)", self.client_id or "novo")
 
             try:
                 result = clientes_service.salvar_cliente_a_partir_do_form(row, valores)
@@ -411,9 +469,18 @@ class EditorDataMixin:
                 elif isinstance(result, tuple) and len(result) >= 1:
                     cliente_id_salvo = int(result[0])  # Primeiro elemento da tupla é o ID
 
-                # Salvar contatos no Supabase
+                # Salvar contatos no Supabase (background)
+                def _finish_save() -> None:
+                    """Callback executado na UI thread após contatos serem salvos."""
+                    if self.on_save:
+                        self.on_save(valores)
+                    if self.winfo_exists():
+                        self.destroy()
+
                 if cliente_id_salvo:
-                    self._save_contatos_to_db(cliente_id_salvo)
+                    self._save_contatos_to_db(cliente_id_salvo, on_done=_finish_save)
+                else:
+                    _finish_save()
 
             except ClienteCNPJDuplicadoError as dup_err:
                 # CNPJ duplicado detectado no service (fallback)
@@ -424,13 +491,6 @@ class EditorDataMixin:
                     f"Edite o cliente existente ou use um CNPJ diferente.",
                 )
                 return
-
-            # Chamar callback
-            if self.on_save:
-                self.on_save(valores)
-
-            # Fechar dialog
-            self.destroy()
 
         except Exception as e:
             log.error(f"[ClientEditor] Erro ao salvar: {e}", exc_info=True)
