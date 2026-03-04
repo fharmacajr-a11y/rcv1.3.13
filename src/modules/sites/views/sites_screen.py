@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from src.ui.ctk_config import ctk
 from src.ui.widgets.button_factory import make_btn
+from src.ui.ui_tokens import APP_BG  # Correção para BUG #3
 
 import logging
 import tkinter as tk
@@ -122,6 +123,8 @@ class SitesScreen(ctk.CTkFrame):
     """Tela simples de atalhos para sites úteis (apenas botões)."""
 
     def __init__(self, master: tk.Misc, *args: object, **kwargs: object) -> None:
+        # Correção para BUG #3: fg_color=APP_BG evita flash cinza padrão do CTkFrame
+        kwargs.setdefault("fg_color", APP_BG)  # type: ignore[arg-type]
         super().__init__(master, *args, **kwargs)
 
         self.empresa_buttons: list[ctk.CTkButton] = []

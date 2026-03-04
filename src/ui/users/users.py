@@ -5,7 +5,7 @@ from src.ui.ctk_config import ctk
 from ui.dialogs.rc_dialogs import ask_yes_no, show_error, show_warning
 import sqlite3
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from core.auth.auth import ensure_users_db, create_user, _pbkdf2_hash  # pyright: ignore[reportAttributeAccessIssue]
 from core.logs.audit import last_action_of_user
@@ -22,6 +22,8 @@ ADMIN_NAME = "admin"
 class UserManagerDialog(ctk.CTkToplevel):
     def __init__(self, master=None, current_role="admin"):
         super().__init__(master)
+        # Correção para BUG #5: withdraw imediato para evitar flash branco
+        self.withdraw()
         self.title("Gerenciar Usuários")
         self.geometry("520x360")
         self.transient(master)
@@ -61,6 +63,8 @@ class UserManagerDialog(ctk.CTkToplevel):
 
         self.load_users()
         center_window(self, 520, 360)  # <<< centralização padrão
+        # Correção para BUG #5: deiconify APÓS UI construída e centralizada
+        self.deiconify()
         # Atalho: F5 para recarregar
         self.bind("<F5>", lambda e: (self.load_users(), "break"))
 
@@ -212,6 +216,10 @@ class UserManagerDialog(ctk.CTkToplevel):
                 show_warning(top, title, "Informe o usuário.")
                 return
 
+            if user_id is None and not pwd:
+                show_warning(top, title, "Senha é obrigatória para novo usuário.")
+                return
+
             if (user_id is None and not pwd) or (pwd or pwd2):
                 if pwd != pwd2:
                     show_warning(top, title, "As senhas não coincidem.")
@@ -221,26 +229,26 @@ class UserManagerDialog(ctk.CTkToplevel):
                 with self._conn() as con:
                     cur = con.cursor()
                     if user_id is None:
-                        create_user(uname or ADMIN_NAME, pwd or "admin123")
+                        create_user(uname or ADMIN_NAME, pwd)
                     else:
                         if user_id == ADMIN_ID:
                             if pwd:
                                 senha_hash = _pbkdf2_hash(pwd)
                                 cur.execute(
                                     "UPDATE users SET password_hash=?, updated_at=? WHERE id=?",
-                                    (senha_hash, datetime.utcnow().isoformat(), user_id),
+                                    (senha_hash, datetime.now(timezone.utc).isoformat(), user_id),
                                 )
                             con.commit()
                         else:
                             cur.execute(
                                 "UPDATE users SET username=?, updated_at=? WHERE id=?",
-                                (uname, datetime.utcnow().isoformat(), user_id),
+                                (uname, datetime.now(timezone.utc).isoformat(), user_id),
                             )
                             if pwd:
                                 senha_hash = _pbkdf2_hash(pwd)
                                 cur.execute(
                                     "UPDATE users SET password_hash=?, updated_at=? WHERE id=?",
-                                    (senha_hash, datetime.utcnow().isoformat(), user_id),
+                                    (senha_hash, datetime.now(timezone.utc).isoformat(), user_id),
                                 )
                             con.commit()
                 self.load_users()

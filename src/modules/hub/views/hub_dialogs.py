@@ -49,21 +49,16 @@ def show_note_editor(
     """
     # Dialog setup
     dialog = ctk.CTkToplevel(parent)
+    # Auditoria Anti-Flash: withdraw imediato para não mostrar janela vazia
+    dialog.withdraw()
     dialog.title("Editar Nota" if note_data else "Nova Nota")
     dialog.geometry("500x350")
     dialog.transient(parent)
-    dialog.grab_set()
-
-    # Center dialog
-    dialog.update_idletasks()
-    x = parent.winfo_rootx() + (parent.winfo_width() - dialog.winfo_width()) // 2
-    y = parent.winfo_rooty() + (parent.winfo_height() - dialog.winfo_height()) // 2
-    dialog.geometry(f"+{x}+{y}")
 
     # Result container (mutable para closures)
     result = {"confirmed": False, "data": None}
 
-    # Build UI
+    # Build UI (ainda invisível)
     frame = ctk.CTkFrame(dialog, fg_color="transparent")
     frame.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -132,6 +127,18 @@ def show_note_editor(
     # Keyboard bindings
     dialog.bind("<Control-Return>", lambda _e: on_confirm())
     dialog.bind("<Escape>", lambda _e: on_cancel())
+
+    # Auditoria Anti-Flash: centralizar e exibir APÓS toda UI construída
+    dialog.update_idletasks()
+    try:
+        x = parent.winfo_rootx() + (parent.winfo_width() - dialog.winfo_width()) // 2
+        y = parent.winfo_rooty() + (parent.winfo_height() - dialog.winfo_height()) // 2
+        dialog.geometry(f"+{x}+{y}")
+    except Exception:  # noqa: BLE001
+        pass
+    dialog.deiconify()
+    dialog.grab_set()
+    dialog.focus_force()
 
     # Wait for dialog
     dialog.wait_window()

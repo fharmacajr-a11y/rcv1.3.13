@@ -238,15 +238,17 @@ class HubScreen(ctk.CTkFrame):  # type: ignore[misc]
         self.dashboard_scroll: Optional[tk.Widget] = None
         self._dashboard_view: Optional[Any] = None
 
-        # Criar placeholder simples
+        # Correção para BUG #1: placeholder com fg_color=APP_BG para não
+        # expor fundo branco/cinza padrão do CTkLabel durante o skeleton.
         self._loading_placeholder = ctk.CTkLabel(
             self,
             text="Carregando Hub...",
             font=("Segoe UI", 14),
             text_color=("#666666", "#999999"),
+            fg_color=APP_BG,
         )
 
-        self._loading_placeholder.pack(expand=True)
+        self._loading_placeholder.pack(expand=True, fill="both")
         logger.debug("HubScreen: skeleton UI criado (placeholder)")
 
     def _build_deferred_ui(self) -> None:

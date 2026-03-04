@@ -23,7 +23,10 @@ class _BasePlaceholder(ctk.CTkFrame):  # type: ignore[misc]
     title: str = "Em breve"
 
     def __init__(self, master, *, on_back: _BackCb | None = None, **_):
-        super().__init__(master)
+        # Auditoria Anti-Flash: fg_color=APP_BG evita flash cinza do CTkFrame padrão
+        from src.ui.ui_tokens import APP_BG
+
+        super().__init__(master, fg_color=APP_BG)
         self._binding_tracker = BindingTracker()
 
         # Configurar fonte para CTk

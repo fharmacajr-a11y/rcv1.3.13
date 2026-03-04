@@ -41,6 +41,8 @@ class ToolTip:
         x = self.widget.winfo_rootx() + 20
         y = self.widget.winfo_rooty() + self.widget.winfo_height() + 5
         self.tipwindow = tw = ctk.CTkToplevel(self.widget)
+        # Auditoria Anti-Flash: withdraw antes de configurar para evitar flash em (0,0)
+        tw.withdraw()
         tw.wm_overrideredirect(True)
         tw.wm_geometry(f"+{x}+{y}")
         label = ctk.CTkLabel(
@@ -53,6 +55,8 @@ class ToolTip:
             corner_radius=0,
         )
         label.pack(padx=4, pady=2)
+        # Auditoria Anti-Flash: deiconify após UI montada e posicionada
+        tw.deiconify()
 
     def _on_leave(self, event=None):
         if self.tipwindow:

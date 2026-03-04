@@ -35,6 +35,8 @@ def _show_msg(parent: Any, title: str, msg: str) -> None:
     com a inicialização assíncrona do CTkToplevel no Windows (titlebar color).
     """
     dlg = ctk.CTkToplevel(parent)
+    # Auditoria Anti-Flash: withdraw imediato para construir UI sem flash
+    dlg.withdraw()
     dlg.title(title)
     dlg.resizable(False, False)
     try:
@@ -70,6 +72,12 @@ def _show_msg(parent: Any, title: str, msg: str) -> None:
         x = max(0, px + (pw - w) // 2)
         y = max(0, py + (ph - h) // 2)
         dlg.geometry(f"{w}x{h}+{x}+{y}")
+    except Exception:  # noqa: BLE001
+        pass
+
+    # Auditoria Anti-Flash: deiconify APÓS UI construída e posicionada
+    try:
+        dlg.deiconify()
     except Exception:  # noqa: BLE001
         pass
 
