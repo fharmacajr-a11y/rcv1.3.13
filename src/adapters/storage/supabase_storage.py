@@ -4,7 +4,6 @@ from __future__ import annotations
 import logging
 import mimetypes
 import os
-import random
 import re
 import time
 from pathlib import Path
@@ -14,6 +13,7 @@ from typing import Iterable, Optional, Any
 from src.core.text_normalization import normalize_ascii  # noqa: E402
 from src.config.paths import CLOUD_ONLY  # noqa: E402
 from src.infra.supabase_client import supabase, baixar_pasta_zip, DownloadCancelledError  # noqa: E402
+from src.infra.retry_policy import retry_call as _core_retry  # noqa: E402
 from src.adapters.storage.port import StoragePort  # noqa: E402
 
 # Alias patchável em testes (sem afetar time.sleep do restante do processo)
@@ -188,100 +188,59 @@ def _upload(
         data_size,
     )
 
-    last_exc: Exception | None = None
-    for attempt in range(1, _UPLOAD_MAX_ATTEMPTS + 1):
-        try:
-            response = client.storage.from_(bucket).upload(key, data, file_options=file_options)
-            if isinstance(response, dict):
-                data_obj = response.get("data")
-                if isinstance(data_obj, dict):
-                    result_path = data_obj.get("path", key)
-                else:
-                    result_path = key
-            else:
-                result_path = key
+    def _do_upload() -> str:
+        response = client.storage.from_(bucket).upload(key, data, file_options=file_options)
+        if isinstance(response, dict):
+            data_obj = response.get("data")
+            if isinstance(data_obj, dict):
+                return data_obj.get("path", key)
+            return key
+        return key
 
-            duration_ms = (time.perf_counter() - start) * 1000
-            if attempt > 1:
-                logger.info(
-                    "storage.op.success (tentativa %d/%d): op=upload, bucket=%s, key=%s, size=%d, duration_ms=%.2f",
-                    attempt,
-                    _UPLOAD_MAX_ATTEMPTS,
-                    bucket,
-                    key,
-                    data_size,
-                    duration_ms,
-                )
-            else:
-                logger.info(
-                    "storage.op.success: op=upload, bucket=%s, key=%s, size=%d, duration_ms=%.2f",
-                    bucket,
-                    key,
-                    data_size,
-                    duration_ms,
-                )
-            return result_path
+    def _on_retry(attempt: int, exc: Exception, delay: float) -> None:
+        logger.warning(
+            "storage.op.retry: op=upload, bucket=%s, key=%s, attempt=%d/%d, delay=%.2fs, error=%s — %s",
+            bucket,
+            key,
+            attempt,
+            _UPLOAD_MAX_ATTEMPTS,
+            delay,
+            type(exc).__name__,
+            exc,
+        )
 
-        except Exception as exc:
-            last_exc = exc
-            duration_ms = (time.perf_counter() - start) * 1000
-
-            if _is_duplicate_exc(exc):
-                logger.warning(
-                    "storage.op.duplicate: op=upload, bucket=%s, key=%s, size=%d, duration_ms=%.2f"
-                    " — arquivo já existe no storage (upsert não aplicado).",
-                    bucket,
-                    key,
-                    data_size,
-                    duration_ms,
-                )
-                raise  # duplicado não é transitório
-
-            if not _is_transient_exc(exc):
-                logger.error(
-                    "storage.op.error (não-transitório): op=upload, bucket=%s, key=%s, size=%d,"
-                    " duration_ms=%.2f, attempt=%d/%d, error=%s",
-                    bucket,
-                    key,
-                    data_size,
-                    duration_ms,
-                    attempt,
-                    _UPLOAD_MAX_ATTEMPTS,
-                    type(exc).__name__,
-                    exc_info=True,
-                )
-                raise  # sem retry
-
-            if attempt < _UPLOAD_MAX_ATTEMPTS:
-                delay = min(_UPLOAD_BACKOFF_BASE * (2 ** (attempt - 1)), _UPLOAD_BACKOFF_MAX)
-                delay += random.uniform(0, delay * 0.2)  # jitter 20%  # nosec B311
-                logger.warning(
-                    "storage.op.retry: op=upload, bucket=%s, key=%s, attempt=%d/%d, delay=%.2fs, error=%s — %s",
-                    bucket,
-                    key,
-                    attempt,
-                    _UPLOAD_MAX_ATTEMPTS,
-                    delay,
-                    type(exc).__name__,
-                    exc,
-                )
-                _sleep(delay)
-            else:
-                logger.error(
-                    "storage.op.error: op=upload, bucket=%s, key=%s, size=%d, duration_ms=%.2f,"
-                    " tentativas_esgotadas=%d, error=%s",
-                    bucket,
-                    key,
-                    data_size,
-                    duration_ms,
-                    _UPLOAD_MAX_ATTEMPTS,
-                    type(exc).__name__,
-                    exc_info=True,
-                )
-
-    # Relança última exceção após esgotar tentativas
-    assert last_exc is not None
-    raise last_exc
+    try:
+        result_path = _core_retry(
+            _do_upload,
+            max_attempts=_UPLOAD_MAX_ATTEMPTS,
+            base_delay=_UPLOAD_BACKOFF_BASE,
+            max_delay=_UPLOAD_BACKOFF_MAX,
+            jitter=_UPLOAD_BACKOFF_BASE * 0.2,
+            is_transient=_is_transient_exc,
+            sleep_fn=_sleep,
+            on_retry=_on_retry,
+        )
+        duration_ms = (time.perf_counter() - start) * 1000
+        logger.info(
+            "storage.op.success: op=upload, bucket=%s, key=%s, size=%d, duration_ms=%.2f",
+            bucket,
+            key,
+            data_size,
+            duration_ms,
+        )
+        return result_path
+    except Exception as exc:
+        duration_ms = (time.perf_counter() - start) * 1000
+        logger.error(
+            "storage.op.error: op=upload, bucket=%s, key=%s, size=%d, duration_ms=%.2f, error=%s",
+            bucket,
+            key,
+            data_size,
+            duration_ms,
+            type(exc).__name__,
+            exc_info=True,
+        )
+        raise
 
 
 def _download(client: Any, bucket: str, remote_key: str, local_path: Optional[str]) -> str | bytes:

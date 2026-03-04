@@ -1,10 +1,8 @@
 """Upload com retry e backoff para erros de rede/servidor.
 
-FASE 7 - Wrapper sobre operações de upload que adiciona:
-1. Retry automático para erros de conexão
-2. Retry para erros 5xx com backoff exponencial
-3. Sem retry para erros 4xx (exceto 429 rate limit)
-4. Conversão de exceções para tipos semânticos (UploadNetworkError, etc.)
+FASE 7 → PR-10: Implementação agora delega ao núcleo ``retry_call``
+de ``src.infra.retry_policy``. Mantém classificação de erros upload-specific
+e conversão de exceções para tipos semânticos.
 
 Referência: https://developers.google.com/drive/api/guides/manage-uploads#resumable-uploads
 """
@@ -12,10 +10,11 @@ Referência: https://developers.google.com/drive/api/guides/manage-uploads#resum
 from __future__ import annotations
 
 import logging
-import random
 import socket
 import time
 from typing import Any, Callable, TypeVar
+
+from src.infra.retry_policy import retry_call as _core_retry
 
 from .exceptions import (
     UploadError,
@@ -37,7 +36,7 @@ T = TypeVar("T")
 DEFAULT_MAX_RETRIES: int = 3
 DEFAULT_BACKOFF_BASE: float = 0.5  # segundos
 DEFAULT_BACKOFF_MAX: float = 8.0  # segundos
-DEFAULT_JITTER: float = 0.3  # fração do delay
+DEFAULT_JITTER: float = 0.3  # fração do delay (≈ jitter máximo em segundos)
 
 
 # ============================================================================
@@ -136,6 +135,22 @@ def _is_permission_error(exc: Exception) -> bool:
 # ============================================================================
 
 
+def _is_upload_transient(exc: Exception) -> bool:
+    """Classifica se a exceção merece retry no contexto de upload."""
+    # Client errors (4xx exceto 429) → NÃO retry
+    is_client, _ = _is_client_error(exc)
+    if is_client:
+        return False
+    # Duplicate (409) → NÃO retry
+    if _is_duplicate_error(exc):
+        return False
+    # Permission → NÃO retry
+    if _is_permission_error(exc):
+        return False
+    # Network ou server → retry
+    return _is_network_error(exc) or _is_server_error(exc)[0]
+
+
 def upload_with_retry(
     upload_fn: Callable[..., T],
     *args: Any,
@@ -146,15 +161,15 @@ def upload_with_retry(
     on_retry: Callable[[int, Exception, float], None] | None = None,
     **kwargs: Any,
 ) -> T:
-    """Executa funçõão de upload com retry e backoff exponencial.
+    """Executa função de upload com retry via ``retry_call`` centralizado.
 
     Args:
-        upload_fn: Funçõão de upload a executar.
+        upload_fn: Função de upload a executar.
         *args: Argumentos posicionais para upload_fn.
-        max_retries: Nº máximo de tentativas (padrão: 3).
+        max_retries: Nº máximo de re-tentativas (padrão: 3).
         backoff_base: Base do backoff exponencial em segundos.
         backoff_max: Delay máximo de backoff em segundos.
-        jitter: Fração de variação aleatória no delay.
+        jitter: Jitter máximo em segundos.
         on_retry: Callback(attempt, exception, delay) chamado antes de cada retry.
         **kwargs: Argumentos nomeados para upload_fn.
 
@@ -166,174 +181,44 @@ def upload_with_retry(
         UploadServerError: Se todas as tentativas falharem por erro de servidor.
         UploadError: Para outros erros sem retry.
     """
-    local_path_value = kwargs.get("local_path")
-    remote_key_value = kwargs.get("remote_key")
-    if local_path_value is None and args:
-        local_path_value = args[0]
-    if remote_key_value is None and len(args) > 1:
-        remote_key_value = args[1]
-
-    local_path_str = str(local_path_value) if local_path_value is not None else None
-    remote_key_str = str(remote_key_value) if remote_key_value is not None else None
-    base_extra = {
-        "remote_key": remote_key_str,
-        "local_path": local_path_str,
-    }
-
-    last_exception: Exception | None = None
-    attempt = 0
-
-    logger.info(
-        "Upload iniciado com retry",
-        extra={
-            **base_extra,
-            "max_retries": max_retries,
-        },
-    )
-
-    while attempt <= max_retries:
-        current_attempt = attempt + 1
-        logger.debug(
-            "Tentativa de upload",
-            extra={
-                **base_extra,
-                "attempt": current_attempt,
-                "max_retries": max_retries,
-            },
+    try:
+        return _core_retry(
+            upload_fn,
+            *args,
+            max_attempts=max_retries + 1,
+            base_delay=backoff_base,
+            max_delay=backoff_max,
+            jitter=jitter,
+            is_transient=_is_upload_transient,
+            sleep_fn=_sleep,
+            on_retry=on_retry,
+            **kwargs,
         )
-
-        try:
-            result = upload_fn(*args, **kwargs)
-            logger.info(
-                "Upload concluído com sucesso",
-                extra=base_extra,
-            )
-            return result
-
-        except Exception as exc:
-            last_exception = exc
-            attempt = current_attempt
-
-            # Verificar tipo de erro
-            is_network = _is_network_error(exc)
-            is_server, server_code = _is_server_error(exc)
-            is_client, client_code = _is_client_error(exc)
-            error_type_name = exc.__class__.__name__
-
-            # Erros de cliente (4xx) - sem retry
-            if is_client:
-                # 409 Duplicate: não é falha real — arquivo já existe no storage
-                if _is_duplicate_error(exc):
-                    logger.warning(
-                        "Upload (tentativa %d/%d): arquivo já existe no storage (HTTP 409 Duplicate)."
-                        " Pulando sem retry.",
-                        attempt,
-                        max_retries + 1,
-                        extra=base_extra,
-                    )
-                    raise make_server_error("duplicate", original=exc, status_code=client_code) from exc
-
-                logger.warning(
-                    "Upload falhou com erro de cliente (HTTP %s): %s",
-                    client_code,
-                    exc,
-                )
-                logger.error(
-                    "Falha definitiva no upload",
-                    extra={
-                        **base_extra,
-                        "attempt": attempt,
-                        "max_retries": max_retries,
-                        "error_type": error_type_name,
-                    },
-                )
-                if _is_permission_error(exc):
-                    raise make_server_error("permission", original=exc, status_code=client_code) from exc
-                # Outros 4xx - erro genérico sem retry
-                raise UploadError(
-                    f"Erro ao enviar arquivo (código {client_code}).",
-                    detail=f"HTTP {client_code}: {exc}",
-                ) from exc
-
-            # Se não é erro de rede nem servidor, não retry
-            if not is_network and not is_server:
-                logger.warning("Upload falhou com erro não-recuperável: %s", exc)
-                logger.error(
-                    "Falha definitiva no upload",
-                    extra={
-                        **base_extra,
-                        "attempt": attempt,
-                        "max_retries": max_retries,
-                        "error_type": error_type_name,
-                    },
-                )
-                raise UploadError(
-                    "Ocorreu um erro inesperado ao enviar o arquivo.",
-                    detail=str(exc),
-                ) from exc
-
-            # Verificar se ainda temos retries
-            if attempt > max_retries:
-                break
-
-            logger.warning(
-                "Falha de upload (tentativa %d/%d), %s: %s. Será feito retry...",
-                attempt,
-                max_retries + 1,
-                error_type_name,
-                str(exc)[:200],
-                extra={
-                    **base_extra,
-                    "attempt": attempt,
-                    "max_retries": max_retries,
-                    "error_type": error_type_name,
-                },
-            )
-
-            # Calcular delay com backoff exponencial
-            delay = min(backoff_base * (2 ** (attempt - 1)), backoff_max)
-            # Adicionar jitter para evitar thundering herd
-            jitter_amount = delay * jitter * random.random()  # nosec B311
-            delay += jitter_amount
-
-            error_type = "rede" if is_network else f"servidor (HTTP {server_code})"
-            logger.info(
-                "Upload tentativa %d/%d falhou (%s: %s). Retry em %.1fs...",
-                attempt,
-                max_retries + 1,
-                error_type,
-                type(exc).__name__,
-                delay,
-            )
-
-            # Callback de retry (para UI mostrar "Tentando novamente...")
-            if on_retry:
-                try:
-                    on_retry(attempt, exc, delay)
-                except Exception as cb_exc:  # noqa: BLE001
-                    logger.debug("Erro no callback on_retry: %s", cb_exc)
-
-            _sleep(delay)
-
-    # Todas as tentativas falharam
-    if last_exception is None:
-        raise RuntimeError("upload_with_retry terminou sem exceção registrada; verifique os parâmetros de retry.")
-
-    logger.error(
-        "Falha definitiva no upload",
-        extra={
-            **base_extra,
-            "attempt": attempt,
-            "max_retries": max_retries,
-            "error_type": last_exception.__class__.__name__,
-        },
-    )
-
-    if _is_network_error(last_exception):
-        raise make_network_error("network", original=last_exception) from last_exception
-    else:
-        _, code = _is_server_error(last_exception)
-        raise make_server_error("server", original=last_exception, status_code=code) from last_exception
+    except UploadError:
+        raise
+    except Exception as exc:
+        # Converte exceção genérica final em tipo semântico de upload
+        if _is_duplicate_error(exc):
+            _, code = _is_client_error(exc)
+            raise make_server_error("duplicate", original=exc, status_code=code) from exc
+        if _is_permission_error(exc):
+            _, code = _is_client_error(exc)
+            raise make_server_error("permission", original=exc, status_code=code) from exc
+        is_client, client_code = _is_client_error(exc)
+        if is_client:
+            raise UploadError(
+                f"Erro ao enviar arquivo (código {client_code}).",
+                detail=f"HTTP {client_code}: {exc}",
+            ) from exc
+        if _is_network_error(exc):
+            raise make_network_error("network", original=exc) from exc
+        is_server, server_code = _is_server_error(exc)
+        if is_server:
+            raise make_server_error("server", original=exc, status_code=server_code) from exc
+        raise UploadError(
+            "Ocorreu um erro inesperado ao enviar o arquivo.",
+            detail=str(exc),
+        ) from exc
 
 
 def classify_upload_exception(exc: Exception) -> UploadError:
