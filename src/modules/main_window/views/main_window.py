@@ -456,7 +456,9 @@ class App(BaseApp):  # type: ignore[misc]
             # FASE 5A FIX: Usar FooterController (sempre existe)
             if hasattr(self, "layout_refs") and self.layout_refs and hasattr(self.layout_refs, "footer_controller"):
                 self.layout_refs.footer_controller.set_user(email)
-                log.info("Footer controller atualizado: %s", email[:20] + "..." if len(email) > 20 else email)
+                from src.utils.log_sanitizer import mask_email
+
+                log.info("Footer controller atualizado: %s", mask_email(email))
             else:
                 log.debug("Footer controller ainda não disponível")
         except Exception as e:

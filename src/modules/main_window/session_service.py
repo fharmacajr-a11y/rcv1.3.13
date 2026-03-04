@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any, Callable, Optional
+from weakref import WeakSet
 
 # Import no nível do módulo para permitir DI e evitar lazy imports
 try:
@@ -25,8 +26,9 @@ ExecPostgrestFn = Callable[[Any], Any]
 class SessionCache:
     """Cache de dados de sessão do usuário (user, role, org_id)."""
 
-    # Atributos de classe para rastrear todas as instâncias (para limpeza em testes)
-    _all_instances: list[SessionCache] = []
+    # Atributos de classe para rastrear todas as instâncias (para limpeza em testes).
+    # WeakSet: instâncias são removidas automaticamente pelo GC (PR19).
+    _all_instances: WeakSet[SessionCache] = WeakSet()
 
     def __init__(self, exec_postgrest_fn: ExecPostgrestFn | None = None, supabase_client: Any = None) -> None:
         """Inicializa SessionCache com dependency injection opcional.
@@ -44,7 +46,7 @@ class SessionCache:
         self._exec_postgrest = exec_postgrest_fn or exec_postgrest
         self._supabase = supabase_client or supabase
         # Registra instância para possível limpeza global
-        SessionCache._all_instances.append(self)
+        SessionCache._all_instances.add(self)
 
     def clear(self) -> None:
         """Limpa todo o cache de sessão."""
@@ -60,9 +62,9 @@ class SessionCache:
         Este método é para uso em testes, garantindo que nenhum estado
         de cache (role, org_id, user) seja compartilhado entre testes.
         """
-        for instance in cls._all_instances:
+        for instance in list(cls._all_instances):  # snapshot — WeakSet pode mudar durante iteração
             instance.clear()
-        # Limpa também a lista de instâncias para evitar memory leak
+        # WeakSet já não causa leak, mas limpar explicitamente é seguro
         cls._all_instances.clear()
 
     def get_user(self) -> Optional[dict[str, Any]]:

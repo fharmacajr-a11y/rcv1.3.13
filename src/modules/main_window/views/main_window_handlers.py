@@ -7,12 +7,16 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from src.modules.main_window.views.main_window import MainWindow  # noqa: F401  # pyright: ignore[reportAttributeAccessIssue]
 
 log = logging.getLogger(__name__)
+
+# Correção para FIX 2: Lock para evitar sobreposição de notifications polling
+_notifications_poll_lock = threading.Lock()
 
 
 def show_notification_toast(app: "MainWindow", count: int) -> None:
@@ -109,10 +113,33 @@ def poll_notifications_impl(app: "MainWindow") -> None:
     if not org_id:
         return
 
-    try:
-        # Buscar contador de não lidas (incluindo próprias)
-        unread_count = app._notifications_service.fetch_unread_count(include_self=True)
+    # Correção para FIX 2: Move I/O para thread com proteção contra sobreposição
+    if not _notifications_poll_lock.acquire(False):
+        return  # Já existe polling em andamento
 
+    svc = app._notifications_service
+
+    def _do_notifications():
+        try:
+            unread_count = svc.fetch_unread_count(include_self=True)
+
+            # Callback no main thread via after(0)
+            try:
+                if app.winfo_exists():
+                    app.after(0, lambda: _apply_notifications_result(app, unread_count))
+            except Exception:  # noqa: BLE001
+                pass  # App já foi destruído
+        except Exception:
+            log.exception("[Notifications] Erro ao fazer polling")
+        finally:
+            _notifications_poll_lock.release()
+
+    threading.Thread(target=_do_notifications, daemon=True).start()
+
+
+def _apply_notifications_result(app: "MainWindow", unread_count: int) -> None:
+    """Aplica resultado do polling de notificações no main thread."""
+    try:
         # Atualizar badge no TopBar
         if hasattr(app, "_topbar") and app._topbar:
             app._topbar.set_notifications_count(unread_count)
@@ -138,7 +165,7 @@ def poll_notifications_impl(app: "MainWindow") -> None:
         app._last_unread_count = unread_count
 
     except Exception:
-        log.exception("[Notifications] Erro ao fazer polling")
+        log.exception("[Notifications] Erro ao aplicar resultado do polling")
 
 
 def on_notifications_clicked(app: "MainWindow") -> None:

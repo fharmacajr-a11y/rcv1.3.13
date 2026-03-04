@@ -218,10 +218,18 @@ if __name__ == "__main__":
                         if log:
                             log.debug("Falha ao restaurar alpha: %s", exc)
 
+                # Correção para BUG #1: encadear alpha restore via after(0) dentro
+                # do callback de show, garantindo que o Hub deferred build (also
+                # after(0)) já tenha executado antes de tornar a janela visível.
+                def _show_then_restore_alpha():
+                    _show_hub_deferred()
+                    # after(0) agenda para o PRÓXIMO tick, após o after(0) do
+                    # Hub._build_deferred_ui que já foi enfileirado dentro de
+                    # show_hub_screen → HubScreen.__init__.
+                    app.after(0, _restore_alpha_deferred)
+
                 try:
-                    app.after_idle(_show_hub_deferred)
-                    # Restaurar alpha SOMENTE depois que Hub foi agendado/pintado
-                    app.after_idle(_restore_alpha_deferred)
+                    app.after_idle(_show_then_restore_alpha)
                 except Exception as exc:
                     if log:
                         log.error("Falha ao agendar show_hub_screen: %s", exc)

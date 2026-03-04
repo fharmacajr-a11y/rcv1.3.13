@@ -63,7 +63,9 @@ class FooterController:
             email: Email do usuário ou None para "-"
         """
         self._user_email = email or "-"
-        log.debug(f"FooterController.set_user: {self._user_email}")
+        from src.utils.log_sanitizer import mask_email
+
+        log.debug("FooterController.set_user: %s", mask_email(self._user_email))
         self._apply_async()
 
     def set_cloud(self, status: str) -> None:
@@ -93,6 +95,10 @@ class FooterController:
         try:
             self._footer_widget.set_user(self._user_email)
             self._footer_widget.set_cloud(self._cloud_status)
-            log.debug(f"FooterController: estado aplicado (user={self._user_email}, cloud={self._cloud_status})")
+            from src.utils.log_sanitizer import mask_email as _me
+
+            log.debug(
+                "FooterController: estado aplicado (user=%s, cloud=%s)", _me(self._user_email), self._cloud_status
+            )
         except Exception as exc:  # noqa: BLE001
             log.debug(f"FooterController: falha ao aplicar estado: {exc}")
