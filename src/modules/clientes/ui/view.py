@@ -858,7 +858,9 @@ class ClientesV2Frame(ctk.CTkFrame):
         # Tentar como objeto (getattr)
         return getattr(obj, key, default)
 
-    def load_async(self, search: str = "", order_label: str = "", status: str = "", show_trash: bool = False) -> None:
+    def load_async(
+        self, search: str = "", order_label: str = "", status: str = "", show_trash: bool | None = None
+    ) -> None:
         """Carrega dados com filtros aplicados (assíncrono via thread).
 
         O fetch de dados roda em background thread para não congelar a UI.
@@ -868,8 +870,11 @@ class ClientesV2Frame(ctk.CTkFrame):
             search: Texto de busca
             order_label: Label de ordenação (ORDER_CHOICES)
             status: Filtro de status
-            show_trash: Se True, mostra apenas lixeira; se False, mostra clientes ativos
+            show_trash: Se True, mostra apenas lixeira; se False, mostra clientes ativos.
+                        Se None (default), usa self._trash_mode para preservar o estado atual.
         """
+        if show_trash is None:
+            show_trash = self._trash_mode
         # Cancelar job pendente (after timer)
         if self._load_job:
             try:
