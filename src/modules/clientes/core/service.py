@@ -371,6 +371,7 @@ def salvar_clientes_em_lote(
         (ids_inseridos, lista_de_skipped_dicts_com_motivo)
     """
     from src.core.db_manager import insert_clientes_batch
+    from src.core.db_manager.db_manager import BatchInsertPartialError
     from src.utils.formatters import format_cnpj
     from src.utils.phone_utils import format_phone_br
 
@@ -448,8 +449,24 @@ def salvar_clientes_em_lote(
     inserted_ids: list[int] = []
     for i in range(0, total_to_insert, batch_size):
         batch = normalized[i : i + batch_size]
-        batch_ids = insert_clientes_batch(batch, batch_size=batch_size)
-        inserted_ids.extend(batch_ids)
+        try:
+            batch_ids = insert_clientes_batch(batch, batch_size=batch_size)
+            inserted_ids.extend(batch_ids)
+        except BatchInsertPartialError as exc:
+            # Recuperar IDs parciais inseridos antes da falha
+            inserted_ids.extend(exc.inserted_ids)
+            log.warning(
+                "salvar_clientes_em_lote: falha parcial no lote %d/%d – %d inseridos, erro: %s",
+                exc.failed_batch_index + 1,
+                exc.total_batches,
+                len(exc.inserted_ids),
+                exc.original_error,
+            )
+            # Registrar os restantes como skipped
+            remaining = normalized[i + len(exc.inserted_ids) :]
+            for r in remaining:
+                skipped.append({**r, "_motivo": f"Falha de lote: {exc.original_error}"})
+            break
         if progress_cb:
             try:
                 progress_cb(len(inserted_ids), len(lista))

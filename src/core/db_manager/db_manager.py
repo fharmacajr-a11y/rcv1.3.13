@@ -19,6 +19,32 @@ except Exception:  # pragma: no cover – fallback se lib mudar
 log = logging.getLogger("db_manager")
 
 
+class BatchInsertPartialError(Exception):
+    """Exceção levantada quando um batch insert falha parcialmente.
+
+    Attributes:
+        inserted_ids: IDs dos registros inseridos com sucesso antes da falha.
+        failed_batch_index: Índice (0-based) do lote que falhou.
+        total_batches: Quantidade total de lotes.
+        original_error: Exceção original do lote que falhou.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        inserted_ids: list[int],
+        failed_batch_index: int,
+        total_batches: int,
+        original_error: BaseException,
+    ) -> None:
+        super().__init__(message)
+        self.inserted_ids = inserted_ids
+        self.failed_batch_index = failed_batch_index
+        self.total_batches = total_batches
+        self.original_error = original_error
+
+
 # ---------------------------------------------------------------------------
 # Detecção de erro "coluna inexistente" (PostgREST / PostgreSQL 42703)
 # ---------------------------------------------------------------------------
@@ -41,6 +67,15 @@ def _is_unknown_column_error(exc: BaseException) -> bool:
         return True
     msg = (getattr(exc, "message", None) or getattr(exc, "details", None) or str(exc)).lower()
     return any(kw in msg for kw in _UNKNOWN_COL_KEYWORDS)
+
+
+def _is_unique_violation(exc: BaseException) -> bool:
+    """Retorna True se *exc* indicar violação de unique constraint (SQLSTATE 23505)."""
+    code = getattr(exc, "code", None) or ""
+    if code == "23505":
+        return True
+    msg = (getattr(exc, "message", None) or getattr(exc, "details", None) or str(exc)).lower()
+    return "unique" in msg and "violation" in msg
 
 
 # Mapa de ordenação: (coluna, descending_default)
@@ -371,7 +406,9 @@ def insert_clientes_batch(
         payloads.append(payload)
 
     inserted_ids: list[int] = []
-    for i in range(0, len(payloads), batch_size):
+    skipped_cnpjs: list[str] = []
+    total_batches = (len(payloads) + batch_size - 1) // batch_size
+    for batch_idx, i in enumerate(range(0, len(payloads), batch_size)):
         batch = payloads[i : i + batch_size]
         try:
             resp = exec_postgrest(supabase.table("clients").insert(batch))
@@ -393,9 +430,46 @@ def insert_clientes_batch(
                             inserted_ids.append(int(row["id"]))
                         except (KeyError, TypeError, ValueError):
                             pass
+            elif _is_unique_violation(exc):
+                # Fallback: inserir um a um para identificar duplicados
+                log.info(
+                    "insert_clientes_batch: unique violation no lote %d, retentando individualmente.",
+                    batch_idx + 1,
+                )
+                for single in batch:
+                    try:
+                        resp = exec_postgrest(supabase.table("clients").insert(single))
+                        if resp and getattr(resp, "data", None):
+                            for row in resp.data:
+                                try:
+                                    inserted_ids.append(int(row["id"]))
+                                except (KeyError, TypeError, ValueError):
+                                    pass
+                    except _PostgrestAPIError as single_exc:
+                        if _is_unique_violation(single_exc):
+                            cnpj = single.get("cnpj_norm") or single.get("cnpj", "?")
+                            log.info("insert_clientes_batch: CNPJ duplicado ignorado: %s", cnpj)
+                            skipped_cnpjs.append(cnpj)
+                        else:
+                            raise
             else:
-                raise
+                log.error(
+                    "insert_clientes_batch: falha no lote %d/%d (%d já inseridos de %d).",
+                    batch_idx + 1,
+                    total_batches,
+                    len(inserted_ids),
+                    len(clientes),
+                )
+                raise BatchInsertPartialError(
+                    f"Falha no lote {batch_idx + 1}/{total_batches}: {exc}",
+                    inserted_ids=inserted_ids,
+                    failed_batch_index=batch_idx,
+                    total_batches=total_batches,
+                    original_error=exc,
+                ) from exc
 
+    if skipped_cnpjs:
+        log.info("insert_clientes_batch: %d CNPJ(s) duplicados ignorados.", len(skipped_cnpjs))
     log.info("insert_clientes_batch: %d/%d inseridos com sucesso.", len(inserted_ids), len(clientes))
     return inserted_ids
 

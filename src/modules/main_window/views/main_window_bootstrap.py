@@ -314,14 +314,28 @@ def bootstrap_main_window(app: App) -> None:
     log.info("Bootstrap do MainWindow concluído com tema: %s", tema_atual)
 
 
-def _wire_session_and_health(app: App) -> None:
-    """Wire de sessão e health checks ao rodapé."""
+def _wire_session_and_health(app: App, *, _attempt: int = 0) -> None:
+    """Wire de sessão e health checks ao rodapé.
+
+    Limita a 30 tentativas (~3s) para evitar loop infinito caso o footer
+    nunca seja criado (ex.: exceção no boot).
+    """
+    _max_wire_attempts = 30
+
     try:
         # FASE 5A PASSO 3: Guarda contra footer=None (deferred ainda não completou)
         if not hasattr(app, "footer") or app.footer is None:
-            log.debug("Footer ainda não pronto, reagendando wire session/health em 100ms")
-            # Reagendar para depois do deferred
-            app.after(100, lambda: _wire_session_and_health(app))
+            if _attempt >= _max_wire_attempts:
+                log.warning(
+                    "Footer não ficou pronto após %d tentativas; abortando wire session/health.",
+                    _max_wire_attempts,
+                )
+                return
+            if not app.winfo_exists():
+                log.debug("App destruído antes de wire session/health; abortando.")
+                return
+            log.debug("Footer ainda não pronto, reagendando wire session/health em 100ms (tentativa %d)", _attempt + 1)
+            app.after(100, lambda: _wire_session_and_health(app, _attempt=_attempt + 1))
             return
 
         # Conectar callbacks do StatusMonitor ao footer

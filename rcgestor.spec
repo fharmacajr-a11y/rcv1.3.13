@@ -61,7 +61,6 @@ add_file(BASE / "CHANGELOG_CONSOLIDADO.md", ".")  # Changelog consolidado
 # -----------------------------------------------------------------------------
 # Dados de pacotes Python (site-packages)
 # -----------------------------------------------------------------------------
-datas += collect_data_files("ttkbootstrap")  # Temas e assets do ttkbootstrap
 datas += collect_data_files("tzdata")        # Dados de timezone
 datas += collect_data_files("certifi")       # Certificados CA para HTTPS
 
@@ -103,6 +102,10 @@ a = Analysis(
         "tzlocal",
         # P1-001: Keyring backends para armazenamento seguro de tokens
         "keyring.backends.Windows",  # DPAPI no Windows
+        # Bibliotecas com extensões C / imports indiretos
+        "PIL",          # Pillow (processamento de imagens)
+        "fitz",         # PyMuPDF (leitura de PDFs – binding C)
+        "pytesseract",  # Wrapper do Tesseract OCR
     ],
 
     # Configurações adicionais

@@ -7,6 +7,7 @@ Responsável por coordenar View, State, ViewModels e Services sem código Tkinte
 from __future__ import annotations
 
 import logging
+import threading
 from typing import TYPE_CHECKING, Any
 
 # MF-40: Import do serviço assíncrono (extraído na MF-31)
@@ -188,7 +189,7 @@ class HubScreenController:
                     "table": "rc_notes",
                     "filter": f"org_id=eq.{org_id}",
                 },
-                lambda payload: self.on_realtime_note(payload.get("new") or {}),
+                lambda payload: self._schedule_realtime_note(payload.get("new") or {}),
             )
 
             ch.subscribe()
@@ -231,6 +232,22 @@ class HubScreenController:
             self.logger.warning(f"Falha ao desinscrever live_channel: {exc}")
 
         self.state.live_channel = None
+
+    def _schedule_realtime_note(self, row: dict[str, Any]) -> None:
+        """Enfileira on_realtime_note no main thread (UI) via after().
+
+        O callback do Supabase realtime é disparado em thread de websocket;
+        toda manipulação de cached_notes e renderização de UI deve ocorrer
+        no main thread do Tkinter.
+        """
+        if threading.current_thread() is threading.main_thread():
+            self.on_realtime_note(row)
+            return
+        try:
+            self.view.parent.after(0, lambda r=row: self.on_realtime_note(r))
+        except Exception:  # noqa: BLE001
+            # View pode ter sido destruída entre o envio e a execução
+            self.logger.debug("View destruída antes de agendar realtime note")
 
     def on_realtime_note(self, row: dict[str, Any]) -> None:
         """Handler chamado quando nota nova é recebida via realtime.

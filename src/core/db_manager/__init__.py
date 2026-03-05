@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 
 from .db_manager import (
     DEFAULT_PAGE_LIMIT,
+    BatchInsertPartialError,
     delete_cliente,
     find_cliente_by_cnpj_norm,
     get_cliente,
@@ -28,6 +29,7 @@ from .db_manager import (
 )
 
 __all__ = [
+    "BatchInsertPartialError",
     "DEFAULT_PAGE_LIMIT",
     "db_manager",
     "init_db",

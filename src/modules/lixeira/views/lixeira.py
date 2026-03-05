@@ -272,11 +272,11 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[ctk.CTkTo
                 rows = listar_clientes_na_lixeira(order_by="id", descending=True)
                 table_rows = _build_table_rows(rows)
                 count = len(rows)
-            except Exception:
+            except Exception as e:
                 log.exception("Falha ao buscar lixeira no Supabase")
                 try:
                     if win.winfo_exists():
-                        win.after(0, lambda: _on_load_error(e))
+                        win.after(0, lambda exc=e: _on_load_error(exc))
                 except Exception as exc:  # noqa: BLE001
                     _log_ui_issue("Janela fechada antes de exibir erro de carga", exc)
                 return
@@ -317,11 +317,11 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[ctk.CTkTo
             try:
                 restaurar_clientes_da_lixeira(ids)
                 ok = len(ids)
-            except Exception:
+            except Exception as e:
                 log.exception("Falha ao restaurar")
                 try:
                     if win.winfo_exists():
-                        win.after(0, lambda: _on_restore_err(e))
+                        win.after(0, lambda exc=e: _on_restore_err(exc))
                 except Exception as exc:  # noqa: BLE001
                     _log_ui_issue("Janela fechada antes de exibir erro de restauração", exc)
                 return
