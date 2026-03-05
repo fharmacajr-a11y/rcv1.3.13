@@ -7,7 +7,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Collection, Dict, Iterable, List
 
-from src.core.search import search_clientes
+from src.core.search import search_clientes, search_clientes_lixeira
 from src.core.string_utils import only_digits
 from src.core.textnorm import join_and_normalize
 from src.ui.dialogs.rc_dialogs import show_error, show_info, show_warning
@@ -112,6 +112,7 @@ class ClientesViewModel:
         self._server_order_by: str | None = None
         self._fetch_all: bool = False
         self._cap_hit: bool = False
+        self._trash_mode: bool = False
 
     # ------------------------------------------------------------------ #
     # Carregamento de dados
@@ -166,6 +167,7 @@ class ClientesViewModel:
         order_label: str | None = None,
         *,
         fetch_all: bool = False,
+        trash: bool = False,
     ) -> None:
         """Carrega primeira página de clientes via search_clientes.
 
@@ -176,11 +178,13 @@ class ClientesViewModel:
                          ``order_by`` server-side via ``_label_to_server_order``.
             fetch_all: Se ``True``, busca **todos** os registros (``limit=None``)
                        — usado quando o usuário pesquisa para não perder resultados.
+            trash: Se ``True``, busca na lixeira (``deleted_at IS NOT NULL``).
         """
         # Persistir estado para load_next_page
         self._server_term = (term or "").strip()
         self._server_order_by = self._label_to_server_order(order_label)
         self._fetch_all = fetch_all
+        self._trash_mode = trash
 
         # Termo muito curto não justifica fetch_all — fallback para paginação normal
         if fetch_all and len(self._server_term) < 2:
@@ -191,8 +195,9 @@ class ClientesViewModel:
 
         self._current_offset = 0
         lim: int | None = fetch_all_limit if fetch_all else self._page_size
+        _search_fn = search_clientes_lixeira if self._trash_mode else search_clientes
         try:
-            clientes = search_clientes(
+            clientes = _search_fn(
                 self._server_term,
                 self._server_order_by,
                 limit=lim,
@@ -206,7 +211,7 @@ class ClientesViewModel:
             self._has_more = self._cap_hit
             if self._cap_hit:
                 log.warning(
-                    "fetch_all atingiu o limite de %d registros para term=%r; " "resultados podem estar incompletos",
+                    "fetch_all atingiu o limite de %d registros para term=%r; resultados podem estar incompletos",
                     fetch_all_limit,
                     self._server_term,
                 )
@@ -232,8 +237,9 @@ class ClientesViewModel:
         if not self._has_more:
             return False
 
+        _search_fn = search_clientes_lixeira if self._trash_mode else search_clientes
         try:
-            clientes = search_clientes(
+            clientes = _search_fn(
                 self._server_term,
                 self._server_order_by,
                 limit=self._page_size,
@@ -266,6 +272,11 @@ class ClientesViewModel:
         """True se fetch_all atingiu o limite de 1000 registros."""
         return self._cap_hit
 
+    @property
+    def trash_mode(self) -> bool:  # noqa: D401
+        """True se o último fetch foi na lixeira."""
+        return self._trash_mode
+
     def load_from_iterable(self, clientes: Iterable[Any]) -> None:
         """Utilitário para testes: injeta dados fake."""
         self._clientes_raw = list(clientes)
@@ -282,6 +293,12 @@ class ClientesViewModel:
 
         # 1. Construir rows brutas de todos os clientes
         all_rows = [self._build_row_from_cliente(c) for c in self._clientes_raw]
+
+        # 1b. No modo lixeira, marcar clientes sem status como "[LIXEIRA]"
+        if self._trash_mode:
+            for row in all_rows:
+                if not row.status:
+                    row.status = "[LIXEIRA]"
 
         # 2. Aplicar filtro de busca
         if self._search_text_raw:

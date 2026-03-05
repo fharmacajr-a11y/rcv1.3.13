@@ -858,27 +858,6 @@ class ClientesV2Frame(ctk.CTkFrame):
         # Tentar como objeto (getattr)
         return getattr(obj, key, default)
 
-    def _map_order_label_to_params(self, order_label: str) -> tuple[str, bool]:
-        """Mapeia label de ordenação para order_by e descending.
-
-        Args:
-            order_label: Label da ordenação ("Razão Social (A→Z)", etc.)
-
-        Returns:
-            Tupla (order_by, descending) para o service
-        """
-        # Mapa de labels para parâmetros do service
-        mapping = {
-            "ID (↑)": ("id", False),  # Menor para maior
-            "ID (↓)": ("id", True),  # Maior para menor
-            "Razão Social (A→Z)": ("razao_social", False),
-            "Razão Social (Z→A)": ("razao_social", True),
-            "Última Alteração ↓": ("ultima_alteracao", True),  # Mais recente primeiro
-            "Última Alteração ↑": ("ultima_alteracao", False),  # Mais antiga primeiro
-        }
-
-        return mapping.get(order_label, ("id", True))  # Default: ID descendente
-
     def load_async(self, search: str = "", order_label: str = "", status: str = "", show_trash: bool = False) -> None:
         """Carrega dados com filtros aplicados (assíncrono via thread).
 
@@ -909,66 +888,25 @@ class ClientesV2Frame(ctk.CTkFrame):
             mode = "LIXEIRA" if show_trash else "ATIVOS"
             log.debug(f"[Clientes] fetch_start mode={mode} gen={gen}")
             try:
-                if show_trash:
-                    from src.modules.clientes.core import service as clientes_service
-                    from src.modules.clientes.core.viewmodel import ClienteRow as _Row
+                # Propaga term e order_label ao servidor (server-side search + sort)
+                # fetch_all só ativa com termo >= 2 chars para evitar queries pesadas
+                stripped = (search or "").strip()
+                has_search = len(stripped) >= 2
+                self._vm.set_search_text(search if search else None, rebuild=False)
+                self._vm.set_status_filter(status if status else None, rebuild=False)
+                if order_label:
+                    self._vm.set_order_label(order_label, rebuild=False)
+                self._vm.refresh_from_service(
+                    term=search,
+                    order_label=order_label or self._vm._current_order_label,
+                    fetch_all=has_search,
+                    trash=show_trash,
+                )
+                t_fetch = time.perf_counter()
+                log.debug(f"[Clientes] fetch_end elapsed={t_fetch - t0:.3f}s")
 
-                    order_by, descending = self._map_order_label_to_params(order_label)
-                    deleted_clients = clientes_service.listar_clientes_na_lixeira(
-                        order_by=order_by, descending=descending
-                    )
-                    t_fetch = time.perf_counter()
-                    log.debug(f"[Clientes] fetch_end rows={len(deleted_clients)} elapsed={t_fetch - t0:.3f}s")
-
-                    # Pipeline idêntico ao modo ATIVOS:
-                    # _build_row_from_cliente usa normalize_br_whatsapp, fmt_datetime_br,
-                    # format_cnpj e extract_status_and_observacoes — exatamente como a treeview normal.
-                    rows: list[_Row] = []
-                    for client in deleted_clients:
-                        row = self._vm._build_row_from_cliente(client)
-                        # Se obs não tinha prefixo [status], marcar como lixeira
-                        if not row.status:
-                            row.status = "[LIXEIRA]"
-                        rows.append(row)
-
-                    if search:
-                        search_lower = search.lower()
-                        rows = [
-                            r
-                            for r in rows
-                            if search_lower in (r.razao_social or "").lower()
-                            or search_lower in (r.cnpj or "").lower()
-                            or search_lower in (r.nome or "").lower()
-                            or search_lower in (r.whatsapp or "").lower()
-                        ]
-
-                    if status:
-                        status_norm = status.strip().lower()
-                        rows = [r for r in rows if r.status.strip().lower() == status_norm]
-
-                    # Agendar render na main thread (só se geração ainda é válida)
-                    if gen == self._load_gen:
-                        self.after(0, lambda: self._finish_load_trash(gen, rows, search, status))
-                else:
-                    # Modo normal: refresh + rebuild no ViewModel
-                    # Propaga term e order_label ao servidor (server-side search + sort)
-                    # fetch_all só ativa com termo >= 2 chars para evitar queries pesadas
-                    stripped = (search or "").strip()
-                    has_search = len(stripped) >= 2
-                    self._vm.set_search_text(search if search else None, rebuild=False)
-                    self._vm.set_status_filter(status if status else None, rebuild=False)
-                    if order_label:
-                        self._vm.set_order_label(order_label, rebuild=False)
-                    self._vm.refresh_from_service(
-                        term=search,
-                        order_label=order_label or self._vm._current_order_label,
-                        fetch_all=has_search,
-                    )
-                    t_fetch = time.perf_counter()
-                    log.debug(f"[Clientes] fetch_end elapsed={t_fetch - t0:.3f}s")
-
-                    if gen == self._load_gen:
-                        self.after(0, lambda: self._finish_load_normal(gen, search, status))
+                if gen == self._load_gen:
+                    self.after(0, lambda: self._finish_load_normal(gen, search, status))
 
             except Exception as e:
                 log.error(f"[Clientes] Erro ao carregar dados: {e}", exc_info=True)
@@ -990,18 +928,13 @@ class ClientesV2Frame(ctk.CTkFrame):
             pass
 
     def _finish_load_trash(self, gen: int, rows: list, search: str, status: str) -> None:
-        """Renderiza resultado da lixeira na main thread."""
-        if gen != self._load_gen:
-            self._re_enable_trash_btn()
-            return  # Resultado obsoleto
-        t0 = time.perf_counter()
-        self._render_rows_from_list(rows)
-        log.debug(
-            f"[Clientes] render_end LIXEIRA rows={len(rows)} elapsed={time.perf_counter() - t0:.3f}s "
-            f"(busca='{search}', status='{status}')"
-        )
-        self._re_enable_trash_btn()
-        self._sync_load_more_btn()  # Esconder na lixeira
+        """Renderiza resultado da lixeira na main thread.
+
+        .. deprecated:: v1.5.99
+            Mantido apenas por compatibilidade; o fluxo trash agora usa
+            ``_finish_load_normal`` via ViewModel unificado.
+        """
+        self._finish_load_normal(gen, search, status)
 
     def _finish_load_normal(self, gen: int, search: str, status: str) -> None:
         """Renderiza resultado normal na main thread."""
@@ -1023,7 +956,7 @@ class ClientesV2Frame(ctk.CTkFrame):
         """Mostra/esconde botão 'Carregar mais' e aviso de cap-hit."""
         try:
             cap = getattr(self._vm, "cap_hit", False)
-            should_show = self._vm.has_more and not self._trash_mode and (not self._vm._fetch_all or cap)
+            should_show = self._vm.has_more and (not self._vm._fetch_all or cap)
             if should_show and not self._load_more_visible:
                 self._load_more_btn.pack(side="top", pady=(2, 4))
                 self._load_more_visible = True

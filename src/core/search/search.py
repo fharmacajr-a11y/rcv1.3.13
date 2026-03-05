@@ -194,3 +194,75 @@ def search_clientes(
     if not term:
         return clientes
     return _filter_clientes(clientes, term)
+
+
+def search_clientes_lixeira(
+    term: str | None,
+    order_by: str | None = None,
+    org_id: str | None = None,
+    *,
+    limit: int | None = None,
+    offset: int = 0,
+) -> list[Cliente]:
+    """Busca clientes na lixeira (``deleted_at IS NOT NULL``).
+
+    Interface idêntica a :func:`search_clientes` — mesma normalização de
+    ``order_by``, tiebreaker por ``id``, paginação via ``range`` e filtro
+    ``ilike`` server-side + normalização local.
+
+    Args:
+        term: Texto de busca (nome/razao/CNPJ/numero).
+        order_by: Ordenação no formato ``+col``/``-col`` ou canônico.
+        org_id: Organização; se ``None``, resolve via sessão.
+        limit: Limite de registros (paginação).
+        offset: Deslocamento da página.
+    """
+    if org_id is None:
+        current_user = get_current_user()
+        org_id = getattr(current_user, "org_id", None) if current_user else None
+
+    term = (term or "").strip()
+    col, desc = _normalize_order(order_by)
+
+    try:
+        if is_supabase_online():
+            if org_id is None:
+                raise ValueError("org_id obrigatorio")
+
+            def _fetch_rows_trash(search_term: str | None) -> list[dict[str, Any]]:
+                qb = (
+                    supabase.table("clients").select(CLIENT_COLUMNS).not_.is_("deleted_at", "null").eq("org_id", org_id)
+                )
+                if search_term:
+                    pat = f"%{search_term}%"
+                    qb = qb.or_(
+                        "nome.ilike.{pat},razao_social.ilike.{pat},cnpj.ilike.{pat},numero.ilike.{pat}".format(pat=pat)
+                    )
+                if col:
+                    qb = qb.order(col, desc=desc)
+                qb = qb.order("id", desc=desc)
+                if limit is not None:
+                    qb = qb.range(offset, offset + limit - 1)
+                resp_inner = exec_postgrest(qb)
+                return list(resp_inner.data or [])
+
+            rows = _fetch_rows_trash(term)
+            if term:
+                rows = _filter_rows_with_norm(rows, term)
+                if not rows:
+                    rows = _filter_rows_with_norm(_fetch_rows_trash(None), term)
+            clientes = [_row_to_cliente(r) for r in rows]
+            if term:
+                return _filter_clientes(clientes, term)
+            return clientes
+    except Exception as exc:
+        log.warning("search_clientes_lixeira: falha no Supabase, usando fallback local", exc_info=exc)
+
+    if org_id is None:
+        raise ValueError("org_id obrigatorio")
+    from src.core.db_manager.db_manager import list_clientes_deletados  # evita ciclo
+
+    clientes = list_clientes_deletados(order_by=col or None, descending=desc if col else None)
+    if not term:
+        return clientes
+    return _filter_clientes(clientes, term)
