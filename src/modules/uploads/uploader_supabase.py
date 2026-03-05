@@ -18,6 +18,7 @@ from src.ui.dialogs.rc_dialogs import show_info, show_error, show_warning, ask_y
 from src.modules.uploads import service as uploads_service
 from src.modules.uploads.components.helpers import _cnpj_only_digits
 from src.modules.uploads.exceptions import (
+    UploadDuplicateError,
     UploadNetworkError,
     UploadServerError,
     UploadValidationError,
@@ -205,6 +206,7 @@ def _show_upload_summary(
     FASE 7: Mensagens de erro melhoradas baseadas no tipo de exceção.
     """
     # Coletar mensagens de erro por categoria
+    duplicate_errors: List[str] = []
     network_errors: List[str] = []
     server_errors: List[str] = []
     validation_msgs: List[str] = []
@@ -215,7 +217,10 @@ def _show_upload_summary(
         filename = Path(getattr(item, "relative_path", str(item))).name
         typed_exc = classify_upload_exception(exc)
 
-        if isinstance(typed_exc, UploadNetworkError):
+        # IMPORTANTE: checar DuplicateError ANTES de ServerError (herança)
+        if isinstance(typed_exc, UploadDuplicateError):
+            duplicate_errors.append(filename)
+        elif isinstance(typed_exc, UploadNetworkError):
             network_errors.append(filename)
         elif isinstance(typed_exc, UploadServerError):
             server_errors.append(filename)
@@ -259,6 +264,14 @@ def _show_upload_summary(
             lines.append(f"  • {msg}")
         if len(validation_msgs) > 5:
             lines.append(f"  ... e mais {len(validation_msgs) - 5} arquivo(s)")
+        lines.append("")
+
+    if duplicate_errors:
+        lines.append("↷ Arquivos já existentes (upload ignorado):")
+        for name in duplicate_errors[:5]:
+            lines.append(f"  • {name}")
+        if len(duplicate_errors) > 5:
+            lines.append(f"  ... e mais {len(duplicate_errors) - 5} arquivo(s)")
         lines.append("")
 
     if network_errors:

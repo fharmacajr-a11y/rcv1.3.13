@@ -498,6 +498,9 @@ class HubScreenView:
         Returns:
             MainApp ou None se não disponível.
         """
+        if self._hub_screen and hasattr(self._hub_screen, "_get_main_app"):
+            return self._hub_screen._get_main_app()
+        # fallback legado
         if self._hub_screen and hasattr(self._hub_screen, "_get_app"):
             return self._hub_screen._get_app()
         return None

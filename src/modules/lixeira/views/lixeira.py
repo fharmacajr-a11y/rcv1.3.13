@@ -194,74 +194,102 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[ctk.CTkTo
                         return val
             return None
 
-        tree.clear()
-        try:
-            rows = listar_clientes_na_lixeira(order_by="id", descending=True)
-        except Exception as e:
-            log.exception("Falha ao buscar lixeira no Supabase")
-            _err("Lixeira", f"Erro ao carregar lixeira: {e}")
-            return
-
-        table_rows = []
-        for r in rows:
-            r_id = _get_val(r, "id") or ""
-            razao_social = _get_val(r, "razao_social") or ""
-            cnpj = _get_val(r, "cnpj") or ""
-            nome = _get_val(r, "nome") or ""
-            whatsapp = _get_val(r, "whatsapp", "numero") or ""
-            obs = _get_val(r, "obs", "observacoes", "Observacoes") or ""
-            ultima_raw = _get_val(r, "ultima_alteracao", "updated_at") or ""
-            if ultima_raw:
-                try:
-                    from src.utils.formatters import fmt_datetime_br
-
-                    ultima_fmt = fmt_datetime_br(ultima_raw)
-                except Exception:
-                    ultima_fmt = str(ultima_raw)
-            else:
-                ultima_fmt = ""
-
-            by = (_get_val(r, "ultima_por") or "").strip()
-            initial = ""
-            if by:
-                try:
-                    mapping_raw = os.getenv("RC_INITIALS_MAP", "")
+        def _build_table_rows(rows: list) -> list:
+            table_rows = []
+            for r in rows:
+                r_id = _get_val(r, "id") or ""
+                razao_social = _get_val(r, "razao_social") or ""
+                cnpj = _get_val(r, "cnpj") or ""
+                nome = _get_val(r, "nome") or ""
+                whatsapp = _get_val(r, "whatsapp", "numero") or ""
+                obs = _get_val(r, "obs", "observacoes", "Observacoes") or ""
+                ultima_raw = _get_val(r, "ultima_alteracao", "updated_at") or ""
+                if ultima_raw:
                     try:
-                        mapping = json.loads(mapping_raw) if mapping_raw else {}
+                        from src.utils.formatters import fmt_datetime_br
+
+                        ultima_fmt = fmt_datetime_br(ultima_raw)
                     except Exception:
-                        mapping = {}
-                    alias = ""
-                    if isinstance(mapping, dict):
-                        alias = str(mapping.get(by, "") or "")
-                    if alias:
-                        initial = (alias[:1] or "").upper()
-                    else:
-                        from src.modules.hub.services.authors_service import get_author_display_name
+                        ultima_fmt = str(ultima_raw)
+                else:
+                    ultima_fmt = ""
 
-                        display = get_author_display_name(app, by, start_async_fetch=False) if app is not None else ""
-                        if not display:
-                            display = by
-                        initial = (display[:1] or by[:1] or "").upper()
-                except Exception:
-                    initial = (by[:1] or "").upper()
-            if ultima_fmt and initial:
-                ultima_fmt = f"{ultima_fmt} ({initial})"
+                by = (_get_val(r, "ultima_por") or "").strip()
+                initial = ""
+                if by:
+                    try:
+                        mapping_raw = os.getenv("RC_INITIALS_MAP", "")
+                        try:
+                            mapping = json.loads(mapping_raw) if mapping_raw else {}
+                        except Exception:
+                            mapping = {}
+                        alias = ""
+                        if isinstance(mapping, dict):
+                            alias = str(mapping.get(by, "") or "")
+                        if alias:
+                            initial = (alias[:1] or "").upper()
+                        else:
+                            from src.modules.hub.services.authors_service import get_author_display_name
 
-            table_rows.append(
-                [
-                    str(r_id),
-                    razao_social,
-                    cnpj,
-                    nome,
-                    whatsapp,
-                    obs,
-                    ultima_fmt,
-                ]
-            )
+                            display = (
+                                get_author_display_name(app, by, start_async_fetch=False) if app is not None else ""
+                            )
+                            if not display:
+                                display = by
+                            initial = (display[:1] or by[:1] or "").upper()
+                    except Exception:
+                        initial = (by[:1] or "").upper()
+                if ultima_fmt and initial:
+                    ultima_fmt = f"{ultima_fmt} ({initial})"
 
-        tree.set_rows(table_rows)
-        status.configure(text=f"{len(rows)} item(ns) na lixeira")
-        log.info("Lixeira carregada com %d clientes", len(rows))
+                table_rows.append(
+                    [
+                        str(r_id),
+                        razao_social,
+                        cnpj,
+                        nome,
+                        whatsapp,
+                        obs,
+                        ultima_fmt,
+                    ]
+                )
+            return table_rows
+
+        def _on_loaded(table_rows: list, count: int) -> None:
+            """Atualiza UI no main thread após fetch."""
+            tree.clear()
+            tree.set_rows(table_rows)
+            status.configure(text=f"{count} item(ns) na lixeira")
+            log.info("Lixeira carregada com %d clientes", count)
+
+        def _on_load_error(err: Exception) -> None:
+            """Mostra erro no main thread."""
+            tree.clear()
+            _err("Lixeira", f"Erro ao carregar lixeira: {err}")
+
+        def _worker() -> None:
+            try:
+                rows = listar_clientes_na_lixeira(order_by="id", descending=True)
+                table_rows = _build_table_rows(rows)
+                count = len(rows)
+            except Exception:
+                log.exception("Falha ao buscar lixeira no Supabase")
+                try:
+                    if win.winfo_exists():
+                        win.after(0, lambda: _on_load_error(e))
+                except Exception as exc:  # noqa: BLE001
+                    _log_ui_issue("Janela fechada antes de exibir erro de carga", exc)
+                return
+
+            try:
+                if win.winfo_exists():
+                    win.after(0, lambda: _on_loaded(table_rows, count))
+            except Exception as exc:  # noqa: BLE001
+                _log_ui_issue("Janela fechada antes de exibir dados carregados", exc)
+
+        tree.clear()
+        status.configure(text="Carregando...")
+        threading.Thread(target=_worker, daemon=True).start()
 
     # -------- ações --------
     def on_restore() -> None:
@@ -272,23 +300,39 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[ctk.CTkTo
         if not _ask_yesno("Restaurar", f"Restaurar {len(ids)} registro(s) para a lista principal?"):
             return
 
-        _set_busy(win, [btn_restore, btn_purge, btn_refresh, btn_close], True)
-        try:
-            restaurar_clientes_da_lixeira(ids)
-            ok = len(ids)
-            errs = []
-            if errs:
-                msg = "\n".join([f"ID {cid}: {err}" for cid, err in errs])
-                _err("Falha parcial", f"{ok} restaurado(s), erros:\n{msg}")
-            else:
-                _info("Pronto", f"{ok} registro(s) restaurado(s).")
-                # As subpastas obrigatórias são garantidas no serviço (_ensure_mandatory_subfolders).
-        except Exception as e:
-            log.exception("Falha ao restaurar")
-            _err("Lixeira", f"Erro ao restaurar: {e}")
-        finally:
-            _set_busy(win, [btn_restore, btn_purge, btn_refresh, btn_close], False)
+        all_btns = [btn_restore, btn_purge, btn_refresh, btn_close]
+        _set_busy(win, all_btns, True)
+
+        def _on_restore_ok(count: int) -> None:
+            _set_busy(win, all_btns, False)
+            _info("Pronto", f"{count} registro(s) restaurado(s).")
             carregar()
+
+        def _on_restore_err(err: Exception) -> None:
+            _set_busy(win, all_btns, False)
+            _err("Lixeira", f"Erro ao restaurar: {err}")
+            carregar()
+
+        def _worker() -> None:
+            try:
+                restaurar_clientes_da_lixeira(ids)
+                ok = len(ids)
+            except Exception:
+                log.exception("Falha ao restaurar")
+                try:
+                    if win.winfo_exists():
+                        win.after(0, lambda: _on_restore_err(e))
+                except Exception as exc:  # noqa: BLE001
+                    _log_ui_issue("Janela fechada antes de exibir erro de restauração", exc)
+                return
+
+            try:
+                if win.winfo_exists():
+                    win.after(0, lambda: _on_restore_ok(ok))
+            except Exception as exc:  # noqa: BLE001
+                _log_ui_issue("Janela fechada antes de exibir sucesso de restauração", exc)
+
+        threading.Thread(target=_worker, daemon=True).start()
 
     def on_purge() -> None:
         ids = get_selected_ids()
