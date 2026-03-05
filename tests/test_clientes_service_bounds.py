@@ -72,6 +72,7 @@ def _build_stubs() -> dict:
         find_cliente_by_cnpj_norm=MagicMock(return_value=None),
         get_cliente_by_id=MagicMock(return_value=None),
         list_clientes_deletados=MagicMock(return_value=[]),
+        update_status_only=MagicMock(),
     )
     fake_cli_svc = _mk(
         "src.core.services.clientes_service",
