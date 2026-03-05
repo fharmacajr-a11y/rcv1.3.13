@@ -36,13 +36,15 @@ logger = logging.getLogger(__name__)
 
 
 def load_dashboard_data_async(controller: "HubScreenController") -> None:
-    """Carrega dados do dashboard de forma assíncrona via DashboardViewModel.
+    """No-op: dashboard desativado.
 
-    MF-31: Extraído de HubScreenController.load_dashboard_data_async.
-
-    Args:
-        controller: HubScreenController com acesso a state, VM, async_runner, view
+    Mantido para compatibilidade de assinatura.
     """
+    return  # dashboard desativado — nenhum I/O ou timer
+
+
+def _load_dashboard_data_async_disabled(controller: "HubScreenController") -> None:  # noqa: N802
+    """CÓDIGO ORIGINAL (desativado). Mantido como referência."""
     # Sincronizar org_id do state (pode vir do auth)
     # MF-15-B: view pode ser HubScreen (duck typing), que tem _get_org_id_safe()
     if hasattr(controller.view, "_get_org_id_safe"):
@@ -71,13 +73,30 @@ def load_dashboard_data_async(controller: "HubScreenController") -> None:
             controller.logger.debug(f"Erro ao mostrar mensagem de aguardo: {e}")
         return
 
+    # PERF-FIX: registrar instante do disparo para medir latência total
+    _t_trigger = time.perf_counter()
+    controller.logger.info("[PERF-HUB] Dashboard load disparado")
+
     def on_success(state: Any) -> None:  # DashboardViewState
         """Atualiza UI com estado de sucesso."""
+        _t_io = time.perf_counter()
+        controller.logger.info(
+            "[PERF-HUB] I/O dashboard concluído: %.0f ms (trigger→dados)",
+            (_t_io - _t_trigger) * 1000,
+        )
         _update_dashboard_ui_from_state(controller, state)
+        controller.logger.info(
+            "[PERF-HUB] Render dashboard concluído: %.0f ms (trigger→tela)",
+            (time.perf_counter() - _t_trigger) * 1000,
+        )
 
     def on_error(exc: Exception) -> None:
         """Atualiza UI com estado de erro."""
-        controller.logger.error(f"Erro ao carregar dashboard: {exc}")
+        controller.logger.error(
+            "[PERF-HUB] Erro dashboard após %.0f ms: %s",
+            (time.perf_counter() - _t_trigger) * 1000,
+            exc,
+        )
         error_state = controller.dashboard_vm.from_error(
             "Não foi possível carregar o dashboard. Tente novamente mais tarde."
         )

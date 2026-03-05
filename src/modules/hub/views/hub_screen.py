@@ -302,14 +302,16 @@ class HubScreen(ctk.CTkFrame):  # type: ignore[misc]
                 perf_mark("Hub.deferred.quick_actions", _t0_qa, logger)
                 _t0_dash = perf_counter()
 
-            # BUILD DASHBOARD PANEL (delegado para HubDashboardView - MF-26)
-            from src.modules.hub.views.hub_dashboard_view import HubDashboardView
-
-            self._dashboard_view = HubDashboardView(self)
-            self.center_spacer = self._dashboard_view.build()
-            self.dashboard_scroll = self._dashboard_view.dashboard_scroll
-            # Renderizar estado inicial de loading (evita painel em branco)
-            self._dashboard_view.render_loading()
+            # DASHBOARD DESATIVADO: centro fica vazio (sem cards, sem scroll).
+            # Apenas um container transparente para o layout de 3 colunas não quebrar.
+            self._dashboard_view = None
+            self.center_spacer = ctk.CTkFrame(
+                self,
+                fg_color="transparent",
+                corner_radius=0,
+                border_width=0,
+            )
+            self.dashboard_scroll = None
 
             if _debug_ui:
                 perf_mark("Hub.deferred.dashboard", _t0_dash, logger)
@@ -423,43 +425,20 @@ class HubScreen(ctk.CTkFrame):  # type: ignore[misc]
     # ==============================================================================
 
     def _load_dashboard(self) -> None:
-        """Carrega dashboard async (MF-15-D: delega para HubScreenController)."""
-        self._hub_controller.load_dashboard_data_async()
+        """No-op: dashboard desativado."""
+        return
 
     def _load_notes(self) -> None:
         """Carrega notas async (delega para HubScreenController)."""
         self._hub_controller.load_notes_data_async()
 
     def _update_dashboard_ui(self, state: DashboardViewState) -> None:
-        """Atualiza UI do dashboard (MF-17: delega para HubDashboardRenderer)."""
-        try:
-            logger.debug(
-                "[HubScreen._update_dashboard_ui] INICIANDO - error_message: %s, snapshot: %s",
-                bool(state.error_message),
-                bool(state.snapshot),
-            )
-            logger.debug(
-                "[HubScreen._update_dashboard_ui] Renderer disponível: %s",
-                self._dashboard_renderer is not None,
-            )
-
-            # MF-17: Delegar TODA a renderização para o renderer (sem lógica aqui)
-            self._dashboard_renderer.render_dashboard(
-                state,
-                on_new_task=self._on_new_task,
-                on_new_obligation=self._on_new_obligation,
-                on_view_all_activity=self._on_view_all_activity,
-                on_card_clients_click=self._on_card_clients_click,
-                on_card_pendencias_click=self._on_card_pendencias_click,
-                on_card_tarefas_click=self._on_card_tarefas_click,
-            )
-            logger.debug("[HubScreen._update_dashboard_ui] CONCLUÍDO")
-        except Exception as e:
-            logger.exception(f"[HubScreen._update_dashboard_ui] ERRO: {e}")
+        """No-op: dashboard desativado."""
+        return
 
     def update_dashboard(self, state: DashboardViewState) -> None:
-        """API pública para atualizar dashboard (MF-15-B: usado por HubScreenController)."""
-        self._update_dashboard_ui(state)
+        """No-op: dashboard desativado."""
+        return
 
     def _on_new_task(self) -> None:
         """Abre diálogo para criar nova tarefa (MF-13, MF-22: via DashboardFacade)."""
@@ -647,13 +626,8 @@ class HubScreen(ctk.CTkFrame):  # type: ignore[misc]
         self.refresh_notes_async(force=True)
 
     def reload_dashboard(self) -> None:
-        """Força recarregamento do dashboard.
-
-        Este método existe para compatibilidade com o NotesGatewayProtocol.
-        Delega para refresh_dashboard do controller.
-        """
-        if self._hub_controller:
-            self._hub_controller.refresh_dashboard()
+        """No-op: dashboard desativado. Mantido para compatibilidade de protocolo."""
+        return
 
     def _retry_after_table_missing(self) -> None:
         """Retry após erro de tabela ausente (MF-15-D, MF-23: via NotesFacade)."""

@@ -137,11 +137,12 @@ class HubComponentFactory:
         # VIEWMODELS (Headless - sem dependências de Tkinter)
         # ========================================================================
 
-        # Dashboard ViewModel
+        # DASHBOARD DESATIVADO: DashboardViewModel não é instanciado.
+        # Usa-se um stub mínimo para não quebrar assinaturas que esperam dashboard_vm.
         from src.modules.hub.viewmodels.dashboard_vm import DashboardViewModel
 
-        dashboard_vm = DashboardViewModel()
-        self._logger.debug("DashboardViewModel criado")
+        dashboard_vm = DashboardViewModel(service=lambda org_id, today=None: None)  # stub — nunca chamado
+        self._logger.debug("DashboardViewModel criado (STUB — dashboard desativado)")
 
         # Notes ViewModel
         from src.modules.hub.viewmodels.notes_vm import NotesViewModel

@@ -463,6 +463,7 @@ def _build_upcoming_deadlines(
 def get_dashboard_snapshot(
     org_id: str,
     today: date | None = None,
+    minimal: bool = False,
 ) -> DashboardSnapshot:
     """Get aggregated dashboard data for an organization.
 
@@ -472,6 +473,7 @@ def get_dashboard_snapshot(
     Args:
         org_id: UUID of the organization.
         today: Reference date (defaults to date.today() if None).
+        minimal: Se True, carrega apenas pending_tasks (modo rápido para o Hub).
 
     Returns:
         DashboardSnapshot with aggregated data.
@@ -480,6 +482,16 @@ def get_dashboard_snapshot(
         today = date.today()
 
     snapshot = DashboardSnapshot()
+
+    # Modo minimal: carrega só tarefas pendentes (mais rápido para o Hub)
+    if minimal:
+        try:
+            snapshot.pending_tasks = _load_pending_tasks(org_id, today, limit=5)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Failed to load pending tasks (minimal): %s", e)
+            snapshot.pending_tasks = []
+        snapshot.anvisa_only = False
+        return snapshot
 
     # 1) Active clients count
     try:

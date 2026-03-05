@@ -257,12 +257,15 @@ class DashboardViewModel:
 
         if count == 0:
             bootstyle = "success"
+            description = "Nenhuma tarefa com prazo hoje"
         else:
             bootstyle = "warning"
+            description = f"{count} tarefa{'s' if count > 1 else ''} com prazo hoje"
 
         return DashboardCardView(
             label="Tarefas hoje",
             value=count,
             value_text=str(count),
-            bootstyle=bootstyle,  # Semantic tag only, not passed to widgets            description=description,
+            bootstyle=bootstyle,  # Semantic tag only, not passed to widgets
+            description=description,
         )

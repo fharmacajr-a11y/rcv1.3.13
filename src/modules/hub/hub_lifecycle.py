@@ -68,13 +68,12 @@ class HubLifecycle:
         self._log_debug("Iniciando lifecycle do HUB")
 
         # Agendar início seguro (aguarda auth estar pronta)
-        self.schedule_auth_retry()
+        self.schedule_auth_retry(delay_ms=0)
 
-        # Agendar carregamento do dashboard
-        self.schedule_dashboard_load(delay_ms=600)
-
-        # Agendar carregamento inicial de notas (um pouco depois do dashboard)
-        self.schedule_notes_load(delay_ms=800)
+        # DASHBOARD DESATIVADO: nenhum schedule_dashboard_load.
+        # PERF-FIX: schedule_notes_load removido — era redundante com start_notes_polling.
+        # O polling de notas é iniciado em start_home_timers_safely() (via auth retry ~500ms)
+        # e já dispara refresh_notes_async(force=True) na primeira execução.
 
     def stop(self) -> None:
         """Para o lifecycle do HUB: cancela todos os timers e live sync.

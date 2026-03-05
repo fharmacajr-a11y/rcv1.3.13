@@ -10,7 +10,6 @@ e pela renderização dos cards de dashboard.
 from typing import Any, Callable
 
 from src.ui.ctk_config import ctk
-from src.ui.ui_tokens import APP_BG
 import tkinter as tk
 
 # MF-30: Importar helpers de renderização
@@ -56,17 +55,21 @@ class HubDashboardView:
         Returns:
             O frame container do painel de dashboard (center_spacer)
         """
-        # Container da coluna central - MICROFASE 35: fundo APP_BG
+        # Container da coluna central - transparente para evitar flash
+        # enquanto os dados do dashboard ainda não chegaram.
         self.center_spacer = ctk.CTkFrame(  # pyright: ignore[reportAttributeAccessIssue]
             self._parent,
-            fg_color=APP_BG,
+            fg_color="transparent",
             corner_radius=0,
+            border_width=0,
         )
 
-        # Frame normal dentro do container (sem scrollbar) - fundo transparente
+        # Frame normal dentro do container (sem scrollbar) - transparente
         self.dashboard_scroll = ctk.CTkFrame(
             self.center_spacer,
             fg_color="transparent",
+            corner_radius=0,
+            border_width=0,
         )
         self.dashboard_scroll.pack(fill="both", expand=True)
 
@@ -80,31 +83,12 @@ class HubDashboardView:
     # ═══════════════════════════════════════════════════════════════════════════
 
     def render_loading(self) -> None:
-        """Renderiza estado de loading no dashboard.
+        """No-op: loading de dashboard foi removido para evitar flicker.
 
-        MF-32: Adicionado para completar cenários de renderização.
+        Mantido apenas para compatibilidade com chamadas existentes (ex: hub_dashboard_renderer).
+        A área central fica vazia até os dados chegarem; render_error() é chamado em caso de falha.
         """
-        import logging
-
-        logger = logging.getLogger(__name__)
-        logger.debug("[HubDashboardView] Renderizando loading...")
-
-        if not self.dashboard_scroll:
-            logger.warning("[HubDashboardView] dashboard_scroll é None, não pode renderizar loading")
-            return
-
-        # Limpar conteúdo e mostrar loading
-        for widget in self.dashboard_scroll.content.winfo_children():
-            widget.destroy()
-
-        loading_label = ctk.CTkLabel(
-            self.dashboard_scroll.content,
-            text="Carregando dashboard...",
-            font=("Segoe UI", 12),
-            text_color=("#6b7280", "#9ca3af"),
-            fg_color="transparent",
-        )
-        loading_label.pack(pady=50)
+        return  # intencionalmente vazio — sem mensagem de loading
 
     def render_empty(self) -> None:
         """Renderiza estado vazio (sem dados) no dashboard.
@@ -180,16 +164,17 @@ class HubDashboardView:
                 logger.error("[HubDashboardView] dashboard_scroll é None, não pode renderizar dados")
                 return
 
-            # CRÍTICO: Limpar todo conteúdo existente (incluindo "Carregando dashboard...")
-            logger.debug("[HubDashboardView] Limpando widgets antigos...")
-            for widget in self.dashboard_scroll.content.winfo_children():
-                widget.destroy()
-
             # Validação: se não houver snapshot, mostrar vazio
             if not getattr(state, "snapshot", None):
                 logger.warning("[HubDashboardView] state.snapshot é None/vazio, renderizando estado vazio")
                 self.render_empty()
                 return
+
+            # Guardar referência aos widgets antigos para remover DEPOIS
+            # de construir os novos — evita flash de "frame vazio".
+            old_widgets = list(self.dashboard_scroll.content.winfo_children())
+            for w in old_widgets:
+                w.pack_forget()
 
             logger.debug("[HubDashboardView] Chamando build_dashboard_center...")
 
@@ -209,6 +194,13 @@ class HubDashboardView:
                 on_card_tarefas_click=on_card_tarefas_click or (lambda s: None),
                 tk_root=tk_root,
             )
+
+            # Destruir widgets antigos agora que os novos já estão prontos
+            for w in old_widgets:
+                try:
+                    w.destroy()
+                except Exception:
+                    pass  # widget pode já ter sido destruído
 
             logger.debug("[HubDashboardView] render_data CONCLUÍDO com sucesso")
         except Exception as e:

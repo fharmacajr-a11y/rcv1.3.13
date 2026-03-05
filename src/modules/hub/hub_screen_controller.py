@@ -111,18 +111,8 @@ class HubScreenController:
         self.lifecycle.stop()
 
     def refresh_dashboard(self) -> None:
-        """Força refresh do dashboard (assíncrono).
-
-        Carrega dados do dashboard via ViewModel e atualiza View.
-        """
-        if not self.state.is_active:
-            return
-
-        # Marcar timestamp de refresh
-        self.state.mark_dashboard_refresh()
-
-        # Carregar dados via async runner
-        self.load_dashboard_data_async()
+        """No-op: dashboard desativado."""
+        return
 
     def refresh_notes(self, *, force: bool = False) -> None:
         """Força refresh das notas (assíncrono).
@@ -552,11 +542,8 @@ class HubScreenController:
     # ═══════════════════════════════════════════════════════════════════════
 
     def load_dashboard_data_async(self) -> None:
-        """Carrega dados do dashboard de forma assíncrona via DashboardViewModel.
-
-        MF-31: Delega ao hub_async_tasks_service.
-        """
-        async_tasks.load_dashboard_data_async(self)
+        """No-op: dashboard desativado."""
+        return
 
     def load_dashboard_data(self) -> Any:
         """Carrega dados do dashboard via ViewModel.
