@@ -7,9 +7,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from src.core.search import search as search
 
-from .search import search_clientes
+from .search import search_clientes, search_clientes_lixeira
 
-__all__ = ["search_clientes", "search"]
+__all__ = ["search_clientes", "search_clientes_lixeira", "search"]
 
 
 def __getattr__(name: str):
