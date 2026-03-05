@@ -15,10 +15,41 @@ log = logging.getLogger(__name__)
 
 
 def _normalize_order(order_by: str | None) -> tuple[str | None, bool]:
-    """Normaliza apelidos de ordenação para colunas canônicas e flag de descending."""
+    """Normaliza apelidos de ordenação para colunas canônicas e flag de descending.
+
+    Aceita:
+      - Nomes canônicos: ``"ultima_alteracao"`` (default desc p/ esse campo)
+      - Prefixo ``"-"`` (desc) ou ``"+"`` (asc): ``"-id"``, ``"+razao_social"``
+      - Sufixo ``"_asc"`` / ``"_desc"``: ``"ultima_alteracao_asc"``
+    """
     if not order_by:
         return None, False
-    mapping = {
+
+    raw = order_by.strip()
+
+    # --- prefixo explícito (+/-) ---
+    if raw.startswith("-"):
+        col = raw[1:].strip()
+        if col:
+            return col, True
+    if raw.startswith("+"):
+        col = raw[1:].strip()
+        if col:
+            return col, False
+
+    # --- sufixo explícito (_asc / _desc) ---
+    low = raw.lower()
+    if low.endswith("_desc"):
+        col = low[:-5]
+        if col:
+            return col, True
+    if low.endswith("_asc"):
+        col = low[:-4]
+        if col:
+            return col, False
+
+    # --- mapeamento legado ---
+    mapping: dict[str, tuple[str, bool]] = {
         "nome": ("nome", False),
         "razao social": ("razao_social", False),
         "razao_social": ("razao_social", False),
@@ -27,7 +58,7 @@ def _normalize_order(order_by: str | None) -> tuple[str | None, bool]:
         "ultima alteracao": ("ultima_alteracao", True),
         "ultima_alteracao": ("ultima_alteracao", True),
     }
-    return mapping.get(order_by.lower(), (None, False))
+    return mapping.get(low, (None, False))
 
 
 def _row_to_cliente(row: Mapping[str, Any]) -> Cliente:
@@ -133,8 +164,11 @@ def search_clientes(
                     )
                 if col:
                     qb = qb.order(col, desc=desc)
-                # Ordem estável por id para paginação determinística
-                qb = qb.order("id")
+                # Ordem estável por id para paginação determinística.
+                # A direção do desempate acompanha a do campo principal para
+                # que registros com mesmo valor de *col* apareçam na ordem
+                # natural esperada pelo usuário (ex: DESC → id DESC).
+                qb = qb.order("id", desc=desc)
                 if limit is not None:
                     qb = qb.range(offset, offset + limit - 1)
                 resp_inner = exec_postgrest(qb)

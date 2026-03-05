@@ -29,15 +29,19 @@ ORDER_LABEL_RAZAO = "Razão Social (A→Z)"
 ORDER_LABEL_RAZAO_DESC = "Razão Social (Z→A)"
 ORDER_LABEL_CNPJ = "CNPJ (A→Z)"
 ORDER_LABEL_NOME = "Nome (A→Z)"
+ORDER_LABEL_NOME_DESC = "Nome (Z→A)"
 ORDER_LABEL_ID_ASC = "ID (1→9)"
 ORDER_LABEL_ID_DESC = "ID (9→1)"
 ORDER_LABEL_UPDATED_RECENT = "Última Alteração (mais recente)"
 ORDER_LABEL_UPDATED_OLD = "Última Alteração (mais antiga)"
+ORDER_LABEL_TELEFONE_DDD_ASC = "WhatsApp (DDD menor→maior)"
+ORDER_LABEL_TELEFONE_DDD_DESC = "WhatsApp (DDD maior→menor)"
 
 ORDER_LABEL_ALIASES = {
     "Razao Social (A->Z)": ORDER_LABEL_RAZAO,
     "CNPJ (A->Z)": ORDER_LABEL_CNPJ,
     "Nome (A->Z)": ORDER_LABEL_NOME,
+    "Nome (Z->A)": ORDER_LABEL_NOME_DESC,
     "Ultima Alteracao (mais recente)": ORDER_LABEL_UPDATED_RECENT,
     "Ultima Alteracao (mais antiga)": ORDER_LABEL_UPDATED_OLD,
     "ID (1→9)": ORDER_LABEL_ID_ASC,
@@ -54,8 +58,22 @@ ORDER_LABEL_ALIASES = {
     "ID (9-1)": ORDER_LABEL_ID_DESC,
     "Razão Social (A→Z)": ORDER_LABEL_RAZAO,
     "Razão Social (Z→A)": ORDER_LABEL_RAZAO_DESC,
+    "Nome (A→Z)": ORDER_LABEL_NOME,
+    "Nome (Z→A)": ORDER_LABEL_NOME_DESC,
+    # Compat "MAIS RECENTE/ANTIGA" (toolbar antigo) → label normalizado
     "Última Alteração (MAIS RECENTE)": ORDER_LABEL_UPDATED_RECENT,
     "Última Alteração (MAIS ANTIGA)": ORDER_LABEL_UPDATED_OLD,
+    "Última Alteração (mais recente)": ORDER_LABEL_UPDATED_RECENT,
+    "Última Alteração (mais antiga)": ORDER_LABEL_UPDATED_OLD,
+    # WhatsApp (antigos aliases "Telefone" mantidos para compat com prefs salvas)
+    "Telefone (DDD menor→maior)": ORDER_LABEL_TELEFONE_DDD_ASC,
+    "Telefone (DDD menor->maior)": ORDER_LABEL_TELEFONE_DDD_ASC,
+    "Telefone (DDD maior→menor)": ORDER_LABEL_TELEFONE_DDD_DESC,
+    "Telefone (DDD maior->menor)": ORDER_LABEL_TELEFONE_DDD_DESC,
+    "WhatsApp (DDD menor→maior)": ORDER_LABEL_TELEFONE_DDD_ASC,
+    "WhatsApp (DDD menor->maior)": ORDER_LABEL_TELEFONE_DDD_ASC,
+    "WhatsApp (DDD maior→menor)": ORDER_LABEL_TELEFONE_DDD_DESC,
+    "WhatsApp (DDD maior->menor)": ORDER_LABEL_TELEFONE_DDD_DESC,
 }
 
 DEFAULT_ORDER_LABEL = ORDER_LABEL_RAZAO
@@ -64,11 +82,16 @@ ORDER_CHOICES: dict[str, tuple[str | None, bool]] = {
     ORDER_LABEL_RAZAO: ("razao_social", False),
     ORDER_LABEL_RAZAO_DESC: ("razao_social", True),
     ORDER_LABEL_CNPJ: ("cnpj", False),
-    ORDER_LABEL_NOME: ("nome", False),
+    # Nome: campos dedicados garantem vazios sempre no fim em ambas as direções
+    ORDER_LABEL_NOME: ("nome_asc", False),
+    ORDER_LABEL_NOME_DESC: ("nome_desc", False),
     ORDER_LABEL_ID_ASC: ("id", False),
     ORDER_LABEL_ID_DESC: ("id", True),
     ORDER_LABEL_UPDATED_RECENT: ("ultima_alteracao", True),  # True = mais recente primeiro
     ORDER_LABEL_UPDATED_OLD: ("ultima_alteracao", False),  # False = mais antiga primeiro
+    # Telefone: campos dedicados garantem vazios sempre no fim
+    ORDER_LABEL_TELEFONE_DDD_ASC: ("telefone_ddd_asc", False),
+    ORDER_LABEL_TELEFONE_DDD_DESC: ("telefone_ddd_desc", False),
 }
 
 

@@ -23,6 +23,7 @@ from src.core.db_manager import (
     find_cliente_by_cnpj_norm,
     get_cliente_by_id as core_get_cliente_by_id,
     list_clientes_deletados as _list_clientes_deletados_core,
+    update_status_only as _update_status_only,
 )
 from src.core.services import clientes_service as _legacy_clientes_service
 from src.core.session.session import get_current_user as _get_current_user
@@ -291,6 +292,179 @@ def salvar_cliente_a_partir_do_form(row: RowData | None, valores: FormValues) ->
     return salvar_cliente(row, dict(valores))
 
 
+# ---------------------------------------------------------------------------
+# Helpers internos para inserção em lote
+# ---------------------------------------------------------------------------
+_CNPJ_CHECK_BATCH = 150  # Tamanho padrão de cada lote IN(...) para checar duplicatas
+_CNPJ_CHECK_MIN = 25  # Tamanho mínimo antes de desistir no fallback
+
+
+def _is_uri_too_long(exc: BaseException) -> bool:
+    """Detecta erro 414 URI Too Long ou mensagem equivalente do PostgREST."""
+    msg = str(exc).lower()
+    return "uri too long" in msg or "414" in msg or "request-uri too large" in msg
+
+
+def _fetch_existing_cnpjs(cnpjs: list[str]) -> set[str]:
+    """Consulta CNPJs já cadastrados no banco, com fallback para URI Too Long.
+
+    Busca em lotes de ``_CNPJ_CHECK_BATCH``.  Se o PostgREST retornar
+    414 (URI Too Long), reduz o lote pela metade e retenta, até um mínimo
+    de ``_CNPJ_CHECK_MIN``.
+    """
+    found: set[str] = set()
+    chunk = _CNPJ_CHECK_BATCH
+
+    i = 0
+    while i < len(cnpjs):
+        batch = cnpjs[i : i + chunk]
+        try:
+            resp = exec_postgrest(
+                supabase.table("clients").select("cnpj_norm").is_("deleted_at", "null").in_("cnpj_norm", batch)
+            )
+            for row in resp.data or []:
+                cn = row.get("cnpj_norm")
+                if cn:
+                    found.add(cn)
+            i += chunk  # avança
+        except Exception as exc:
+            if _is_uri_too_long(exc) and chunk > _CNPJ_CHECK_MIN:
+                new_chunk = max(chunk // 2, _CNPJ_CHECK_MIN)
+                log.warning(
+                    "salvar_clientes_em_lote: URI Too Long com batch=%d; reduzindo para %d.",
+                    chunk,
+                    new_chunk,
+                )
+                chunk = new_chunk
+                # NÃO avança i — retenta o mesmo trecho com batch menor
+            else:
+                log.warning("salvar_clientes_em_lote: falha ao checar CNPJs existentes: %s", exc)
+                break  # desiste, prossegue sem filtro completo
+
+    return found
+
+
+def salvar_clientes_em_lote(
+    lista: list[dict[str, Any]],
+    *,
+    skip_duplicados: bool = True,
+    batch_size: int = 200,
+    progress_cb: Callable[[int, int], None] | None = None,
+) -> tuple[list[int], list[dict[str, Any]]]:
+    """Insere múltiplos clientes via batch HTTP (muito mais rápido que um-a-um).
+
+    Fluxo:
+      1. Normaliza payloads (CNPJ, telefone)
+      2. Remove duplicados internos (mesmo cnpj_norm) se skip_duplicados=True
+      3. Consulta CNPJ existentes no banco e filtra conflitos
+      4. Insere em lotes via insert_clientes_batch
+
+    Args:
+        lista: Lista de dicts com campos do cliente.
+               Chaves aceitas: Razão Social/razao_social, CNPJ/cnpj,
+               Nome/nome, WhatsApp/whatsapp/numero, Observações/obs.
+        skip_duplicados: Se True, pula clientes com CNPJ já no banco ou repetidos na lista.
+        batch_size: Tamanho de cada lote HTTP.
+        progress_cb: Callback(inseridos_ate_agora, total) para UI progress.
+
+    Returns:
+        (ids_inseridos, lista_de_skipped_dicts_com_motivo)
+    """
+    from src.core.db_manager import insert_clientes_batch
+    from src.utils.formatters import format_cnpj
+    from src.utils.phone_utils import format_phone_br
+
+    if not lista:
+        return [], []
+
+    # 1. Normalizar payloads
+    normalized: list[dict[str, Any]] = []
+    seen_cnpj: set[str] = set()
+    skipped: list[dict[str, Any]] = []
+
+    for item in lista:
+        razao = (item.get("Razão Social") or item.get("Razao Social") or item.get("razao_social") or "").strip()
+        cnpj_raw = (item.get("CNPJ") or item.get("cnpj") or "").strip()
+        nome = (item.get("Nome") or item.get("nome") or "").strip()
+        whatsapp_raw = (
+            item.get("WhatsApp")
+            or item.get("Whatsapp")
+            or item.get("whatsapp")
+            or item.get("numero")
+            or item.get("Telefone")
+            or item.get("telefone")
+            or ""
+        ).strip()
+        obs = (item.get("Observações") or item.get("Observacoes") or item.get("obs") or "").strip()
+
+        cnpj_fmt = format_cnpj(cnpj_raw) if cnpj_raw else ""
+        cnpj_norm = normalize_cnpj_norm(cnpj_raw)
+        numero_fmt = format_phone_br(whatsapp_raw) if whatsapp_raw else whatsapp_raw
+
+        # Validação mínima
+        if not (razao or cnpj_raw or nome or whatsapp_raw):
+            skipped.append({**item, "_motivo": "Todos os campos vazios"})
+            continue
+
+        # Duplicidade interna (mesmo CNPJ na lista)
+        if skip_duplicados and cnpj_norm:
+            if cnpj_norm in seen_cnpj:
+                skipped.append({**item, "_motivo": f"CNPJ duplicado na lista ({cnpj_raw})"})
+                continue
+            seen_cnpj.add(cnpj_norm)
+
+        normalized.append(
+            {
+                "razao_social": razao,
+                "cnpj": cnpj_fmt or cnpj_raw,
+                "cnpj_norm": cnpj_norm,
+                "nome": nome,
+                "numero": numero_fmt or whatsapp_raw,
+                "obs": obs,
+            }
+        )
+
+    # 2. Consultar CNPJs existentes no banco (um SELECT com IN)
+    if skip_duplicados:
+        cnpjs_to_check = [c["cnpj_norm"] for c in normalized if c["cnpj_norm"]]
+        existing_cnpjs: set[str] = set()
+        if cnpjs_to_check:
+            existing_cnpjs = _fetch_existing_cnpjs(cnpjs_to_check)
+
+        # Filtrar os que já existem
+        filtered: list[dict[str, Any]] = []
+        for c in normalized:
+            if c["cnpj_norm"] and c["cnpj_norm"] in existing_cnpjs:
+                skipped.append({**c, "_motivo": f"CNPJ já cadastrado ({c['cnpj']})"})
+                continue
+            filtered.append(c)
+        normalized = filtered
+
+    if not normalized:
+        return [], skipped
+
+    # 3. Inserir em lotes (com progress_cb por batch)
+    total_to_insert = len(normalized)
+    inserted_ids: list[int] = []
+    for i in range(0, total_to_insert, batch_size):
+        batch = normalized[i : i + batch_size]
+        batch_ids = insert_clientes_batch(batch, batch_size=batch_size)
+        inserted_ids.extend(batch_ids)
+        if progress_cb:
+            try:
+                progress_cb(len(inserted_ids), len(lista))
+            except Exception:  # noqa: BLE001
+                pass
+
+    log.info(
+        "salvar_clientes_em_lote: %d inseridos, %d pulados (de %d total).",
+        len(inserted_ids),
+        len(skipped),
+        len(lista),
+    )
+    return inserted_ids, skipped
+
+
 def mover_cliente_para_lixeira(cliente_id: int) -> None:
     """
     Marca o cliente como deletado (soft delete) atualizando os campos
@@ -540,8 +714,20 @@ def fetch_cliente_by_id(cliente_id: int) -> dict[str, Any] | None:
         "id": getattr(out, "id", None),
         "razao_social": getattr(out, "razao_social", None),
         "cnpj": getattr(out, "cnpj", None),
+        "cnpj_norm": getattr(out, "cnpj_norm", None),
         "numero": getattr(out, "numero", None),
+        # FIX: campo 'nome' (nome usado no dia-a-dia) estava ausente no fallback
+        "nome": getattr(out, "nome", None) or getattr(out, "contato", None),
         "observacoes": getattr(out, "observacoes", None) or getattr(out, "obs", None),
+        "obs": getattr(out, "obs", None) or getattr(out, "observacoes", None),
+        "ultima_alteracao": getattr(out, "ultima_alteracao", None),
+        "ultima_por": getattr(out, "ultima_por", None),
+        "created_at": getattr(out, "created_at", None),
+        # Campos de endereço (podem existir no modelo)
+        "endereco": getattr(out, "endereco", None),
+        "bairro": getattr(out, "bairro", None),
+        "cidade": getattr(out, "cidade", None),
+        "cep": getattr(out, "cep", None),
     }
 
 
@@ -562,11 +748,14 @@ def update_cliente_status_and_observacoes(cliente: Mapping[str, Any] | int, novo
 
     raw_obs = (
         cli_dict.get("observacoes")
+        or cli_dict.get("obs")
         or getattr(cliente, "observacoes", None)
+        or getattr(cliente, "obs", None)
         or getattr(cliente, "Observacoes", None)
         or ""
     )
     body = STATUS_PREFIX_RE.sub("", raw_obs, count=1).strip()
     new_obs = f"[{novo_status}] {body}".strip() if novo_status else body
 
-    exec_postgrest(supabase.table("clients").update({"observacoes": new_obs}).eq("id", cliente_id))
+    # Delega para o core (update_status_only já trata coluna 'obs' + fallback ultima_por)
+    _update_status_only(cliente_id, new_obs)

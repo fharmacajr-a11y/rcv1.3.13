@@ -135,6 +135,15 @@ class ClientesV2Frame(ctk.CTkFrame):
         # Não empacotar inicialmente; será mostrado quando houver mais páginas
         self._load_more_visible = False
 
+        # Aviso exibido quando fetch_all atinge o limite de 1000 registros
+        self._cap_hit_label = ctk.CTkLabel(
+            self,
+            text="⚠ Resultados limitados a 1000. Refine a busca.",
+            text_color="#f0ad4e",
+            font=ctk.CTkFont(size=12),
+        )
+        self._cap_hit_label_visible = False
+
         # FASE 3.4: ActionBar ou PickBar no rodapé
         if self._pick_mode:
             # Modo pick: botões Selecionar/Cancelar
@@ -786,18 +795,35 @@ class ClientesV2Frame(ctk.CTkFrame):
         log.info(f"✅ [Clientes] {len(sample_data)} registros de exemplo carregados")
 
     def _initial_load(self) -> None:
-        """Carga inicial de dados reais."""
+        """Carga inicial de dados reais (assíncrona para não travar a UI)."""
         log.info("[Clientes] Iniciando carga de dados reais...")
-        try:
-            self._vm.refresh_from_service()
-            self._render_rows()
-            self._sync_load_more_btn()
-            log.info(f"[Clientes] Dados carregados: {len(self._vm.get_rows())} clientes")
 
-            # Atualizar lista de status do toolbar com dados do ViewModel
-            self.after(500, self._update_toolbar_status_list)
-        except Exception as e:
-            log.error(f"[Clientes] Erro ao carregar dados: {e}", exc_info=True)
+        self._load_gen += 1
+        gen = self._load_gen
+
+        def _fetch() -> None:
+            try:
+                # Usa a ordenação padrão da toolbar para que a primeira página
+                # já venha do servidor com o sort correto.
+                default_order = self._vm._current_order_label
+                self._vm.refresh_from_service(order_label=default_order)
+            except Exception as e:
+                log.error(f"[Clientes] Erro ao carregar dados: {e}", exc_info=True)
+                return
+            if gen == self._load_gen and self.winfo_exists():
+                self.after(0, lambda: self._finish_initial_load(gen))
+
+        t = threading.Thread(target=_fetch, daemon=True, name="clientes-initial-load")
+        t.start()
+
+    def _finish_initial_load(self, gen: int) -> None:
+        """Callback na main thread após carga inicial."""
+        if gen != self._load_gen:
+            return
+        self._render_rows()
+        self._sync_load_more_btn()
+        log.info(f"[Clientes] Dados carregados: {len(self._vm.get_rows())} clientes")
+        self.after(500, self._update_toolbar_status_list)
 
     def carregar(self) -> None:
         """Recarrega a lista respeitando filtros e modo (lixeira/ativo) atuais."""
@@ -925,14 +951,21 @@ class ClientesV2Frame(ctk.CTkFrame):
                         self.after(0, lambda: self._finish_load_trash(gen, rows, search, status))
                 else:
                     # Modo normal: refresh + rebuild no ViewModel
-                    self._vm.refresh_from_service()
-                    t_fetch = time.perf_counter()
-                    log.debug(f"[Clientes] fetch_end elapsed={t_fetch - t0:.3f}s")
+                    # Propaga term e order_label ao servidor (server-side search + sort)
+                    # fetch_all só ativa com termo >= 2 chars para evitar queries pesadas
+                    stripped = (search or "").strip()
+                    has_search = len(stripped) >= 2
                     self._vm.set_search_text(search if search else None, rebuild=False)
                     self._vm.set_status_filter(status if status else None, rebuild=False)
                     if order_label:
                         self._vm.set_order_label(order_label, rebuild=False)
-                    self._vm._rebuild_rows()
+                    self._vm.refresh_from_service(
+                        term=search,
+                        order_label=order_label or self._vm._current_order_label,
+                        fetch_all=has_search,
+                    )
+                    t_fetch = time.perf_counter()
+                    log.debug(f"[Clientes] fetch_end elapsed={t_fetch - t0:.3f}s")
 
                     if gen == self._load_gen:
                         self.after(0, lambda: self._finish_load_normal(gen, search, status))
@@ -987,15 +1020,24 @@ class ClientesV2Frame(ctk.CTkFrame):
     # ── Paginação (PR5) ──────────────────────────────────────────
 
     def _sync_load_more_btn(self) -> None:
-        """Mostra/esconde botão 'Carregar mais' conforme has_more do ViewModel."""
+        """Mostra/esconde botão 'Carregar mais' e aviso de cap-hit."""
         try:
-            should_show = self._vm.has_more and not self._trash_mode
+            cap = getattr(self._vm, "cap_hit", False)
+            should_show = self._vm.has_more and not self._trash_mode and (not self._vm._fetch_all or cap)
             if should_show and not self._load_more_visible:
                 self._load_more_btn.pack(side="top", pady=(2, 4))
                 self._load_more_visible = True
             elif not should_show and self._load_more_visible:
                 self._load_more_btn.pack_forget()
                 self._load_more_visible = False
+
+            # Aviso de cap-hit
+            if cap and not self._cap_hit_label_visible:
+                self._cap_hit_label.pack(side="top", pady=(0, 4))
+                self._cap_hit_label_visible = True
+            elif not cap and self._cap_hit_label_visible:
+                self._cap_hit_label.pack_forget()
+                self._cap_hit_label_visible = False
         except Exception:
             pass
 

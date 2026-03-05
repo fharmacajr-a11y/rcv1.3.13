@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-from collections.abc import Callable
-from dataclasses import dataclass, field
 import json
 import logging
 import os
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Collection, Dict, Iterable, List
-
-if TYPE_CHECKING:
-    pass  # Imports apenas para type checking, se necessário
 
 from src.core.search import search_clientes
 from src.core.string_utils import only_digits
@@ -16,10 +13,12 @@ from src.core.textnorm import join_and_normalize
 from src.ui.dialogs.rc_dialogs import show_error, show_info, show_warning
 from src.utils.phone_utils import normalize_br_whatsapp
 
-# Import do módulo core (mesma pasta)
 from . import constants as status_helpers
 
-logger = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    pass  # Imports apenas para type checking, se necessário
+
+log = logging.getLogger(__name__)
 
 #: Tamanho padrão de página para busca paginada no Supabase.
 PAGE_SIZE: int = 200
@@ -108,30 +107,124 @@ class ClientesViewModel:
         self._current_offset: int = 0
         self._has_more: bool = False
 
+        # Estado server-side (query propagada ao Supabase)
+        self._server_term: str = ""
+        self._server_order_by: str | None = None
+        self._fetch_all: bool = False
+        self._cap_hit: bool = False
+
     # ------------------------------------------------------------------ #
     # Carregamento de dados
     # ------------------------------------------------------------------ #
 
-    def refresh_from_service(self) -> None:
+    # Mapeamento de labels de UI → order_by server-side.
+    # Labels cujo campo só faz sentido em sort local (telefone_ddd, nome_asc…)
+    # são mapeados para o equivalente canônico mais próximo, ou None.
+    _LABEL_TO_SERVER: dict[str, str | None] = {
+        "razao_social": "razao_social",
+        "cnpj": "cnpj",
+        "id": "id",
+        "ultima_alteracao": "ultima_alteracao",
+        # campos locais — mapeados para coluna DB mais próxima
+        "nome_asc": "nome",
+        "nome_desc": "-nome",
+        "telefone_ddd_asc": None,  # sem coluna server-side
+        "telefone_ddd_desc": None,
+        "telefone_ddd": None,
+    }
+
+    def _label_to_server_order(self, order_label: str | None) -> str | None:
+        """Converte o order_label da UI (ex: ``ORDER_CHOICES`` field) em string para ``search_clientes``.
+
+        Retorna ``None`` quando a ordenação só faz sentido localmente.
+        Para campos com *reverse=True* no ``ORDER_CHOICES``, adiciona prefixo ``-``.
+        """
+        if not order_label or order_label not in self._order_choices:
+            return None
+
+        field, reverse = self._order_choices[order_label]
+        if field is None:
+            return None
+
+        # Verificar se tem mapeamento explícito
+        server_col = self._LABEL_TO_SERVER.get(field, field)
+        if server_col is None:
+            return None
+
+        # Se o mapeamento já contém prefixo (-), respeitar
+        if server_col.startswith("-") or server_col.startswith("+"):
+            return server_col
+
+        # Aplicar flag de reverse do ORDER_CHOICES
+        if reverse:
+            return f"-{server_col}"
+        return f"+{server_col}"
+
+    def refresh_from_service(
+        self,
+        term: str | None = None,
+        order_label: str | None = None,
+        *,
+        fetch_all: bool = False,
+    ) -> None:
         """Carrega primeira página de clientes via search_clientes.
 
-        Reseta offset para 0 e busca até *PAGE_SIZE* registros.
-        Filtros e ordenação são responsabilidade do controller headless.
+        Args:
+            term: Termo de busca server-side (passado ao Supabase ``ilike``).
+                  ``None`` ou ``""`` = sem filtro textual.
+            order_label: Label de ordenação da UI.  Convertido para
+                         ``order_by`` server-side via ``_label_to_server_order``.
+            fetch_all: Se ``True``, busca **todos** os registros (``limit=None``)
+                       — usado quando o usuário pesquisa para não perder resultados.
         """
+        # Persistir estado para load_next_page
+        self._server_term = (term or "").strip()
+        self._server_order_by = self._label_to_server_order(order_label)
+        self._fetch_all = fetch_all
+
+        # Termo muito curto não justifica fetch_all — fallback para paginação normal
+        if fetch_all and len(self._server_term) < 2:
+            self._fetch_all = False
+            fetch_all = False
+
+        fetch_all_limit = 1000
+
         self._current_offset = 0
+        lim: int | None = fetch_all_limit if fetch_all else self._page_size
         try:
-            clientes = search_clientes("", None, limit=self._page_size, offset=0)
+            clientes = search_clientes(
+                self._server_term,
+                self._server_order_by,
+                limit=lim,
+                offset=0,
+            )
         except Exception as exc:  # pragma: no cover - erros propagados
             raise ClientesViewModelError(str(exc)) from exc
 
-        self._has_more = len(clientes) >= self._page_size
-        self._current_offset = len(clientes)
+        if fetch_all:
+            self._cap_hit = len(clientes) >= fetch_all_limit
+            self._has_more = self._cap_hit
+            if self._cap_hit:
+                log.warning(
+                    "fetch_all atingiu o limite de %d registros para term=%r; " "resultados podem estar incompletos",
+                    fetch_all_limit,
+                    self._server_term,
+                )
+            self._current_offset = len(clientes)
+        else:
+            self._cap_hit = False
+            self._has_more = len(clientes) >= self._page_size
+            self._current_offset = len(clientes)
+
         self._clientes_raw = list(clientes)
         self._update_status_choices()
         self._rebuild_rows()
 
     def load_next_page(self) -> bool:
         """Carrega próxima página e acrescenta aos dados existentes.
+
+        Reutiliza ``_server_term`` e ``_server_order_by`` salvos por
+        ``refresh_from_service`` para manter ordenação/filtro consistentes.
 
         Returns:
             True se novos registros foram carregados, False se não há mais.
@@ -140,15 +233,23 @@ class ClientesViewModel:
             return False
 
         try:
-            clientes = search_clientes("", None, limit=self._page_size, offset=self._current_offset)
+            clientes = search_clientes(
+                self._server_term,
+                self._server_order_by,
+                limit=self._page_size,
+                offset=self._current_offset,
+            )
         except Exception as exc:  # pragma: no cover
             raise ClientesViewModelError(str(exc)) from exc
 
         if not clientes:
             self._has_more = False
+            self._cap_hit = False
             return False
 
         self._has_more = len(clientes) >= self._page_size
+        if not self._has_more:
+            self._cap_hit = False
         self._current_offset += len(clientes)
         self._clientes_raw.extend(clientes)
         self._update_status_choices()
@@ -159,6 +260,11 @@ class ClientesViewModel:
     def has_more(self) -> bool:  # noqa: D401
         """True se há mais páginas a carregar do servidor."""
         return self._has_more
+
+    @property
+    def cap_hit(self) -> bool:  # noqa: D401
+        """True se fetch_all atingiu o limite de 1000 registros."""
+        return self._cap_hit
 
     def load_from_iterable(self, clientes: Iterable[Any]) -> None:
         """Utilitário para testes: injeta dados fake."""
@@ -344,7 +450,7 @@ class ClientesViewModel:
             show_warning(None, "Exportar Clientes", "Nenhum cliente selecionado para exportação.")
             return
 
-        logger.info("Export batch solicitado para %d cliente(s): %s", len(ids), ids)
+        log.info("Export batch solicitado para %d cliente(s): %s", len(ids), ids)
 
         # Filtrar rows dos clientes selecionados
         ids_set = set(ids)
@@ -379,7 +485,7 @@ class ClientesViewModel:
         )
 
         if not output_path:
-            logger.info("Exportação cancelada pelo usuário")
+            log.info("Exportação cancelada pelo usuário")
             return
 
         # Determinar formato baseado na extensão
@@ -413,7 +519,7 @@ class ClientesViewModel:
                 )
 
         except Exception as exc:
-            logger.error("Erro ao exportar clientes: %s", exc)
+            log.error("Erro ao exportar clientes: %s", exc)
             show_error(
                 None,
                 "Erro de Exportação",
@@ -543,6 +649,60 @@ class ClientesViewModel:
 
             key_func = key_func_ts  # type: ignore[assignment]  # Pyright não consegue inferir união de int|bool
 
+        elif field in ("telefone_ddd", "telefone_ddd_asc", "telefone_ddd_desc"):
+            # Ordenação numérica por DDD e depois pelo restante do número
+            _desc_tel = field == "telefone_ddd_desc"
+
+            def key_func_telefone(row: ClienteRow, _desc: bool = _desc_tel) -> tuple[int, int, int]:
+                # Pegar telefone de whatsapp (preferido) ou numero
+                raw = (row.whatsapp or "").strip()
+                if not raw:
+                    raw = getattr(row, "numero", "") or ""
+                    raw = raw.strip()
+
+                # Extrair somente dígitos
+                digits = "".join(c for c in raw if c.isdigit())
+
+                # Remover prefixo internacional "55" do Brasil se necessário
+                if digits.startswith("55") and len(digits) > 11:
+                    digits = digits[2:]
+
+                # Válido: mínimo 10 dígitos (DDD + 8 dig) ou 11 (DDD + 9 dig)
+                if len(digits) < 10:
+                    # Inválido/vazio: vai para o final
+                    return (1, 0, 0)
+
+                # DDD = primeiros 2 dígitos, resto = demais
+                try:
+                    ddd = int(digits[:2])
+                    resto = int(digits[2:])
+                    if _desc:
+                        # Negamos para ordem decrescente sem usar reverse=True
+                        # (garante que vazios is_empty=1 ficam no fim)
+                        return (0, -ddd, -resto)
+                    return (0, ddd, resto)
+                except (ValueError, TypeError):
+                    return (1, 0, 0)
+
+            key_func = key_func_telefone  # type: ignore[assignment]
+
+        elif field in ("nome_asc", "nome_desc", "nome"):
+            # Ordenação alfabética pelo nome (campo 'nome' do cliente)
+            # Vazios sempre no fim em ambas as direções (sem depender de reverse)
+            _desc_nome = field == "nome_desc"
+            _max_cp = 0x10FFFF
+
+            def key_func_nome(row: ClienteRow, _desc: bool = _desc_nome, _mx: int = _max_cp) -> tuple[int, str]:
+                val = (getattr(row, "nome", "") or "").strip()
+                if not val:
+                    return (1, "")
+                if _desc:
+                    # Inverter codepoints para ordem descend. sem usar reverse
+                    return (0, "".join(chr(_mx - ord(c)) for c in val.casefold()))
+                return (0, val.casefold())
+
+            key_func = key_func_nome  # type: ignore[assignment]
+
         else:
             # Ordenação alfabética por campo genérico
             def key_func_generic(row: ClienteRow) -> tuple[bool, str]:
@@ -554,7 +714,7 @@ class ClientesViewModel:
         try:
             return sorted(rows, key=key_func, reverse=reverse)
         except Exception as exc:  # noqa: BLE001
-            logger.debug("Falha ao ordenar rows por %s: %s", field, exc)
+            log.debug("Falha ao ordenar rows por %s: %s", field, exc)
             return rows
 
     # ------------------------------------------------------------------ #
@@ -571,7 +731,7 @@ class ClientesViewModel:
 
             cnpj_fmt = format_cnpj(cnpj_raw) or cnpj_raw
         except Exception as exc:  # noqa: BLE001
-            logger.debug("Falha ao formatar CNPJ no ClientesViewModel: %s", exc)
+            log.debug("Falha ao formatar CNPJ no ClientesViewModel: %s", exc)
 
         updated_raw = self._value_from_cliente(cliente, "ultima_alteracao", "updated_at")
         updated_fmt = ""
