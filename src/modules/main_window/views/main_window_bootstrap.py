@@ -39,7 +39,6 @@ def bootstrap_main_window(app: App) -> None:
     from src.modules.main_window.views.main_window_layout import build_main_window_layout
     from src.modules.main_window.views.main_window_services import (
         init_auth_controller,
-        init_notifications_service,
         init_status_monitor,
         init_supabase_client,
         init_theme_manager,
@@ -92,13 +91,12 @@ def bootstrap_main_window(app: App) -> None:
     # 2. INIT SERVICES
     # ═══════════════════════════════════════════════════════════════
 
-    # Notifications
-    with perf_timer("startup.init_notifications", log, threshold_ms=100):
-        app._notifications_service = init_notifications_service(app)
-        app.notifications_service = app._notifications_service
-        app._mute_notifications = False
-        app._last_unread_count = 0
-        app._notifications_baselined = False
+    # Notifications — DESATIVADO v1.5.99 (eliminado para resolver ReadError no shutdown)
+    app._notifications_service = None
+    app.notifications_service = None
+    app._mute_notifications = False
+    app._last_unread_count = 0
+    app._notifications_baselined = True  # True = nunca faz baseline
 
     # Supabase client
     with perf_timer("startup.init_supabase", log, threshold_ms=50):
@@ -173,7 +171,7 @@ def bootstrap_main_window(app: App) -> None:
     # App herda de tb.Window (Tk), que tem after/after_cancel - cast para o Protocol
     app._pollers = MainWindowPollers(
         cast(Scheduler, app),
-        on_poll_notifications=app._poll_notifications_impl,
+        on_poll_notifications=None,  # DESATIVADO v1.5.99: notificações removidas
         on_poll_health=app._poll_health_impl,
         on_refresh_status=app._refresh_status_impl,
         logger=log,

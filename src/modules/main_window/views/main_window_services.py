@@ -11,31 +11,9 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-def init_notifications_service(app: "MainWindow") -> Optional[Any]:
-    """Inicializa o serviço de notificações.
-
-    Args:
-        app: Instância do MainWindow
-
-    Returns:
-        Instância do NotificationsService ou None se falhar
-    """
-    try:
-        from src.infra.repositories.notifications_repository import NotificationsRepositoryAdapter
-        from src.core.notifications_service import NotificationsService
-
-        notifications_repo = NotificationsRepositoryAdapter()
-        service = NotificationsService(
-            repository=notifications_repo,
-            org_id_provider=app._get_org_id_cached_simple,
-            user_provider=app._get_user_with_org,
-            logger=log,
-        )
-        log.info("[MainWindow] NotificationsService inicializado com sucesso")
-        return service
-    except Exception as exc:
-        log.exception("[MainWindow] Falha ao inicializar NotificationsService: %s", exc)
-        return None
+def init_notifications_service(app: "MainWindow") -> Optional[Any]:  # noqa: ARG001
+    """DESATIVADO v1.5.99: Notificações removidas. Retorna None sempre."""
+    return None
 
 
 def init_status_monitor(app: "MainWindow") -> Optional[Any]:

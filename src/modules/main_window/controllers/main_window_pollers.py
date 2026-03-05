@@ -44,7 +44,7 @@ class MainWindowPollers:
         self,
         scheduler: Scheduler,
         *,
-        on_poll_notifications: Callable[[], None],
+        on_poll_notifications: Callable[[], None] | None = None,
         on_poll_health: Callable[[], None],
         on_refresh_status: Callable[[], None],
         logger: logging.Logger | None = None,
@@ -53,7 +53,7 @@ class MainWindowPollers:
 
         Args:
             scheduler: Objeto com métodos after() e after_cancel() (ex: Tk Window)
-            on_poll_notifications: Callback para polling de notificações
+            on_poll_notifications: Callback para polling de notificações (None = desativado)
             on_poll_health: Callback para health check
             on_refresh_status: Callback para refresh de status
             logger: Logger customizado (opcional)
@@ -73,12 +73,13 @@ class MainWindowPollers:
 
     def start(self) -> None:
         """Inicia todos os pollers com timings iniciais."""
-        # Notifications: inicial 1s, depois 20s (no próprio callback)
-        try:
-            self._jobs["notifications"] = self._scheduler.after(1000, self._poll_notifications_wrapper)
-            self._log.debug("Notifications poller iniciado (1s inicial)")
-        except Exception as exc:
-            self._log.warning("Falha ao iniciar notifications poller: %s", exc)
+        # Notifications: DESATIVADO (v1.5.99) — callback None = skip
+        if self._on_poll_notifications is not None:
+            try:
+                self._jobs["notifications"] = self._scheduler.after(1000, self._poll_notifications_wrapper)
+                self._log.debug("Notifications poller iniciado (1s inicial)")
+            except Exception as exc:
+                self._log.warning("Falha ao iniciar notifications poller: %s", exc)
 
         # Status refresh: inicial 300ms (INITIAL_STATUS_DELAY)
         try:

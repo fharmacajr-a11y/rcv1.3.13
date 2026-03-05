@@ -212,9 +212,6 @@ class NotesController:
                 # Forçar reload das notas para garantir que a UI seja atualizada
                 self._gateway.reload_notes()
 
-                # CRÍTICO: Dashboard também precisa ser atualizado (notas podem afetar dashboard)
-                self._gateway.reload_dashboard()
-
                 # Publicar notificação (falha não afeta criação da nota)
                 try:
                     if self._notifications_service:
@@ -298,7 +295,6 @@ class NotesController:
 
                 # Forçar reload das notas
                 self._gateway.reload_notes()
-                self._gateway.reload_dashboard()
 
             return (True, "")
 
@@ -368,7 +364,6 @@ class NotesController:
 
                 # Forçar reload das notas
                 self._gateway.reload_notes()
-                self._gateway.reload_dashboard()
 
             return (True, "")
 
@@ -416,7 +411,6 @@ class NotesController:
 
                 # Forçar reload das notas
                 self._gateway.reload_notes()
-                self._gateway.reload_dashboard()
 
             self._logger.debug(f"Nota {note_id} {'fixada' if new_is_pinned else 'desfixada'}")
             return (True, "")
@@ -465,7 +459,6 @@ class NotesController:
 
                 # Forçar reload das notas
                 self._gateway.reload_notes()
-                self._gateway.reload_dashboard()
 
             self._logger.debug(f"Nota {note_id} marcada como {'concluída' if new_is_done else 'pendente'}")
             return (True, "")

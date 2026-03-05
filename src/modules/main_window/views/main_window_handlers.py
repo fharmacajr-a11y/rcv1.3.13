@@ -6,8 +6,6 @@ Extrai lógica complexa de handlers para reduzir complexidade do main_window.py.
 from __future__ import annotations
 
 import logging
-import os
-import threading
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -15,290 +13,38 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-# Correção para FIX 2: Lock para evitar sobreposição de notifications polling
-_notifications_poll_lock = threading.Lock()
+
+# ═══════════════════════════════════════════════════════════════════════════
+# NOTIFICAÇÕES — DESATIVADO v1.5.99 (eliminado para resolver ReadError no shutdown)
+# Todas as funções abaixo são NO-OPs seguros mantidos para compatibilidade.
+# ═══════════════════════════════════════════════════════════════════════════
 
 
-def show_notification_toast(app: "MainWindow", count: int) -> None:
-    """Mostra toast do Windows quando chegar nova notificação.
-
-    Args:
-        app: Instância do MainWindow
-        count: Número de novas notificações
-
-    Notas:
-        - Requer winotify instalado (pip install winotify)
-        - Em versões instaladas do app, pode ser necessário registrar AppId
-          via atalho no Menu Iniciar para banners aparecerem corretamente
-    """
-    try:
-        from winotify import Notification, audio  # type: ignore[import-untyped]
-    except ImportError:
-        # winotify não instalado - fallback silencioso
-        log.info(
-            "[Notifications] winotify não instalado; toasts do Windows desativados. "
-            "Para ativar, rode: pip install winotify"
-        )
-        return
-
-    try:
-        from src.utils.resource_path import resource_path
-
-        # Título e mensagem
-        title = "RCGestor"
-        message = f"Você tem {count} nova(s) notificação(ões)"
-
-        # Obter caminho do ícone (winotify requer caminho absoluto)
-        icon_path = None
-        try:
-            png_path = resource_path("rc.png")
-            if os.path.exists(png_path):
-                # Garantir caminho absoluto
-                icon_path = os.path.abspath(png_path)
-                log.debug("[Notifications] Toast: ícone encontrado em %s", icon_path)
-            else:
-                log.debug("[Notifications] Toast: ícone rc.png não encontrado, usando sem ícone")
-        except Exception as exc:
-            log.debug("[Notifications] Toast: erro ao buscar ícone, continuando sem ícone: %s", exc)
-
-        # Log de diagnóstico
-        log.info(
-            "[Notifications] Toast: tentando mostrar (app_id=RCGestor, title=%s, icon=%s)",
-            title,
-            icon_path or "None",
-        )
-
-        # Criar toast (com ou sem ícone)
-        if icon_path:
-            toast = Notification(
-                app_id="RCGestor",
-                title=title,
-                msg=message,
-                duration="short",
-                icon=icon_path,
-            )
-        else:
-            toast = Notification(
-                app_id="RCGestor",
-                title=title,
-                msg=message,
-                duration="short",
-            )
-
-        # Definir áudio (usar Default para som de notificação)
-        toast.set_audio(audio.Default, loop=False)
-
-        # Mostrar
-        toast.show()
-
-        log.info("[Notifications] Toast exibido com sucesso: %s", message)
-
-    except Exception:
-        # Erro ao mostrar toast - logar stack completo
-        log.exception("[Notifications] Erro ao mostrar toast do Windows")
-        # Nota: não re-raise para não quebrar a aplicação
+def show_notification_toast(app: "MainWindow", count: int) -> None:  # noqa: ARG001
+    """NO-OP: Notificações desativadas v1.5.99."""
 
 
-def poll_notifications_impl(app: "MainWindow") -> None:
-    """Implementação headless de polling de notificações (sem lógica de reagendamento).
-
-    Args:
-        app: Instância do MainWindow
-    """
-    if not app._notifications_service:
-        return
-
-    # Verificar se temos org_id
-    org_id = app._get_org_id_cached_simple()
-    if not org_id:
-        return
-
-    # Correção para FIX 2: Move I/O para thread com proteção contra sobreposição
-    if not _notifications_poll_lock.acquire(False):
-        return  # Já existe polling em andamento
-
-    svc = app._notifications_service
-
-    def _do_notifications():
-        try:
-            unread_count = svc.fetch_unread_count(include_self=True)
-
-            # Callback no main thread via after(0)
-            try:
-                if app.winfo_exists():
-                    app.after(0, lambda: _apply_notifications_result(app, unread_count))
-            except Exception:  # noqa: BLE001
-                pass  # App já foi destruído
-        except Exception:
-            log.exception("[Notifications] Erro ao fazer polling")
-        finally:
-            _notifications_poll_lock.release()
-
-    threading.Thread(target=_do_notifications, daemon=True).start()
+def poll_notifications_impl(app: "MainWindow") -> None:  # noqa: ARG001
+    """NO-OP: Notificações desativadas v1.5.99."""
 
 
-def _apply_notifications_result(app: "MainWindow", unread_count: int) -> None:
-    """Aplica resultado do polling de notificações no main thread."""
-    try:
-        # Atualizar badge no TopBar
-        if hasattr(app, "_topbar") and app._topbar:
-            app._topbar.set_notifications_count(unread_count)
-
-        # Criar baseline na primeira execução (evitar "chuva de toast" ao abrir)
-        if not getattr(app, "_notifications_baselined", False):
-            app._last_unread_count = unread_count
-            app._notifications_baselined = True
-            return
-
-        # Detectar NOVAS notificações (contador aumentou)
-        if unread_count > app._last_unread_count:
-            new_count = unread_count - app._last_unread_count
-            log.info("[Notifications] Polling: %d NOVA(S) notificação(ões) detectada(s)", new_count)
-
-            # Mostrar toast se não estiver silenciado
-            if not app._mute_notifications:
-                show_notification_toast(app, new_count)
-        else:
-            log.debug("[Notifications] Polling: %d não lida(s) (sem mudanças)", unread_count)
-
-        # Atualizar contador anterior
-        app._last_unread_count = unread_count
-
-    except Exception:
-        log.exception("[Notifications] Erro ao aplicar resultado do polling")
+def on_notifications_clicked(app: "MainWindow") -> None:  # noqa: ARG001
+    """NO-OP: Notificações desativadas v1.5.99."""
 
 
-def on_notifications_clicked(app: "MainWindow") -> None:
-    """Callback quando usuário clica no botão de notificações.
-
-    Args:
-        app: Instância do MainWindow
-    """
-    if not app._notifications_service:
-        return
-
-    try:
-        # Buscar últimas notificações (já formatadas para UI)
-        notifications = app._notifications_service.fetch_latest_for_ui(limit=20)
-
-        # Buscar contador de não lidas e atualizar badge (incluindo próprias)
-        unread_count = app._notifications_service.fetch_unread_count(include_self=True)
-        if hasattr(app, "_topbar") and app._topbar:
-            app._topbar.set_notifications_count(unread_count)
-
-        # Atualizar dados no TopBar (também passa flag de mute)
-        if hasattr(app, "_topbar") and app._topbar:
-            app._topbar.set_notifications_data(notifications, mute_callback=app._toggle_mute_notifications)
-
-    except Exception:
-        log.exception("[Notifications] Erro ao buscar notificações")
+def mark_all_notifications_read(app: "MainWindow") -> bool:  # noqa: ARG001
+    """NO-OP: Notificações desativadas v1.5.99."""
+    return False
 
 
-def mark_all_notifications_read(app: "MainWindow") -> bool:
-    """Marca todas notificações como lidas.
-
-    Args:
-        app: Instância do MainWindow
-
-    Returns:
-        True se sucesso, False caso contrário
-    """
-    if not app._notifications_service:
-        return False
-
-    try:
-        # Chamar serviço para marcar como lidas
-        success = app._notifications_service.mark_all_read()
-
-        if success:
-            # Atualizar badge para 0
-            if hasattr(app, "_topbar") and app._topbar:
-                app._topbar.set_notifications_count(0)
-
-            # Atualizar contador anterior
-            app._last_unread_count = 0
-
-            log.info("[Notifications] Todas notificações marcadas como lidas")
-            return True
-        else:
-            log.warning("[Notifications] Serviço retornou False ao marcar notificações como lidas")
-            return False
-
-    except Exception:
-        log.exception("[Notifications] Erro ao marcar notificações como lidas")
-        return False
+def delete_notification_for_me(app: "MainWindow", notification_id: str) -> bool:  # noqa: ARG001
+    """NO-OP: Notificações desativadas v1.5.99."""
+    return False
 
 
-def delete_notification_for_me(app: "MainWindow", notification_id: str) -> bool:
-    """Exclui uma notificação apenas para o usuário atual (soft delete).
-
-    A notificação fica oculta apenas para este usuário, outros membros
-    da organização ainda podem vê-la.
-
-    Args:
-        app: Instância do MainWindow
-        notification_id: ID da notificação a excluir
-
-    Returns:
-        True se sucesso, False caso contrário
-    """
-    if not app._notifications_service:
-        log.warning("[Notifications] Serviço de notificações não disponível")
-        return False
-
-    try:
-        success = app._notifications_service.hide_notification_for_me(notification_id)
-
-        if success:
-            log.info("[Notifications] Notificação %s excluída para o usuário", notification_id)
-            # Recarregar notificações para atualizar a view
-            on_notifications_clicked(app)
-            return True
-        else:
-            log.warning("[Notifications] Falha ao excluir notificação %s", notification_id)
-            return False
-
-    except Exception:
-        log.exception("[Notifications] Erro ao excluir notificação %s", notification_id)
-        return False
-
-
-def delete_all_notifications_for_me(app: "MainWindow") -> bool:
-    """Exclui todas notificações apenas para o usuário atual (soft delete).
-
-    Todas as notificações ficam ocultas apenas para este usuário,
-    outros membros da organização ainda podem vê-las.
-
-    Args:
-        app: Instância do MainWindow
-
-    Returns:
-        True se sucesso, False caso contrário
-    """
-    if not app._notifications_service:
-        log.warning("[Notifications] Serviço de notificações não disponível")
-        return False
-
-    try:
-        success = app._notifications_service.hide_all_for_me()
-
-        if success:
-            log.info("[Notifications] Todas notificações excluídas para o usuário")
-            # Atualizar badge para 0
-            if hasattr(app, "_topbar") and app._topbar:
-                app._topbar.set_notifications_count(0)
-            # Atualizar contador anterior
-            app._last_unread_count = 0
-            # Recarregar notificações para atualizar a view
-            on_notifications_clicked(app)
-            return True
-        else:
-            log.warning("[Notifications] Falha ao excluir todas notificações")
-            return False
-
-    except Exception:
-        log.exception("[Notifications] Erro ao excluir todas notificações")
-        return False
+def delete_all_notifications_for_me(app: "MainWindow") -> bool:  # noqa: ARG001
+    """NO-OP: Notificações desativadas v1.5.99."""
+    return False
 
 
 def wire_session_and_health(app: "MainWindow") -> None:

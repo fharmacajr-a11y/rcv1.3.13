@@ -162,7 +162,7 @@ class TopBar(BaseTopBar):
         self.btn_pdf_viewer = self._nav.btn_pdf_viewer
         self.btn_chatgpt = self._nav.btn_chatgpt
         self.btn_sites = self._nav.btn_sites
-        self.btn_notifications = self._actions.btn_notifications
+        self.btn_notifications = None  # DESATIVADO v1.5.99
 
     def _handle_home(self) -> None:
         """Handler para o botão Início."""
@@ -232,23 +232,12 @@ class TopBar(BaseTopBar):
         """
         self._nav.set_pick_mode_active(active)
 
-    def set_notifications_count(self, count: int) -> None:
-        """Atualiza contador de notificações não lidas.
-
-        Args:
-            count: Número de notificações não lidas
-        """
-        self._actions.set_notifications_count(count)
+    def set_notifications_count(self, count: int) -> None:  # noqa: ARG002
+        """NO-OP: Notificações desativadas v1.5.99."""
 
     def set_notifications_data(
         self,
-        notifications: list[dict[str, Any]],
-        mute_callback: Any = None,
+        notifications: list[dict[str, Any]],  # noqa: ARG002
+        mute_callback: Any = None,  # noqa: ARG002
     ) -> None:
-        """Atualiza dados das notificações.
-
-        Args:
-            notifications: Lista de notificações
-            mute_callback: Callback para toggle de mute (recebe bool)
-        """
-        self._actions.set_notifications_data(notifications, mute_callback)
+        """NO-OP: Notificações desativadas v1.5.99."""
