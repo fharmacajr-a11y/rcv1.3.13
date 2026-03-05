@@ -87,11 +87,12 @@ class TestIsUnknownColumnError:
 class TestInsertClienteFallback:
     """Garante que insert_cliente aplica fallback apenas para coluna inexistente."""
 
+    @patch("src.core.db_manager.db_manager._current_org_id", return_value="org-test-123")
     @patch("src.core.db_manager.db_manager._current_user_email", return_value="u@test.com")
     @patch("src.core.db_manager.db_manager.supabase")
     @patch("src.core.db_manager.db_manager.exec_postgrest")
     def test_unknown_column_triggers_fallback(
-        self, mock_exec: MagicMock, mock_supa: MagicMock, _mock_user: MagicMock
+        self, mock_exec: MagicMock, mock_supa: MagicMock, _mock_user: MagicMock, _mock_org: MagicMock
     ) -> None:
         """Erro 42703 na 1ª tentativa → retry sem 'ultima_por'."""
         # 1ª chamada: levanta 42703; 2ª: sucesso
@@ -114,11 +115,12 @@ class TestInsertClienteFallback:
         second_payload = insert_calls[1][0][0]  # primeiro arg posicional
         assert "ultima_por" not in second_payload
 
+    @patch("src.core.db_manager.db_manager._current_org_id", return_value="org-test-123")
     @patch("src.core.db_manager.db_manager._current_user_email", return_value="u@test.com")
     @patch("src.core.db_manager.db_manager.supabase")
     @patch("src.core.db_manager.db_manager.exec_postgrest")
     def test_permission_error_propagates(
-        self, mock_exec: MagicMock, mock_supa: MagicMock, _mock_user: MagicMock
+        self, mock_exec: MagicMock, mock_supa: MagicMock, _mock_user: MagicMock, _mock_org: MagicMock
     ) -> None:
         """Erro de permissão (42501) NÃO faz fallback – exceção propaga."""
         mock_exec.side_effect = _make_api_error("42501", "permission denied for table clients")

@@ -107,9 +107,6 @@ tzlocal>=5.3.1            # Deteccao de timezone
 filelock>=3.16.1          # File locking (usado em prefs.py)
 requests>=2.32.3          # HTTP client (usado em net_session.py, storage_client.py)
 
-# Toasts do Windows (opcional)
-winotify>=1.1.0; platform_system=="Windows"  # Notificacoes nativas Windows 10/11
-
 # ============================================================================
 # DEPENDENCIAS TRANSITIVAS (Documentadas)
 # ============================================================================

@@ -271,6 +271,7 @@ def insert_cliente(
 ) -> int:
     normalized: str = normalize_cnpj_norm(cnpj) if cnpj_norm is None else cnpj_norm
     by: str = _current_user_email()
+    org = _current_org_id()
     row: dict[str, Any] = {
         "numero": numero,
         "nome": nome,
@@ -282,6 +283,8 @@ def insert_cliente(
         "ultima_por": by,
         "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
+    if org:
+        row["org_id"] = org
 
     def _do() -> int:
         payload: dict[str, Any] = dict(row)
@@ -319,6 +322,82 @@ def insert_cliente(
     except Exception as e:
         log.warning(f"Falha ao inserir cliente após retries: {e}")
         raise
+
+
+def insert_clientes_batch(
+    clientes: list[dict[str, Any]],
+    *,
+    batch_size: int = 200,
+) -> list[int]:
+    """Insere múltiplos clientes em lotes via Supabase PostgREST.
+
+    Cada lote é enviado num único POST (array insert). Isso é MUITO mais
+    rápido que chamadas individuais (1 HTTP req por lote vs 1 por cliente).
+
+    Args:
+        clientes: Lista de dicts com campos do cliente (mesmo formato de insert_cliente).
+                  Chaves esperadas: numero, nome, razao_social, cnpj, obs.
+                  cnpj_norm será calculado se ausente.
+        batch_size: Quantidade de registros por POST (default 200).
+
+    Returns:
+        Lista de IDs dos clientes inseridos.
+    """
+    if not clientes:
+        return []
+
+    by = _current_user_email()
+    now = _now_iso()
+    created = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    org = _current_org_id()
+
+    # Preparar payloads
+    payloads: list[dict[str, Any]] = []
+    for c in clientes:
+        cnpj_raw = c.get("cnpj", "") or ""
+        payload: dict[str, Any] = {
+            "numero": c.get("numero", "") or "",
+            "nome": c.get("nome", "") or "",
+            "razao_social": c.get("razao_social", "") or "",
+            "cnpj": cnpj_raw,
+            "cnpj_norm": c.get("cnpj_norm") or normalize_cnpj_norm(cnpj_raw),
+            "obs": c.get("obs", "") or "",
+            "ultima_alteracao": now,
+            "ultima_por": by,
+            "created_at": created,
+        }
+        if org:
+            payload["org_id"] = org
+        payloads.append(payload)
+
+    inserted_ids: list[int] = []
+    for i in range(0, len(payloads), batch_size):
+        batch = payloads[i : i + batch_size]
+        try:
+            resp = exec_postgrest(supabase.table("clients").insert(batch))
+            if resp and getattr(resp, "data", None):
+                for row in resp.data:
+                    try:
+                        inserted_ids.append(int(row["id"]))
+                    except (KeyError, TypeError, ValueError):
+                        pass
+        except _PostgrestAPIError as exc:
+            if _is_unknown_column_error(exc):
+                # Retry sem ultima_por
+                for p in batch:
+                    p.pop("ultima_por", None)
+                resp = exec_postgrest(supabase.table("clients").insert(batch))
+                if resp and getattr(resp, "data", None):
+                    for row in resp.data:
+                        try:
+                            inserted_ids.append(int(row["id"]))
+                        except (KeyError, TypeError, ValueError):
+                            pass
+            else:
+                raise
+
+    log.info("insert_clientes_batch: %d/%d inseridos com sucesso.", len(inserted_ids), len(clientes))
+    return inserted_ids
 
 
 def update_cliente(
