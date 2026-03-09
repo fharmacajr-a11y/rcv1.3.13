@@ -22,8 +22,11 @@ import sys
 import types
 import unittest
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock, patch
+
+if TYPE_CHECKING:
+    from src.modules.clientes.core.viewmodel import ClientesViewModel
 
 # ---------------------------------------------------------------------------
 # Path setup
@@ -305,7 +308,7 @@ class TestPhoneUtilsRobustness(unittest.TestCase):
 class TestViewModelBulkOrdering(unittest.TestCase):
     """Testa ordenação e filtro do ViewModel com dados em massa (sem I/O)."""
 
-    def _make_vm(self, clients: list[dict[str, str]]) -> Any:
+    def _make_vm(self, clients: list[dict[str, str]]) -> ClientesViewModel:
         """Cria ViewModel e injeta clientes fake via load_from_iterable."""
         from src.modules.clientes.core.viewmodel import ClientesViewModel
         from src.modules.clientes.core.ui_helpers import ORDER_CHOICES, DEFAULT_ORDER_LABEL
@@ -574,7 +577,7 @@ class TestBatchInsertDedup(unittest.TestCase):
                 ids, skipped = salvar_clientes_em_lote(clients)
 
         self.assertEqual(len(skipped), 1)
-        self.assertIn("duplicado", skipped[0].get("_motivo", "").lower())
+        self.assertIn("duplicado", cast(dict[str, Any], skipped[0]).get("_motivo", "").lower())
         if mock_batch.called:
             batch_arg = mock_batch.call_args[0][0]
             self.assertEqual(len(batch_arg), 2)
@@ -596,7 +599,7 @@ class TestBatchInsertDedup(unittest.TestCase):
                 ids, skipped = salvar_clientes_em_lote(clients)
 
         self.assertEqual(len(skipped), 1)
-        self.assertIn("já cadastrado", skipped[0].get("_motivo", "").lower())
+        self.assertIn("já cadastrado", cast(dict[str, Any], skipped[0]).get("_motivo", "").lower())
         if mock_batch.called:
             batch_arg = mock_batch.call_args[0][0]
             self.assertEqual(len(batch_arg), 1)

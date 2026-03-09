@@ -223,8 +223,6 @@ class ClientFilesDialog(FilesDownloadMixin, FilesUploadMixin, FilesNavigationMix
 
         # EXIBIR JANELA (agora sim, tudo configurado)
         self.deiconify()
-
-        # grab_set APÓS deiconify (janela já renderizada, evita flash)
         self.grab_set()
 
         # Resolver org_id e carregar arquivos

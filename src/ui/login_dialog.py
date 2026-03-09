@@ -144,7 +144,7 @@ class LoginDialog(ctk.CTkToplevel):
 
         # Bindings
         self._bind_enter()
-        self.bind("<Escape>", lambda e: self.destroy())
+        self.bind("<Escape>", lambda e: self._on_exit())
 
         # Modal + foco inicial inteligente
         try:
@@ -284,6 +284,7 @@ class LoginDialog(ctk.CTkToplevel):
 
     def _on_exit(self) -> None:
         """Fecha o diálogo de login como cancelamento."""
+        log.info("LoginDialog: fechado pelo usuário (cancelamento)")
         self.destroy()
 
     def _disable_for(self, seconds: int):
