@@ -243,7 +243,7 @@ def salvar_cliente(row: tuple[Any, ...] | None, valores: dict[str, Any]) -> tupl
     numero: str
     obs: str
     razao, cnpj, cnpj_norm, nome, numero, obs = _normalize_payload(valores)
-    # Notas internas permanecem apenas na UI enquanto não houver coluna no banco.
+    # Bloco de notas é salvo na tabela cliente_bloco_notas via RPC rc_save_cliente_bloco_notas.
     if not (razao or cnpj or nome or numero):
         raise ValueError("Preencha pelo menos Razão Social, CNPJ, Nome ou WhatsApp.")
 

@@ -2,8 +2,8 @@
 """Mixin de construção de UI para ClientEditorDialog.
 
 Extraído de client_editor_dialog.py (Fase 5 - refatoração incremental).
-Contém: _build_ui, _build_left_panel, _build_right_panel, _build_buttons,
-         _sync_right_spacer_height, _set_entry_value, _activate_all_placeholders.
+Contém: _build_ui, _build_left_panel, _build_right_panel, _build_status_row,
+         _build_buttons, _set_entry_value, _activate_all_placeholders.
 """
 
 from __future__ import annotations
@@ -44,15 +44,14 @@ class EditorUIMixin:
         main_frame = ctk.CTkFrame(self, fg_color=SURFACE_DARK, corner_radius=0)
         main_frame.pack(fill="both", expand=True, padx=0, pady=0)
 
-        # Grid com 3 linhas: conteúdo (0), separador (1), botões (2)
-        main_frame.rowconfigure(0, weight=1)  # Conteúdo expande
-        main_frame.rowconfigure(1, weight=0)  # Separador fixo
-        main_frame.rowconfigure(2, weight=0)  # Botões fixo
-        main_frame.columnconfigure(0, weight=3)
-        main_frame.columnconfigure(1, weight=0)
-        main_frame.columnconfigure(
-            2, weight=4, minsize=440
-        )  # Aumentado weight e minsize para dar mais espaço ao painel direito
+        # Grid com 4 linhas: conteúdo (0), status (1), separador (2), botões (3)
+        main_frame.rowconfigure(0, weight=0)  # Conteúdo: altura natural do painel esquerdo
+        main_frame.rowconfigure(1, weight=0)  # Status fixo (espaço extra vai para o fundo da janela)
+        main_frame.rowconfigure(2, weight=0)  # Separador fixo
+        main_frame.rowconfigure(3, weight=0)  # Botões fixo
+        main_frame.columnconfigure(0, weight=1)  # Painel esquerdo
+        main_frame.columnconfigure(1, weight=0)  # Separador vertical
+        main_frame.columnconfigure(2, weight=1)  # Painel direito (50/50)
 
         # Divisão em duas colunas (como legado)
         left_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
@@ -71,15 +70,18 @@ class EditorUIMixin:
         self._build_left_panel(left_frame)
         self._build_right_panel(right_frame)
 
+        # Status do Cliente (abaixo da área de conteúdo, coluna esquerda)
+        self._build_status_row(main_frame)
+
         # AJUSTE 3: Separador horizontal antes dos botões
         separator_line = ctk.CTkFrame(
             main_frame,
             height=1,
             fg_color=BORDER,
         )
-        separator_line.grid(row=1, column=0, columnspan=3, sticky="ew", padx=10, pady=(5, 0))
+        separator_line.grid(row=2, column=0, columnspan=3, sticky="ew", padx=10, pady=(5, 0))
 
-        # Barra de botões (rodapé) - agora em row=2
+        # Barra de botões (rodapé) - agora em row=3
         self._build_buttons(main_frame)
 
     def _build_left_panel(self: EditorDialogProto, parent: ctk.CTkFrame) -> None:
@@ -154,39 +156,72 @@ class EditorUIMixin:
         self.whatsapp_entry.bind("<FocusOut>", self._on_whatsapp_focus_out)
         row += 1
 
-        # Observações (grande)
+        # Observações
         ctk.CTkLabel(parent, text="Observações:", anchor="w", text_color=TEXT_PRIMARY).grid(
             row=row, column=0, sticky="w", padx=6, pady=(0, 0)
         )
         row += 1
-        obs_row = row
         self.obs_text = ctk.CTkTextbox(
             parent,
-            height=150,
+            height=90,
             fg_color=SURFACE,
             border_color=BORDER,
             text_color=TEXT_PRIMARY,
-            wrap="word",  # Wrap por palavra para melhor legibilidade
+            wrap="word",
         )
-        self.obs_text.grid(row=row, column=0, sticky="nsew", padx=6, pady=(0, 10))
-        parent.rowconfigure(obs_row, weight=1)
+        self.obs_text.grid(row=row, column=0, sticky="ew", padx=6, pady=(0, 5))
         row += 1
 
-        # OBJETIVO 2: Status do Cliente + botão Senhas (colados)
+        # Contatos adicionais (movido do painel direito)
+        ctk.CTkLabel(
+            parent,
+            text="Contatos adicionais:",
+            anchor="w",
+            text_color=TEXT_PRIMARY,
+        ).grid(row=row, column=0, sticky="w", padx=6, pady=(0, 0))
+        row += 1
+        self.contatos_text = ctk.CTkTextbox(
+            parent,
+            height=90,
+            fg_color=SURFACE,
+            border_color=BORDER,
+            text_color=TEXT_PRIMARY,
+            wrap="word",
+        )
+        self.contatos_text.grid(row=row, column=0, sticky="ew", padx=6, pady=(0, 10))
+
+    def _build_right_panel(self: EditorDialogProto, parent: ctk.CTkFrame) -> None:
+        """Constrói painel direito com bloco de notas interno."""
+        row = 0
+
+        # Bloco de notas (textarea expandível com scroll interno)
+        ctk.CTkLabel(
+            parent,
+            text="Bloco de notas:",
+            anchor="w",
+            text_color=TEXT_PRIMARY,
+        ).grid(row=row, column=0, sticky="w", padx=6, pady=(5, 0))
+        row += 1
+
+        bloco_notas_row = row
+        self.bloco_notas_text = ctk.CTkTextbox(
+            parent,
+            fg_color=SURFACE,
+            border_color=BORDER,
+            text_color=TEXT_PRIMARY,
+            wrap="word",
+        )
+        self.bloco_notas_text.grid(row=row, column=0, sticky="nsew", padx=6, pady=(0, 10))
+        parent.rowconfigure(bloco_notas_row, weight=1)
+        row += 1
+
+    def _build_status_row(self: EditorDialogProto, parent: ctk.CTkFrame) -> None:
+        """Constrói a linha de status do cliente abaixo da área de conteúdo."""
         status_container = ctk.CTkFrame(parent, fg_color="transparent")
-        status_container.grid(row=row, column=0, sticky="w", padx=6, pady=(0, 6))
-        status_container.columnconfigure(0, weight=0)  # Sem expansão
-        status_container.columnconfigure(1, weight=0)  # Sem expansão
-        status_container.columnconfigure(2, weight=0)  # Arquivos
-
-        # Salvar referência para usar no painel direito (igualar alturas)
-        self._status_container = status_container
-
-        # Bind para sincronizar altura do spacer direito em tempo real
-        status_container.bind("<Configure>", lambda e: self._sync_right_spacer_height())
+        status_container.grid(row=1, column=0, sticky="nw", padx=(16, 5), pady=(0, 6))
 
         ctk.CTkLabel(status_container, text="Status do Cliente:", anchor="w", text_color=TEXT_PRIMARY).grid(
-            row=0, column=0, columnspan=2, sticky="w", pady=(0, 2)
+            row=0, column=0, sticky="w", pady=(0, 2)
         )
 
         self.status_var = tk.StringVar(value="Novo Cliente")
@@ -203,170 +238,7 @@ class EditorUIMixin:
             width=160,
             height=28,
         )
-        self.status_combo.grid(row=1, column=0, sticky="w", padx=(0, 8), pady=0)
-
-        # Botão Senhas colado ao Status
-        self.senhas_btn = make_btn(
-            status_container,
-            text="Senhas",
-            command=self._on_senhas,
-            fg_color="gray",
-            hover_color="darkgray",
-            width=70,
-            height=28,
-            state="normal" if self.client_id else "disabled",
-        )
-        self.senhas_btn.grid(row=1, column=1, sticky="w", padx=(0, 0), pady=0)
-
-        # Botão Arquivos colado ao Senhas
-        self.arquivos_btn = make_btn(
-            status_container,
-            text="Arquivos",
-            command=self._on_arquivos,
-            fg_color="gray",
-            hover_color="darkgray",
-            width=85,
-            height=28,
-            state="normal" if self.client_id else "disabled",
-        )
-        self.arquivos_btn.grid(row=1, column=2, sticky="w", padx=(8, 0), pady=0)
-
-    def _build_right_panel(self: EditorDialogProto, parent: ctk.CTkFrame) -> None:
-        """Constrói painel direito com campos internos."""
-        row = 0
-
-        # Endereço (interno)
-        ctk.CTkLabel(parent, text="Endereço (interno):", anchor="w", text_color=TEXT_PRIMARY).grid(
-            row=row, column=0, sticky="w", padx=6, pady=(5, 0)
-        )
-        row += 1
-        self.endereco_entry = ctk.CTkEntry(
-            parent,
-            placeholder_text="Endereço da empresa",
-            fg_color=SURFACE,
-            border_color=BORDER,
-            text_color=TEXT_PRIMARY,
-            placeholder_text_color=TEXT_MUTED,
-        )
-        self.endereco_entry.grid(row=row, column=0, sticky="ew", padx=6, pady=(0, 5))
-        row += 1
-
-        # Bairro (interno)
-        ctk.CTkLabel(parent, text="Bairro (interno):", anchor="w", text_color=TEXT_PRIMARY).grid(
-            row=row, column=0, sticky="w", padx=6, pady=(0, 0)
-        )
-        row += 1
-        self.bairro_entry = ctk.CTkEntry(
-            parent,
-            placeholder_text="Bairro",
-            fg_color=SURFACE,
-            border_color=BORDER,
-            text_color=TEXT_PRIMARY,
-            placeholder_text_color=TEXT_MUTED,
-        )
-        self.bairro_entry.grid(row=row, column=0, sticky="ew", padx=6, pady=(0, 5))
-        row += 1
-
-        # Cidade (interno)
-        ctk.CTkLabel(parent, text="Cidade (interno):", anchor="w", text_color=TEXT_PRIMARY).grid(
-            row=row, column=0, sticky="w", padx=6, pady=(0, 0)
-        )
-        row += 1
-        self.cidade_entry = ctk.CTkEntry(
-            parent,
-            placeholder_text="Cidade",
-            fg_color=SURFACE,
-            border_color=BORDER,
-            text_color=TEXT_PRIMARY,
-            placeholder_text_color=TEXT_MUTED,
-        )
-        self.cidade_entry.grid(row=row, column=0, sticky="ew", padx=6, pady=(0, 5))
-        row += 1
-
-        # CEP (interno)
-        ctk.CTkLabel(parent, text="CEP (interno):", anchor="w", text_color=TEXT_PRIMARY).grid(
-            row=row, column=0, sticky="w", padx=6, pady=(0, 0)
-        )
-        row += 1
-        self.cep_entry = ctk.CTkEntry(
-            parent,
-            placeholder_text="00000-000",
-            fg_color=SURFACE,
-            border_color=BORDER,
-            text_color=TEXT_PRIMARY,
-            placeholder_text_color=TEXT_MUTED,
-        )
-        self.cep_entry.grid(row=row, column=0, sticky="ew", padx=6, pady=(0, 5))
-        row += 1
-
-        # Contatos adicionais (textbox grande, mesmo padrão visual dos outros campos)
-        ctk.CTkLabel(
-            parent,
-            text="Contatos adicionais:",
-            anchor="w",
-            text_color=TEXT_PRIMARY,
-        ).grid(row=row, column=0, sticky="w", padx=6, pady=(0, 0))
-        row += 1
-
-        # Textbox para contatos adicionais (mesmas cores de Observações)
-        contatos_row = row
-        self.contatos_text = ctk.CTkTextbox(
-            parent,
-            fg_color=SURFACE,
-            border_color=BORDER,
-            text_color=TEXT_PRIMARY,
-            wrap="word",
-        )
-        self.contatos_text.grid(row=row, column=0, sticky="nsew", padx=6, pady=(0, 10))
-        parent.rowconfigure(contatos_row, weight=1)  # Expande para ocupar espaço disponível
-        row += 1
-
-        # Spacer para igualar altura com Observações (compensar o bloco Status do painel esquerdo)
-        # A altura será sincronizada dinamicamente pelo método _sync_right_spacer_height()
-        spacer_height = 70  # Fallback inicial (será atualizado após renderização)
-        self._right_spacer = ctk.CTkFrame(parent, fg_color="transparent", height=spacer_height)
-        self._right_spacer.grid(row=row, column=0, sticky="ew", padx=6, pady=0)
-        self._right_spacer.grid_propagate(False)  # Manter altura configurada
-        row += 1
-
-    def _sync_right_spacer_height(self: EditorDialogProto) -> None:
-        """Sincroniza altura do spacer direito com o bloco Status esquerdo (pixel-perfect).
-
-        Este método garante que o textbox "Contatos adicionais" termine exatamente
-        na mesma linha que o textbox "Observações", compensando a altura do bloco
-        "Status do Cliente" no painel esquerdo.
-        """
-        try:
-            # Forçar atualização de geometria
-            self.update_idletasks()
-
-            # Obter altura real do status_container
-            h = self._status_container.winfo_height()
-            if h <= 1:
-                # Widget ainda não renderizado, usar altura requisitada
-                h = self._status_container.winfo_reqheight()
-
-            # Obter padding vertical do grid do status_container
-            gi = self._status_container.grid_info()
-            pady = gi.get("pady", 0)
-
-            # Calcular padding extra
-            extra = 0
-            if isinstance(pady, (tuple, list)):
-                extra = sum(int(p) for p in pady)
-            else:
-                extra = int(pady) if pady else 0
-
-            # Altura alvo para o spacer (altura do container + padding)
-            target = h + extra
-
-            # Aplicar no spacer (mínimo 50px para evitar valores negativos/zero)
-            if target > 0:
-                self._right_spacer.configure(height=max(target, 50))
-
-        except Exception as e:
-            # Silenciar erros durante destruição de widgets
-            log.debug(f"[ClientEditor] Erro ao sincronizar spacer: {e}")
+        self.status_combo.grid(row=1, column=0, sticky="w", pady=0)
 
     def _set_entry_value(self: EditorDialogProto, entry: ctk.CTkEntry, value: str) -> None:
         """Define valor em CTkEntry preservando placeholder quando vazio.
@@ -401,10 +273,6 @@ class EditorUIMixin:
             self.cnpj_entry,
             self.nome_entry,
             self.whatsapp_entry,
-            self.endereco_entry,
-            self.bairro_entry,
-            self.cidade_entry,
-            self.cep_entry,
         ]
         for entry in entries:
             self._set_entry_value(entry, "")
@@ -413,7 +281,7 @@ class EditorUIMixin:
         """Constrói barra de botões no rodapé."""
         # OBJETIVO 3: Botões dentro do container esquerdo (não atravessa divisor)
         buttons_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        buttons_frame.grid(row=2, column=0, sticky="w", padx=10, pady=(8, 10))
+        buttons_frame.grid(row=3, column=0, columnspan=3, sticky="w", padx=10, pady=(8, 10))
 
         # Botão Salvar (verde)
         self.save_btn = make_btn(
@@ -444,6 +312,17 @@ class EditorUIMixin:
             hover_color=PRIMARY_BLUE_HOVER,
         )
         self.upload_btn.pack(side="left", padx=5)
+
+        # Botão Arquivos (cinza) - imediatamente à esquerda do Cancelar
+        self.arquivos_btn = make_btn(
+            buttons_frame,
+            text="Arquivos",
+            command=self._on_arquivos,
+            fg_color="gray",
+            hover_color="darkgray",
+            state="normal" if self.client_id else "disabled",
+        )
+        self.arquivos_btn.pack(side="left", padx=5)
 
         # Botão Cancelar (vermelho)
         self.cancel_btn = make_btn(

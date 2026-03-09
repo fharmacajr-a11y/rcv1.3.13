@@ -2,7 +2,7 @@
 """Mixin de callbacks/ações para ClientEditorDialog.
 
 Extraído de client_editor_dialog.py (Fase 5 - refatoração incremental).
-Contém: _on_return_key, _on_cancel, _on_senhas, _on_arquivos,
+Contém: _on_return_key, _on_cancel, _on_arquivos,
          _on_cartao_cnpj, _on_enviar_documentos.
 """
 
@@ -79,6 +79,11 @@ class EditorActionsMixin:
             if focus_widget is self.contatos_text or focus_widget is contatos_internal:
                 is_focus_on_textbox = True
 
+            # Verificar Bloco de notas
+            bloco_notas_internal = getattr(self.bloco_notas_text, "_textbox", None)
+            if focus_widget is self.bloco_notas_text or focus_widget is bloco_notas_internal:
+                is_focus_on_textbox = True
+
         # Se Shift+Enter E foco em textbox: inserir nova linha
         if shift_pressed and is_focus_on_textbox:
             try:
@@ -98,32 +103,6 @@ class EditorActionsMixin:
         """
         log.info(f"[ClientEditorDialog:{self.session_id}] Cancelamento solicitado")
         self._cleanup_and_destroy()
-
-    def _on_senhas(self: EditorDialogProto) -> None:
-        """Handler do botão Senhas (Módulo removido)."""
-
-        # Segurança: em "Novo Cliente" o botão já fica disabled,
-        # mas garantimos aqui também.
-        if not self.client_id:
-            return
-
-        from src.ui.dialogs.rc_dialogs import show_info
-
-        # O editor é modal (grab_set). O show_info também usa grab_set.
-        # Para não perder o modal do editor, soltamos e restauramos depois.
-        try:
-            self.grab_release()
-        except Exception:  # noqa: BLE001
-            pass
-
-        try:
-            show_info(self, "Módulo Removido", "O módulo de senhas foi removido do sistema.")
-        finally:
-            try:
-                if self.winfo_exists():
-                    self.after(50, self.grab_set)
-            except Exception:  # noqa: BLE001
-                pass
 
     def _on_arquivos(self: EditorDialogProto) -> None:
         """Handler do botão Arquivos — abre ClientFilesDialog."""
@@ -145,7 +124,6 @@ class EditorActionsMixin:
             razao = self.razao_entry.get().strip()
             cnpj = self.cnpj_entry.get().strip()
 
-        # Soltar grab do editor (evita conflito de modal duplo)
         try:
             self.grab_release()
         except Exception:  # noqa: BLE001
@@ -278,12 +256,6 @@ class EditorActionsMixin:
                                 self.arquivos_btn.configure(state="normal")
                         except Exception:  # noqa: BLE001
                             pass
-                        try:
-                            if hasattr(self, "senhas_btn") and self.senhas_btn:
-                                self.senhas_btn.configure(state="normal")
-                        except Exception:  # noqa: BLE001
-                            pass
-
                 except ClienteCNPJDuplicadoError as dup_err:
                     # CNPJ duplicado detectado - mostrar mensagem amigável e PARAR
                     _upload_show_error(

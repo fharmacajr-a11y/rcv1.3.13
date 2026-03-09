@@ -3,7 +3,8 @@
 
 Extraído de client_editor_dialog.py (Fase 5 - refatoração incremental).
 Contém: _load_client_data, _parse_contatos_from_textbox, _load_contatos_from_db,
-         _save_contatos_to_db, _validate_fields, _on_save_clicked.
+         _save_contatos_to_db, _load_bloco_notas_from_db, _save_bloco_notas_to_db,
+         _validate_fields, _on_save_clicked.
 """
 
 from __future__ import annotations
@@ -174,6 +175,86 @@ class EditorDataMixin:
 
         self._run_in_thread(_fetch, on_success=_on_loaded, on_error=_on_error)
 
+    def _load_bloco_notas_from_db(self: EditorDialogProto, cliente_id: int) -> None:
+        """Carrega o Bloco de notas do Supabase **em background** e preenche o textbox.
+
+        Args:
+            cliente_id: ID do cliente (BIGINT)
+        """
+
+        def _fetch() -> str:
+            from src.infra.supabase_client import get_supabase
+
+            supabase = get_supabase()
+            response = supabase.rpc(
+                "rc_get_cliente_bloco_notas",
+                {"p_cliente_id": int(cliente_id)},
+            ).execute()
+            # RPC retorna text diretamente
+            body = response.data if isinstance(response.data, str) else ""
+            return body.strip()
+
+        def _on_loaded(body: str) -> None:
+            if body:
+                self.bloco_notas_text.delete("1.0", "end")
+                self.bloco_notas_text.insert("1.0", body)
+
+        def _on_error(exc: Exception) -> None:
+            log.error(
+                "[ClientEditor] Erro ao carregar bloco de notas do Supabase: %s",
+                exc,
+                exc_info=exc,
+            )
+
+        self._run_in_thread(_fetch, on_success=_on_loaded, on_error=_on_error)
+
+    def _save_bloco_notas_to_db(
+        self: EditorDialogProto,
+        cliente_id: int,
+        *,
+        on_done: Callable[[], None] | None = None,
+    ) -> None:
+        """Salva o Bloco de notas no Supabase **em background** via RPC upsert/delete.
+
+        O texto é lido na thread principal (leitura de widget), a chamada de rede
+        roda em daemon-thread.  Ao terminar (sucesso ou erro), *on_done* é chamado
+        na UI thread.
+
+        Args:
+            cliente_id: ID do cliente (BIGINT)
+            on_done: callback opcional executado na UI thread após conclusão.
+        """
+        # Ler widget na UI thread (obrigatório)
+        texto = self.bloco_notas_text.get("1.0", "end").strip()
+        cliente_id_int = int(cliente_id)
+
+        def _persist() -> None:
+            from src.infra.supabase_client import exec_postgrest, get_supabase
+
+            supabase = get_supabase()
+            exec_postgrest(
+                supabase.rpc(
+                    "rc_save_cliente_bloco_notas",
+                    {"p_cliente_id": cliente_id_int, "p_body": texto or None},
+                )
+            )
+
+        def _on_saved(_result: Any) -> None:
+            if on_done:
+                on_done()
+
+        def _on_error(exc: Exception) -> None:
+            log.error(
+                "[ClientEditor] Erro ao salvar bloco de notas no Supabase: %s",
+                exc,
+                exc_info=exc,
+            )
+            # Prosseguir mesmo com erro (cliente já foi salvo)
+            if on_done:
+                on_done()
+
+        self._run_in_thread(_persist, on_success=_on_saved, on_error=_on_error)
+
     def _save_contatos_to_db(
         self: EditorDialogProto,
         cliente_id: int,
@@ -279,13 +360,6 @@ class EditorDataMixin:
             whatsapp_fmt = format_phone_br(whatsapp_raw) if whatsapp_raw else ""
             self._set_entry_value(self.whatsapp_entry, whatsapp_fmt or whatsapp_raw)
 
-            # Preencher campos internos (endereço) - usar helper para preservar placeholders
-            # Nota: Esses campos podem não estar no banco ainda, usar valores vazios como padrão
-            self._set_entry_value(self.endereco_entry, _safe_get(cliente, "endereco", ""))
-            self._set_entry_value(self.bairro_entry, _safe_get(cliente, "bairro", ""))
-            self._set_entry_value(self.cidade_entry, _safe_get(cliente, "cidade", ""))
-            self._set_entry_value(self.cep_entry, _safe_get(cliente, "cep", ""))
-
             # Extrair status das observações (padrão legacy: "[Status] texto")
             obs = _safe_get(cliente, "observacoes", "") or _safe_get(cliente, "obs", "")
             status = "Novo Cliente"  # Default
@@ -310,6 +384,9 @@ class EditorDataMixin:
 
             # Carregar contatos adicionais do Supabase
             self._load_contatos_from_db(self.client_id)
+
+            # Carregar Bloco de notas do Supabase
+            self._load_bloco_notas_from_db(self.client_id)
 
             log.debug(f"[ClientEditor] Dados carregados para cliente {self.client_id}")
 
@@ -393,13 +470,10 @@ class EditorDataMixin:
                 "Nome": self.nome_entry.get().strip(),
                 "WhatsApp": self.whatsapp_entry.get().strip(),
                 "Observações": obs_completa,
-                # Campos internos (não persistidos no legado, mas incluídos para futuro)
-                "Endereço": self.endereco_entry.get().strip(),
-                "Bairro": self.bairro_entry.get().strip(),
-                "Cidade": self.cidade_entry.get().strip(),
-                "CEP": self.cep_entry.get().strip(),
-                # Contatos adicionais (textbox do painel direito)
+                # Contatos adicionais (textbox do painel esquerdo)
                 "Contatos adicionais": self.contatos_text.get("1.0", "end").strip(),
+                # Bloco de notas é salvo em tabela separada (cliente_bloco_notas)
+                # via _save_bloco_notas_to_db — não entra no payload de clientes.
             }
 
             # FASE 3.2: Validar duplicatas antes de salvar
@@ -478,7 +552,13 @@ class EditorDataMixin:
                         self.destroy()
 
                 if cliente_id_salvo:
-                    self._save_contatos_to_db(cliente_id_salvo, on_done=_finish_save)
+                    self._save_contatos_to_db(
+                        cliente_id_salvo,
+                        on_done=lambda: self._save_bloco_notas_to_db(
+                            cliente_id_salvo,
+                            on_done=_finish_save,
+                        ),
+                    )
                 else:
                     _finish_save()
 

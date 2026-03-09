@@ -91,7 +91,7 @@ class ClientEditorDialog(EditorActionsMixin, EditorDataMixin, EditorUIMixin, ctk
     Mixins (Fase 5):
       - EditorUIMixin: _build_ui, _build_left_panel, _build_right_panel, etc.
       - EditorDataMixin: _load_client_data, _validate_fields, _on_save_clicked, etc.
-      - EditorActionsMixin: _on_senhas, _on_arquivos, _on_cartao_cnpj, etc.
+      - EditorActionsMixin: _on_arquivos, _on_cartao_cnpj, etc.
     """
 
     def __init__(
@@ -151,9 +151,6 @@ class ClientEditorDialog(EditorActionsMixin, EditorDataMixin, EditorUIMixin, ctk
         self._build_ui()  # pyright: ignore[reportAttributeAccessIssue]
         log.debug(f"[ClientEditorDialog:{self.session_id}] UI construída")
 
-        # Sincronizar altura do spacer direito após renderização (pixel-perfect)
-        self.after_idle(self._sync_right_spacer_height)  # pyright: ignore[reportAttributeAccessIssue]
-
         # Carregar dados ANTES de exibir (se editando)
         # CRÍTICO: Previne flash de campos vazios
         if client_id is not None:
@@ -167,7 +164,7 @@ class ClientEditorDialog(EditorActionsMixin, EditorDataMixin, EditorUIMixin, ctk
         apply_window_icon(self)
 
         # Mostrar janela centralizada sem flash (offscreen → render → onscreen)
-        show_centered_no_flash(self, parent, width=1100, height=700)
+        show_centered_no_flash(self, parent, width=1100, height=650)
         log.debug(f"[ClientEditorDialog:{self.session_id}] Janela visível e centralizada")
 
         # Ativar placeholders APÓS janela visível (Novo Cliente)
