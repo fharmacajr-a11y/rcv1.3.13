@@ -146,7 +146,7 @@ def _refresh_session_state(client: SupabaseClient, logger: Optional[logging.Logg
     try:
         refresh_current_user_from_supabase()
     except Exception as exc:
-        (logger or log).warning("Falha ao hidratar org_id/usuário após sessão restaurada: %s", exc)
+        (logger or log).warning("Falha ao hidratar org_id/usuário após sessão restaurada: %s", exc, exc_info=True)
 
 
 AuthSessionData = Mapping[str, Any]
@@ -214,12 +214,22 @@ def restore_persisted_auth_session_if_any(client: SupabaseClient) -> bool:
         client.auth.set_session(access_token, refresh_token)
         return True
     except Exception as exc:
-        log.warning("Erro ao restaurar sessão persistida: %s", exc, exc_info=True)
         # OFFLINE-SUPABASE-UX-001 (Parte B): Preserva sessão em erros de rede
         if _is_network_error(exc):
-            log.info("Erro de rede ao restaurar sessão - preservando credenciais")
+            log.warning(
+                "Falha ao validar sessão persistida remotamente [network]: %s " "(sessão preservada no storage)",
+                exc,
+                exc_info=True,
+            )
             return False
-        # Apenas limpa sessão se for erro de autenticação (não rede)
+        # Erro de autenticação ou desconhecido: limpa sessão
+        error_class = "auth" if "invalid" in str(exc).lower() or "expired" in str(exc).lower() else "unknown"
+        log.warning(
+            "Falha ao validar sessão persistida remotamente [%s]: %s " "(sessão removida do storage)",
+            error_class,
+            exc,
+            exc_info=True,
+        )
         try:
             prefs_utils.clear_auth_session()
         except Exception as clear_exc:
@@ -265,8 +275,9 @@ def _ensure_session(app: AppProtocol, logger: Optional[logging.Logger]) -> bool:
     is_testing = os.getenv("RC_TESTING") == "1" or os.getenv("PYTEST_CURRENT_TEST") is not None
 
     if is_cloud_only and not is_testing:
+        (logger or log).info("Verificando conectividade antes de abrir login (cloud-only)...")
         while not check_internet_connectivity(timeout=1.0):
-            (logger or log).warning("Modo cloud-only sem internet. Exibindo aviso ao usuário.")
+            (logger or log).warning("Sem internet em modo cloud-only. Exibindo diálogo ao usuário.")
             try:
                 from tkinter import messagebox
 
@@ -277,13 +288,14 @@ def _ensure_session(app: AppProtocol, logger: Optional[logging.Logger]) -> bool:
                     icon="warning",
                 )
                 if not retry:
-                    (logger or log).info("Usuário cancelou login offline.")
+                    (logger or log).info("Usuário cancelou diálogo de reconexão. Encerrando.")
                     return False
+                (logger or log).info("Usuário solicitou nova tentativa de conexão (retry).")
             except Exception as exc:
                 (logger or log).debug("Falha ao exibir messagebox de offline: %s", exc)
                 return False
 
-    (logger or log).info("Sem sessão inicial - abrindo login...")
+    (logger or log).info("Nenhum access_token em memória. Abrindo diálogo de login...")
     dlg = LoginDialog(app)
     app.wait_window(dlg)
 
@@ -294,20 +306,24 @@ def _ensure_session(app: AppProtocol, logger: Optional[logging.Logger]) -> bool:
     return success
 
 
-def _log_session_state(logger: Optional[logging.Logger]) -> None:
-    """Registra informações básicas sobre a sessão ativa (quando houver)."""
+def _log_session_snapshot(logger: Optional[logging.Logger]) -> None:
+    """Registra snapshot do estado atual da sessão (sem afirmar sucesso/falha)."""
     client = _supabase_client()
     if not client:
         return
     try:
         sess = client.auth.get_session()
         uid = getattr(getattr(sess, "user", None), "id", None)
-        token_status = "OK" if _get_access_token(client) else "ausente"
+        has_token = bool(_get_access_token(client))
+        token_status = "presente" if has_token else "ausente"
         # Reduzir UUID para prefixo (redação de dados sensíveis)
         uid_prefix = str(uid)[:8] + "..." if uid else "none"
-        (logger or log).info("Sessão restaurada (uid=%s, token: %s)", uid_prefix, token_status)
+        if has_token:
+            (logger or log).info("Sessão ativa: uid=%s, token=%s", uid_prefix, token_status)
+        else:
+            (logger or log).warning("Nenhuma sessão ativa: uid=%s, token=%s", uid_prefix, token_status)
     except Exception as exc:
-        (logger or log).warning("Erro ao verificar sessão inicial: %s", exc)
+        (logger or log).warning("Erro ao verificar estado da sessão: %s", exc, exc_info=True)
 
 
 def _update_footer_email(app: AppProtocol) -> None:
@@ -353,7 +369,7 @@ def _mark_app_online(app: AppProtocol, logger: Optional[logging.Logger]) -> None
     try:
         app._update_user_status()
     except Exception as exc:
-        (logger or log).warning("Falha ao atualizar status do usuário: %s", exc)
+        (logger or log).warning("Falha ao atualizar status do usuário: %s", exc, exc_info=True)
 
     _update_footer_email(app)
 
@@ -377,7 +393,7 @@ def ensure_logged(
     try:
         login_ok = _ensure_session(app, logger)
     except Exception as exc:  # noqa: BLE001
-        log_obj.warning("Erro no fluxo de login: %s", exc)
+        log_obj.warning("Erro no fluxo de login: %s", exc, exc_info=True)
         # UX: Informar usuário sobre erro inesperado
         try:
             from tkinter import messagebox
@@ -390,12 +406,13 @@ def ensure_logged(
             log_obj.debug("Falha ao exibir messagebox de erro inesperado: %s", msg_exc)
         login_ok = False
 
-    _log_session_state(logger)
+    _log_session_snapshot(logger)
 
     if login_ok:
         _mark_app_online(app, logger)
     else:
-        log_obj.info("Login cancelado ou falhou. Encerrando aplicação.")
+        # Diferenciar causa do encerramento no log
+        log_obj.info("Encerrando aplicação: login não completado.")
 
     return bool(login_ok)
 

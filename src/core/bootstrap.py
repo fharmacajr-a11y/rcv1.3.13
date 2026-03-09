@@ -109,7 +109,7 @@ def run_initial_healthcheck(logger: Optional[logging.Logger] = None) -> bool:
         return ok
     except Exception as exc:
         if logger is not None:
-            logger.warning("Failed to check internet connectivity: %s", exc)
+            logger.warning("Failed to check internet connectivity: %s", exc, exc_info=True)
         return True
 
 
@@ -181,7 +181,7 @@ def schedule_healthcheck_after_gui(
 
         except Exception as exc:
             if logger:
-                logger.warning("Background health check failed: %s", exc)
+                logger.warning("Background health check failed: %s", exc, exc_info=True)
 
     def _start_worker():
         """Inicia worker thread (daemon) para não bloquear shutdown."""

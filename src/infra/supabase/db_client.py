@@ -33,6 +33,24 @@ _HEALTH_CHECKER_STARTED: bool = False
 _STATE_LOCK: Final[threading.Lock] = threading.Lock()
 
 
+def _classify_network_error(exc: Exception) -> str:
+    """Classifica uma exceção de rede em categoria curta para log."""
+    msg = str(exc).lower()
+    if "getaddrinfo" in msg or "nodename" in msg or "name resolution" in msg:
+        return "dns"
+    if "timed out" in msg or "timeout" in msg:
+        return "timeout"
+    if "refused" in msg:
+        return "connection_refused"
+    if isinstance(exc, (ConnectionError, OSError)):
+        return "connection"
+    # Verificar códigos HTTP comuns em mensagens de erro PostgREST/httpx
+    for code in ("400", "401", "403", "404", "500", "502", "503"):
+        if code in msg:
+            return f"http_{code}"
+    return "unknown"
+
+
 def _health_check_once(client: Client) -> bool:
     """Executa uma única verificação de saúde do Supabase.
 
@@ -87,7 +105,8 @@ def _health_check_once(client: Client) -> bool:
         # Só marque offline se for erro de conexão/timeouts
         # Silencia em testes para evitar spam
         if os.getenv("PYTEST_CURRENT_TEST") is None:
-            log.warning("Health fallback error: %s", str(e)[:150])
+            error_class = _classify_network_error(e)
+            log.warning("Health check fallback (table query) falhou [%s]: %s", error_class, str(e)[:150], exc_info=True)
         return False
 
 
@@ -197,7 +216,7 @@ def _start_health_checker() -> None:
                 if last_bad is None:
                     last_bad = time.time()
 
-                log.warning("Health check error: %s", str(e)[:150])
+                log.warning("Health check error: %s", str(e)[:150], exc_info=True)
 
             # Aguarda próximo ciclo
             try:
@@ -391,8 +410,7 @@ def get_supabase() -> Client:
         except Exception as e:
             log.debug(f"Não foi possível normalizar endpoint de Storage: {e}")
 
-        log.debug("Cliente Supabase SINGLETON criado.")
-        log.info("Backend: conectado")
+        log.debug("Supabase client singleton criado (nenhum I/O de rede realizado)")
 
         # Inicia o health checker em background
         _start_health_checker()

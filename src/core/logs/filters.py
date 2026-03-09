@@ -10,8 +10,9 @@ from pathlib import Path
 from typing import Any, Mapping
 
 # Padrao para detectar informacoes sensiveis em logs
+# Exclui % do valor para não capturar placeholders de logging (%s, %d, etc.)
 SENSITIVE_PATTERN: re.Pattern[str] = re.compile(
-    r"(apikey|authorization|token|password|secret|api_key|access_key|private_key)=([^\s&]+)",
+    r"(apikey|authorization|token|password|secret|api_key|access_key|private_key)=([^\s&%]+)",
     re.IGNORECASE,
 )
 
@@ -31,6 +32,19 @@ UUID_PATTERN: re.Pattern[str] = re.compile(
 EMAIL_PATTERN: re.Pattern[str] = re.compile(
     r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
 )
+
+
+class StartupIdFilter(logging.Filter):
+    """Injeta startup_id em cada LogRecord para correlação por execução."""
+
+    def __init__(self, startup_id: str) -> None:
+        super().__init__()
+        self.startup_id = startup_id
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.startup_id = self.startup_id  # type: ignore[attr-defined]
+        return True
+
 
 # Cache para anti-spam (msg_key -> last_timestamp)
 _SPAM_CACHE: dict[str, float] = {}
@@ -217,6 +231,8 @@ class ConsoleImportantFilter(logging.Filter):
         "src.modules.main_window.views.main_window_services",
         "src.infra.supabase.db_client",  # Apenas criação/health checker
         "src.infra.supabase.auth_client",
+        "src.core.auth_bootstrap",  # Fluxo de sessão/login
+        "src.ui.login_dialog",  # Cancelamento/fechamento do dialog
         "src.modules.hub.recent_activity_store",
     }
 

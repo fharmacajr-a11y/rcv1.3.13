@@ -2,14 +2,19 @@ from __future__ import annotations
 
 import logging
 import os
+import uuid
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional
 
 from src.config.environment import env_str
-from src.core.logs.filters import RedactSensitiveData, ConsoleImportantFilter, AntiSpamFilter
+from src.core.logs.filters import RedactSensitiveData, ConsoleImportantFilter, AntiSpamFilter, StartupIdFilter
 
 _configured = False
+
+# Identificador único por execução do processo (8 hex chars).
+# Gerado uma vez no import do módulo — cada processo recebe seu próprio ID.
+STARTUP_ID: str = uuid.uuid4().hex[:8]
 
 
 class StorageWarningFilter(logging.Filter):
@@ -46,12 +51,14 @@ def configure_logging(level: Optional[str] = None) -> None:
     console_handler = logging.StreamHandler()
     console_handler.setLevel(lvl)  # Respeita RC_LOG_LEVEL para console
     console_formatter = logging.Formatter(
-        "%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+        "%(asctime)s | %(levelname)s | %(name)s | [%(startup_id)s] %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
     console_handler.setFormatter(console_formatter)
 
     # Filtros do console
+    _sid_filter = StartupIdFilter(STARTUP_ID)
+    console_handler.addFilter(_sid_filter)
     console_handler.addFilter(RedactSensitiveData())
     console_handler.addFilter(AntiSpamFilter())
     console_handler.addFilter(ConsoleImportantFilter())
@@ -76,12 +83,13 @@ def configure_logging(level: Optional[str] = None) -> None:
             )
             file_handler.setLevel(logging.DEBUG)  # Arquivo sempre DEBUG
             file_formatter = logging.Formatter(
-                "%(asctime)s | %(levelname)-8s | %(name)-40s | %(filename)s:%(lineno)d | %(message)s",
+                "%(asctime)s | %(levelname)-8s | %(name)-40s | %(filename)s:%(lineno)d | [%(startup_id)s] %(message)s",
                 datefmt="%Y-%m-%d %H:%M:%S",
             )
             file_handler.setFormatter(file_formatter)
 
-            # Redactor também no arquivo (não consoleim portant filter)
+            # StartupIdFilter primeiro (injeta atributo), depois redactor
+            file_handler.addFilter(StartupIdFilter(STARTUP_ID))
             file_handler.addFilter(RedactSensitiveData())
 
             root_logger.addHandler(file_handler)

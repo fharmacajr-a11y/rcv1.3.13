@@ -182,7 +182,7 @@ if __name__ == "__main__":
                     bootstrap.schedule_healthcheck_after_gui(app, logger=log, delay_ms=500)
                 except Exception as exc:
                     if log:
-                        log.warning("Falha ao agendar healthcheck após login: %s", exc)
+                        log.warning("Falha ao agendar healthcheck após login: %s", exc, exc_info=True)
 
                 # BUGFIX-UX-STARTUP-HUB-001 (C1): after_idle para show_hub_screen
                 # Yield para event loop, permitindo UI pintar antes de construir Hub
@@ -232,14 +232,12 @@ if __name__ == "__main__":
                     app.after_idle(_show_then_restore_alpha)
                 except Exception as exc:
                     if log:
-                        log.error("Falha ao agendar show_hub_screen: %s", exc)
+                        log.error("Falha ao agendar show_hub_screen: %s", exc, exc_info=True)
                     # Fallback: chamar direto
                     _show_hub_deferred()
                     _restore_alpha_deferred()
             else:
-                # Login cancelado ou falhou (usuário já foi informado via messagebox se foi erro técnico)
-                if log:
-                    log.info("Encerrando aplicação: login não completado")
+                # Login não completado (motivo já registrado por ensure_logged)
                 app.destroy()
 
         _on_splash_and_login_done()
