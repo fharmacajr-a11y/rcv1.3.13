@@ -7,10 +7,10 @@ import importlib
 import logging
 import os
 from tkinter import TclError, messagebox
-from typing import Any, Sequence, Tuple
+from typing import Any, Sequence
 
 from src.config.paths import CLOUD_ONLY
-from src.modules.clientes.core.service import get_cliente_by_id, mover_cliente_para_lixeira
+from src.modules.clientes.core.service import mover_cliente_para_lixeira
 
 try:
     from src.modules.lixeira import abrir_lixeira as _module_abrir_lixeira, refresh_if_open as _module_refresh_if_open
@@ -54,50 +54,52 @@ def _safe_messagebox(method: str, *args: Any, **kwargs: Any) -> Any:
     return None
 
 
-def _resolve_cliente_row(pk: int) -> Tuple[Any, ...] | None:
-    """Carrega do Supabase os dados necessários para popular o formulário de cliente."""
+def _try_refresh_clients_frame(app: Any) -> None:
+    """Tenta recarregar o frame de clientes (best-effort)."""
     try:
-        cliente = get_cliente_by_id(pk)
-    except (TimeoutError, ConnectionError, OSError):
-        log.exception("Failed to resolve client %s from Supabase", pk)
-        return None
-
-    if cliente is None:
-        return None
-
-    return (
-        cliente.id,
-        cliente.razao_social,
-        cliente.cnpj,
-        cliente.nome,
-        cliente.numero,
-        cliente.obs,
-        cliente.ultima_alteracao,
-    )
+        frame = getattr(app, "_main_screen_frame", lambda: None)()
+        if frame is not None and hasattr(frame, "load_async"):
+            frame.load_async()
+    except Exception:
+        log.debug("_try_refresh_clients_frame: could not refresh", exc_info=True)
 
 
 # ---------------------------------------------------------------------------
 # CRUD
 # ---------------------------------------------------------------------------
 def novo_cliente(app: Any) -> None:
-    """Abre o formulário para cadastro de um novo cliente."""
-    log.info("Opening form for new client")
+    """Abre o diálogo para cadastro de um novo cliente (ClientEditorDialog)."""
+    log.info("Opening dialog for new client")
 
-    from src.modules.clientes.forms import form_cliente
+    from src.modules.clientes.ui.views.client_editor_dialog import ClientEditorDialog
 
-    form_cliente(app)
+    def _on_saved(data: dict) -> None:
+        log.info("New client saved successfully")
+        # Recarregar tela de clientes se estiver visível
+        _try_refresh_clients_frame(app)
+
+    ClientEditorDialog(
+        parent=app,
+        client_id=None,
+        on_save=_on_saved,
+    )
 
 
 def editar_cliente(app: Any, pk: int) -> None:
-    """Abre o formulário de edição para o cliente informado."""
-    log.info("Opening edit form for client id=%s", pk)
-    from src.modules.clientes.forms import form_cliente
+    """Abre o diálogo de edição para o cliente informado (ClientEditorDialog)."""
+    log.info("Opening editor dialog for client id=%s", pk)
 
-    row = _resolve_cliente_row(pk)
-    if row:
-        form_cliente(app, row)
-    else:
-        _safe_messagebox("showerror", "Cliente", "Registro não encontrado no Supabase.")
+    from src.modules.clientes.ui.views.client_editor_dialog import ClientEditorDialog
+
+    def _on_saved(data: dict) -> None:
+        log.info("Client id=%s saved successfully", pk)
+        _try_refresh_clients_frame(app)
+
+    ClientEditorDialog(
+        parent=app,
+        client_id=pk,
+        on_save=_on_saved,
+    )
 
 
 def excluir_cliente(app: Any, selected_values: Sequence[Any]) -> None:
@@ -224,66 +226,6 @@ def _ensure_live_folder_ready(pk: int) -> str:
     return path
 
 
-def abrir_pasta_cliente(pk: int) -> str | None:
-    if NO_FS:
-        return None
-    return _ensure_live_folder_ready(pk)
-
-
-def abrir_pasta(app: Any, pk: int) -> None:
-    """Abre o explorador de arquivos apontando para a pasta local do cliente."""
-    if NO_FS:
-        _safe_messagebox(
-            "showinfo",
-            "Somente Nuvem",
-            (
-                "Este app está em modo somente nuvem.\n"
-                "Use o botão 'Subpastas (Supabase)' para navegar e baixar arquivos do Supabase."
-            ),
-        )
-        return
-
-    path = _ensure_live_folder_ready(pk)
-    log.info("Opening folder for client %s: %s", pk, path)
-    try:
-        # Guardrail adicional: mesmo em modo local, verificar se startfile está disponível
-        from src.utils.helpers import check_cloud_only_block
-
-        if check_cloud_only_block("Abrir pasta do cliente"):
-            return
-        os.startfile(path)  # type: ignore[attr-defined]  # nosec B606 - abre pasta local controlada pelo app
-    except (AttributeError, OSError):
-        log.exception("Failed to open file explorer for %s", path)
-
-
-def open_client_local_subfolders(app: Any, pk: int) -> None:
-    """Abre a UI de subpastas locais configuradas para o cliente."""
-    if NO_FS:
-        _safe_messagebox(
-            "showinfo",
-            "Subpastas",
-            "Navegação de pastas locais desativada.\nUse 'Subpastas (Supabase)' na tela principal.",
-        )
-        return
-
-    path = _ensure_live_folder_ready(pk)
-    try:
-        from src.modules.clientes.forms import open_subpastas_dialog
-        from src.utils.subpastas_config import load_subpastas_config
-
-        subpastas, extras = load_subpastas_config()
-    except (ImportError, OSError):
-        log.exception("Failed to load subfolders configuration; using empty lists")
-        subpastas, extras = [], []
-
-    open_subpastas_dialog(app, path, subpastas, extras)
-
-
-def ver_subpastas(app: Any, pk: int) -> None:
-    """DEPRECATED: mantenha compatibilidade com o nome antigo."""
-    open_client_local_subfolders(app, pk)
-
-
 # ---------------------------------------------------------------------------
 # Lixeira (trash)
 # ---------------------------------------------------------------------------
@@ -327,12 +269,8 @@ def abrir_lixeira_ui(app: Any, *args: Any, **kwargs: Any) -> None:
 
 __all__ = [
     "abrir_lixeira_ui",
-    "abrir_pasta",
-    "abrir_pasta_cliente",
     "dir_base_cliente_from_pk",
     "editar_cliente",
     "excluir_cliente",
     "novo_cliente",
-    "open_client_local_subfolders",
-    "ver_subpastas",
 ]
