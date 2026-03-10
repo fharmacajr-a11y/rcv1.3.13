@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from .buttons import FooterButtons, create_footer_buttons, toolbar_button
 from .inputs import SearchControls, create_search_controls, labeled_entry
 from .lists import create_clients_treeview
 from .misc import (
@@ -14,10 +13,6 @@ from .topbar_actions import TopbarActions
 from .topbar_nav import TopbarNav
 
 __all__ = [
-    # buttons
-    "FooterButtons",
-    "toolbar_button",
-    "create_footer_buttons",
     # inputs
     "SearchControls",
     "labeled_entry",
