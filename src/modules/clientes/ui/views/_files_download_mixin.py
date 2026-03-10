@@ -313,33 +313,38 @@ class FilesDownloadMixin:
                 self._progress_queue.put({"action": "show", "mode": "determinate"})
                 self._progress_queue.put({"action": "update", "value": 0.0})
 
-                temp_zip = Path(tempfile.gettempdir()) / f"rc_zip_{os.getpid()}.zip"
+                fd, tmp = tempfile.mkstemp(suffix=".zip", prefix="rc_zip_")
+                os.close(fd)
+                temp_zip = Path(tmp)
 
-                with zipfile.ZipFile(temp_zip, "w", zipfile.ZIP_DEFLATED) as zf:
-                    done = 0
-                    for full_path, rel_path in file_list:
-                        self._progress_queue.put(
-                            {"action": "status", "text": f"Baixando {rel_path} ({done + 1}/{total_files})..."}
-                        )
-                        try:
-                            content = adapter.download_file(full_path)
-                            if isinstance(content, bytes):
-                                zf.writestr(rel_path, content)
-                            else:
-                                zf.write(content, rel_path)
-                            done += 1
-                            progress = done / total_files
-                            self._progress_queue.put({"action": "update", "value": progress})
-                        except Exception as e:
-                            log.warning(f"[ClientFiles] Erro ao baixar {full_path}: {e}")
+                try:
+                    with zipfile.ZipFile(temp_zip, "w", zipfile.ZIP_DEFLATED) as zf:
+                        done = 0
+                        for full_path, rel_path in file_list:
+                            self._progress_queue.put(
+                                {"action": "status", "text": f"Baixando {rel_path} ({done + 1}/{total_files})..."}
+                            )
+                            try:
+                                content = adapter.download_file(full_path)
+                                if isinstance(content, bytes):
+                                    zf.writestr(rel_path, content)
+                                else:
+                                    zf.write(content, rel_path)
+                                done += 1
+                                progress = done / total_files
+                                self._progress_queue.put({"action": "update", "value": progress})
+                            except Exception as e:
+                                log.warning(f"[ClientFiles] Erro ao baixar {full_path}: {e}")
 
-                log.info(f"[ClientFiles] ZIP criado com {done} arquivo(s)")
+                    log.info(f"[ClientFiles] ZIP criado com {done} arquivo(s)")
 
-                import shutil
+                    import shutil
 
-                shutil.move(str(temp_zip), save_path)
+                    shutil.move(str(temp_zip), save_path)
 
-                self._safe_after(0, lambda count=done, path=save_path: self._on_download_zip_complete(count, path))
+                    self._safe_after(0, lambda count=done, path=save_path: self._on_download_zip_complete(count, path))
+                finally:
+                    temp_zip.unlink(missing_ok=True)
 
             except Exception as e:
                 log.error(f"[ClientFiles] Erro no download ZIP: {e}", exc_info=True)
@@ -424,33 +429,38 @@ class FilesDownloadMixin:
                 self._progress_queue.put({"action": "show", "mode": "determinate"})
                 self._progress_queue.put({"action": "update", "value": 0.0})
 
-                temp_zip = Path(tempfile.gettempdir()) / f"rc_zip_{os.getpid()}.zip"
+                fd, tmp = tempfile.mkstemp(suffix=".zip", prefix="rc_zip_")
+                os.close(fd)
+                temp_zip = Path(tmp)
 
-                with zipfile.ZipFile(temp_zip, "w", zipfile.ZIP_DEFLATED) as zf:
-                    done = 0
-                    for full_path, rel_path in file_list:
-                        self._progress_queue.put(
-                            {"action": "status", "text": f"Baixando {rel_path} ({done + 1}/{total_files})..."}
-                        )
-                        try:
-                            content = adapter.download_file(full_path)
-                            if isinstance(content, bytes):
-                                zf.writestr(rel_path, content)
-                            else:
-                                zf.write(content, rel_path)
-                            done += 1
-                            progress = done / total_files
-                            self._progress_queue.put({"action": "update", "value": progress})
-                        except Exception as e:
-                            log.warning(f"[ClientFiles] Erro ao baixar {full_path}: {e}")
+                try:
+                    with zipfile.ZipFile(temp_zip, "w", zipfile.ZIP_DEFLATED) as zf:
+                        done = 0
+                        for full_path, rel_path in file_list:
+                            self._progress_queue.put(
+                                {"action": "status", "text": f"Baixando {rel_path} ({done + 1}/{total_files})..."}
+                            )
+                            try:
+                                content = adapter.download_file(full_path)
+                                if isinstance(content, bytes):
+                                    zf.writestr(rel_path, content)
+                                else:
+                                    zf.write(content, rel_path)
+                                done += 1
+                                progress = done / total_files
+                                self._progress_queue.put({"action": "update", "value": progress})
+                            except Exception as e:
+                                log.warning(f"[ClientFiles] Erro ao baixar {full_path}: {e}")
 
-                log.info(f"[ClientFiles] ZIP criado com {done} arquivo(s)")
+                    log.info(f"[ClientFiles] ZIP criado com {done} arquivo(s)")
 
-                import shutil
+                    import shutil
 
-                shutil.move(str(temp_zip), save_path)
+                    shutil.move(str(temp_zip), save_path)
 
-                self._safe_after(0, lambda count=done, path=save_path: self._on_download_zip_complete(count, path))
+                    self._safe_after(0, lambda count=done, path=save_path: self._on_download_zip_complete(count, path))
+                finally:
+                    temp_zip.unlink(missing_ok=True)
 
             except Exception as e:
                 log.error(f"[ClientFiles] Erro no download ZIP: {e}", exc_info=True)
