@@ -258,6 +258,28 @@ class ClientesV2Toolbar(ctk.CTkFrame):
                     fg_color=SURFACE, text_color=TEXT_PRIMARY, placeholder_text_color=TEXT_MUTED, border_color=BORDER
                 )
 
+            if hasattr(self, "order_combo"):
+                self.order_combo.configure(
+                    fg_color=SURFACE,
+                    button_color=SURFACE,
+                    button_hover_color=PRIMARY_BLUE,
+                    text_color=TEXT_PRIMARY,
+                    dropdown_fg_color=SURFACE_DARK,
+                    dropdown_hover_color=BORDER,
+                    dropdown_text_color=TEXT_PRIMARY,
+                )
+
+            if hasattr(self, "status_combo"):
+                self.status_combo.configure(
+                    fg_color=SURFACE,
+                    button_color=SURFACE,
+                    button_hover_color=PRIMARY_BLUE,
+                    text_color=TEXT_PRIMARY,
+                    dropdown_fg_color=SURFACE_DARK,
+                    dropdown_hover_color=BORDER,
+                    dropdown_text_color=TEXT_PRIMARY,
+                )
+
             self.update_idletasks()
             log.debug("[ClientesV2] Toolbar tema atualizado")
         except Exception:

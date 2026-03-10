@@ -1386,6 +1386,20 @@ class ClientesV2Frame(ctk.CTkFrame):
         Returns:
             'break' se event fornecido, None caso contrário
         """
+        # Guard: bloqueia se já estamos abrindo um editor
+        if self._opening_editor:
+            return "break" if event else None
+
+        # Guard: se já existe um diálogo aberto, dar foco nele
+        if self._editor_dialog is not None:
+            try:
+                if self._editor_dialog.winfo_exists():
+                    self._editor_dialog.lift()
+                    self._editor_dialog.focus_force()
+                    return "break" if event else None
+            except Exception:
+                self._editor_dialog = None
+
         if not self.app:
             log.error("[Clientes] App não disponível para novo cliente")
             _show_error(
@@ -1397,6 +1411,7 @@ class ClientesV2Frame(ctk.CTkFrame):
 
         log.info("[Clientes] Novo cliente - abrindo diálogo")
 
+        self._opening_editor = True
         try:
             from src.modules.clientes.ui.views.client_editor_dialog import ClientEditorDialog
 
@@ -1405,16 +1420,25 @@ class ClientesV2Frame(ctk.CTkFrame):
                 log.info("[Clientes] Cliente criado com sucesso")
                 self.load_async()
 
+            def on_closed() -> None:
+                """Callback quando diálogo é fechado."""
+                self._editor_dialog = None
+                self._opening_editor = False
+
             # Abrir diálogo modal
-            dialog = ClientEditorDialog(
+            self._editor_dialog = ClientEditorDialog(
                 parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
                 client_id=None,
                 on_save=on_saved,
+                on_close=on_closed,
             )
-            dialog.focus()  # type: ignore[attr-defined]
+            self._opening_editor = False
+            self._editor_dialog.focus()  # type: ignore[attr-defined]
 
         except Exception as e:
             log.error(f"[Clientes] Erro ao abrir diálogo de novo cliente: {e}", exc_info=True)
+            self._editor_dialog = None
+            self._opening_editor = False
 
         return "break" if event else None
 

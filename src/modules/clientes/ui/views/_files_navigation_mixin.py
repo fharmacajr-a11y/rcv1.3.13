@@ -123,7 +123,10 @@ class FilesNavigationMixin:
             except Exception as e:
                 log.error(f"[ClientFiles] Erro ao listar arquivos: {e}", exc_info=True)
                 error_msg = str(e)
-                self._safe_after(0, lambda msg=error_msg: self._on_load_error(msg))
+                try:
+                    self._safe_after(0, lambda msg=error_msg: self._on_load_error(msg))
+                except Exception:
+                    self._loading = False
 
         # Submeter para ThreadPoolExecutor (não mais threading.Thread direto)
         if self._executor is not None and not self._closing:

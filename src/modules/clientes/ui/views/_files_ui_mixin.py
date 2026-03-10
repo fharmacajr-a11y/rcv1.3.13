@@ -73,11 +73,9 @@ class FilesUIMixin:
         )
         self.btn_back.grid(row=0, column=0, sticky="w", padx=(0, 10))
 
-        # Título principal — UMA label com texto completo: Arquivos - ID - Razão - CNPJ
+        # Título principal — UMA label com texto completo: Arquivos - Razão - CNPJ
         cnpj_fmt = (_fmt_cnpj(self.cnpj) or self.cnpj) if self.cnpj else ""
         header_parts = ["📁 Arquivos"]
-        if self.client_id:
-            header_parts.append(f"ID {self.client_id}")
         if self.razao_social:
             header_parts.append(self.razao_social)
         if cnpj_fmt:
@@ -196,19 +194,25 @@ class FilesUIMixin:
         self.progress_bar.grid(row=1, column=0, columnspan=2, sticky="ew", padx=12, pady=(2, 10))
         self._dl_card.grid_remove()  # Ocultar inicialmente
 
-        # Body: CTkTreeviewContainer (substitui criação manual de TreeView + Scrollbar)
+        # Body: wrapper visual igual à lista de clientes (SURFACE_DARK + corner_radius)
         # FASE 4: Migração para CTkTreeviewContainer
+        _tree_wrapper = ctk.CTkFrame(container, fg_color=SURFACE_DARK, corner_radius=10, border_width=0)
+        _tree_wrapper.grid(row=4, column=0, sticky="nsew", padx=15, pady=(0, 10))
+        _tree_wrapper.grid_rowconfigure(0, weight=1)  # pyright: ignore[reportAttributeAccessIssue]
+        _tree_wrapper.grid_columnconfigure(0, weight=1)  # pyright: ignore[reportAttributeAccessIssue]
+
         self._tree_container = CTkTreeviewContainer(
-            container,
+            _tree_wrapper,
             columns=("tipo",),
             show="tree headings",
             selectmode="browse",
             rowheight=24,
             zebra=True,
             style_name="RC.Treeview",
+            fg_color="transparent",
             show_hscroll=False,
         )
-        self._tree_container.grid(row=4, column=0, sticky="nsew", padx=15, pady=(0, 10))
+        self._tree_container.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
         # Obter referência ao Treeview interno (preserva API existente)
         self.tree = self._tree_container.get_treeview()
@@ -331,7 +335,7 @@ class FilesUIMixin:
         Se a razão social for longa, trunca-a com "…" para caber.
         """
         cnpj_fmt = (_fmt_cnpj(self.cnpj) or self.cnpj) if self.cnpj else ""
-        prefix = f"Arquivos - ID {self.client_id}" if self.client_id else "Arquivos"
+        prefix = f"Arquivos - ID {self.client_id}"
 
         # Calcular espaço disponível para razão social
         fixed = prefix
@@ -353,7 +357,7 @@ class FilesUIMixin:
     def _on_header_configure(self: FilesDialogProto, _event: Any = None) -> None:
         """Recalcula header quando o container é redimensionado.
 
-        Texto do header é único: «📁 Arquivos - ID X - Razão - CNPJ».
+        Texto do header é único: «📁 Arquivos - Razão - CNPJ».
 
         Estratégia:
         1. Tenta texto completo reduzindo fonte de 14 até 10.
@@ -389,8 +393,6 @@ class FilesUIMixin:
             # Reconstrói texto completo
             def _build_text(razao: str) -> str:
                 parts: list[str] = ["📁 Arquivos"]
-                if self.client_id:
-                    parts.append(f"ID {self.client_id}")
                 if razao:
                     parts.append(razao)
                 if cnpj_fmt:
