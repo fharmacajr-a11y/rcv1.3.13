@@ -242,7 +242,7 @@ def checar_duplicatas_para_form(
 
     current_id = _resolve_current_id(row, exclude_id)
 
-    razao_val = valores.get("Raz?o Social") or valores.get("Razao Social") or ""
+    razao_val = valores.get("Razão Social") or valores.get("Razao Social") or valores.get("razao_social") or ""
     info = checar_duplicatas_info(
         cnpj=_ensure_str(valores.get("CNPJ")),
         razao=_ensure_str(razao_val),

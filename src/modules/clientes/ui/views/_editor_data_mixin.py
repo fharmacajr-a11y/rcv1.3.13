@@ -249,7 +249,9 @@ class EditorDataMixin:
                 exc,
                 exc_info=exc,
             )
-            # Prosseguir mesmo com erro (cliente já foi salvo)
+            # P1-3: registrar falha parcial para feedback ao usuário
+            if hasattr(self, "_save_warnings"):
+                self._save_warnings.append("Falha ao salvar bloco de notas")
             if on_done:
                 on_done()
 
@@ -306,7 +308,9 @@ class EditorDataMixin:
                 exc,
                 exc_info=exc,
             )
-            # Prosseguir mesmo com erro nos contatos (cliente já foi salvo)
+            # P1-3: registrar falha parcial para feedback ao usuário
+            if hasattr(self, "_save_warnings"):
+                self._save_warnings.append("Falha ao salvar contatos")
             if on_done:
                 on_done()
 
@@ -421,6 +425,9 @@ class EditorDataMixin:
     def _validate_fields(self: EditorDialogProto) -> bool:
         """Valida campos obrigatórios.
 
+        Regra alinhada com o serviço: ao menos Razão Social OU CNPJ.
+        Se CNPJ informado, deve ter 14 dígitos.
+
         Returns:
             True se campos válidos, False se há erros
         """
@@ -429,12 +436,10 @@ class EditorDataMixin:
 
         erros = []
 
-        if not razao:
-            erros.append("Razão Social é obrigatória")
+        if not razao and not cnpj:
+            erros.append("Preencha ao menos Razão Social ou CNPJ")
 
-        if not cnpj:
-            erros.append("CNPJ é obrigatório")
-        elif cnpj:
+        if cnpj:
             # Validar formato básico do CNPJ (14 dígitos)
             digits = re.sub(r"\D", "", cnpj)
             if len(digits) != 14:
@@ -532,6 +537,9 @@ class EditorDataMixin:
             # 3. Se passou as validações, salvar
             log.debug("[ClientEditor] Salvando cliente (id=%s)", self.client_id or "novo")
 
+            # P1-3: inicializar tracker de falhas parciais
+            self._save_warnings: list[str] = []
+
             try:
                 result = clientes_service.salvar_cliente_a_partir_do_form(row, valores)
                 log.info(f"[ClientEditor] Cliente salvo: {result}")
@@ -546,6 +554,14 @@ class EditorDataMixin:
                 # Salvar contatos no Supabase (background)
                 def _finish_save() -> None:
                     """Callback executado na UI thread após contatos serem salvos."""
+                    # P1-3: avisar sobre falhas parciais antes de fechar
+                    if getattr(self, "_save_warnings", None) and self.winfo_exists():
+                        from src.ui.dialogs.rc_dialogs import show_warning
+
+                        msg = "O cliente foi salvo, mas houve falhas parciais:\n\n"
+                        msg += "\n".join(f"• {w}" for w in self._save_warnings)
+                        show_warning(self, "Salvo com ressalvas", msg)
+
                     if self.on_save:
                         self.on_save(valores)
                     if self.winfo_exists():

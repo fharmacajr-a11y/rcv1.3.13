@@ -26,6 +26,7 @@ from src.utils.formatters import format_cnpj
 from src.utils.phone_utils import format_phone_br
 
 from src.core.cnpj_norm import normalize_cnpj as normalize_cnpj_norm
+from src.utils.phone_utils import only_phone_digits
 
 log = logging.getLogger(__name__)
 
@@ -199,10 +200,43 @@ def checar_duplicatas_info(
                 continue
             razao_conflicts.append(cliente)
 
+    # P1-1: Detecção de conflitos por número/telefone (digits-only match)
+    numero_digits = only_phone_digits(numero) if numero else ""
+    # Normalizar: remover prefixo 55 (código BR) quando presente
+    if numero_digits.startswith("55") and len(numero_digits) > 11:
+        numero_digits = numero_digits[2:]
+    numero_conflicts: list[Any] = []
+    if numero_digits and len(numero_digits) >= 10:
+        try:
+            if CLOUD_ONLY:
+                q = supabase.table("clients").select("id,razao_social,cnpj,numero").is_("deleted_at", "null")
+                if exclude_id:
+                    q = q.neq("id", exclude_id)
+                resp_num = exec_postgrest(q)
+                for row in resp_num.data or []:
+                    row_digits = only_phone_digits(row.get("numero") or "")
+                    if row_digits.startswith("55") and len(row_digits) > 11:
+                        row_digits = row_digits[2:]
+                    if row_digits and row_digits == numero_digits:
+                        from types import SimpleNamespace
+
+                        numero_conflicts.append(SimpleNamespace(**row))
+            else:
+                for cliente in list_clientes(limit=None):
+                    if exclude_id and cliente.id == exclude_id:
+                        continue
+                    cliente_digits = only_phone_digits(getattr(cliente, "numero", "") or "")
+                    if cliente_digits.startswith("55") and len(cliente_digits) > 11:
+                        cliente_digits = cliente_digits[2:]
+                    if cliente_digits and cliente_digits == numero_digits:
+                        numero_conflicts.append(cliente)
+        except Exception as exc:
+            log.warning("Falha ao buscar conflitos de numero no Supabase: %s", exc)
+
     return {
         "cnpj_conflict": cnpj_conflict,
         "razao_conflicts": razao_conflicts,
-        "numero_conflicts": [],
+        "numero_conflicts": numero_conflicts,
         "cnpj_norm": cnpj_norm,
         "razao_norm": razao_norm,
     }
