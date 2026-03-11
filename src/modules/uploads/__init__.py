@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from .view import UploadsFrame, open_files_browser
 from .service import (
     DownloadCancelledError,
     UploadItem,
@@ -46,9 +45,6 @@ from .upload_retry import (
 from . import service
 
 __all__ = [
-    # View
-    "UploadsFrame",
-    "open_files_browser",
     # Service
     "service",
     "UploadItem",

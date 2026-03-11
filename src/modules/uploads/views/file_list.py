@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tkinter as tk
+from tkinter import ttk as _ttk
 from typing import Callable, Iterable, Optional, Tuple, Any
 
 # CustomTkinter (fonte centralizada)
@@ -37,27 +38,35 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
         self.rowconfigure(0, weight=1)
 
         # Estrutura de colunas para árvore hierárquica (CTkTreeview)
-        self.tree = CTkTreeview(self, columns=("type",), show="tree headings")  # selectmode browse default
+        # fg_color="transparent": frame interno herda SURFACE_DARK do wrapper pai
+        self.tree = CTkTreeview(
+            self, columns=("type",), show="tree headings", fg_color="transparent"
+        )  # selectmode browse default
 
-        # Configuração dos headings
+        # Configuração dos headings — iguais ao V1 (ClientFilesDialog)
         self.tree.heading("#0", text="Nome do arquivo/pasta", anchor="w")
         self.tree.heading("type", text="Tipo", anchor="center")
 
-        # Configuração das colunas
-        self.tree.column("#0", width=400, anchor="w", stretch=True)
-        self.tree.column("type", width=100, anchor="center", stretch=False)
+        # Configuração das colunas — iguais ao V1
+        self.tree.column("#0", minwidth=200, anchor="w", stretch=True)
+        self.tree.column("type", width=90, minwidth=80, anchor="center", stretch=False)
+
+        # Expandir frame interna do CTkTreeview: elimina área vazia à direita.
+        # CTkTreeview cria self.frame = CTkFrame(master) sem configurar pesos,
+        # o que impede o ttk.Treeview interno de esticar no eixo X.
+        self.tree.frame.rowconfigure(0, weight=1)
+        self.tree.frame.columnconfigure(0, weight=1)
 
         self.tree.grid(row=0, column=0, sticky="nsew")  # type: ignore[attr-defined]
 
-        # Scrollbar vertical (CustomTkinter)
-        scroll_y = ctk.CTkScrollbar(self, command=self.tree.yview)  # type: ignore[attr-defined]
-        scroll_y.grid(row=0, column=1, sticky="ns")
+        # SEM scrollbars redundantes: CTkTreeview já fornece barra vertical interna.
+        # SEM scrollbar horizontal: paridade com V1 (show_hscroll=False).
 
-        # Scrollbar horizontal (CustomTkinter)
-        scroll_x = ctk.CTkScrollbar(self, orientation="horizontal", command=self.tree.xview)  # type: ignore[attr-defined]
-        scroll_x.grid(row=1, column=0, sticky="ew")
+        # Estilo visual local — rowheight, fonte, cores, zebra (sem theme_use, sem TtkTreeviewManager)
+        self._apply_local_tree_style()
 
-        self.tree.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
+        # Ícones PIL de documento — paridade com V1 (ClientFilesDialog)
+        self._img_pdf, self._img_file = self._build_item_icons()
 
         self.tree.bind("<Delete>", lambda _event: self._handle_delete())
         self.tree.bind("<BackSpace>", lambda _event: self._handle_delete())
@@ -71,6 +80,93 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
         # Menu de contexto (clique direito)
         self._context_menu = tk.Menu(self, tearoff=0)
         self.tree.bind("<Button-3>", self._on_right_click)
+
+    def _apply_local_tree_style(self) -> None:
+        """Aplica estilo visual local na Treeview — paridade com V1 (RC.Treeview).
+
+        Copia rowheight, fonte e cores sem usar theme_use() nem TtkTreeviewManager.
+        O processo já está em tema "clam" (aplicado pelo V1 ao abrir qualquer janela
+        com treeview), então fieldbackground/background funcionam corretamente.
+        """
+        try:
+            mode = ctk.get_appearance_mode()
+        except Exception:
+            mode = "Light"
+
+        try:
+            from src.ui.ttk_treeview_theme import get_tree_colors
+
+            colors = get_tree_colors(mode)
+        except Exception:
+            return
+
+        _style = "V2Files.Treeview"
+        style = _ttk.Style(self)
+        # NÃO chamar style.theme_use() — o processo já está em "clam" via V1
+        style.configure(
+            _style,
+            background=colors.bg,
+            fieldbackground=colors.field_bg,
+            foreground=colors.fg,
+            font=("Segoe UI", 10),
+            rowheight=28,
+            borderwidth=0,
+            relief="flat",
+        )
+        style.configure(
+            f"{_style}.Heading",
+            background=colors.heading_bg,
+            foreground=colors.heading_fg,
+            font=("Segoe UI", 10, "bold"),
+            relief="flat",
+            borderwidth=0,
+            padding=(8, 4),
+        )
+        style.map(
+            f"{_style}.Heading",
+            background=[("active", colors.heading_bg), ("pressed", colors.heading_bg)],
+            foreground=[("active", colors.heading_fg), ("pressed", colors.heading_fg)],
+        )
+        style.map(
+            _style,
+            background=[("selected", colors.sel_bg)],
+            foreground=[("selected", colors.sel_fg)],
+        )
+        # Atribuir estilo ao ttk.Treeview via super().configure (bypassa CTkTreeview)
+        _ttk.Treeview.configure(self.tree, style=_style)
+
+        # Tags zebra — iguais ao V1 (apply_zebra)
+        self.tree.tag_configure("even", background=colors.even_bg, foreground=colors.fg)
+        self.tree.tag_configure("odd", background=colors.odd_bg, foreground=colors.fg)
+
+    def _build_item_icons(self):
+        """Constrói ícones PIL de documento — paridade com V1 (ClientFilesDialog).
+
+        Returns:
+            Tupla (img_pdf, img_file): PhotoImage para PDF (vermelho) e arquivo genérico (cinza).
+        """
+        try:
+            from PIL import Image, ImageDraw
+            from PIL.ImageTk import PhotoImage as _ItkPhoto
+
+            def _doc_icon(page_rgba, border_rgba):
+                w, h, fold = 14, 16, 4
+                img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+                d = ImageDraw.Draw(img)
+                body = [(0, 0), (w - 1 - fold, 0), (w - 1, fold), (w - 1, h - 1), (0, h - 1)]
+                d.polygon(body, fill=page_rgba, outline=border_rgba)
+                d.polygon([(w - 1 - fold, 0), (w - 1, fold), (w - 1 - fold, fold)], fill=border_rgba)
+                return _ItkPhoto(img)
+
+            img_pdf = _doc_icon((220, 53, 69, 255), (150, 20, 40, 255))  # vermelho — PDF
+            img_file = _doc_icon((180, 180, 190, 255), (110, 110, 120, 255))  # cinza — arquivo
+            return img_pdf, img_file
+
+        except Exception:  # noqa: BLE001
+            # Fallback: pixel transparente para não quebrar o kwarg image=
+            img_pdf = tk.PhotoImage(width=1, height=1)
+            img_file = tk.PhotoImage(width=1, height=1)
+            return img_pdf, img_file
 
     @staticmethod
     def _lock_treeview_columns(tree: Any) -> None:
@@ -111,20 +207,45 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
         self._status_cache = status_cache
         self._item_data = {}
 
-        for entry in items:
+        for idx, entry in enumerate(items):
             name = entry.get("name") or ""
             if not name:
                 continue
 
-            # Nome para exibição (última parte do path)
+            # Nome para exibição (last component do path)
             display_name = name.rsplit("/", 1)[-1] if "/" in name else name
+
+            # Ocultar arquivos de marcação (.keep) — igual ao V1
+            if display_name == ".keep":
+                continue
+
             is_folder = bool(entry.get("is_folder", False))
 
-            # Tipo
-            tipo = "Pasta" if is_folder else "Arquivo"
+            # Tipo — igual ao V1 (Pasta, PDF, Imagem, Word, Excel, Arquivo)
+            if is_folder:
+                tipo = "Pasta"
+            elif display_name.lower().endswith(".pdf"):
+                tipo = "PDF"
+            elif display_name.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp")):
+                tipo = "Imagem"
+            elif display_name.lower().endswith((".doc", ".docx")):
+                tipo = "Word"
+            elif display_name.lower().endswith((".xls", ".xlsx", ".csv")):
+                tipo = "Excel"
+            else:
+                tipo = "Arquivo"
+
+            # Zebra
+            tag = "even" if idx % 2 == 0 else "odd"
 
             # Inserir o item na raiz
-            iid = self.tree.insert("", "end", text=display_name, values=(tipo,), open=False)
+            if is_folder:
+                iid = self.tree.insert("", "end", text=f"📁 {display_name}", values=(tipo,), open=False, tags=(tag,))
+            else:
+                _img = self._img_pdf if tipo == "PDF" else self._img_file
+                iid = self.tree.insert(
+                    "", "end", text=f"  {display_name}", image=_img, values=(tipo,), open=False, tags=(tag,)
+                )
 
             # Guardar dados do item (full path, tipo)
             full_path = entry.get("full_path") or name
@@ -132,6 +253,7 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
                 "name": display_name,
                 "full_path": full_path,
                 "is_folder": is_folder,
+                "tipo": tipo,
                 "populated": False,  # Controla se já carregou filhos
             }
 
@@ -184,18 +306,46 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
         child_items = self._on_expand_folder(full_path)
 
         # Inserir filhos
-        for entry in child_items:
+        for idx, entry in enumerate(child_items):
             name = entry.get("name") or ""
             if not name:
                 continue
 
             display_name = name.rsplit("/", 1)[-1] if "/" in name else name
+
+            # Ocultar arquivos de marcação (.keep) — igual ao V1
+            if display_name == ".keep":
+                continue
+
             is_folder = bool(entry.get("is_folder", False))
 
-            tipo = "Pasta" if is_folder else "Arquivo"
+            # Tipo — igual ao V1 (Pasta, PDF, Imagem, Word, Excel, Arquivo)
+            if is_folder:
+                tipo = "Pasta"
+            elif display_name.lower().endswith(".pdf"):
+                tipo = "PDF"
+            elif display_name.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp")):
+                tipo = "Imagem"
+            elif display_name.lower().endswith((".doc", ".docx")):
+                tipo = "Word"
+            elif display_name.lower().endswith((".xls", ".xlsx", ".csv")):
+                tipo = "Excel"
+            else:
+                tipo = "Arquivo"
+
+            # Zebra
+            tag = "even" if idx % 2 == 0 else "odd"
 
             # Inserir filho
-            child_iid = self.tree.insert(folder_iid, "end", text=display_name, values=(tipo,), open=False)
+            if is_folder:
+                child_iid = self.tree.insert(
+                    folder_iid, "end", text=f"📁 {display_name}", values=(tipo,), open=False, tags=(tag,)
+                )
+            else:
+                _img = self._img_pdf if tipo == "PDF" else self._img_file
+                child_iid = self.tree.insert(
+                    folder_iid, "end", text=f"  {display_name}", image=_img, values=(tipo,), open=False, tags=(tag,)
+                )
 
             # Guardar dados
             child_full_path = entry.get("full_path") or name
@@ -203,6 +353,7 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
                 "name": display_name,
                 "full_path": child_full_path,
                 "is_folder": is_folder,
+                "tipo": tipo,
                 "populated": False,
             }
 
@@ -231,7 +382,7 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
         saved_data = self._item_data.get(iid)
         if saved_data:
             name = saved_data["name"]
-            tipo = "Pasta" if saved_data["is_folder"] else "Arquivo"
+            tipo = saved_data.get("tipo", "Pasta" if saved_data["is_folder"] else "Arquivo")
             full_path = saved_data["full_path"]
         else:
             # Fallback: extrair da tree

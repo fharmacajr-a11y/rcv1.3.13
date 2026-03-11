@@ -64,6 +64,8 @@ class AppMenuBar(tk.Menu):
         # Ajuda
         menu_ajuda = tk.Menu(self, tearoff=False)
         menu_ajuda.add_command(label="Sobre", command=self._about)
+        menu_ajuda.add_separator()
+        menu_ajuda.add_command(label="[DEBUG] Teste Flash Browser", command=self._open_flash_diag)
         self.add_cascade(label="Ajuda", menu=menu_ajuda)
 
         self._is_hub = False
@@ -100,6 +102,15 @@ class AppMenuBar(tk.Menu):
             show_info(self.master, "Sobre", "RC - Gestor de Clientes")
         except Exception as exc:  # noqa: BLE001
             _log.debug("Falha ao exibir diálogo Sobre: %s", exc)
+
+    # TEMPORÁRIO — remover após diagnóstico do flash
+    def _open_flash_diag(self) -> None:
+        try:
+            from diagnostics.flash_test_windows import open_flash_test_panel
+
+            open_flash_test_panel(self.master)
+        except Exception as exc:  # noqa: BLE001
+            _log.exception("Falha ao abrir painel de diagnóstico flash: %s", exc)
 
     def _sync_home_state(self) -> None:
         try:
