@@ -15,10 +15,9 @@ if TYPE_CHECKING:
     from src.core.services import clientes_service as clientes_service
     from src.core.services import lixeira_service as lixeira_service
     from src.core.services import notes_service as notes_service
-    from src.core.services import path_resolver as path_resolver
     from src.core.services import profiles_service as profiles_service
 
-__all__ = ["clientes_service", "lixeira_service", "notes_service", "path_resolver", "profiles_service"]
+__all__ = ["clientes_service", "lixeira_service", "notes_service", "profiles_service"]
 
 
 def __getattr__(name: str):
