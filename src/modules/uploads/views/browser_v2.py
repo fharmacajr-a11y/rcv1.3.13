@@ -1,37 +1,23 @@
 # -*- coding: utf-8 -*-
-"""UploadsBrowserWindowV2 — caminho paralelo e isolado para abertura limpa.
+"""UploadsBrowserWindowV2 — browser de arquivos do cliente (implementação oficial).
 
-FASE VISUAL: paridade estrita com V1 — mesmos componentes, mesmos paddings,
-mesmo menu de contexto (lambdas no-op), mesmo formato de título.
-SEM handlers reais, SEM theme_use, SEM TtkTreeviewManager.
+Abre uma janela modal que lista, faz upload, download, visualização e
+exclusão de arquivos do cliente no Supabase Storage.
 
-Regra desta fase: copiar o V1, não melhorar o V1.
-
-INTENÇÃO: este arquivo é um laboratório paralelo. O fluxo antigo (browser.py)
-NÃO foi alterado. Quando a V2 estiver madura, a comparação com V1 decide o
-substituto, ou V2 vira a implementação principal.
-
-SEQUÊNCIA CANÔNICA IMPLEMENTADA:
+SEQUÊNCIA DE ABERTURA (anti-flash):
  1. super().__init__(parent)       — cria Toplevel
  2. withdraw()                     — esconde IMEDIATAMENTE (sem exposição)
  3. configure(fg_color=APP_BG)     — bg antes de qualquer widget
- 4. title(…)                       — título
- 5. iconbitmap(…)                  — ícone
- 6. minsize(W, H)                  — tamanho mínimo ANTES de montar UI
- 7. _build_ui()                    — monta TODA a UI
- 8. update_idletasks()             — Tk calcula tamanhos finais
- 9. set_win_dark_titlebar(self)    — titlebar escura enquanto janela é hidden
-10. transient(parent)              — vincula ao parent ANTES de deiconify
-11. _center_on(parent, W, H)       — geometry final centralizada
-12. deiconify()                    — UMA ÚNICA revelação, já no lugar certo
-13. lift() + focus_set()           — traz ao frente
-14. protocol + bind ESC            — handlers de fechamento
-
-O que NÃO existe aqui (deliberadamente):
-- alpha tricks (black-frame risk no Windows)
-- after() com delay aleatório para revelar
-- grab_set / modal
-- Reutilização de prepare_hidden_window / show_centered_no_flash do V1
+ 4. title(…) + iconbitmap(…)       — metadados da janela
+ 5. minsize(W, H)                  — tamanho mínimo ANTES de montar UI
+ 6. _build_ui()                    — monta TODA a UI
+ 7. update_idletasks()             — Tk calcula tamanhos finais
+ 8. transient(parent)              — vincula ao parent ANTES de deiconify
+ 9. _refresh_listing()             — carrega dados enquanto hidden
+10. _center_on(parent, W, H)       — geometry final centralizada
+11. deiconify()                    — UMA ÚNICA revelação, já no lugar certo
+12. lift() + focus_set()           — traz ao frente
+13. grab_set (deferred)            — torna modal
 """
 
 from __future__ import annotations
@@ -65,6 +51,7 @@ from src.ui.ctk_config import ctk
 from src.ui.dialogs.rc_dialogs import show_info, show_error, ask_yes_no
 from src.ui.ui_tokens import (
     APP_BG,
+    BODY_FONT,
     BORDER,
     SURFACE_2,
     SURFACE_DARK,
@@ -83,7 +70,7 @@ _log = logging.getLogger(__name__)
 _executor = ThreadPoolExecutor(max_workers=4)
 _atexit.register(_executor.shutdown, wait=False)
 
-# Dimensões canônicas (iguais ao V1 para comparação justa)
+# Dimensões canônicas
 _W = 1000
 _H = 650
 
@@ -92,17 +79,8 @@ _UI_PADX = 8
 _UI_PADY = 6
 
 
-def _short_client_code(prefix: str) -> str:
-    """Abrevia o código do cliente: prefix[:12] + '…' + prefix[-8:] se > 24 chars."""
-    p = prefix or ""
-    return p if len(p) <= 24 else f"{p[:12]}\u2026{p[-8:]}"
-
-
 class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
-    """Browser V2 — caminho limpo e isolado.
-
-    Fase 1: shell visual. Fase 2: conteúdo real.
-    """
+    """Browser de arquivos do cliente — implementação oficial."""
 
     # ------------------------------------------------------------------
     # Overrides críticos: bloqueiam repaints tardios do CTkToplevel
@@ -201,7 +179,7 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
         self._nav_stack: list[str] = []
         self._progress_queue: queue.Queue = queue.Queue()
 
-        # PASSO 4 — título (mesmo formato que V1: ID + razão + CNPJ formatado)
+        # PASSO 4 — título (ID + razão + CNPJ formatado)
         razao_display = razao.strip() or f"ID {client_id}"
         cnpj_fmt = (_fmt_cnpj(cnpj) or cnpj.strip()) if cnpj.strip() else ""
         _title = f"Arquivos: ID {client_id} — {razao_display}"
@@ -223,7 +201,7 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
         # Fundamental: update_idletasks usará este valor ao calcular reqwidth
         self.minsize(_W, _H)
         # Resizable explícito — bypassa CTkToplevel.resizable que agenda
-        # after(10, _windows_set_titlebar_color). V1 faz o mesmo.
+        # after(10, _windows_set_titlebar_color). Bypass direto.
         try:
             from tkinter import Toplevel as _Toplevel
 
@@ -271,7 +249,7 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
         self.focus_set()
 
         # PASSO 16 — grab_set com retry seguro (aguarda janela viewable)
-        # Torna o V2 modal como o V1, impedindo interação com o editor.
+        # Torna modal, impedindo interação com o editor.
         self._safe_after(10, self._setup_modal_safe)
 
         _log.info(
@@ -368,14 +346,10 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
         _log.debug("[BrowserV2] Geometry aplicada: %dx%d+%d+%d", width, height, x, y)
 
     # ------------------------------------------------------------------
-    # UI — Fase 2: conteúdo real
+    # UI
     # ------------------------------------------------------------------
     def _build_ui(self) -> None:
-        """Monta o layout visual com paridade ao V1 (ClientFilesDialog).
-
-        Fase 3 (visual): estrutura, cores e tokens idênticos ao V1.
-        Handlers reais chegam na Fase 4B.
-        """
+        """Monta o layout visual completo (header, breadcrumb, tree, footer)."""
         # Configurar grid: somente row 4 (tree_wrapper) expande
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=0)  # header
@@ -387,7 +361,7 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
 
         # ── Header (row 0): Voltar | Título | Upload ───────────────────
         header = ctk.CTkFrame(self, fg_color="transparent", border_width=0)  # type: ignore[union-attr]
-        header.grid(row=0, column=0, sticky="ew", padx=15, pady=(15, 5))
+        header.grid(row=0, column=0, sticky="ew", padx=16, pady=(14, 8))
         header.columnconfigure(0, weight=0)
         header.columnconfigure(1, weight=1)  # título expande
         header.columnconfigure(2, weight=0)
@@ -402,7 +376,7 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
             border_width=0,
         ).grid(row=0, column=0, sticky="w", padx=(0, 10))
 
-        # Título inline: "📁 Arquivos - Razão - CNPJ" (mesmo formato do V1)
+        # Título inline: "📁 Arquivos — Razão — CNPJ"
         cnpj_fmt = (_fmt_cnpj(self._cnpj) or self._cnpj.strip()) if self._cnpj.strip() else ""
         header_parts = ["📁 Arquivos"]
         if self._razao.strip():
@@ -411,7 +385,7 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
             header_parts.append(cnpj_fmt)
         ctk.CTkLabel(  # type: ignore[union-attr]
             header,
-            text=" - ".join(header_parts),
+            text=" — ".join(header_parts),
             font=("Segoe UI", 14, "bold"),
             text_color=TEXT_PRIMARY,
             anchor="w",
@@ -419,16 +393,14 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
         ).grid(row=0, column=1, sticky="ew", padx=(0, 12))
 
         # Botão Upload
-        btn_upload_frame = ctk.CTkFrame(header, fg_color="transparent", border_width=0)  # type: ignore[union-attr]
-        btn_upload_frame.grid(row=0, column=2, sticky="e", padx=0)
         make_btn_sm(
-            btn_upload_frame,
-            text="Upload",
+            header,
+            text="⬆ Upload",
             command=self._handle_upload,
             fg_color=("#059669", "#10b981"),
             hover_color=("#047857", "#059669"),
             border_width=0,
-        ).pack(side="left", padx=0)
+        ).grid(row=0, column=2, sticky="e")
 
         # ── Breadcrumb (row 1): barra de caminho ────────────────────────
         breadcrumb_frame = ctk.CTkFrame(  # type: ignore[union-attr]
@@ -437,49 +409,49 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
             fg_color=SURFACE_DARK,
             border_width=0,
         )
-        breadcrumb_frame.grid(row=1, column=0, sticky="ew", padx=15, pady=(5, 5))
+        breadcrumb_frame.grid(row=1, column=0, sticky="ew", padx=16, pady=(4, 6))
         breadcrumb_frame.columnconfigure(1, weight=1)
 
         ctk.CTkLabel(  # type: ignore[union-attr]
             breadcrumb_frame,
             text="📂 Caminho:",
-            font=("Segoe UI", 10, "bold"),
+            font=BODY_FONT,
             text_color=TEXT_MUTED,
-        ).grid(row=0, column=0, padx=(10, 4), pady=7, sticky="w")
+        ).grid(row=0, column=0, padx=(12, 4), pady=8, sticky="w")
 
         self.breadcrumb_label = ctk.CTkLabel(  # type: ignore[union-attr]
             breadcrumb_frame,
             text="/ (raiz)",
-            font=("Segoe UI", 10),
+            font=BODY_FONT,
             text_color=TEXT_PRIMARY,
             anchor="w",
-            wraplength=600,
+            wraplength=700,
         )
-        self.breadcrumb_label.grid(row=0, column=1, padx=(0, 6), pady=7, sticky="ew")
+        self.breadcrumb_label.grid(row=0, column=1, padx=(0, 8), pady=8, sticky="ew")
 
         ctk.CTkButton(  # type: ignore[union-attr]
             breadcrumb_frame,
             text="Copiar",
-            width=60,
-            height=22,
+            width=64,
+            height=26,
             corner_radius=8,
             fg_color=("#e5e7eb", "#374151"),
             hover_color=("#d1d5db", "#4b5563"),
             text_color=("#6b7280", "#9ca3af"),
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 10),
             command=self._copy_path_to_clipboard,
             border_width=0,
-        ).grid(row=0, column=2, padx=(0, 8), pady=4, sticky="e")
+        ).grid(row=0, column=2, padx=(0, 10), pady=5, sticky="e")
 
         # ── Status label (row 2): contador / texto auxiliar ──────────────
         self.status_label = ctk.CTkLabel(  # type: ignore[union-attr]
             self,
-            text="Carregando arquivos...",
-            font=("Segoe UI", 10),
+            text="Carregando arquivos\u2026",
+            font=BODY_FONT,
             text_color=TEXT_MUTED,
             anchor="w",
         )
-        self.status_label.grid(row=2, column=0, sticky="ew", padx=15, pady=(0, 2))
+        self.status_label.grid(row=2, column=0, sticky="ew", padx=16, pady=(2, 4))
 
         # ── Card de progresso (row 3): oculto por padrão — aparece durante downloads/uploads ───
         self._dl_card = ctk.CTkFrame(  # type: ignore[union-attr]
@@ -489,7 +461,7 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
             border_width=1,
             border_color=BORDER,
         )
-        self._dl_card.grid(row=3, column=0, sticky="ew", padx=15, pady=(0, 6))
+        self._dl_card.grid(row=3, column=0, sticky="ew", padx=16, pady=(2, 6))
         self._dl_card.columnconfigure(0, weight=1)
         self._dl_card.columnconfigure(1, weight=0)
 
@@ -521,29 +493,27 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
         _tree_wrapper = ctk.CTkFrame(  # type: ignore[union-attr]
             self, fg_color=SURFACE_DARK, corner_radius=10, border_width=0
         )
-        _tree_wrapper.grid(row=4, column=0, sticky="nsew", padx=15, pady=(0, 10))
+        _tree_wrapper.grid(row=4, column=0, sticky="nsew", padx=16, pady=(2, 8))
         _tree_wrapper.rowconfigure(0, weight=1)
         _tree_wrapper.columnconfigure(0, weight=1)
 
         self.file_list = FileList(
             _tree_wrapper,
-            # no-ops: tornam o menu de contexto visível sem ligar handlers reais.
-            # Fase 4B substitui por handlers reais.
             on_download=lambda: None,
             on_delete=lambda: None,
             on_open_file=lambda _n, _t, _p: None,
             on_expand_folder=self._load_folder_children,
             on_download_folder=lambda: None,
-            fg_color="transparent",  # herda SURFACE_DARK do wrapper pai (paridade V1)
+            fg_color="transparent",
         )
         self.file_list.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
         self.file_list.tree.bind("<<TreeviewSelect>>", lambda _event: self._sync_actions_state())
 
-        # ── Rodapé (row 5): botões de ação — ordem e cores iguais ao V1 ───
+        # ── Rodapé (row 5): ações construtivas à esquerda, destrutiva à direita ──
         footer_frame = ctk.CTkFrame(self, fg_color="transparent", border_width=0)  # type: ignore[union-attr]
-        footer_frame.grid(row=5, column=0, sticky="ew", padx=15, pady=(0, 15))
+        footer_frame.grid(row=5, column=0, sticky="ew", padx=16, pady=(0, 14))
 
-        # Baixar (verde — igual ao V1)
+        # Baixar (verde)
         self.btn_baixar = make_btn(
             footer_frame,
             text="Baixar",
@@ -553,9 +523,9 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
             border_width=0,
             state="disabled",
         )
-        self.btn_baixar.pack(side="left", padx=2)
+        self.btn_baixar.pack(side="left", padx=(0, 6))
 
-        # Baixar pasta (.zip) (roxo — igual ao V1)
+        # Baixar pasta (.zip) (roxo)
         self.btn_baixar_zip = make_btn(
             footer_frame,
             text="Baixar pasta (.zip)",
@@ -565,9 +535,9 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
             border_width=0,
             state="disabled",
         )
-        self.btn_baixar_zip.pack(side="left", padx=2)
+        self.btn_baixar_zip.pack(side="left", padx=(0, 6))
 
-        # Visualizar (azul PRIMARY — igual ao V1)
+        # Visualizar (azul)
         self.btn_visualizar = make_btn(
             footer_frame,
             text="Visualizar",
@@ -577,9 +547,9 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
             border_width=0,
             state="disabled",
         )
-        self.btn_visualizar.pack(side="left", padx=2)
+        self.btn_visualizar.pack(side="left", padx=(0, 6))
 
-        # Excluir (vermelho — igual ao V1)
+        # Excluir (vermelho — separado à direita)
         self.btn_excluir = make_btn(
             footer_frame,
             text="Excluir",
@@ -589,7 +559,7 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
             border_width=0,
             state="disabled",
         )
-        self.btn_excluir.pack(side="left", padx=2)
+        self.btn_excluir.pack(side="right", padx=0)
 
         # Iniciar polling da fila de progresso
         self._poll_progress_queue()
@@ -597,9 +567,6 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
     # ------------------------------------------------------------------
     # Data loading
     # ------------------------------------------------------------------
-    def _populate_initial_state(self) -> None:
-        """No-op: populate foi movido para antes do deiconify() (sem flash)."""
-
     def _sync_actions_state(self) -> None:
         """Habilita/desabilita botões de ação conforme item selecionado."""
         self._update_breadcrumb_for_selected()
@@ -638,7 +605,12 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
         self.file_list.populate_tree_hierarchical(items, self._base_prefix, self._status_cache)
         n = len(items)
         if hasattr(self, "status_label") and self.status_label.winfo_exists():
-            self.status_label.configure(text=f"{n} arquivo(s) encontrado(s)")
+            if n == 0:
+                self.status_label.configure(text="Nenhum arquivo encontrado nesta pasta")
+            elif n == 1:
+                self.status_label.configure(text="1 arquivo encontrado")
+            else:
+                self.status_label.configure(text=f"{n} arquivos encontrados")
         self._update_breadcrumb()
         self._sync_actions_state()
 
@@ -742,10 +714,10 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
             self._download_in_progress = False
 
     # ------------------------------------------------------------------
-    # Ações: Baixar pasta (.zip) — fluxo igual ao V1 (client-side, progresso inline)
+    # Ações: Baixar pasta (.zip) — progresso inline
     # ------------------------------------------------------------------
     def _download_folder_zip(self) -> None:
-        """Baixa a pasta selecionada como ZIP com progresso inline (= V1)."""
+        """Baixa a pasta selecionada como ZIP com progresso inline."""
         if self._download_in_progress:
             return
 
@@ -974,7 +946,7 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
     # Breadcrumb
     # ------------------------------------------------------------------
     def _update_breadcrumb(self) -> None:
-        """Atualiza label do breadcrumb com base no _nav_stack (= V1)."""
+        """Atualiza label do breadcrumb com base no _nav_stack."""
         if not self._nav_stack:
             path_text = "/ (raiz)"
         else:
@@ -1001,10 +973,10 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
             self.breadcrumb_label.configure(text=("/" + folder_part) if folder_part else "/ (raiz)")
 
     # ------------------------------------------------------------------
-    # Progresso inline (= V1: _dl_card + _progress_queue)
+    # Progresso inline (_dl_card + _progress_queue)
     # ------------------------------------------------------------------
     def _show_progress(self, mode: str = "indeterminate") -> None:
-        """Mostra card de progresso (igual ao V1)."""
+        """Mostra card de progresso."""
         self.progress_bar.stop()
         self.progress_bar.configure(mode=mode)
         if mode == "indeterminate":
@@ -1029,7 +1001,7 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
             self._dl_pct_label.configure(text=f"{int(value * 100)}%")
 
     def _poll_progress_queue(self) -> None:
-        """Drena fila de progresso e atualiza UI — igual ao V1."""
+        """Drena fila de progresso e atualiza UI."""
         if self._is_closing:
             return
         try:
@@ -1075,7 +1047,7 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
         self._after_ids.clear()
 
     def _close_window(self) -> None:
-        """Fecha a janela de forma limpa e previsível (= V1 _safe_close)."""
+        """Fecha a janela de forma limpa e previsível."""
         if self._is_closing:
             return
         self._is_closing = True

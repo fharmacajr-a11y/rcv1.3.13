@@ -43,11 +43,11 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
             self, columns=("type",), show="tree headings", fg_color="transparent"
         )  # selectmode browse default
 
-        # Configuração dos headings — iguais ao V1 (ClientFilesDialog)
+        # Headings
         self.tree.heading("#0", text="Nome do arquivo/pasta", anchor="w")
         self.tree.heading("type", text="Tipo", anchor="center")
 
-        # Configuração das colunas — iguais ao V1
+        # Colunas
         self.tree.column("#0", minwidth=200, anchor="w", stretch=True)
         self.tree.column("type", width=90, minwidth=80, anchor="center", stretch=False)
 
@@ -60,12 +60,12 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
         self.tree.grid(row=0, column=0, sticky="nsew")  # type: ignore[attr-defined]
 
         # SEM scrollbars redundantes: CTkTreeview já fornece barra vertical interna.
-        # SEM scrollbar horizontal: paridade com V1 (show_hscroll=False).
+        # SEM scrollbar horizontal.
 
-        # Estilo visual local — rowheight, fonte, cores, zebra (sem theme_use, sem TtkTreeviewManager)
+        # Estilo visual local — rowheight, fonte, cores, zebra
         self._apply_local_tree_style()
 
-        # Ícones PIL de documento — paridade com V1 (ClientFilesDialog)
+        # Ícones PIL de documento
         self._img_pdf, self._img_file = self._build_item_icons()
 
         self.tree.bind("<Delete>", lambda _event: self._handle_delete())
@@ -82,12 +82,7 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
         self.tree.bind("<Button-3>", self._on_right_click)
 
     def _apply_local_tree_style(self) -> None:
-        """Aplica estilo visual local na Treeview — paridade com V1 (RC.Treeview).
-
-        Copia rowheight, fonte e cores sem usar theme_use() nem TtkTreeviewManager.
-        O processo já está em tema "clam" (aplicado pelo V1 ao abrir qualquer janela
-        com treeview), então fieldbackground/background funcionam corretamente.
-        """
+        """Aplica estilo visual local na Treeview (rowheight, fonte, cores, zebra)."""
         try:
             mode = ctk.get_appearance_mode()
         except Exception:
@@ -102,7 +97,7 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
 
         _style = "V2Files.Treeview"
         style = _ttk.Style(self)
-        # NÃO chamar style.theme_use() — o processo já está em "clam" via V1
+        # NÃO chamar style.theme_use() — o processo já está em "clam"
         style.configure(
             _style,
             background=colors.bg,
@@ -135,16 +130,12 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
         # Atribuir estilo ao ttk.Treeview via super().configure (bypassa CTkTreeview)
         _ttk.Treeview.configure(self.tree, style=_style)
 
-        # Tags zebra — iguais ao V1 (apply_zebra)
+        # Tags zebra
         self.tree.tag_configure("even", background=colors.even_bg, foreground=colors.fg)
         self.tree.tag_configure("odd", background=colors.odd_bg, foreground=colors.fg)
 
     def _build_item_icons(self):
-        """Constrói ícones PIL de documento — paridade com V1 (ClientFilesDialog).
-
-        Returns:
-            Tupla (img_pdf, img_file): PhotoImage para PDF (vermelho) e arquivo genérico (cinza).
-        """
+        """Constrói ícones PIL para tipos de documento (PDF vermelho, genérico cinza)."""
         try:
             from PIL import Image, ImageDraw
             from PIL.ImageTk import PhotoImage as _ItkPhoto
@@ -215,13 +206,13 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
             # Nome para exibição (last component do path)
             display_name = name.rsplit("/", 1)[-1] if "/" in name else name
 
-            # Ocultar arquivos de marcação (.keep) — igual ao V1
+            # Ocultar arquivos de marcação (.keep)
             if display_name == ".keep":
                 continue
 
             is_folder = bool(entry.get("is_folder", False))
 
-            # Tipo — igual ao V1 (Pasta, PDF, Imagem, Word, Excel, Arquivo)
+            # Tipo (Pasta, PDF, Imagem, Word, Excel, Arquivo)
             if is_folder:
                 tipo = "Pasta"
             elif display_name.lower().endswith(".pdf"):
@@ -313,13 +304,13 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
 
             display_name = name.rsplit("/", 1)[-1] if "/" in name else name
 
-            # Ocultar arquivos de marcação (.keep) — igual ao V1
+            # Ocultar arquivos de marcação (.keep)
             if display_name == ".keep":
                 continue
 
             is_folder = bool(entry.get("is_folder", False))
 
-            # Tipo — igual ao V1 (Pasta, PDF, Imagem, Word, Excel, Arquivo)
+            # Tipo (Pasta, PDF, Imagem, Word, Excel, Arquivo)
             if is_folder:
                 tipo = "Pasta"
             elif display_name.lower().endswith(".pdf"):
@@ -363,13 +354,6 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
 
         # Marcar como populado
         item_info["populated"] = True
-
-    def selected_item(self) -> Optional[str]:
-        """Retorna o nome do item selecionado."""
-        selection = self.tree.selection()
-        if not selection:
-            return None
-        return self.tree.item(selection[0], "text")
 
     def get_selected_info(self) -> Optional[Tuple[str, str, str]]:
         """Retorna (nome, tipo, full_path) do item selecionado."""

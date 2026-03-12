@@ -289,16 +289,8 @@ def show_centered(window: tk.Toplevel | tk.Tk) -> None:
         log.debug("[SHOW_CENTERED] %s", _dbg)
 
 
-def recenter_after_layout(*args: object, **kwargs: object) -> None:
-    """
-    [DEPRECATED] Mantido apenas para compatibilidade com imports antigos.
-    Nao faz nada.
-    """
-    return
-
-
 # ============================================================================
-# Helpers anti-flash para janelas Toplevel (usado por ANVISA e outros módulos)
+# Helpers anti-flash para janelas Toplevel
 # ============================================================================
 
 
