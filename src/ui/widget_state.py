@@ -71,8 +71,3 @@ def set_disabled(widget: Any) -> None:
 def set_normal(widget: Any) -> None:
     """Habilita um widget (atalho para set_enabled(widget, True))."""
     set_enabled(widget, True)
-
-
-def set_readonly(widget: Any) -> None:
-    """Define widget como readonly (atalho para set_enabled(widget, True, readonly=True))."""
-    set_enabled(widget, True, readonly=True)

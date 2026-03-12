@@ -247,7 +247,7 @@ def salvar_e_upload_docs(
     self: Any,
     row: Mapping[str, Any],
     ents: Mapping[str, EntryLike],
-    arquivos_selecionados: list[str] | None,
+    _arquivos_selecionados: list[str] | None,
     win: Any = None,
     **kwargs: Any,
 ) -> None:

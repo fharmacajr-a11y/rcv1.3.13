@@ -11,11 +11,6 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-def init_notifications_service(app: "MainWindow") -> Optional[Any]:  # noqa: ARG001
-    """DESATIVADO v1.5.99: Notificações removidas. Retorna None sempre."""
-    return None
-
-
 def init_status_monitor(app: "MainWindow") -> Optional[Any]:
     """Inicializa o monitor de status (health checks).
 

@@ -153,9 +153,3 @@ def _attach_close_handler(dlg: SubpastaDialog) -> None:
             dlg.protocol("WM_DELETE_WINDOW", lambda: dlg._on_close())
         except Exception as inner_exc:  # noqa: BLE001
             logger.debug("Falha ao atribuir handler alternativo de fechamento: %s", inner_exc)
-
-
-def _ask_subpasta_nome(parent: tk.Misc, default: str = "") -> Optional[str]:
-    dlg = SubpastaDialog(parent, default=default)
-    parent.wait_window(dlg)
-    return dlg.result

@@ -5,7 +5,7 @@ Este módulo define dataclass para agrupar todos os callbacks de navegação
 de módulos externos, reduzindo o número de atributos individuais em HubScreen.
 
 Responsabilidades:
-- Centralizar callbacks de abertura de módulos (clientes, senhas, etc.)
+- Centralizar callbacks de abertura de módulos (clientes, cashflow, etc.)
 - Fornecer interface clara para registro de callbacks
 - Reduzir aliases e repetição em HubScreen
 
@@ -53,7 +53,7 @@ class HubNavigationCallbacks:
         """Obtém callback por nome de módulo.
 
         Args:
-            module_name: Nome do módulo (ex: 'clientes', 'senhas', etc.)
+            module_name: Nome do módulo (ex: 'clientes', 'cashflow', etc.)
 
         Returns:
             Callback correspondente ou None se não encontrado

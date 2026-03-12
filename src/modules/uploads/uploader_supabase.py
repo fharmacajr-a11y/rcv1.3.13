@@ -32,7 +32,7 @@ from src.ui.components.progress_dialog import ProgressDialog
 from src.ui.ctk_config import ctk
 from src.ui.files_browser.utils import format_file_size
 from src.ui.ui_tokens import APP_BG, BUTTON_RADIUS, PRIMARY_BLUE, PRIMARY_BLUE_HOVER
-from src.ui.window_utils import apply_window_icon, show_centered
+from src.ui.window_utils import apply_window_icon
 
 log = logging.getLogger(__name__)
 
@@ -104,14 +104,6 @@ def _show_msg(parent: tk.Misc, title: str, msg: str) -> None:
         parent.wait_window(dlg)
     except tk.TclError:
         pass
-
-
-def center_window(window: tk.Misc, *args: object, **kwargs: object) -> None:
-    """Wrapper de compatibilidade para centralizar janelas de upload."""
-
-    # Mantido para testes e codigo legado que ainda chamam center_window.
-    # Hoje delega para src.ui.window_utils.show_centered.
-    show_centered(window)
 
 
 CLIENTS_BUCKET = (os.getenv("SUPABASE_CLIENTS_BUCKET") or "clientes").strip() or "clientes"

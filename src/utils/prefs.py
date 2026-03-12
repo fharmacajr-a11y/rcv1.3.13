@@ -110,11 +110,6 @@ def _login_prefs_path() -> str:
     return os.path.join(base, LOGIN_PREFS_FILENAME)
 
 
-def _auth_session_path() -> str:
-    base: str = _get_base_dir()
-    return os.path.join(base, AUTH_SESSION_FILENAME)
-
-
 # =============================================================================
 # KEYRING HELPERS - P1-001: Armazenamento seguro de tokens Supabase
 # =============================================================================

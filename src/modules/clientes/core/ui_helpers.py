@@ -8,10 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Collection
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Any, Literal, Protocol, Sequence
-
-if TYPE_CHECKING:
-    from src.modules.clientes.core.viewmodel import ClienteRow
+from typing import Any, Literal, Protocol, Sequence
 
 
 class ClientWithCreatedAt(Protocol):
@@ -96,35 +93,6 @@ ORDER_CHOICES: dict[str, tuple[str | None, bool]] = {
 
 
 UNICODE_MAX_CODEPOINT = 0x10FFFF
-
-
-def _normalize_razao_social_value(row: "ClienteRow") -> str:
-    """Extrai e normaliza a Razão Social usada para ordenação."""
-    return (getattr(row, "razao_social", "") or "").strip()
-
-
-def _invert_casefold_value(value: str) -> str:
-    """Inverte os codepoints para permitir ordenação descendente sem reverse."""
-    if not value:
-        return value
-
-    max_codepoint = UNICODE_MAX_CODEPOINT
-    return "".join(chr(max_codepoint - ord(ch)) for ch in value)
-
-
-def sort_key_razao_social_asc(row: "ClienteRow") -> tuple[int, str]:
-    """Key function para Razão Social (A→Z) mantendo vazios no final."""
-    normalized = _normalize_razao_social_value(row)
-    is_empty = 1 if not normalized else 0
-    return (is_empty, normalized.casefold())
-
-
-def sort_key_razao_social_desc(row: "ClienteRow") -> tuple[int, str]:
-    """Key function para Razão Social (Z→A) mantendo vazios no final."""
-    normalized = _normalize_razao_social_value(row)
-    is_empty = 1 if not normalized else 0
-    casefolded = normalized.casefold()
-    return (is_empty, _invert_casefold_value(casefolded))
 
 
 FILTER_LABEL_TODOS = "Todos"
@@ -680,41 +648,6 @@ def format_clients_summary(
 def is_single_selection(selection_tuple: Sequence[str]) -> bool:
     """Verifica se há exatamente 1 item selecionado."""
     return len(selection_tuple) == 1
-
-
-def is_multiple_selection(selection_tuple: Sequence[str]) -> bool:
-    """Verifica se há múltiplos itens selecionados."""
-    return len(selection_tuple) >= 2
-
-
-def get_first_selected_id(selection_tuple: Sequence[str]) -> str | None:
-    """Retorna ID do primeiro item selecionado (ou None se vazio)."""
-    return selection_tuple[0] if selection_tuple else None
-
-
-def can_edit_selection(
-    selection_tuple: Sequence[str],
-    *,
-    is_online: bool = True,
-) -> bool:
-    """Determina se pode editar a seleção atual (1 selecionado e online)."""
-    return is_single_selection(selection_tuple) and is_online
-
-
-def can_delete_selection(
-    selection_tuple: Sequence[str],
-    *,
-    is_online: bool = True,
-) -> bool:
-    """Determina se pode excluir a seleção atual (pelo menos 1 selecionado e online)."""
-    return has_selection(selection_tuple) and is_online
-
-
-def can_open_folder_for_selection(
-    selection_tuple: Sequence[str],
-) -> bool:
-    """Determina se pode abrir pasta para a seleção atual (exatamente 1 selecionado)."""
-    return is_single_selection(selection_tuple)
 
 
 ClientRow = dict[str, Any]

@@ -61,7 +61,7 @@ class ScreenRouter:
         """Registra uma factory de tela.
 
         Args:
-            name: Nome único da tela (ex: "hub", "main", "passwords")
+            name: Nome único da tela (ex: "hub", "main", "cashflow")
             factory: Função que cria a tela (sem argumentos)
             cache: Se True, reutiliza instância; se False, cria nova a cada show()
         """

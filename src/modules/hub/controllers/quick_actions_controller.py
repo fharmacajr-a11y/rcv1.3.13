@@ -117,7 +117,7 @@ class QuickActionsController:
         o mapeamento já existente em handle_action_click.
 
         Args:
-            module_id: ID do módulo clicado (ex: "clientes", "senhas", etc).
+            module_id: ID do módulo clicado (ex: "clientes", "fluxo_caixa", etc).
 
         Returns:
             True se o módulo foi reconhecido e tratado, False caso contrário.

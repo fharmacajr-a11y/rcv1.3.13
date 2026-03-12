@@ -38,29 +38,9 @@ def configure_hidpi_support(root: "tk.Tk | None" = None, scaling: float | None =
                 log.debug("HiDPI ja configurado ou indisponivel (Windows)", exc_info=exc)
         # Se root foi passado no Windows, ignora (ja tarde demais)
 
-    elif system == "Linux":
-        # Linux: chamar DEPOIS de criar Tk, com root e scaling
-        if root is not None:
-            try:
-                # Scaling recomendado: 1.6-2.0 para monitores 4K
-                scale_factor = scaling or _detect_linux_scaling(root)
-                enable_high_dpi_awareness(root, scale_factor)  # pyright: ignore[reportUndefinedVariable]
-            except Exception as exc:
-                log.debug("HiDPI nao aplicado no Linux", exc_info=exc)
+    # macOS (e Linux): suporte nativo ou não requer configuração
 
     # macOS tem suporte nativo HiDPI, nao requer configuracao
-
-
-def _detect_linux_scaling(root: "tk.Tk") -> float:
-    """Calcula fator de escala no Linux baseado em DPI, limitando entre 1.0 e 3.0."""
-    try:
-        dpi = root.winfo_fpixels("1i")  # pixels por polegada
-        scale = dpi / 96.0
-        scale = max(1.0, min(3.0, scale))
-        return round(scale, 1)
-    except Exception:
-        # Fallback para 1.0 (sem escala)
-        return 1.0
 
 
 __all__ = ["configure_hidpi_support"]

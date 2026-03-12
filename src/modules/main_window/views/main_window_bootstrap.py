@@ -122,7 +122,7 @@ def bootstrap_main_window(app: App) -> None:
             logger=log,
         )
 
-        # Registrar todas as telas (hub, clients, passwords, etc.)
+        # Registrar todas as telas (hub, clients, cashflow, sites, etc.)
         register_main_window_screens(app._router, app)
 
     # ═══════════════════════════════════════════════════════════════

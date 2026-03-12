@@ -11,11 +11,11 @@ from typing import Literal
 from src.ui.ctk_config import HAS_CUSTOMTKINTER
 
 
-def toggle_theme(style_or_app: object = None) -> str:
+def toggle_theme(_style_or_app: object = None) -> str:
     """Alterna entre tema claro, escuro e system em ciclo.
 
     Args:
-        style_or_app: IGNORADO (mantido para compatibilidade)
+        _style_or_app: IGNORADO (mantido para compatibilidade)
 
     Returns:
         Nome do novo modo aplicado ("light" ou "dark")

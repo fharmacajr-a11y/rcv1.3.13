@@ -42,7 +42,7 @@ class HubViewCallbacks(Protocol):
     """
 
     def on_module_click(self, module: str) -> None:
-        """Callback para clique em módulo (Clientes, Senhas, etc.)."""
+        """Callback para clique em módulo (Clientes, Fluxo de Caixa, etc.)."""
         ...
 
     def on_card_click(self, card_type: str, client_id: str | None = None) -> None:

@@ -426,14 +426,6 @@ class ClientesViewModel:
         ids_int = [int(id_str) for id_str in ids]
         return excluir_clientes_definitivamente(ids_int)
 
-    def restore_clientes_batch(self, ids: Collection[str]) -> None:
-        """Restaura uma coleção de clientes da lixeira."""
-        # Import local para evitar circular import
-        from .service import restaurar_clientes_da_lixeira
-
-        ids_int = [int(id_str) for id_str in ids]
-        restaurar_clientes_da_lixeira(ids_int)
-
     def export_clientes_batch(self, ids: Collection[str]) -> None:
         """Exporta dados dos clientes selecionados para CSV ou Excel.
 

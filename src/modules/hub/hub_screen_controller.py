@@ -301,7 +301,7 @@ class HubScreenController:
         MF-17: Delega para QuickActionsController, eliminando duplicação de lógica.
 
         Args:
-            action_id: ID do atalho ("clientes", "senhas", "auditoria", etc.)
+            action_id: ID do atalho ("clientes", "fluxo_caixa", "sites", etc.)
         """
         # Normalizar para lowercase (case-insensitive)
         action_id_lower = (action_id or "").lower()
@@ -325,13 +325,13 @@ class HubScreenController:
     # ═══════════════════════════════════════════════════════════════════════
 
     def on_module_clicked(self, module: str) -> None:
-        """Handler para clique em módulo (Clientes, Senhas, etc.).
+        """Handler para clique em módulo (Clientes, Fluxo de Caixa, etc.).
 
         MF-18/MF-19: Delega 100% para QuickActionsController.handle_module_click.
         Sem fallback - toda navegação centralizada.
 
         Args:
-            module: Nome do módulo ("clientes", "senhas", "auditoria", etc.)
+            module: Nome do módulo ("clientes", "fluxo_caixa", "sites", etc.)
         """
         # Validação de entrada
         if not module:

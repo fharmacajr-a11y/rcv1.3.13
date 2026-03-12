@@ -27,7 +27,6 @@ A classe App herda de ctk.CTk (CustomTkinter) e orquestra os componentes princip
 2. NAVEGAÇÃO
    - show_hub_screen(): Tela inicial (hub/notas)
    - show_main_screen(): Tela de clientes
-   - show_passwords_screen(): Tela de senhas
    - show_cashflow_screen(): Tela de fluxo de caixa
    - show_placeholder_screen(): Telas vazias (em desenvolvimento)
 
@@ -429,7 +428,7 @@ class App(BaseApp):  # type: ignore[misc]
             show_error(self, "Erro", f"Falha ao alternar tema: {exc}")
 
     # Manter métodos legados para compatibilidade com código antigo
-    def _set_theme(self, new_theme: str) -> None:
+    def _set_theme(self, _new_theme: str) -> None:
         """DEPRECATED: Mantido para compatibilidade (Microfase 24)."""
         log.warning("_set_theme() está deprecated. Use _handle_toggle_theme() para light/dark.")
 

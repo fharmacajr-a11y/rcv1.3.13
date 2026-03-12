@@ -37,7 +37,7 @@ def apply_rc_icon(window: tk.Misc) -> None:
         if os.path.exists(icon_path):
             try:
                 window.iconbitmap(icon_path)  # type: ignore[attr-defined]
-                # FIX-SENHAS-013: Também define como default para messageboxes
+                # Define ícone como default para messageboxes
                 try:
                     window.iconbitmap(default=icon_path)  # type: ignore[attr-defined]
                 except Exception:
