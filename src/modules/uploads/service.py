@@ -16,7 +16,7 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Iterable, Optional, Sequence, Tuple
+from typing import Any, Callable, Optional, Sequence, Tuple
 
 from src.adapters.storage.api import (
     DownloadCancelledError as _DownloadCancelledError,
@@ -33,6 +33,10 @@ from src.modules.uploads.components.helpers import (
     get_clients_bucket,
     get_current_org_id,
     strip_cnpj_from_razao,
+)
+from src.modules.uploads.storage_browser_service import (
+    download_file_service as _download_file_svc,
+    list_storage_objects_service as _list_storage_objects_svc,
 )
 from src.modules.uploads.temp_files import create_temp_file
 
@@ -191,25 +195,29 @@ def download_bytes(*args: Any, **kwargs: Any) -> Any:
     return _download_bytes(*args, **kwargs)
 
 
-def download_file(*args: Any, **kwargs: Any) -> Any:
-    from src.modules.forms.view import download_file as _download_file  # lazy import
+def download_file(bucket_name: str | None, file_path: str, local_path: str | None = None) -> Any:
+    """Baixa um arquivo do storage. Delega para storage_browser_service (sem UI)."""
+    ctx = {
+        "bucket_name": bucket_name,
+        "file_path": file_path,
+        "local_path": local_path,
+        "compact_call": local_path is None,
+    }
+    return _download_file_svc(ctx)
 
-    return _download_file(*args, **kwargs)
+
+def list_storage_objects(bucket_name: str | None = None, prefix: str = "") -> list[Any]:
+    """Lista objetos no storage. Delega para storage_browser_service (sem UI)."""
+    ctx = {"bucket_name": bucket_name, "prefix": prefix}
+    return _list_storage_objects_svc(ctx).get("objects", [])
 
 
-def list_storage_objects(*args: Any, **kwargs: Any) -> Iterable[Any]:
-    from src.modules.forms.view import list_storage_objects as _list_storage_objects  # lazy import
-
-    return _list_storage_objects(*args, **kwargs)
-
-
-def list_browser_items(prefix: str, *, bucket: str | None = None) -> Iterable[Any]:
+def list_browser_items(prefix: str, *, bucket: str | None = None) -> list[Any]:
     """
     Lista objetos para o navegador de arquivos.
 
-    FIX: versões >=1.1.86 estavam repassando apenas `prefix` para
-    src.modules.forms.view.list_storage_objects, fazendo o `prefix` cair
-    como `bucket_name`. O adapter então tentava listar um bucket com o
+    FIX: versões >=1.1.86 estavam repassando apenas `prefix` diretamente
+    como `bucket_name`, fazendo o adapter tentar listar um bucket com o
     nome do prefixo (ex.: 'org/cliente'), retornando lista vazia.
     """
     # Bucket de clientes (padrão: rc-docs), usa o informado se vier.
@@ -226,7 +234,6 @@ def download_storage_object(remote_key: str, destination: str, *, bucket: str | 
         dict com {"ok": bool, "errors": list, "message": str, "local_path": str | None}
     """
     bn = (bucket or get_clients_bucket()).strip()
-    # usa src.modules.forms.actions.download_file(bucket, file, local)
     return download_file(bn, remote_key, destination)
 
 
