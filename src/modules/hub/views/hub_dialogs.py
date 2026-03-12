@@ -128,11 +128,21 @@ def show_note_editor(
     dialog.bind("<Control-Return>", lambda _e: on_confirm())
     dialog.bind("<Escape>", lambda _e: on_cancel())
 
-    # Auditoria Anti-Flash: centralizar e exibir APÓS toda UI construída
+    # Anti-Flash: centralizar e exibir APÓS toda UI construída
     dialog.update_idletasks()
     try:
-        x = parent.winfo_rootx() + (parent.winfo_width() - dialog.winfo_width()) // 2
-        y = parent.winfo_rooty() + (parent.winfo_height() - dialog.winfo_height()) // 2
+        pw = parent.winfo_width()
+        ph = parent.winfo_height()
+        # Se parent ainda não foi renderizado, winfo_width/height retorna 1.
+        # Nesse caso, usa reqwidth/reqheight como fallback seguro.
+        if pw <= 1:
+            pw = parent.winfo_reqwidth()
+        if ph <= 1:
+            ph = parent.winfo_reqheight()
+        dw = dialog.winfo_reqwidth()
+        dh = dialog.winfo_reqheight()
+        x = parent.winfo_rootx() + (pw - dw) // 2
+        y = parent.winfo_rooty() + (ph - dh) // 2
         dialog.geometry(f"+{x}+{y}")
     except Exception:  # noqa: BLE001
         pass

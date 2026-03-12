@@ -73,8 +73,11 @@ class DownloadResultDialog(ctk.CTkToplevel):
         _show_centered(self, parent, width=500, height=None)
         self.minsize(480, 235)  # pyright: ignore[reportAttributeAccessIssue]
 
-        # grab_set após deiconify
-        self.after(50, self.grab_set)
+        # grab_set robusto: tenta imediatamente e re-tenta via after() como fallback
+        try:
+            self.grab_set()
+        except Exception:  # noqa: BLE001
+            self.after(80, self._safe_grab_set)
 
         # Fechar com Escape/Enter
         self.bind("<Escape>", lambda e: self.destroy())
@@ -163,6 +166,14 @@ class DownloadResultDialog(ctk.CTkToplevel):
             hover_color=PRIMARY_BLUE_HOVER,
             command=self.destroy,
         ).pack(side="left", padx=5)
+
+    def _safe_grab_set(self) -> None:
+        """Tenta grab_set com guard para widget já destruído."""
+        try:
+            if self.winfo_exists():
+                self.grab_set()
+        except Exception:  # noqa: BLE001
+            pass
 
     def _copy_path(self, path: str) -> None:
         """Copia o caminho para a área de transferência."""

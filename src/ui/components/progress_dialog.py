@@ -80,7 +80,7 @@ class BusyDialog(ctk.CTkToplevel):
             self.after(50, _remove_topmost_busy)
         except Exception as exc:  # noqa: BLE001
             logger.debug("Falha ao ajustar topmost do BusyDialog: %s", exc)
-        self.update()
+        self.update_idletasks()
 
         self._det_total = None
         self._det_value = 0

@@ -79,8 +79,9 @@ class HubAsyncRunner:
                         "Erro em tarefa assíncrona do HUB",
                         exc_info=exc,
                     )
-                # Garantir retorno no main thread com verificação de widget válido
-                self._schedule_callback(lambda: on_error(exc))
+                # Captura eagerly via default-arg para evitar NameError
+                # (exc é limpa ao sair do except em CPython 3.11+).
+                self._schedule_callback(lambda _e=exc: on_error(_e))
             else:
                 self._schedule_callback(lambda: on_success(result))
 
