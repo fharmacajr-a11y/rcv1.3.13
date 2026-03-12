@@ -8,6 +8,7 @@ Contém: _on_return_key, _on_cancel, _on_arquivos,
 
 from __future__ import annotations
 
+import importlib
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -15,6 +16,35 @@ if TYPE_CHECKING:
     from src.modules.clientes.ui.views._dialogs_typing import EditorDialogProto
 
 log = logging.getLogger(__name__)
+
+
+def _resolve_supabase_client() -> object:
+    """Resolve o cliente Supabase de forma robusta com fallback.
+
+    Tenta localizar o singleton Supabase em diferentes módulos do projeto.
+    Retorna o cliente ou None se não encontrado.
+    """
+    candidates = [
+        ("src.infra.supabase_client", ("supabase", "get_supabase", "client")),
+        ("src.infra.supabase.db_client", ("supabase", "supabase_client", "client", "get_client")),
+        ("src.infra.supabase.auth_client", ("supabase", "supabase_client", "client")),
+    ]
+    for mod_name, attrs in candidates:
+        try:
+            mod = importlib.import_module(mod_name)
+        except Exception:  # nosec B112 - Fallback: tenta múltiplos caminhos até encontrar módulo válido
+            continue
+        for attr in attrs:
+            if hasattr(mod, attr):
+                obj = getattr(mod, attr)
+                if callable(obj) and not hasattr(obj, "table"):
+                    try:
+                        return obj()
+                    except Exception:  # nosec B112 - Fallback: invoca se for factory function
+                        continue
+                return obj
+    log.warning("[EditorArquivos] Não foi possível resolver o cliente Supabase")
+    return None
 
 
 # Helper local (duplicado do data mixin para evitar dependência cruzada)
@@ -105,7 +135,7 @@ class EditorActionsMixin:
         self._cleanup_and_destroy()
 
     def _on_arquivos(self: EditorDialogProto) -> None:
-        """Handler do botão Arquivos — abre ClientFilesDialog."""
+        """Handler do botão Arquivos — abre UploadsBrowserWindowV2."""
         if not self.client_id:
             from src.ui.dialogs.rc_dialogs import show_warning
 
@@ -116,31 +146,73 @@ class EditorActionsMixin:
             )
             return
 
-        # Preferir dados já carregados; caso contrário, ler dos entries
+        # Dados reais do cliente — preferir _client_data já carregado
         if self._client_data:
-            razao = self._client_data.get("razao_social", "") or ""
-            cnpj = self._client_data.get("cnpj", "") or ""
+            razao = str(self._client_data.get("razao_social", "") or "")
+            cnpj = str(self._client_data.get("cnpj", "") or "")
         else:
             razao = self.razao_entry.get().strip()
             cnpj = self.cnpj_entry.get().strip()
 
+        # Resolver org_id (necessário para construir o storage prefix correto)
+        org_id = ""
+        try:
+            from src.modules.uploads.components.helpers import get_current_org_id
+
+            sb = _resolve_supabase_client()
+            if sb is not None:
+                org_id = get_current_org_id(sb) or ""
+        except Exception as exc:  # noqa: BLE001
+            log.debug("[EditorArquivos] Não foi possível obter org_id: %s", exc)
+
+        # Computar bucket e prefix do Storage
+        bucket = ""
+        base_prefix = ""
+        try:
+            from src.modules.uploads.components.helpers import (
+                get_clients_bucket,
+                client_prefix_for_id,
+            )
+
+            bucket = get_clients_bucket()
+            if org_id:
+                base_prefix = client_prefix_for_id(int(self.client_id), org_id)
+        except Exception as exc:  # noqa: BLE001
+            log.debug("[EditorArquivos] Não foi possível computar prefix: %s", exc)
+
+        # Liberar grab para que o V2 possa responder ao usuário
         try:
             self.grab_release()
         except Exception:  # noqa: BLE001
             pass
 
-        from src.modules.clientes.ui.views.client_files_dialog import ClientFilesDialog
+        # Abrir Browser V2
+        from src.modules.uploads.views.browser_v2 import open_files_browser_v2
 
-        dlg = ClientFilesDialog(
-            parent=self,
+        dlg = open_files_browser_v2(
+            self,
             client_id=int(self.client_id),
-            client_name=razao or "Cliente",
-            razao_social=razao or "",
-            cnpj=cnpj or "",
+            razao=razao,
+            cnpj=cnpj,
+            org_id=org_id,
+            bucket=bucket,
+            base_prefix=base_prefix,
         )
 
+        if dlg is None:
+            # Falha na abertura: restaurar grab imediatamente
+            from src.ui.dialogs.rc_dialogs import show_warning as _sw
+
+            _sw(self, "Erro", "Não foi possível abrir o navegador de arquivos.")
+            try:
+                if self.winfo_exists():
+                    self.grab_set()
+            except Exception:  # noqa: BLE001
+                pass
+            return
+
         # Reativar grab do editor quando o browser fechar
-        def _on_files_close(event: object) -> None:
+        def _on_browser_close(event: object) -> None:
             if event.widget is dlg:  # type: ignore[union-attr]
                 try:
                     if self.winfo_exists():
@@ -148,7 +220,7 @@ class EditorActionsMixin:
                 except Exception:  # noqa: BLE001
                     pass
 
-        dlg.bind("<Destroy>", _on_files_close)
+        dlg.bind("<Destroy>", _on_browser_close)
 
     def _on_cartao_cnpj(self: EditorDialogProto) -> None:
         """Handler do botão Cartão CNPJ."""

@@ -3,15 +3,12 @@
 from __future__ import annotations
 
 import logging
-import os
-import shutil
 import threading
 from dataclasses import dataclass, field
-from typing import Any, Optional, Tuple
+from typing import Any, Tuple
 
 from src.infra.supabase_client import exec_postgrest, supabase
-from src.core.app_utils import safe_base_from_fields
-from src.config.paths import CLOUD_ONLY, DOCS_DIR
+from src.config.paths import CLOUD_ONLY
 from src.core.db_manager import (
     find_cliente_by_cnpj_norm,
     insert_cliente,
@@ -20,7 +17,6 @@ from src.core.db_manager import (
 )
 from src.core.logs.audit import log_client_action
 from src.core.session.session import get_current_user
-from src.utils.file_utils import ensure_subpastas, write_marker
 from src.utils.validators import normalize_text
 from src.utils.formatters import format_cnpj
 from src.utils.phone_utils import format_phone_br
@@ -242,32 +238,6 @@ def checar_duplicatas_info(
     }
 
 
-def _pasta_do_cliente(pk: int, cnpj: str, numero: str, razao: str) -> str:
-    """Resolve and prepare the filesystem path for the given cliente."""
-    base = safe_base_from_fields(cnpj, numero, razao, pk)
-    pasta = os.path.join(str(DOCS_DIR), base)
-    if not CLOUD_ONLY:
-        ensure_subpastas(pasta)
-        write_marker(pasta, pk)
-    return pasta
-
-
-def _migrar_pasta_se_preciso(old_path: Optional[str], nova_pasta: str) -> None:
-    if not old_path or not os.path.isdir(old_path):
-        return
-    try:
-        ensure_subpastas(old_path)
-        for item in os.listdir(old_path):
-            src = os.path.join(old_path, item)
-            dst = os.path.join(nova_pasta, item)
-            if os.path.isdir(src):
-                shutil.copytree(src, dst, dirs_exist_ok=True)
-            else:
-                shutil.copy2(src, dst)
-    except Exception:
-        log.exception("Falha ao migrar pasta (%s -> %s)", old_path, nova_pasta)
-
-
 def salvar_cliente(row: tuple[Any, ...] | None, valores: dict[str, Any]) -> tuple[int, str]:
     """Create or update a client, enforcing basic validation and CNPJ uniqueness."""
     razao: str
@@ -290,7 +260,6 @@ def salvar_cliente(row: tuple[Any, ...] | None, valores: dict[str, Any]) -> tupl
             raise ValueError(f'CNPJ já cadastrado para o cliente ID {conflict.id} — "{raiser}". CNPJ: {stored_cnpj}.')
 
     real_pk: int
-    old_path: str | None
     if row:
         pk: int = int(row[0])
         update_cliente(
@@ -303,7 +272,6 @@ def salvar_cliente(row: tuple[Any, ...] | None, valores: dict[str, Any]) -> tupl
             cnpj_norm=cnpj_norm,
         )
         real_pk = pk
-        old_path = None
     else:
         real_pk = insert_cliente(
             numero=numero,
@@ -313,7 +281,6 @@ def salvar_cliente(row: tuple[Any, ...] | None, valores: dict[str, Any]) -> tupl
             obs=obs,
             cnpj_norm=cnpj_norm,
         )
-        old_path = None
 
     # Auditoria
     try:
@@ -322,7 +289,4 @@ def salvar_cliente(row: tuple[Any, ...] | None, valores: dict[str, Any]) -> tupl
     except Exception as exc:
         log.debug("Falha ao registrar auditoria do cliente %s", real_pk, exc_info=exc)
 
-    # Pasta local (opcional)
-    pasta: str = _pasta_do_cliente(real_pk, cnpj, numero, razao)
-    _migrar_pasta_se_preciso(old_path, pasta)
-    return real_pk, pasta
+    return real_pk, ""
