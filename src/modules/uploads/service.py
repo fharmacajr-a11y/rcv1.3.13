@@ -121,8 +121,14 @@ def upload_folder_to_supabase(
     return results
 
 
-def collect_pdfs_from_folder(dirpath: str) -> list[UploadItem]:
+def collect_files_from_folder(dirpath: str) -> list[UploadItem]:
+    """Coleta todos os arquivos permitidos de uma pasta recursivamente."""
     return validation.collect_pdf_items_from_folder(dirpath, _make_upload_item)
+
+
+# Alias para compatibilidade com código anterior que só coletava PDFs.
+# A função subjacente agora coleta todos os tipos da whitelist.
+collect_pdfs_from_folder = collect_files_from_folder
 
 
 def build_items_from_files(paths: Sequence[str]) -> list[UploadItem]:

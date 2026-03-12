@@ -150,7 +150,7 @@ def execute_upload_flow(
         Exception: Se houver erro durante upload
     """
     # 1. Selecionar pasta
-    folder = filedialog.askdirectory(title="Selecione a pasta com os PDFs", parent=parent_widget)
+    folder = filedialog.askdirectory(title="Selecione a pasta com os documentos", parent=parent_widget)
     if not folder:
         _show_msg(parent_widget, "Envio", "Nenhuma pasta selecionada.")
         return
@@ -172,19 +172,22 @@ def execute_upload_flow(
     if not items:
         # Pasta vazia, virtual ou resultados de pesquisa do Windows que
         # passam no is_dir() mas o glob não consegue listar os arquivos.
-        logger.warning("Nenhum PDF coletado da pasta: %s (is_dir=%s)", folder, base.is_dir())
+        logger.warning("Nenhum arquivo coletado da pasta: %s (is_dir=%s)", folder, base.is_dir())
         _show_msg(
             parent_widget,
-            "Nenhum PDF encontrado",
-            "Nenhum PDF foi encontrado na pasta selecionada.\n\n"
+            "Nenhum arquivo suportado encontrado",
+            "Nenhum arquivo suportado foi encontrado na pasta selecionada.\n\n"
             "Se você navegou por 'Resultados da pesquisa' do Windows,\n"
             "isso pode causar esse problema.\n\n"
-            "Clique OK para selecionar os PDFs individualmente.",
+            "Clique OK para selecionar os arquivos individualmente.",
         )
         paths = filedialog.askopenfilenames(
-            title="Selecione os PDFs",
+            title="Selecione os documentos",
             parent=parent_widget,
-            filetypes=[("PDF", "*.pdf"), ("Todos os arquivos", "*.*")],
+            filetypes=[
+                ("Documentos", "*.pdf *.doc *.docx *.xls *.xlsx *.csv *.jpg *.jpeg *.png"),
+                ("Todos os arquivos", "*.*"),
+            ],
         )
         if not paths:
             return
@@ -212,7 +215,7 @@ def execute_upload_flow(
     valid_set = {str(res.path) for res in valid_results}
     items = [it for it in items if str(it.path) in valid_set]
     if not items:
-        _show_msg(parent_widget, "Envio", "Nenhum PDF valido foi selecionado.")
+        _show_msg(parent_widget, "Envio", "Nenhum arquivo válido foi selecionado.")
         return
 
     # 5. Verificar client_id

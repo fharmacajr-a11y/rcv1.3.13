@@ -26,20 +26,35 @@ from .exceptions import UploadValidationError
 # Configuração de validação (pode ser sobrescrita via env)
 # ============================================================================
 
-# Extensões permitidas (whitelist). Apenas PDF por padrão.
+# Extensões permitidas (whitelist). Pode ser sobrescrita via envvar.
+_DEFAULT_EXTENSIONS_STR = ".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png"
+_DEFAULT_EXTENSIONS_SET: frozenset[str] = frozenset(
+    {
+        ".pdf",
+        ".doc",
+        ".docx",
+        ".xls",
+        ".xlsx",
+        ".csv",
+        ".jpg",
+        ".jpeg",
+        ".png",
+    }
+)
 
 
 def _load_default_allowed_extensions() -> frozenset[str]:
-    raw = env_str("RC_UPLOAD_ALLOWED_EXTENSIONS", ".pdf") or ".pdf"
+    raw = env_str("RC_UPLOAD_ALLOWED_EXTENSIONS", _DEFAULT_EXTENSIONS_STR) or _DEFAULT_EXTENSIONS_STR
     parts = [part.strip().lower() for part in raw.split(",")]
     extensions = {part if part.startswith(".") else f".{part}" for part in parts if part}
-    return frozenset(extensions or {".pdf"})
+    return frozenset(extensions or _DEFAULT_EXTENSIONS_SET)
 
 
 DEFAULT_ALLOWED_EXTENSIONS: Final[frozenset[str]] = _load_default_allowed_extensions()
 ALLOWED_EXTENSIONS: Final[frozenset[str]] = DEFAULT_ALLOWED_EXTENSIONS
 
-# Extensões permitidas incluindo imagens (se habilitado)
+# Mantido por compatibilidade com código que ainda o importa.
+# O DEFAULT_ALLOWED_EXTENSIONS já inclui imagens.
 ALLOWED_EXTENSIONS_WITH_IMAGES: Final[frozenset[str]] = frozenset({".pdf", ".jpg", ".jpeg", ".png", ".gif"})
 
 # Tamanho máximo em bytes (padrão: 50 MB)

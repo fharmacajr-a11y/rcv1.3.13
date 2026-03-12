@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import mimetypes
 import os
 from pathlib import Path
 from typing import Any, Callable, Sequence, Tuple, TypeVar, cast
@@ -208,11 +209,12 @@ def upload_items_with_adapter(
             )
 
             # Usar upload_with_retry para lidar com erros transientes de rede/servidor
+            _mime_type, _ = mimetypes.guess_type(str(Path(local_path)))
             upload_with_retry(
                 adapter.upload_file,
                 local_path,
                 remote_key,
-                content_type="application/pdf",
+                content_type=_mime_type or "application/octet-stream",
                 max_retries=DEFAULT_MAX_RETRIES,
             )
             ok += 1

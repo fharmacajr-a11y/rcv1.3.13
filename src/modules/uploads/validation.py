@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Callable, Iterator, Sequence, TypeVar
 
 from src.core.storage_key import make_storage_key, storage_slug_filename, storage_slug_part
+from src.modules.uploads.file_validator import DEFAULT_ALLOWED_EXTENSIONS as _ALLOWED_EXT
 
 _TItem = TypeVar("_TItem")
 
@@ -127,7 +128,11 @@ def prepare_folder_entries(
 
 
 def collect_pdf_items_from_folder(dirpath: str, factory: Callable[[Path, str], _TItem]) -> list[_TItem]:
-    """Collect PDF files inside a folder and build UploadItems via factory."""
+    """Collect allowed files inside a folder and build UploadItems via factory.
+
+    O nome histórico foi mantido por compatibilidade; a função agora coleta
+    TODOS os tipos da whitelist (DEFAULT_ALLOWED_EXTENSIONS), não apenas PDF.
+    """
 
     base = Path(dirpath)
     if not base.is_dir():
@@ -137,7 +142,7 @@ def collect_pdf_items_from_folder(dirpath: str, factory: Callable[[Path, str], _
     for file_path in base.rglob("*"):
         if not file_path.is_file():
             continue
-        if file_path.suffix.lower() != ".pdf":
+        if file_path.suffix.lower() not in _ALLOWED_EXT:
             continue
         relative = file_path.relative_to(base).as_posix()
         records.append((relative.lower(), relative, file_path))
@@ -146,13 +151,17 @@ def collect_pdf_items_from_folder(dirpath: str, factory: Callable[[Path, str], _
     return [factory(path, relative) for _, relative, path in records]
 
 
+# Alias semântico mais genérico — prefer prefer esta forma em código novo.
+collect_allowed_items_from_folder = collect_pdf_items_from_folder
+
+
 def build_items_from_files(paths: Sequence[str], factory: Callable[[Path, str], _TItem]) -> list[_TItem]:
-    """Create UploadItems for an arbitrary list of files."""
+    """Create UploadItems for an arbitrary list of files (whitelist-filtered)."""
 
     records: list[tuple[str, str, Path]] = []
     for raw in paths:
         path = Path(raw)
-        if path.suffix.lower() != ".pdf":
+        if path.suffix.lower() not in _ALLOWED_EXT:
             continue
         records.append((path.name.lower(), path.name, path))
 
@@ -204,6 +213,7 @@ __all__ = [
     "guess_mime",
     "normalize_relative_path",
     "prepare_folder_entries",
+    "collect_allowed_items_from_folder",
     "collect_pdf_items_from_folder",
     "build_items_from_files",
     "build_remote_path",

@@ -176,14 +176,21 @@ class UploadProgressDialog:
         return f"{self._value}/{self._total} arquivo(s)"
 
 
-def _select_pdfs_dialog(parent: Optional[tk.Misc] = None) -> List[str]:
-    """Abre diálogo de seleção múltipla de PDFs e retorna os paths escolhidos."""
+def _select_files_dialog(parent: Optional[tk.Misc] = None) -> List[str]:
+    """Abre diálogo de seleção múltipla de documentos e retorna os paths escolhidos."""
     paths = filedialog.askopenfilenames(
-        title="Selecione um ou mais PDFs",
-        filetypes=[("PDF", "*.pdf")],
+        title="Selecione um ou mais documentos",
+        filetypes=[
+            ("Documentos", "*.pdf *.doc *.docx *.xls *.xlsx *.csv *.jpg *.jpeg *.png"),
+            ("Todos os arquivos", "*.*"),
+        ],
         parent=parent,
     )
     return list(paths or [])
+
+
+# Alias mantido por compatibilidade com chamadas legadas.
+_select_pdfs_dialog = _select_files_dialog
 
 
 def _show_upload_summary(
@@ -720,7 +727,7 @@ def send_to_supabase_interactive(
 
     cnpj_value = row.get("CNPJ", "")
 
-    files = _select_pdfs_dialog(parent=target)
+    files = _select_files_dialog(parent=target)
     if not files:
         show_info(target, "Envio", "Nenhum arquivo selecionado.")
         return 0, 0
@@ -730,7 +737,7 @@ def send_to_supabase_interactive(
         show_warning(
             target,
             "Envio",
-            "Nenhum PDF valido foi selecionado.",
+            "Nenhum arquivo válido foi selecionado.",
         )
         return 0, 0
 
@@ -773,7 +780,7 @@ def send_folder_to_supabase(
     if not ensure_client_saved_or_abort(app, client_id):
         return 0, 0
 
-    folder = filedialog.askdirectory(title="Selecione a pasta com os PDFs", parent=target)
+    folder = filedialog.askdirectory(title="Selecione a pasta com os documentos", parent=target)
     if not folder:
         _show_msg(target, "Envio", "Nenhuma pasta selecionada.")
         return 0, 0
@@ -793,19 +800,22 @@ def send_folder_to_supabase(
     if not items:
         # Pasta vazia, virtual ou resultados de pesquisa do Windows que
         # passam no is_dir() mas o glob não consegue listar os arquivos.
-        log.warning("Nenhum PDF coletado da pasta: %s (is_dir=%s)", folder, base.is_dir())
+        log.warning("Nenhum arquivo coletado da pasta: %s (is_dir=%s)", folder, base.is_dir())
         _show_msg(
             target,
-            "Nenhum PDF encontrado",
-            "Nenhum PDF foi encontrado na pasta selecionada.\n\n"
+            "Nenhum arquivo encontrado",
+            "Nenhum arquivo suportado foi encontrado na pasta selecionada.\n\n"
             "Se você navegou por 'Resultados da pesquisa' do Windows,\n"
             "isso pode causar esse problema.\n\n"
-            "Clique OK para selecionar os PDFs individualmente.",
+            "Clique OK para selecionar os arquivos individualmente.",
         )
         paths = filedialog.askopenfilenames(
-            title="Selecione os PDFs",
+            title="Selecione os documentos",
             parent=target,
-            filetypes=[("PDF", "*.pdf"), ("Todos os arquivos", "*.*")],
+            filetypes=[
+                ("Documentos", "*.pdf *.doc *.docx *.xls *.xlsx *.csv *.jpg *.jpeg *.png"),
+                ("Todos os arquivos", "*.*"),
+            ],
         )
         if not paths:
             return 0, 0

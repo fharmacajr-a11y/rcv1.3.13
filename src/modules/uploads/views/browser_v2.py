@@ -911,7 +911,10 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
         paths = filedialog.askopenfilenames(
             parent=self,
             title="Selecione os arquivos para enviar",
-            filetypes=[("PDF", "*.pdf"), ("Todos os arquivos", "*.*")],
+            filetypes=[
+                ("Documentos", "*.pdf *.doc *.docx *.xls *.xlsx *.csv *.jpg *.jpeg *.png"),
+                ("Todos os arquivos", "*.*"),
+            ],
         )
         if not paths:
             return
