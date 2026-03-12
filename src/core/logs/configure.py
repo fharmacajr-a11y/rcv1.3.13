@@ -107,7 +107,6 @@ def configure_logging(level: Optional[str] = None) -> None:
     logging.getLogger("src.ui.ttk_treeview_theme").setLevel(logging.DEBUG)
     logging.getLogger("src.utils.network").setLevel(logging.DEBUG)
     logging.getLogger("infra.supabase.storage").setLevel(logging.DEBUG)
-    logging.getLogger("src.modules.clientes.ui.views.client_files_dialog").setLevel(logging.DEBUG)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
 

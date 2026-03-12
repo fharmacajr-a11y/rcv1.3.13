@@ -156,7 +156,6 @@ def bootstrap_main_window(app: App) -> None:
             "delete": app._excluir_cliente,
             "upload": app.enviar_para_supabase,
             "lixeira": app.abrir_lixeira,
-            "subpastas": app.open_client_storage_subfolders,
             "hub": app.show_hub_screen,
             "find": lambda: getattr(app, "_main_frame_ref", None)
             and getattr(app._main_frame_ref, "_buscar", lambda: None)(),

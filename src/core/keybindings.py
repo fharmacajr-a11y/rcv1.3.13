@@ -31,6 +31,5 @@ def bind_global_shortcuts(root: Any, handlers: Dict[str, Callable[[], None]]) ->
     b("<Delete>", _wrap(handlers.get("delete")))
     b("<Control-u>", _wrap(handlers.get("upload")))
     b("<Control-l>", _wrap(handlers.get("lixeira")))
-    b("<Control-s>", _wrap(handlers.get("subpastas")))
     b("<Alt-Home>", _wrap(handlers.get("hub")))
     b("<Control-f>", _wrap(handlers.get("find")))

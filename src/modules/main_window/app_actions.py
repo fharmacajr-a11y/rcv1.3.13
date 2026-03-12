@@ -153,52 +153,6 @@ class AppActions:
         except Exception:  # noqa: BLE001
             self._logger.error("Erro ao abrir a tela da Lixeira", exc_info=True)
 
-    def open_client_storage_subfolders(self) -> None:
-        """Abre o navegador de arquivos do Supabase para o cliente selecionado."""
-        from src.ui.dialogs.rc_dialogs import show_warning, show_error
-        from src.modules.uploads import open_files_browser
-        from src.modules.uploads.components.helpers import client_prefix_for_id, get_clients_bucket
-
-        values = self._app._selected_main_values()
-        if not values:
-            show_warning(self._app, "Atenção", "Selecione um cliente primeiro.")
-            return
-        try:
-            client_id = int(values[0])
-        except Exception:
-            show_error(self._app, "Erro", "ID inválido.")
-            return
-        razao = (values[1] or "").strip()
-        cnpj = (values[2] or "").strip()
-
-        u = self._app._get_user_cached()
-        if not u:
-            show_error(self._app, "Erro", "Usuário não autenticado.")
-            return
-        org_id = self._app._get_org_id_cached(u["id"])
-        if not org_id:
-            show_error(self._app, "Erro", "Organização não encontrada para o usuário.")
-            return
-
-        base_prefix = client_prefix_for_id(client_id, org_id)
-        bucket = get_clients_bucket()
-
-        open_files_browser(
-            self._app,
-            org_id=org_id,
-            client_id=client_id,
-            razao=razao,
-            cnpj=cnpj,
-            bucket=bucket,
-            base_prefix=base_prefix,
-            start_prefix=base_prefix,
-            modal=True,
-        )
-
-    def ver_subpastas(self) -> None:
-        """DEPRECATED: mantenha compatibilidade com o nome antigo."""
-        self.open_client_storage_subfolders()
-
     def abrir_obrigacoes_cliente(self) -> None:
         """Abre a janela de obrigações regulatórias para o cliente selecionado.
 

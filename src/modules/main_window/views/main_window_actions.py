@@ -319,7 +319,6 @@ def get_current_client_storage_prefix(app: App) -> str:
     Ex.: retorna '0a7c9f39-4b7d-4a88-8e77-7b88a38c66d7/7'
 
     Este método é chamado automaticamente pelo uploader_supabase.py quando disponível.
-    A implementação usa a MESMA lógica da tela 'Ver Subpastas' / open_files_browser.
     """
     try:
         values = app._selected_main_values()
@@ -328,7 +327,7 @@ def get_current_client_storage_prefix(app: App) -> str:
 
         client_id = values[0]
 
-        # Usa mesma lógica do open_client_storage_subfolders
+        # Usa mesma lógica de prefix do storage
         u = app._get_user_cached()
         if not u:
             return ""
@@ -337,7 +336,7 @@ def get_current_client_storage_prefix(app: App) -> str:
         if not org_id:
             return ""
 
-        # Formato idêntico ao open_files_browser: {org_id}/{client_id}
+        # Formato: {org_id}/{client_id}
         return f"{org_id}/{client_id}".strip("/")
     except Exception as exc:  # noqa: BLE001
         log.debug("Falha ao construir caminho de storage: %s", exc)

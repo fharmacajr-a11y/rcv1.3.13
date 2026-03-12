@@ -240,7 +240,6 @@ class ConsoleImportantFilter(logging.Filter):
     BLOCKED_PREFIXES = (
         "src.ui.ttk_treeview_",
         "infra.supabase.storage",
-        "src.modules.clientes.ui.views.client_files_dialog",
     )
 
     def filter(self, record: logging.LogRecord) -> bool:

@@ -34,7 +34,6 @@ A classe App herda de ctk.CTk (CustomTkinter) e orquestra os componentes princip
 3. AÇÕES DELEGADAS (via AppActions)
    - novo_cliente()
    - editar_cliente()
-   - open_client_storage_subfolders() (alias ver_subpastas())
    - abrir_lixeira()
    - _excluir_cliente()
    - enviar_para_supabase()
@@ -532,14 +531,6 @@ class App(BaseApp):  # type: ignore[misc]
         """Delegador para AppActions.editar_cliente."""
         self._actions.editar_cliente()
 
-    def open_client_storage_subfolders(self) -> None:
-        """Delegador para AppActions.open_client_storage_subfolders."""
-        self._actions.open_client_storage_subfolders()
-
-    def ver_subpastas(self) -> None:
-        """DEPRECATED: mantenha compatibilidade com o nome antigo."""
-        self.open_client_storage_subfolders()
-
     def abrir_obrigacoes_cliente(self) -> None:
         """Delegador para AppActions.abrir_obrigacoes_cliente."""
         self._actions.abrir_obrigacoes_cliente()
@@ -769,8 +760,6 @@ def _log_call(fn):
 try:
     App.novo_cliente = _log_call(App.novo_cliente)
     App.editar_cliente = _log_call(App.editar_cliente)
-    App.open_client_storage_subfolders = _log_call(App.open_client_storage_subfolders)
-    App.ver_subpastas = _log_call(App.ver_subpastas)
     App.enviar_para_supabase = _log_call(App.enviar_para_supabase)
 except Exception as exc:  # noqa: BLE001
     log.debug("Falha ao aplicar decoradores de log: %s", exc)

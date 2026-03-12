@@ -8,17 +8,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from src.config.paths import CLOUD_ONLY
 from src.core import classify_document
 
 __all__ = [
     "read_pdf_text",
     "find_cartao_cnpj_pdf",
     "list_and_classify_pdfs",
-    "write_marker",
-    "read_marker_id",
-    "migrate_legacy_marker",
-    "get_marker_updated_at",
     "format_datetime",
 ]
 
@@ -116,8 +111,6 @@ def read_pdf_text(path: PathLike) -> str | None:
     - pdfminer-six REMOVIDO (CVE GHSA-f83h-ghpp-7wcc, CVSS 7.8 HIGH)
     - Eliminação completa do vetor de ataque de desserialização pickle
     """
-    import os
-
     p = Path(path)
     if not p.exists() or not p.is_file():
         return None
@@ -196,67 +189,6 @@ def list_and_classify_pdfs(base: PathLike) -> list[dict[str, Any]]:
         info = classify_document(str(p))
         docs.append({"path": str(p), **info})
     return docs
-
-
-MARKER_NAME = ".rc_client_id"
-
-
-def write_marker(pasta: PathLike, cliente_id: int) -> str:
-    if not CLOUD_ONLY:
-        os.makedirs(pasta, exist_ok=True)
-    marker = os.path.join(pasta, MARKER_NAME)
-    with open(marker, "w", encoding="utf-8") as f:
-        f.write(str(cliente_id).strip() + "\n")
-    os.utime(marker, None)
-    return marker
-
-
-def read_marker_id(pasta: PathLike) -> str | None:
-    marker_new = os.path.join(pasta, MARKER_NAME)
-    if os.path.exists(marker_new):
-        try:
-            with open(marker_new, "r", encoding="utf-8") as f:
-                val = f.read().strip()
-            return val or None
-        except Exception:
-            log.debug("Falha ao ler marker %s", marker_new, exc_info=True)
-
-    try:
-        for fname in os.listdir(pasta):
-            if fname.startswith("cliente_") and fname.endswith(".marker"):
-                with open(os.path.join(pasta, fname), "r", encoding="utf-8") as f:
-                    txt = f.read().strip()
-                if txt.startswith("ID="):
-                    return txt.split("=", 1)[1].strip() or None
-    except FileNotFoundError:
-        return None
-
-    return None
-
-
-def migrate_legacy_marker(pasta: PathLike) -> str | None:
-    client_id = read_marker_id(pasta)
-    if not client_id:
-        return None
-    marker_new = os.path.join(pasta, MARKER_NAME)
-    if not os.path.exists(marker_new):
-        with open(marker_new, "w", encoding="utf-8") as f:
-            f.write(client_id + "\n")
-    for fname in os.listdir(pasta):
-        if fname.startswith("cliente_") and fname.endswith(".marker"):
-            try:
-                os.remove(os.path.join(pasta, fname))
-            except OSError:
-                log.debug("Falha ao remover marker antigo em %s", pasta, exc_info=True)
-    os.utime(marker_new, None)
-    return marker_new
-
-
-def get_marker_updated_at(pasta: PathLike) -> datetime | None:
-    marker = os.path.join(pasta, MARKER_NAME)
-    if not os.path.exists(marker):
-        return None
-    return datetime.fromtimestamp(os.path.getmtime(marker))
 
 
 def format_datetime(dt_obj: datetime | str | None) -> str:

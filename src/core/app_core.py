@@ -9,7 +9,6 @@ import os
 from tkinter import TclError, messagebox
 from typing import Any, Sequence
 
-from src.config.paths import CLOUD_ONLY
 from src.modules.clientes.core.service import mover_cliente_para_lixeira
 
 try:
@@ -24,18 +23,7 @@ except ImportError:
 # ------------------------------------------------------------
 NO_FS = os.getenv("RC_NO_LOCAL_FS") == "1"
 
-# Utilitários que podem ser usados quando o FS local estiver habilitado
-try:
-    from src.config.paths import DOCS_DIR
-
-    from .app_utils import safe_base_from_fields
-except ImportError:  # best-effort para manter compatibilidade
-    safe_base_from_fields = None  # type: ignore[assignment]
-    DOCS_DIR = os.getcwd()  # type: ignore[assignment]
-
 log = logging.getLogger(__name__)
-
-MARKER_NAME = ".rc_client_id"
 
 
 # ---------------------------------------------------------------------------
@@ -154,79 +142,6 @@ def excluir_cliente(app: Any, selected_values: Sequence[Any]) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Pastas locais (desligadas quando NO_FS)
-# ---------------------------------------------------------------------------
-def dir_base_cliente_from_pk(pk: int) -> str:
-    if NO_FS:
-        return ""
-
-    try:
-        from src.core.services.path_resolver import resolve_unique_path
-
-        path, location = resolve_unique_path(pk)
-        if path:
-            log.debug(
-                "Resolved folder via path_resolver: pk=%s path=%s (%s)",
-                pk,
-                path,
-                location,
-            )
-            return path
-    except ImportError:
-        log.debug("resolve_unique_path not available or failed", exc_info=True)
-
-    try:
-        from src.core.db_manager import get_cliente_by_id
-
-        c = get_cliente_by_id(pk)
-    except ImportError:
-        c = None
-
-    numero = getattr(c, "numero", "") or ""
-    cnpj = getattr(c, "cnpj", "") or ""
-    razao = getattr(c, "razao_social", "") or ""
-    base_name = safe_base_from_fields(cnpj, numero, razao, pk) if callable(safe_base_from_fields) else str(pk)
-    return os.path.join(str(DOCS_DIR), base_name)
-
-
-def _ensure_live_folder_ready(pk: int) -> str:
-    if NO_FS:
-        return ""
-
-    path = dir_base_cliente_from_pk(pk)
-    try:
-        if not CLOUD_ONLY:
-            os.makedirs(path, exist_ok=True)
-        try:
-            from pathlib import Path
-
-            from src.utils.file_utils import ensure_subpastas, write_marker
-            from src.utils.subpastas_config import load_subpastas_config
-
-            try:
-                subpastas, _extras = load_subpastas_config()
-            except (ImportError, OSError):
-                subpastas = []
-            ensure_subpastas(path, subpastas=subpastas)
-
-            marker_path = Path(path) / MARKER_NAME
-            content_ok = False
-            if marker_path.is_file():
-                try:
-                    content_ok = marker_path.read_text(encoding="utf-8").strip() == str(pk)
-                except (OSError, UnicodeDecodeError):
-                    content_ok = False
-            if not content_ok:
-                if not CLOUD_ONLY:
-                    write_marker(path, pk)
-        except (ImportError, OSError):
-            log.debug("ensure_subpastas/write_marker skipped", exc_info=True)
-    except OSError:
-        log.exception("Failed to prepare folder for client %s", pk)
-    return path
-
-
-# ---------------------------------------------------------------------------
 # Lixeira (trash)
 # ---------------------------------------------------------------------------
 def abrir_lixeira_ui(app: Any, *args: Any, **kwargs: Any) -> None:
@@ -269,7 +184,6 @@ def abrir_lixeira_ui(app: Any, *args: Any, **kwargs: Any) -> None:
 
 __all__ = [
     "abrir_lixeira_ui",
-    "dir_base_cliente_from_pk",
     "editar_cliente",
     "excluir_cliente",
     "novo_cliente",
