@@ -1,14 +1,13 @@
 # pyright: reportAttributeAccessIssue=false
 # -*- coding: utf-8 -*-
 """
-Testes de regressão — affordance real de "subpastas / Arquivos" na UI.
+Testes de regressão — affordance real de "Arquivos" na UI.
 
 Prova:
 1. A actionbar real (ClientesV2ActionBar) NÃO tem botão "Arquivos" nem "Subpastas".
 2. O botão "Arquivos" existe dentro do editor de clientes (_editor_ui_mixin.py).
-3. O atalho Ctrl+S está mapeado para open_client_storage_subfolders (via keybindings).
+3. O fluxo legado externo (Ctrl+S, browser.py, ver_subpastas) foi removido.
 4. Dead code removido: create_footer_buttons, FooterButtons, abrir_pasta, abrir_pasta_cliente.
-5. Os aliases ver_subpastas() em App e AppActions apontam para o fluxo correto (Supabase).
 """
 
 from __future__ import annotations
@@ -34,8 +33,6 @@ class TestActionBarNoArquivosButton(unittest.TestCase):
 
     def test_actionbar_no_arquivos_text(self) -> None:
         source = _ACTIONBAR.read_text(encoding="utf-8")
-        # A actionbar cria Novo Cliente, Editar, Excluir, Restaurar.
-        # NÃO deve ter "Arquivos" como texto de botão.
         self.assertNotIn(
             'text="Arquivos"',
             source,
@@ -62,23 +59,54 @@ class TestEditorHasArquivosButton(unittest.TestCase):
     def test_editor_actions_has_on_arquivos(self) -> None:
         source = _EDITOR_ACTIONS.read_text(encoding="utf-8")
         self.assertIn("def _on_arquivos", source, "Editor deve ter handler _on_arquivos")
-        self.assertIn("ClientFilesDialog", source, "Handler deve abrir ClientFilesDialog (Supabase)")
+        self.assertIn("open_files_browser_v2", source, "Handler deve abrir UploadsBrowserWindowV2 (Supabase via V2)")
 
 
-class TestCtrlSMapsToStorageBrowser(unittest.TestCase):
-    """O atalho Ctrl+S deve mapear para open_client_storage_subfolders."""
+class TestLegacyExternalFlowRemoved(unittest.TestCase):
+    """O fluxo legado externo (Ctrl+S, browser.py, ver_subpastas) foi removido."""
 
-    def test_keybindings_ctrl_s(self) -> None:
+    def test_keybindings_no_ctrl_s(self) -> None:
         source = _KEYBINDINGS.read_text(encoding="utf-8")
-        self.assertIn("<Control-s>", source)
-        self.assertIn("subpastas", source)
+        self.assertNotIn("<Control-s>", source, "Ctrl+S binding deve ter sido removido")
+        self.assertNotIn("subpastas", source, "Handler 'subpastas' deve ter sido removido")
 
-    def test_bootstrap_wires_subpastas_to_storage(self) -> None:
+    def test_bootstrap_no_subpastas(self) -> None:
         source = _BOOTSTRAP.read_text(encoding="utf-8")
-        self.assertIn(
+        self.assertNotIn(
+            "subpastas",
+            source,
+            "Bootstrap não deve mais mapear 'subpastas'",
+        )
+        self.assertNotIn(
             "open_client_storage_subfolders",
             source,
-            "Bootstrap deve mapear 'subpastas' → open_client_storage_subfolders",
+            "Bootstrap não deve mais referenciar open_client_storage_subfolders",
+        )
+
+    def test_app_actions_no_storage_subfolders(self) -> None:
+        source = _APP_ACTIONS.read_text(encoding="utf-8")
+        self.assertNotIn(
+            "def open_client_storage_subfolders",
+            source,
+            "open_client_storage_subfolders deve ter sido removido de AppActions",
+        )
+        self.assertNotIn(
+            "def ver_subpastas",
+            source,
+            "ver_subpastas deve ter sido removido de AppActions",
+        )
+
+    def test_main_window_no_storage_subfolders(self) -> None:
+        source = _MAIN_WINDOW.read_text(encoding="utf-8")
+        self.assertNotIn(
+            "def open_client_storage_subfolders",
+            source,
+            "open_client_storage_subfolders deve ter sido removido de App",
+        )
+        self.assertNotIn(
+            "def ver_subpastas",
+            source,
+            "ver_subpastas deve ter sido removido de App",
         )
 
 
@@ -127,20 +155,6 @@ class TestDeadCodeRemoved(unittest.TestCase):
         source = _APP_CORE.read_text(encoding="utf-8")
         self.assertNotIn('"abrir_pasta"', source, "abrir_pasta não deve estar em __all__")
         self.assertNotIn('"abrir_pasta_cliente"', source, "abrir_pasta_cliente não deve estar em __all__")
-
-
-class TestVerSubpastasAliasesCorrect(unittest.TestCase):
-    """ver_subpastas() em App e AppActions deve ser alias de open_client_storage_subfolders."""
-
-    def test_app_ver_subpastas_delegates(self) -> None:
-        source = _MAIN_WINDOW.read_text(encoding="utf-8")
-        self.assertIn("def ver_subpastas", source)
-        self.assertIn("self.open_client_storage_subfolders()", source)
-
-    def test_app_actions_ver_subpastas_delegates(self) -> None:
-        source = _APP_ACTIONS.read_text(encoding="utf-8")
-        self.assertIn("def ver_subpastas", source)
-        self.assertIn("self.open_client_storage_subfolders()", source)
 
 
 if __name__ == "__main__":

@@ -1,12 +1,12 @@
 # pyright: reportAttributeAccessIssue=false
 # -*- coding: utf-8 -*-
 """
-Testes de regressão — remoção final do caminho morto open_subpastas_dialog.
+Testes de regressão — remoção final dos caminhos mortos antigos.
 
 Prova que:
 1. app_core.py não contém open_client_local_subfolders nem ver_subpastas.
 2. forms/__init__.py não contém open_subpastas_dialog / form_cliente / ClientPicker.
-3. O botão "subpastas" da bootstrap aponta para open_client_storage_subfolders (Supabase).
+3. O fluxo legado externo (subpastas → browser.py) foi removido do bootstrap.
 4. Nenhum stub NotImplementedError resta no forms/__init__.py.
 """
 
@@ -22,7 +22,7 @@ _BOOTSTRAP = _ROOT / "src" / "modules" / "main_window" / "views" / "main_window_
 
 
 class TestDeadPathRemoved(unittest.TestCase):
-    """Validação de que o caminho morto open_subpastas_dialog foi removido."""
+    """Validação de que caminhos mortos foram removidos."""
 
     def test_app_core_no_open_client_local_subfolders(self) -> None:
         source = _APP_CORE.read_text(encoding="utf-8")
@@ -72,12 +72,17 @@ class TestDeadPathRemoved(unittest.TestCase):
             "Nenhum NotImplementedError deve restar em forms/__init__.py",
         )
 
-    def test_bootstrap_subpastas_wired_to_storage(self) -> None:
+    def test_bootstrap_no_legacy_subpastas(self) -> None:
         source = _BOOTSTRAP.read_text(encoding="utf-8")
-        self.assertIn(
+        self.assertNotIn(
             "open_client_storage_subfolders",
             source,
-            "Botão 'subpastas' deve apontar para open_client_storage_subfolders (Supabase)",
+            "Bootstrap não deve mais referenciar open_client_storage_subfolders (fluxo externo removido)",
+        )
+        self.assertNotIn(
+            '"subpastas"',
+            source,
+            "Bootstrap não deve mais mapear handler 'subpastas' (fluxo externo removido)",
         )
 
     def test_forms_exports_only_active_code(self) -> None:

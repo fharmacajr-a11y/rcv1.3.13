@@ -106,11 +106,7 @@ def _build_core_svc_stubs(
             get_current_user=MagicMock(return_value=None),
         ),
         "src.utils": _mk("src.utils"),
-        "src.utils.file_utils": _mk(
-            "src.utils.file_utils",
-            ensure_subpastas=MagicMock(),
-            write_marker=MagicMock(),
-        ),
+        "src.utils.file_utils": _mk("src.utils.file_utils"),
         "src.utils.validators": _mk("src.utils.validators", normalize_text=_normalize_text),
         "src.utils.formatters": _mk("src.utils.formatters", format_cnpj=lambda v: v or ""),
         "src.utils.phone_utils": _mk(
