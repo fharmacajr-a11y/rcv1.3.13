@@ -88,14 +88,25 @@ def _current_user_label() -> str:
     try:
         cu = _get_current_user()
         return (getattr(cu, "email", "") or "").strip()
-    except Exception:
+    except Exception as exc:
+        log.debug(
+            "_current_user_label: falha ao obter usuário autenticado; " "campo 'ultima_por' ficará vazio. Detalhe: %s",
+            exc,
+        )
         return ""
 
 
 def _extract_cliente_id(row: RowData | None) -> int | None:
+    if not row:
+        return None
     try:
-        return int(row[0]) if row else None
-    except Exception:
+        return int(row[0])
+    except (TypeError, ValueError, IndexError) as exc:
+        log.warning(
+            "_extract_cliente_id: valor inesperado em row[0]=%r — %s",
+            row[0],
+            exc,
+        )
         return None
 
 

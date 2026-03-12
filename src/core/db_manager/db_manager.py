@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 import os
 from datetime import datetime, timezone
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 from src.infra.supabase_client import exec_postgrest, supabase
 from src.core.cnpj_norm import normalize_cnpj as normalize_cnpj_norm
@@ -76,6 +76,27 @@ def _is_unique_violation(exc: BaseException) -> bool:
         return True
     msg = (getattr(exc, "message", None) or getattr(exc, "details", None) or str(exc)).lower()
     return "unique" in msg and "violation" in msg
+
+
+def _retry_without_ultima_por(
+    primary: Callable[[], Any],
+    fallback: Callable[[], Any],
+    *,
+    context: str,
+) -> Any:
+    """Executa *primary*; se PostgREST/Postgres reportar coluna 'ultima_por'
+    inexistente (SQLSTATE 42703 / PGRST204), loga aviso e executa *fallback*.
+
+    Consolida o padrão de retry que estava repetido 5× nos métodos CRUD.
+    Qualquer outro erro é re-propagado sem modificação.
+    """
+    try:
+        return primary()
+    except _PostgrestAPIError as exc:
+        if not _is_unknown_column_error(exc):
+            raise
+        log.warning("%s: coluna 'ultima_por' inexistente na tabela; aplicando fallback sem a coluna.", context)
+        return fallback()
 
 
 # Mapa de ordenação: (coluna, descending_default)
@@ -323,15 +344,13 @@ def insert_cliente(
 
     def _do() -> int:
         payload: dict[str, Any] = dict(row)
-        resp: Any
-        try:
-            resp = exec_postgrest(supabase.table("clients").insert(payload))
-        except _PostgrestAPIError as exc:
-            if not _is_unknown_column_error(exc):
-                raise
-            log.warning("insert_cliente: coluna 'ultima_por' não existe na tabela; aplicando fallback.")
-            payload.pop("ultima_por", None)
-            resp = exec_postgrest(supabase.table("clients").insert(payload))
+        resp = _retry_without_ultima_por(
+            lambda: exec_postgrest(supabase.table("clients").insert(payload)),
+            lambda: exec_postgrest(
+                supabase.table("clients").insert({k: v for k, v in payload.items() if k != "ultima_por"})
+            ),
+            context="insert_cliente",
+        )
 
         # Muitas vezes o PostgREST retorna o registro inserido com o id
         if resp and getattr(resp, "data", None):
@@ -421,6 +440,10 @@ def insert_clientes_batch(
         except _PostgrestAPIError as exc:
             if _is_unknown_column_error(exc):
                 # Retry sem ultima_por
+                log.warning(
+                    "insert_clientes_batch lote %d: coluna 'ultima_por' inexistente; aplicando fallback.",
+                    batch_idx + 1,
+                )
                 for p in batch:
                     p.pop("ultima_por", None)
                 resp = exec_postgrest(supabase.table("clients").insert(batch))
@@ -499,15 +522,15 @@ def update_cliente(
 
     def _do() -> int:
         payload: dict[str, Any] = dict(data)
-        resp: Any
-        try:
-            resp = exec_postgrest(supabase.table("clients").update(payload).eq("id", cliente_id))
-        except _PostgrestAPIError as exc:
-            if not _is_unknown_column_error(exc):
-                raise
-            log.warning("update_cliente: coluna 'ultima_por' não existe na tabela; aplicando fallback.")
-            payload.pop("ultima_por", None)
-            resp = exec_postgrest(supabase.table("clients").update(payload).eq("id", cliente_id))
+        resp = _retry_without_ultima_por(
+            lambda: exec_postgrest(supabase.table("clients").update(payload).eq("id", cliente_id)),
+            lambda: exec_postgrest(
+                supabase.table("clients")
+                .update({k: v for k, v in payload.items() if k != "ultima_por"})
+                .eq("id", cliente_id)
+            ),
+            context="update_cliente",
+        )
         # count pode vir None; usa tamanho de data como alternativa
         if getattr(resp, "count", None) is not None:
             return int(resp.count or 0)
@@ -527,15 +550,15 @@ def update_status_only(cliente_id: int, obs: str) -> int:
 
     def _do() -> int:
         payload: dict[str, Any] = dict(data)
-        resp: Any
-        try:
-            resp = exec_postgrest(supabase.table("clients").update(payload).eq("id", cliente_id))
-        except _PostgrestAPIError as exc:
-            if not _is_unknown_column_error(exc):
-                raise
-            log.warning("update_status_only: coluna 'ultima_por' não existe na tabela; aplicando fallback.")
-            payload.pop("ultima_por", None)
-            resp = exec_postgrest(supabase.table("clients").update(payload).eq("id", cliente_id))
+        resp = _retry_without_ultima_por(
+            lambda: exec_postgrest(supabase.table("clients").update(payload).eq("id", cliente_id)),
+            lambda: exec_postgrest(
+                supabase.table("clients")
+                .update({k: v for k, v in payload.items() if k != "ultima_por"})
+                .eq("id", cliente_id)
+            ),
+            context="update_status_only",
+        )
         if getattr(resp, "count", None) is not None:
             return int(resp.count or 0)
         return len(resp.data or [])
@@ -562,16 +585,13 @@ def soft_delete_clientes(ids: Iterable[int]) -> int:
     ts: str = _now_iso()
     by: str = _current_user_email()
     data: dict[str, Any] = {"deleted_at": ts, "ultima_alteracao": ts, "ultima_por": by}
-    resp: Any
-    try:
-        resp = exec_postgrest(supabase.table("clients").update(dict(data)).in_("id", id_list))
-    except _PostgrestAPIError as exc:
-        if not _is_unknown_column_error(exc):
-            raise
-        log.warning("soft_delete_clientes: coluna 'ultima_por' não existe na tabela; aplicando fallback.")
-        data_fb: dict[str, Any] = dict(data)
-        data_fb.pop("ultima_por", None)
-        resp = exec_postgrest(supabase.table("clients").update(data_fb).in_("id", id_list))
+    resp = _retry_without_ultima_por(
+        lambda: exec_postgrest(supabase.table("clients").update(dict(data)).in_("id", id_list)),
+        lambda: exec_postgrest(
+            supabase.table("clients").update({k: v for k, v in data.items() if k != "ultima_por"}).in_("id", id_list)
+        ),
+        context="soft_delete_clientes",
+    )
 
     # PostgREST pode não trazer count; fallback no len(data) retornado
     if getattr(resp, "count", None) is not None:
@@ -586,16 +606,13 @@ def restore_clientes(ids: Iterable[int]) -> int:
     ts: str = _now_iso()
     by: str = _current_user_email()
     data: dict[str, Any] = {"deleted_at": None, "ultima_alteracao": ts, "ultima_por": by}
-    resp: Any
-    try:
-        resp = exec_postgrest(supabase.table("clients").update(dict(data)).in_("id", id_list))
-    except _PostgrestAPIError as exc:
-        if not _is_unknown_column_error(exc):
-            raise
-        log.warning("restore_clientes: coluna 'ultima_por' não existe na tabela; aplicando fallback.")
-        data_fb: dict[str, Any] = dict(data)
-        data_fb.pop("ultima_por", None)
-        resp = exec_postgrest(supabase.table("clients").update(data_fb).in_("id", id_list))
+    resp = _retry_without_ultima_por(
+        lambda: exec_postgrest(supabase.table("clients").update(dict(data)).in_("id", id_list)),
+        lambda: exec_postgrest(
+            supabase.table("clients").update({k: v for k, v in data.items() if k != "ultima_por"}).in_("id", id_list)
+        ),
+        context="restore_clientes",
+    )
     if getattr(resp, "count", None) is not None:
         return int(resp.count or 0)
     return len(resp.data or id_list)
