@@ -19,40 +19,6 @@ from typing_extensions import NotRequired
 
 
 # =============================================================================
-# Client Passwords Table
-# =============================================================================
-
-
-class PasswordRow(TypedDict):
-    """Row from the 'client_passwords' table.
-
-    Represents a stored password/credential for a client service.
-    The password_enc field contains the encrypted password value.
-    """
-
-    id: str  # UUID primary key
-    org_id: str  # UUID foreign key to organizations
-    client_name: str  # Name of the client this password belongs to
-    service: str  # Name of the service (e.g., "Portal X", "Sistema Y")
-    username: str  # Username/login for the service
-    password_enc: str  # Encrypted password (use decrypt_text to view)
-    notes: str  # Additional notes about this credential
-    created_by: str  # User ID who created this record
-    created_at: str  # ISO timestamp of creation
-    updated_at: str  # ISO timestamp of last update
-
-    # Coluna nullable/relacionamento (pode aparecer em selects)
-    client_id: NotRequired[str | None]
-
-    # Campos retornados pelo JOIN/flatten do list_passwords (podem não existir em outras operações)
-    client_external_id: NotRequired[str | int]
-    razao_social: NotRequired[str]
-    cnpj: NotRequired[str]
-    nome: NotRequired[str]
-    whatsapp: NotRequired[str]
-
-
-# =============================================================================
 # Clients Table
 # =============================================================================
 

@@ -41,7 +41,6 @@ class ModuleButton:
 def build_module_buttons(
     has_clientes: bool = True,
     has_cashflow: bool = False,
-    has_anvisa: bool = False,
     has_farmacia_popular: bool = False,
     has_sngpc: bool = False,
     has_sifap: bool = False,
@@ -55,7 +54,6 @@ def build_module_buttons(
     Args:
         has_clientes: Se módulo Clientes está habilitado
         has_cashflow: Se módulo Fluxo de Caixa está habilitado
-        has_anvisa: Se módulo Anvisa está habilitado
         has_farmacia_popular: Se módulo Farmácia Popular está habilitado
         has_sngpc: Se módulo Sngpc está habilitado
         has_sifap: Se módulo Sifap está habilitado
@@ -66,7 +64,7 @@ def build_module_buttons(
     Examples:
         >>> buttons = build_module_buttons()
         >>> len(buttons)
-        7
+        6
         >>> buttons[0].text
         'Clientes'
         >>> buttons[0].bootstyle
@@ -95,7 +93,6 @@ def build_module_buttons(
     )
 
     # Módulos em desenvolvimento (sempre aparecem, mas desabilitados)
-    buttons.append(ModuleButton("Anvisa", enabled=has_anvisa, bootstyle="secondary", has_callback=has_anvisa))
     buttons.append(
         ModuleButton(
             "Farmácia Popular",

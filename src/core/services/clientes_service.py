@@ -15,8 +15,6 @@ from src.core.db_manager import (
     list_clientes,
     update_cliente,
 )
-from src.core.logs.audit import log_client_action
-from src.core.session.session import get_current_user
 from src.utils.validators import normalize_text
 from src.utils.formatters import format_cnpj
 from src.utils.phone_utils import format_phone_br
@@ -281,12 +279,5 @@ def salvar_cliente(row: tuple[Any, ...] | None, valores: dict[str, Any]) -> tupl
             obs=obs,
             cnpj_norm=cnpj_norm,
         )
-
-    # Auditoria
-    try:
-        user: Any = get_current_user() or ""
-        log_client_action(user, int(real_pk), "edicao" if row else "criacao")  # pyright: ignore[reportArgumentType]
-    except Exception as exc:
-        log.debug("Falha ao registrar auditoria do cliente %s", real_pk, exc_info=exc)
 
     return real_pk, ""

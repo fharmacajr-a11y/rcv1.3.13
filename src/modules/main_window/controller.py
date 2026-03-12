@@ -5,8 +5,6 @@ from typing import Any, Callable, Optional
 
 from src.ui.dialogs.rc_dialogs import show_warning
 
-import time
-
 from src.modules.notas import HubFrame
 
 log = logging.getLogger("app_gui")
@@ -192,57 +190,6 @@ def _show_placeholder(app: Any, title: str) -> Any:
         title=title,
         on_back=lambda: navigate_to(app, "hub"),
     )
-
-
-def _show_passwords(app: Any) -> Any:
-    from src.modules.passwords import PasswordsFrame
-
-    t0 = time.perf_counter()
-    if getattr(app, "_passwords_screen_instance", None) is None:
-        app._passwords_screen_instance = PasswordsFrame(app._content_container, main_window=app)
-        _place_or_pack(app._passwords_screen_instance)
-        created = True
-    else:
-        created = False
-
-    frame = app._passwords_screen_instance
-    current = app.nav.current()
-
-    if current is not None and current is not frame:
-        _forget_widget(current)
-
-    try:
-        frame.lift()  # pyright: ignore[reportAttributeAccessIssue]
-    except Exception as exc:  # noqa: BLE001
-        log.debug("passwords frame.lift() failed: %s", exc)
-
-    try:
-        app.nav._current = frame
-    except Exception as exc:  # noqa: BLE001
-        log.debug("set app.nav._current failed: %s", exc)
-
-    try:
-        frame.on_show()  # pyright: ignore[reportAttributeAccessIssue]
-    except Exception:
-        log.exception("Erro ao chamar on_show da tela de senhas")
-
-    try:
-        frame.update_idletasks()
-    except Exception as exc:  # noqa: BLE001
-        log.debug("Falha ao dar update_idletasks em tela de senhas: %s", exc)
-
-    try:
-        t1 = time.perf_counter()
-        log.info("Senhas: janela aberta em %.3fs (created=%s)", t1 - t0, created)
-    except Exception as exc:  # noqa: BLE001
-        log.debug("Falha ao registrar tempo de abertura das Senhas: %s", exc)
-
-    try:
-        app._update_topbar_state(frame)
-    except Exception as exc:  # noqa: BLE001
-        log.debug("_update_topbar_state failed: %s", exc)
-
-    return frame
 
 
 def _open_clients_picker(app: Any, on_pick, return_to=None, banner_text: Optional[str] = None) -> None:

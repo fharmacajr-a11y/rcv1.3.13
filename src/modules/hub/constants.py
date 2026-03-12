@@ -17,7 +17,6 @@ NEW_NOTE_LABEL = "Nova anotação:"
 
 # Estilos de botões da coluna "Módulos" do Hub
 HUB_BTN_STYLE_CLIENTES = "info"  # azul claro
-HUB_BTN_STYLE_AUDITORIA = "info"  # azul claro
 HUB_BTN_STYLE_FLUXO_CAIXA = "secondary"  # cinza
 
 # Largura mínima da coluna de módulos (para caber 2 botões lado a lado)

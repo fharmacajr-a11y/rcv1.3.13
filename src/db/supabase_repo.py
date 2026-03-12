@@ -4,7 +4,6 @@
 
 Este módulo centraliza:
 - Helpers genéricos de acesso a tabelas Supabase (get_client, error formatting)
-- CRUD específico para client_passwords (senhas criptografadas)
 - Autocomplete de clientes
 
 Retry é tratado de forma centralizada por ``exec_postgrest`` (via
@@ -32,11 +31,10 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from datetime import datetime, timezone
-from typing import Any, TypedDict, cast
+from typing import Any, TypedDict
 
-from src.db.domain_types import ClientRow, PasswordRow
+from src.db.domain_types import ClientRow
 from src.infra.supabase_client import exec_postgrest, get_supabase
-from src.security.crypto import decrypt_text, encrypt_text
 
 log = logging.getLogger(__name__)
 
@@ -203,37 +201,6 @@ def _ensure_postgrest_auth(client: Any, *, required: bool = False) -> None:
             raise RuntimeError("Sessão sem access_token. Faça login novamente para que o RLS reconheça auth.uid().")
 
 
-def _rls_precheck_membership(client: Any, org_id: str, user_id: str) -> None:
-    """
-    Verifica se o token atual enxerga uma linha em public.memberships para (org_id, user_id).
-    Levanta RuntimeError com mensagem amigável se não enxergar.
-    """
-    _ensure_postgrest_auth(client, required=True)
-
-    def _query() -> Any:
-        return exec_postgrest(
-            client.table("memberships")
-            .select("user_id", count="exact")
-            .eq("org_id", org_id)
-            .eq("user_id", user_id)
-            .limit(1)
-        )
-
-    res: Any = _query()
-
-    # res pode ser None se a lib lançar algo estranho; trate tudo defensivamente
-    data = getattr(res, "data", None)
-    if not data:
-        msg = (
-            "RLS precheck: a API NÃO enxerga membership para este token. "
-            f"(org_id={org_id}, user_id={user_id}). "
-            "Sem isso, o INSERT em client_passwords cairá em 42501."
-        )
-        raise RuntimeError(msg)
-
-    log.info("RLS precheck OK: membership visível para org_id=%s user_id=%s", org_id, user_id)
-
-
 # -----------------------------------------------------------------------------
 # Cliente Supabase SINGLETON (sempre usar get_supabase do infra)
 # -----------------------------------------------------------------------------
@@ -252,271 +219,6 @@ supabase = _SupabaseProxy()
 def _now_iso() -> str:
     """Retorna timestamp UTC em formato ISO."""
     return datetime.now(timezone.utc).isoformat()
-
-
-# -----------------------------------------------------------------------------
-# CRUD para client_passwords (ORG-aware)
-# -----------------------------------------------------------------------------
-
-
-def list_passwords(org_id: str, limit: int | None = None, offset: int = 0) -> list[PasswordRow]:
-    """
-    Lista todas as senhas da organização com dados do cliente via JOIN.
-    Retorna lista de dicts com campos: id, org_id, client_name, service,
-    username, password_enc, notes, created_by, created_at, updated_at,
-    client_id, razao_social, cnpj, nome (contato), whatsapp (mapeado de numero), client_external_id.
-
-    A senha vem criptografada (password_enc); use decrypt_for_view() para exibir.
-
-    Args:
-        org_id: ID da organização
-        limit: Número máximo de registros (None = sem limite) - PERF-003
-        offset: Número de registros a pular - PERF-003
-    """
-    if not org_id:
-        raise ValueError("org_id é obrigatório")
-
-    try:
-        _ensure_postgrest_auth(supabase)  # Autenticação antes da operação
-
-        def _do() -> Any:
-            # JOIN com clients para obter dados completos do cliente
-            # Campos do client_passwords: *,
-            # Campos de clients: id (renomeado), razao_social, cnpj, nome, numero (WhatsApp)
-            select_query = "*,clients!client_id(id,razao_social,cnpj,nome,numero)"
-            query = (
-                supabase.table("client_passwords")
-                .select(select_query)
-                .eq("org_id", org_id)
-                .order("updated_at", desc=True)
-            )
-
-            # PERF-003: Aplica paginação se especificado
-            if limit is not None:
-                query = query.range(offset, offset + limit - 1)
-
-            return exec_postgrest(query)
-
-        res: Any = _do()
-        raw_data = getattr(res, "data", None)
-
-        # Achata os dados do JOIN para facilitar o uso
-        flattened_data: list[PasswordRow] = []
-        if raw_data is not None:
-            for row in raw_data:
-                # Copia os campos do password
-                password_dict = dict(row)
-
-                # Extrai dados do cliente (se existir)
-                client_data = password_dict.pop("clients", None)
-                if client_data and isinstance(client_data, dict):
-                    # Adiciona campos do cliente ao dict principal
-                    password_dict["client_external_id"] = client_data.get("id", "")
-                    password_dict["razao_social"] = client_data.get("razao_social", "")
-                    password_dict["cnpj"] = client_data.get("cnpj", "")
-                    password_dict["nome"] = client_data.get("nome", "")
-                    # Campo "numero" contém o WhatsApp
-                    password_dict["whatsapp"] = client_data.get("numero", "")
-                else:
-                    # Se não houver cliente, preenche com vazios
-                    password_dict["client_external_id"] = ""
-                    password_dict["razao_social"] = password_dict.get("client_name", "")
-                    password_dict["cnpj"] = ""
-                    password_dict["nome"] = ""
-                    password_dict["whatsapp"] = ""
-
-                flattened_data.append(cast(PasswordRow, password_dict))
-
-        log.info("list_passwords: %d registro(s) encontrado(s) para org_id=%s", len(flattened_data), org_id)
-        return flattened_data
-    except Exception as e:
-        log.exception("Erro ao listar senhas para org_id=%s", org_id)
-        raise RuntimeError(f"Falha ao listar senhas: {e}")
-
-
-def add_password(
-    org_id: str,
-    client_name: str,
-    service: str,
-    username: str,
-    password_plain: str,
-    notes: str,
-    created_by: str,
-    client_id: str | None = None,
-) -> PasswordRow:
-    """
-    Adiciona uma nova senha na tabela.
-    A senha é criptografada antes de ser inserida.
-    Retorna o registro criado.
-    """
-    if not org_id or not client_name or not service:
-        raise ValueError("org_id, client_name e service são obrigatórios")
-
-    try:
-        # 1) Garante autenticação (required=True levanta erro se sem token)
-        _ensure_postgrest_auth(supabase, required=True)
-
-        # 2) Precheck RLS - confere membership com o token atual
-        _rls_precheck_membership(supabase, org_id, created_by)
-
-        # 3) Criptografia
-        password_enc = encrypt_text(password_plain) if password_plain else ""
-
-        payload = {
-            "org_id": org_id,
-            "client_name": client_name,
-            "service": service,
-            "username": username or "",
-            "password_enc": password_enc,
-            "notes": notes or "",
-            "created_by": created_by or "",
-            "created_at": _now_iso(),
-            "updated_at": _now_iso(),
-        }
-
-        # Adicionar client_id se fornecido
-        if client_id is not None:
-            payload["client_id"] = client_id
-
-        log.info(
-            "pwd.add -> org_id=%s created_by=%s client=%s service=%s username=%s",
-            org_id,
-            created_by,
-            client_name,
-            service,
-            username,
-        )
-
-        def _insert() -> Any:
-            return exec_postgrest(supabase.table("client_passwords").insert(payload))
-
-        res: Any = _insert()
-        raw_data = getattr(res, "data", None)
-        data: list[PasswordRow] = list(raw_data) if raw_data is not None else []
-        if not data:
-            raise RuntimeError("Insert não retornou dados")
-        log.info("add_password: registro criado com id=%s", data[0].get("id"))
-        return data[0]
-    except Exception as e:
-        log.exception("Erro ao adicionar senha")
-        raise RuntimeError(f"Falha ao adicionar senha: {e}")
-
-
-def update_password(
-    id: str,
-    client_name: str | None = None,
-    service: str | None = None,
-    username: str | None = None,
-    password_plain: str | None = None,
-    notes: str | None = None,
-    client_id: str | None = None,
-) -> PasswordRow:
-    """
-    Atualiza um registro existente.
-    Se password_plain for fornecido, atualiza o password_enc criptografado.
-    Retorna o registro atualizado.
-    """
-    if not id:
-        raise ValueError("id é obrigatório")
-
-    try:
-        _ensure_postgrest_auth(supabase)  # Autenticação antes da operação
-
-        payload: dict[str, Any] = {"updated_at": _now_iso()}
-
-        if client_name is not None:
-            payload["client_name"] = client_name
-        if service is not None:
-            payload["service"] = service
-        if username is not None:
-            payload["username"] = username
-        if notes is not None:
-            payload["notes"] = notes
-        if password_plain is not None:
-            payload["password_enc"] = encrypt_text(password_plain) if password_plain else ""
-        if client_id is not None:
-            payload["client_id"] = client_id
-
-        def _do() -> Any:
-            return exec_postgrest(supabase.table("client_passwords").update(payload).eq("id", id))
-
-        res: Any = _do()
-        raw_data = getattr(res, "data", None)
-        data: list[PasswordRow] = list(raw_data) if raw_data is not None else []
-        if not data:
-            raise RuntimeError("Update não retornou dados")
-        log.info("update_password: registro id=%s atualizado", id)
-        return data[0]
-    except Exception as e:
-        log.exception("Erro ao atualizar senha id=%s", id)
-        raise RuntimeError(f"Falha ao atualizar senha: {e}")
-
-
-def delete_password(id: str) -> None:
-    """
-    Remove um registro da tabela.
-    """
-    if not id:
-        raise ValueError("id é obrigatório")
-
-    try:
-        _ensure_postgrest_auth(supabase)  # Autenticação antes da operação
-
-        def _do() -> Any:
-            return exec_postgrest(supabase.table("client_passwords").delete().eq("id", id))
-
-        _do()
-        log.info("delete_password: registro id=%s removido", id)
-    except Exception as e:
-        log.exception("Erro ao excluir senha id=%s", id)
-        raise RuntimeError(f"Falha ao excluir senha: {e}")
-
-
-def delete_passwords_by_client(org_id: str, client_id: str) -> int:
-    """
-    Remove todas as senhas de um cliente específico.
-
-    Args:
-        org_id: ID da organização proprietária
-        client_id: ID do cliente cujas senhas serão excluídas
-
-    Returns:
-        Número de senhas excluídas
-    """
-    if not org_id:
-        raise ValueError("org_id é obrigatório")
-    if not client_id:
-        raise ValueError("client_id é obrigatório")
-
-    try:
-        _ensure_postgrest_auth(supabase)  # Autenticação antes da operação
-
-        def _do() -> Any:
-            return exec_postgrest(
-                supabase.table("client_passwords").delete().eq("org_id", org_id).eq("client_id", client_id)
-            )
-
-        res: Any = _do()
-        # O Supabase retorna os registros deletados em res.data
-        raw_data = getattr(res, "data", None)
-        count = len(raw_data) if raw_data else 0
-        log.info("delete_passwords_by_client: %d senha(s) removida(s) para client_id=%s", count, client_id)
-        return count
-    except Exception as e:
-        log.exception("Erro ao excluir senhas do client_id=%s", client_id)
-        raise RuntimeError(f"Falha ao excluir senhas do cliente: {e}")
-
-
-def decrypt_for_view(token: str) -> str:
-    """
-    Helper para descriptografar uma senha criptografada (token base64).
-    Usado principalmente para copiar senha para o clipboard.
-    """
-    try:
-        return decrypt_text(token)
-    except Exception as e:
-        log.exception("Erro ao descriptografar senha")
-        raise RuntimeError(f"Falha ao descriptografar: {e}")
 
 
 # -----------------------------------------------------------------------------
@@ -618,13 +320,6 @@ __all__ = [
     "format_api_error",
     "to_iso_date",
     "PostgrestAPIError",
-    # CRUD de senhas (específico deste módulo)
-    "list_passwords",
-    "add_password",
-    "update_password",
-    "delete_password",
-    "delete_passwords_by_client",
-    "decrypt_for_view",
     # Autocomplete de clientes
     "search_clients",
     "list_clients_for_picker",

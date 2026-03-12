@@ -31,30 +31,6 @@ logger = logging.getLogger(__name__)
 
 
 # ============================================================================
-# FUNÇÕES HELPER PARA TYPING E CTk COMPATIBILITY
-# ============================================================================
-
-
-def get_inner_text_widget(textbox: Any) -> tk.Text:
-    """Helper para acessar widget Text interno do CTkTextbox."""
-    if hasattr(textbox, "_textbox"):
-        return textbox._textbox  # type: ignore[attr-defined]
-    return textbox  # Fallback genérico
-
-
-def configure_textbox_readonly(textbox: Any) -> None:
-    """Configura CTkTextbox como read-only."""
-    inner = get_inner_text_widget(textbox)
-    inner.configure(state="disabled")
-
-
-def configure_textbox_editable(textbox: Any) -> None:
-    """Configura CTkTextbox como editável."""
-    inner = get_inner_text_widget(textbox)
-    inner.configure(state="normal")
-
-
-# ============================================================================
 # FUNÇÕES AUXILIARES (UI)
 # ============================================================================
 
@@ -156,12 +132,8 @@ def build_dashboard_center(
     # -------------------------------------------------------------------------
     # TAREFAS PENDENTES
     # -------------------------------------------------------------------------
-    if snapshot.anvisa_only:
-        tasks_title_text = "🗂️ ANVISA – Tarefas de hoje"
-        tasks_empty_msg = "Nenhuma tarefa ANVISA para hoje."
-    else:
-        tasks_title_text = "🗂️ Tarefas pendentes"
-        tasks_empty_msg = "Nenhuma tarefa pendente no momento."
+    tasks_title_text = "🗂️ Tarefas pendentes"
+    tasks_empty_msg = "Nenhuma tarefa pendente no momento."
 
     tasks_section, tasks_inner = build_section_card(main_container, tasks_title_text)
     tasks_section.pack(fill=X, pady=(0, 16))

@@ -65,22 +65,6 @@ class _BasePlaceholder(ctk.CTkFrame):  # type: ignore[misc]
         self._binding_tracker.unbind_all()
 
 
-class AuditoriaPlaceholder(_BasePlaceholder):
-    title = "AUDITORIA - Em breve"
-
-
-class FarmaciaPopularPlaceholder(_BasePlaceholder):
-    title = "FARMACIA POPULAR - Em breve"
-
-
-class SnjpcPlaceholder(_BasePlaceholder):
-    title = "SNJPC - Em breve"
-
-
-class SenhasPlaceholder(_BasePlaceholder):
-    title = "SENHAS - Em breve"
-
-
 PlaceholderType = Type[_BasePlaceholder]
 
 

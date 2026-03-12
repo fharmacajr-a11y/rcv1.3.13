@@ -14,7 +14,6 @@ from src.adapters.storage.api import list_files as storage_list_files
 from src.adapters.storage.api import upload_file as storage_upload_file
 from src.adapters.storage.api import using_storage_backend
 from src.adapters.storage.supabase_storage import SupabaseStorageAdapter
-from src.db.supabase_repo import delete_passwords_by_client
 from src.infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ID
 from src.infra.supabase_client import exec_postgrest
 from src.utils.subpastas_config import get_mandatory_subpastas, join_prefix
@@ -195,15 +194,7 @@ def hard_delete_clients(client_ids: Iterable[int], parent: tk.Misc | None = None
             if not storage_ok:
                 continue  # Não remove do DB se Storage falhou
 
-            # 2) FIX-SENHAS-015: Apaga todas as senhas do cliente
-            try:
-                deleted_count = delete_passwords_by_client(org_id, str(cid))
-                log.info("Senhas: removidas %d senha(s) do cliente %s", deleted_count, cid)
-            except Exception as e:
-                log.exception("Falha ao apagar senhas do cliente %s", cid)
-                errs.append((cid, f"Senhas: {e}"))
-
-            # 3) Remove do DB (linha do cliente)
+            # 2) Remove do DB (linha do cliente)
             exec_postgrest(supabase.table("clients").delete().eq("id", cid))  # pyright: ignore[reportAttributeAccessIssue]
 
             ok += 1

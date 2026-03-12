@@ -8,7 +8,6 @@ import logging
 from datetime import datetime, timezone
 
 from core.auth.auth import ensure_users_db, create_user, _pbkdf2_hash  # pyright: ignore[reportAttributeAccessIssue]
-from core.logs.audit import last_action_of_user
 from config.paths import USERS_DB_PATH
 from utils.file_utils import format_datetime
 from ui.utils import center_window  # <<< novo import centralizado
@@ -104,10 +103,7 @@ class UserManagerDialog(ctk.CTkToplevel):
             return
 
         for uid, uname in rows:
-            try:
-                raw_last = last_action_of_user(uid)
-            except Exception:
-                raw_last = None
+            raw_last = None
             last = format_datetime(raw_last) if raw_last else "-"
             self.tree.insert("", "end", values=(uid, uname, last))
 

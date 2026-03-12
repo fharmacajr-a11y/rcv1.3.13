@@ -133,7 +133,4 @@ class HubQuickActionsView:
         btn_farmacia_popular = mk_btn(inner_regulatorio, "Farmácia Popular", self._on_open_farmacia_popular)
         btn_farmacia_popular.pack(pady=4)
 
-        btn_anvisa = mk_btn(inner_regulatorio, "Anvisa", None)  # Anvisa sem callback (módulo removido)
-        btn_anvisa.pack(pady=4)
-
         return self.modules_panel

@@ -61,8 +61,8 @@ class HubNavigationHelper:
             on_new_task()
 
     def go_to_pending(self) -> None:
-        """Navega para Pendências Regulatórias/Auditoria."""
-        callback = getattr(self._hub, "open_auditoria", None) or getattr(self._hub, "open_pendencias", None)
+        """Navega para Pendências Regulatórias."""
+        callback = getattr(self._hub, "open_pendencias", None)
         if callable(callback):
             callback()
             return
@@ -115,7 +115,7 @@ class HubNavigationHelper:
         """Invoca callback de navegação via HubNavigationCallbacks (MF-16).
 
         Args:
-            module_name: Nome do módulo (ex: 'clientes', 'senhas', etc.)
+            module_name: Nome do módulo (ex: 'clientes', 'fluxo_caixa', etc.)
         """
         nav_callbacks = getattr(self._hub, "_nav_callbacks", None)
         if nav_callbacks and hasattr(nav_callbacks, "invoke"):

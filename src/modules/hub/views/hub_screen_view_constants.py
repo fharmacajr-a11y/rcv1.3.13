@@ -24,9 +24,6 @@ MSG_LOADING_DEFAULT = "Carregando..."
 SECTION_CADASTROS_LABEL = "Cadastros / Acesso"
 """Label da seção de cadastros e acesso."""
 
-SECTION_GESTAO_LABEL = "Gestão / Auditoria"
-"""Label da seção de gestão e auditoria."""
-
 SECTION_REGULATORIO_LABEL = "Regulatório / Programas"
 """Label da seção regulatória e programas governamentais."""
 

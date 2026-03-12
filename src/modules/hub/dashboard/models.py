@@ -34,7 +34,6 @@ class DashboardSnapshot:
             each containing pending, overdue counts and status (green/yellow/red).
         recent_activity: Recent team activity (up to 20 items), each containing
             timestamp, category, text.
-        anvisa_only: Flag indicating ANVISA-only mode where Pendências/Tarefas clicks are disabled.
     """
 
     active_clients: int = 0
@@ -47,4 +46,3 @@ class DashboardSnapshot:
     clients_of_the_day: list[dict[str, Any]] = field(default_factory=list)
     risk_radar: dict[str, dict[str, Any]] = field(default_factory=dict)
     recent_activity: list[dict[str, Any]] = field(default_factory=list)
-    anvisa_only: bool = False

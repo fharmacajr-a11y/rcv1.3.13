@@ -99,7 +99,6 @@ def _build_core_svc_stubs(
             update_cliente=MagicMock(),
         ),
         "src.core.logs": _mk("src.core.logs"),
-        "src.core.logs.audit": _mk("src.core.logs.audit", log_client_action=MagicMock()),
         "src.core.session": _mk("src.core.session"),
         "src.core.session.session": _mk(
             "src.core.session.session",

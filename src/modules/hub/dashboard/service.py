@@ -490,7 +490,6 @@ def get_dashboard_snapshot(
         except Exception as e:  # noqa: BLE001
             logger.warning("Failed to load pending tasks (minimal): %s", e)
             snapshot.pending_tasks = []
-        snapshot.anvisa_only = False
         return snapshot
 
     # 1) Active clients count
@@ -577,8 +576,5 @@ def get_dashboard_snapshot(
     except Exception as e:  # noqa: BLE001
         logger.warning("Failed to load recent activity: %s", e)
         snapshot.recent_activity = []
-
-    # Not in ANVISA-only mode anymore
-    snapshot.anvisa_only = False
 
     return snapshot
