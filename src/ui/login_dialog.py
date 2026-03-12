@@ -6,6 +6,7 @@ import time
 import tkinter as tk
 
 from src.ui.dialogs.rc_dialogs import show_error
+from src.ui.window_utils import apply_window_icon
 
 from src.ui.ctk_config import ctk
 from src.ui.widgets.button_factory import make_btn
@@ -32,20 +33,9 @@ class LoginDialog(ctk.CTkToplevel):
         self.title("Login - Gestor de Clientes")
         self.resizable(False, False)
 
-        # Ícone da janela de login (mesmo rc.ico do app)
-        try:
-            icon_path = resource_path("rc.ico")
-            if os.path.exists(icon_path):
-                try:
-                    self.iconbitmap(icon_path)
-                except Exception:
-                    try:
-                        img = tk.PhotoImage(file=icon_path)
-                        self.iconphoto(True, img)
-                    except Exception as exc:  # noqa: BLE001
-                        log.debug("Falha ao definir iconphoto em login_dialog: %s", exc)
-        except Exception as exc:  # noqa: BLE001
-            log.debug("Falha ao definir ícone em login_dialog: %s", exc)
+        # Ícone da janela de login — usa helper central com reapply agendado em
+        # 250 ms para contornar o override interno do CTkToplevel no Windows.
+        apply_window_icon(self)
 
         # Variáveis
         self.email_var = tk.StringVar(master=self)

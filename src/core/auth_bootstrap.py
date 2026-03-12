@@ -19,6 +19,10 @@ except Exception:  # pragma: no cover
 log = logging.getLogger(__name__)
 KEEP_LOGGED_DAYS: int = 7
 
+# Flag de boot: sinaliza que a sessão persistida foi invalidada nesta inicialização.
+# Garante que o aviso UX seja exibido no máximo uma vez por execução.
+_session_invalidated_this_boot: bool = False
+
 
 class SplashLike(Protocol):
     """Interface mínima esperada de uma splash screen Tk."""
@@ -141,6 +145,26 @@ def _is_network_error(exc: Exception) -> bool:
     return any(keyword in msg for keyword in network_keywords)
 
 
+def _is_invalid_token_error(exc: Exception) -> bool:
+    """
+    Detecta erros de refresh token inválido, expirado, revogado ou já usado.
+
+    Palavras-chave baseadas nas mensagens padrão do GoTrue/Supabase.
+    """
+    msg = str(exc).lower()
+    keywords = (
+        "refresh token",
+        "invalid_grant",
+        "token expired",
+        "already used",
+        "revoked",
+        "invalid refresh",
+        "token has expired",
+        "refresh_token_not_found",
+    )
+    return any(kw in msg for kw in keywords)
+
+
 def _refresh_session_state(client: SupabaseClient, logger: Optional[logging.Logger]) -> None:
     """Sincroniza cache local (org_id, usuário) após restaurar sessão."""
     try:
@@ -222,6 +246,10 @@ def restore_persisted_auth_session_if_any(client: SupabaseClient) -> bool:
                 exc_info=True,
             )
             return False
+        # Refresh token inválido/expirado/revogado/já usado: sinaliza UX amigável
+        global _session_invalidated_this_boot
+        if _is_invalid_token_error(exc):
+            _session_invalidated_this_boot = True
         # Erro de autenticação ou desconhecido: limpa sessão
         error_class = "auth" if "invalid" in str(exc).lower() or "expired" in str(exc).lower() else "unknown"
         log.warning(
@@ -294,6 +322,19 @@ def _ensure_session(app: AppProtocol, logger: Optional[logging.Logger]) -> bool:
             except Exception as exc:
                 (logger or log).debug("Falha ao exibir messagebox de offline: %s", exc)
                 return False
+
+    # EXPIRED-SESSION-UX: aviso amigável exibido no máximo uma vez por boot
+    if _session_invalidated_this_boot:
+        (logger or log).info("Sessão persistida invalidada — exibindo aviso de sessão expirada ao usuário.")
+        try:
+            from tkinter import messagebox
+
+            messagebox.showwarning(
+                "Sessão Expirada",
+                "Sua sessão expirou ou ficou inválida.\nFaça login novamente.",
+            )
+        except Exception as _warn_exc:
+            (logger or log).debug("Falha ao exibir aviso de sessão expirada: %s", _warn_exc)
 
     (logger or log).info("Nenhum access_token em memória. Abrindo diálogo de login...")
     dlg = LoginDialog(app)
