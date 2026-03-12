@@ -82,8 +82,10 @@ class EditorActionsMixin:
         """Handler centralizado para tecla Enter.
 
         Comportamento:
-        - Se SHIFT pressionado E foco em Observações ou Contatos: insere nova linha
-        - Caso contrário: salva o cliente
+        - Se foco em Observações, Contatos ou Bloco de notas:
+            * Enter quebra linha normalmente (binding de classe do tk.Text já inseriu \\n).
+            * Retorna "break" para impedir o save.
+        - Fora de textbox: Enter/KP_Enter salva o cliente.
 
         Args:
             event: Evento de teclado
@@ -91,10 +93,7 @@ class EditorActionsMixin:
         Returns:
             "break" para impedir propagação
         """
-        # Detectar se SHIFT está pressionado
-        shift_pressed = bool(event.state & 0x0001)
-
-        # Detectar se o foco está em textbox multiline (Observações ou Contatos)
+        # Detectar se o foco está em textbox multiline (Observações, Contatos ou Bloco de notas)
         focus_widget = self.focus_get()
         is_focus_on_textbox = False
 
@@ -114,15 +113,11 @@ class EditorActionsMixin:
             if focus_widget is self.bloco_notas_text or focus_widget is bloco_notas_internal:
                 is_focus_on_textbox = True
 
-        # Se Shift+Enter E foco em textbox: inserir nova linha
-        if shift_pressed and is_focus_on_textbox:
-            try:
-                focus_widget.insert("insert", "\n")  # pyright: ignore[reportAttributeAccessIssue]
-            except Exception as e:
-                log.debug(f"[ClientEditor] Erro ao inserir newline: {e}")
+        if is_focus_on_textbox:
+            # tk.Text já inseriu \n via binding de classe; apenas impede o save.
             return "break"
 
-        # Caso contrário: salvar
+        # Foco fora de textbox: Enter confirma/salva o cliente.
         self._on_save_clicked()
         return "break"
 
