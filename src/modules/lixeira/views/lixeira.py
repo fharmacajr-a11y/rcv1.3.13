@@ -441,14 +441,6 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[ctk.CTkTo
     btn_purge.configure(command=on_purge)
     btn_refresh.configure(command=carregar)
 
-    # expõe carregar para refresh externo e registra singleton
-    try:
-        win.update_idletasks()
-        show_centered(win)
-        win.focus_force()
-    except Exception as exc:  # noqa: BLE001
-        _log_ui_issue("Falha ao exibir janela da Lixeira", exc)
-
     win._carregar = carregar  # type: ignore[attr-defined]
     _OPEN_WINDOW = win
 
@@ -463,7 +455,7 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[ctk.CTkTo
 
     win.protocol("WM_DELETE_WINDOW", _on_close)
 
-    # primeira carga e centralização
+    # primeira carga; show_centered após carregar() — janela aparece já preenchida
     carregar()
     try:
         show_centered(win)

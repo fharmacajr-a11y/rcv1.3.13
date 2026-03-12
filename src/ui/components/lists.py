@@ -355,6 +355,7 @@ def _setup_treeview_tooltip(tree: Any, columns: tuple) -> None:
             # Criar/atualizar tooltip
             if tooltip_window is None:
                 tooltip_window = ctk.CTkToplevel(tree)
+                tooltip_window.withdraw()  # evita flash em (0,0) antes de geometry()
                 tooltip_window.wm_overrideredirect(True)
                 tooltip_window.wm_attributes("-topmost", True)
                 tooltip_label = ctk.CTkLabel(

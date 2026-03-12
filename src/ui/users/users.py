@@ -169,6 +169,7 @@ class UserManagerDialog(ctk.CTkToplevel):
                 self._mini_form = None
 
         top = tb.Toplevel(self)
+        top.withdraw()  # evita flash antes de geometry/deiconify
         self._mini_form = top
 
         def _close():
@@ -177,7 +178,6 @@ class UserManagerDialog(ctk.CTkToplevel):
 
         top.title(title)
         top.transient(self)
-        top.grab_set()
         top.resizable(False, False)
         top.protocol("WM_DELETE_WINDOW", _close)
 
@@ -264,3 +264,5 @@ class UserManagerDialog(ctk.CTkToplevel):
 
         # centraliza usando helper
         center_window(top, 400, 260)
+        top.deiconify()  # mostra após posicionado
+        top.grab_set()  # modalidade só depois de visível

@@ -115,7 +115,7 @@ class CTkDatePicker(ctk.CTkFrame):
         popup.title("Selecionar Data")
         popup.resizable(False, False)
         popup.transient(self.winfo_toplevel())  # pyright: ignore[reportAttributeAccessIssue]
-        popup.grab_set()
+        # grab_set() movido para após deiconify() — evita grab numa janela ainda oculta
 
         # Variáveis de navegação
         current_year = self._selected_date.year
@@ -221,6 +221,7 @@ class CTkDatePicker(ctk.CTkFrame):
         y = self.winfo_rooty() + self.winfo_height() + 5  # pyright: ignore[reportAttributeAccessIssue]
         popup.geometry(f"+{x}+{y}")
         popup.deiconify()
+        popup.grab_set()  # modalidade aplicada após janela estar visível e posicionada
 
     def _prev_month(
         self,
