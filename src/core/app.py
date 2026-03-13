@@ -119,6 +119,21 @@ if __name__ == "__main__":
 
     log: Optional[logging.Logger] = bootstrap.configure_logging()
 
+    # After-jobs tracker (ativado apenas com RC_DEBUG_AFTER=1)
+    if os.getenv("RC_DEBUG_AFTER", "0") == "1":
+        try:
+            import sys as _sys
+            from pathlib import Path as _Path
+
+            _scripts_dir = str(_Path(__file__).resolve().parents[2] / "scripts")
+            if _scripts_dir not in _sys.path:
+                _sys.path.insert(0, _scripts_dir)
+            from diag_after_jobs import install_after_tracker
+
+            install_after_tracker()
+        except Exception:
+            pass
+
     # PERF-001: Criar app oculto para startup rápida
     # Health check será agendado APÓS login bem-sucedido
     app: App = App(start_hidden=True)
