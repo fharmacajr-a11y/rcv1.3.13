@@ -99,6 +99,9 @@ class HubLifecycle:
         except Exception as e:
             self._log_error(f"Erro ao parar polling: {e}")
 
+        # FIX: Cancelar after jobs do controller que não são gerenciados pelo lifecycle
+        self._cancel_controller_after_jobs()
+
         # Parar live sync (MF-15: via serviço)
         if self._live_sync_active:
             self.stop_live_sync()
@@ -334,6 +337,27 @@ class HubLifecycle:
             self._lifecycle_impl.stop_live_sync()
         except Exception as e:
             self._log_error(f"Erro ao parar live sync: {e}")
+
+    def _cancel_controller_after_jobs(self) -> None:
+        """Cancela after jobs órfãos do hub controller (não gerenciados pelo lifecycle)."""
+        screen = self.tk_root
+
+        # Cancelar _notes_after_handle (refresh_notes_async loop)
+        handle = getattr(screen, "_notes_after_handle", None)
+        if handle is not None:
+            try:
+                screen.after_cancel(handle)
+            except Exception as e:
+                self._log_debug(f"Erro ao cancelar _notes_after_handle: {e}")
+            screen._notes_after_handle = None  # type: ignore[attr-defined]
+
+        # Cancelar hub_state.poll_job (poll_notes_if_needed loop)
+        try:
+            from src.modules.hub.controller import cancel_poll
+
+            cancel_poll(screen)
+        except Exception as e:
+            self._log_debug(f"Erro ao cancelar poll_job: {e}")
 
     # ============================================================================
     # HELPERS DE LOGGING
