@@ -38,6 +38,7 @@ EXEMPLO DE USO:
 from __future__ import annotations
 
 import logging
+import os
 from typing import TYPE_CHECKING, Any, Callable
 
 if TYPE_CHECKING:
@@ -45,8 +46,131 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+_DEBUG_AFTER = os.getenv("RC_DEBUG_AFTER", "0") == "1"
 
-def cancel_all_after_jobs(root: tk.Tk | tk.Toplevel) -> int:
+
+def _tcl_after_ids(root: "tk.Tk | tk.Toplevel") -> list[str]:
+    """Retorna lista de after IDs pendentes via Tcl."""
+    try:
+        raw = root.tk.call("after", "info")
+    except Exception:
+        return []
+    if not raw:
+        return []
+    if isinstance(raw, str):
+        return [raw] if raw.strip() else []
+    if isinstance(raw, tuple):
+        return list(raw)
+    return []
+
+
+def _tcl_after_detail(root: "tk.Tk | tk.Toplevel", after_id: str) -> tuple[str, str]:
+    """Retorna (script_tcl, tipo) para um after ID.  tipo = 'timer' | 'idle'."""
+    try:
+        info = root.tk.call("after", "info", after_id)
+        if isinstance(info, tuple) and len(info) >= 2:
+            return (str(info[0])[:120], str(info[1]))
+        return (str(info)[:120], "?")
+    except Exception:
+        return ("?", "?")
+
+
+# ---------------------------------------------------------------------------
+# Padrões conhecidos de after jobs internos do CustomTkinter
+# ---------------------------------------------------------------------------
+
+_CTK_OWNER_CLASSES: frozenset[str] = frozenset(
+    {
+        "AppearanceModeTracker",
+        "ScalingTracker",
+        "CTkButton",
+        "CTkTextbox",
+        "CTkScrollbar",
+        "CTkFrame",
+        "CTkEntry",
+        "CTkLabel",
+        "CTkToplevel",
+        "CTk",
+    }
+)
+
+_CTK_CALLBACK_NAMES: frozenset[str] = frozenset(
+    {
+        "_click_animation",
+        "update",
+        "check_dpi_scaling",
+        "_check_if_scrollbars_needed",
+    }
+)
+
+
+def _is_ctk_internal(meta: dict[str, Any] | None, tcl_script: str) -> bool:
+    """Heurística para classificar um after job como interno do CustomTkinter.
+
+    Prioridade 1: metadados do tracker (caller_file contém 'customtkinter').
+    Prioridade 2: owner_class + callback em listas conhecidas.
+    Prioridade 3: sem tracker — Tcl script não ajuda, retorna False (conservador).
+    """
+    if meta is None:
+        return False
+
+    # Via caller_file — mais confiável
+    caller = str(meta.get("caller_file", "")).replace("\\", "/").lower()
+    if "customtkinter" in caller:
+        return True
+
+    # Via owner_class + callback — fallback
+    owner = str(meta.get("owner_class", ""))
+    cb = str(meta.get("callback", ""))
+    if owner in _CTK_OWNER_CLASSES and cb in _CTK_CALLBACK_NAMES:
+        return True
+
+    return False
+
+
+def cancel_ctk_internal_jobs(root: "tk.Tk | tk.Toplevel") -> int:
+    """Cancela after jobs identificados como internos do CustomTkinter.
+
+    Usa metadados do AfterTracker (se instalado) para classificar.
+    Apenas jobs CTk conhecidos são cancelados — app jobs NÃO são tocados.
+
+    Returns:
+        Número de jobs CTk cancelados.
+    """
+    ids = _tcl_after_ids(root)
+    if not ids:
+        return 0
+
+    tracker: dict[str, Any] = {}
+    try:
+        from diag_after_jobs import get_registry  # noqa: PLC0415
+
+        tracker = get_registry()
+    except Exception:
+        pass
+
+    cancelled = 0
+    for aid in ids:
+        tcl_script, _tcl_type = _tcl_after_detail(root, aid)
+        meta = tracker.get(aid)
+
+        if _is_ctk_internal(meta, tcl_script):
+            try:
+                root.after_cancel(aid)
+                cancelled += 1
+                if _DEBUG_AFTER:
+                    cb_name = meta.get("callback", "?") if meta else "?"
+                    owner = meta.get("owner_class", "?") if meta else "?"
+                    log.debug("  CTk cancel id=%s owner=%s cb=%s", aid, owner, cb_name)
+            except Exception:  # noqa: BLE001
+                pass
+
+    if cancelled:
+        log.debug("Cancelados %d after jobs internos do CTk", cancelled)
+    return cancelled
+
+
+def cancel_all_after_jobs(root: "tk.Tk | tk.Toplevel") -> int:
     """Cancela todos os jobs after() pendentes para evitar 'invalid command name' errors.
 
     Args:
@@ -54,41 +178,26 @@ def cancel_all_after_jobs(root: tk.Tk | tk.Toplevel) -> int:
 
     Returns:
         Número de jobs cancelados
-
-    Exemplo:
-        >>> from src.ui.shutdown import cancel_all_after_jobs
-        >>> cancelled = cancel_all_after_jobs(self.root)
-        >>> print(f"Cancelados {cancelled} jobs")
     """
     cancelled = 0
     try:
-        # Tcl command: after info retorna lista de IDs de after jobs pendentes
-        after_ids = root.tk.call("after", "info")
+        after_ids = _tcl_after_ids(root)
 
         if not after_ids:
             log.debug("Nenhum after job pendente para cancelar")
             return 0
-
-        # after_ids pode ser string ou tupla, normalizar para lista
-        if isinstance(after_ids, str):
-            if not after_ids.strip():
-                return 0
-            after_ids = [after_ids]
-        elif isinstance(after_ids, tuple):
-            after_ids = list(after_ids)
 
         for after_id in after_ids:
             try:
                 root.after_cancel(after_id)
                 cancelled += 1
             except Exception as e:  # noqa: BLE001
-                # Ignore errors - job pode já ter sido cancelado ou executado
                 log.debug("Falha ao cancelar after job %s: %s", after_id, e)
 
-        log.info("Cancelados %d after jobs pendentes", cancelled)
+        if cancelled:
+            log.debug("Cancelados %d after jobs remanescentes", cancelled)
 
     except Exception as e:  # noqa: BLE001
-        # Nunca quebrar o shutdown por falha ao cancelar after jobs
         log.warning("Erro ao cancelar after jobs: %s", e)
 
     return cancelled
