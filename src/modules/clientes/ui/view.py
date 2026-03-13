@@ -140,7 +140,7 @@ class ClientesV2Frame(ctk.CTkFrame):
             self,
             text="⚠ Resultados limitados a 1000. Refine a busca.",
             text_color="#f0ad4e",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=12),  # pyright: ignore[reportAttributeAccessIssue]
         )
         self._cap_hit_label_visible = False
 
@@ -917,7 +917,7 @@ class ClientesV2Frame(ctk.CTkFrame):
                 self._cap_hit_label.pack(side="top", pady=(0, 4))
                 self._cap_hit_label_visible = True
             elif not cap and self._cap_hit_label_visible:
-                self._cap_hit_label.pack_forget()
+                self._cap_hit_label.pack_forget()  # pyright: ignore[reportAttributeAccessIssue]
                 self._cap_hit_label_visible = False
         except Exception:
             pass

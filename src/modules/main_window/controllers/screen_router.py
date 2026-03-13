@@ -198,7 +198,7 @@ class ScreenRouter:
                     bg = APP_BG
                 cover = _tk.Frame(self._container, bg=bg)
             cover.place(relx=0, rely=0, relwidth=1, relheight=1)
-            cover.lift()
+            cover.lift()  # pyright: ignore[reportAttributeAccessIssue]
             return cover
         except Exception as exc:  # noqa: BLE001
             self._log.debug("Falha ao criar transition cover: %s", exc)
