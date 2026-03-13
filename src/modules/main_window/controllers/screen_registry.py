@@ -93,4 +93,4 @@ def register_main_window_screens(router: ScreenRouter, app: App) -> None:
 
     router.register("placeholder", _create_placeholder, cache=False)
 
-    _log.debug("Registradas 6 telas no ScreenRouter")
+    _log.debug("Registradas 5 telas no ScreenRouter")
