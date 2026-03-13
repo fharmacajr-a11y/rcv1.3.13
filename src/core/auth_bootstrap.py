@@ -23,6 +23,10 @@ KEEP_LOGGED_DAYS: int = 7
 # Garante que o aviso UX seja exibido no máximo uma vez por execução.
 _session_invalidated_this_boot: bool = False
 
+# Flag: indica que o TOKEN_REFRESHED persister já foi registrado nesta sessão.
+# Evita múltiplos registros caso o fluxo seja executado mais de uma vez.
+_token_refresh_persister_registered: bool = False
+
 
 class SplashLike(Protocol):
     """Interface mínima esperada de uma splash screen Tk."""
@@ -176,6 +180,50 @@ def _refresh_session_state(client: SupabaseClient, logger: Optional[logging.Logg
 AuthSessionData = Mapping[str, Any]
 
 
+def _register_token_refresh_persister(client: Any) -> None:
+    """Registra callback GoTrue para re-persistir tokens após auto-refresh em sessões longas.
+
+    O SyncGoTrueClient (supabase-py/gotrue-py) inicia um threading.Timer que chama
+    _call_refresh_token() antes de o access_token expirar (EXPIRY_MARGIN = 10s antes).
+    Após a rotação, _notify_all_subscribers("TOKEN_REFRESHED", session) é chamado.
+    Sem este hook, os tokens rotacionados ficam apenas na memória interna do GoTrue
+    e não são persistidos no keyring/DPAPI do app — causando "already used" no
+    próximo boot, mesmo que o hotfix de boot (TOKEN-ROTATION-FIX) esteja ativo.
+    """
+    global _token_refresh_persister_registered
+    if _token_refresh_persister_registered:
+        return
+
+    try:
+
+        def _on_auth_event(event: str, session: Any) -> None:
+            if event != "TOKEN_REFRESHED" or not session:
+                return
+            # Só persiste se o usuário optou por 'continuar conectado' (keep_logged).
+            # Verificamos consultando o storage existente: se estiver vazio, o usuário
+            # não escolheu persistir sessão e não devemos gravar nada.
+            try:
+                existing = prefs_utils.load_auth_session()
+            except Exception:
+                return
+            if not existing or not existing.get("keep_logged"):
+                return
+            try:
+                access = str(getattr(session, "access_token", "") or "").strip()
+                refresh = str(getattr(session, "refresh_token", "") or "").strip()
+                if access and refresh:
+                    prefs_utils.save_auth_session(access, refresh, keep_logged=True)
+                    log.debug("TOKEN_REFRESHED: tokens re-persistidos (sessão longa coberta).")
+            except Exception as exc:
+                log.debug("Falha ao persistir tokens em TOKEN_REFRESHED: %s", exc)
+
+        client.auth.on_auth_state_change(_on_auth_event)
+        _token_refresh_persister_registered = True
+        log.debug("TOKEN_REFRESHED persister registrado no GoTrue client.")
+    except Exception as exc:
+        log.debug("Falha ao registrar persister de TOKEN_REFRESHED: %s", exc)
+
+
 def is_persisted_auth_session_valid(
     data: AuthSessionData,
     now: datetime | None = None,
@@ -236,6 +284,24 @@ def restore_persisted_auth_session_if_any(client: SupabaseClient) -> bool:
 
     try:
         client.auth.set_session(access_token, refresh_token)
+        # TOKEN-ROTATION-FIX: re-persiste tokens após set_session.
+        # supabase-py/gotrue rotaciona o refresh_token quando o access_token está
+        # expirado (o que é o caso comum na reabertura após ≥1 hora). Se os tokens
+        # rotacionados não forem salvos aqui, na PRÓXIMA abertura o refresh_token
+        # antigo já terá sido usado e o servidor retorna "already used", disparando
+        # o modal "Sessão Expirada" incorretamente.
+        try:
+            sess = client.auth.get_session()
+            sess_obj = getattr(sess, "session", None) or sess
+            new_access = str(getattr(sess_obj, "access_token", "") or "").strip()
+            new_refresh = str(getattr(sess_obj, "refresh_token", "") or "").strip()
+            if new_access and new_refresh:
+                prefs_utils.save_auth_session(new_access, new_refresh, keep_logged=True)
+                log.debug("Tokens pós-set_session re-persistidos (rotação GoTrue coberta).")
+        except Exception as resave_exc:
+            log.debug("Falha ao re-persistir tokens pós-set_session: %s", resave_exc)
+        # LONG-SESSION-FIX: registrar persister para capturar rotações futuras (sessões >1h).
+        _register_token_refresh_persister(client)
         return True
     except Exception as exc:
         # OFFLINE-SUPABASE-UX-001 (Parte B): Preserva sessão em erros de rede
@@ -270,17 +336,17 @@ def _ensure_session(app: AppProtocol, logger: Optional[logging.Logger]) -> bool:
     client = _supabase_client()
     if not client:
         (logger or log).warning("Cliente Supabase não disponível.")
-        # UX: Informar usuário sobre problema técnico
         try:
-            from tkinter import messagebox
+            from src.ui.dialogs.rc_dialogs import show_error as _rc_show_error
 
-            messagebox.showerror(
+            _rc_show_error(
+                app,
                 "Erro de Conexão",
                 "Não foi possível conectar ao serviço de autenticação.\n\n"
                 "Verifique sua conexão com a internet e tente novamente.",
             )
         except Exception as exc:
-            (logger or log).debug("Falha ao exibir messagebox de erro: %s", exc)
+            (logger or log).debug("Falha ao exibir aviso de erro de conexão: %s", exc)
         return False
 
     try:
@@ -307,29 +373,30 @@ def _ensure_session(app: AppProtocol, logger: Optional[logging.Logger]) -> bool:
         while not check_internet_connectivity(timeout=1.0):
             (logger or log).warning("Sem internet em modo cloud-only. Exibindo diálogo ao usuário.")
             try:
-                from tkinter import messagebox
+                from src.ui.dialogs.rc_dialogs import ask_retry_cancel as _rc_retry
 
-                retry = messagebox.askretrycancel(
+                retry = _rc_retry(
+                    app,
                     "Sem Conexão",
                     "O aplicativo está no modo cloud-only e requer conexão com a internet.\n\n"
                     "Verifique sua conexão e tente novamente.",
-                    icon="warning",
                 )
                 if not retry:
                     (logger or log).info("Usuário cancelou diálogo de reconexão. Encerrando.")
                     return False
                 (logger or log).info("Usuário solicitou nova tentativa de conexão (retry).")
             except Exception as exc:
-                (logger or log).debug("Falha ao exibir messagebox de offline: %s", exc)
+                (logger or log).debug("Falha ao exibir diálogo de offline: %s", exc)
                 return False
 
     # EXPIRED-SESSION-UX: aviso amigável exibido no máximo uma vez por boot
     if _session_invalidated_this_boot:
         (logger or log).info("Sessão persistida invalidada — exibindo aviso de sessão expirada ao usuário.")
         try:
-            from tkinter import messagebox
+            from src.ui.dialogs.rc_dialogs import show_warning as _rc_show_warning
 
-            messagebox.showwarning(
+            _rc_show_warning(
+                app,
                 "Sessão Expirada",
                 "Sua sessão expirou ou ficou inválida.\nFaça login novamente.",
             )
@@ -344,6 +411,8 @@ def _ensure_session(app: AppProtocol, logger: Optional[logging.Logger]) -> bool:
     success = bool(getattr(dlg, "login_success", False))
     if success:
         _refresh_session_state(client, logger)
+        # LONG-SESSION-FIX: registrar persister também para sessões iniciadas via login.
+        _register_token_refresh_persister(client)
     return success
 
 
@@ -435,16 +504,16 @@ def ensure_logged(
         login_ok = _ensure_session(app, logger)
     except Exception as exc:  # noqa: BLE001
         log_obj.warning("Erro no fluxo de login: %s", exc, exc_info=True)
-        # UX: Informar usuário sobre erro inesperado
         try:
-            from tkinter import messagebox
+            from src.ui.dialogs.rc_dialogs import show_error as _rc_show_error
 
-            messagebox.showerror(
+            _rc_show_error(
+                app,
                 "Erro Inesperado",
                 f"Ocorreu um erro durante a autenticação:\n\n{exc}\n\nPor favor, tente novamente ou contate o suporte.",
             )
         except Exception as msg_exc:
-            log_obj.debug("Falha ao exibir messagebox de erro inesperado: %s", msg_exc)
+            log_obj.debug("Falha ao exibir aviso de erro inesperado: %s", msg_exc)
         login_ok = False
 
     _log_session_snapshot(logger)
