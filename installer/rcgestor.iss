@@ -19,7 +19,7 @@
 ; DEFINIÇÕES DE VERSÃO E NOMES
 ; -----------------------------------------------------------------------------
 #define MyAppName "RC Gestor de Clientes"
-#define MyAppVersion "1.6.06"
+#define MyAppVersion "1.6.23"
 #define MyAppPublisher "RC Apps"
 #define MyAppURL "https://github.com/fharmacajr-a11y/rcgestor"
 #define MyAppExeName "RC-Gestor-Clientes-" + MyAppVersion + ".exe"

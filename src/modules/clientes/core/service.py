@@ -549,21 +549,21 @@ def _resolve_current_org_id() -> str:
             u_dict = resp.get("user") or data.get("user") or {}
             uid = u_dict.get("id") or u_dict.get("uid")
         if not uid:
-            raise RuntimeError("Usuǭrio nǜo autenticado no Supabase.")
+            raise RuntimeError("Usuário não autenticado no Supabase.")
         res = exec_postgrest(
             supabase.table("memberships").select(MEMBERSHIPS_SELECT_ORG_ID).eq("user_id", uid).limit(1)
         )
         _rows: list = res.data if isinstance(getattr(res, "data", None), list) else []
         if not _rows:
             log.debug("_resolve_current_org_id: nenhuma membership para uid=%s", uid)
-            raise RuntimeError("Organiza��ǜo nǜo encontrada para o usuǭrio atual.")
+            raise RuntimeError("Organização não encontrada para o usuário atual.")
         row = _rows[0]
         org_id = row.get("org_id") if isinstance(row, dict) else None
         if not org_id:
-            raise RuntimeError("Organiza��ǜo nǜo encontrada para o usuǭrio atual.")
+            raise RuntimeError("Organização não encontrada para o usuário atual.")
         return str(org_id)
     except Exception as e:
-        raise RuntimeError(f"Falha ao resolver organiza��ǜo atual: {e}")
+        raise RuntimeError(f"Falha ao resolver organização atual: {e}")
 
 
 def _gather_paths(bucket: str, root_prefix: str) -> list[str]:

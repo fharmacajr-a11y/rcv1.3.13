@@ -432,20 +432,11 @@ class ClientesV2Frame(ctk.CTkFrame):
         self._tree_colors = colors
 
     def force_redraw(self) -> None:
-        """Força redraw leve da Treeview (sem recarregar dados).
-
-        FASE 3.3: Chamado no restore da janela para eliminar tela preta.
-        Apenas reaplicar style + zebra, sem I/O.
-        """
+        """Força redesenho completo da tree (tema + zebra)."""
         if not self.tree_widget:
             return
-
-        # Usar helper que detecta modo atual e reaplica tudo
         self._sync_tree_theme_and_zebra()
-
-        # Forçar update
         self.tree_widget.update_idletasks()
-
         log.debug("[Clientes] force_redraw() completo")
 
     @staticmethod
@@ -766,33 +757,6 @@ class ClientesV2Frame(ctk.CTkFrame):
 
         except Exception:
             log.exception("[Clientes] Erro ao processar mudança de tema")
-
-    def _load_sample_data(self) -> None:
-        """Carrega dados de exemplo na Treeview."""
-        if not self.tree_widget:
-            return
-
-        # Dados de exemplo
-        sample_data = [
-            ("1", "FARMACIA EXEMPLO LTDA", "12.345.678/0001-90", "João Silva", "(11) 98765-4321", "Novo Cliente"),
-            ("2", "DROGARIA MODELO S.A.", "98.765.432/0001-10", "Maria Santos", "(21) 99876-5432", "Cadastro Pendente"),
-            (
-                "3",
-                "FARMA MAIS COMERCIO",
-                "11.222.333/0001-44",
-                "Pedro Costa",
-                "(31) 97654-3210",
-                "Análise Do Ministério",
-            ),
-            ("4", "MEDICAMENTOS BRASIL", "22.333.444/0001-55", "Ana Oliveira", "(41) 96543-2109", "Novo Cliente"),
-            ("5", "SAUDE E VIDA FARMA", "33.444.555/0001-66", "Carlos Lima", "(51) 95432-1098", "Cadastro Pendente"),
-        ]
-
-        for idx, row in enumerate(sample_data):
-            tag = "even" if idx % 2 == 0 else "odd"
-            self.tree_widget.insert("", "end", values=row, tags=(tag,))
-
-        log.info(f"✅ [Clientes] {len(sample_data)} registros de exemplo carregados")
 
     def _initial_load(self) -> None:
         """Carga inicial de dados reais (assíncrona para não travar a UI)."""

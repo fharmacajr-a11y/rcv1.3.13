@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.23] - 2026-03-13 - Auditoria módulo clientes
+
+### Fixed
+- **[BUG-P1]**: Guard contra chamada de callback None em `main_window_pollers.py` (previne TypeError em runtime)
+- **[TYPING-P2]**: Adicionados `_save_warnings` e `_build_status_row` ao `EditorDialogProto` (elimina 5 warnings pyright)
+- **[ENCODING-P3]**: Corrigidas strings com acentuação quebrada (double-encoding UTF-8) em `service.py:_resolve_current_org_id`
+
+### Removed
+- **[DEAD-CODE]**: Removidas ~24 funções/constantes dead code confirmadas em `core/ui_helpers.py` (~550 linhas)
+- **[DEAD-CODE]**: Removidos `force_redraw` e `_load_sample_data` de `ui/view.py`
+- **[DEAD-CODE]**: Removido `delete_clientes_batch` de `core/viewmodel.py`
+- **[DEAD-CODE]**: Removida `_attach_close_handler` de `forms/client_subfolder_prompt.py`
+- **[DEAD-CODE]**: Removida `_load_status_choices` e ajustado `__all__` em `core/constants.py`
+
 ## [1.5.62] - 2026-01-24 - FASE 6: CI/CD + Staging
 
 ### Added

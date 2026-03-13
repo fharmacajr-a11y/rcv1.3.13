@@ -38,20 +38,6 @@ DEFAULT_STATUS_GROUPS: list[tuple[str, list[str]]] = [
 DEFAULT_STATUS_CHOICES = [label for _, values in DEFAULT_STATUS_GROUPS for label in values]
 
 
-def _load_status_choices() -> list[str]:
-    raw = (os.getenv("RC_STATUS_CHOICES") or "").strip()
-    if not raw:
-        return list(DEFAULT_STATUS_CHOICES)
-    try:
-        if raw.startswith("["):
-            choices = json.loads(raw)
-        else:
-            choices = [s.strip() for s in raw.split(",") if s.strip()]
-        return [str(s) for s in choices if s]
-    except Exception:
-        return list(DEFAULT_STATUS_CHOICES)
-
-
 def _load_status_groups() -> list[tuple[str, list[str]]]:
     """Load grouped statuses from RC_STATUS_GROUPS or fall back to the defaults."""
     raw = (os.getenv("RC_STATUS_GROUPS") or "").strip()
@@ -80,7 +66,6 @@ STATUS_CHOICES = [label for _, values in STATUS_GROUPS for label in values]
 STATUS_PREFIX_RE = re.compile(r"^\s*\[(?P<st>[^\]]+)\]\s*")
 
 __all__ = [
-    "_load_status_choices",
     "_load_status_groups",
     "STATUS_CHOICES",
     "STATUS_PREFIX_RE",

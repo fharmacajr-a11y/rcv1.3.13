@@ -5,7 +5,7 @@ import logging
 import os
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Collection, Dict, Iterable, List
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List
 
 from src.core.search import search_clientes, search_clientes_lixeira
 from src.core.string_utils import only_digits
@@ -406,24 +406,6 @@ class ClientesViewModel:
     def get_status_choices(self) -> List[str]:
         """Retorna lista de status únicos disponíveis nos clientes carregados."""
         return list(self._status_choices)
-
-    # ------------------------------------------------------------------ #
-    # Operações em batch (Fase 07)
-    # ------------------------------------------------------------------ #
-
-    def delete_clientes_batch(self, ids: Collection[str]) -> tuple[int, list[tuple[int, str]]]:
-        """Exclui definitivamente uma coleção de clientes.
-
-        Delega para o serviço de clientes, que cuida da lógica de
-        exclusão física + limpeza de storage.
-
-        Retorna (qtd_ok, erros_por_id).
-        """
-        # Import local para evitar circular import
-        from .service import excluir_clientes_definitivamente
-
-        ids_int = [int(id_str) for id_str in ids]
-        return excluir_clientes_definitivamente(ids_int)
 
     # ------------------------------------------------------------------ #
     # Ordenação (Round 15)

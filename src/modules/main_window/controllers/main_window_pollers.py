@@ -116,6 +116,9 @@ class MainWindowPollers:
             return
 
         # Executar callback do MainWindow
+        if self._on_poll_notifications is None:
+            self._jobs["notifications"] = None
+            return
         try:
             self._on_poll_notifications()
         except Exception as exc:

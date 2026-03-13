@@ -9,7 +9,7 @@ target-version = "py313"
 
 [project]
 name = "rcgestor"
-version = "1.6.06"
+version = "1.6.23"
 description = "Sistema de Gestão de Clientes"
 readme = "README.md"
 license = "MIT"

@@ -142,14 +142,3 @@ class SubpastaDialog(ctk.CTkToplevel):
         self.result = None
         self.cancelled = True
         self.destroy()
-
-
-def _attach_close_handler(dlg: SubpastaDialog) -> None:
-    try:
-        dlg.protocol("WM_DELETE_WINDOW", dlg._on_close)
-    except Exception as exc:  # noqa: BLE001
-        logger.debug("Falha ao atribuir handler direto de fechamento: %s", exc)
-        try:
-            dlg.protocol("WM_DELETE_WINDOW", lambda: dlg._on_close())
-        except Exception as inner_exc:  # noqa: BLE001
-            logger.debug("Falha ao atribuir handler alternativo de fechamento: %s", inner_exc)
