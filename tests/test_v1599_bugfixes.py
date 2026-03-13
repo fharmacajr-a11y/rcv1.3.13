@@ -170,7 +170,6 @@ class TestUploadDuplicateCategorization(unittest.TestCase):
             shown_messages.append(msg)
 
         with (
-            patch("src.modules.uploads.uploader_supabase._show_msg", side_effect=capture_msg),
             patch("src.modules.uploads.uploader_supabase.show_error", side_effect=capture_msg),
             patch("src.modules.uploads.uploader_supabase.show_warning", side_effect=capture_msg),
         ):
@@ -212,7 +211,6 @@ class TestUploadDuplicateCategorization(unittest.TestCase):
             shown.append(msg)
 
         with (
-            patch("src.modules.uploads.uploader_supabase._show_msg", side_effect=capture),
             patch("src.modules.uploads.uploader_supabase.show_error", side_effect=capture),
         ):
             _show_upload_summary(ok_count=0, failed_items=[(fake_item, dup_exc)], parent=MagicMock())

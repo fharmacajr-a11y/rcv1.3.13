@@ -47,32 +47,7 @@ def _resolve_supabase_client() -> object:
     return None
 
 
-# Helper local (duplicado do data mixin para evitar dependência cruzada)
-def _safe_get(obj: Any, key: str, default: Any = "") -> Any:
-    """Obtém valor de dict ou objeto de forma segura."""
-    if isinstance(obj, dict):
-        return obj.get(key, default)
-    return getattr(obj, key, default)
-
-
-def _conflict_desc(conflict: Any) -> str:
-    """Formata descrição de conflito para mensagens de duplicata."""
-    if isinstance(conflict, dict):
-        cid = conflict.get("id", "?")
-        razao = conflict.get("razao_social", "")
-        cnpj = conflict.get("cnpj", "")
-    else:
-        cid = getattr(conflict, "id", "?")
-        razao = getattr(conflict, "razao_social", "")
-        cnpj = getattr(conflict, "cnpj", "")
-
-    desc = f"ID {cid}"
-    if razao:
-        desc += f" — {razao}"
-    if cnpj:
-        desc += f" ({cnpj})"
-
-    return desc
+from src.modules.clientes.ui.views._editor_helpers import _conflict_desc  # noqa: E402
 
 
 class EditorActionsMixin:
@@ -205,6 +180,15 @@ class EditorActionsMixin:
             except Exception:  # noqa: BLE001
                 pass
             return
+
+        # Forçar foco no browser para encerrar qualquer janela de tempo sem modal
+        # causada pelo grab_release() acima. Sem isso, o foco poderia retornar ao
+        # treeview de clientes da janela principal, e Delete excluiria o cliente.
+        try:
+            if dlg.winfo_exists():
+                dlg.focus_force()
+        except Exception:  # noqa: BLE001
+            pass
 
         # Reativar grab do editor quando o browser fechar
         def _on_browser_close(event: object) -> None:

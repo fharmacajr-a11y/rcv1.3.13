@@ -13,7 +13,6 @@ FASE 5: Refatorado em mixins para melhor manutenção:
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping
 from typing import Any, Callable, Optional
 
 from src.ui.ctk_config import ctk
@@ -26,59 +25,6 @@ from src.modules.clientes.ui.views._editor_data_mixin import EditorDataMixin
 from src.modules.clientes.ui.views._editor_actions_mixin import EditorActionsMixin
 
 log = logging.getLogger(__name__)
-
-
-# ============================================================================
-# Helpers locais para lidar com dict OU objeto Cliente
-# ============================================================================
-
-
-def _safe_get(obj: Any, key: str, default: Any = "") -> Any:
-    """Extrai valor de dict OU objeto (aceita ambos).
-
-    Usado para trabalhar com objetos Cliente que podem vir como dict
-    (do Supabase) ou como dataclass/model (do ORM).
-
-    Args:
-        obj: Dict ou objeto (dataclass, Cliente, etc.)
-        key: Chave/atributo a buscar
-        default: Valor padrão se não encontrar
-
-    Returns:
-        Valor extraído ou default
-    """
-    if obj is None:
-        return default
-
-    # Tentar como dict primeiro (mais comum)
-    if isinstance(obj, Mapping):
-        return obj.get(key, default)
-
-    # Tentar como objeto (getattr)
-    return getattr(obj, key, default)
-
-
-def _conflict_desc(conflict: Any) -> str:
-    """Gera descrição amigável de um conflito de cliente.
-
-    Args:
-        conflict: Cliente conflitante (dict ou objeto)
-
-    Returns:
-        String formatada: "ID 123 - Nome da Empresa (12.345.678/0001-90)"
-    """
-    if conflict is None:
-        return "cliente desconhecido"
-
-    cid = _safe_get(conflict, "id", "?")
-    razao = _safe_get(conflict, "razao_social", "cliente desconhecido")
-    cnpj = _safe_get(conflict, "cnpj", "")
-
-    desc = f"ID {cid} - {razao}"
-    if cnpj:
-        desc += f" ({cnpj})"
-
-    return desc
 
 
 class ClientEditorDialog(EditorActionsMixin, EditorDataMixin, EditorUIMixin, ctk.CTkToplevel):

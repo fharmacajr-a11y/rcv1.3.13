@@ -12,7 +12,7 @@ import time
 import tkinter as tk
 from tkinter import font as tkfont
 from tkinter import ttk
-from typing import Any, Optional, List
+from typing import Any, Optional
 
 from src.ui.ctk_config import ctk
 from src.ui.widgets.button_factory import make_btn
@@ -31,7 +31,7 @@ from src.modules.clientes.ui.views.actionbar import ClientesV2ActionBar
 
 # Importar ViewModel e dados reais do legacy
 from src.modules.clientes.core.viewmodel import ClientesViewModel, ClienteRow
-from src.modules.clientes.core.ui_helpers import ORDER_CHOICES, DEFAULT_ORDER_LABEL
+from src.modules.clientes.core.ui_helpers import ORDER_CHOICES, DEFAULT_ORDER_LABEL, normalize_order_label
 
 log = logging.getLogger(__name__)
 
@@ -837,27 +837,6 @@ class ClientesV2Frame(ctk.CTkFrame):
             show_trash=self._trash_mode,
         )
 
-    def _safe_get(self, obj: Any, key: str, default: Any = "") -> Any:
-        """Extrai valor de dict OU objeto (suporta ambos).
-
-        Args:
-            obj: Dict ou objeto (dataclass, model, etc.)
-            key: Chave/atributo a buscar
-            default: Valor padrão se não encontrar
-
-        Returns:
-            Valor extraído ou default
-        """
-        if obj is None:
-            return default
-
-        # Tentar como dict primeiro
-        if isinstance(obj, dict):
-            return obj.get(key, default)
-
-        # Tentar como objeto (getattr)
-        return getattr(obj, key, default)
-
     def load_async(
         self, search: str = "", order_label: str = "", status: str = "", show_trash: bool | None = None
     ) -> None:
@@ -1036,8 +1015,7 @@ class ClientesV2Frame(ctk.CTkFrame):
         # Inserir rows
         rows = self._vm.get_rows()
         for row in rows:
-            # FASE C: Formatar data de ultima_alteracao
-            ultima_alt_str = self._format_datetime(row.ultima_alteracao)
+            ultima_alt_str = row.ultima_alteracao  # já formatado pelo ViewModel
 
             # Sanitizar textos para evitar quebras de linha
             razao_social = self._one_line(row.razao_social)
@@ -1067,103 +1045,6 @@ class ClientesV2Frame(ctk.CTkFrame):
 
         log.debug(f"[Clientes] Renderizados {len(rows)} clientes")
 
-    def _render_rows_from_list(self, rows: List[ClienteRow]) -> None:
-        """Renderiza rows de lista customizada (ex: lixeira).
-
-        Args:
-            rows: Lista de ClienteRow para renderizar
-        """
-        if not self.tree_widget:
-            return
-
-        # Limpar tree
-        for item in self.tree_widget.get_children():
-            self.tree_widget.delete(item)
-
-        # Limpar mapa
-        self._row_data_map.clear()
-
-        # Inserir rows
-        for row in rows:
-            ultima_alt_str = self._format_datetime(row.ultima_alteracao)
-
-            # Sanitizar textos para evitar quebras de linha
-            razao_social = self._one_line(row.razao_social)
-            nome = self._one_line(row.nome)
-            # AJUSTE 2: Mostrar apenas primeira linha das observações
-            observacoes = self._first_line_preview(row.observacoes)
-
-            iid = self.tree_widget.insert(
-                "",
-                "end",
-                values=(
-                    row.id,
-                    razao_social,
-                    _fmt_cnpj(row.cnpj) or row.cnpj,
-                    nome,
-                    _fmt_whatsapp(row.whatsapp) or row.whatsapp,
-                    row.status,
-                    observacoes or "",
-                    ultima_alt_str,
-                ),
-            )
-            self._row_data_map[iid] = row
-
-        # ANTI-FLASH: Reaplicar style + zebra com cores do modo ATUAL
-        # (evita ficar branco se self._tree_colors foi cached do Light)
-        self._sync_tree_theme_and_zebra()
-
-        log.debug(f"[Clientes] Renderizados {len(rows)} itens (modo customizado)")
-
-    def _format_datetime(self, dt_str: str) -> str:
-        """Formata data/hora para pt-BR.
-
-        FASE C: dd/MM/yyyy HH:mm ou dd/MM/yyyy se sem hora.
-
-        Args:
-            dt_str: String de data/hora (ISO ou vazio)
-
-        Returns:
-            Data formatada ou vazio
-        """
-        if not dt_str or dt_str == "":
-            return ""
-
-        try:
-            from datetime import datetime
-
-            # Tentar parsear ISO (com ou sem timezone)
-            dt_str_clean = dt_str.replace("Z", "+00:00") if "Z" in dt_str else dt_str
-
-            # Tentar diversos formatos
-            for fmt in [
-                "%Y-%m-%dT%H:%M:%S.%f%z",  # ISO com microsegundos e timezone
-                "%Y-%m-%dT%H:%M:%S%z",  # ISO com timezone
-                "%Y-%m-%dT%H:%M:%S.%f",  # ISO com microsegundos
-                "%Y-%m-%dT%H:%M:%S",  # ISO simples
-                "%Y-%m-%d %H:%M:%S",  # SQL datetime
-                "%Y-%m-%d",  # Apenas data
-            ]:
-                try:
-                    dt = datetime.strptime(dt_str_clean, fmt)
-
-                    # Formatar em pt-BR
-                    if dt.hour == 0 and dt.minute == 0 and dt.second == 0:
-                        # Apenas data
-                        return dt.strftime("%d/%m/%Y")
-                    else:
-                        # Data e hora
-                        return dt.strftime("%d/%m/%Y %H:%M")
-                except ValueError:
-                    continue
-
-            # Se não conseguiu parsear, retornar como está
-            return dt_str
-
-        except Exception as e:
-            log.debug(f"[Clientes] Erro ao formatar data '{dt_str}': {e}")
-            return dt_str
-
     # Callbacks (implementados com dados reais)
     def _on_search(self, text: str) -> None:
         """Handler para botão Buscar."""
@@ -1182,8 +1063,6 @@ class ClientesV2Frame(ctk.CTkFrame):
     def _on_order_changed(self, order: str) -> None:
         """Handler para mudança de ordenação."""
         # Normalizar order label para garantir compatibilidade
-        from src.modules.clientes.core.ui_helpers import normalize_order_label
-
         normalized_order = normalize_order_label(order)
 
         log.debug(f"[Clientes] Ordenação alterada: {order} -> normalizado: {normalized_order}")
@@ -1637,6 +1516,16 @@ class ClientesV2Frame(ctk.CTkFrame):
         """
         if not self._selected_client_id:
             return "break" if event else None
+
+        # Guard: editor de clientes aberto significa que o browser de arquivos pode estar
+        # ativo. Nesse caso, qualquer <Delete> recebido aqui é vazamento de foco/evento
+        # e NÃO deve acionar a exclusão do cliente.
+        if self._editor_dialog is not None:
+            try:
+                if self._editor_dialog.winfo_exists():
+                    return "break" if event else None
+            except Exception:  # noqa: BLE001
+                self._editor_dialog = None
 
         # Pegar dados do cliente selecionado
         row_data = None

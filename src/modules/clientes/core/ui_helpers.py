@@ -35,41 +35,33 @@ ORDER_LABEL_TELEFONE_DDD_ASC = "WhatsApp (DDD menor→maior)"
 ORDER_LABEL_TELEFONE_DDD_DESC = "WhatsApp (DDD maior→menor)"
 
 ORDER_LABEL_ALIASES = {
+    # ASCII-arrow variants e sem-acento (prefs antigas, compat com toolbar pre-unicode)
     "Razao Social (A->Z)": ORDER_LABEL_RAZAO,
     "CNPJ (A->Z)": ORDER_LABEL_CNPJ,
     "Nome (A->Z)": ORDER_LABEL_NOME,
     "Nome (Z->A)": ORDER_LABEL_NOME_DESC,
     "Ultima Alteracao (mais recente)": ORDER_LABEL_UPDATED_RECENT,
     "Ultima Alteracao (mais antiga)": ORDER_LABEL_UPDATED_OLD,
-    "ID (1→9)": ORDER_LABEL_ID_ASC,
     "ID (1->9)": ORDER_LABEL_ID_ASC,
-    "ID (9→1)": ORDER_LABEL_ID_DESC,
     "ID (9->1)": ORDER_LABEL_ID_DESC,
-    # Aliases antigos (compatibilidade)
+    # Aliases legacy com símbolo de seta alternativo (↑↓)
     "ID (↑)": ORDER_LABEL_ID_ASC,
     "ID (↓)": ORDER_LABEL_ID_DESC,
     "Última Alteração ↓": ORDER_LABEL_UPDATED_RECENT,
     "Última Alteração ↑": ORDER_LABEL_UPDATED_OLD,
-    # Aliases novos (labels do toolbar)
+    # Alias com hífen em vez de seta unicode (labels de toolbar intermediário)
     "ID (1-9)": ORDER_LABEL_ID_ASC,
     "ID (9-1)": ORDER_LABEL_ID_DESC,
-    "Razão Social (A→Z)": ORDER_LABEL_RAZAO,
-    "Razão Social (Z→A)": ORDER_LABEL_RAZAO_DESC,
-    "Nome (A→Z)": ORDER_LABEL_NOME,
-    "Nome (Z→A)": ORDER_LABEL_NOME_DESC,
-    # Compat "MAIS RECENTE/ANTIGA" (toolbar antigo) → label normalizado
+    # Compat case-variant (toolbar antigo gravava MAIS RECENTE/ANTIGA em maiúsculas)
     "Última Alteração (MAIS RECENTE)": ORDER_LABEL_UPDATED_RECENT,
     "Última Alteração (MAIS ANTIGA)": ORDER_LABEL_UPDATED_OLD,
-    "Última Alteração (mais recente)": ORDER_LABEL_UPDATED_RECENT,
-    "Última Alteração (mais antiga)": ORDER_LABEL_UPDATED_OLD,
-    # WhatsApp (antigos aliases "Telefone" mantidos para compat com prefs salvas)
+    # Aliases antigos "Telefone" → label atual "WhatsApp" (prefs salvas pelo usuário)
     "Telefone (DDD menor→maior)": ORDER_LABEL_TELEFONE_DDD_ASC,
     "Telefone (DDD menor->maior)": ORDER_LABEL_TELEFONE_DDD_ASC,
     "Telefone (DDD maior→menor)": ORDER_LABEL_TELEFONE_DDD_DESC,
     "Telefone (DDD maior->menor)": ORDER_LABEL_TELEFONE_DDD_DESC,
-    "WhatsApp (DDD menor→maior)": ORDER_LABEL_TELEFONE_DDD_ASC,
+    # ASCII-arrow variant dos labels WhatsApp atuais
     "WhatsApp (DDD menor->maior)": ORDER_LABEL_TELEFONE_DDD_ASC,
-    "WhatsApp (DDD maior→menor)": ORDER_LABEL_TELEFONE_DDD_DESC,
     "WhatsApp (DDD maior->menor)": ORDER_LABEL_TELEFONE_DDD_DESC,
 }
 

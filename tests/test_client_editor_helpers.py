@@ -13,7 +13,7 @@ from pathlib import Path
 from conftest import extract_functions_from_source
 
 _SRC_FILE = (
-    Path(__file__).resolve().parent.parent / "src" / "modules" / "clientes" / "ui" / "views" / "client_editor_dialog.py"
+    Path(__file__).resolve().parent.parent / "src" / "modules" / "clientes" / "ui" / "views" / "_editor_helpers.py"
 )
 
 _fns = extract_functions_from_source(

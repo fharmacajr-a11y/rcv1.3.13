@@ -68,8 +68,10 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
         # Ícones PIL de documento
         self._img_pdf, self._img_file = self._build_item_icons()
 
-        self.tree.bind("<Delete>", lambda _event: self._handle_delete())
-        self.tree.bind("<BackSpace>", lambda _event: self._handle_delete())
+        # Retorna "break" para impedir que o evento se propague para widgets pais
+        # (em especial para o editor de clientes, cujo binding <Delete> excluiria o cliente).
+        self.tree.bind("<Delete>", lambda _e: self._handle_delete() or "break")
+        self.tree.bind("<BackSpace>", lambda _e: self._handle_delete() or "break")
         self.tree.bind("<Return>", lambda _event: self._handle_download())
         self.tree.bind("<Double-Button-1>", self._on_double_click)
         self.tree.bind("<<TreeviewOpen>>", lambda _event: self._on_tree_open())

@@ -22,35 +22,9 @@ if TYPE_CHECKING:
 
     from src.modules.clientes.ui.views._dialogs_typing import EditorDialogProto
 
+from src.modules.clientes.ui.views._editor_helpers import _conflict_desc, _safe_get
+
 log = logging.getLogger(__name__)
-
-
-# Referência local ao helper (importado em client_editor_dialog.py)
-def _safe_get(obj: Any, key: str, default: Any = "") -> Any:
-    """Obtém valor de dict ou objeto de forma segura."""
-    if isinstance(obj, dict):
-        return obj.get(key, default)
-    return getattr(obj, key, default)
-
-
-def _conflict_desc(conflict: Any) -> str:
-    """Formata descrição de conflito para mensagens de duplicata."""
-    if isinstance(conflict, dict):
-        cid = conflict.get("id", "?")
-        razao = conflict.get("razao_social", "")
-        cnpj = conflict.get("cnpj", "")
-    else:
-        cid = getattr(conflict, "id", "?")
-        razao = getattr(conflict, "razao_social", "")
-        cnpj = getattr(conflict, "cnpj", "")
-
-    desc = f"ID {cid}"
-    if razao:
-        desc += f" — {razao}"
-    if cnpj:
-        desc += f" ({cnpj})"
-
-    return desc
 
 
 class EditorDataMixin:
@@ -68,18 +42,28 @@ class EditorDataMixin:
 
         Callbacks are scheduled via ``self.after(0, ...)`` so they run safely
         on the Tk main-loop.  If the widget has already been destroyed
-        (``winfo_exists()`` returns *False*) the callback is silently dropped.
+        (``winfo_exists()`` returns *False*) the callback is dropped and logged
+        at DEBUG level.
         """
 
         def _wrapper() -> None:
             try:
                 result = work()
             except Exception as exc:
-                if on_error and self.winfo_exists():
-                    self.after(0, on_error, exc)
+                if on_error:
+                    if self.winfo_exists():
+                        self.after(0, on_error, exc)
+                    else:
+                        log.debug(
+                            "[EditorDataMixin] on_error descartado: widget destruído (%s)",
+                            type(exc).__name__,
+                        )
                 return
-            if on_success and self.winfo_exists():
-                self.after(0, on_success, result)
+            if on_success:
+                if self.winfo_exists():
+                    self.after(0, on_success, result)
+                else:
+                    log.debug("[EditorDataMixin] on_success descartado: widget destruído")
 
         threading.Thread(target=_wrapper, daemon=True).start()
 

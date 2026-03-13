@@ -9,8 +9,6 @@ import json
 import logging
 import os
 import re
-import tkinter as tk
-from typing import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -77,22 +75,6 @@ def _load_status_groups() -> list[tuple[str, list[str]]]:
     return list(DEFAULT_STATUS_GROUPS)
 
 
-def _build_status_menu(menu: tk.Menu, on_pick: Callable[[str], None]) -> None:
-    """Rebuild the status menu adding group headers, separators, and clear option."""
-    menu.delete(0, "end")
-
-    groups = _load_status_groups()
-    for gi, (name, items) in enumerate(groups):
-        if gi > 0:
-            menu.add_separator()
-        menu.add_command(label=f"-- {name} --", state="disabled")
-        for label in items:
-            menu.add_command(label=label, command=lambda l=label: on_pick(l))  # noqa: E741
-
-    menu.add_separator()
-    menu.add_command(label="Limpar", command=lambda: on_pick(""))
-
-
 STATUS_GROUPS = _load_status_groups()
 STATUS_CHOICES = [label for _, values in STATUS_GROUPS for label in values]
 STATUS_PREFIX_RE = re.compile(r"^\s*\[(?P<st>[^\]]+)\]\s*")
@@ -100,7 +82,6 @@ STATUS_PREFIX_RE = re.compile(r"^\s*\[(?P<st>[^\]]+)\]\s*")
 __all__ = [
     "_load_status_choices",
     "_load_status_groups",
-    "_build_status_menu",
     "STATUS_CHOICES",
     "STATUS_PREFIX_RE",
 ]

@@ -215,6 +215,10 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
         # PASSO 7b — handlers de fechamento (antes de qualquer revelação)
         self.protocol("WM_DELETE_WINDOW", self._close_window)
         self.bind("<Escape>", lambda _e: self._close_window())
+        # Tecla Delete no nível da janela: delega para _delete_selected (defesa em profundidade).
+        # Garante que mesmo se o foco estiver no browser toplevel (não em um widget filho),
+        # Delete acione a exclusão do item do storage, nunca do cliente.
+        self.bind("<Delete>", lambda _e: self._delete_selected())
 
         # PASSO 8 — forçar Tk a calcular tamanhos reais após _build_ui
         self.update_idletasks()
@@ -500,7 +504,7 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
         self.file_list = FileList(
             _tree_wrapper,
             on_download=lambda: None,
-            on_delete=lambda: None,
+            on_delete=self._delete_selected,
             on_open_file=lambda _n, _t, _p: None,
             on_expand_folder=self._load_folder_children,
             on_download_folder=lambda: None,
