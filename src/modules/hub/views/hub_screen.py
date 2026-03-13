@@ -233,7 +233,7 @@ class HubScreen(ctk.CTkFrame):  # type: ignore[misc]
         """
         # Inicializar atributos que serão criados no deferred
         self.modules_panel: Optional[tk.Frame] = None
-        self.center_spacer: Optional[tk.Frame] = None
+        self.center_spacer: Optional[ctk.CTkFrame] = None
         self.notes_panel: Optional[tk.Frame] = None
         self.dashboard_scroll: Optional[tk.Widget] = None
         self._dashboard_view: Optional[Any] = None
