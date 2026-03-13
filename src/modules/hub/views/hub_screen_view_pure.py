@@ -47,6 +47,7 @@ def make_module_button(
         parent,
         text=text,
         command=command,
+        width=width,
         corner_radius=corner_radius,
     )
 
