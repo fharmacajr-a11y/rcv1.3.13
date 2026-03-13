@@ -296,12 +296,13 @@ def refresh_clients_count_async(app: App, auto_schedule: bool = True) -> None:
             log.debug("Falha ao atualizar contagem de clientes: %s", exc)
 
         # Auto-refresh: agenda próxima atualização em 30s
-        if auto_schedule:
+        if auto_schedule and not getattr(app, "_closing", False):
             try:
-                app.after(
+                aid = app.after(
                     30000,
                     lambda: refresh_clients_count_async(app, auto_schedule=True),
                 )
+                app._refresh_count_after_id = aid  # guardar para cancel explícito
             except Exception as exc:  # noqa: BLE001
                 log.debug("Falha ao agendar auto-refresh de contagem: %s", exc)
 
@@ -437,22 +438,34 @@ def open_chatgpt_window(app: App) -> None:
 def on_menu_logout(app: App) -> None:
     """Handler do menu Sair: confirmação + logout + fechar app."""
     from src.infra import supabase_auth
-    from src.ui import custom_dialogs
+    from src.ui.dialogs.rc_dialogs import ask_yes_no as rc_ask_yes_no
 
     title = "Encerrar sessão"
     message = (
-        "Tem certeza que deseja encerrar a sessão atual?\n\n"
-        "Você precisará informar a senha novamente ao abrir o aplicativo."
+        "Tem certeza que deseja encerrar a sessão?\n\n"
+        "Você precisará informar a senha novamente\n"
+        "ao abrir o aplicativo."
     )
     try:
-        confirm = custom_dialogs.ask_ok_cancel(app, title, message)
+        confirm = rc_ask_yes_no(app, title, message)
     except Exception:
-        try:
-            confirm = ask_yes_no(app, title, message)
-        except Exception:
-            confirm = True
+        confirm = True
     if not confirm:
         return
+
+    # Sinalizar fechamento para impedir reagendamentos de after() callbacks
+    app._closing = True  # type: ignore[attr-defined]
+
+    # Cancelar auto-refresh de contagem de clientes
+    _cancel_refresh_count(app)
+
+    # Higienizar after jobs internos do CustomTkinter
+    try:
+        from src.ui.shutdown import cancel_ctk_internal_jobs
+
+        cancel_ctk_internal_jobs(app)
+    except Exception:  # noqa: BLE001
+        pass
 
     try:
         supabase_auth.logout(app._client)
@@ -569,7 +582,17 @@ def destroy_window(app: App) -> None:
         return
 
     app._is_destroying = True  # type: ignore[attr-defined]
-    log.info("Iniciando shutdown limpo do MainWindow")
+
+    # Cancelar auto-refresh de contagem de clientes
+    _cancel_refresh_count(app)
+
+    # Parar lifecycle do HubScreen se existir (garante cleanup em TODOS os caminhos)
+    if hasattr(app, "_hub_screen_instance") and app._hub_screen_instance:
+        try:
+            if hasattr(app._hub_screen_instance, "_lifecycle"):
+                app._hub_screen_instance._lifecycle.stop()
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao parar HubScreen lifecycle: %s", exc)
 
     # P2-MF3C: Parar todos os pollers (notificações, health, status)
     if hasattr(app, "_pollers"):
@@ -596,19 +619,28 @@ def destroy_window(app: App) -> None:
         except Exception as exc:  # noqa: BLE001
             log.debug("Falha ao remover theme_listener: %s", exc)
 
-    # MICROFASE 24.1: Cancelar todos os after jobs pendentes
+    # Higienizar after jobs internos do CustomTkinter
     try:
-        from src.ui.shutdown import cancel_all_after_jobs
+        from src.ui.shutdown import cancel_ctk_internal_jobs
 
-        cancelled = cancel_all_after_jobs(app)
-        log.info("Cancelados %d after jobs pendentes", cancelled)
-    except Exception as exc:  # noqa: BLE001
-        log.warning("Falha ao cancelar after jobs: %s", exc)
+        cancel_ctk_internal_jobs(app)
+    except Exception:  # noqa: BLE001
+        pass
 
-    # Chamar super().destroy() no contexto do MainWindow
-    # Nota: não podemos chamar super() aqui pois estamos fora da classe
-    # A função deve ser chamada pelo método destroy() do MainWindow
-    log.info("Limpeza de recursos do MainWindow concluída")
+    # Safety net: garante cancelamento de after jobs mesmo em caminhos
+    # alternativos (logout, restart) que não passam por confirm_exit.
+    # Se confirm_exit já cancelou, este será "Cancelados 0" (inofensivo).
+    if not getattr(app, "_closing", False):
+        try:
+            from src.ui.shutdown import cancel_all_after_jobs
+
+            cancel_all_after_jobs(app)
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Falha ao cancelar after jobs no destroy_window: %s", exc)
+
+    # Logar apenas se este for o caminho principal (não veio de confirm_exit)
+    if not getattr(app, "_closing", False):
+        log.info("Shutdown concluído")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -674,13 +706,24 @@ def _ask_exit_dialog(app: "App") -> bool:
     Garante visual 100% consistente com Confirmar Exclusão e outros dialogs:
     - Ícone RC, anti-flash, grab_set, botões padronizados (DIALOG_BTN_W × DIALOG_BTN_H).
     """
-    from src.ui.dialogs.rc_dialogs import ask_yes_no
 
     return ask_yes_no(
         app,
         "Sair",
         "Tem certeza de que deseja sair do RC Gestor?",
     )
+
+
+def _cancel_refresh_count(app: App) -> None:
+    """Cancela o after pendente de refresh_clients_count_async, se houver."""
+    aid = getattr(app, "_refresh_count_after_id", None)
+    if aid is not None:
+        try:
+            app.after_cancel(aid)
+            log.debug("After de refresh_clients_count cancelado: %s", aid)
+        except Exception:  # noqa: BLE001
+            pass
+        app._refresh_count_after_id = None
 
 
 def confirm_exit(app: App, *_) -> None:
@@ -695,28 +738,36 @@ def confirm_exit(app: App, *_) -> None:
             # SHUTDOWN FIX: Setar flag de fechamento PRIMEIRO
             app._closing = True
 
-            # Para lifecycle do HubScreen se existir
+            from src.ui.shutdown import (
+                cancel_all_after_jobs,
+                cancel_ctk_internal_jobs,
+            )
+
+            # Cancelar auto-refresh de contagem de clientes
+            _cancel_refresh_count(app)
+
+            # Parar lifecycle do HubScreen se existir
             if hasattr(app, "_hub_screen_instance") and app._hub_screen_instance:
                 try:
                     if hasattr(app._hub_screen_instance, "_lifecycle"):
                         app._hub_screen_instance._lifecycle.stop()
-                        log.debug("HubScreen lifecycle parado")
-                except Exception as exc:  # noqa: BLE001
-                    log.debug("Erro ao parar HubScreen lifecycle: %s", exc)
+                except Exception:  # noqa: BLE001
+                    pass
 
-            # Para pollers do main_window se existir
+            # Parar pollers do main_window se existir
             if hasattr(app, "_pollers") and app._pollers:
                 try:
                     app._pollers.stop()
-                    log.debug("Main window pollers parados")
-                except Exception as exc:  # noqa: BLE001
-                    log.debug("Erro ao parar main_window pollers: %s", exc)
+                except Exception:  # noqa: BLE001
+                    pass
 
-            # Cancelar after jobs antes de destruir
-            from src.ui.shutdown import cancel_all_after_jobs
+            # Cancelar after jobs internos do CTk
+            cancel_ctk_internal_jobs(app)
 
-            cancelled = cancel_all_after_jobs(app)
-            log.debug("Shutdown limpo: %d after jobs cancelados", cancelled)
+            # Safety net: cancelar qualquer after job remanescente
+            cancel_all_after_jobs(app)
+
+            log.info("Shutdown concluído")
 
             # Quit e destroy
             app.quit()
