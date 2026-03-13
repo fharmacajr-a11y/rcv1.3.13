@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 try:
     _LOCAL_TZ = datetime.now().astimezone().tzinfo or timezone.utc
 except Exception:
-    _LOCAL_TZ = timezone.utc
+    _LOCAL_TZ = timezone.utc  # pyright: ignore[reportConstantRedefinition]
 
 
 def _format_timestamp(ts_iso: str | None) -> str:

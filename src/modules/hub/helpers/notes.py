@@ -38,7 +38,7 @@ AuthorCache = Dict[str, Tuple[str, float]]
 try:
     _LOCAL_TZ = datetime.now().astimezone().tzinfo or timezone.utc
 except Exception:
-    _LOCAL_TZ = timezone.utc
+    _LOCAL_TZ = timezone.utc  # pyright: ignore[reportConstantRedefinition]
 
 
 # =========================================================================
