@@ -46,7 +46,7 @@ def _count_clients_raw() -> int:
     return resp.count or 0
 
 
-def count_clients(*, max_retries: int = 2, base_delay: float = 0.2) -> int:
+def count_clients() -> int:
     """
     Conta clientes ativos do Supabase com retry via retry_policy e tratamento resiliente.
 
