@@ -422,15 +422,19 @@ class TestEnsureSession:
             "Sessão já existente no boot" in m for m in info_msgs
         ), f"'Sessão já existente no boot' ausente: {info_msgs}"
 
+    @patch("src.ui.dialogs.rc_dialogs.show_warning")
     @patch("src.core.auth_bootstrap.LoginDialog")
     @patch("src.core.auth_bootstrap._bind_postgrest")
     @patch("src.core.auth_bootstrap.restore_persisted_auth_session_if_any")
     @patch("src.core.auth_bootstrap._get_access_token", return_value=None)
     @patch("src.core.auth_bootstrap._supabase_client")
-    def test_no_token_opens_login(self, mock_client, mock_token, mock_restore, mock_bind, mock_dialog, caplog):
+    def test_no_token_opens_login(
+        self, mock_client, mock_token, mock_restore, mock_bind, mock_dialog, mock_show_warn, caplog
+    ):
         """C4: sem token → abre LoginDialog, loga 'Abrindo diálogo de login'."""
         mock_client.return_value = _make_mock_client()
         app = MagicMock()
+        app.master = None  # impede loop infinito em tkinter._root()
         # Simula que LoginDialog não completou login
         mock_dialog.return_value = MagicMock(login_success=False)
 
@@ -450,6 +454,7 @@ class TestEnsureSession:
             "Abrindo diálogo de login" in m for m in info_msgs
         ), f"'Abrindo diálogo de login' ausente: {info_msgs}"
 
+    @patch("src.ui.dialogs.rc_dialogs.show_warning")
     @patch("src.core.auth_bootstrap.LoginDialog")
     @patch("src.utils.network.check_internet_connectivity")
     @patch("src.core.auth_bootstrap._bind_postgrest")
@@ -457,11 +462,12 @@ class TestEnsureSession:
     @patch("src.core.auth_bootstrap._get_access_token", return_value=None)
     @patch("src.core.auth_bootstrap._supabase_client")
     def test_cloud_only_connectivity_check_logged(
-        self, mock_client, mock_token, mock_restore, mock_bind, mock_inet, mock_dialog, caplog
+        self, mock_client, mock_token, mock_restore, mock_bind, mock_inet, mock_dialog, mock_show_warn, caplog
     ):
         """C2: cloud-only sem internet → loga verificação de conectividade."""
         mock_client.return_value = _make_mock_client()
         app = MagicMock()
+        app.master = None  # impede loop infinito em tkinter._root()
 
         from src.core.auth_bootstrap import _ensure_session
 
@@ -679,6 +685,7 @@ class TestFullFlowC1:
 class TestFullFlowC3:
     """Simula restore falhando por backend indisponível."""
 
+    @patch("src.ui.dialogs.rc_dialogs.show_warning")
     @patch("src.core.auth_bootstrap.LoginDialog")
     @patch("src.core.auth_bootstrap._mark_app_online")
     @patch("src.core.auth_bootstrap._bind_postgrest")
@@ -686,7 +693,7 @@ class TestFullFlowC3:
     @patch("src.core.auth_bootstrap._supabase_client")
     @patch("src.core.auth_bootstrap.prefs_utils.load_auth_session")
     def test_restore_fails_network_then_login(
-        self, mock_load, mock_client, mock_token, mock_bind, mock_online, mock_dialog, caplog
+        self, mock_load, mock_client, mock_token, mock_bind, mock_online, mock_dialog, mock_show_warn, caplog
     ):
         """C3: restore falha por rede → tenta login → classificação correta."""
         mock_load.return_value = {
@@ -699,6 +706,7 @@ class TestFullFlowC3:
         mock_client.return_value = client
         mock_dialog.return_value = MagicMock(login_success=False)
         app = MagicMock()
+        app.master = None
 
         from src.core.auth_bootstrap import ensure_logged
 
@@ -1376,6 +1384,7 @@ class TestExcInfoEnsureLogged:
         from src.core.auth_bootstrap import ensure_logged
 
         mock_app = MagicMock()
+        mock_app.master = None  # impede loop infinito em tkinter._root()
         mock_app.wait_window = MagicMock()
         mock_app._update_user_status = MagicMock()
         mock_app.footer = MagicMock()
@@ -1387,6 +1396,7 @@ class TestExcInfoEnsureLogged:
             patch("src.core.auth_bootstrap._log_session_snapshot"),
             patch("src.core.auth_bootstrap._supabase_client", return_value=None),
             patch("tkinter.messagebox.showerror"),
+            patch("src.ui.dialogs.rc_dialogs.show_error"),
         ):
             with caplog.at_level(logging.WARNING, logger="src.core.auth_bootstrap"):
                 result = ensure_logged(mock_app, splash=None, logger=None)
