@@ -44,7 +44,7 @@ def init_auth_controller(app: "MainWindow") -> Any:
     """
     from src.core.auth_controller import AuthController
 
-    return AuthController(on_user_change=lambda username: app._refresh_status_display())
+    return AuthController(on_user_change=lambda _: app._refresh_status_display())
 
 
 def init_theme_manager(app: "MainWindow") -> Optional[Any]:

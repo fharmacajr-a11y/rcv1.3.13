@@ -217,7 +217,7 @@ def _set_theme_ctk(app: App, mode: str) -> None:
         )
 
 
-def _set_theme_legacy(app: App, theme: str) -> None:
+def _set_theme_legacy(app: App, _theme: str) -> None:
     """Aplica tema usando sistema legado (ttkbootstrap).
 
     ⚠️ MICROFASE 26: PODE SER REMOVIDO.
