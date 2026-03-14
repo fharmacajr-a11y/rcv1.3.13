@@ -76,11 +76,11 @@ def register_main_window_screens(router: ScreenRouter, app: App) -> None:
 
     router.register("cashflow", _create_cashflow, cache=False)
 
-    # Sites (criar nova sempre)
+    # Sites (cache=True: evita recriação a cada visita; a tela é estática)
     def _create_sites() -> Any:
         return SitesScreen(app._content_container)
 
-    router.register("sites", _create_sites, cache=False)
+    router.register("sites", _create_sites, cache=True)
 
     # Placeholder (criar nova sempre, lê title de app._placeholder_title)
     def _create_placeholder() -> Any:
