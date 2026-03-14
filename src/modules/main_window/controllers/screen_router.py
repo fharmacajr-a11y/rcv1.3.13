@@ -105,12 +105,48 @@ class ScreenRouter:
         else:
             cover = None
 
-        # Mostrar nova tela
-        self._show_screen(screen)
-
-        # Correção para BUG #6: remover cover após nova tela estar visível
         if cover is not None:
-            self._remove_transition_cover(cover)
+            # TRANSIÇÃO COM COVER — sequência em 3 fases para eliminar flash:
+            #
+            # Fase 1: place() SEM lift().
+            #   O cover continua efetivo (está acima na z-order) enquanto a nova
+            #   tela é alocada pelo geometry manager.
+            #
+            # Fase 2: update_idletasks() sincrono.
+            #   Força todos os callbacks idle pendentes: cálculos de geometry,
+            #   draw() dos CTkFrame/CTkButton/CTkScrollableFrame (canvas).
+            #   Resultado: tela completamente pintada enquanto o cover ainda cobre.
+            #
+            # Fase 3: lift() + after(0, remove_cover).
+            #   Revela a tela já pintada. after(0,...) aguarda mais um ciclo do
+            #   mainloop para processar quaisquer after(0,...) internos do CTk
+            #   registrados durante a criação dos widgets — sem depender de tempo.
+            try:
+                screen.place(relx=0, rely=0, relwidth=1, relheight=1)
+            except Exception as exc:  # noqa: BLE001
+                self._log.debug("place failed (cover path), trying pack: %s", exc)
+                try:
+                    screen.pack(fill="both", expand=True)
+                except Exception as exc2:  # noqa: BLE001
+                    self._log.debug("pack also failed: %s", exc2)
+
+            try:
+                self._container.update_idletasks()
+            except Exception:  # noqa: BLE001
+                pass
+
+            try:
+                screen.lift()
+            except Exception as exc:  # noqa: BLE001
+                self._log.debug("lift failed: %s", exc)
+
+            try:
+                self._container.after(0, lambda: self._remove_transition_cover(cover))
+            except Exception:  # noqa: BLE001
+                self._remove_transition_cover(cover)
+        else:
+            # Sem transição (primeira tela exibida): mostra diretamente.
+            self._show_screen(screen)
 
         # Atualizar estado
         self._current_name = name
