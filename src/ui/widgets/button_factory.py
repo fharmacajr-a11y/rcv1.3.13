@@ -29,6 +29,17 @@ from src.ui.ui_tokens import (
     BUTTON_SM_W,
     BUTTON_SM_H,
     BUTTON_ICON,
+    BTN_PRIMARY,
+    BTN_PRIMARY_HOVER,
+    BTN_DANGER,
+    BTN_DANGER_HOVER,
+    BTN_SECONDARY,
+    BTN_SECONDARY_HOVER,
+    BTN_WARNING,
+    BTN_WARNING_HOVER,
+    BTN_SUCCESS,
+    BTN_SUCCESS_HOVER,
+    BTN_TEXT_ON_COLOR,
 )
 
 
@@ -113,4 +124,99 @@ def make_btn_icon(
         text=text,
         command=command,
         **config,
+    )
+
+
+# =========================================================================
+# Wrappers semânticos — delegam para make_btn com tokens de cor
+# =========================================================================
+
+
+def make_btn_primary(
+    master: tk.Misc,
+    text: str,
+    command: Optional[Callable[[], None]] = None,
+    **kwargs: Any,
+) -> Any:
+    """Botão primário (azul) — ação principal / confirmação."""
+    return make_btn(
+        master,
+        text,
+        command,
+        fg_color=BTN_PRIMARY,
+        hover_color=BTN_PRIMARY_HOVER,
+        text_color=BTN_TEXT_ON_COLOR,
+        **kwargs,
+    )
+
+
+def make_btn_danger(
+    master: tk.Misc,
+    text: str,
+    command: Optional[Callable[[], None]] = None,
+    **kwargs: Any,
+) -> Any:
+    """Botão de perigo (vermelho) — ação destrutiva."""
+    return make_btn(
+        master,
+        text,
+        command,
+        fg_color=BTN_DANGER,
+        hover_color=BTN_DANGER_HOVER,
+        text_color=BTN_TEXT_ON_COLOR,
+        **kwargs,
+    )
+
+
+def make_btn_secondary(
+    master: tk.Misc,
+    text: str,
+    command: Optional[Callable[[], None]] = None,
+    **kwargs: Any,
+) -> Any:
+    """Botão secundário (cinza) — cancelar / dispensar."""
+    return make_btn(
+        master,
+        text,
+        command,
+        fg_color=BTN_SECONDARY,
+        hover_color=BTN_SECONDARY_HOVER,
+        text_color=BTN_TEXT_ON_COLOR,
+        **kwargs,
+    )
+
+
+def make_btn_warning(
+    master: tk.Misc,
+    text: str,
+    command: Optional[Callable[[], None]] = None,
+    **kwargs: Any,
+) -> Any:
+    """Botão de aviso (âmbar) — requer atenção."""
+    return make_btn(
+        master,
+        text,
+        command,
+        fg_color=BTN_WARNING,
+        hover_color=BTN_WARNING_HOVER,
+        text_color=BTN_TEXT_ON_COLOR,
+        **kwargs,
+    )
+
+
+def make_btn_success(
+    master: tk.Misc,
+    text: str,
+    command: Optional[Callable[[], None]] = None,
+    **kwargs: Any,
+) -> Any:
+    """Botão de sucesso (verde) — confirmação positiva."""
+    return make_btn(
+        master,
+        text,
+        command,
+        fg_color=BTN_SUCCESS,
+        hover_color=BTN_SUCCESS_HOVER,
+        text_color=BTN_TEXT_ON_COLOR,
+        **kwargs,
     )

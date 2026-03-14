@@ -171,3 +171,60 @@ DIALOG_BTN_W = BUTTON_SM_W  # 110 — igual ao Upload
 
 # Altura padrão de botões em diálogos modais
 DIALOG_BTN_H = BUTTON_SM_H  # 28 — igual ao Upload
+
+# =============================================================================
+# CORES SEMÂNTICAS DE BOTÃO (fg_color / hover_color)
+# =============================================================================
+# Paleta Tailwind usada pelo sistema canônico de diálogos (rc_dialogs.py).
+# Tuplas (light, dark): tom mais profundo no light p/ contraste com texto branco.
+
+# Primário — ação principal / confirmação (azul)
+BTN_PRIMARY = ("#2563eb", "#3b82f6")
+BTN_PRIMARY_HOVER = ("#1d4ed8", "#2563eb")
+
+# Perigo — ação destrutiva / erro (vermelho)
+BTN_DANGER = ("#dc2626", "#ef4444")
+BTN_DANGER_HOVER = ("#b91c1c", "#dc2626")
+
+# Secundário — cancelar / dispensar (cinza)
+BTN_SECONDARY = ("#6b7280", "#4b5563")
+BTN_SECONDARY_HOVER = ("#4b5563", "#374151")
+
+# Aviso — alerta que requer atenção (âmbar)
+BTN_WARNING = ("#d97706", "#f59e0b")
+BTN_WARNING_HOVER = ("#b45309", "#d97706")
+
+# Sucesso — confirmação positiva (verde)
+BTN_SUCCESS = ("#16a34a", "#22c55e")
+BTN_SUCCESS_HOVER = ("#15803d", "#16a34a")
+
+# Texto sobre botão colorido (branco universal)
+BTN_TEXT_ON_COLOR = ("#ffffff", "#ffffff")
+
+# =============================================================================
+# INDICADORES DE STATUS (online / offline / desconhecido)
+# =============================================================================
+# Cores únicas (não-tema) — usadas em dots e labels pequenos.
+
+STATUS_ONLINE = "#22c55e"
+STATUS_OFFLINE = "#ef4444"
+STATUS_UNKNOWN = "#a3a3a3"
+
+# =============================================================================
+# TOOLTIP
+# =============================================================================
+
+TOOLTIP_BG = "#ffffe0"
+TOOLTIP_FG = "#000000"
+
+# =============================================================================
+# BUSCA / DESTAQUE
+# =============================================================================
+
+HIGHLIGHT_SEARCH = "#ffd54f"
+
+# =============================================================================
+# SEPARADOR SEMÂNTICO (rodapé, seções especiais)
+# =============================================================================
+
+SEP_FOOTER = SEP  # alias semântico; pode ser diferenciado no futuro
