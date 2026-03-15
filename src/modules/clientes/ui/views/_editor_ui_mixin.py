@@ -222,17 +222,19 @@ class EditorUIMixin:
         row += 1
 
     def _build_status_row(self: EditorDialogProto, parent: ctk.CTkFrame) -> None:
-        """Constrói a linha de status do cliente abaixo da área de conteúdo."""
+        """Constrói a linha de 3 blocos de status abaixo da área de conteúdo."""
         status_container = ctk.CTkFrame(parent, fg_color="transparent")
-        status_container.grid(row=1, column=0, sticky="nw", padx=(16, 5), pady=(0, 6))
+        status_container.grid(row=1, column=0, columnspan=3, sticky="w", padx=(16, 5), pady=(0, 6))
 
-        ctk.CTkLabel(status_container, text="Status do Cliente:", anchor="w", text_color=TEXT_PRIMARY).grid(
+        # Bloco 1: Status do Cliente (Geral) – mesmo padrão do original
+        block1 = ctk.CTkFrame(status_container, fg_color="transparent")
+        block1.grid(row=0, column=0, sticky="nw", padx=(0, 20))
+        ctk.CTkLabel(block1, text="Status Principal:", anchor="w", text_color=TEXT_PRIMARY).grid(
             row=0, column=0, sticky="w", pady=(0, 2)
         )
-
-        self.status_var = tk.StringVar(value="Novo Cliente")
+        self.status_var = tk.StringVar(value="---")
         self.status_combo = ctk.CTkOptionMenu(
-            status_container,
+            block1,
             variable=self.status_var,
             values=STATUS_CHOICES,
             fg_color=SURFACE,
@@ -245,6 +247,48 @@ class EditorUIMixin:
             height=28,
         )
         self.status_combo.grid(row=1, column=0, sticky="w", pady=0)
+
+        # Bloco 2: Status Anvisa – apenas "---" por enquanto
+        block2 = ctk.CTkFrame(status_container, fg_color="transparent")
+        block2.grid(row=0, column=1, sticky="nw", padx=(0, 20))
+        ctk.CTkLabel(block2, text="Status Anvisa:", anchor="w", text_color=TEXT_PRIMARY).grid(
+            row=0, column=0, sticky="w", pady=(0, 2)
+        )
+        self.status_anvisa_var = tk.StringVar(value="---")
+        ctk.CTkOptionMenu(
+            block2,
+            variable=self.status_anvisa_var,
+            values=["---", "Alteração Anvisa"],
+            fg_color=SURFACE,
+            button_color=PRIMARY_BLUE,
+            button_hover_color=PRIMARY_BLUE_HOVER,
+            text_color=TEXT_PRIMARY,
+            dropdown_fg_color=SURFACE_DARK,
+            dropdown_text_color=TEXT_PRIMARY,
+            width=160,
+            height=28,
+        ).grid(row=1, column=0, sticky="w", pady=0)
+
+        # Bloco 3: Status Farmácia Popular
+        block3 = ctk.CTkFrame(status_container, fg_color="transparent")
+        block3.grid(row=0, column=2, sticky="nw")
+        ctk.CTkLabel(block3, text="Status Farmácia Popular:", anchor="w", text_color=TEXT_PRIMARY).grid(
+            row=0, column=0, sticky="w", pady=(0, 2)
+        )
+        self.status_farmacia_popular_var = tk.StringVar(value="---")
+        ctk.CTkOptionMenu(
+            block3,
+            variable=self.status_farmacia_popular_var,
+            values=["---", "Alteração FP", "Credenciamento FP"],
+            fg_color=SURFACE,
+            button_color=PRIMARY_BLUE,
+            button_hover_color=PRIMARY_BLUE_HOVER,
+            text_color=TEXT_PRIMARY,
+            dropdown_fg_color=SURFACE_DARK,
+            dropdown_text_color=TEXT_PRIMARY,
+            width=160,
+            height=28,
+        ).grid(row=1, column=0, sticky="w", pady=0)
 
     def _set_entry_value(self: EditorDialogProto, entry: ctk.CTkEntry, value: str) -> None:
         """Define valor em CTkEntry preservando placeholder quando vazio.

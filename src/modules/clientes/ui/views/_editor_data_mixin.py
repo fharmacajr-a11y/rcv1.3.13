@@ -365,6 +365,12 @@ class EditorDataMixin:
             # Aplicar status
             self.status_var.set(status)
 
+            # Aplicar status Anvisa e Farmácia Popular
+            _sa = (_safe_get(cliente, "status_anvisa") or "").strip()
+            _sfp = (_safe_get(cliente, "status_farmacia_popular") or "").strip()
+            self.status_anvisa_var.set(_sa if _sa else "---")
+            self.status_farmacia_popular_var.set(_sfp if _sfp else "---")
+
             # Aplicar observações
             if obs:
                 self.obs_text.delete("1.0", "end")
@@ -459,6 +465,8 @@ class EditorDataMixin:
                 "Nome": self.nome_entry.get().strip(),
                 "WhatsApp": self.whatsapp_entry.get().strip(),
                 "Observações": obs_completa,
+                "status_anvisa": self.status_anvisa_var.get(),
+                "status_farmacia_popular": self.status_farmacia_popular_var.get(),
                 # Contatos adicionais (textbox do painel esquerdo)
                 "Contatos adicionais": self.contatos_text.get("1.0", "end").strip(),
                 # Bloco de notas é salvo em tabela separada (cliente_bloco_notas)

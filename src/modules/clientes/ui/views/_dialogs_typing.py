@@ -40,6 +40,8 @@ class EditorDialogProto(Protocol):
     contatos_text: Any  # ctk.CTkTextbox
     bloco_notas_text: Any  # ctk.CTkTextbox
     status_var: tk.StringVar
+    status_anvisa_var: tk.StringVar
+    status_farmacia_popular_var: tk.StringVar
     status_combo: Any  # ctk.CTkOptionMenu
     save_btn: Any  # ctk.CTkButton
     cancel_btn: Any  # ctk.CTkButton
