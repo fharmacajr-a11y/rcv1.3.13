@@ -110,7 +110,7 @@ _ORDER_MAP: dict[str | None, tuple[str, bool]] = {
     "ultima_alteracao": ("ultima_alteracao", True),  # mais recente primeiro por padrão
 }
 
-CLIENT_COLUMNS = "id,numero,nome,razao_social,cnpj,cnpj_norm,ultima_alteracao,ultima_por,obs,org_id,deleted_at"
+CLIENT_COLUMNS = "id,numero,nome,razao_social,cnpj,cnpj_norm,ultima_alteracao,ultima_por,obs,org_id,deleted_at,status_anvisa,status_farmacia_popular"
 ClienteRow = dict[str, Any]
 
 
@@ -186,6 +186,8 @@ def _to_cliente(row: dict[str, Any]) -> Cliente:
         obs=row.get("obs"),
         ultima_por=row.get("ultima_por"),
         created_at=row.get("created_at"),
+        status_anvisa=row.get("status_anvisa"),
+        status_farmacia_popular=row.get("status_farmacia_popular"),
     )
 
 
@@ -324,6 +326,8 @@ def insert_cliente(
     obs: str,
     *,
     cnpj_norm: str | None = None,
+    status_anvisa: str | None = None,
+    status_farmacia_popular: str | None = None,
 ) -> int:
     normalized: str = normalize_cnpj_norm(cnpj) if cnpj_norm is None else cnpj_norm
     by: str = _current_user_email()
@@ -338,6 +342,8 @@ def insert_cliente(
         "ultima_alteracao": _now_iso(),
         "ultima_por": by,
         "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "status_anvisa": status_anvisa,
+        "status_farmacia_popular": status_farmacia_popular,
     }
     if org:
         row["org_id"] = org
@@ -506,6 +512,8 @@ def update_cliente(
     obs: str,
     *,
     cnpj_norm: str | None = None,
+    status_anvisa: str | None = None,
+    status_farmacia_popular: str | None = None,
 ) -> int:
     normalized: str = normalize_cnpj_norm(cnpj) if cnpj_norm is None else cnpj_norm
     by: str = _current_user_email()
@@ -518,6 +526,8 @@ def update_cliente(
         "obs": obs,
         "ultima_alteracao": _now_iso(),
         "ultima_por": by,
+        "status_anvisa": status_anvisa,
+        "status_farmacia_popular": status_farmacia_popular,
     }
 
     def _do() -> int:

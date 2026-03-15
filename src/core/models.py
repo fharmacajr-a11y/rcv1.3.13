@@ -16,3 +16,5 @@ class Cliente:
     obs: Optional[str]
     ultima_por: Optional[str]
     created_at: Optional[str] = None
+    status_anvisa: Optional[str] = None
+    status_farmacia_popular: Optional[str] = None

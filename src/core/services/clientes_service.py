@@ -257,6 +257,13 @@ def salvar_cliente(row: tuple[Any, ...] | None, valores: dict[str, Any]) -> tupl
             stored_cnpj: str = conflict.cnpj or "-"
             raise ValueError(f'CNPJ já cadastrado para o cliente ID {conflict.id} — "{raiser}". CNPJ: {stored_cnpj}.')
 
+    def _status_val(key: str) -> str | None:
+        v = (valores.get(key) or "").strip()
+        return None if not v or v == "---" else v
+
+    status_anvisa = _status_val("status_anvisa")
+    status_farmacia_popular = _status_val("status_farmacia_popular")
+
     real_pk: int
     if row:
         pk: int = int(row[0])
@@ -268,6 +275,8 @@ def salvar_cliente(row: tuple[Any, ...] | None, valores: dict[str, Any]) -> tupl
             cnpj=cnpj,
             obs=obs,
             cnpj_norm=cnpj_norm,
+            status_anvisa=status_anvisa,
+            status_farmacia_popular=status_farmacia_popular,
         )
         real_pk = pk
     else:
@@ -278,6 +287,8 @@ def salvar_cliente(row: tuple[Any, ...] | None, valores: dict[str, Any]) -> tupl
             cnpj=cnpj,
             obs=obs,
             cnpj_norm=cnpj_norm,
+            status_anvisa=status_anvisa,
+            status_farmacia_popular=status_farmacia_popular,
         )
 
     return real_pk, ""

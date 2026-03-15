@@ -751,6 +751,8 @@ def fetch_cliente_by_id(cliente_id: int) -> dict[str, Any] | None:
         "ultima_alteracao": getattr(out, "ultima_alteracao", None),
         "ultima_por": getattr(out, "ultima_por", None),
         "created_at": getattr(out, "created_at", None),
+        "status_anvisa": getattr(out, "status_anvisa", None),
+        "status_farmacia_popular": getattr(out, "status_farmacia_popular", None),
         # Campos de endereço (podem existir no modelo)
         "endereco": getattr(out, "endereco", None),
         "bairro": getattr(out, "bairro", None),

@@ -74,6 +74,8 @@ def _row_to_cliente(row: Mapping[str, Any]) -> Cliente:
         obs=row.get("obs"),
         ultima_por=row.get("ultima_por"),
         created_at=row.get("created_at"),
+        status_anvisa=row.get("status_anvisa"),
+        status_farmacia_popular=row.get("status_farmacia_popular"),
     )
 
 
