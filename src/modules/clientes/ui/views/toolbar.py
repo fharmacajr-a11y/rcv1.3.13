@@ -117,7 +117,7 @@ class ClientesV2Toolbar(ctk.CTkFrame):
         ).pack(side="left", padx=5, pady=10)
 
         # Ordenar
-        ctk.CTkLabel(self, text="Ordenar:", text_color=TEXT_PRIMARY, font=("Segoe UI", 11)).pack(
+        ctk.CTkLabel(self, text="Ordenar por:", text_color=TEXT_PRIMARY, font=("Segoe UI", 11)).pack(
             side="left", padx=(15, 5), pady=10
         )
 
@@ -149,16 +149,14 @@ class ClientesV2Toolbar(ctk.CTkFrame):
         )
         self.order_combo.pack(side="left", padx=5, pady=10)
 
-        # Status
-        ctk.CTkLabel(self, text="Status:", text_color=TEXT_PRIMARY, font=("Segoe UI", 11)).pack(
+        # Status principal (inclui opções especiais agregadas FP / Anvisa)
+        ctk.CTkLabel(self, text="Status Geral:", text_color=TEXT_PRIMARY, font=("Segoe UI", 11)).pack(
             side="left", padx=(15, 5), pady=10
         )
-
-        # Inicializar com STATUS_CHOICES do helpers
         from src.modules.clientes.core.constants import STATUS_CHOICES
 
-        self._status_values = ["Todos"] + list(STATUS_CHOICES)
-
+        _principals = [s for s in STATUS_CHOICES if s.strip() and s.strip() != "---"]
+        self._status_values = ["Todos"] + _principals + ["Farmácia Popular", "Anvisa"]
         self.status_combo = ctk.CTkOptionMenu(
             self,
             variable=self.status_var,
@@ -172,7 +170,7 @@ class ClientesV2Toolbar(ctk.CTkFrame):
             dropdown_hover_color=BORDER,
             dropdown_text_color=TEXT_PRIMARY,
             corner_radius=8,
-            width=180,
+            width=185,
         )
         self.status_combo.pack(side="left", padx=5, pady=10)
 
@@ -205,6 +203,7 @@ class ClientesV2Toolbar(ctk.CTkFrame):
     def _trigger_clear(self) -> None:
         """Dispara callback de limpar."""
         self.search_var.set("")
+        self.status_var.set("Todos")
         if self.on_clear:
             self.on_clear()
 
@@ -249,7 +248,7 @@ class ClientesV2Toolbar(ctk.CTkFrame):
         return self.order_var.get()
 
     def get_status(self) -> str:
-        """Retorna status filtrado (ou string vazia para 'Todos')."""
+        """Retorna status filtrado (string vazia para 'Todos')."""
         status = self.status_var.get()
         return "" if status == "Todos" else status
 
@@ -311,37 +310,27 @@ class ClientesV2Toolbar(ctk.CTkFrame):
             self.trash_btn.configure(text="🗑️ Lixeira", fg_color=BTN_DANGER, hover_color=BTN_DANGER_HOVER)
 
     def update_status_values(self, extra_statuses: list[str] | None = None) -> None:
-        """Atualiza lista de status disponíveis no dropdown.
-
-        Args:
-            extra_statuses: Status adicionais encontrados nos dados (ex: "Novo lead")
-        """
+        """Atualiza lista de status disponíveis no dropdown principal."""
         from src.modules.clientes.core.constants import STATUS_CHOICES
 
-        # Começar com "Todos" + STATUS_CHOICES oficial
-        status_list = ["Todos"] + list(STATUS_CHOICES)
+        principals = [s for s in STATUS_CHOICES if s.strip() and s.strip() != "---"]
 
-        # Adicionar extras do ViewModel (se houver)
         if extra_statuses:
-            for status in extra_statuses:
-                status_clean = status.strip()
-                if status_clean and status_clean not in status_list:
-                    status_list.append(status_clean)
+            known = {s.lower() for s in principals}
+            for s in extra_statuses:
+                sc = s.strip()
+                if sc and sc.lower() not in known and sc != "---":
+                    principals.append(sc)
 
-        # Remover duplicados preservando ordem
-        seen = set()
-        self._status_values = []
-        for s in status_list:
-            s_lower = s.lower()
-            if s_lower not in seen:
-                seen.add(s_lower)
-                self._status_values.append(s)
+        # Opções especiais agregadas sempre ao final
+        _special = ["Farmácia Popular", "Anvisa"]
+        known_lower = {p.lower() for p in principals}
+        all_values = ["Todos"] + principals + [s for s in _special if s.lower() not in known_lower]
 
-        # Atualizar combo
+        self._status_values = all_values
         current_value = self.status_var.get()
         self.status_combo.configure(values=self._status_values)
 
-        # Se o valor atual não existe mais na lista, resetar para "Todos"
         if current_value not in self._status_values:
             self.status_var.set("Todos")
             log.info(f"[Toolbar] Status '{current_value}' não encontrado, resetado para 'Todos'")

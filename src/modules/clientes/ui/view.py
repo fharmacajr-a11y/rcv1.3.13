@@ -815,18 +815,7 @@ class ClientesV2Frame(ctk.CTkFrame):
     def load_async(
         self, search: str = "", order_label: str = "", status: str = "", show_trash: bool | None = None
     ) -> None:
-        """Carrega dados com filtros aplicados (assíncrono via thread).
-
-        O fetch de dados roda em background thread para não congelar a UI.
-        Somente a renderização roda na main thread (via self.after).
-
-        Args:
-            search: Texto de busca
-            order_label: Label de ordenação (ORDER_CHOICES)
-            status: Filtro de status
-            show_trash: Se True, mostra apenas lixeira; se False, mostra clientes ativos.
-                        Se None (default), usa self._trash_mode para preservar o estado atual.
-        """
+        """Carrega dados com filtros aplicados (assíncrono via thread)."""
         if show_trash is None:
             show_trash = self._trash_mode
         # Cancelar job pendente (after timer)
@@ -989,6 +978,10 @@ class ClientesV2Frame(ctk.CTkFrame):
 
         # Inserir rows
         rows = self._vm.get_rows()
+
+        def _is_active(v: str) -> bool:
+            return bool(v and v.strip() and v.strip() != "---")
+
         for row in rows:
             ultima_alt_str = row.ultima_alteracao  # já formatado pelo ViewModel
 
@@ -997,6 +990,25 @@ class ClientesV2Frame(ctk.CTkFrame):
             nome = self._one_line(row.nome)
             # AJUSTE 2: Mostrar apenas primeira linha das observações
             observacoes = self._first_line_preview(row.observacoes)
+
+            # Compor texto da coluna Status: principal + marcadores AN/FP
+            _sp = row.status if _is_active(row.status) else ""
+            _has_an = _is_active(row.status_anvisa)
+            _has_fp = _is_active(row.status_farmacia_popular)
+            if _has_an and _has_fp:
+                _aux = "AN/FP"
+            elif _has_an:
+                _aux = "AN"
+            elif _has_fp:
+                _aux = "FP"
+            else:
+                _aux = ""
+            if _sp and _aux:
+                status_cell = f"{_sp} + {_aux}"
+            elif _aux:
+                status_cell = _aux
+            else:
+                status_cell = _sp
 
             iid = self.tree_widget.insert(
                 "",
@@ -1007,7 +1019,7 @@ class ClientesV2Frame(ctk.CTkFrame):
                     _fmt_cnpj(row.cnpj) or row.cnpj,
                     nome,
                     _fmt_whatsapp(row.whatsapp) or row.whatsapp,
-                    row.status,
+                    status_cell,
                     observacoes or "",  # FASE C: Observações (primeira linha)
                     ultima_alt_str,  # FASE C: Última alteração formatada
                 ),
@@ -1037,23 +1049,16 @@ class ClientesV2Frame(ctk.CTkFrame):
 
     def _on_order_changed(self, order: str) -> None:
         """Handler para mudança de ordenação."""
-        # Normalizar order label para garantir compatibilidade
         normalized_order = normalize_order_label(order)
-
         log.debug(f"[Clientes] Ordenação alterada: {order} -> normalizado: {normalized_order}")
         search_text = self.toolbar.get_search_text()
         status = self.toolbar.get_status()
         self.load_async(search=search_text, order_label=normalized_order, status=status)
 
     def _on_status_changed(self, status: str) -> None:
-        """Handler para mudança de filtro de status.
-
-        IMPORTANTE: Sempre usa self.toolbar.get_status() que converte 'Todos' -> ''.
-        Não use o argumento 'status' diretamente pois ele vem do callback antes da conversão.
-        """
-        # CRITICAL: usar get_status() para converter "Todos" -> ""
+        """Handler para mudança de filtro de status."""
         status_filter = self.toolbar.get_status()
-        log.info(f"[Clientes] Status alterado: {status} -> filtro: '{status_filter}'")
+        log.info(f"[Clientes] Status alterado: '{status_filter}'")
         search_text = self.toolbar.get_search_text()
         order_label = self.toolbar.get_order()
         self.load_async(search=search_text, order_label=order_label, status=status_filter)
@@ -1147,11 +1152,10 @@ class ClientesV2Frame(ctk.CTkFrame):
             )
 
     def _update_toolbar_status_list(self) -> None:
-        """Atualiza lista de status do toolbar com dados do ViewModel."""
+        """Atualiza lista de status do toolbar a partir da lista oficial STATUS_CHOICES."""
         try:
-            extra_statuses = self._vm.get_status_choices()
-            self.toolbar.update_status_values(extra_statuses)
-            log.debug(f"[Clientes] Lista de status atualizada: {len(extra_statuses)} extras do ViewModel")
+            self.toolbar.update_status_values()
+            log.debug("[Clientes] Lista de status atualizada a partir de STATUS_CHOICES oficial")
         except Exception as e:
             log.debug(f"[Clientes] Erro ao atualizar lista de status: {e}")
 
