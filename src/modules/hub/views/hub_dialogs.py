@@ -23,7 +23,8 @@ from src.ui.dialogs.rc_dialogs import (
     show_info as _rc_show_info,
     show_warning as _rc_show_warning,
 )
-from src.ui.widgets.button_factory import make_btn
+from src.ui.widgets.button_factory import make_btn_primary, make_btn_secondary
+from src.ui.window_utils import apply_window_icon, show_centered
 
 logger = logging.getLogger(__name__)
 
@@ -112,41 +113,26 @@ def show_note_editor(
         dialog.destroy()
 
     # Buttons
-    make_btn(
+    make_btn_primary(
         btn_frame,
         text="Confirmar",
         command=on_confirm,
     ).pack(side="left", padx=(0, 5))
 
-    make_btn(
+    make_btn_secondary(
         btn_frame,
         text="Cancelar",
         command=on_cancel,
     ).pack(side="left")
 
     # Keyboard bindings
+    dialog.bind("<Return>", lambda _e: on_confirm())
     dialog.bind("<Control-Return>", lambda _e: on_confirm())
     dialog.bind("<Escape>", lambda _e: on_cancel())
 
-    # Anti-Flash: centralizar e exibir APÓS toda UI construída
-    dialog.update_idletasks()
-    try:
-        pw = parent.winfo_width()
-        ph = parent.winfo_height()
-        # Se parent ainda não foi renderizado, winfo_width/height retorna 1.
-        # Nesse caso, usa reqwidth/reqheight como fallback seguro.
-        if pw <= 1:
-            pw = parent.winfo_reqwidth()
-        if ph <= 1:
-            ph = parent.winfo_reqheight()
-        dw = dialog.winfo_reqwidth()
-        dh = dialog.winfo_reqheight()
-        x = parent.winfo_rootx() + (pw - dw) // 2
-        y = parent.winfo_rooty() + (ph - dh) // 2
-        dialog.geometry(f"+{x}+{y}")
-    except Exception:  # noqa: BLE001
-        pass
-    dialog.deiconify()
+    # Ícone + centralização canônica (Anti-Flash)
+    apply_window_icon(dialog)
+    show_centered(dialog)
     dialog.grab_set()
     dialog.focus_force()
 

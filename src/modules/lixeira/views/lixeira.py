@@ -19,7 +19,15 @@ from src.modules.clientes.core.service import (
     listar_clientes_na_lixeira,
     restaurar_clientes_da_lixeira,
 )
-from src.ui.window_utils import show_centered
+from src.ui.ui_tokens import (
+    BTN_DANGER,
+    BTN_DANGER_HOVER,
+    BTN_SECONDARY,
+    BTN_SECONDARY_HOVER,
+    BTN_SUCCESS,
+    BTN_SUCCESS_HOVER,
+)
+from src.ui.window_utils import apply_window_icon, show_centered
 from src.ui.dialogs.rc_dialogs import ask_yes_no, show_info, show_warning, show_error
 
 # ui/lixeira/lixeira.py
@@ -110,6 +118,8 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[ctk.CTkTo
     except Exception as exc:  # noqa: BLE001
         _log_ui_issue("Falha ao aplicar tamanho minimo na Lixeira", exc)
 
+    apply_window_icon(win)
+
     container = ctk.CTkFrame(win)
     container.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -135,15 +145,11 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[ctk.CTkTo
     toolbar = ctk.CTkFrame(container)
     toolbar.pack(fill="x", pady=(8, 0))
 
-    btn_restore = make_btn(
-        toolbar, text="Restaurar Selecionados", fg_color=("#2E7D32", "#1B5E20"), hover_color=("#1B5E20", "#0D4A11")
-    )
-    btn_purge = make_btn(
-        toolbar, text="Apagar Selecionados", fg_color=("#D32F2F", "#B71C1C"), hover_color=("#B71C1C", "#8B0000")
-    )
+    btn_restore = make_btn(toolbar, text="Restaurar Selecionados", fg_color=BTN_SUCCESS, hover_color=BTN_SUCCESS_HOVER)
+    btn_purge = make_btn(toolbar, text="Apagar Selecionados", fg_color=BTN_DANGER, hover_color=BTN_DANGER_HOVER)
     btn_refresh = make_btn_icon(toolbar, text="⟳", width=40)
     btn_close = make_btn(
-        toolbar, text="Fechar", fg_color=("#757575", "#616161"), hover_color=("#616161", "#424242"), command=win.destroy
+        toolbar, text="Fechar", fg_color=BTN_SECONDARY, hover_color=BTN_SECONDARY_HOVER, command=win.destroy
     )
 
     btn_restore.pack(side="left", padx=5)
@@ -369,6 +375,8 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[ctk.CTkTo
             except Exception as exc:  # noqa: BLE001
                 _log_ui_issue("Falha ao bloquear fechamento do dialogo de aguardando", exc)
 
+            apply_window_icon(dlg)
+
             try:
                 dlg.update_idletasks()
                 show_centered(dlg)
@@ -454,6 +462,7 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[ctk.CTkTo
         win.destroy()
 
     win.protocol("WM_DELETE_WINDOW", _on_close)
+    win.bind("<Escape>", lambda _e: _on_close())
 
     # primeira carga; show_centered após carregar() — janela aparece já preenchida
     carregar()
