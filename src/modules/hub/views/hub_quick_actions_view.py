@@ -8,7 +8,7 @@ esquerdo com os botões de acesso rápido aos módulos.
 from typing import Any, Callable, Optional
 
 from src.ui.ctk_config import ctk
-from src.ui.ui_tokens import APP_BG, SURFACE_DARK, CARD_RADIUS, PRIMARY_BLUE, PRIMARY_BLUE_HOVER
+from src.ui.ui_tokens import APP_BG, SURFACE_DARK, CARD_RADIUS, PRIMARY_BLUE, PRIMARY_BLUE_HOVER, BTN_TEXT_ON_COLOR
 from src.ui.widgets.button_factory import make_btn
 
 
@@ -72,7 +72,7 @@ class HubQuickActionsView:
                 width=140,  # Largura específica para botões do Hub (um pouco maior que padrão)
                 fg_color=PRIMARY_BLUE,
                 hover_color=PRIMARY_BLUE_HOVER,
-                text_color="#ffffff",
+                text_color=BTN_TEXT_ON_COLOR,
             )
 
         # Helper para criar um bloco (caixa) de seção

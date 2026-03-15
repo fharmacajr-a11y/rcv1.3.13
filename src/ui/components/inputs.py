@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Iterable
 
 from src.ui.ctk_config import ctk
+from src.ui.ui_tokens import BTN_WARNING, BTN_WARNING_HOVER
 from src.ui.widgets.button_factory import make_btn
 from src.utils.resource_path import resource_path
 
@@ -351,8 +352,8 @@ def create_search_controls(
         frame,
         text="Lixeira",
         command=on_lixeira,
-        fg_color="#ffc107",
-        hover_color="#e0a800",
+        fg_color=BTN_WARNING,
+        hover_color=BTN_WARNING_HOVER,
         text_color="black",
     )
     lixeira_button.pack(side="right", padx=5)

@@ -23,6 +23,12 @@ from src.ui.ui_tokens import (
     APP_BG,
     PRIMARY_BLUE,
     PRIMARY_BLUE_HOVER,
+    BTN_DANGER,
+    BTN_DANGER_HOVER,
+    BTN_SECONDARY,
+    BTN_SECONDARY_HOVER,
+    BTN_SUCCESS,
+    BTN_SUCCESS_HOVER,
 )
 from src.modules.clientes.core.constants import STATUS_CHOICES
 
@@ -288,8 +294,8 @@ class EditorUIMixin:
             buttons_frame,
             text="Salvar",
             command=self._on_save_clicked,
-            fg_color="#28a745",
-            hover_color="#218838",
+            fg_color=BTN_SUCCESS,
+            hover_color=BTN_SUCCESS_HOVER,
         )
         self.save_btn.pack(side="left", padx=(0, 5))
 
@@ -318,8 +324,8 @@ class EditorUIMixin:
             buttons_frame,
             text="Arquivos",
             command=self._on_arquivos,
-            fg_color="gray",
-            hover_color="darkgray",
+            fg_color=BTN_SECONDARY,
+            hover_color=BTN_SECONDARY_HOVER,
             state="normal" if self.client_id else "disabled",
         )
         self.arquivos_btn.pack(side="left", padx=5)
@@ -329,8 +335,8 @@ class EditorUIMixin:
             buttons_frame,
             text="Cancelar",
             command=self._on_cancel,
-            fg_color="#dc3545",
-            hover_color="#c82333",
+            fg_color=BTN_DANGER,
+            hover_color=BTN_DANGER_HOVER,
         )
         self.cancel_btn.pack(side="left", padx=5)
 

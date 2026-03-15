@@ -13,6 +13,8 @@ from src.ui.ctk_config import ctk
 from src.ui.dark_window_helper import set_win_dark_titlebar
 from src.ui.ui_tokens import (
     BORDER,
+    BTN_SECONDARY,
+    BTN_SECONDARY_HOVER,
     BUTTON_RADIUS,
     DIALOG_BTN_H,
     DIALOG_BTN_W,
@@ -151,8 +153,8 @@ class DownloadResultDialog(ctk.CTkToplevel):
             width=DIALOG_BTN_W,
             height=DIALOG_BTN_H,
             corner_radius=BUTTON_RADIUS,
-            fg_color=("#6b7280", "#4b5563"),
-            hover_color=("#4b5563", "#374151"),
+            fg_color=BTN_SECONDARY,
+            hover_color=BTN_SECONDARY_HOVER,
             command=lambda p=save_path: self._copy_path(p),
         ).pack(side="left", padx=5)
 

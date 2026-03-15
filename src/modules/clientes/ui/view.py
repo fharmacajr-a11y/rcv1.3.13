@@ -16,7 +16,18 @@ from typing import Any, Optional
 
 from src.ui.ctk_config import ctk
 from src.ui.widgets.button_factory import make_btn
-from src.ui.ui_tokens import APP_BG, SURFACE, SURFACE_DARK, TEXT_PRIMARY, BORDER
+from src.ui.ui_tokens import (
+    APP_BG,
+    SURFACE,
+    SURFACE_DARK,
+    TEXT_PRIMARY,
+    BORDER,
+    BTN_SUCCESS,
+    BTN_SUCCESS_HOVER,
+    BTN_SECONDARY,
+    BTN_SECONDARY_HOVER,
+    BTN_WARNING,
+)
 from src.ui.ttk_treeview_theme import apply_zebra
 from src.ui.widgets.ctk_treeview_container import CTkTreeviewContainer
 from src.ui.dialogs.rc_dialogs import (
@@ -139,7 +150,7 @@ class ClientesV2Frame(ctk.CTkFrame):
         self._cap_hit_label = ctk.CTkLabel(
             self,
             text="⚠ Resultados limitados a 1000. Refine a busca.",
-            text_color="#f0ad4e",
+            text_color=BTN_WARNING,
             font=ctk.CTkFont(size=12),  # pyright: ignore[reportAttributeAccessIssue]
         )
         self._cap_hit_label_visible = False
@@ -1789,8 +1800,8 @@ class ClientesV2Frame(ctk.CTkFrame):
             command=self._on_pick_confirm,
             height=36,
             font=("Segoe UI", 13, "bold"),
-            fg_color="#28a745",
-            hover_color="#218838",
+            fg_color=BTN_SUCCESS,
+            hover_color=BTN_SUCCESS_HOVER,
         )
         btn_select.pack(side="left", padx=5)
 
@@ -1801,8 +1812,8 @@ class ClientesV2Frame(ctk.CTkFrame):
             command=self._on_pick_cancel,
             height=36,
             font=("Segoe UI", 13),
-            fg_color="#6c757d",
-            hover_color="#5a6268",
+            fg_color=BTN_SECONDARY,
+            hover_color=BTN_SECONDARY_HOVER,
         )
         btn_cancel.pack(side="left", padx=5)
 

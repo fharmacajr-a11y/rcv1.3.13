@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from src.ui.ctk_config import ctk
+from src.ui.ui_tokens import STATUS_UNKNOWN
 from PIL import Image, ImageOps, ImageTk
 
 STATUS_DOT = "\u25cf"
@@ -112,7 +113,7 @@ def create_status_bar(
     right_box = ctk.CTkFrame(frame, fg_color="transparent")
     right_box.pack(side="right")
 
-    status_dot = ctk.CTkLabel(right_box, textvariable=status_dot_var, text_color="#ffc107")
+    status_dot = ctk.CTkLabel(right_box, textvariable=status_dot_var, text_color=STATUS_UNKNOWN)
     status_dot.configure(font=("", 14))
     status_dot.pack(side="left", padx=(0, 6))
 
