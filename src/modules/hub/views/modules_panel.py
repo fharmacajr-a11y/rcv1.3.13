@@ -11,7 +11,16 @@ import tkinter as tk
 from typing import TYPE_CHECKING, Any, Callable
 
 from src.ui.ctk_config import ctk
-from src.ui.ui_tokens import APP_BG, SURFACE_DARK, SURFACE, TITLE_FONT, TEXT_PRIMARY, CARD_RADIUS
+from src.ui.ui_tokens import (
+    APP_BG,
+    SURFACE_DARK,
+    SURFACE,
+    TITLE_FONT,
+    TEXT_PRIMARY,
+    CARD_RADIUS,
+    TOOLTIP_BG,
+    TOOLTIP_FG,
+)
 from src.ui.widgets.button_factory import make_btn
 
 
@@ -49,8 +58,8 @@ class ToolTip:
             tw,
             text=self.text,
             justify="left",
-            fg_color="#ffffe0",
-            text_color="#000000",
+            fg_color=TOOLTIP_BG,
+            text_color=TOOLTIP_FG,
             wraplength=self.wraplength,
             corner_radius=0,
         )

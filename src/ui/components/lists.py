@@ -8,7 +8,7 @@ import tkinter.font as tkfont
 from typing import Any, Callable
 
 from src.ui.ctk_config import ctk
-from src.ui.ui_tokens import PRIMARY_BLUE
+from src.ui.ui_tokens import PRIMARY_BLUE, TOOLTIP_BG, TOOLTIP_FG
 
 from src.config.constants import (
     COL_CNPJ_WIDTH,
@@ -361,8 +361,8 @@ def _setup_treeview_tooltip(tree: Any, columns: tuple) -> None:
                 tooltip_label = ctk.CTkLabel(
                     tooltip_window,
                     text=cell_text,
-                    fg_color="#ffffe0",
-                    text_color="#000000",
+                    fg_color=TOOLTIP_BG,
+                    text_color=TOOLTIP_FG,
                     font=("Segoe UI", 9),
                     wraplength=400,
                     justify="left",

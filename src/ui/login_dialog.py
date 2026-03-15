@@ -9,6 +9,7 @@ from src.ui.dialogs.rc_dialogs import show_error
 from src.ui.window_utils import apply_window_icon
 
 from src.ui.ctk_config import ctk
+from src.ui.ui_tokens import BTN_DANGER, BTN_DANGER_HOVER
 from src.ui.widgets.button_factory import make_btn
 from src.db.auth_bootstrap import _get_access_token
 from src.infra.healthcheck import healthcheck  # <-- ADICIONADO: health check pós-login
@@ -120,8 +121,8 @@ class LoginDialog(ctk.CTkToplevel):
             self.buttons_frame,
             text="Sair",
             command=self._on_exit,
-            fg_color="#dc3545",
-            hover_color="#c82333",
+            fg_color=BTN_DANGER,
+            hover_color=BTN_DANGER_HOVER,
         )
         self.exit_btn.pack(side="left", padx=(0, 8))
 

@@ -20,7 +20,20 @@ from typing import Any
 
 from src.ui.ctk_config import ctk
 from src.ui.dialog_icons import make_icon_label
-from src.ui.ui_tokens import APP_BG, BUTTON_RADIUS, DIALOG_BTN_W, DIALOG_BTN_H
+from src.ui.ui_tokens import (
+    APP_BG,
+    BTN_DANGER,
+    BTN_DANGER_HOVER,
+    BTN_PRIMARY,
+    BTN_PRIMARY_HOVER,
+    BTN_SECONDARY,
+    BTN_SECONDARY_HOVER,
+    BTN_WARNING,
+    BTN_WARNING_HOVER,
+    BUTTON_RADIUS,
+    DIALOG_BTN_H,
+    DIALOG_BTN_W,
+)
 from src.ui.window_utils import apply_window_icon
 
 
@@ -128,8 +141,8 @@ def ask_yes_no(parent: Any, title: str, message: str) -> bool:
         width=DIALOG_BTN_W,
         height=DIALOG_BTN_H,
         corner_radius=BUTTON_RADIUS,
-        fg_color=("#dc2626", "#ef4444"),
-        hover_color=("#b91c1c", "#dc2626"),
+        fg_color=BTN_DANGER,
+        hover_color=BTN_DANGER_HOVER,
         command=_yes,
     ).pack(side="left", padx=(0, 8))
 
@@ -139,8 +152,8 @@ def ask_yes_no(parent: Any, title: str, message: str) -> bool:
         width=DIALOG_BTN_W,
         height=DIALOG_BTN_H,
         corner_radius=BUTTON_RADIUS,
-        fg_color=("#6b7280", "#4b5563"),
-        hover_color=("#4b5563", "#374151"),
+        fg_color=BTN_SECONDARY,
+        hover_color=BTN_SECONDARY_HOVER,
         command=_no,
     ).pack(side="left")
 
@@ -192,8 +205,8 @@ def show_info(parent: Any, title: str, message: str) -> None:
         width=DIALOG_BTN_W,
         height=DIALOG_BTN_H,
         corner_radius=BUTTON_RADIUS,
-        fg_color=("#2563eb", "#3b82f6"),
-        hover_color=("#1d4ed8", "#2563eb"),
+        fg_color=BTN_PRIMARY,
+        hover_color=BTN_PRIMARY_HOVER,
         command=_ok,
     ).pack()
 
@@ -255,8 +268,8 @@ def ask_ok_cancel(parent: Any, title: str, message: str) -> bool:
         width=DIALOG_BTN_W,
         height=DIALOG_BTN_H,
         corner_radius=BUTTON_RADIUS,
-        fg_color=("#2563eb", "#3b82f6"),
-        hover_color=("#1d4ed8", "#2563eb"),
+        fg_color=BTN_PRIMARY,
+        hover_color=BTN_PRIMARY_HOVER,
         command=_ok,
     ).pack(side="left", padx=(0, 8))
 
@@ -266,8 +279,8 @@ def ask_ok_cancel(parent: Any, title: str, message: str) -> bool:
         width=DIALOG_BTN_W,
         height=DIALOG_BTN_H,
         corner_radius=BUTTON_RADIUS,
-        fg_color=("#6b7280", "#4b5563"),
-        hover_color=("#4b5563", "#374151"),
+        fg_color=BTN_SECONDARY,
+        hover_color=BTN_SECONDARY_HOVER,
         command=_cancel,
     ).pack(side="left")
 
@@ -331,8 +344,8 @@ def ask_retry_cancel(parent: Any, title: str, message: str) -> bool:
         width=DIALOG_BTN_W + 30,
         height=DIALOG_BTN_H,
         corner_radius=BUTTON_RADIUS,
-        fg_color=("#2563eb", "#3b82f6"),
-        hover_color=("#1d4ed8", "#2563eb"),
+        fg_color=BTN_PRIMARY,
+        hover_color=BTN_PRIMARY_HOVER,
         command=_retry,
     ).pack(side="left", padx=(0, 8))
 
@@ -342,8 +355,8 @@ def ask_retry_cancel(parent: Any, title: str, message: str) -> bool:
         width=DIALOG_BTN_W,
         height=DIALOG_BTN_H,
         corner_radius=BUTTON_RADIUS,
-        fg_color=("#6b7280", "#4b5563"),
-        hover_color=("#4b5563", "#374151"),
+        fg_color=BTN_SECONDARY,
+        hover_color=BTN_SECONDARY_HOVER,
         command=_cancel,
     ).pack(side="left")
 
@@ -395,8 +408,8 @@ def show_error(parent: Any, title: str, message: str) -> None:
         width=DIALOG_BTN_W,
         height=DIALOG_BTN_H,
         corner_radius=BUTTON_RADIUS,
-        fg_color=("#dc2626", "#ef4444"),
-        hover_color=("#b91c1c", "#dc2626"),
+        fg_color=BTN_DANGER,
+        hover_color=BTN_DANGER_HOVER,
         command=_ok,
     ).pack()
 
@@ -446,8 +459,8 @@ def show_warning(parent: Any, title: str, message: str) -> None:
         width=DIALOG_BTN_W,
         height=DIALOG_BTN_H,
         corner_radius=BUTTON_RADIUS,
-        fg_color=("#d97706", "#f59e0b"),
-        hover_color=("#b45309", "#d97706"),
+        fg_color=BTN_WARNING,
+        hover_color=BTN_WARNING_HOVER,
         command=_ok,
     ).pack()
 

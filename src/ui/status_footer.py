@@ -5,14 +5,15 @@ import tkinter as tk
 from typing import Optional
 
 from src.ui.ctk_config import ctk
+from src.ui.ui_tokens import STATUS_OFFLINE, STATUS_ONLINE, STATUS_UNKNOWN
 from src.ui.widgets.button_factory import make_btn
 
 log = logging.getLogger(__name__)
 
 CLOUD_COLORS = {
-    "ONLINE": "#22c55e",
-    "OFFLINE": "#ef4444",
-    "UNKNOWN": "#a3a3a3",
+    "ONLINE": STATUS_ONLINE,
+    "OFFLINE": STATUS_OFFLINE,
+    "UNKNOWN": STATUS_UNKNOWN,
 }
 
 

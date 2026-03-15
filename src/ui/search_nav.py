@@ -1,5 +1,7 @@
 from tkinter.scrolledtext import ScrolledText
 
+from src.ui.ui_tokens import HIGHLIGHT_SEARCH
+
 HIT_TAG = "hit"
 
 
@@ -9,7 +11,7 @@ class SearchNavigator:
         self.query = ""
         self.hits = []
         self.pos = -1
-        self.text.tag_config(HIT_TAG, background="#ffd54f")
+        self.text.tag_config(HIT_TAG, background=HIGHLIGHT_SEARCH)
         self.text.tag_raise("sel")  # garante seleção visível sobre o highlight
 
     def set_query(self, q: str):

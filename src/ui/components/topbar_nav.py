@@ -9,7 +9,13 @@ from __future__ import annotations
 from src.ui.ctk_config import ctk
 
 from src.ui.widgets.button_factory import make_btn
-from src.ui.ui_tokens import PRIMARY_BLUE, PRIMARY_BLUE_HOVER
+from src.ui.ui_tokens import (
+    BTN_SECONDARY,
+    BTN_SECONDARY_HOVER,
+    BTN_TEXT_ON_COLOR,
+    PRIMARY_BLUE,
+    PRIMARY_BLUE_HOVER,
+)
 
 import logging
 import os
@@ -149,7 +155,7 @@ class TopbarNav(ctk.CTkFrame):
             command=self._handle_home,
             fg_color=PRIMARY_BLUE,
             hover_color=PRIMARY_BLUE_HOVER,
-            text_color="#ffffff",
+            text_color=BTN_TEXT_ON_COLOR,
             font=("Segoe UI", 11, "bold"),
         )
         self.btn_home.pack(side="left", padx=(0, 5), pady=2)
@@ -160,9 +166,9 @@ class TopbarNav(ctk.CTkFrame):
             text="Visualizador PDF",
             command=self._handle_pdf_viewer,
             width=130,  # Ligeiramente maior para acomodar texto
-            fg_color=("#6c757d", "#495057"),
-            hover_color=("#5a6268", "#343a40"),
-            text_color="#ffffff",
+            fg_color=BTN_SECONDARY,
+            hover_color=BTN_SECONDARY_HOVER,
+            text_color=BTN_TEXT_ON_COLOR,
             font=("Segoe UI", 11),
         )
         self.btn_pdf_viewer.pack(side="left", padx=5, pady=2)
@@ -174,9 +180,9 @@ class TopbarNav(ctk.CTkFrame):
             # image=self._chatgpt_image,
             # compound="left" if self._chatgpt_image else "none",
             command=self._handle_chatgpt,
-            fg_color=("#6c757d", "#495057"),
-            hover_color=("#5a6268", "#343a40"),
-            text_color="#ffffff",
+            fg_color=BTN_SECONDARY,
+            hover_color=BTN_SECONDARY_HOVER,
+            text_color=BTN_TEXT_ON_COLOR,
             font=("Segoe UI", 11),
         )
         self.btn_chatgpt.pack(side="left", padx=5, pady=2)
@@ -188,9 +194,9 @@ class TopbarNav(ctk.CTkFrame):
             # image=self._sites_image,
             # compound="left" if self._sites_image else "none",
             command=self._handle_sites,
-            fg_color=("#6c757d", "#495057"),
-            hover_color=("#5a6268", "#343a40"),
-            text_color="#ffffff",
+            fg_color=BTN_SECONDARY,
+            hover_color=BTN_SECONDARY_HOVER,
+            text_color=BTN_TEXT_ON_COLOR,
             font=("Segoe UI", 11),
         )
         self.btn_sites.pack(side="left", padx=(5, 0), pady=2)
