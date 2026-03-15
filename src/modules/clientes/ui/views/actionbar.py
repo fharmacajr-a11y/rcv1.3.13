@@ -11,7 +11,15 @@ import tkinter as tk
 from typing import Callable
 
 from src.ui.ctk_config import ctk
-from src.ui.ui_tokens import SURFACE_DARK, TEXT_PRIMARY
+from src.ui.ui_tokens import (
+    SURFACE_DARK,
+    TEXT_PRIMARY,
+    BTN_DANGER,
+    BTN_DANGER_HOVER,
+    BTN_SUCCESS,
+    BTN_SUCCESS_HOVER,
+    BTN_TEXT_ON_COLOR,
+)
 from src.ui.widgets.button_factory import make_btn
 
 log = logging.getLogger(__name__)
@@ -55,9 +63,9 @@ class ClientesV2ActionBar(ctk.CTkFrame):
             self,
             text="Novo Cliente",
             command=self._trigger_new,
-            fg_color=("#28a745", "#218838"),
-            hover_color=("#218838", "#1e7e34"),
-            text_color="#ffffff",
+            fg_color=BTN_SUCCESS,
+            hover_color=BTN_SUCCESS_HOVER,
+            text_color=BTN_TEXT_ON_COLOR,
             font=("Segoe UI", 11),
         ).pack(side="left", padx=(10, 5), pady=10)
 
@@ -79,9 +87,9 @@ class ClientesV2ActionBar(ctk.CTkFrame):
             self,
             text="Excluir",
             command=self._trigger_delete,
-            fg_color=("#dc3545", "#c82333"),
-            hover_color=("#c82333", "#bd2130"),
-            text_color="#ffffff",
+            fg_color=BTN_DANGER,
+            hover_color=BTN_DANGER_HOVER,
+            text_color=BTN_TEXT_ON_COLOR,
             font=("Segoe UI", 11),
             state="disabled",
         )
@@ -94,7 +102,7 @@ class ClientesV2ActionBar(ctk.CTkFrame):
             command=self._trigger_restore,
             fg_color=("#0ea5e9", "#0284c7"),
             hover_color=("#0284c7", "#0369a1"),
-            text_color="#ffffff",
+            text_color=BTN_TEXT_ON_COLOR,
             font=("Segoe UI", 11),
             state="disabled",
         )

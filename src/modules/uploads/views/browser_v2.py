@@ -59,6 +59,12 @@ from src.ui.ui_tokens import (
     TEXT_MUTED,
     PRIMARY_BLUE,
     PRIMARY_BLUE_HOVER,
+    BTN_SECONDARY,
+    BTN_SECONDARY_HOVER,
+    BTN_SUCCESS,
+    BTN_SUCCESS_HOVER,
+    BTN_DANGER,
+    BTN_DANGER_HOVER,
 )
 from src.ui.widgets.button_factory import make_btn, make_btn_sm
 from src.utils.formatters import format_cnpj as _fmt_cnpj
@@ -375,8 +381,8 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
             header,
             text="⬅ Voltar",
             command=self._close_window,
-            fg_color=("#6b7280", "#4b5563"),
-            hover_color=("#4b5563", "#374151"),
+            fg_color=BTN_SECONDARY,
+            hover_color=BTN_SECONDARY_HOVER,
             border_width=0,
         ).grid(row=0, column=0, sticky="w", padx=(0, 10))
 
@@ -522,8 +528,8 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
             footer_frame,
             text="Baixar",
             command=self._download_selected,
-            fg_color=("#28a745", "#218838"),
-            hover_color=("#218838", "#1e7e34"),
+            fg_color=BTN_SUCCESS,
+            hover_color=BTN_SUCCESS_HOVER,
             border_width=0,
             state="disabled",
         )
@@ -558,8 +564,8 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
             footer_frame,
             text="Excluir",
             command=self._delete_selected,
-            fg_color=("#dc2626", "#ef4444"),
-            hover_color=("#b91c1c", "#dc2626"),
+            fg_color=BTN_DANGER,
+            hover_color=BTN_DANGER_HOVER,
             border_width=0,
             state="disabled",
         )

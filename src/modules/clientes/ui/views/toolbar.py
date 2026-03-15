@@ -11,7 +11,21 @@ import tkinter as tk
 from typing import Callable
 
 from src.ui.ctk_config import ctk
-from src.ui.ui_tokens import SURFACE, SURFACE_DARK, TEXT_PRIMARY, TEXT_MUTED, BORDER, PRIMARY_BLUE, PRIMARY_BLUE_HOVER
+from src.ui.ui_tokens import (
+    SURFACE,
+    SURFACE_DARK,
+    TEXT_PRIMARY,
+    TEXT_MUTED,
+    BORDER,
+    PRIMARY_BLUE,
+    PRIMARY_BLUE_HOVER,
+    BTN_SECONDARY,
+    BTN_SECONDARY_HOVER,
+    BTN_DANGER,
+    BTN_DANGER_HOVER,
+    BTN_SUCCESS,
+    BTN_SUCCESS_HOVER,
+)
 from src.ui.widgets.button_factory import make_btn
 
 log = logging.getLogger(__name__)
@@ -98,8 +112,8 @@ class ClientesV2Toolbar(ctk.CTkFrame):
             self,
             text="Limpar",
             command=self._trigger_clear,
-            fg_color=("#6c757d", "#495057"),
-            hover_color=("#5a6268", "#343a40"),
+            fg_color=BTN_SECONDARY,
+            hover_color=BTN_SECONDARY_HOVER,
         ).pack(side="left", padx=5, pady=10)
 
         # Ordenar
@@ -168,8 +182,8 @@ class ClientesV2Toolbar(ctk.CTkFrame):
             self,
             text="Lixeira",
             command=self._trigger_trash,
-            fg_color=("#dc3545", "#c82333"),
-            hover_color=("#c82333", "#bd2130"),
+            fg_color=BTN_DANGER,
+            hover_color=BTN_DANGER_HOVER,
         )
         self.trash_btn.pack(side="right", padx=(0, 10), pady=10)
 
@@ -178,8 +192,8 @@ class ClientesV2Toolbar(ctk.CTkFrame):
             self,
             text="Exportar",
             command=self._trigger_export,
-            fg_color=("#28a745", "#218838"),
-            hover_color=("#218838", "#1e7e34"),
+            fg_color=BTN_SUCCESS,
+            hover_color=BTN_SUCCESS_HOVER,
         )
         self.export_btn.pack(side="right", padx=(0, 5), pady=10)
 
@@ -292,13 +306,9 @@ class ClientesV2Toolbar(ctk.CTkFrame):
             is_trash: True se modo lixeira ativo, False se modo normal
         """
         if is_trash:
-            self.trash_btn.configure(
-                text="📋 Ativos", fg_color=("#28a745", "#218838"), hover_color=("#218838", "#1e7e34")
-            )
+            self.trash_btn.configure(text="📋 Ativos", fg_color=BTN_SUCCESS, hover_color=BTN_SUCCESS_HOVER)
         else:
-            self.trash_btn.configure(
-                text="🗑️ Lixeira", fg_color=("#dc3545", "#c82333"), hover_color=("#c82333", "#bd2130")
-            )
+            self.trash_btn.configure(text="🗑️ Lixeira", fg_color=BTN_DANGER, hover_color=BTN_DANGER_HOVER)
 
     def update_status_values(self, extra_statuses: list[str] | None = None) -> None:
         """Atualiza lista de status disponíveis no dropdown.
