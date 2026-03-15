@@ -6,10 +6,11 @@ from __future__ import annotations
 import importlib
 import logging
 import os
-from tkinter import TclError, messagebox
-from typing import Any, Sequence
+from tkinter import TclError
+from typing import Any, Callable, Sequence
 
 from src.modules.clientes.core.service import mover_cliente_para_lixeira
+from src.ui.dialogs.rc_dialogs import ask_yes_no, show_error, show_info, show_warning
 
 try:
     from src.modules.lixeira import abrir_lixeira as _module_abrir_lixeira, refresh_if_open as _module_refresh_if_open
@@ -31,14 +32,12 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-def _safe_messagebox(method: str, *args: Any, **kwargs: Any) -> Any:
-    """Invoca messagebox.<method> em modo best-effort, ignorando falhas em ambientes sem GUI."""
-    func = getattr(messagebox, method, None)
-    if callable(func):
-        try:
-            return func(*args, **kwargs)
-        except (TclError, RuntimeError):
-            log.debug("messagebox.%s failed", method, exc_info=True)
+def _safe_dialog(func: Callable[..., Any], parent: Any, title: str, message: str) -> Any:
+    """Invoca um diálogo rc_dialogs em modo best-effort, ignorando falhas em ambientes sem GUI."""
+    try:
+        return func(parent, title, message)
+    except (TclError, RuntimeError):
+        log.debug("%s failed", getattr(func, "__name__", func), exc_info=True)
     return None
 
 
@@ -93,13 +92,13 @@ def editar_cliente(app: Any, pk: int) -> None:
 def excluir_cliente(app: Any, selected_values: Sequence[Any]) -> None:
     """Move um cliente selecionado para a lixeira após confirmação do usuário."""
     if not selected_values:
-        _safe_messagebox("showwarning", "Atenção", "Selecione um cliente primeiro.")
+        _safe_dialog(show_warning, app, "Atenção", "Selecione um cliente primeiro.")
         return
 
     try:
         client_id = int(selected_values[0])
     except (TypeError, ValueError):
-        _safe_messagebox("showerror", "Erro", "Seleção inválida (ID ausente).")
+        _safe_dialog(show_error, app, "Erro", "Seleção inválida (ID ausente).")
         log.error("Invalid selected_values for exclusion: %s", selected_values)
         return
 
@@ -111,8 +110,9 @@ def excluir_cliente(app: Any, selected_values: Sequence[Any]) -> None:
             razao = ""
     label_cli = f"{razao} (ID {client_id})" if razao else f"ID {client_id}"
 
-    confirm = _safe_messagebox(
-        "askyesno",
+    confirm = _safe_dialog(
+        ask_yes_no,
+        app,
         "Enviar para Lixeira",
         f"Deseja enviar o cliente {label_cli} para a Lixeira?",
     )
@@ -122,7 +122,7 @@ def excluir_cliente(app: Any, selected_values: Sequence[Any]) -> None:
     try:
         mover_cliente_para_lixeira(client_id)
     except (TimeoutError, ConnectionError, OSError) as exc:
-        _safe_messagebox("showerror", "Erro ao excluir", f"Falha ao enviar para a Lixeira: {exc}")
+        _safe_dialog(show_error, app, "Erro ao excluir", f"Falha ao enviar para a Lixeira: {exc}")
         log.exception("Failed to soft-delete client %s", label_cli)
         return
 
@@ -137,7 +137,7 @@ def excluir_cliente(app: Any, selected_values: Sequence[Any]) -> None:
         except (AttributeError, RuntimeError):
             log.debug("Lixeira refresh skipped", exc_info=True)
 
-    _safe_messagebox("showinfo", "Lixeira", f"Cliente {label_cli} enviado para a Lixeira.")
+    _safe_dialog(show_info, app, "Lixeira", f"Cliente {label_cli} enviado para a Lixeira.")
     log.info("Cliente %s enviado para a Lixeira com sucesso", label_cli)
 
 
