@@ -11,6 +11,7 @@ from typing import Callable, Optional
 
 from src.ui.ctk_config import ctk  # SSoT: import via ctk_config
 from src.ui.dialogs.rc_dialogs import show_error
+from src.ui.ui_tokens import BTN_SECONDARY, BTN_SECONDARY_HOVER, BTN_SUCCESS, BTN_SUCCESS_HOVER, TEXT_MUTED
 from src.ui.widgets.button_factory import make_btn
 from src.db.domain_types import ClientRow
 from src.core.app import apply_rc_icon
@@ -163,14 +164,14 @@ class NovaTarefaDialog(ctk.CTkToplevel):
         ctk.CTkLabel(
             date_frame,
             text="(formato: AAAA-MM-DD)",
-            text_color="gray",
+            text_color=TEXT_MUTED,
         ).pack(side="left", padx=(5, 0))
 
         # Hint para campos obrigatórios
         hint_label = ctk.CTkLabel(
             container,
             text="* Campos obrigatórios",
-            text_color="gray",
+            text_color=TEXT_MUTED,
         )
         hint_label.grid(row=5, column=0, columnspan=2, sticky=W, pady=(10, 5))
 
@@ -182,8 +183,8 @@ class NovaTarefaDialog(ctk.CTkToplevel):
             button_frame,
             text="Criar Tarefa",
             command=self._on_ok,
-            fg_color="green",
-            hover_color="darkgreen",
+            fg_color=BTN_SUCCESS,
+            hover_color=BTN_SUCCESS_HOVER,
         )
         self.ok_button.pack(side="left", padx=5)
 
@@ -191,8 +192,8 @@ class NovaTarefaDialog(ctk.CTkToplevel):
             button_frame,
             text="Cancelar",
             command=self._on_close,
-            fg_color="gray",
-            hover_color="darkgray",
+            fg_color=BTN_SECONDARY,
+            hover_color=BTN_SECONDARY_HOVER,
         )
         self.cancel_button.pack(side="left", padx=5)
 

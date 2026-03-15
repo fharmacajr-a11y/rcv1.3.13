@@ -12,6 +12,8 @@ from typing import Optional
 from src.ui.ctk_config import ctk
 from src.ui.ui_tokens import (
     APP_BG,
+    BTN_SECONDARY,
+    BTN_SECONDARY_HOVER,
     SURFACE,
     PRIMARY_BLUE,
     PRIMARY_BLUE_HOVER,
@@ -97,8 +99,8 @@ class SubpastaDialog(ctk.CTkToplevel):
             btns_frame,
             text="Cancelar",
             command=self._cancel,
-            fg_color=("gray70", "gray40"),
-            hover_color=("gray60", "gray30"),
+            fg_color=BTN_SECONDARY,
+            hover_color=BTN_SECONDARY_HOVER,
         ).pack(side="left", padx=(0, 8))
         make_btn(
             btns_frame,
