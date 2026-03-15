@@ -17,6 +17,27 @@ from . import constants as status_helpers
 if TYPE_CHECKING:
     pass  # Imports apenas para type checking, se necessário
 
+# Mapeamento de aliases legados de status Farmácia Popular → forma canônica
+_FP_ALIASES: dict[str, str] = {
+    "alteração farmácia popular": "Alteração FP",
+    "alteracao farmacia popular": "Alteração FP",
+    "credenciamento farmácia popular": "Credenciamento FP",
+    "credenciamento farmacia popular": "Credenciamento FP",
+}
+
+
+def _normalize_fp_status(val: str) -> str:
+    """Normaliza variantes longas de status FP para a forma curta canônica."""
+    stripped = (val or "").strip()
+    return _FP_ALIASES.get(stripped.lower(), stripped)
+
+
+def _field_is_active(v: str) -> bool:
+    """Retorna True se o valor de campo auxiliar (FP/Anvisa) está ativo."""
+    s = (v or "").strip()
+    return bool(s and s != "---")
+
+
 log = logging.getLogger(__name__)
 
 #: Tamanho padrão de página para busca paginada no Supabase.
@@ -42,6 +63,8 @@ class ClienteRow:
     search_norm: str = ""
     raw: Dict[str, Any] = field(default_factory=dict)
     ultima_alteracao_ts: Any = None  # Timestamp para ordenação (datetime ou None)
+    status_anvisa: str = ""
+    status_farmacia_popular: str = ""
 
 
 class ClientesViewModel:
@@ -307,9 +330,17 @@ class ClientesViewModel:
 
         # 3. Aplicar filtro de status
         if self._status_filter:
-            status_norm = self._status_filter.strip().lower()
-            if status_norm:
-                all_rows = [r for r in all_rows if r.status.strip().lower() == status_norm]
+            sf = self._status_filter.strip()
+            sf_lower = sf.lower()
+            if sf_lower == "farmácia popular":
+                # Clientes com status_farmacia_popular ativo
+                all_rows = [r for r in all_rows if _field_is_active(r.status_farmacia_popular)]
+            elif sf_lower == "anvisa":
+                # Clientes com status_anvisa ativo
+                all_rows = [r for r in all_rows if _field_is_active(r.status_anvisa)]
+            elif sf_lower:
+                # Filtro principal por igualdade exata
+                all_rows = [r for r in all_rows if r.status.strip().lower() == sf_lower]
 
         # 4. Aplicar ordenação
         all_rows = self._sort_rows(all_rows)
@@ -367,14 +398,7 @@ class ClientesViewModel:
             self._rebuild_rows()
 
     def set_status_filter(self, status: str | None, rebuild: bool = True) -> None:
-        """Define filtro de status e opcionalmente reconstrói rows.
-
-        Args:
-            status: Status para filtrar (case-insensitive).
-                   None ou string vazia remove o filtro.
-            rebuild: Se True, reconstrói rows imediatamente.
-                    Se False, apenas armazena o filtro.
-        """
+        """Define filtro de status principal."""
         self._status_filter = status
         if rebuild:
             self._rebuild_rows()
@@ -667,6 +691,10 @@ class ClientesViewModel:
             ultima_alteracao=updated_fmt,
             raw={"cliente": cliente},
             ultima_alteracao_ts=updated_raw,  # Guardar o valor bruto para ordenação
+            status_anvisa=str(self._value_from_cliente(cliente, "status_anvisa") or ""),
+            status_farmacia_popular=_normalize_fp_status(
+                str(self._value_from_cliente(cliente, "status_farmacia_popular") or "")
+            ),
         )
         row.search_norm = join_and_normalize(
             row.id,

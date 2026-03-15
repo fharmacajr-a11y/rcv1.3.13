@@ -16,22 +16,14 @@ DEFAULT_STATUS_GROUPS: list[tuple[str, list[str]]] = [
     (
         "Status gerais",
         [
+            "---",
+            "Cliente",
             "Novo cliente",
             "Sem resposta",
             "Aguardando documento",
             "Aguardando pagamento",
             "Em cadastro",
             "Finalizado",
-            "Follow-up hoje",
-            "Follow-up amanhã",
-        ],
-    ),
-    (
-        "SIFAP",
-        [
-            "Análise da Caixa",
-            "Análise do Ministério",
-            "Cadastro pendente",
         ],
     ),
 ]
