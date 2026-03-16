@@ -59,13 +59,13 @@ TEXT_MUTED = ("#555555", "#bdbdbd")
 # CORES DE DESTAQUE (KPI cards)
 # =============================================================================
 
-# Azul (Clientes)
+# Azul (Clientes) — KPI cards mantêm tom médio (blue-500)
 KPI_BLUE = ("#3b82f6", "#2563eb")
-KPI_BLUE_HOVER = ("#2563eb", "#1d4ed8")
 
-# Alias semântico: Azul primário do sistema (botões, setinhas, etc)
-PRIMARY_BLUE = KPI_BLUE
-PRIMARY_BLUE_HOVER = KPI_BLUE_HOVER
+# Azul primário canônico do sistema (botões de ação) — tom escuro (blue-600/500)
+# SSoT: PRIMARY_BLUE == BTN_PRIMARY. Altere somente aqui para mudar o azul do app.
+PRIMARY_BLUE = ("#2563eb", "#3b82f6")
+PRIMARY_BLUE_HOVER = ("#1d4ed8", "#2563eb")
 
 # Vermelho (Pendências)
 KPI_RED = ("#ef4444", "#dc2626")
@@ -179,8 +179,9 @@ DIALOG_BTN_H = BUTTON_SM_H  # 28 — igual ao Upload
 # Tuplas (light, dark): tom mais profundo no light p/ contraste com texto branco.
 
 # Primário — ação principal / confirmação (azul)
-BTN_PRIMARY = ("#2563eb", "#3b82f6")
-BTN_PRIMARY_HOVER = ("#1d4ed8", "#2563eb")
+# Referencia PRIMARY_BLUE: fonte única de verdade do azul canônico.
+BTN_PRIMARY = PRIMARY_BLUE
+BTN_PRIMARY_HOVER = PRIMARY_BLUE_HOVER
 
 # Perigo — ação destrutiva / erro (vermelho)
 BTN_DANGER = ("#dc2626", "#ef4444")
