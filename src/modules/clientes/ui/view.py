@@ -28,7 +28,7 @@ from src.ui.ui_tokens import (
     BTN_SECONDARY_HOVER,
     BTN_WARNING,
 )
-from src.ui.ttk_treeview_theme import apply_zebra
+from src.ui.ttk_treeview_theme import apply_zebra, apply_selected_tag
 from src.ui.widgets.ctk_treeview_container import CTkTreeviewContainer
 from src.ui.dialogs.rc_dialogs import (
     ask_yes_no as _ask_yes_no,
@@ -539,8 +539,12 @@ class ClientesV2Frame(ctk.CTkFrame):
                 if hasattr(self, "actionbar") and self.actionbar:
                     self.actionbar.set_selection_state(False)
 
-            # Seleção visível agora é aplicada automaticamente via TtkTreeviewManager bind
-            # (não precisa chamar apply_selected_tag manualmente)
+            # Sincroniza a tag visual 'selected' com a seleção nativa a cada interação.
+            # NECESSÁRIO: o unbind(<<TreeviewSelect>>) em _create_treeview remove o handler
+            # automático do TtkTreeviewManager, fazendo a tag ficar órfã após troca de tema
+            # e causar seleção fantasma (ghost) ao navegar na lista.
+            if self._tree_colors is not None:
+                apply_selected_tag(self.tree, self._tree_colors)
 
         except Exception as e:
             log.error(f"[Clientes] Erro no handler de seleção: {e}", exc_info=True)
