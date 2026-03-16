@@ -233,7 +233,7 @@ def _build_layout_deferred(app: App, refs: MainWindowLayoutRefs) -> None:
             on_delete_notification_for_me=app._delete_notification_for_me,
             on_delete_all_notifications_for_me=app._delete_all_notifications_for_me,
         )
-        topbar.pack(side="top", fill="x", pady=0)
+        topbar.pack(side="top", fill="x", pady=(8, 0))
         log.info("TopBar criado e empacotado no topo")
 
         # 1c. Separador pós-topbar (topo)
