@@ -42,6 +42,7 @@ def make_module_button(
         >>> btn.grid(row=0, column=0)
     """
     from src.ui.widgets.button_factory import make_btn
+    from src.ui.ui_tokens import PRIMARY_BLUE, PRIMARY_BLUE_HOVER, BTN_TEXT_ON_COLOR
 
     return make_btn(
         parent,
@@ -49,6 +50,9 @@ def make_module_button(
         command=command,
         width=width,
         corner_radius=corner_radius,
+        fg_color=PRIMARY_BLUE,
+        hover_color=PRIMARY_BLUE_HOVER,
+        text_color=BTN_TEXT_ON_COLOR,
     )
 
 

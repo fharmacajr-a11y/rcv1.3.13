@@ -9,7 +9,7 @@ from src.ui.dialogs.rc_dialogs import show_error
 from src.ui.window_utils import apply_window_icon
 
 from src.ui.ctk_config import ctk
-from src.ui.ui_tokens import BTN_DANGER, BTN_DANGER_HOVER
+from src.ui.ui_tokens import BTN_DANGER, BTN_DANGER_HOVER, BTN_PRIMARY, BTN_PRIMARY_HOVER
 from src.ui.widgets.button_factory import make_btn
 from src.db.auth_bootstrap import _get_access_token
 from src.infra.healthcheck import healthcheck  # <-- ADICIONADO: health check pós-login
@@ -130,6 +130,8 @@ class LoginDialog(ctk.CTkToplevel):
             self.buttons_frame,
             text="Entrar",
             command=self._do_login,
+            fg_color=BTN_PRIMARY,
+            hover_color=BTN_PRIMARY_HOVER,
         )
         self.login_btn.pack(side="left")
 

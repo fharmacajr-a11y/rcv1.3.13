@@ -20,6 +20,9 @@ from src.ui.ui_tokens import (
     CARD_RADIUS,
     TOOLTIP_BG,
     TOOLTIP_FG,
+    PRIMARY_BLUE,
+    PRIMARY_BLUE_HOVER,
+    BTN_TEXT_ON_COLOR,
 )
 from src.ui.widgets.button_factory import make_btn
 
@@ -171,6 +174,9 @@ def _build_quick_actions_by_category(
                 frame_category,
                 text=action.label,
                 command=lambda a_id=action.id: on_action_click(a_id),
+                fg_color=PRIMARY_BLUE,
+                hover_color=PRIMARY_BLUE_HOVER,
+                text_color=BTN_TEXT_ON_COLOR,
             )
 
             if not action.is_enabled:

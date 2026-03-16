@@ -2,6 +2,12 @@ from __future__ import annotations
 
 from src.ui.ctk_config import ctk
 from src.ui.widgets.button_factory import make_btn
+from src.ui.ui_tokens import (
+    PRIMARY_BLUE,
+    PRIMARY_BLUE_HOVER,
+    BTN_SECONDARY,
+    BTN_SECONDARY_HOVER,
+)
 
 import logging
 import threading
@@ -92,10 +98,18 @@ class ChatGPTWindow(ctk.CTkToplevel):
         self._entry.grid(row=1, column=0, sticky="ew", pady=(8, 0))
         self._entry.bind("<Return>", self._on_send_event)
 
-        send_btn = make_btn(main, text="Enviar", command=self._on_send_clicked)
+        send_btn = make_btn(
+            main, text="Enviar", command=self._on_send_clicked, fg_color=PRIMARY_BLUE, hover_color=PRIMARY_BLUE_HOVER
+        )
         send_btn.grid(row=1, column=1, padx=(8, 0), pady=(8, 0), sticky="e")
 
-        new_chat_btn = make_btn(main, text="Nova conversa", command=self.new_conversation)
+        new_chat_btn = make_btn(
+            main,
+            text="Nova conversa",
+            command=self.new_conversation,
+            fg_color=BTN_SECONDARY,
+            hover_color=BTN_SECONDARY_HOVER,
+        )
         new_chat_btn.grid(row=1, column=2, padx=(8, 0), pady=(8, 0), sticky="e")
 
         main.columnconfigure(0, weight=1)

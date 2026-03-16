@@ -22,6 +22,8 @@ from src.ui.ui_tokens import (
     SURFACE_DARK,
     TEXT_PRIMARY,
     BORDER,
+    PRIMARY_BLUE,
+    PRIMARY_BLUE_HOVER,
     BTN_SUCCESS,
     BTN_SUCCESS_HOVER,
     BTN_SECONDARY,
@@ -142,6 +144,8 @@ class ClientesV2Frame(ctk.CTkFrame):
             command=self._on_load_more,
             width=180,
             height=30,
+            fg_color=PRIMARY_BLUE,
+            hover_color=PRIMARY_BLUE_HOVER,
         )
         # Não empacotar inicialmente; será mostrado quando houver mais páginas
         self._load_more_visible = False

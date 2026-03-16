@@ -14,6 +14,8 @@ from src.ui.ui_tokens import (
     TITLE_FONT,
     TEXT_PRIMARY,
     CARD_RADIUS,
+    PRIMARY_BLUE,
+    PRIMARY_BLUE_HOVER,
 )
 
 from src.modules.hub.constants import HUB_TITLE, NEW_NOTE_LABEL, PAD_OUTER
@@ -122,6 +124,8 @@ def build_notes_panel(
         entry_frame,
         text="Adicionar",
         command=on_add_note_click if on_add_note_click else None,
+        fg_color=PRIMARY_BLUE,
+        hover_color=PRIMARY_BLUE_HOVER,
     )
     btn_add_note.grid(row=2, column=0, sticky="e")
 
