@@ -13,6 +13,16 @@ from src.ui.ctk_config import ctk
 from src.ui.widgets.button_factory import make_btn
 from src.ui.widgets import CTkTableView
 from src.ui.window_utils import show_centered
+from src.ui.ui_tokens import (
+    PRIMARY_BLUE,
+    PRIMARY_BLUE_HOVER,
+    BTN_SUCCESS,
+    BTN_SUCCESS_HOVER,
+    BTN_SECONDARY,
+    BTN_SECONDARY_HOVER,
+    BTN_DANGER,
+    BTN_DANGER_HOVER,
+)
 
 from . import repository as repo
 
@@ -86,10 +96,18 @@ class CashflowWindow(ctk.CTkToplevel):
         ctk.CTkLabel(top, text="Busca").pack(side="left", padx=(8, 4))
         ctk.CTkEntry(top, textvariable=self.var_text, width=200).pack(side="left", padx=4)
 
-        make_btn(top, text="Filtrar", command=self.refresh).pack(side="left", padx=6)
-        make_btn(top, text="Novo", command=self.create).pack(side="right", padx=4)
-        make_btn(top, text="Editar", command=self.edit).pack(side="right", padx=4)
-        make_btn(top, text="Excluir", command=self.delete).pack(side="right", padx=4)
+        make_btn(top, text="Filtrar", command=self.refresh, fg_color=PRIMARY_BLUE, hover_color=PRIMARY_BLUE_HOVER).pack(
+            side="left", padx=6
+        )
+        make_btn(top, text="Novo", command=self.create, fg_color=BTN_SUCCESS, hover_color=BTN_SUCCESS_HOVER).pack(
+            side="right", padx=4
+        )
+        make_btn(top, text="Editar", command=self.edit, fg_color=BTN_SECONDARY, hover_color=BTN_SECONDARY_HOVER).pack(
+            side="right", padx=4
+        )
+        make_btn(top, text="Excluir", command=self.delete, fg_color=BTN_DANGER, hover_color=BTN_DANGER_HOVER).pack(
+            side="right", padx=4
+        )
 
     def _build_tree(self) -> None:
         # Usar CTkTableView ao invés de Treeview

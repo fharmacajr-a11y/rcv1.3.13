@@ -7,11 +7,16 @@ from typing import Any, Dict, Optional
 
 from src.ui.dialogs.rc_dialogs import show_error
 
-# CustomTkinter: fonte única centralizada
 from src.ui.ctk_config import ctk
 from src.ui.utils.binding_tracker import BindingTracker
 from src.ui.widgets.button_factory import make_btn
 from src.ui.window_utils import show_centered
+from src.ui.ui_tokens import (
+    BTN_SUCCESS,
+    BTN_SUCCESS_HOVER,
+    BTN_SECONDARY,
+    BTN_SECONDARY_HOVER,
+)
 
 # CTkDatePicker substituiu ttkbootstrap DateEntry
 try:
@@ -105,8 +110,12 @@ class EntryDialog(ctk.CTkToplevel):
         # Botões
         btns = ctk.CTkFrame(frm, fg_color="transparent")
         btns.grid(row=6, column=0, columnspan=2, sticky="ew", pady=(8, 0))
-        make_btn(btns, text="Cancelar", command=self._cancel).pack(side="right", padx=4)
-        make_btn(btns, text="Salvar", command=self._ok).pack(side="right", padx=4)
+        make_btn(
+            btns, text="Cancelar", command=self._cancel, fg_color=BTN_SECONDARY, hover_color=BTN_SECONDARY_HOVER
+        ).pack(side="right", padx=4)
+        make_btn(btns, text="Salvar", command=self._ok, fg_color=BTN_SUCCESS, hover_color=BTN_SUCCESS_HOVER).pack(
+            side="right", padx=4
+        )
 
         frm.columnconfigure(1, weight=1)
 

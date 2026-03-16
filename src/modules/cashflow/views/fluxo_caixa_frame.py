@@ -13,7 +13,17 @@ from src.ui.widgets import CTkTableView
 
 from src.features.cashflow import repository as repo
 
-from src.ui.ui_tokens import APP_BG  # Correção para BUG #2
+from src.ui.ui_tokens import (
+    APP_BG,
+    PRIMARY_BLUE,
+    PRIMARY_BLUE_HOVER,
+    BTN_SUCCESS,
+    BTN_SUCCESS_HOVER,
+    BTN_SECONDARY,
+    BTN_SECONDARY_HOVER,
+    BTN_DANGER,
+    BTN_DANGER_HOVER,
+)  # Correção para BUG #2 + padronização de cores
 
 logger = logging.getLogger(__name__)
 
@@ -73,10 +83,18 @@ class CashflowFrame(ctk.CTkFrame):
         ctk.CTkLabel(top, text="Busca").pack(side="left", padx=4)
         ctk.CTkEntry(top, textvariable=self.var_text, width=180).pack(side="left", padx=4)
 
-        make_btn(top, text="Filtrar", command=self.refresh).pack(side="left", padx=6)
-        make_btn(top, text="Novo", command=self.create).pack(side="right", padx=4)
-        make_btn(top, text="Editar", command=self.edit).pack(side="right", padx=4)
-        make_btn(top, text="Excluir", command=self.delete).pack(side="right", padx=4)
+        make_btn(top, text="Filtrar", command=self.refresh, fg_color=PRIMARY_BLUE, hover_color=PRIMARY_BLUE_HOVER).pack(
+            side="left", padx=6
+        )
+        make_btn(top, text="Novo", command=self.create, fg_color=BTN_SUCCESS, hover_color=BTN_SUCCESS_HOVER).pack(
+            side="right", padx=4
+        )
+        make_btn(top, text="Editar", command=self.edit, fg_color=BTN_SECONDARY, hover_color=BTN_SECONDARY_HOVER).pack(
+            side="right", padx=4
+        )
+        make_btn(top, text="Excluir", command=self.delete, fg_color=BTN_DANGER, hover_color=BTN_DANGER_HOVER).pack(
+            side="right", padx=4
+        )
 
         # --- grade ---
         self.tree = CTkTableView(
