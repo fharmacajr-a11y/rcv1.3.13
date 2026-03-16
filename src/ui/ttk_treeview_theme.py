@@ -18,6 +18,9 @@ from src.ui.ui_tokens import SURFACE, SURFACE_DARK, TEXT_PRIMARY, BORDER, KPI_BL
 
 log = logging.getLogger(__name__)
 
+# Flag: theme_use("clam") deve ser chamado no máximo 1x por processo.
+_clam_theme_applied: bool = False
+
 
 def _pick(token: tuple[str, str], mode: str) -> str:
     """Helper para resolver token baseado no modo.
@@ -96,12 +99,16 @@ def apply_treeview_theme(mode: str, master: Any, style_name: str = "RC.Treeview"
         # IMPORTANTE: ttk.Style() retorna a instância singleton, não cria nova
         style = ttk.Style(master)  # type: ignore[attr-defined]
 
-        # CRÍTICO: Forçar tema "clam" para fieldbackground funcionar
+        # CRÍTICO: Forçar tema "clam" para fieldbackground funcionar.
+        # Executado UMA ÚNICA VEZ por processo (evita reset global a cada toggle).
+        global _clam_theme_applied
         try:
-            current = style.theme_use()
-            if current != "clam":
-                style.theme_use("clam")
-                log.debug(f"[TtkTreeTheme] Tema alterado: {current} → clam (mode={mode})")
+            if not _clam_theme_applied:
+                current = style.theme_use()
+                if current != "clam":
+                    style.theme_use("clam")
+                    log.debug(f"[TtkTreeTheme] Tema alterado: {current} → clam")
+                _clam_theme_applied = True
         except Exception as exc:
             log.warning(f"[TtkTreeTheme] Erro ao definir tema clam: {exc}")
 

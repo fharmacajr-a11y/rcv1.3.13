@@ -743,32 +743,27 @@ class ClientesV2Frame(ctk.CTkFrame):
     def _on_theme_changed(self, new_mode: str) -> None:
         """Handler quando tema muda - OTIMIZADO (sem rebuild).
 
-        FASE B: Guard de modo duplicado para evitar double apply.
+        Guard de modo duplicado para evitar double apply.
+        O TtkTreeviewManager já aplica o tema em todas as trees via
+        AppearanceModeTracker callback — aqui só atualizamos toolbar/actionbar.
         """
         try:
             if not self.winfo_exists():
                 return
 
-            # FASE B: Guard - não reaplicar se já foi aplicado
+            # Guard - não reaplicar se já foi aplicado
             if hasattr(self, "_last_applied_mode") and self._last_applied_mode == new_mode:
                 return
 
             self.current_mode = new_mode
             self._last_applied_mode = new_mode
 
-            # BUGFIX: Chamar _sync_tree_theme_and_zebra() para obter cores atualizadas
-            # do novo tema, em vez de usar cache antigo (_tree_colors)
-            if self.tree_widget:
-                self._sync_tree_theme_and_zebra()
-
-            # Atualizar toolbar e actionbar
+            # Atualizar toolbar e actionbar (exclusivos desta view)
             if hasattr(self, "toolbar") and self.toolbar:
                 self.toolbar.refresh_theme()
 
             if hasattr(self, "actionbar") and self.actionbar:
                 self.actionbar.refresh_theme()
-
-            self.update_idletasks()
 
         except Exception:
             log.exception("[Clientes] Erro ao processar mudança de tema")

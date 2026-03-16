@@ -233,11 +233,6 @@ class TtkTreeviewManager:
                         apply_selected_tag(tree, colors)
                     except Exception:
                         pass
-                    # Forçar update visual
-                    try:
-                        tree.update_idletasks()
-                    except Exception:
-                        pass
 
                 applied += 1
                 log.debug(f"[TtkTreeManager] Tree atualizada: {style_name}, bg={colors.bg}")

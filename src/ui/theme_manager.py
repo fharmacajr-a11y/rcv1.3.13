@@ -164,44 +164,57 @@ def apply_global_theme(mode: ThemeMode, color: ColorTheme) -> None:
     # MICROFASE 31: Removido ttk_compat (ZERO widgets legados)
 
 
+# Guarda de reentrância para impedir toggles sobrepostos
+_theme_toggle_in_progress: bool = False
+
+
 def toggle_appearance_mode() -> ThemeMode:
     """Alterna entre light e dark mode.
+
+    Protegido contra reentrância: se um toggle já estiver em andamento,
+    a chamada duplicada é ignorada e retorna o modo atual.
 
     Returns:
         Novo modo de aparência
     """
-    current_mode, current_color = load_theme_config()
+    global _theme_toggle_in_progress
 
-    # Ciclo: light -> dark -> light
-    mode_cycle = {"light": "dark", "dark": "light"}
-    new_mode = cast(ThemeMode, mode_cycle[current_mode])
+    if _theme_toggle_in_progress:
+        log.debug("toggle_appearance_mode: ignorado (já em andamento)")
+        mode, _ = load_theme_config()
+        return mode
 
-    # Salvar configuração
-    save_theme_config(new_mode, current_color)
+    _theme_toggle_in_progress = True
 
-    # Aplicar apenas appearance mode (color theme não muda)
-    if HAS_CUSTOMTKINTER and ctk is not None:
-        try:
-            ctk_mode_map = {"light": "Light", "dark": "Dark"}
-            ctk.set_appearance_mode(ctk_mode_map[new_mode])
-            log.info(f"Modo de aparência alternado para: {new_mode}")
+    try:
+        current_mode, current_color = load_theme_config()
 
-            # Notificar TtkTreeviewManager explicitamente
+        # Ciclo: light -> dark -> light
+        mode_cycle = {"light": "dark", "dark": "light"}
+        new_mode = cast(ThemeMode, mode_cycle[current_mode])
+
+        # Salvar configuração
+        save_theme_config(new_mode, current_color)
+
+        # Aplicar apenas appearance mode (color theme não muda)
+        if HAS_CUSTOMTKINTER and ctk is not None:
             try:
-                from src.ui.ttk_treeview_manager import get_treeview_manager
+                ctk_mode_map = {"light": "Light", "dark": "Dark"}
 
-                manager = get_treeview_manager()
-                manager.apply_all(ctk_mode_map[new_mode])
-                log.debug(f"[GlobalThemeManager] TtkTreeviewManager notificado: {new_mode}")
-            except Exception as exc:
-                log.debug(f"[GlobalThemeManager] Erro ao notificar TtkTreeviewManager: {exc}")
+                from src.ui.theme_toggle_helper import suppress_titlebar_flash
 
-        except Exception:
-            log.exception("Falha ao alternar appearance mode")
+                with suppress_titlebar_flash(theme_manager._master_ref, ctk_mode_map[new_mode]):
+                    ctk.set_appearance_mode(ctk_mode_map[new_mode])
 
-    # MICROFASE 31: Removido ttk_compat (ZERO widgets legados)
+                log.info(f"Modo de aparência alternado para: {new_mode}")
 
-    return new_mode
+            except Exception:
+                log.exception("Falha ao alternar appearance mode")
+
+        return new_mode
+
+    finally:
+        _theme_toggle_in_progress = False
 
 
 def set_color_theme(color: ColorTheme) -> None:
@@ -313,23 +326,16 @@ class GlobalThemeManager:
         if HAS_CUSTOMTKINTER and ctk is not None:
             try:
                 ctk_mode_map = {"light": "Light", "dark": "Dark"}
-                ctk.set_appearance_mode(ctk_mode_map[mode])
+
+                from src.ui.theme_toggle_helper import suppress_titlebar_flash
+
+                with suppress_titlebar_flash(self._master_ref, ctk_mode_map[mode]):
+                    ctk.set_appearance_mode(ctk_mode_map[mode])
+
                 log.info(f"Modo de aparência definido: {mode}")
-
-                # Notificar TtkTreeviewManager explicitamente
-                try:
-                    from src.ui.ttk_treeview_manager import get_treeview_manager
-
-                    manager = get_treeview_manager()
-                    manager.apply_all(ctk_mode_map[mode])
-                    log.debug(f"[GlobalThemeManager] TtkTreeviewManager notificado: {mode}")
-                except Exception as exc:
-                    log.debug(f"[GlobalThemeManager] Erro ao notificar TtkTreeviewManager: {exc}")
 
             except Exception:
                 log.exception("Falha ao definir appearance mode")
-
-        # MICROFASE 31: Removido ttk_compat (ZERO widgets legados)
 
     def set_color(self, color: ColorTheme) -> None:
         """Define color theme.
