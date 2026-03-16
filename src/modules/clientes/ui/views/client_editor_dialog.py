@@ -37,7 +37,7 @@ class ClientEditorDialog(EditorActionsMixin, EditorDataMixin, EditorUIMixin, ctk
     Mixins (Fase 5):
       - EditorUIMixin: _build_ui, _build_left_panel, _build_right_panel, etc.
       - EditorDataMixin: _load_client_data, _validate_fields, _on_save_clicked, etc.
-      - EditorActionsMixin: _on_arquivos, _on_cartao_cnpj, etc.
+      - EditorActionsMixin: _on_arquivos, _on_enviar_documentos, etc.
     """
 
     def __init__(

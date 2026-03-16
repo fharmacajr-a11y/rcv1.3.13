@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 from src.utils.formatters import format_cnpj
 from src.utils.phone_utils import format_phone_br
+from src.ui.widgets.textbox_placeholder import clear_textbox_placeholder, get_textbox_content
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -78,7 +79,7 @@ class EditorDataMixin:
         Returns:
             Lista de dicts: [{"nome": str, "whatsapp": str}, ...]
         """
-        texto = self.contatos_text.get("1.0", "end").strip()
+        texto = get_textbox_content(self.contatos_text)
         if not texto:
             return []
 
@@ -147,6 +148,7 @@ class EditorDataMixin:
         def _on_loaded(linhas: list[str]) -> None:
             if linhas:
                 texto_contatos = "\n".join(linhas)
+                clear_textbox_placeholder(self.contatos_text)
                 self.contatos_text.delete("1.0", "end")
                 self.contatos_text.insert("1.0", texto_contatos)
 
@@ -180,6 +182,7 @@ class EditorDataMixin:
 
         def _on_loaded(body: str) -> None:
             if body:
+                clear_textbox_placeholder(self.bloco_notas_text)
                 self.bloco_notas_text.delete("1.0", "end")
                 self.bloco_notas_text.insert("1.0", body)
 
@@ -209,7 +212,7 @@ class EditorDataMixin:
             on_done: callback opcional executado na UI thread após conclusão.
         """
         # Ler widget na UI thread (obrigatório)
-        texto = self.bloco_notas_text.get("1.0", "end").strip()
+        texto = get_textbox_content(self.bloco_notas_text)
         cliente_id_int = int(cliente_id)
 
         def _persist() -> None:
@@ -373,6 +376,7 @@ class EditorDataMixin:
 
             # Aplicar observações
             if obs:
+                clear_textbox_placeholder(self.obs_text)
                 self.obs_text.delete("1.0", "end")
                 self.obs_text.insert("1.0", obs)
 
@@ -476,7 +480,7 @@ class EditorDataMixin:
         try:
             # Coletar dados do form
             status_text = self.status_var.get()
-            obs_body = self.obs_text.get("1.0", "end").strip()
+            obs_body = get_textbox_content(self.obs_text)
 
             # Aplicar status nas observações (padrão legacy: "[Status] texto")
             from src.modules.clientes.core.viewmodel import ClientesViewModel
@@ -493,7 +497,7 @@ class EditorDataMixin:
                 "status_anvisa": self.status_anvisa_var.get(),
                 "status_farmacia_popular": self.status_farmacia_popular_var.get(),
                 # Contatos adicionais (textbox do painel esquerdo)
-                "Contatos adicionais": self.contatos_text.get("1.0", "end").strip(),
+                "Contatos adicionais": get_textbox_content(self.contatos_text),
                 # Bloco de notas é salvo em tabela separada (cliente_bloco_notas)
                 # via _save_bloco_notas_to_db — não entra no payload de clientes.
             }

@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 from src.ui.ctk_config import ctk
 from src.ui.widgets.button_factory import make_btn
+from src.ui.widgets.textbox_placeholder import setup_textbox_placeholder
 from src.ui.ui_tokens import (
     SURFACE,
     SURFACE_DARK,
@@ -176,6 +177,12 @@ class EditorUIMixin:
             wrap="word",
         )
         self.obs_text.grid(row=row, column=0, sticky="ew", padx=6, pady=(0, 5))
+        setup_textbox_placeholder(
+            self.obs_text,
+            "Anotações gerais sobre o cliente...",
+            TEXT_PRIMARY,
+            TEXT_MUTED,
+        )
         row += 1
 
         # Contatos adicionais (movido do painel direito)
@@ -195,6 +202,12 @@ class EditorUIMixin:
             wrap="word",
         )
         self.contatos_text.grid(row=row, column=0, sticky="ew", padx=6, pady=(0, 10))
+        setup_textbox_placeholder(
+            self.contatos_text,
+            "Nome - WhatsApp (um por linha)",
+            TEXT_PRIMARY,
+            TEXT_MUTED,
+        )
 
     def _build_right_panel(self: EditorDialogProto, parent: ctk.CTkFrame) -> None:
         """Constrói painel direito com bloco de notas interno."""
@@ -218,6 +231,12 @@ class EditorUIMixin:
             wrap="word",
         )
         self.bloco_notas_text.grid(row=row, column=0, sticky="nsew", padx=6, pady=(0, 10))
+        setup_textbox_placeholder(
+            self.bloco_notas_text,
+            "Anotações internas livres...",
+            TEXT_PRIMARY,
+            TEXT_MUTED,
+        )
         parent.rowconfigure(bloco_notas_row, weight=1)
         row += 1
 
@@ -342,16 +361,6 @@ class EditorUIMixin:
             hover_color=BTN_SUCCESS_HOVER,
         )
         self.save_btn.pack(side="left", padx=(0, 5))
-
-        # Botão Cartão CNPJ (azul)
-        self.cartao_btn = make_btn(
-            buttons_frame,
-            text="Cartão CNPJ",
-            command=self._on_cartao_cnpj,
-            fg_color=PRIMARY_BLUE,
-            hover_color=PRIMARY_BLUE_HOVER,
-        )
-        self.cartao_btn.pack(side="left", padx=5)
 
         # Botão Enviar documentos (azul)
         self.upload_btn = make_btn(

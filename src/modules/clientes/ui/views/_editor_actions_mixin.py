@@ -2,8 +2,7 @@
 """Mixin de callbacks/ações para ClientEditorDialog.
 
 Extraído de client_editor_dialog.py (Fase 5 - refatoração incremental).
-Contém: _on_return_key, _on_cancel, _on_arquivos,
-         _on_cartao_cnpj, _on_enviar_documentos.
+Contém: _on_return_key, _on_cancel, _on_arquivos, _on_enviar_documentos.
 """
 
 from __future__ import annotations
@@ -48,6 +47,7 @@ def _resolve_supabase_client() -> object:
 
 
 from src.modules.clientes.ui.views._editor_helpers import _conflict_desc  # noqa: E402
+from src.ui.widgets.textbox_placeholder import get_textbox_content  # noqa: E402
 
 
 class EditorActionsMixin:
@@ -201,49 +201,6 @@ class EditorActionsMixin:
 
         dlg.bind("<Destroy>", _on_browser_close)
 
-    def _on_cartao_cnpj(self: EditorDialogProto) -> None:
-        """Handler do botão Cartão CNPJ."""
-        try:
-            from tkinter.filedialog import askdirectory
-            from src.modules.clientes.core import service as clientes_service
-
-            # Solicitar pasta
-            base_dir = askdirectory(title="Escolha a pasta do cliente (com o Cartão CNPJ)", parent=self)
-
-            if not base_dir:
-                return
-
-            # Extrair dados do Cartão CNPJ
-            dados = clientes_service.extrair_dados_cartao_cnpj_em_pasta(base_dir)
-
-            cnpj_extraido = dados.get("cnpj")
-            razao_extraida = dados.get("razao_social")
-
-            if not cnpj_extraido and not razao_extraida:
-                from src.ui.dialogs.rc_dialogs import show_warning
-
-                show_warning(self, "Atenção", "Nenhum Cartão CNPJ válido encontrado.")
-                return
-
-            # Preencher campos
-            if cnpj_extraido:
-                self.cnpj_entry.delete(0, "end")
-                self.cnpj_entry.insert(0, cnpj_extraido)
-
-            if razao_extraida:
-                self.razao_entry.delete(0, "end")
-                self.razao_entry.insert(0, razao_extraida)
-
-            from src.ui.dialogs.rc_dialogs import show_info
-
-            show_info(self, "Sucesso", "Dados do Cartão CNPJ carregados com sucesso.")
-
-        except Exception as e:
-            log.error(f"[ClientEditor] Erro ao processar Cartão CNPJ: {e}", exc_info=True)
-            from src.ui.dialogs.rc_dialogs import show_error
-
-            show_error(self, "Erro", f"Erro ao processar Cartão CNPJ: {e}")
-
     def _on_enviar_documentos(self: EditorDialogProto) -> None:
         """Handler do botão Enviar documentos.
 
@@ -274,7 +231,7 @@ class EditorActionsMixin:
 
                 # Coletar e salvar (sem fechar dialog)
                 status_text = self.status_var.get()
-                obs_body = self.obs_text.get("1.0", "end").strip()
+                obs_body = get_textbox_content(self.obs_text)
 
                 from src.modules.clientes.core.viewmodel import ClientesViewModel
 
