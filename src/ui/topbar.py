@@ -83,6 +83,9 @@ class _ActionsCallbacks:
                 return False
         return False
 
+    def on_refresh(self) -> None:
+        self._topbar._handle_refresh()
+
 
 class TopBar(BaseTopBar):
     """Barra superior compositor - monta TopbarNav e TopbarActions.
@@ -99,6 +102,7 @@ class TopBar(BaseTopBar):
         on_pdf_viewer: Optional[Callable[[], None]] = None,
         on_chatgpt: Optional[Callable[[], None]] = None,
         on_sites: Optional[Callable[[], None]] = None,
+        on_refresh: Optional[Callable[[], None]] = None,
         on_notifications_clicked: Optional[Callable[[], None]] = None,
         on_mark_all_read: Optional[Callable[[], bool]] = None,
         on_delete_notification_for_me: Optional[Callable[[str], bool]] = None,
@@ -128,6 +132,7 @@ class TopBar(BaseTopBar):
         self._on_pdf_viewer = on_pdf_viewer
         self._on_chatgpt = on_chatgpt
         self._on_sites = on_sites
+        self._on_refresh = on_refresh
         self._on_notifications_clicked = on_notifications_clicked
         self._on_mark_all_read = on_mark_all_read
         self._on_delete_notification_for_me = on_delete_notification_for_me
@@ -163,6 +168,7 @@ class TopBar(BaseTopBar):
         self.btn_chatgpt = self._nav.btn_chatgpt
         self.btn_sites = self._nav.btn_sites
         self.btn_notifications = None  # DESATIVADO v1.5.99
+        self.btn_refresh = getattr(self._actions, "btn_refresh", None)
 
     def _handle_home(self) -> None:
         """Handler para o botão Início."""
@@ -203,6 +209,14 @@ class TopBar(BaseTopBar):
                 self._on_sites()
             except Exception as exc:  # noqa: BLE001
                 _log.debug("Falha ao executar on_sites: %s", exc)
+
+    def _handle_refresh(self) -> None:
+        """Handler para o botão de refresh."""
+        if callable(self._on_refresh):
+            try:
+                self._on_refresh()
+            except Exception as exc:  # noqa: BLE001
+                _log.debug("Falha ao executar on_refresh: %s", exc)
 
     # ===== Métodos públicos (delegam para subcomponentes) =====
 

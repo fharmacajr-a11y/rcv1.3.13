@@ -227,6 +227,7 @@ def _build_layout_deferred(app: App, refs: MainWindowLayoutRefs) -> None:
             on_pdf_viewer=app._open_pdf_viewer_empty,
             on_chatgpt=app.open_chatgpt_window,
             on_sites=app.show_sites_screen,
+            on_refresh=app.refresh_current_view,
             on_notifications_clicked=app._on_notifications_clicked,
             on_mark_all_read=app._mark_all_notifications_read,
             on_delete_notification_for_me=app._delete_notification_for_me,
