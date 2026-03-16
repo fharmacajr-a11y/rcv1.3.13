@@ -258,7 +258,7 @@ class EditorUIMixin:
         ctk.CTkOptionMenu(
             block2,
             variable=self.status_anvisa_var,
-            values=["---", "Alteração Anvisa"],
+            values=["---", "Alterações Anvisa"],
             fg_color=SURFACE,
             button_color=PRIMARY_BLUE,
             button_hover_color=PRIMARY_BLUE_HOVER,
@@ -279,7 +279,7 @@ class EditorUIMixin:
         ctk.CTkOptionMenu(
             block3,
             variable=self.status_farmacia_popular_var,
-            values=["---", "Alteração FP", "Credenciamento FP"],
+            values=["---", "Alteração Farmácia Popular", "Credenciamento Farmácia Popular"],
             fg_color=SURFACE,
             button_color=PRIMARY_BLUE,
             button_hover_color=PRIMARY_BLUE_HOVER,
@@ -331,7 +331,7 @@ class EditorUIMixin:
         """Constrói barra de botões no rodapé."""
         # OBJETIVO 3: Botões dentro do container esquerdo (não atravessa divisor)
         buttons_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        buttons_frame.grid(row=3, column=0, columnspan=3, sticky="w", padx=10, pady=(8, 10))
+        buttons_frame.grid(row=3, column=0, columnspan=3, sticky="ew", padx=10, pady=(8, 10))
 
         # Botão Salvar (verde)
         self.save_btn = make_btn(
@@ -374,7 +374,7 @@ class EditorUIMixin:
         )
         self.arquivos_btn.pack(side="left", padx=5)
 
-        # Botão Cancelar (vermelho)
+        # Botão Cancelar (vermelho) – extrema direita
         self.cancel_btn = make_btn(
             buttons_frame,
             text="Cancelar",
@@ -382,7 +382,7 @@ class EditorUIMixin:
             fg_color=BTN_DANGER,
             hover_color=BTN_DANGER_HOVER,
         )
-        self.cancel_btn.pack(side="left", padx=5)
+        self.cancel_btn.pack(side="right", padx=(5, 0))
 
         # BIND CENTRALIZADO: Enter chama handler unificado (gerencia Shift+Enter em Observações e Contatos)
         self.bind("<Return>", self._on_return_key)
