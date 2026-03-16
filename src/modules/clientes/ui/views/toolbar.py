@@ -125,27 +125,27 @@ class ClientesV2Toolbar(ctk.CTkFrame):
             self,
             variable=self.order_var,
             values=[
+                "Última Alteração (+)",
+                "Última Alteração (-)",
                 "ID (1-9)",
                 "ID (9-1)",
                 "Razão Social (A→Z)",
                 "Razão Social (Z→A)",
                 "Nome (A→Z)",
                 "Nome (Z→A)",
-                "WhatsApp (DDD menor→maior)",
-                "WhatsApp (DDD maior→menor)",
-                "Última Alteração (mais recente)",
-                "Última Alteração (mais antiga)",
+                "WhatsApp (DDD - → +)",
+                "WhatsApp (DDD + → -)",
             ],
             command=self._trigger_order_change,
             fg_color=SURFACE,
-            button_color=SURFACE,
-            button_hover_color=PRIMARY_BLUE,
+            bg_color=SURFACE_DARK,
+            button_color=PRIMARY_BLUE,
+            button_hover_color=PRIMARY_BLUE_HOVER,
             text_color=TEXT_PRIMARY,
             dropdown_fg_color=SURFACE_DARK,
-            dropdown_hover_color=BORDER,
             dropdown_text_color=TEXT_PRIMARY,
-            corner_radius=8,
             width=200,
+            height=28,
         )
         self.order_combo.pack(side="left", padx=5, pady=10)
 
@@ -163,14 +163,14 @@ class ClientesV2Toolbar(ctk.CTkFrame):
             values=self._status_values,
             command=self._trigger_status_change,
             fg_color=SURFACE,
-            button_color=SURFACE,
-            button_hover_color=PRIMARY_BLUE,
+            bg_color=SURFACE_DARK,
+            button_color=PRIMARY_BLUE,
+            button_hover_color=PRIMARY_BLUE_HOVER,
             text_color=TEXT_PRIMARY,
             dropdown_fg_color=SURFACE_DARK,
-            dropdown_hover_color=BORDER,
             dropdown_text_color=TEXT_PRIMARY,
-            corner_radius=8,
             width=185,
+            height=28,
         )
         self.status_combo.pack(side="left", padx=5, pady=10)
 
@@ -274,22 +274,20 @@ class ClientesV2Toolbar(ctk.CTkFrame):
             if hasattr(self, "order_combo"):
                 self.order_combo.configure(
                     fg_color=SURFACE,
-                    button_color=SURFACE,
-                    button_hover_color=PRIMARY_BLUE,
+                    button_color=PRIMARY_BLUE,
+                    button_hover_color=PRIMARY_BLUE_HOVER,
                     text_color=TEXT_PRIMARY,
                     dropdown_fg_color=SURFACE_DARK,
-                    dropdown_hover_color=BORDER,
                     dropdown_text_color=TEXT_PRIMARY,
                 )
 
             if hasattr(self, "status_combo"):
                 self.status_combo.configure(
                     fg_color=SURFACE,
-                    button_color=SURFACE,
-                    button_hover_color=PRIMARY_BLUE,
+                    button_color=PRIMARY_BLUE,
+                    button_hover_color=PRIMARY_BLUE_HOVER,
                     text_color=TEXT_PRIMARY,
                     dropdown_fg_color=SURFACE_DARK,
-                    dropdown_hover_color=BORDER,
                     dropdown_text_color=TEXT_PRIMARY,
                 )
 
