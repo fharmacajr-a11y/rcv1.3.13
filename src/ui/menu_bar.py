@@ -29,7 +29,6 @@ class AppMenuBar(tk.Menu):
         master: tk.Misc,
         *,
         on_home: Optional[Callable[[], None]] = None,
-        on_refresh: Optional[Callable[[], None]] = None,
         on_quit: Optional[Callable[[], None]] = None,
         on_toggle_theme: Optional[Callable[[], None]] = None,
     ) -> None:
@@ -40,14 +39,12 @@ class AppMenuBar(tk.Menu):
         """
         super().__init__(master, tearoff=False)
         self._on_home = on_home
-        self._on_refresh = on_refresh
         self._on_quit = on_quit
         self._on_toggle_theme = on_toggle_theme
 
         # Opções
         menu_arquivo = tk.Menu(self, tearoff=False)
         menu_arquivo.add_command(label="Início", command=self._safe(self._on_home))
-        menu_arquivo.add_command(label="Atualizar", command=self._safe(self._on_refresh))
         menu_arquivo.add_separator()
         menu_arquivo.add_command(label="Encerrar sessão…", command=self._safe(self._on_quit))
         self.add_cascade(label="Opções", menu=menu_arquivo)
@@ -64,8 +61,6 @@ class AppMenuBar(tk.Menu):
         # Ajuda
         menu_ajuda = tk.Menu(self, tearoff=False)
         menu_ajuda.add_command(label="Sobre", command=self._about)
-        menu_ajuda.add_separator()
-        menu_ajuda.add_command(label="[DEBUG] Teste Flash Browser", command=self._open_flash_diag)
         self.add_cascade(label="Ajuda", menu=menu_ajuda)
 
         self._is_hub = False
@@ -102,15 +97,6 @@ class AppMenuBar(tk.Menu):
             show_info(self.master, "Sobre", "RC - Gestor de Clientes")
         except Exception as exc:  # noqa: BLE001
             _log.debug("Falha ao exibir diálogo Sobre: %s", exc)
-
-    # TEMPORÁRIO — remover após diagnóstico do flash
-    def _open_flash_diag(self) -> None:
-        try:
-            from diagnostics.flash_test_windows import open_flash_test_panel
-
-            open_flash_test_panel(self.master)
-        except Exception as exc:  # noqa: BLE001
-            _log.exception("Falha ao abrir painel de diagnóstico flash: %s", exc)
 
     def _sync_home_state(self) -> None:
         try:

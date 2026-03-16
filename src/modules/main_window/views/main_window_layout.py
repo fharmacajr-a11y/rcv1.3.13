@@ -247,7 +247,6 @@ def _build_layout_deferred(app: App, refs: MainWindowLayoutRefs) -> None:
         menu = AppMenuBar(
             app,
             on_home=app.show_hub_screen,
-            on_refresh=app.refresh_current_view,
             on_quit=app._on_menu_logout,
             on_toggle_theme=app._handle_toggle_theme,
         )
