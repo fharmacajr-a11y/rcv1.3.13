@@ -415,7 +415,7 @@ class EditorDataMixin:
     def _validate_fields(self: EditorDialogProto) -> bool:
         """Valida campos obrigatórios.
 
-        Regra alinhada com o serviço: ao menos Razão Social OU CNPJ.
+        Razão Social e CNPJ são ambos obrigatórios.
         Se CNPJ informado, deve ter 14 dígitos.
 
         Returns:
@@ -424,21 +424,46 @@ class EditorDataMixin:
         razao = self.razao_entry.get().strip()
         cnpj = self.cnpj_entry.get().strip()
 
-        erros = []
+        # Validar presença dos campos obrigatórios
+        falta_razao = not razao
+        falta_cnpj = not cnpj
 
-        if not razao and not cnpj:
-            erros.append("Preencha ao menos Razão Social ou CNPJ")
-
-        if cnpj:
-            # Validar formato básico do CNPJ (14 dígitos)
-            digits = re.sub(r"\D", "", cnpj)
-            if len(digits) != 14:
-                erros.append("CNPJ deve ter 14 dígitos")
-
-        if erros:
+        if falta_razao and falta_cnpj:
             from src.ui.dialogs.rc_dialogs import show_warning
 
-            show_warning(self, "Campos obrigatórios", "\n".join(erros))
+            show_warning(
+                self,
+                "Campos obrigatórios",
+                "Preencha a Razão Social e o CNPJ antes de salvar.",
+            )
+            return False
+
+        if falta_razao:
+            from src.ui.dialogs.rc_dialogs import show_warning
+
+            show_warning(
+                self,
+                "Campos obrigatórios",
+                "Preencha a Razão Social antes de salvar.",
+            )
+            return False
+
+        if falta_cnpj:
+            from src.ui.dialogs.rc_dialogs import show_warning
+
+            show_warning(
+                self,
+                "Campos obrigatórios",
+                "Preencha o CNPJ antes de salvar.",
+            )
+            return False
+
+        # Validar formato básico do CNPJ (14 dígitos)
+        digits = re.sub(r"\D", "", cnpj)
+        if len(digits) != 14:
+            from src.ui.dialogs.rc_dialogs import show_warning
+
+            show_warning(self, "Campos obrigatórios", "CNPJ deve ter 14 dígitos.")
             return False
 
         return True
