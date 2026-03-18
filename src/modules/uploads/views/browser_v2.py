@@ -48,7 +48,7 @@ from src.modules.uploads.service import (
     upload_items_for_client,
 )
 from src.ui.ctk_config import ctk
-from src.ui.dialogs.rc_dialogs import show_info, show_error, ask_yes_no
+from src.ui.dialogs.rc_dialogs import show_info, show_error, ask_yes_no_danger
 from src.ui.ui_tokens import (
     APP_BG,
     BODY_FONT,
@@ -188,7 +188,7 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
         # PASSO 4 — título (ID + razão + CNPJ formatado)
         razao_display = razao.strip() or f"ID {client_id}"
         cnpj_fmt = (_fmt_cnpj(cnpj) or cnpj.strip()) if cnpj.strip() else ""
-        _title = f"Arquivos: ID {client_id} — {razao_display}"
+        _title = f"Arquivos — ID: {client_id} — {razao_display}"
         if cnpj_fmt:
             _title = f"{_title} — {cnpj_fmt}"
         self.title(_title)
@@ -369,22 +369,11 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
         self.rowconfigure(4, weight=1)  # tree_wrapper (EXPANDE)
         self.rowconfigure(5, weight=0)  # footer
 
-        # ── Header (row 0): Voltar | Título | Upload ───────────────────
+        # ── Header (row 0): Título | Upload ────────────────────────────
         header = ctk.CTkFrame(self, fg_color="transparent", border_width=0)  # type: ignore[union-attr]
         header.grid(row=0, column=0, sticky="ew", padx=16, pady=(14, 8))
-        header.columnconfigure(0, weight=0)
-        header.columnconfigure(1, weight=1)  # título expande
-        header.columnconfigure(2, weight=0)
-
-        # Botão Voltar — fecha a janela (volta à tela anterior)
-        make_btn_sm(
-            header,
-            text="⬅ Voltar",
-            command=self._close_window,
-            fg_color=BTN_SECONDARY,
-            hover_color=BTN_SECONDARY_HOVER,
-            border_width=0,
-        ).grid(row=0, column=0, sticky="w", padx=(0, 10))
+        header.columnconfigure(0, weight=1)  # título expande
+        header.columnconfigure(1, weight=0)
 
         # Título inline: "📁 Arquivos — Razão — CNPJ"
         cnpj_fmt = (_fmt_cnpj(self._cnpj) or self._cnpj.strip()) if self._cnpj.strip() else ""
@@ -400,7 +389,7 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
             text_color=TEXT_PRIMARY,
             anchor="w",
             justify="left",
-        ).grid(row=0, column=1, sticky="ew", padx=(0, 12))
+        ).grid(row=0, column=0, sticky="ew", padx=(0, 12))
 
         # Botão Upload
         make_btn_sm(
@@ -410,7 +399,7 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
             fg_color=("#059669", "#10b981"),
             hover_color=("#047857", "#059669"),
             border_width=0,
-        ).grid(row=0, column=2, sticky="e")
+        ).grid(row=0, column=1, sticky="e")
 
         # ── Breadcrumb (row 1): barra de caminho ────────────────────────
         breadcrumb_frame = ctk.CTkFrame(  # type: ignore[union-attr]
@@ -559,7 +548,7 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
         )
         self.btn_visualizar.pack(side="left", padx=(0, 6))
 
-        # Excluir (vermelho — separado à direita)
+        # Excluir (vermelho)
         self.btn_excluir = make_btn(
             footer_frame,
             text="Excluir",
@@ -569,7 +558,17 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
             border_width=0,
             state="disabled",
         )
-        self.btn_excluir.pack(side="right", padx=0)
+        self.btn_excluir.pack(side="left", padx=(0, 6))
+
+        # Fechar (secundário — âncora à direita)
+        make_btn(
+            footer_frame,
+            text="Fechar",
+            command=self._close_window,
+            fg_color=BTN_SECONDARY,
+            hover_color=BTN_SECONDARY_HOVER,
+            border_width=0,
+        ).pack(side="right", padx=0)
 
         # Iniciar polling da fila de progresso
         self._poll_progress_queue()
@@ -876,10 +875,11 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
         item_name, item_type, full_path = selected_info
 
         if item_type == "Pasta":
-            if not ask_yes_no(
+            if not ask_yes_no_danger(
                 self,
                 "Excluir pasta",
                 "Tem certeza que deseja excluir esta pasta e todo o conteúdo?\nEsta ação não pode ser desfeita.",
+                confirm_label="Excluir pasta",
             ):
                 return
             try:
@@ -895,7 +895,12 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
             self._refresh_listing()
             show_info(self, "Excluir", f"Pasta '{item_name}' excluída com sucesso.")
         else:
-            if not ask_yes_no(self, "Excluir", f"Deseja excluir '{item_name}'?"):
+            if not ask_yes_no_danger(
+                self,
+                "Excluir arquivo",
+                f"Deseja excluir '{item_name}'? Esta ação não pode ser desfeita.",
+                confirm_label="Excluir",
+            ):
                 return
             try:
                 ok = delete_storage_object(full_path, bucket=self._bucket)
