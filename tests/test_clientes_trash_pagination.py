@@ -300,10 +300,14 @@ class TestTrashOrderLabelMapping:
         assert self._get_order_by_for_label("Razão Social (Z→A)") == "-razao_social"
 
     def test_ultima_alteracao_recente(self):
-        assert self._get_order_by_for_label("Última Alteração (mais recente)") == "-ultima_alteracao"
+        from src.modules.clientes.core.ui_helpers import ORDER_LABEL_UPDATED_RECENT
+
+        assert self._get_order_by_for_label(ORDER_LABEL_UPDATED_RECENT) == "-ultima_alteracao"
 
     def test_ultima_alteracao_antiga(self):
-        assert self._get_order_by_for_label("Última Alteração (mais antiga)") == "+ultima_alteracao"
+        from src.modules.clientes.core.ui_helpers import ORDER_LABEL_UPDATED_OLD
+
+        assert self._get_order_by_for_label(ORDER_LABEL_UPDATED_OLD) == "+ultima_alteracao"
 
     def test_cnpj_asc(self):
         assert self._get_order_by_for_label("CNPJ (A→Z)") == "+cnpj"
@@ -557,8 +561,10 @@ class TestTrashOffsetTracking:
         """load_next_page reutiliza order_by salvo pelo refresh."""
         vm = _make_vm(page_size=3)
         fake_page = _make_clientes(3)
+        from src.modules.clientes.core.ui_helpers import ORDER_LABEL_UPDATED_RECENT
+
         mock = MagicMock(side_effect=[fake_page, []])
         with patch("src.modules.clientes.core.viewmodel.search_clientes_lixeira", mock):
-            vm.refresh_from_service(order_label="Última Alteração (mais recente)", trash=True)
+            vm.refresh_from_service(order_label=ORDER_LABEL_UPDATED_RECENT, trash=True)
             vm.load_next_page()
         assert mock.call_args_list[1] == call("", "-ultima_alteracao", limit=3, offset=3)

@@ -345,11 +345,13 @@ class TestViewModelServerSide:
         return vm
 
     def test_order_label_ultima_alteracao_recente(self):
-        """Quando order_label='Última Alteração (mais recente)', search_clientes recebe '-ultima_alteracao'."""
+        """Quando order_label=ORDER_LABEL_UPDATED_RECENT, search_clientes recebe '-ultima_alteracao'."""
+        from src.modules.clientes.core.ui_helpers import ORDER_LABEL_UPDATED_RECENT
+
         vm = self._make_vm()
         mock_search = MagicMock(return_value=[])
         with patch("src.modules.clientes.core.viewmodel.search_clientes", mock_search):
-            vm.refresh_from_service(order_label="Última Alteração (mais recente)")
+            vm.refresh_from_service(order_label=ORDER_LABEL_UPDATED_RECENT)
         mock_search.assert_called_once_with("", "-ultima_alteracao", limit=5, offset=0)
 
     def test_order_label_id_desc(self):
@@ -487,9 +489,11 @@ class TestViewModelServerSide:
             )
             for i in range(3)
         ]
+        from src.modules.clientes.core.ui_helpers import ORDER_LABEL_UPDATED_RECENT
+
         mock_search = MagicMock(side_effect=[page, []])
         with patch("src.modules.clientes.core.viewmodel.search_clientes", mock_search):
-            vm.refresh_from_service(order_label="Última Alteração (mais recente)")
+            vm.refresh_from_service(order_label=ORDER_LABEL_UPDATED_RECENT)
             vm.load_next_page()
         # Segunda chamada deve usar mesmos params
         assert mock_search.call_args_list[1] == call("", "-ultima_alteracao", limit=3, offset=3)

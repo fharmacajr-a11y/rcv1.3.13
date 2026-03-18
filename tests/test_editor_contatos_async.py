@@ -103,6 +103,8 @@ def _make_fake_self(*, contatos_text_content: str = ""):
     fake.contatos_text.get.side_effect = _text_get
     fake.contatos_text.delete.side_effect = _text_delete
     fake.contatos_text.insert.side_effect = _text_insert
+    # get_textbox_content verifica _placeholder_active; False garante leitura do conteúdo real
+    fake.contatos_text._placeholder_active = False
 
     # save_btn
     fake.save_btn.configure = MagicMock()

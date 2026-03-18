@@ -262,12 +262,12 @@ class TestP12ValidationAlignment(unittest.TestCase):
         )
 
     def test_validate_fields_requires_at_least_one(self):
-        """Inspeção: _validate_fields deve exigir ao menos razão ou cnpj."""
+        """Inspeção: _validate_fields exige Razão Social e CNPJ (ambos obrigatórios)."""
         source = Path(_EDITOR_MIXIN_PATH).read_text(encoding="utf-8")
         self.assertIn(
-            "ao menos",
+            "Preencha a Razão Social",
             source,
-            "Deve haver mensagem 'ao menos Razão Social ou CNPJ'",
+            "Deve haver validação de Razão Social em _validate_fields",
         )
 
 
