@@ -177,8 +177,8 @@ class ClientEditorDialog(EditorActionsMixin, EditorDataMixin, EditorUIMixin, ctk
         if self.client_id is None:
             self.title("Novo Cliente")
         else:
-            # Título será atualizado após carregar dados
-            self.title(f"Editar Cliente - ID: {self.client_id}")
+            # Título provisório; será atualizado com razão/CNPJ após carregar dados
+            self.title(f"Editar Cliente — ID: {self.client_id}")
 
     def _on_window_close(self) -> None:
         """Handler quando usuário fecha a janela (X).

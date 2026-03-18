@@ -320,20 +320,15 @@ class EditorDataMixin:
 
             self._client_data = cliente
 
-            # Atualizar título com dados do cliente (igual ao legado)
+            # Atualizar título com dados do cliente — padrão do browser de arquivos
             razao = _safe_get(cliente, "razao_social", "")
             cnpj_raw = _safe_get(cliente, "cnpj", "")
             cnpj_fmt = format_cnpj(cnpj_raw) or cnpj_raw  # Formatar CNPJ com pontos/barra
 
-            # Extrair sufixo WhatsApp das observações (se existir)
-            obs = _safe_get(cliente, "observacoes", "") or ""
-            sufixo = ""
-            if "(Não está respondendo)" in obs:
-                sufixo = " (Não está respondendo)"
-            elif "(Respondendo)" in obs:
-                sufixo = " (Respondendo)"
-
-            self.title(f"Editar Cliente - ID: {self.client_id} - {razao} - {cnpj_fmt}{sufixo}")
+            _title = f"Editar Cliente — ID: {self.client_id} — {razao}"
+            if cnpj_fmt:
+                _title = f"{_title} — {cnpj_fmt}"
+            self.title(_title)
 
             # Preencher campos principais (usar helper para preservar placeholders)
             self._set_entry_value(self.razao_entry, _safe_get(cliente, "razao_social", ""))

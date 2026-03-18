@@ -24,8 +24,6 @@ from src.ui.ui_tokens import (
     APP_BG,
     PRIMARY_BLUE,
     PRIMARY_BLUE_HOVER,
-    BTN_DANGER,
-    BTN_DANGER_HOVER,
     BTN_SECONDARY,
     BTN_SECONDARY_HOVER,
     BTN_SUCCESS,
@@ -179,7 +177,7 @@ class EditorUIMixin:
         self.obs_text.grid(row=row, column=0, sticky="ew", padx=6, pady=(0, 5))
         setup_textbox_placeholder(
             self.obs_text,
-            "Anotações gerais sobre o cliente...",
+            "Observações gerais sobre o cliente...",
             TEXT_PRIMARY,
             TEXT_MUTED,
         )
@@ -233,7 +231,7 @@ class EditorUIMixin:
         self.bloco_notas_text.grid(row=row, column=0, sticky="nsew", padx=6, pady=(0, 10))
         setup_textbox_placeholder(
             self.bloco_notas_text,
-            "Anotações internas livres...",
+            "Anotações internas, senhas, e-mails...",
             TEXT_PRIMARY,
             TEXT_MUTED,
         )
@@ -383,13 +381,13 @@ class EditorUIMixin:
         )
         self.arquivos_btn.pack(side="left", padx=5)
 
-        # Botão Cancelar (vermelho) – extrema direita
+        # Botão Fechar (cinza) – extrema direita
         self.cancel_btn = make_btn(
             buttons_frame,
-            text="Cancelar",
+            text="Fechar",
             command=self._on_cancel,
-            fg_color=BTN_DANGER,
-            hover_color=BTN_DANGER_HOVER,
+            fg_color=BTN_SECONDARY,
+            hover_color=BTN_SECONDARY_HOVER,
         )
         self.cancel_btn.pack(side="right", padx=(5, 0))
 
