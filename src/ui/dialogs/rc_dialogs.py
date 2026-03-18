@@ -6,7 +6,8 @@ Substitui tkinter.messagebox nos fluxos do app para garantir:
 - Visual consistente com CustomTkinter
 
 API pública:
-    ask_yes_no(parent, title, message) -> bool
+    ask_yes_no(parent, title, message, *, confirm_label="Sim") -> bool
+    ask_yes_no_danger(parent, title, message, *, confirm_label="Excluir") -> bool
     ask_ok_cancel(parent, title, message) -> bool
     ask_retry_cancel(parent, title, message) -> bool
     show_info(parent, title, message) -> None
@@ -97,16 +98,20 @@ def _deferred_show(dlg: Any, parent: Any) -> None:
     dlg.after(220, _reveal)
 
 
-def ask_yes_no(parent: Any, title: str, message: str) -> bool:
-    """Diálogo modal de confirmação Sim/Não com ícone RC.
+def ask_yes_no(parent: Any, title: str, message: str, *, confirm_label: str = "Sim") -> bool:
+    """Diálogo modal de confirmação com ícone RC (ação neutra/positiva).
+
+    Botão confirmatório usa BTN_PRIMARY (azul). Para ações destrutivas,
+    use :func:`ask_yes_no_danger`.
 
     Args:
-        parent:  Widget pai (janela ou frame).
-        title:   Título da janela.
-        message: Mensagem exibida ao usuário.
+        parent:        Widget pai (janela ou frame).
+        title:         Título da janela.
+        message:       Mensagem exibida ao usuário.
+        confirm_label: Rótulo do botão confirmatório (padrão "Sim").
 
     Returns:
-        True se o usuário clicou em "Sim", False caso contrário.
+        True se o usuário confirmou, False caso contrário.
     """
     result: dict[str, bool] = {"ok": False}
 
@@ -137,7 +142,87 @@ def ask_yes_no(parent: Any, title: str, message: str) -> bool:
 
     ctk.CTkButton(
         btn_row,
-        text="Sim",
+        text=confirm_label,
+        width=DIALOG_BTN_W,
+        height=DIALOG_BTN_H,
+        corner_radius=BUTTON_RADIUS,
+        fg_color=BTN_PRIMARY,
+        hover_color=BTN_PRIMARY_HOVER,
+        command=_yes,
+    ).pack(side="left", padx=(0, 8))
+
+    ctk.CTkButton(
+        btn_row,
+        text="Cancelar",
+        width=DIALOG_BTN_W,
+        height=DIALOG_BTN_H,
+        corner_radius=BUTTON_RADIUS,
+        fg_color=BTN_SECONDARY,
+        hover_color=BTN_SECONDARY_HOVER,
+        command=_no,
+    ).pack(side="left")
+
+    dlg.bind("<Return>", lambda _e: _yes())
+    dlg.bind("<Escape>", lambda _e: _no())
+    dlg.protocol("WM_DELETE_WINDOW", _no)
+
+    dlg.update_idletasks()
+    _center_on_parent(dlg, parent, 360)
+    _deferred_show(dlg, parent)
+
+    try:
+        parent.wait_window(dlg)
+    except Exception:
+        pass
+
+    return result["ok"]
+
+
+def ask_yes_no_danger(parent: Any, title: str, message: str, *, confirm_label: str = "Excluir") -> bool:
+    """Diálogo modal de confirmação para ações DESTRUTIVAS com ícone RC.
+
+    Botão confirmatório usa BTN_DANGER (vermelho) para sinalizar perigo.
+    Para ações neutras/positivas, use :func:`ask_yes_no`.
+
+    Args:
+        parent:        Widget pai (janela ou frame).
+        title:         Título da janela.
+        message:       Mensagem exibida ao usuário.
+        confirm_label: Rótulo do botão destrutivo (padrão "Excluir").
+
+    Returns:
+        True se o usuário confirmou a ação destrutiva, False caso contrário.
+    """
+    result: dict[str, bool] = {"ok": False}
+
+    dlg = _make_dialog(parent, title)
+
+    frame = ctk.CTkFrame(dlg, fg_color="transparent")
+    frame.pack(fill="both", expand=True, padx=24, pady=20)
+
+    make_icon_label(frame, "warning", size=44).pack(pady=(0, 6))
+
+    ctk.CTkLabel(
+        frame,
+        text=message,
+        font=("Segoe UI", 12),
+        wraplength=300,
+        justify="center",
+    ).pack(pady=(0, 14))
+
+    btn_row = ctk.CTkFrame(frame, fg_color="transparent")
+    btn_row.pack()
+
+    def _yes() -> None:
+        result["ok"] = True
+        dlg.destroy()
+
+    def _no() -> None:
+        dlg.destroy()
+
+    ctk.CTkButton(
+        btn_row,
+        text=confirm_label,
         width=DIALOG_BTN_W,
         height=DIALOG_BTN_H,
         corner_radius=BUTTON_RADIUS,
@@ -148,7 +233,7 @@ def ask_yes_no(parent: Any, title: str, message: str) -> bool:
 
     ctk.CTkButton(
         btn_row,
-        text="Não",
+        text="Cancelar",
         width=DIALOG_BTN_W,
         height=DIALOG_BTN_H,
         corner_radius=BUTTON_RADIUS,
