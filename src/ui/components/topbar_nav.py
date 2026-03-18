@@ -13,8 +13,8 @@ from src.ui.ui_tokens import (
     BTN_SECONDARY,
     BTN_SECONDARY_HOVER,
     BTN_TEXT_ON_COLOR,
-    PRIMARY_BLUE,
-    PRIMARY_BLUE_HOVER,
+    TOOLTIP_BG,
+    TOOLTIP_FG,
 )
 
 import logging
@@ -29,9 +29,80 @@ from src.utils.resource_path import resource_path
 
 _log = logging.getLogger(__name__)
 
+# Hover sutil para icon-button — mesmo padrão do botão de atualizar (TopbarActions)
+_ICON_BTN_HOVER = ("#c8c8c8", "#252525")
+
 # Constantes de espaçamento (mesmas da TopBar)
 BTN_PADX = 4
 BTN_PADY = 4
+
+
+def _attach_tooltip(widget, text: str) -> None:
+    """Tooltip com delay — mesmo padrão do TopbarActions."""
+    import tkinter as _tk
+
+    _tip_win: list = [None]
+    _after_id: list = [None]
+
+    def _schedule_show(event):
+        if _after_id[0] is not None:
+            try:
+                widget.after_cancel(_after_id[0])
+            except Exception:  # noqa: BLE001
+                pass
+        _after_id[0] = widget.after(400, lambda: _show(event.x_root, event.y_root))
+
+    def _show(x_root, y_root):  # noqa: ARG001
+        _after_id[0] = None
+        if _tip_win[0] is not None:
+            return
+        try:
+            win = _tk.Toplevel(widget)
+            win.withdraw()
+            win.wm_overrideredirect(True)
+            win.wm_attributes("-topmost", True)
+            _tk.Label(
+                win,
+                text=text,
+                background=TOOLTIP_BG,
+                foreground=TOOLTIP_FG,
+                font=("Segoe UI", 9),
+                relief="flat",
+                padx=5,
+                pady=3,
+            ).pack()
+            win.update_idletasks()
+            bx = widget.winfo_rootx()
+            by = widget.winfo_rooty()
+            bw = widget.winfo_width()
+            bh = widget.winfo_height()
+            tw = win.winfo_reqwidth()
+            x = bx + (bw - tw) // 2
+            y = by + bh + 4
+            win.wm_geometry(f"+{x}+{y}")
+            win.deiconify()
+            _tip_win[0] = win
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _hide(event=None):
+        if _after_id[0] is not None:
+            try:
+                widget.after_cancel(_after_id[0])
+            except Exception:  # noqa: BLE001
+                pass
+            _after_id[0] = None
+        win = _tip_win[0]
+        if win is not None:
+            try:
+                win.destroy()
+            except Exception:  # noqa: BLE001
+                pass
+            _tip_win[0] = None
+
+    widget.bind("<Enter>", _schedule_show, add="+")
+    widget.bind("<Leave>", _hide, add="+")
+    widget.bind("<Destroy>", _hide, add="+")
 
 
 class TopbarNavCallbacks(Protocol):
@@ -89,6 +160,7 @@ class TopbarNav(ctk.CTkFrame):
         # Referências de imagens (IMPORTANTE: manter para evitar GC)
         self._sites_image = None
         self._chatgpt_image = None
+        self._home_image = None
 
         # Carregar ícones
         self._load_icons()
@@ -101,6 +173,32 @@ class TopbarNav(ctk.CTkFrame):
         if not HAS_CUSTOMTKINTER or ctk is None:
             _log.debug("CustomTkinter não disponível, ícones desabilitados")
             return
+
+        # Ícone Início (light/dark aware)
+        try:
+            img_size = 20
+            path_light = resource_path("assets/topbar/inicioblack.png")
+            path_dark = resource_path("assets/topbar/iniciolight.png")
+            if os.path.exists(path_light) and os.path.exists(path_dark):
+                pil_light = Image.open(path_light).convert("RGBA")
+                pil_dark = Image.open(path_dark).convert("RGBA")
+                if pil_light.width > img_size or pil_light.height > img_size:
+                    pil_light = pil_light.copy()
+                    pil_light.thumbnail((img_size, img_size), Image.Resampling.LANCZOS)
+                if pil_dark.width > img_size or pil_dark.height > img_size:
+                    pil_dark = pil_dark.copy()
+                    pil_dark.thumbnail((img_size, img_size), Image.Resampling.LANCZOS)
+                self._home_pil_light = pil_light
+                self._home_pil_dark = pil_dark
+                self._home_image = ctk.CTkImage(
+                    light_image=pil_light,
+                    dark_image=pil_dark,
+                    size=(img_size, img_size),
+                )
+            else:
+                _log.warning("Ícone de Início não encontrado: %s / %s", path_light, path_dark)
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("Falha ao carregar ícone de Início: %s", exc)
 
         # Ícone Sites
         try:
@@ -148,17 +246,21 @@ class TopbarNav(ctk.CTkFrame):
             _log.warning("CustomTkinter não disponível, botões não criados")
             return
 
-        # Botão Início
-        self.btn_home = make_btn(
+        # Botão Início — icon-only discreto (mesmo padrão do botão de atualizar)
+        self.btn_home = ctk.CTkButton(  # type: ignore[union-attr]
             self,
-            text="Inicio",
+            text="",
+            image=self._home_image,
             command=self._handle_home,
-            fg_color=PRIMARY_BLUE,
-            hover_color=PRIMARY_BLUE_HOVER,
-            text_color=BTN_TEXT_ON_COLOR,
-            font=("Segoe UI", 11, "bold"),
+            width=28,
+            height=28,
+            corner_radius=6,
+            border_spacing=2,
+            fg_color="transparent",
+            hover_color=_ICON_BTN_HOVER,
         )
         self.btn_home.pack(side="left", padx=(0, 5), pady=2)
+        _attach_tooltip(self.btn_home, "Início")
 
         # Botão Visualizador PDF
         self.btn_pdf_viewer = make_btn(
@@ -234,12 +336,18 @@ class TopbarNav(ctk.CTkFrame):
 
         Args:
             screen_name: Nome da tela ativa ("main", "hub", "sites", "passwords", etc.)
+
+        NOTA: btn_home é excluído intencionalmente — ele é sempre "normal" e nunca
+        é desabilitado por nenhum fluxo. Chamadas configure() em btn_home (transparent
+        + CTkImage) geram um ciclo _draw() com _detect_color_of_master() + image-redraw
+        que causa flash visual nos botões vizinhos. set_pick_mode_active() segue o mesmo
+        critério e também não inclui btn_home.
         """
-        # CTkButton usa configure(state="normal"/"disabled")
-        buttons = [self.btn_home, self.btn_pdf_viewer, self.btn_chatgpt, self.btn_sites]
+        buttons = [self.btn_pdf_viewer, self.btn_chatgpt, self.btn_sites]
         for btn in buttons:
             try:
-                btn.configure(state="normal")
+                if btn.cget("state") != "normal":
+                    btn.configure(state="normal")
             except Exception as exc:  # noqa: BLE001
                 _log.debug("Falha ao habilitar botão %s: %s", btn, exc)
 
