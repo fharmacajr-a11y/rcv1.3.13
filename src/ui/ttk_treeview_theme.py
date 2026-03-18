@@ -14,7 +14,7 @@ from tkinter import ttk
 from typing import Any
 
 from src.ui.table_ui_spec import TABLE_UI_SPEC, get_table_font
-from src.ui.ui_tokens import SURFACE, SURFACE_DARK, TEXT_PRIMARY, BORDER, KPI_BLUE
+from src.ui.ui_tokens import SURFACE, SURFACE_DARK, TEXT_PRIMARY, BORDER, PRIMARY_BLUE
 
 log = logging.getLogger(__name__)
 
@@ -70,7 +70,7 @@ def get_tree_colors(mode: str) -> TreeColors:
         fg=_pick(TEXT_PRIMARY, mode),  # Texto principal
         heading_bg=_pick(SURFACE_DARK, mode),  # Heading = SURFACE_DARK (destaque sutil)
         heading_fg=_pick(TEXT_PRIMARY, mode),  # Texto do heading
-        sel_bg=_pick(KPI_BLUE, mode),  # Seleção = azul KPI
+        sel_bg=_pick(PRIMARY_BLUE, mode),  # Seleção = azul primário
         sel_fg="#ffffff",  # Texto selecionado branco (contraste)
         even_bg=_pick(SURFACE, mode),  # Zebra par = SURFACE
         odd_bg=_pick(SURFACE_DARK, mode),  # Zebra ímpar = SURFACE_DARK (alternância sutil)
