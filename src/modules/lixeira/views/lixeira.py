@@ -28,7 +28,7 @@ from src.ui.ui_tokens import (
     BTN_SUCCESS_HOVER,
 )
 from src.ui.window_utils import apply_window_icon, show_centered
-from src.ui.dialogs.rc_dialogs import ask_yes_no, show_info, show_warning, show_error
+from src.ui.dialogs.rc_dialogs import ask_yes_no, ask_yes_no_danger, show_info, show_warning, show_error
 
 # ui/lixeira/lixeira.py
 
@@ -171,7 +171,10 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[ctk.CTkTo
         show_error(win, title, msg)
 
     def _ask_yesno(title: str, msg: str) -> bool:
-        return ask_yes_no(win, title, msg)
+        return ask_yes_no(win, title, msg, confirm_label="Restaurar")
+
+    def _ask_yesno_danger(title: str, msg: str) -> bool:
+        return ask_yes_no_danger(win, title, msg, confirm_label="Apagar definitivamente")
 
     def get_selected_ids() -> List[int]:
         ids: List[int] = []
@@ -348,7 +351,7 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[ctk.CTkTo
                 "Selecione pelo menos um registro para apagar definitivamente.",
             )
             return
-        if not _ask_yesno(
+        if not _ask_yesno_danger(
             "Apagar",
             f"APAGAR DEFINITIVAMENTE {len(ids)} registro(s)? Esta ação não pode ser desfeita.",
         ):

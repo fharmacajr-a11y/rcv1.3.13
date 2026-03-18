@@ -34,6 +34,7 @@ from src.ui.ttk_treeview_theme import apply_zebra, apply_selected_tag
 from src.ui.widgets.ctk_treeview_container import CTkTreeviewContainer
 from src.ui.dialogs.rc_dialogs import (
     ask_yes_no as _ask_yes_no,
+    ask_yes_no_danger as _ask_yes_no_danger,
     show_info as _show_info,
     show_error as _show_error,
     show_warning as _show_warning,
@@ -1527,10 +1528,11 @@ class ClientesV2Frame(ctk.CTkFrame):
 
         if self._trash_mode:
             # ── MODO LIXEIRA: exclusão definitiva ──────────────────────────────
-            confirm = _ask_yes_no(
+            confirm = _ask_yes_no_danger(
                 top,
                 "Excluir definitivamente",
                 f"Tem certeza que deseja EXCLUIR DEFINITIVAMENTE o cliente {label_cli}?\n\nEsta ação não pode ser desfeita.",
+                confirm_label="Excluir definitivamente",
             )
             if not confirm:
                 return "break" if event else None
@@ -1572,6 +1574,7 @@ class ClientesV2Frame(ctk.CTkFrame):
                 top,
                 "Enviar para Lixeira",
                 f"Deseja enviar o cliente {label_cli} para a Lixeira?",
+                confirm_label="Enviar para Lixeira",
             )
             if not confirm:
                 return "break" if event else None
@@ -1624,6 +1627,7 @@ class ClientesV2Frame(ctk.CTkFrame):
             top,
             "Restaurar Cliente",
             f"Deseja restaurar o cliente {label_cli} para a lista de ativos?",
+            confirm_label="Restaurar",
         )
         if not confirm:
             return

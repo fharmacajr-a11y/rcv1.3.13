@@ -50,7 +50,7 @@ class AppActions:
         Modo ATIVOS  → soft delete (mover para lixeira).
         Modo LIXEIRA → hard delete (exclusão definitiva).
         """
-        from src.ui.dialogs.rc_dialogs import show_error, show_info, ask_yes_no
+        from src.ui.dialogs.rc_dialogs import show_error, show_info, ask_yes_no, ask_yes_no_danger
         from src.modules.clientes.core import service as clientes_service
         from src.modules.lixeira import refresh_if_open as refresh_lixeira_if_open
 
@@ -83,10 +83,11 @@ class AppActions:
 
         if trash_mode:
             # ── MODO LIXEIRA: exclusão definitiva ────────────────────────────
-            confirm = ask_yes_no(
+            confirm = ask_yes_no_danger(
                 self._app,
                 "Excluir definitivamente",
                 f"Tem certeza que deseja EXCLUIR DEFINITIVAMENTE o cliente {label_cli}?\n\nEsta ação não pode ser desfeita.",
+                confirm_label="Excluir definitivamente",
             )
             if confirm is False:
                 return
@@ -117,6 +118,7 @@ class AppActions:
                 self._app,
                 "Enviar para Lixeira",
                 f"Deseja enviar o cliente {label_cli} para a Lixeira?",
+                confirm_label="Enviar para Lixeira",
             )
             if confirm is False:
                 return

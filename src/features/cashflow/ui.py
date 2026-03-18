@@ -7,7 +7,7 @@ from datetime import date, timedelta
 from tkinter import StringVar
 from typing import Optional
 
-from src.ui.dialogs.rc_dialogs import show_info, show_error, show_warning, ask_yes_no
+from src.ui.dialogs.rc_dialogs import show_info, show_error, show_warning, ask_yes_no_danger
 
 from src.ui.ctk_config import ctk
 from src.ui.widgets.button_factory import make_btn
@@ -316,7 +316,12 @@ class CashflowWindow(ctk.CTkToplevel):
         if not iid:
             show_info(self, "Selecione", "Escolha um lançamento para excluir.")
             return
-        if ask_yes_no(self, "Confirma", "Excluir este lançamento?"):
+        if ask_yes_no_danger(
+            self,
+            "Excluir Lançamento",
+            "Excluir este lançamento? Esta ação não pode ser desfeita.",
+            confirm_label="Excluir",
+        ):
             try:
                 repo.delete_entry(iid)
                 self.refresh()
