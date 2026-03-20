@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 from pathlib import Path
 from typing import Any, Optional, Protocol
 
@@ -12,15 +13,31 @@ def configure_environment() -> None:
     """Aplicar defaults de ambiente e carregar eventuais arquivos .env."""
     os.environ.setdefault("RC_NO_LOCAL_FS", "1")
 
+    # ── 1. Defaults públicos embutidos (anon key, bucket, org) ────────
+    from src.config.runtime_defaults import RUNTIME_DEFAULTS
+
+    for key, value in RUNTIME_DEFAULTS.items():
+        os.environ.setdefault(key, value)
+
+    # ── 2. .env opcional (override para dev ou deploy customizado) ────
+    _env_loaded_from: list[str] = ["runtime_defaults"]
     try:
         from dotenv import load_dotenv
-        from src.utils.resource_path import resource_path
 
-        # PyInstaller bundle first, external file overrides second
-        load_dotenv(resource_path(".env"), override=False)
-        load_dotenv(os.path.join(os.getcwd(), ".env"), override=True)
+        candidates: list[Path] = []
+        if getattr(sys, "frozen", False):
+            candidates.append(Path(sys.executable).parent / ".env")
+        candidates.append(Path.cwd() / ".env")
+
+        for p in candidates:
+            if p.is_file():
+                load_dotenv(str(p), override=True)
+                _env_loaded_from.append(str(p))
     except Exception as exc:
         log.debug("Falha ao carregar .env (opcional)", exc_info=exc)
+
+    # Diagnóstico diferido: será logado APÓS configure_logging()
+    os.environ["_RC_ENV_LOADED_FROM"] = "|".join(_env_loaded_from)
 
     # P2-003: Criar diretórios necessários (apenas em modo local)
     try:

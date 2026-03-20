@@ -1,6 +1,19 @@
 # -*- coding: utf-8 -*-
 """Entry-point fino que reexporta a janela principal."""
 
+# ── PyInstaller windowed fix ──────────────────────────────────────────
+# Em builds com console=False, sys.stdout/sys.stderr são None.
+# logging.StreamHandler e outras libs assumem streams válidos.
+# Redirecionar para devnull antes de qualquer import que acione logging.
+import os as _os
+import sys as _sys
+
+if _sys.stdout is None:
+    _sys.stdout = open(_os.devnull, "w", encoding="utf-8", errors="replace")  # noqa: SIM115
+if _sys.stderr is None:
+    _sys.stderr = open(_os.devnull, "w", encoding="utf-8", errors="replace")  # noqa: SIM115
+# ──────────────────────────────────────────────────────────────────────
+
 import logging
 import os
 import tkinter as tk
@@ -17,6 +30,16 @@ APP_VERSION: str = get_version()
 
 bootstrap.configure_environment()
 bootstrap.configure_logging(preload=True)
+
+# ── Diagnóstico diferido: logar estado do .env APÓS logging configurado ──
+_log = logging.getLogger("rc.bootstrap.diag")
+_log.info(
+    "env_loaded_from=%s | SUPABASE_URL=%s | SUPABASE_KEY=%s | frozen=%s",
+    os.environ.pop("_RC_ENV_LOADED_FROM", "?"),
+    "SET" if os.environ.get("SUPABASE_URL") else "MISSING",
+    "SET" if (os.environ.get("SUPABASE_ANON_KEY") or os.environ.get("SUPABASE_KEY")) else "MISSING",
+    getattr(_sys, "frozen", False),
+)
 
 __all__ = ["App", "apply_rc_icon"]
 

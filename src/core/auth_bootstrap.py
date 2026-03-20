@@ -69,12 +69,14 @@ class AppProtocol(Protocol):
 
 def _supabase_client() -> Optional[SupabaseClient]:
     """Retorna o cliente Supabase se disponível."""
-    if callable(get_supabase):
-        try:
-            return get_supabase()
-        except Exception:
-            return None
-    return None
+    if not callable(get_supabase):
+        log.warning("get_supabase não é callable (import do módulo supabase_client falhou?)")
+        return None
+    try:
+        return get_supabase()
+    except Exception as exc:
+        log.warning("Falha ao criar cliente Supabase: %s: %s", type(exc).__name__, exc)
+        return None
 
 
 def _bind_postgrest(client: Any) -> None:
