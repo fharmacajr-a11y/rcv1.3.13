@@ -178,7 +178,7 @@ class ClientesV2Frame(ctk.CTkFrame):
     def _create_treeview(self, parent: tk.Misc) -> None:
         """Cria Treeview com configuração completa de tema.
 
-        TAREFA 3: ttk.Treeview com background E fieldbackground configurados.
+        TAREFA 3: Treeview com background E fieldbackground configurados.
         FASE 5: Migrado para CTkTreeviewContainer.
         """
         # Colunas do Treeview
@@ -236,7 +236,7 @@ class ClientesV2Frame(ctk.CTkFrame):
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
 
-        # Guardar referência ao widget ttk interno
+        # Guardar referência ao widget Treeview interno
         self.tree_widget = self.tree
 
         # Binds para seleção e atalhos (unbind antes para evitar acúmulo)
@@ -318,10 +318,11 @@ class ClientesV2Frame(ctk.CTkFrame):
             Largura em pixels (width e minwidth serão iguais)
         """
         try:
-            # Obter fonte do Treeview
-            style = ttk.Style(self.tree)
-            font_name = style.lookup("Treeview", "font") or "TkDefaultFont"
-            font_obj = tkfont.nametofont(font_name)
+            # Obter fonte do Treeview via spec centralizada
+            from src.ui.table_ui_spec import get_table_font
+
+            _font_tuple = get_table_font(heading=False)
+            font_obj = tkfont.Font(family=_font_tuple[0], size=_font_tuple[1])
 
             # Sample do maior formato que aparece na coluna
             sample = "00/00/0000 - 00:00:00 (J)"
@@ -413,7 +414,7 @@ class ClientesV2Frame(ctk.CTkFrame):
             log.error(f"[Clientes] Erro ao redimensionar colunas: {e}", exc_info=True)
 
     def _sync_tree_theme_and_zebra(self) -> None:
-        """Reaplica tema do ttk + zebra usando o modo ATUAL.
+        """Reaplica tema da Treeview + zebra usando o modo ATUAL.
         Evita tree branca no Dark ao alternar Lixeira/Ativos e mantém listras.
         """
         if not self.tree_widget:
@@ -432,7 +433,7 @@ class ClientesV2Frame(ctk.CTkFrame):
         # Reaplica o style e pega as cores corretas do modo atual
         colors = manager.apply_to(
             tree=self.tree_widget,
-            master=self.tree_widget.master,  # precisa ser o mesmo "master" do ttk.Style
+            master=self.tree_widget.master,  # precisa ser o mesmo "master" do Style
             style_name="RC.Treeview",
             mode=mode,
             zebra=False,

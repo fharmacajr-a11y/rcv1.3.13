@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""CTkTreeviewContainer - Widget reutilizável CTk+ttk para tabelas.
+"""CTkTreeviewContainer - Widget reutilizável CTk para tabelas.
 
-FASE 3: Widget que combina CTkFrame com ttk.Treeview real + scrollbars.
+FASE 3: Widget que combina CTkFrame com Treeview real + scrollbars.
 Integrado com GlobalThemeManager para atualização automática de cores.
 
 Uso:
@@ -26,7 +26,7 @@ STYLE_NAME = "CTk.Treeview"
 
 
 class CTkTreeviewContainer(ctk.CTkFrame):
-    """Container CTkFrame que encapsula ttk.Treeview + scrollbars.
+    """Container CTkFrame que encapsula Treeview + scrollbars.
 
     Fornece um Treeview real com tema integrado ao sistema CTk.
     O style é isolado ("CTk.Treeview") para não afetar outros Treeviews.
@@ -133,7 +133,7 @@ class CTkTreeviewContainer(ctk.CTkFrame):
         self._apply_theme(mode)
 
     def _apply_theme(self, mode: str) -> None:
-        """Aplica tema ttk.Style para o Treeview.
+        """Aplica tema Style para o Treeview.
 
         Args:
             mode: "Light" ou "Dark"
@@ -180,10 +180,10 @@ class CTkTreeviewContainer(ctk.CTkFrame):
             pass  # Widget já destruído, silenciar
 
     def get_treeview(self) -> ttk.Treeview:
-        """Retorna o ttk.Treeview encapsulado.
+        """Retorna o Treeview encapsulado.
 
         Returns:
-            Instância do ttk.Treeview interno
+            Instância do Treeview interno
         """
         return self._tree
 

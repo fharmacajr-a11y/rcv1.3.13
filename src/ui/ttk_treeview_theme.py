@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Tema centralizado para ttk.Treeview com suporte a Light/Dark mode.
+"""Tema centralizado para Treeview com suporte a Light/Dark mode.
 
 Fornece cores e funções para aplicar tema consistente em todos os Treeviews do app.
 Usa TABLE_UI_SPEC para padronizar visual (fonte, rowheight, padding, etc).
@@ -79,14 +79,14 @@ def get_tree_colors(mode: str) -> TreeColors:
 
 
 def apply_treeview_theme(mode: str, master: Any, style_name: str = "RC.Treeview") -> tuple[str, TreeColors]:
-    """Aplica tema no ttk.Style para Treeview.
+    """Aplica tema no Style para Treeview.
 
-    CRÍTICO: Passa master correto para ttk.Style funcionar em Toplevels.
+    CRÍTICO: Passa master correto para Style funcionar em Toplevels.
     CRÍTICO: Usa tema "clam" para fieldbackground funcionar (vista/xpnative ignoram).
 
     Args:
         mode: "Light" ou "Dark"
-        master: Widget master para criar ttk.Style
+        master: Widget master para criar Style
         style_name: Nome base do style (ex: "RC.Treeview")
 
     Returns:
@@ -96,7 +96,7 @@ def apply_treeview_theme(mode: str, master: Any, style_name: str = "RC.Treeview"
 
     try:
         # Criar Style com master correto
-        # IMPORTANTE: ttk.Style() retorna a instância singleton, não cria nova
+        # IMPORTANTE: Style() retorna a instância singleton, não cria nova
         style = ttk.Style(master)  # type: ignore[attr-defined]
 
         # CRÍTICO: Forçar tema "clam" para fieldbackground funcionar.
@@ -192,12 +192,12 @@ def apply_zebra(tree: Any, colors: TreeColors, parent_iid: str = "") -> None:
     Preserva a tag 'selected' por último na lista de tags de cada item.
 
     Args:
-        tree: Instância do ttk.Treeview
+        tree: Instância do Treeview
         colors: TreeColors com as cores do tema
         parent_iid: ID do item pai (vazio = raiz)
     """
     try:
-        # CRÍTICO: Configurar tag "selected" PRIMEIRO (ordem de criação = prioridade no ttk.Treeview)
+        # CRÍTICO: Configurar tag "selected" PRIMEIRO (ordem de criação = prioridade no Treeview)
         # Tag criada primeiro tem MAIOR prioridade visual
         tree.tag_configure("selected", background=colors.sel_bg, foreground=colors.sel_fg)
 
@@ -237,7 +237,7 @@ def apply_selected_tag(tree: Any, colors: TreeColors) -> None:
     A tag 'selected' deve ficar por último para ter precedência sobre even/odd.
 
     Args:
-        tree: Instância do ttk.Treeview
+        tree: Instância do Treeview
         colors: TreeColors com as cores do tema
     """
     try:

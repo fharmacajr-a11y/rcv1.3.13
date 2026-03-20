@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Manager global para ttk.Treeview com tema centralizado.
+"""Manager global para Treeview com tema centralizado.
 
 Gerencia todos os Treeviews do app e aplica tema automaticamente quando muda Light/Dark.
 """
@@ -43,8 +43,8 @@ class TtkTreeviewManager:
         """Registra um Treeview para gerenciamento automático de tema.
 
         Args:
-            tree: Instância do ttk.Treeview
-            master: Widget master para ttk.Style
+            tree: Instância do Treeview
+            master: Widget master para Style
             style_name: Nome base do style
             zebra: Se True, aplica zebra striping
             mode: Modo inicial (None = detectar automaticamente)
@@ -143,7 +143,7 @@ class TtkTreeviewManager:
         """Remove um Treeview do registry.
 
         Args:
-            tree: Instância do ttk.Treeview a remover
+            tree: Instância do Treeview a remover
         """
         before = len(self._trees)
         self._trees = [r for r in self._trees if r["tree"]() is not tree]
@@ -155,7 +155,7 @@ class TtkTreeviewManager:
         """Aplica tema em um Treeview específico.
 
         Args:
-            tree: Instância do ttk.Treeview
+            tree: Instância do Treeview
             master: Widget master
             style_name: Nome base do style
             mode: "Light" ou "Dark"

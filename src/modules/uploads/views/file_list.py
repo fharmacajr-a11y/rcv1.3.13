@@ -53,7 +53,7 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
 
         # Expandir frame interna do CTkTreeview: elimina área vazia à direita.
         # CTkTreeview cria self.frame = CTkFrame(master) sem configurar pesos,
-        # o que impede o ttk.Treeview interno de esticar no eixo X.
+        # o que impede o Treeview interno de esticar no eixo X.
         self.tree.frame.rowconfigure(0, weight=1)
         self.tree.frame.columnconfigure(0, weight=1)
 
@@ -91,46 +91,14 @@ class FileList(ctk.CTkFrame):  # type: ignore[misc]
             mode = "Light"
 
         try:
-            from src.ui.ttk_treeview_theme import get_tree_colors
+            from src.ui.ttk_treeview_theme import apply_treeview_theme
 
-            colors = get_tree_colors(mode)
+            full_style, colors = apply_treeview_theme(mode, self, "V2Files")
         except Exception:
             return
 
-        _style = "V2Files.Treeview"
-        style = _ttk.Style(self)
-        # NÃO chamar style.theme_use() — o processo já está em "clam"
-        style.configure(
-            _style,
-            background=colors.bg,
-            fieldbackground=colors.field_bg,
-            foreground=colors.fg,
-            font=("Segoe UI", 10),
-            rowheight=28,
-            borderwidth=0,
-            relief="flat",
-        )
-        style.configure(
-            f"{_style}.Heading",
-            background=colors.heading_bg,
-            foreground=colors.heading_fg,
-            font=("Segoe UI", 10, "bold"),
-            relief="flat",
-            borderwidth=0,
-            padding=(8, 4),
-        )
-        style.map(
-            f"{_style}.Heading",
-            background=[("active", colors.heading_bg), ("pressed", colors.heading_bg)],
-            foreground=[("active", colors.heading_fg), ("pressed", colors.heading_fg)],
-        )
-        style.map(
-            _style,
-            background=[("selected", colors.sel_bg)],
-            foreground=[("selected", colors.sel_fg)],
-        )
-        # Atribuir estilo ao ttk.Treeview via super().configure (bypassa CTkTreeview)
-        _ttk.Treeview.configure(self.tree, style=_style)
+        # Atribuir estilo ao Treeview via super().configure (bypassa CTkTreeview)
+        _ttk.Treeview.configure(self.tree, style=full_style)
 
         # Tags zebra
         self.tree.tag_configure("even", background=colors.even_bg, foreground=colors.fg)

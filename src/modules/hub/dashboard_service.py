@@ -10,20 +10,21 @@ A implementação real está em src.modules.hub.dashboard.service.
 
 from __future__ import annotations
 
-import importlib
-from typing import Any
-
-# __all__ definido no módulo real (src.modules.hub.dashboard.service)
-# Aqui usamos __getattr__ para lazy loading (PEP 562)
-
-
-def __getattr__(name: str) -> Any:
-    """Lazy import from src.modules.hub.dashboard.service."""
-    mod = importlib.import_module("src.modules.hub.dashboard.service")
-    return getattr(mod, name)
-
-
-def __dir__() -> list[str]:
-    """List available attributes from the real module."""
-    mod = importlib.import_module("src.modules.hub.dashboard.service")
-    return sorted(set(dir(mod)))
+# Re-exports estáticos do módulo real (substitui importlib.import_module
+# dinâmico que era invisível ao PyInstaller — causa do crash no EXE).
+from src.modules.hub.dashboard.service import (  # noqa: F401
+    DashboardSnapshot,
+    _due_badge,
+    _format_due_br,
+    _get_first_day_of_month,
+    _get_last_day_of_month,
+    _parse_due_date_iso,
+    _parse_timestamp,
+    due_badge,
+    format_due_br,
+    get_dashboard_snapshot,
+    get_first_day_of_month,
+    get_last_day_of_month,
+    parse_due_date_iso,
+    parse_timestamp,
+)

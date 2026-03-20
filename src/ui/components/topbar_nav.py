@@ -216,7 +216,7 @@ class TopbarNav(ctk.CTkFrame):
                 # Criar CTkImage
                 self._sites_image = ctk.CTkImage(light_image=img, dark_image=img, size=(img.width, img.height))
             else:
-                _log.warning("Ícone do Sites não encontrado: %s", icon_path)
+                _log.debug("Ícone do Sites não encontrado: %s", icon_path)
         except Exception as exc:  # noqa: BLE001
             _log.debug("Falha ao carregar ícone do Sites: %s", exc)
 
@@ -236,7 +236,7 @@ class TopbarNav(ctk.CTkFrame):
                 # Criar CTkImage
                 self._chatgpt_image = ctk.CTkImage(light_image=img, dark_image=img, size=(img.width, img.height))
             else:
-                _log.warning("Ícone do ChatGPT não encontrado: %s", chatgpt_icon_path)
+                _log.debug("Ícone do ChatGPT não encontrado: %s", chatgpt_icon_path)
         except Exception as exc:  # noqa: BLE001
             _log.debug("Falha ao carregar ícone do ChatGPT: %s", exc)
 

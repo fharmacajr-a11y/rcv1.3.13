@@ -6,7 +6,7 @@ withdraw/deiconify que o CustomTkinter faz internamente ao mudar
 a cor da titlebar no Windows via DwmSetWindowAttribute.
 
 Estratégia:
-  1. Antes de ctk.set_appearance_mode(), substituímos temporariamente
+  1. Antes da troca de tema via CTk, substituímos temporariamente
      _windows_set_titlebar_color() nas janelas CTk/CTkToplevel abertas
      por uma versão que NÃO faz withdraw/deiconify.
   2. Após o toggle, aplicamos DwmSetWindowAttribute diretamente e
@@ -110,9 +110,10 @@ def _find_all_ctk_windows(root: Any) -> list[Any]:
 def suppress_titlebar_flash(master_ref: Optional[Any], color_mode: str):
     """Context manager que suprime o flash de titlebar durante o toggle.
 
-    Uso em theme_manager.py:
+    Uso em theme_manager.py::
+
         with suppress_titlebar_flash(self._master_ref, "Dark"):
-            ctk.set_appearance_mode("Dark")
+            # theme_manager aplica o modo aqui
 
     Se master_ref for None ou não estiver em Windows, é um no-op seguro.
 
