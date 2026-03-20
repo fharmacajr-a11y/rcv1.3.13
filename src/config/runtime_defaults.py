@@ -22,4 +22,6 @@ RUNTIME_DEFAULTS: dict[str, str] = {
     ),
     "SUPABASE_BUCKET": "rc-docs",
     "SUPABASE_DEFAULT_ORG": "0a7c9f39-4b7d-4a88-8e77-7b88a38c6cd7",
+    # Mapeamento email→nome de exibição (iniciais na coluna + nome completo nas anotações)
+    "RC_INITIALS_MAP": '{"fharmacajr@gmail.com":"Junior","fharmaca2013@hotmail.com":"Elizabeth","ana_biatriz10@hotmail.com":"Beatriz"}',
 }
