@@ -29,6 +29,9 @@ backup_*/
 # Chave da API OpenAI (não versionar)
 config/openai_key.txt
 
+# Runtime user config (gerado pelo theme_manager)
+config_theme.json
+
 # Build e distribuição (PyInstaller)
 build/
 dist/
