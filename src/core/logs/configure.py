@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
+import tempfile
 import uuid
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -70,7 +72,11 @@ def configure_logging(level: Optional[str] = None) -> None:
     # Apenas se não for ambiente de teste
     if not (os.getenv("RC_TESTING") == "1" or os.getenv("PYTEST_CURRENT_TEST")):
         try:
-            log_dir = Path("artifacts/local/logs")
+            if getattr(sys, "frozen", False):
+                # Frozen (PyInstaller): usar %LOCALAPPDATA%/RCGestor/logs
+                log_dir = Path(os.environ.get("LOCALAPPDATA", tempfile.gettempdir())) / "RCGestor" / "logs"
+            else:
+                log_dir = Path("artifacts/local/logs")
             log_dir.mkdir(parents=True, exist_ok=True)
             log_file = log_dir / "rcgestor.log"
 

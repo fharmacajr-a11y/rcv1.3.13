@@ -53,6 +53,7 @@ def add_file(src: Path, dest: str = ".") -> None:
 # Arquivos opcionais da raiz do projeto
 # -----------------------------------------------------------------------------
 add_file(BASE / "rc.ico", ".")                    # Ícone do aplicativo
+add_file(BASE / "rc.png", ".")                    # Logo para splash screen
 # SEGURANÇA: .env NÃO deve ser empacotado (contém credenciais)
 # add_file(BASE / ".env", ".")                    # REMOVIDO - P0-002: Não distribuir credenciais
 add_file(BASE / "CHANGELOG.md", ".")              # Histórico de versões

@@ -6,6 +6,8 @@ Logs gerados em runtime vão para artifacts/local/logs/ (ignorado no git).
 
 import logging
 import os
+import sys
+import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -39,8 +41,13 @@ def configure_file_logging(
         level: Nível de logging (default: INFO).
     """
     if log_dir is None:
-        # Logs gerados vão para artifacts/local/logs/ (ignorado)
-        log_dir = os.environ.get("RC_LOG_DIR", "artifacts/local/logs")
+        env_dir = os.environ.get("RC_LOG_DIR")
+        if env_dir:
+            log_dir = env_dir
+        elif getattr(sys, "frozen", False):
+            log_dir = str(Path(os.environ.get("LOCALAPPDATA", tempfile.gettempdir())) / "RCGestor" / "logs")
+        else:
+            log_dir = "artifacts/local/logs"
 
     log_path = Path(log_dir)
     log_path.mkdir(parents=True, exist_ok=True)
