@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # ============================================================================
-# DEPENDENCIAS DE DESENVOLVIMENTO - RC Gestor v1.4.52
+# DEPENDENCIAS DE DESENVOLVIMENTO - RC Gestor v1.6.23
 # ============================================================================
 # Este arquivo contem todas as ferramentas necessarias para desenvolvimento,
 # testes, build e CI/CD. Para instalacao:

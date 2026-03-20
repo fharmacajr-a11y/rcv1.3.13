@@ -1,14 +1,16 @@
 # Guia de Contribuição - RC Gestor de Clientes
 
-**Versão:** v1.2.97+  
-**Data:** 20 de novembro de 2025  
-**Branch principal:** `qa/fixpack-04`
+**Versão:** v1.6.23  
+**Data:** Março de 2026  
+**Branch principal:** `main`
 
 ---
 
 ## 📋 Visão Geral
 
-O **RC Gestor de Clientes** é uma aplicação desktop desenvolvida em Python usando Tkinter/ttkbootstrap, voltada para gestão de clientes e documentos com integração ao Supabase.
+O **RC Gestor de Clientes** é uma aplicação desktop desenvolvida em Python usando Tkinter/CustomTkinter, voltada para gestão de clientes e documentos com integração ao Supabase.
+
+Para setup completo, veja também [docs/SETUP.md](docs/SETUP.md).
 
 Este repositório segue **boas práticas de gerenciamento de dependências Python**, separando:
 
@@ -140,10 +142,10 @@ from customtkinter import CTkButton  # ❌ HOOK VAI FALHAR!
 pytest -v
 ```
 
-**Resultado esperado:** Todos os testes devem passar (215+ testes).
+**Resultado esperado:** Todos os testes devem passar (1035+ testes).
 
 ```
-======================= 215 passed in ~30s =======================
+======================= 1035 passed in ~50s =======================
 ```
 
 #### 📊 Coverage (Cobertura de Testes)
@@ -198,11 +200,11 @@ O Bandit se concentra no c?digo do aplicativo (src, adapters, data, infra, secur
 
 **Apenas bibliotecas usadas em runtime** — pacotes que o aplicativo precisa para funcionar na máquina do usuário final:
 
-- Interface gráfica: `ttkbootstrap`, `sv_ttk`, `tkinterweb`
+- Interface gráfica: `customtkinter`, `sv_ttk`, `tkinterweb`
 - Backend/Database: `supabase`, `psycopg`, `SQLAlchemy`, `alembic`
 - HTTP/Networking: `httpx`, `certifi`, `urllib3`
 - Segurança/Crypto: `cryptography`, `bcrypt`, `PyJWT`, `passlib`
-- Processamento de arquivos: `pypdf`, `PyMuPDF`, `pillow`, `pytesseract`, `rarfile`, `py7zr`
+- Processamento de arquivos: `pypdf`, `PyMuPDF`, `pillow`, `pytesseract`, `py7zr`
 - Validação/Config: `pydantic`, `python-dotenv`, `PyYAML`
 - Utilitários: `click`, `rich`, `colorama`, `tzdata`, `tzlocal`
 
@@ -275,10 +277,10 @@ Esta abordagem segue padrões comuns na comunidade Python ([Real Python - Managi
 1. **Atualizar sua branch** com a principal:
 
    ```powershell
-   git checkout qa/fixpack-04
-   git pull origin qa/fixpack-04
+   git checkout main
+   git pull origin main
    git checkout sua-branch
-   git merge qa/fixpack-04
+   git merge main
    ```
 
 2. **Rodar testes localmente:**
@@ -471,11 +473,9 @@ Quando você precisa de uma ferramenta apenas para testes, lint, build, etc.:
 
 ## 📖 Documentação Adicional
 
-- **Estratégia completa de dependências:** [`docs/dev/requirements_strategy.md`](docs/dev/requirements_strategy.md)
-- **Checklist de tarefas priorizadas:** [`docs/dev/checklist_tarefas_priorizadas.md`](docs/dev/checklist_tarefas_priorizadas.md)
-- **Instalação para usuário final:** [`INSTALACAO.md`](INSTALACAO.md)
-- **Histórico de releases:** [`docs/releases/`](docs/releases/)
+- **Setup para desenvolvimento:** [`docs/SETUP.md`](docs/SETUP.md)
 - **Changelog:** [`CHANGELOG.md`](CHANGELOG.md)
+- **Índice de documentação:** [`docs/README.md`](docs/README.md)
 
 ---
 
@@ -491,11 +491,11 @@ O projeto atualmente usa gerenciamento manual de dependências com `pip` + arqui
 
 ### Como sei se minha mudança quebrou algo?
 
-Rode `pytest -v` localmente. Se todos os 215+ testes passarem, é muito provável que está tudo certo. A CI também rodará testes automaticamente no PR.
+Rode `python -m pytest tests/ -q` localmente. Se todos os 1035+ testes passarem, é muito provável que está tudo certo. A CI também rodará testes automaticamente no PR.
 
 ### Preciso atualizar `requirements.in` também?
 
-Não existe `requirements.in` neste projeto no momento. Usamos apenas `requirements.txt` e `requirements-dev.txt` com versões fixadas manualmente.
+O arquivo `requirements.in` existe como referência de dependências diretas de alto nível, mas o arquivo autoritativo é `requirements.txt`. Normalmente, edite apenas `requirements.txt` (produção) ou `requirements-dev.txt` (dev).
 
 ### O que é o arquivo `rcgestor.spec`?
 

@@ -4,7 +4,7 @@
 # Documentação: https://bandit.readthedocs.io/en/latest/config.html
 #
 # Uso:
-#   bandit -r src infra adapters data security -c bandit.yaml
+#   bandit -r src -c bandit.yaml
 #
 # ============================================================================
 

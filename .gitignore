@@ -138,7 +138,12 @@ gitignore_additions.txt
 EXECUTION_GUIDE.md
 
 # Dev scripts and tools (removed from tracking in cleanup/remove-unused-files)
-/scripts/
+/scripts/*
+# CI-critical scripts (Fase 2C — desbloqueados para o runner limpo)
+!/scripts/validate_ui_theme_policy.py
+!/scripts/validate_ttk_policy.py
+!/scripts/smoke_ui.py
+!/scripts/verify.ps1
 /tools/
 /_trash_quarantine/
 

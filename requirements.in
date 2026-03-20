@@ -1,12 +1,15 @@
-# requirements.in - Dependências diretas do projeto
+# requirements.in - Dependências diretas do projeto (input para pip-compile)
+# ============================================================================
+# ATENÇÃO: O arquivo autoritativo de dependências é requirements.txt.
+# Este .in existe apenas como referência de deps diretas de alto nível.
 # Para recompilar: pip-compile --output-file=requirements.txt requirements.in
+# ============================================================================
 
 # HTTP client com suporte HTTP/2
 httpx[http2]
-starlette>=0.49.3,<0.50.0  # CVE fix (0.47.2+), limitado por FastAPI
 
 # PDF processing
-pdfminer-six>=20251107  # CVE fix: GHSA-wf5f-4jwr-ppcp, GHSA-f83h-ghpp-7wcc
+# pdfminer-six  # REMOVIDO v1.6.23: CVE GHSA-f83h-ghpp-7wcc (CVSS 7.8 HIGH)
 pymupdf
 pypdf>=6.7.4  # CVE fix: GHSA-vr63-x8vc-m265, GHSA-jfx9-29x2-rv3j, CVE-2026-27026/28351
 
@@ -16,7 +19,7 @@ pillow
 supabase
 
 # GUI toolkit
-ttkbootstrap
+# ttkbootstrap  # REMOVIDO v1.6.23: migrado para CustomTkinter
 customtkinter>=5.2.0
 
 # Configuração

@@ -1,4 +1,4 @@
-from core import db_manager
+from src.core import db_manager
 
 
 def main():
