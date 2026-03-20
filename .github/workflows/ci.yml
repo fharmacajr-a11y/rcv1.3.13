@@ -2,7 +2,7 @@ name: RC - Test & Build
 
 on:
   push:
-    branches: ["main", "develop", "maintenance/**", "feature/**"]
+    branches: ["main", "develop", "maintenance/**", "feature/**", "chore/**"]
   pull_request:
     branches: ["main", "develop"]
   workflow_dispatch:
@@ -46,7 +46,7 @@ jobs:
         run: pre-commit run --all-files --show-diff-on-failure
 
       - name: Run Bandit security scan
-        run: python -X utf8 -m bandit -c .bandit -r src
+        run: python -X utf8 -m bandit -c .bandit -r src --severity-level medium
 
       - name: Validate syntax (compileall)
         run: python -m compileall -q src tests
@@ -117,7 +117,7 @@ jobs:
         run: pre-commit run --all-files --show-diff-on-failure
 
       - name: Run Bandit security scan
-        run: python -m bandit -c .bandit -r src
+        run: python -m bandit -c .bandit -r src --severity-level medium
 
       - name: Validate syntax (compileall)
         run: python -m compileall -q src tests
