@@ -302,6 +302,7 @@ class TestGuessMime:
     # Mimes alternativos aceitos por plataforma (registro do Windows, etc.)
     _ALTERNATE_MIMES: dict[str, str] = {
         ".csv": "application/vnd.ms-excel",
+        ".xlsx": "application/octet-stream",  # Windows runner sem registry entry
     }
 
     @pytest.mark.parametrize("ext,expected", list(EXPECTED_MIMES.items()))

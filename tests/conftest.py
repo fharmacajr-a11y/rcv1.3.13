@@ -11,10 +11,13 @@ Provides:
 from __future__ import annotations
 
 import ast
+import os
 import sys
 import textwrap
 from pathlib import Path
 from typing import Any
+
+import pytest
 
 # ---------------------------------------------------------------------------
 # Path setup
@@ -24,6 +27,20 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+
+
+# ---------------------------------------------------------------------------
+# Supabase env defaults (public anon keys) for CI runners without .env
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _apply_runtime_defaults():
+    """Garante que vars públicas de Supabase estejam disponíveis em CI."""
+    from src.config.runtime_defaults import RUNTIME_DEFAULTS
+
+    for key, value in RUNTIME_DEFAULTS.items():
+        os.environ.setdefault(key, value)
 
 
 # ---------------------------------------------------------------------------
