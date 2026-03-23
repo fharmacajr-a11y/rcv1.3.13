@@ -33,7 +33,7 @@ import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from tkinter import filedialog
-from typing import Any
+from typing import Any, Callable
 
 from src.adapters.storage.supabase_storage import SupabaseStorageAdapter
 from src.ui.dialogs.download_result_dialog import DownloadResultDialog
@@ -160,6 +160,7 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
         org_id: str = "",
         bucket: str = "",
         base_prefix: str = "",
+        on_mutation: Callable[[], None] | None = None,
     ) -> None:
         # PASSO 1 — cria o Toplevel (ainda não aparece na tela)
         super().__init__(parent)
@@ -178,6 +179,7 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
         self._org_id = org_id
         self._bucket = bucket
         self._base_prefix = base_prefix
+        self._on_mutation = on_mutation
         self._status_cache: dict[str, str] = {}
         self._after_ids: set[str] = set()
         self._download_in_progress = False
@@ -894,6 +896,12 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
                 return
             self._refresh_listing()
             show_info(self, "Excluir", f"Pasta '{item_name}' excluída com sucesso.")
+            if self._on_mutation is not None:
+                _log.info("[BrowserV2] Disparando on_mutation após delete de pasta (client_id=%s)", self._client_id)
+                try:
+                    self._on_mutation()
+                except Exception:  # noqa: BLE001
+                    pass
         else:
             if not ask_yes_no_danger(
                 self,
@@ -907,6 +915,14 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
                 if ok:
                     self._refresh_listing()
                     show_info(self, "Excluir", f"Arquivo '{item_name}' excluído com sucesso.")
+                    if self._on_mutation is not None:
+                        _log.info(
+                            "[BrowserV2] Disparando on_mutation após delete de arquivo (client_id=%s)", self._client_id
+                        )
+                        try:
+                            self._on_mutation()
+                        except Exception:  # noqa: BLE001
+                            pass
                 else:
                     show_error(self, "Excluir", f"Falha ao excluir '{item_name}'.")
             except Exception as exc:
@@ -959,6 +975,14 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
             show_info(self, "Upload", f"{ok_count} arquivo(s) enviado(s) com sucesso.")
 
         self._refresh_listing()
+        if ok_count and self._on_mutation is not None:
+            _log.info(
+                "[BrowserV2] Disparando on_mutation após upload (client_id=%s ok_count=%s)", self._client_id, ok_count
+            )
+            try:
+                self._on_mutation()
+            except Exception:  # noqa: BLE001
+                pass
 
     # ------------------------------------------------------------------
     # Breadcrumb
@@ -1089,6 +1113,7 @@ def open_files_browser_v2(
     org_id: str = "",
     bucket: str = "",
     base_prefix: str = "",
+    on_mutation: Callable[[], None] | None = None,
 ) -> UploadsBrowserWindowV2 | None:
     """Abre o Browser V2 para o cliente informado.
 
@@ -1103,6 +1128,7 @@ def open_files_browser_v2(
             org_id=org_id,
             bucket=bucket,
             base_prefix=base_prefix,
+            on_mutation=on_mutation,
         )
         return win
     except Exception as exc:

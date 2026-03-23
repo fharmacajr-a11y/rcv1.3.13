@@ -59,6 +59,7 @@ def execute_upload_flow(
     ents: dict[str, Any],
     client_id: int | None,
     host: Any,
+    on_mutation: Callable[[], None] | None = None,
 ) -> None:
     """
     Executa o fluxo completo de upload de documentos para um cliente.
@@ -81,6 +82,8 @@ def execute_upload_flow(
     Raises:
         Exception: Se houver erro durante upload
     """
+    logger.info("[EnviarDocs] execute_upload_flow iniciado para cliente_id=%s", client_id)
+
     # 1. Selecionar pasta
     folder = filedialog.askdirectory(title="Selecione a pasta com os documentos", parent=parent_widget)
     if not folder:
@@ -256,11 +259,17 @@ def execute_upload_flow(
         total_sent = payload.get("total") or items_total
 
         if total_failed == 0:
+            logger.info("[EnviarDocs] upload bem-sucedido: ok_count=%s para cliente_id=%s", ok_count, client_id)
             _show_msg(
                 parent_widget,
                 "Envio concluído",
                 f"{ok_count} arquivo(s) enviados com sucesso.",
             )
+            if ok_count > 0 and on_mutation is not None:
+                try:
+                    on_mutation()
+                except Exception:  # noqa: BLE001
+                    logger.debug("[EnviarDocs] on_mutation callback falhou", exc_info=True)
             return
 
         summary = "\n".join(failure_msgs[:6])
@@ -268,11 +277,22 @@ def execute_upload_flow(
             summary += f"\n... e mais {len(failure_msgs) - 6} arquivo(s)"
 
         if ok_count > 0:
+            logger.info(
+                "[EnviarDocs] upload parcial: ok_count=%s failed=%s para cliente_id=%s",
+                ok_count,
+                total_failed,
+                client_id,
+            )
             _show_msg(
                 parent_widget,
                 "Envio concluído com avisos",
                 f"{ok_count} enviado(s), {total_failed} falha(s) de {total_sent}.\n\n{summary}",
             )
+            if on_mutation is not None:
+                try:
+                    on_mutation()
+                except Exception:  # noqa: BLE001
+                    logger.debug("[EnviarDocs] on_mutation callback falhou", exc_info=True)
         else:
             _show_msg(
                 parent_widget,
