@@ -31,7 +31,12 @@ _TOOLBAR_PY = _ROOT / "src" / "modules" / "clientes" / "ui" / "views" / "toolbar
 
 
 class TestP23NewClientReentrancy(unittest.TestCase):
-    """P2-3: _on_new_client deve usar mesma guarda de reentrância que _open_client_editor."""
+    """P2-3: _on_new_client delega para _open_client_editor, que possui todos os guards de reentrância.
+
+    Após refatoração (FASE 7B.5), _on_new_client é um wrapper de 1 linha que chama
+    _open_client_editor(new_client=True). Os guards de reentrância vivem em
+    _open_client_editor — verificamos o método correto.
+    """
 
     def _get_method_source(self, method_name: str) -> str:
         """Extrai source do método especificado de view.py."""
@@ -42,32 +47,37 @@ class TestP23NewClientReentrancy(unittest.TestCase):
                 return ast.get_source_segment(source, node) or ""
         return ""
 
-    def test_checks_opening_editor_flag(self) -> None:
-        """_on_new_client deve checar self._opening_editor."""
+    def test_on_new_client_delegates_to_open_editor(self) -> None:
+        """_on_new_client delega para _open_client_editor com new_client=True."""
         src = self._get_method_source("_on_new_client")
-        self.assertIn("_opening_editor", src, "_on_new_client não checa _opening_editor")
+        self.assertIn("_open_client_editor", src, "_on_new_client deve delegar para _open_client_editor")
+        self.assertIn("new_client=True", src, "_on_new_client deve passar new_client=True")
+
+    def test_checks_opening_editor_flag(self) -> None:
+        """_open_client_editor (usado por _on_new_client) checa self._opening_editor."""
+        src = self._get_method_source("_open_client_editor")
+        self.assertIn("_opening_editor", src, "_open_client_editor não checa _opening_editor")
 
     def test_checks_editor_dialog_reference(self) -> None:
-        """_on_new_client deve checar self._editor_dialog existente."""
-        src = self._get_method_source("_on_new_client")
-        self.assertIn("_editor_dialog", src, "_on_new_client não checa _editor_dialog")
+        """_open_client_editor (usado por _on_new_client) checa self._editor_dialog existente."""
+        src = self._get_method_source("_open_client_editor")
+        self.assertIn("_editor_dialog", src, "_open_client_editor não checa _editor_dialog")
 
     def test_sets_opening_editor_true_before_creation(self) -> None:
-        """_on_new_client deve setar _opening_editor = True antes de criar diálogo."""
-        src = self._get_method_source("_on_new_client")
-        self.assertIn("self._opening_editor = True", src, "_on_new_client não seta _opening_editor = True")
+        """_open_client_editor (usado por _on_new_client) seta _opening_editor = True antes de criar diálogo."""
+        src = self._get_method_source("_open_client_editor")
+        self.assertIn("self._opening_editor = True", src, "_open_client_editor não seta _opening_editor = True")
 
     def test_resets_opening_editor_on_exception(self) -> None:
-        """_on_new_client deve resetar _opening_editor no except."""
-        src = self._get_method_source("_on_new_client")
-        # Deve ter except que reseta ambas as referências
-        self.assertIn("self._opening_editor = False", src, "_on_new_client não reseta _opening_editor no except")
-        self.assertIn("self._editor_dialog = None", src, "_on_new_client não limpa _editor_dialog no except")
+        """_open_client_editor (usado por _on_new_client) reseta _opening_editor no except."""
+        src = self._get_method_source("_open_client_editor")
+        self.assertIn("self._opening_editor = False", src, "_open_client_editor não reseta _opening_editor no except")
+        self.assertIn("self._editor_dialog = None", src, "_open_client_editor não limpa _editor_dialog no except")
 
     def test_registers_on_closed_callback(self) -> None:
-        """_on_new_client deve registrar on_closed callback para limpar referências."""
-        src = self._get_method_source("_on_new_client")
-        self.assertIn("on_close", src, "_on_new_client não passa on_close callback")
+        """_open_client_editor (usado por _on_new_client) registra on_closed callback."""
+        src = self._get_method_source("_open_client_editor")
+        self.assertIn("on_close", src, "_open_client_editor não passa on_close callback")
 
 
 # ============================================================================

@@ -46,6 +46,11 @@ from src.modules.clientes.ui.views.actionbar import ClientesV2ActionBar
 # Importar ViewModel e dados reais do legacy
 from src.modules.clientes.core.viewmodel import ClientesViewModel, ClienteRow
 from src.modules.clientes.core.ui_helpers import ORDER_CHOICES, DEFAULT_ORDER_LABEL, normalize_order_label
+from src.modules.clientes.ui.column_layout import (
+    COLUMNS as _COLUMNS,
+    COLUMN_SPECS_DEFAULTS as _COLUMN_SPECS_DEFAULTS,
+    compute_column_widths as _compute_column_widths,
+)
 
 log = logging.getLogger(__name__)
 
@@ -138,6 +143,29 @@ class ClientesV2Frame(ctk.CTkFrame):
         # Criar Treeview com style correto
         self._create_treeview(list_container)
 
+        self._build_load_controls()
+
+        self._build_footer_bar()
+
+    def _build_footer_bar(self) -> None:
+        """Cria ActionBar (modo normal) ou PickBar (modo ANVISA) no rodapé."""
+        # FASE 3.4: ActionBar ou PickBar no rodapé
+        if self._pick_mode:
+            # Modo pick: botões Selecionar/Cancelar
+            self._create_pick_bar()
+        else:
+            # Modo normal: ActionBar completa
+            self.actionbar = ClientesV2ActionBar(
+                self,
+                on_new=self._on_new_client,
+                on_edit=self._on_edit_client,
+                on_delete=self._on_delete_client,
+                on_restore=self._on_restore_client,
+            )
+            self.actionbar.pack(side="bottom", fill="x", padx=10, pady=(5, 10))
+
+    def _build_load_controls(self) -> None:
+        """Cria e inicializa o botão 'Carregar mais' e o aviso de cap-hit."""
         # PR5 — Botão "Carregar mais" para paginação
         self._load_more_btn = make_btn(
             self,
@@ -160,30 +188,14 @@ class ClientesV2Frame(ctk.CTkFrame):
         )
         self._cap_hit_label_visible = False
 
-        # FASE 3.4: ActionBar ou PickBar no rodapé
-        if self._pick_mode:
-            # Modo pick: botões Selecionar/Cancelar
-            self._create_pick_bar()
-        else:
-            # Modo normal: ActionBar completa
-            self.actionbar = ClientesV2ActionBar(
-                self,
-                on_new=self._on_new_client,
-                on_edit=self._on_edit_client,
-                on_delete=self._on_delete_client,
-                on_restore=self._on_restore_client,
-            )
-            self.actionbar.pack(side="bottom", fill="x", padx=10, pady=(5, 10))
-
     def _create_treeview(self, parent: tk.Misc) -> None:
         """Cria Treeview com configuração completa de tema.
 
         TAREFA 3: Treeview com background E fieldbackground configurados.
         FASE 5: Migrado para CTkTreeviewContainer.
         """
-        # Colunas do Treeview
-        # FASE C: Adicionar colunas observacoes e ultima_alteracao
-        columns = ("id", "razao_social", "cnpj", "nome", "whatsapp", "status", "observacoes", "ultima_alteracao")
+        # Colunas do Treeview (definidas em column_layout.py)
+        columns = _COLUMNS
 
         # FASE 5: Usar CTkTreeviewContainer (substitui criação manual de Treeview + Scrollbar)
         self._tree_container = CTkTreeviewContainer(
@@ -206,31 +218,7 @@ class ClientesV2Frame(ctk.CTkFrame):
         # Obter cores do tema (CTkTreeviewContainer já registrou no manager)
         self._tree_colors = self._tree_container.get_colors()
 
-        # Calcular largura ideal para coluna ultima_alteracao com base na fonte real
-        ultima_alt_width = self._calculate_ultima_alteracao_width()
-
-        # Specs de colunas para layout responsívo
-        # Estrutura: (base_width, min_width, stretch, weight)
-        # IMPORTANTE: razao_social com prioridade máxima, observacoes compacta
-        # ATUALIZADO: Nome e WhatsApp reduzidos, Observações aumentadas para melhor distribuição
-        self._column_specs = {
-            "id": (70, 60, False, 0),
-            "razao_social": (520, 340, True, 0.80),  # Coluna FLEX principal (80% do espaço) - prioridade máxima
-            "cnpj": (190, 170, False, 0),
-            "nome": (220, 165, True, 0.20),  # Coluna FLEX secundária (20% do espaço) - reduzida
-            "whatsapp": (150, 135, False, 0),  # Reduzida para dar espaço a Observações
-            "status": (210, 180, False, 0),
-            "observacoes": (135, 110, False, 0),  # Coluna FIXA aumentada para melhor visualização
-            "ultima_alteracao": (
-                ultima_alt_width,
-                max(ultima_alt_width - 10, 180),
-                False,
-                0,
-            ),  # Calculada com respiro, min=180
-        }
-
-        # Aplicar configuração inicial das colunas
-        self._apply_columns_layout()
+        self._setup_column_specs()
 
         # Configurar grid do parent
         parent.grid_rowconfigure(0, weight=1)
@@ -239,6 +227,26 @@ class ClientesV2Frame(ctk.CTkFrame):
         # Guardar referência ao widget Treeview interno
         self.tree_widget = self.tree
 
+        self._setup_treeview_bindings()
+
+        log.info("✅ [Clientes] Treeview criada com style RC.ClientesV2.Treeview")
+
+    def _setup_column_specs(self) -> None:
+        """Calcula specs de colunas e aplica o layout inicial ao Treeview."""
+        # Calcular largura ideal para coluna ultima_alteracao com base na fonte real
+        ultima_alt_width = self._calculate_ultima_alteracao_width()
+
+        # Specs de colunas — defaults em column_layout.py; ultima_alteracao recalculada ao vivo
+        self._column_specs = {
+            **_COLUMN_SPECS_DEFAULTS,
+            "ultima_alteracao": (ultima_alt_width, max(ultima_alt_width - 10, 180), False, 0.0),
+        }
+
+        # Aplicar configuração inicial das colunas
+        self._apply_columns_layout()
+
+    def _setup_treeview_bindings(self) -> None:
+        """Registra todos os event handlers do Treeview após criação do widget."""
         # Binds para seleção e atalhos (unbind antes para evitar acúmulo)
         self.tree.unbind("<<TreeviewSelect>>")
         self.tree.bind("<<TreeviewSelect>>", self._on_tree_select)
@@ -274,8 +282,6 @@ class ClientesV2Frame(ctk.CTkFrame):
 
         # Aplicar resize inicial após renderização
         self.after(50, self._resize_columns)
-
-        log.info("✅ [Clientes] Treeview criada com style RC.ClientesV2.Treeview")
 
     def _apply_columns_layout(self) -> None:
         """Aplica configuração inicial das colunas (headings, anchor, larguras).
@@ -344,11 +350,7 @@ class ClientesV2Frame(ctk.CTkFrame):
         """Recalcula larguras das colunas flex baseado no espaço disponível.
 
         IMPORTANTE: Garante que sum(widths) <= tree_width para evitar corte de colunas.
-        Algoritmo:
-        1) Começa com minwidth de TODAS as colunas
-        2) Calcula espaço extra disponível (tree_width - soma_minwidths)
-        3) Completa colunas fixas até base_width (opcional)
-        4) Distribui restante entre colunas flex por weight
+        Cálculo delegado a _compute_column_widths (testável isoladamente).
 
         Args:
             event: Evento de Configure (opcional)
@@ -358,57 +360,18 @@ class ClientesV2Frame(ctk.CTkFrame):
             if tree_width <= 1:
                 return  # Tree ainda não foi renderizado
 
-            # Manter ordem das colunas como no dict (inserção)
+            widths, is_clamped = _compute_column_widths(tree_width, self._column_specs)
             cols = list(self._column_specs.keys())
-            specs = self._column_specs
 
-            # 1) Começa pelos mínimos
-            widths = {c: int(specs[c][1]) for c in cols}  # min_width
-            total_min = sum(widths.values())
-
-            # Se nem os mínimos cabem, aplica mínimos e deixa o Treeview clipar
-            if tree_width <= total_min:
-                for c in cols:
-                    base_w, min_w, stretch, _ = specs[c]
-                    self.tree.column(c, width=widths[c], minwidth=min_w, stretch=stretch, anchor="center")
-                log.debug(f"[Clientes] Largura insuficiente: tree={tree_width}px < min={total_min}px")
-                return
-
-            extra = tree_width - total_min
-
-            # 2) Opcional: completar colunas fixas até base_width
-            fixed_cols = [c for c in cols if not specs[c][2]]  # stretch=False
-            for c in fixed_cols:
-                base_w, _, _, _ = specs[c]
-                need = max(0, int(base_w) - widths[c])
-                add = min(extra, need)
-                widths[c] += add
-                extra -= add
-                if extra <= 0:
-                    break
-
-            # 3) Distribuir restante nas colunas flex por weight
-            flex_cols = [c for c in cols if specs[c][2]]  # stretch=True
-            if flex_cols and extra > 0:
-                total_weight = sum(float(specs[c][3]) for c in flex_cols) or float(len(flex_cols))
-                remaining = extra
-                for i, c in enumerate(flex_cols):
-                    w = float(specs[c][3]) or 1.0
-                    if i == len(flex_cols) - 1:
-                        # Joga o resto na última para fechar certinho
-                        add = remaining
-                    else:
-                        add = int(extra * (w / total_weight))
-                        add = min(add, remaining)
-                    widths[c] += add
-                    remaining -= add
-
-            # 4) Aplicar widths finais
             for c in cols:
-                base_w, min_w, stretch, _ = specs[c]
+                _, min_w, stretch, _ = self._column_specs[c]
                 self.tree.column(c, width=widths[c], minwidth=min_w, stretch=stretch, anchor="center")
 
-            log.debug(f"[Clientes] Colunas redimensionadas: tree={tree_width}px, total={sum(widths.values())}px")
+            if is_clamped:
+                total_min = sum(widths.values())
+                log.debug(f"[Clientes] Largura insuficiente: tree={tree_width}px < min={total_min}px")
+            else:
+                log.debug(f"[Clientes] Colunas redimensionadas: tree={tree_width}px, total={sum(widths.values())}px")
 
         except Exception as e:
             log.error(f"[Clientes] Erro ao redimensionar colunas: {e}", exc_info=True)
@@ -520,30 +483,16 @@ class ClientesV2Frame(ctk.CTkFrame):
         Atualiza self._selected_client_id e habilita/desabilita botões.
         """
         try:
-            selection = self.tree.selection()
+            from src.modules.clientes.ui.actions import resolve_selection_id as _resolve_selection_id
 
-            if selection:
-                # Pegar item selecionado
-                item_id = selection[0]
-                values = self.tree.item(item_id, "values")
+            self._selected_client_id = _resolve_selection_id(self.tree)
+            has_selection = self._selected_client_id is not None
 
-                if values:
-                    # ID está na primeira coluna
-                    self._selected_client_id = int(values[0])
-                    log.debug(f"[Clientes] Cliente selecionado: ID={self._selected_client_id}")
+            if has_selection:
+                log.debug(f"[Clientes] Cliente selecionado: ID={self._selected_client_id}")
 
-                    # Habilitar botões
-                    if hasattr(self, "actionbar") and self.actionbar:
-                        self.actionbar.set_selection_state(True)
-                else:
-                    self._selected_client_id = None
-                    if hasattr(self, "actionbar") and self.actionbar:
-                        self.actionbar.set_selection_state(False)
-            else:
-                # Nada selecionado
-                self._selected_client_id = None
-                if hasattr(self, "actionbar") and self.actionbar:
-                    self.actionbar.set_selection_state(False)
+            if hasattr(self, "actionbar") and self.actionbar:
+                self.actionbar.set_selection_state(has_selection)
 
             # Sincroniza a tag visual 'selected' com a seleção nativa a cada interação.
             # NECESSÁRIO: o unbind(<<TreeviewSelect>>) em _create_treeview remove o handler
@@ -586,31 +535,29 @@ class ClientesV2Frame(ctk.CTkFrame):
         return (str(self._selected_client_id),)
 
     def _on_column_lock(self, event: Any) -> str | None:
-        """Handler para bloquear resize e reorder de colunas.
-
-        Args:
-            event: Evento de clique do mouse
-
-        Returns:
-            "break" se bloqueou a ação, None caso contrário
-        """
+        """Handler para bloquear resize e reorder de colunas."""
         try:
+            from src.modules.clientes.ui.actions import handle_column_lock_region as _handle_column_lock_region
+
             region = self.tree.identify_region(event.x, event.y)
-
-            # Bloquear resize (separador entre colunas)
-            if region == "separator":
-                return "break"
-
-            # Bloquear clique no heading (impede reordenação e clique)
-            if region == "heading":
-                return "break"
-
-            # Permitir outras ações (seleção de linha, clique em célula)
-            return None
-
+            return _handle_column_lock_region(region)
         except Exception as e:
             log.error(f"[Clientes] Erro no handler de bloqueio de coluna: {e}", exc_info=True)
             return None
+
+    def _build_menu_btn(self, container: Any, text: str, command: Any) -> Any:
+        """Cria um botão padronizado para o context menu de linha."""
+        return make_btn(
+            container,
+            text=text,
+            command=command,
+            width=180,
+            height=32,
+            fg_color="transparent",
+            hover_color=BORDER,
+            text_color=TEXT_PRIMARY,
+            anchor="w",
+        )
 
     def _on_tree_right_click(self, event: Any) -> None:
         """Handler para botão direito do mouse (context menu).
@@ -640,58 +587,22 @@ class ClientesV2Frame(ctk.CTkFrame):
             container.pack(fill="both", expand=True, padx=2, pady=2)
 
             # Botões do menu
-            btn_width = 180
-            btn_height = 32
-
-            make_btn(
-                container,
-                text="✏️ Editar",
-                command=lambda: [menu.destroy(), self._on_edit_client()],
-                width=btn_width,
-                height=btn_height,
-                fg_color="transparent",
-                hover_color=BORDER,
-                text_color=TEXT_PRIMARY,
-                anchor="w",
-            ).pack(padx=4, pady=(4, 2))
-
-            make_btn(
-                container,
-                text=" Enviar documentos",
-                command=lambda: [menu.destroy(), self._on_enviar_documentos()],
-                width=btn_width,
-                height=btn_height,
-                fg_color="transparent",
-                hover_color=BORDER,
-                text_color=TEXT_PRIMARY,
-                anchor="w",
+            self._build_menu_btn(container, "✏️ Editar", lambda: [menu.destroy(), self._on_edit_client()]).pack(
+                padx=4, pady=(4, 2)
+            )
+            self._build_menu_btn(
+                container, " Enviar documentos", lambda: [menu.destroy(), self._on_enviar_documentos()]
             ).pack(padx=4, pady=2)
 
             delete_text = "🗑️ Excluir definitivamente" if self._trash_mode else "🗑️ Enviar para Lixeira"
-            make_btn(
-                container,
-                text=delete_text,
-                command=lambda: [menu.destroy(), self._on_delete_client()],
-                width=btn_width,
-                height=btn_height,
-                fg_color="transparent",
-                hover_color=BORDER,
-                text_color=TEXT_PRIMARY,
-                anchor="w",
-            ).pack(padx=4, pady=(2, 4 if not self._trash_mode else 2))
+            self._build_menu_btn(container, delete_text, lambda: [menu.destroy(), self._on_delete_client()]).pack(
+                padx=4, pady=(2, 4 if not self._trash_mode else 2)
+            )
 
             # Botão Restaurar (somente em modo LIXEIRA)
             if self._trash_mode:
-                make_btn(
-                    container,
-                    text="♻️ Restaurar",
-                    command=lambda: [menu.destroy(), self._on_restore_client()],
-                    width=btn_width,
-                    height=btn_height,
-                    fg_color="transparent",
-                    hover_color=BORDER,
-                    text_color=TEXT_PRIMARY,
-                    anchor="w",
+                self._build_menu_btn(
+                    container, "♻️ Restaurar", lambda: [menu.destroy(), self._on_restore_client()]
                 ).pack(padx=4, pady=(2, 4))
 
             # Posicionar menu no cursor
@@ -966,6 +877,38 @@ class ClientesV2Frame(ctk.CTkFrame):
         if had_new:
             log.info("[Clientes] Página adicional carregada — total: %d", len(self._vm.get_rows()))
 
+    @staticmethod
+    def _compute_status_cell(
+        status: str | None,
+        status_anvisa: str | None,
+        status_farmacia_popular: str | None,
+    ) -> str:
+        """Deriva o texto da célula Status na Treeview.
+
+        Combina o status principal com marcadores AN (ANVISA) e/ou
+        FP (Farmácia Popular), ignorando valores vazios ou '---'.
+        """
+
+        def _is_active(v: str | None) -> bool:
+            return bool(v and str(v).strip() and str(v).strip() != "---")
+
+        _sp = status if _is_active(status) else ""
+        _has_an = _is_active(status_anvisa)
+        _has_fp = _is_active(status_farmacia_popular)
+        if _has_an and _has_fp:
+            _aux = "AN/FP"
+        elif _has_an:
+            _aux = "AN"
+        elif _has_fp:
+            _aux = "FP"
+        else:
+            _aux = ""
+        if _sp and _aux:
+            return f"{_sp} + {_aux}"
+        if _aux:
+            return _aux
+        return _sp
+
     def _render_rows(self) -> None:
         """Renderiza rows do ViewModel na Treeview com zebra tags.
 
@@ -984,9 +927,6 @@ class ClientesV2Frame(ctk.CTkFrame):
         # Inserir rows
         rows = self._vm.get_rows()
 
-        def _is_active(v: str) -> bool:
-            return bool(v and v.strip() and v.strip() != "---")
-
         for row in rows:
             ultima_alt_str = row.ultima_alteracao  # já formatado pelo ViewModel
 
@@ -997,23 +937,7 @@ class ClientesV2Frame(ctk.CTkFrame):
             observacoes = self._first_line_preview(row.observacoes)
 
             # Compor texto da coluna Status: principal + marcadores AN/FP
-            _sp = row.status if _is_active(row.status) else ""
-            _has_an = _is_active(row.status_anvisa)
-            _has_fp = _is_active(row.status_farmacia_popular)
-            if _has_an and _has_fp:
-                _aux = "AN/FP"
-            elif _has_an:
-                _aux = "AN"
-            elif _has_fp:
-                _aux = "FP"
-            else:
-                _aux = ""
-            if _sp and _aux:
-                status_cell = f"{_sp} + {_aux}"
-            elif _aux:
-                status_cell = _aux
-            else:
-                status_cell = _sp
+            status_cell = self._compute_status_cell(row.status, row.status_anvisa, row.status_farmacia_popular)
 
             iid = self.tree_widget.insert(
                 "",
@@ -1040,11 +964,8 @@ class ClientesV2Frame(ctk.CTkFrame):
     # Callbacks (implementados com dados reais)
     def _on_search(self, text: str) -> None:
         """Handler para botão Buscar."""
-        search_text = self.toolbar.get_search_text()
-        order_label = self.toolbar.get_order()
-        status = self.toolbar.get_status()
-        log.debug(f"[Clientes] Buscar: '{search_text}'")
-        self.load_async(search=search_text, order_label=order_label, status=status)
+        log.debug("[Clientes] Buscar")
+        self.carregar()
 
     def _on_clear_search(self) -> None:
         """Handler para botão Limpar busca."""
@@ -1062,99 +983,40 @@ class ClientesV2Frame(ctk.CTkFrame):
 
     def _on_status_changed(self, status: str) -> None:
         """Handler para mudança de filtro de status."""
-        status_filter = self.toolbar.get_status()
-        log.info(f"[Clientes] Status alterado: '{status_filter}'")
-        search_text = self.toolbar.get_search_text()
-        order_label = self.toolbar.get_order()
-        self.load_async(search=search_text, order_label=order_label, status=status_filter)
+        log.info(f"[Clientes] Status alterado: '{status}'")
+        self.carregar()
 
     def _on_export(self) -> None:
-        """Handler para exportação de dados (FASE 3.5).
-
-        Abre diálogo para escolher formato (CSV/XLSX) e local de salvamento.
-        Exporta dados visíveis/filtrados da tree usando src/modules/clientes/export.py
-        """
-        from tkinter import filedialog
-        from pathlib import Path
-        from src.modules.clientes.core import export
-
-        try:
-            # Verificar se há dados para exportar
-            if not self._row_data_map:
-                _show_info(
-                    self.winfo_toplevel(),  # type: ignore[attr-defined]
-                    "Exportação",
-                    "Nenhum dado disponível para exportar.",
-                )
-                return
-
-            # Obter dados visíveis na tree (respeitando filtros)
-            rows_to_export = list(self._row_data_map.values())
-
-            if not rows_to_export:
-                _show_info(
-                    self.winfo_toplevel(),  # type: ignore[attr-defined]
-                    "Exportação",
-                    "Nenhum cliente para exportar.",
-                )
-                return
-
-            # Determinar tipos de arquivo disponíveis
-            filetypes = [("CSV (separado por vírgulas)", "*.csv")]
-
-            if export.is_xlsx_available():
-                filetypes.append(("Excel (XLSX)", "*.xlsx"))
-
-            # Abrir diálogo de salvamento
-            filepath = filedialog.asksaveasfilename(
-                parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
-                title="Exportar Clientes",
-                defaultextension=".csv",
-                filetypes=filetypes,
-                initialfile="clientes_export",
-            )
-
-            if not filepath:
-                # Usuário cancelou
-                log.debug("[Clientes] Exportação cancelada pelo usuário")
-                return
-
-            filepath_obj = Path(filepath)
-
-            # Exportar baseado na extensão escolhida
-            if filepath_obj.suffix.lower() == ".xlsx":
-                export.export_clients_to_xlsx(rows_to_export, filepath_obj)
-                format_name = "Excel"
-            else:
-                export.export_clients_to_csv(rows_to_export, filepath_obj)
-                format_name = "CSV"
-
-            # Sucesso
+        """Handler para exportação de dados (FASE 3.5)."""
+        if not self._row_data_map:
             _show_info(
                 self.winfo_toplevel(),  # type: ignore[attr-defined]
-                "Sucesso",
-                f"Dados exportados com sucesso!\n\n"
-                f"Arquivo: {filepath_obj.name}\n"
-                f"Formato: {format_name}\n"
-                f"Clientes: {len(rows_to_export)}",
+                "Exportação",
+                "Nenhum dado disponível para exportar.",
             )
+            return
 
-            log.info(f"[Clientes] Exportados {len(rows_to_export)} clientes para {filepath_obj}")
+        rows_to_export = list(self._row_data_map.values())
+        if not rows_to_export:
+            _show_info(
+                self.winfo_toplevel(),  # type: ignore[attr-defined]
+                "Exportação",
+                "Nenhum cliente para exportar.",
+            )
+            return
 
-        except ImportError as e:
-            log.error(f"[Clientes] Erro de importação ao exportar: {e}")
-            _show_error(
-                self.winfo_toplevel(),  # type: ignore[attr-defined]
-                "Erro",
-                f"Biblioteca necessária não está disponível:\n{e}",
-            )
-        except Exception as e:
-            log.error(f"[Clientes] Erro ao exportar: {e}", exc_info=True)
-            _show_error(
-                self.winfo_toplevel(),  # type: ignore[attr-defined]
-                "Erro",
-                f"Erro ao exportar dados:\n{e}",
-            )
+        from tkinter import filedialog
+        from src.modules.clientes.core import export
+        from src.modules.clientes.ui.actions import execute_export as _execute_export
+
+        _execute_export(
+            rows_to_export=rows_to_export,
+            top=self.winfo_toplevel(),  # type: ignore[attr-defined]
+            ask_save_fn=filedialog.asksaveasfilename,
+            show_info_fn=_show_info,
+            show_error_fn=_show_error,
+            export_module=export,
+        )
 
     def _update_toolbar_status_list(self) -> None:
         """Atualiza lista de status do toolbar a partir da lista oficial STATUS_CHOICES."""
@@ -1238,10 +1100,10 @@ class ClientesV2Frame(ctk.CTkFrame):
         return "break"
 
     def _on_new_client(self, event: Any = None) -> str | None:
-        """Handler para botão Novo Cliente.
+        """Handler para botão Novo Cliente (atalho Ctrl+N).
 
-        FASE 4 FINAL: Abre diálogo CustomTkinter (100% CTk).
-        FASE 3.8: Aceita event opcional para atalho Ctrl+N.
+        Delega para _open_client_editor com new_client=True — reutiliza todos os
+        guards de reentrância e instância única sem duplicar lógica.
 
         Args:
             event: Evento de teclado (opcional)
@@ -1249,60 +1111,7 @@ class ClientesV2Frame(ctk.CTkFrame):
         Returns:
             'break' se event fornecido, None caso contrário
         """
-        # Guard: bloqueia se já estamos abrindo um editor
-        if self._opening_editor:
-            return "break" if event else None
-
-        # Guard: se já existe um diálogo aberto, dar foco nele
-        if self._editor_dialog is not None:
-            try:
-                if self._editor_dialog.winfo_exists():
-                    self._editor_dialog.lift()
-                    self._editor_dialog.focus_force()
-                    return "break" if event else None
-            except Exception:
-                self._editor_dialog = None
-
-        if not self.app:
-            log.error("[Clientes] App não disponível para novo cliente")
-            _show_error(
-                self.winfo_toplevel(),  # type: ignore[attr-defined]
-                "Erro",
-                "Não foi possível acessar o controlador do aplicativo.\nTente recarregar o módulo.",
-            )
-            return "break" if event else None
-
-        log.info("[Clientes] Novo cliente - abrindo diálogo")
-
-        self._opening_editor = True
-        try:
-            from src.modules.clientes.ui.views.client_editor_dialog import ClientEditorDialog
-
-            def on_saved(data: dict) -> None:
-                """Callback após salvar."""
-                log.info("[Clientes] Cliente criado com sucesso")
-                self.load_async()
-
-            def on_closed() -> None:
-                """Callback quando diálogo é fechado."""
-                self._editor_dialog = None
-                self._opening_editor = False
-
-            # Abrir diálogo modal
-            self._editor_dialog = ClientEditorDialog(
-                parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
-                client_id=None,
-                on_save=on_saved,
-                on_close=on_closed,
-            )
-            self._opening_editor = False
-            self._editor_dialog.focus()  # type: ignore[attr-defined]
-
-        except Exception as e:
-            log.error(f"[Clientes] Erro ao abrir diálogo de novo cliente: {e}", exc_info=True)
-            self._editor_dialog = None
-            self._opening_editor = False
-
+        self._open_client_editor(source="new", new_client=True)
         return "break" if event else None
 
     def _on_tree_double_click(self, event: tk.Event) -> str:
@@ -1314,13 +1123,10 @@ class ClientesV2Frame(ctk.CTkFrame):
         if not self.tree:
             return "break"
 
-        # Identificar linha clicada
         try:
-            region = self.tree.identify("region", event.x, event.y)
-            if region != "cell":  # Clicou fora das células
-                return "break"
+            from src.modules.clientes.ui.actions import identify_clicked_row as _identify_clicked_row
 
-            item_id = self.tree.identify_row(event.y)
+            item_id = _identify_clicked_row(self.tree, event)
             if not item_id:
                 return "break"
 
@@ -1356,11 +1162,12 @@ class ClientesV2Frame(ctk.CTkFrame):
         self._open_client_editor(source="button" if not event else "shortcut")
         return "break" if event else None
 
-    def _open_client_editor(self, source: str = "unknown") -> None:
+    def _open_client_editor(self, source: str = "unknown", *, new_client: bool = False) -> None:
         """Centraliza lógica de abertura do editor (single instance com guard reentrante).
 
         Args:
             source: Origem da chamada (doubleclick, button, shortcut, etc.) para logs
+            new_client: Se True, cria novo cliente (client_id=None). Se False (padrão), edita o selecionado.
         """
         import uuid
 
@@ -1374,17 +1181,17 @@ class ClientesV2Frame(ctk.CTkFrame):
             return
 
         # GUARD 2: Se diálogo já existe e está visível, apenas dar foco
+        from src.modules.clientes.ui.actions import editor_dialog_is_live as _editor_dialog_is_live
+
+        if _editor_dialog_is_live(self._editor_dialog):
+            log.info(f"[Clientes:{session_id}] Diálogo já aberto, dando foco")
+            self._editor_dialog.lift()  # type: ignore[union-attr]
+            self._editor_dialog.focus_force()  # type: ignore[union-attr]
+            return
         if self._editor_dialog is not None:
-            try:
-                if self._editor_dialog.winfo_exists():
-                    log.info(f"[Clientes:{session_id}] Diálogo já aberto, dando foco")
-                    self._editor_dialog.lift()
-                    self._editor_dialog.focus_force()
-                    return
-            except Exception:
-                # Diálogo foi destruído mas referência não foi limpa
-                log.debug(f"[Clientes:{session_id}] Referência obsoleta, limpando")
-                self._editor_dialog = None
+            # Referência obsoleta (diálogo destruído externamente)
+            log.debug(f"[Clientes:{session_id}] Referência obsoleta, limpando")
+            self._editor_dialog = None
 
         # Validações
         if not self.app:
@@ -1396,7 +1203,7 @@ class ClientesV2Frame(ctk.CTkFrame):
             )
             return
 
-        if not self._selected_client_id:
+        if not new_client and not self._selected_client_id:
             log.warning(f"[Clientes:{session_id}] Nenhum cliente selecionado")
             _show_warning(
                 self.winfo_toplevel(),  # type: ignore[attr-defined]
@@ -1405,16 +1212,23 @@ class ClientesV2Frame(ctk.CTkFrame):
             )
             return
 
+        client_id = None if new_client else self._selected_client_id
+
         # Ativar flag de reentrância
         self._opening_editor = True
-        log.info(f"[Clientes:{session_id}] Criando editor para cliente ID={self._selected_client_id}")
+        log.info(f"[Clientes:{session_id}] Criando editor para cliente ID={client_id}")
 
         try:
             from src.modules.clientes.ui.views.client_editor_dialog import ClientEditorDialog
 
             def on_saved(data: dict) -> None:
-                """Callback após salvar."""
-                log.info(f"[Clientes:{session_id}] Cliente {self._selected_client_id} salvo")
+                """Callback após salvar ou após documentos enviados."""
+                if data.get("_source") == "upload":
+                    log.info(
+                        f"[Clientes:{session_id}] Documentos do cliente {client_id!r} enviados — lista recarregada"
+                    )
+                else:
+                    log.info(f"[Clientes:{session_id}] Cliente {client_id!r} salvo com sucesso")
                 self.load_async()
 
             def on_closed() -> None:
@@ -1426,7 +1240,7 @@ class ClientesV2Frame(ctk.CTkFrame):
             # Criar diálogo modal
             self._editor_dialog = ClientEditorDialog(
                 parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
-                client_id=self._selected_client_id,
+                client_id=client_id,
                 on_save=on_saved,
                 on_close=on_closed,
                 session_id=session_id,  # Passar session_id para logs
@@ -1434,6 +1248,8 @@ class ClientesV2Frame(ctk.CTkFrame):
 
             # Desativar flag após criação (diálogo já está em withdraw/deiconify)
             self._opening_editor = False
+            if new_client:
+                self._editor_dialog.focus()  # type: ignore[attr-defined]
             log.info(f"[Clientes:{session_id}] Editor criado com sucesso")
 
         except Exception as e:
@@ -1457,33 +1273,36 @@ class ClientesV2Frame(ctk.CTkFrame):
         log.info(f"[Clientes] Enviar documentos para cliente ID={self._selected_client_id}")
 
         try:
+            from src.modules.clientes.ui.actions import (
+                trigger_dialog_upload as _trigger_dialog_upload,
+            )
             from src.modules.clientes.ui.views.client_editor_dialog import ClientEditorDialog
 
             def on_saved(data: dict) -> None:
-                """Callback após salvar."""
-                log.info(f"[Clientes] Cliente {self._selected_client_id} atualizado após upload")
+                """Callback após salvar ou após documentos enviados."""
+                if data.get("_source") == "upload":
+                    log.info(
+                        f"[Clientes] Documentos do cliente {self._selected_client_id} enviados — lista recarregada"
+                    )
+                else:
+                    log.info(f"[Clientes] Cliente {self._selected_client_id} atualizado após upload")
                 self.load_async()
 
-            # Abrir diálogo e automaticamente clicar "Enviar documentos"
             dialog = ClientEditorDialog(
                 parent=self.winfo_toplevel(),  # type: ignore[attr-defined]
                 client_id=self._selected_client_id,
                 on_save=on_saved,
             )
-
-            # Aguardar diálogo renderizar e depois acionar upload
-            def trigger_upload():
-                try:
-                    if hasattr(dialog, "_on_enviar_documentos"):
-                        dialog._on_enviar_documentos()  # pyright: ignore[reportAttributeAccessIssue]
-                except Exception as e:
-                    log.error(f"[Clientes] Erro ao acionar upload automaticamente: {e}")
-
-            dialog.after(200, trigger_upload)
+            dialog.after(200, lambda: _trigger_dialog_upload(dialog))
             dialog.focus()  # type: ignore[attr-defined]
 
         except Exception as e:
             log.error(f"[Clientes] Erro ao abrir diálogo para upload: {e}", exc_info=True)
+
+    def _deselect_and_reload(self) -> None:
+        """Desmarca a seleção atual e recarrega a lista após uma mutação."""
+        self._selected_client_id = None
+        self.carregar()
 
     def _on_delete_client(self, event: Any = None) -> str | None:
         """Handler para botão Excluir Cliente.
@@ -1501,109 +1320,48 @@ class ClientesV2Frame(ctk.CTkFrame):
         if not self._selected_client_id:
             return "break" if event else None
 
-        # Guard: editor de clientes aberto significa que o browser de arquivos pode estar
-        # ativo. Nesse caso, qualquer <Delete> recebido aqui é vazamento de foco/evento
-        # e NÃO deve acionar a exclusão do cliente.
-        if self._editor_dialog is not None:
-            try:
-                if self._editor_dialog.winfo_exists():
-                    return "break" if event else None
-            except Exception:  # noqa: BLE001
-                self._editor_dialog = None
-
-        # Pegar dados do cliente selecionado
-        row_data = None
-        for _iid, data in self._row_data_map.items():
-            if int(data.id) == self._selected_client_id:
-                row_data = data
-                break
-
-        razao = row_data.razao_social if row_data else ""
-        label_cli = f"{razao} (ID {self._selected_client_id})" if razao else f"ID {self._selected_client_id}"
-        client_id = self._selected_client_id
-
         from src.modules.clientes.core import service as clientes_service
         from src.modules.lixeira import refresh_if_open as refresh_lixeira_if_open
+        from src.modules.clientes.ui.actions import (
+            editor_dialog_is_live as _editor_dialog_is_live,
+            execute_hard_delete as _execute_hard_delete,
+            execute_soft_delete as _execute_soft_delete,
+            resolve_client_label as _resolve_client_label,
+        )
 
+        # Guard: editor aberto bloqueia Delete para evitar vazamento de foco/evento
+        if _editor_dialog_is_live(self._editor_dialog):
+            return "break" if event else None
+        if self._editor_dialog is not None:
+            self._editor_dialog = None  # referência obsoleta
+
+        label_cli = _resolve_client_label(self._selected_client_id, self._row_data_map)
+        client_id = self._selected_client_id
         top = self.winfo_toplevel()  # pyright: ignore[reportAttributeAccessIssue]
 
         if self._trash_mode:
-            # ── MODO LIXEIRA: exclusão definitiva ──────────────────────────────
-            confirm = _ask_yes_no_danger(
-                top,
-                "Excluir definitivamente",
-                f"Tem certeza que deseja EXCLUIR DEFINITIVAMENTE o cliente {label_cli}?\n\nEsta ação não pode ser desfeita.",
-                confirm_label="Excluir definitivamente",
+            _execute_hard_delete(
+                client_id=client_id,
+                label_cli=label_cli,
+                top=top,
+                service=clientes_service,
+                on_success=self._deselect_and_reload,
+                ask_danger_fn=_ask_yes_no_danger,
+                show_info_fn=_show_info,
+                show_error_fn=_show_error,
             )
-            if not confirm:
-                return "break" if event else None
-
-            log.info(f"[Clientes] Hard delete: cliente ID={client_id}")
-            try:
-                ok, errs = clientes_service.excluir_clientes_definitivamente([client_id])
-                if errs:
-                    msgs = "\n".join(f"  • {e}" for _, e in errs)
-                    _show_error(
-                        top,
-                        "Erro ao excluir",
-                        f"Falha ao excluir cliente {label_cli}:\n{msgs}",
-                    )
-                    log.error("[Clientes] Hard delete falhou para ID=%s: %s", client_id, errs)
-                    return "break" if event else None
-
-                _show_info(
-                    top,
-                    "Excluído",
-                    f"Cliente {label_cli} excluído definitivamente.",
-                )
-                log.info("[Clientes] Hard delete OK: cliente ID=%s", client_id)
-
-                # Refresh da lista permanecendo em modo LIXEIRA
-                self._selected_client_id = None
-                self.carregar()
-
-            except Exception as e:
-                log.error(f"[Clientes] Erro no hard delete do cliente ID={client_id}: {e}", exc_info=True)
-                _show_error(
-                    top,
-                    "Erro",
-                    f"Erro ao excluir definitivamente: {e}",
-                )
         else:
-            # ── MODO ATIVOS: soft delete (mover para lixeira) ──────────────────
-            confirm = _ask_yes_no(
-                top,
-                "Enviar para Lixeira",
-                f"Deseja enviar o cliente {label_cli} para a Lixeira?",
-                confirm_label="Enviar para Lixeira",
+            _execute_soft_delete(
+                client_id=client_id,
+                label_cli=label_cli,
+                top=top,
+                service=clientes_service,
+                refresh_lixeira=refresh_lixeira_if_open,
+                on_success=self._deselect_and_reload,
+                ask_fn=_ask_yes_no,
+                show_info_fn=_show_info,
+                show_error_fn=_show_error,
             )
-            if not confirm:
-                return "break" if event else None
-
-            log.info(f"[Clientes] Soft delete: cliente ID={client_id}")
-            try:
-                clientes_service.mover_cliente_para_lixeira(client_id)
-
-                _show_info(
-                    top,
-                    "Lixeira",
-                    f"Cliente {label_cli} movido para a Lixeira.",
-                )
-                log.info("[Clientes] Soft delete OK: cliente ID=%s", client_id)
-
-                refresh_lixeira_if_open()
-
-                # Refresh da lista permanecendo em modo ATIVOS
-                self._selected_client_id = None
-                self.carregar()
-
-            except Exception as e:
-                log.error(f"[Clientes] Erro ao mover cliente para lixeira ID={client_id}: {e}", exc_info=True)
-                _show_error(
-                    top,
-                    "Erro",
-                    f"Erro ao enviar cliente para lixeira: {e}",
-                )
 
         return "break" if event else None
 
@@ -1612,50 +1370,24 @@ class ClientesV2Frame(ctk.CTkFrame):
         if not self._selected_client_id or not self._trash_mode:
             return
 
-        row_data = None
-        for _iid, data in self._row_data_map.items():
-            if int(data.id) == self._selected_client_id:
-                row_data = data
-                break
-
-        razao = row_data.razao_social if row_data else ""
-        label_cli = f"{razao} (ID {self._selected_client_id})" if razao else f"ID {self._selected_client_id}"
-        client_id = self._selected_client_id
-
-        top = self.winfo_toplevel()  # pyright: ignore[reportAttributeAccessIssue]
-
-        confirm = _ask_yes_no(
-            top,
-            "Restaurar Cliente",
-            f"Deseja restaurar o cliente {label_cli} para a lista de ativos?",
-            confirm_label="Restaurar",
-        )
-        if not confirm:
-            return
-
         from src.modules.clientes.core import service as clientes_service
+        from src.modules.clientes.ui.actions import (
+            execute_restore as _execute_restore,
+            resolve_client_label as _resolve_client_label,
+        )
 
-        log.info("[Clientes] Restaurando cliente ID=%s da lixeira", client_id)
-        try:
-            clientes_service.restaurar_clientes_da_lixeira([client_id])
+        label_cli = _resolve_client_label(self._selected_client_id, self._row_data_map)
 
-            _show_info(
-                top,
-                "Restaurado",
-                f"Cliente {label_cli} restaurado com sucesso.\n\nEle voltará a aparecer na lista de ativos.",
-            )
-            log.info("[Clientes] Restauração OK: cliente ID=%s", client_id)
-
-            self._selected_client_id = None
-            self.carregar()
-
-        except Exception as e:
-            log.error("[Clientes] Erro ao restaurar cliente ID=%s: %s", client_id, e, exc_info=True)
-            _show_error(
-                top,
-                "Erro",
-                f"Erro ao restaurar cliente: {e}",
-            )
+        _execute_restore(
+            client_id=self._selected_client_id,
+            label_cli=label_cli,
+            top=self.winfo_toplevel(),  # pyright: ignore[reportAttributeAccessIssue]
+            service=clientes_service,
+            on_success=self._deselect_and_reload,
+            ask_fn=_ask_yes_no,
+            show_info_fn=_show_info,
+            show_error_fn=_show_error,
+        )
 
     def _on_tree_click(self, event: Any) -> None:
         """Handler para clique simples na Treeview.
@@ -1666,104 +1398,31 @@ class ClientesV2Frame(ctk.CTkFrame):
             event: Evento de clique do mouse
         """
         try:
-            # Identificar linha e coluna clicadas
+            from src.modules.clientes.ui.actions import (
+                normalize_phone_for_whatsapp as _normalize_phone_for_whatsapp,
+                resolve_whatsapp_click as _resolve_whatsapp_click,
+                whatsapp_url as _whatsapp_url,
+            )
+
             region = self.tree.identify_region(event.x, event.y)
-
-            if region != "cell":
-                return
-
             row_id = self.tree.identify_row(event.y)
             column_id = self.tree.identify_column(event.x)
+            values = self.tree.item(row_id, "values") if row_id else ()
 
-            if not row_id or not column_id:
+            whatsapp_raw = _resolve_whatsapp_click(region, row_id, column_id, values)
+            if whatsapp_raw is None:
                 return
 
-            # Verificar se é a coluna WhatsApp (coluna #5)
-            if column_id != "#5":
-                return
-
-            # Pegar valor do WhatsApp
-            values = self.tree.item(row_id, "values")
-            if not values or len(values) < 5:
-                return
-
-            whatsapp_raw = str(values[4])  # Índice 4 = coluna WhatsApp
-
-            if not whatsapp_raw or whatsapp_raw.strip() == "":
-                return
-
-            # Normalizar telefone e abrir WhatsApp
-            phone_normalized = self._normalize_phone_for_whatsapp(whatsapp_raw)
-
+            phone_normalized = _normalize_phone_for_whatsapp(whatsapp_raw)
             if phone_normalized:
-                url = self._whatsapp_url(phone_normalized)
+                url = _whatsapp_url(phone_normalized)
                 log.info("[Clientes] Abrindo WhatsApp para contato")
-
                 import webbrowser
 
                 webbrowser.open(url)
 
         except Exception as e:
             log.error(f"[Clientes] Erro ao processar clique no WhatsApp: {e}", exc_info=True)
-
-    @staticmethod
-    def _normalize_phone_for_whatsapp(raw: str) -> str | None:
-        """Normaliza número de telefone para formato WhatsApp.
-
-        FASE 3.9: Remove formatação e adiciona código do país (55) se necessário.
-
-        Args:
-            raw: Número bruto (ex: '(11) 98765-4321', '+55 11 98765-4321')
-
-        Returns:
-            Número normalizado apenas com dígitos e prefixo 55, ou None se inválido
-
-        Examples:
-            >>> _normalize_phone_for_whatsapp('(11) 98765-4321')
-            '5511987654321'
-            >>> _normalize_phone_for_whatsapp('+55 11 98765-4321')
-            '5511987654321'
-            >>> _normalize_phone_for_whatsapp('11987654321')
-            '5511987654321'
-            >>> _normalize_phone_for_whatsapp('')
-            None
-        """
-        if not raw or not raw.strip():
-            return None
-
-        # Remover tudo que não é dígito
-        digits = "".join(c for c in raw if c.isdigit())
-
-        if not digits:
-            return None
-
-        # Se não começa com 55, adicionar (código do Brasil)
-        if not digits.startswith("55"):
-            digits = "55" + digits
-
-        # Validação básica: mínimo 12 dígitos (55 + DDD + número)
-        if len(digits) < 12:
-            return None
-
-        return digits
-
-    @staticmethod
-    def _whatsapp_url(phone_digits: str) -> str:
-        """Gera URL do WhatsApp Web/App.
-
-        FASE 3.9: Cria URL wa.me para abrir conversa.
-
-        Args:
-            phone_digits: Número normalizado apenas com dígitos (ex: '5511987654321')
-
-        Returns:
-            URL completa do WhatsApp
-
-        Examples:
-            >>> _whatsapp_url('5511987654321')
-            'https://wa.me/5511987654321'
-        """
-        return f"https://wa.me/{phone_digits}"
 
     def destroy(self) -> None:
         """Cleanup antes de destruir."""
@@ -1852,16 +1511,9 @@ class ClientesV2Frame(ctk.CTkFrame):
             log.warning(f"[Clientes][Pick] Cliente {iid} não encontrado no mapa")
             return
 
-        # Converter ClienteRow para dict para compatibilidade com ANVISA
-        client_data = {
-            "id": client_row.id,
-            "razao_social": client_row.razao_social,
-            "cnpj": client_row.cnpj or "",
-            "nome": client_row.nome or "",
-            "whatsapp": client_row.whatsapp or "",
-            "status": client_row.status or "",
-        }
+        from src.modules.clientes.ui.actions import client_row_to_dict as _client_row_to_dict
 
+        client_data = _client_row_to_dict(client_row)
         log.info("[Clientes][Pick] Cliente selecionado: ID=%s", client_data["id"])
 
         # Chamar callback se fornecido

@@ -47,6 +47,7 @@ class TestTrashFilterPersistence(unittest.TestCase):
         view.after_cancel = MagicMock()
         # Bind dos métodos reais que queremos testar
         view.load_async = ClientesV2Frame.load_async.__get__(view, type(view))
+        view.carregar = ClientesV2Frame.carregar.__get__(view, type(view))
         view._on_order_changed = ClientesV2Frame._on_order_changed.__get__(view, type(view))
         view._on_status_changed = ClientesV2Frame._on_status_changed.__get__(view, type(view))
         view._on_clear_search = ClientesV2Frame._on_clear_search.__get__(view, type(view))
