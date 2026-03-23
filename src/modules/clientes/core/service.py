@@ -46,6 +46,7 @@ __all__ = [
     "fetch_cliente_by_id",
     "update_cliente_status_and_observacoes",
     "salvar_cliente_a_partir_do_form",
+    "touch_ultima_alteracao",
 ]
 
 count_clients = _legacy_clientes_service.count_clients
@@ -789,3 +790,65 @@ def update_cliente_status_and_observacoes(cliente: Mapping[str, Any] | int, novo
 
     # Delega para o core (update_status_only já trata coluna 'obs' + fallback ultima_por)
     _update_status_only(cliente_id, new_obs)
+
+
+def _count_updated(resp: object) -> int:
+    """Extrai contagem de linhas afetadas de uma resposta PostgREST."""
+    count = getattr(resp, "count", None)
+    if count is not None:
+        return int(count)
+    data = getattr(resp, "data", None)
+    return len(data) if data else 0
+
+
+def touch_ultima_alteracao(cliente_id: int) -> None:
+    """Toca apenas os campos de auditoria do cliente sem alterar outros dados.
+
+    Chamado pelo editor de clientes após upload ou exclusão de arquivo no
+    Browser V2, para que a coluna 'Última alteração' da lista reflita a
+    operação de arquivo mesmo quando o formulário não foi salvo.
+    """
+    ts = _current_utc_iso()
+    by = _current_user_label()
+    log.info("[touch_ultima_alteracao] iniciando para cliente %s ts=%s", cliente_id, ts)
+    try:
+        resp = exec_postgrest(
+            supabase.table("clients").update({"ultima_alteracao": ts, "ultima_por": by}).eq("id", cliente_id)
+        )
+        n = _count_updated(resp)
+        if n == 0:
+            log.warning(
+                "[touch_ultima_alteracao] UPDATE retornou 0 linhas para cliente %s — "
+                "verificar RLS ou ID inválido (ts=%s)",
+                cliente_id,
+                ts,
+            )
+        else:
+            log.info("[touch_ultima_alteracao] %d linha(s) atualizadas para cliente %s ts=%s", n, cliente_id, ts)
+        return
+    except Exception as exc:  # noqa: BLE001
+        # Fallback: coluna ultima_por pode não existir em schemas legados
+        log.info(
+            "[touch_ultima_alteracao] tentativa primária falhou para cliente %s: %s — tentando fallback",
+            cliente_id,
+            exc,
+        )
+    try:
+        resp = exec_postgrest(supabase.table("clients").update({"ultima_alteracao": ts}).eq("id", cliente_id))
+        n = _count_updated(resp)
+        if n == 0:
+            log.warning(
+                "[touch_ultima_alteracao] fallback UPDATE retornou 0 linhas para cliente %s — "
+                "verificar RLS ou ID inválido (ts=%s)",
+                cliente_id,
+                ts,
+            )
+        else:
+            log.info(
+                "[touch_ultima_alteracao] fallback: %d linha(s) atualizadas para cliente %s ts=%s",
+                n,
+                cliente_id,
+                ts,
+            )
+    except Exception as exc2:
+        log.warning("[touch_ultima_alteracao] fallback também falhou para cliente %s: %s", cliente_id, exc2)
