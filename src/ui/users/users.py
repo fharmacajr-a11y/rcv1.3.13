@@ -1,14 +1,14 @@
 # ui/users/users.py — gerenciador com políticas de admin + layout clássico
 from src.ui.ctk_config import ctk
-from ui.dialogs.rc_dialogs import ask_yes_no, show_error, show_warning
+from src.ui.dialogs.rc_dialogs import ask_yes_no, show_error, show_warning
 import sqlite3
 import logging
 from datetime import datetime, timezone
 
-from core.auth.auth import ensure_users_db, create_user, _pbkdf2_hash  # pyright: ignore[reportAttributeAccessIssue]
-from config.paths import USERS_DB_PATH
-from utils.file_utils import format_datetime
-from ui.utils import center_window  # <<< novo import centralizado
+from src.core.auth.auth import ensure_users_db, create_user, _pbkdf2_hash  # pyright: ignore[reportAttributeAccessIssue]
+from src.config.paths import USERS_DB_PATH
+from src.utils.file_utils import format_datetime
+from src.ui.utils import center_window  # <<< novo import centralizado
 from src.ui.widgets.button_factory import make_btn
 from src.ui.widgets.ctk_treeview_container import CTkTreeviewContainer
 from src.ui.ui_tokens import (
@@ -122,7 +122,7 @@ class UserManagerDialog(ctk.CTkToplevel):
 
         if not rows:
             try:
-                from core.session.session import get_current_user
+                from src.core.session.session import get_current_user
 
                 uname = get_current_user() or ADMIN_NAME
             except Exception:
