@@ -159,6 +159,12 @@ class EditorActionsMixin:
         # Abrir Browser V2
         from src.modules.uploads.views.browser_v2 import open_files_browser_v2
 
+        _files_mutated = [False]
+
+        def _on_mutation_cb() -> None:
+            _files_mutated[0] = True
+            log.info("[EditorArquivos] on_mutation disparado para cliente %s — _files_mutated=True", self.client_id)
+
         dlg = open_files_browser_v2(
             self,
             client_id=int(self.client_id),
@@ -167,6 +173,7 @@ class EditorActionsMixin:
             org_id=org_id,
             bucket=bucket,
             base_prefix=base_prefix,
+            on_mutation=_on_mutation_cb,
         )
 
         if dlg is None:
@@ -193,11 +200,62 @@ class EditorActionsMixin:
         # Reativar grab do editor quando o browser fechar
         def _on_browser_close(event: object) -> None:
             if event.widget is dlg:  # type: ignore[union-attr]
+                log.info(
+                    "[EditorArquivos] browser fechado para cliente %s (_files_mutated=%s)",
+                    self.client_id,
+                    _files_mutated[0],
+                )
                 try:
                     if self.winfo_exists():
                         self.after(50, self.grab_set)
                 except Exception:  # noqa: BLE001
                     pass
+                if _files_mutated[0]:
+                    try:
+                        self.after(100, _touch_and_refresh)
+                        log.info("[EditorArquivos] _touch_and_refresh agendado para cliente %s", self.client_id)
+                    except Exception:  # noqa: BLE001
+                        pass
+
+        def _touch_and_refresh() -> None:
+            # Roda no main thread (agendado via self.after).
+            import threading
+
+            cid = self.client_id
+            log.info("[EditorArquivos] _touch_and_refresh iniciado para cliente %s", cid)
+
+            def _bg() -> None:
+                # I/O puro — NUNCA chamar métodos Tk aqui.
+                log.info("[EditorArquivos] _bg: iniciando touch_ultima_alteracao para cliente %s", cid)
+                try:
+                    from src.modules.clientes.core.service import touch_ultima_alteracao
+
+                    touch_ultima_alteracao(int(cid))
+                    log.info("[EditorArquivos] _bg: touch_ultima_alteracao concluído para cliente %s", cid)
+                except Exception as exc:  # noqa: BLE001
+                    log.warning("[EditorArquivos] _bg: Falha ao tocar ultima_alteracao para cliente %s: %s", cid, exc)
+                # Retorna ao main thread para qualquer operação Tk.
+                # self.after(0, ...) é thread-safe (fila interna do Tcl).
+                try:
+                    self.after(0, _notify_main)
+                except Exception:  # noqa: BLE001
+                    pass
+
+            def _notify_main() -> None:
+                # Roda no main thread — seguro checar winfo_exists e chamar on_save.
+                log.info("[EditorArquivos] _notify_main: verificando editor para cliente %s", cid)
+                try:
+                    if self.winfo_exists() and callable(getattr(self, "on_save", None)):
+                        log.info("[EditorArquivos] _notify_main: chamando on_save para cliente %s", cid)
+                        self.on_save({"_source": "upload"})
+                    else:
+                        log.info(
+                            "[EditorArquivos] _notify_main: editor destruído ou on_save ausente para cliente %s", cid
+                        )
+                except Exception:  # noqa: BLE001
+                    pass
+
+            threading.Thread(target=_bg, daemon=True).start()
 
         dlg.bind("<Destroy>", _on_browser_close)
 
@@ -296,6 +354,39 @@ class EditorActionsMixin:
             # Usar a função COMPLETA do legado (pasta → subpasta → arquivos → upload)
             from src.modules.clientes.forms.client_form_upload_helpers import execute_upload_flow
 
+            # Callback chamado pelo UploadDialog APÓS upload bem-sucedido (no main thread).
+            # Roda touch_ultima_alteracao em background e despacha on_save via self.after(0, ...).
+            def _on_mutation_enviar_docs() -> None:
+                import threading
+
+                cid = self.client_id
+                log.info("[EnviarDocs] upload concluído para cliente %s — iniciando touch_ultima_alteracao", cid)
+
+                def _bg() -> None:
+                    try:
+                        from src.modules.clientes.core.service import touch_ultima_alteracao
+
+                        touch_ultima_alteracao(int(cid))
+                        log.info("[EnviarDocs] touch_ultima_alteracao concluído para cliente %s", cid)
+                    except Exception as exc:  # noqa: BLE001
+                        log.warning("[EnviarDocs] touch_ultima_alteracao falhou para cliente %s: %s", cid, exc)
+                    try:
+                        self.after(0, _notify_main)
+                    except Exception:  # noqa: BLE001
+                        pass
+
+                def _notify_main() -> None:
+                    log.info("[EnviarDocs] solicitando refresh da lista para cliente %s", cid)
+                    try:
+                        if self.winfo_exists() and callable(getattr(self, "on_save", None)):
+                            self.on_save({"_source": "upload"})
+                        else:
+                            log.info("[EnviarDocs] editor destruído ou on_save ausente para cliente %s", cid)
+                    except Exception:  # noqa: BLE001
+                        pass
+
+                threading.Thread(target=_bg, daemon=True).start()
+
             # execute_upload_flow já faz:
             # 1. Solicita pasta
             # 2. Coleta PDFs da pasta
@@ -303,20 +394,14 @@ class EditorActionsMixin:
             # 4. Valida arquivos
             # 5. Executa upload com progresso
             # 6. Exibe resultado
+            # on_mutation é chamado apenas quando ok_count > 0 (upload com sucesso real).
             execute_upload_flow(
                 parent_widget=self,
                 ents=ents_mock,
                 client_id=self.client_id,
                 host=self,  # Precisa ter self.supabase para resolver org_id
+                on_mutation=_on_mutation_enviar_docs,
             )
-
-            # Se sucesso, atualizar callback
-            if self.on_save:
-                valores_atualizados = {
-                    "Razão Social": self.razao_entry.get().strip(),
-                    "CNPJ": self.cnpj_entry.get().strip(),
-                }
-                self.on_save(valores_atualizados)
 
         except Exception as e:
             log.error(f"[ClientEditor] Erro no fluxo de upload: {e}", exc_info=True)

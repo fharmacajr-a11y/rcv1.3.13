@@ -148,9 +148,11 @@ class TestViewDeleteClientGuard(unittest.TestCase):
             "view.py: _on_delete_client não verifica _editor_dialog. "
             "Delete pode excluir o cliente mesmo com browser aberto."
         )
-        assert "winfo_exists" in snippet, (
-            "view.py: _on_delete_client não chama winfo_exists() no guard. "
-            "O guard deve validar a existência do dialog antes de retornar."
+        # O guard de liveness pode ser feito diretamente com winfo_exists()
+        # OU via helper editor_dialog_is_live (padrão atual — FASE 7B.8).
+        assert "winfo_exists" in snippet or "editor_dialog_is_live" in snippet, (
+            "view.py: _on_delete_client não valida a existência do dialog. "
+            "O guard deve usar winfo_exists() ou editor_dialog_is_live()."
         )
 
     def test_on_delete_client_returns_break_when_editor_open(self) -> None:
@@ -215,6 +217,138 @@ class TestEditorActionsFocusForce(unittest.TestCase):
         assert "focus_force" in snippet, (
             "_editor_actions_mixin.py: focus_force() não chamado após open_files_browser_v2. "
             "Sem isso, o foco pode permanecer no treeview de clientes durante o grab race."
+        )
+
+
+# ===========================================================================
+# 6) Thread-safety do _touch_and_refresh (hardening do bugfix "Última alteração")
+# ===========================================================================
+
+
+class TestTouchAndRefreshThreadSafety(unittest.TestCase):
+    """Garante que _touch_and_refresh não chama Tk fora do main thread.
+
+    Invariantes verificados por inspeção de fonte:
+      a) _bg() NÃO chama winfo_exists() diretamente (operação Tk não-thread-safe).
+      b) _bg() retorna ao main thread via self.after(0, ...) antes de qualquer Tk.
+      c) _notify_main() (main thread) é quem chama winfo_exists() e on_save.
+      d) self.after(100, _touch_and_refresh) em _on_browser_close está dentro de try/except.
+    """
+
+    def _extract_bg_body(self, source: str) -> str:
+        """Extrai o corpo de _bg() delimitado por _notify_main()."""
+        bg_marker = "def _bg() -> None:"
+        notify_marker = "def _notify_main() -> None:"
+        start = source.find(bg_marker)
+        assert start >= 0, "_editor_actions_mixin.py: def _bg() não encontrado"
+        end = source.find(notify_marker, start)
+        assert end >= 0, "_editor_actions_mixin.py: def _notify_main() não encontrado após _bg()"
+        return source[start:end]
+
+    def test_bg_does_not_call_winfo_exists(self) -> None:
+        """_bg() não deve chamar winfo_exists() — chamada Tk fora do main thread."""
+        source = _src(_EDITOR_ACTIONS)
+        bg_body = self._extract_bg_body(source)
+        assert "winfo_exists" not in bg_body, (
+            "_editor_actions_mixin.py: _bg() chama winfo_exists() fora do main thread. "
+            "Isso é thread-unsafe. A verificação deve estar em _notify_main()."
+        )
+
+    def test_bg_schedules_notify_via_after(self) -> None:
+        """_bg() deve agendar o retorno ao main thread via self.after(0, ...)."""
+        source = _src(_EDITOR_ACTIONS)
+        bg_body = self._extract_bg_body(source)
+        assert "self.after(0," in bg_body, (
+            "_editor_actions_mixin.py: _bg() não agenda retorno ao main thread via "
+            "self.after(0, ...). Qualquer chamada Tk após I/O seria thread-unsafe."
+        )
+
+    def test_notify_main_checks_winfo_exists(self) -> None:
+        """_notify_main() deve verificar winfo_exists() antes de chamar on_save."""
+        source = _src(_EDITOR_ACTIONS)
+        # Encontrar _notify_main
+        marker = "def _notify_main() -> None:"
+        start = source.find(marker)
+        assert start >= 0, "_editor_actions_mixin.py: def _notify_main() não encontrado"
+        snippet = source[start : start + 400]
+        assert "winfo_exists" in snippet, (
+            "_editor_actions_mixin.py: _notify_main() não checa winfo_exists() antes de "
+            "chamar on_save. Pode chamar callback em widget já destruído."
+        )
+        assert "on_save" in snippet, (
+            "_editor_actions_mixin.py: _notify_main() não chama on_save. " "O refresh da lista não será disparado."
+        )
+
+    def test_browser_close_after_touch_wrapped_in_try(self) -> None:
+        """self.after(100, _touch_and_refresh) deve estar dentro de try/except."""
+        source = _src(_EDITOR_ACTIONS)
+        # Encontrar o bloco de _on_browser_close e checar que o after(100 está protegido
+        marker = "def _on_browser_close"
+        start = source.find(marker)
+        assert start >= 0, "_editor_actions_mixin.py: _on_browser_close não encontrado"
+        snippet = source[start : start + 900]
+        # O after(100, _touch_and_refresh) deve estar em try
+        idx_after100 = snippet.find("self.after(100, _touch_and_refresh)")
+        assert idx_after100 >= 0, (
+            "_editor_actions_mixin.py: self.after(100, _touch_and_refresh) não encontrado " "em _on_browser_close."
+        )
+        # Verificar que existe um 'try:' antes do after(100 dentro do mesmo bloco
+        before = snippet[:idx_after100]
+        # Último 'try:' antes da linha deve estar presente
+        assert "try:" in before, (
+            "_editor_actions_mixin.py: self.after(100, _touch_and_refresh) não está "
+            "dentro de try/except. Se self já foi destruído, levanta exceção não tratada."
+        )
+
+    def test_on_mutation_callback_wires_files_mutated(self) -> None:
+        """open_files_browser_v2 deve receber on_mutation que marca _files_mutated."""
+        source = _src(_EDITOR_ACTIONS)
+        # Verificar que on_mutation= é passado à chamada de open_files_browser_v2
+        start = source.find("dlg = open_files_browser_v2(")
+        assert start >= 0, "_editor_actions_mixin.py: open_files_browser_v2 não encontrado"
+        snippet = source[start : start + 400]
+        assert "on_mutation=" in snippet, (
+            "_editor_actions_mixin.py: on_mutation não é passado para open_files_browser_v2. "
+            "_files_mutated nunca será marcado True e o refresh não disparará."
+        )
+
+    def test_browser_v2_on_mutation_param_in_init(self) -> None:
+        """UploadsBrowserWindowV2.__init__ deve aceitar on_mutation."""
+        source = _src(_BROWSER_V2)
+        init_start = source.find("def __init__(")
+        assert init_start >= 0
+        init_snippet = source[init_start : init_start + 600]
+        assert "on_mutation" in init_snippet, (
+            "browser_v2.py: __init__ não aceita on_mutation. " "O callback de mutação não pode ser wired."
+        )
+
+    def test_browser_v2_on_mutation_called_after_upload(self) -> None:
+        """browser_v2 deve chamar _on_mutation após upload bem-sucedido."""
+        source = _src(_BROWSER_V2)
+        handle_upload_start = source.find("def _handle_upload(")
+        assert handle_upload_start >= 0
+        # Próxima def (breadcrumb) delimita o fim do método
+        next_def = source.find("\n    def ", handle_upload_start + 1)
+        snippet = (
+            source[handle_upload_start:next_def]
+            if next_def > 0
+            else source[handle_upload_start : handle_upload_start + 2500]
+        )
+        assert "_on_mutation" in snippet, (
+            "browser_v2.py: _handle_upload não invoca _on_mutation. " "Upload não atualizará 'Última alteração'."
+        )
+
+    def test_browser_v2_on_mutation_called_after_delete(self) -> None:
+        """browser_v2 deve chamar _on_mutation após exclusão bem-sucedida."""
+        source = _src(_BROWSER_V2)
+        delete_start = source.find("def _delete_selected(")
+        assert delete_start >= 0
+        # Próxima def delimita o fim do método
+        next_def = source.find("\n    def ", delete_start + 1)
+        snippet = source[delete_start:next_def] if next_def > 0 else source[delete_start : delete_start + 3000]
+        assert "_on_mutation" in snippet, (
+            "browser_v2.py: _delete_selected não invoca _on_mutation. "
+            "Exclusão de arquivo não atualizará 'Última alteração'."
         )
 
 
