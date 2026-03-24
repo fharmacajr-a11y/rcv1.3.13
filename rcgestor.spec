@@ -52,18 +52,18 @@ def add_file(src: Path, dest: str = ".") -> None:
 # -----------------------------------------------------------------------------
 # Arquivos opcionais da raiz do projeto
 # -----------------------------------------------------------------------------
-add_file(BASE / "rc.ico", ".")                    # Ícone do aplicativo
-add_file(BASE / "rc.png", ".")                    # Logo para splash screen
+add_file(BASE / "rc.ico", ".")  # Ícone do aplicativo
+add_file(BASE / "rc.png", ".")  # Logo para splash screen
 # SEGURANÇA: .env NÃO deve ser empacotado (contém credenciais)
 # add_file(BASE / ".env", ".")                    # REMOVIDO - P0-002: Não distribuir credenciais
-add_file(BASE / "CHANGELOG.md", ".")              # Histórico de versões
+add_file(BASE / "CHANGELOG.md", ".")  # Histórico de versões
 add_file(BASE / "CHANGELOG_CONSOLIDADO.md", ".")  # Changelog consolidado
 
 # -----------------------------------------------------------------------------
 # Dados de pacotes Python (site-packages)
 # -----------------------------------------------------------------------------
-datas += collect_data_files("tzdata")        # Dados de timezone
-datas += collect_data_files("certifi")       # Certificados CA para HTTPS
+datas += collect_data_files("tzdata")  # Dados de timezone
+datas += collect_data_files("certifi")  # Certificados CA para HTTPS
 
 # -----------------------------------------------------------------------------
 # Diretórios do projeto (anexados via Tree após Analysis)
@@ -82,10 +82,8 @@ for cand in (BASE / "runtime_docs", SRC / "runtime_docs", BASE / "assets" / "run
 a = Analysis(
     # Entrypoint principal do aplicativo
     ["src/core/app.py"],
-
     # Caminhos de busca de módulos
     pathex=[str(BASE), str(SRC)],
-
     # Binários externos necessários
     binaries=[
         # 7-Zip para extração de arquivos RAR/ZIP
@@ -93,10 +91,8 @@ a = Analysis(
         ("src/infra/bin/7zip/7z.exe", "7z"),
         ("src/infra/bin/7zip/7z.dll", "7z"),
     ],
-
     # Arquivos de dados (tuplas src, dest)
     datas=datas,
-
     # Imports ocultos não detectados automaticamente
     hiddenimports=[
         "tzdata",
@@ -104,11 +100,13 @@ a = Analysis(
         # P1-001: Keyring backends para armazenamento seguro de tokens
         "keyring.backends.Windows",  # DPAPI no Windows
         # Bibliotecas com extensões C / imports indiretos
-        "PIL",          # Pillow (processamento de imagens)
-        "fitz",         # PyMuPDF (leitura de PDFs – binding C)
+        "PIL",  # Pillow (processamento de imagens)
+        "fitz",  # PyMuPDF (leitura de PDFs – binding C)
         "pytesseract",  # Wrapper do Tesseract OCR
+        # B1: imports lazy em view.py que o PyInstaller não detecta estaticamente
+        "src.modules.clientes.ui.views.client_editor_dialog",
+        "src.modules.lixeira",
     ],
-
     # Configurações adicionais
     hookspath=[],
     hooksconfig={},
@@ -149,28 +147,22 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-
     # Nome do executável (inclui versão)
     name=f"RC-Gestor-Clientes-{APP_VERSION}",
-
     # Opções de debug
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-
     # Compressão UPX (reduz tamanho)
     upx=True,
-
     # Modo GUI (sem console)
     console=False,
     disable_windowed_traceback=False,
-
     # Configurações de plataforma
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-
     # Ícone e metadados Windows
     icon=ICON,
     version=VERSION_FILE,
