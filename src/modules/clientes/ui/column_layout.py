@@ -118,3 +118,78 @@ def compute_column_widths(
             remaining -= add
 
     return widths, False
+
+
+# ---------------------------------------------------------------------------
+# Renderização de células
+# ---------------------------------------------------------------------------
+
+
+def compute_status_cell(
+    status: str | None,
+    status_anvisa: str | None,
+    status_farmacia_popular: str | None,
+) -> str:
+    """Deriva o texto da célula Status na Treeview.
+
+    Combina o status principal com marcadores AN (ANVISA) e/ou
+    FP (Farmácia Popular), ignorando valores vazios ou '---'.
+    """
+
+    def _is_active(v: str | None) -> bool:
+        return bool(v and str(v).strip() and str(v).strip() != "---")
+
+    _sp = str(status) if _is_active(status) else ""
+    _has_an = _is_active(status_anvisa)
+    _has_fp = _is_active(status_farmacia_popular)
+    if _has_an and _has_fp:
+        _aux = "AN/FP"
+    elif _has_an:
+        _aux = "AN"
+    elif _has_fp:
+        _aux = "FP"
+    else:
+        _aux = ""
+    if _sp and _aux:
+        return f"{_sp} + {_aux}"
+    if _aux:
+        return _aux
+    return _sp
+
+
+# ---------------------------------------------------------------------------
+# Sanitização de texto para exibição na Treeview
+# ---------------------------------------------------------------------------
+
+
+def one_line(text: str | None) -> str:
+    """Sanitiza texto para garantir que aparece em uma única linha.
+
+    Remove caracteres \r, \n e múltiplos espaços, garantindo que o texto
+    não quebre em várias linhas na Treeview.
+    """
+    if not text:
+        return ""
+    return " ".join(str(text).replace("\r", " ").replace("\n", " ").split())
+
+
+def first_line_preview(text: str | None, max_len: int = 40) -> str:
+    """Extrai primeira linha do texto para preview na TreeView.
+
+    Mostra apenas a primeira linha, adicionando "…" se houver mais conteúdo
+    ou se o texto exceder max_len caracteres.
+    """
+    if not text:
+        return ""
+
+    normalized = str(text).replace("\r\n", "\n").replace("\r", "\n")
+    lines = normalized.split("\n")
+    first = lines[0].strip() if lines else ""
+    has_more = len(lines) > 1 and any(line.strip() for line in lines[1:])
+
+    if len(first) > max_len:
+        return first[: max_len - 1].rstrip() + "…"
+    elif has_more:
+        return first + "…" if first else ""
+    else:
+        return first

@@ -416,3 +416,22 @@ def handle_column_lock_region(region: str) -> str | None:
     if region in ("separator", "heading"):
         return "break"
     return None
+
+
+def resolve_trash_context_menu(is_trash_mode: bool) -> tuple[str, bool]:
+    """Determina o label de exclusão e se o botão Restaurar deve aparecer.
+
+    Centraliza a regra "em modo lixeira, o texto muda e o Restaurar aparece",
+    permitindo teste unitário sem dependência de widget.
+
+    Args:
+        is_trash_mode: True se a view está em modo LIXEIRA, False caso contrário.
+
+    Returns:
+        Tupla ``(delete_label, show_restore)`` onde:
+        - ``delete_label``: texto do item de exclusão no context menu.
+        - ``show_restore``: True se o botão Restaurar deve ser exibido.
+    """
+    if is_trash_mode:
+        return ("\U0001f5d1\ufe0f Excluir definitivamente", True)
+    return ("\U0001f5d1\ufe0f Enviar para Lixeira", False)
