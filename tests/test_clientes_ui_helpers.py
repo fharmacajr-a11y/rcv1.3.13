@@ -2,41 +2,14 @@
 # -*- coding: utf-8 -*-
 """Testes para helpers de UI do módulo Clientes.
 
-Importa _first_line_preview e _one_line **diretamente do código-fonte real**
-(são @staticmethod da classe na view.py) via AST — sem carregar o módulo
-inteiro, que depende de Tk/CTk.
+Importa first_line_preview e one_line diretamente de column_layout,
+onde foram extraídas de ClientesV2Frame como funções de módulo puras.
 """
 
-import ast as _ast
-from pathlib import Path
-
-from conftest import extract_functions_from_source
-
-_SRC_FILE = Path(__file__).resolve().parent.parent / "src" / "modules" / "clientes" / "ui" / "view.py"
-
-# Buscar qual classe contém os métodos
-
-_tree = _ast.parse(_SRC_FILE.read_text(encoding="utf-8"))
-_view_class_name: str | None = None
-for _node in _ast.iter_child_nodes(_tree):
-    if isinstance(_node, _ast.ClassDef):
-        for _body in _node.body:
-            if isinstance(_body, _ast.FunctionDef) and _body.name == "_one_line":
-                _view_class_name = _node.name
-                break
-        if _view_class_name:
-            break
-
-assert _view_class_name is not None, "_one_line not found in any class in view.py"
-
-_fns = extract_functions_from_source(
-    _SRC_FILE,
-    "_first_line_preview",
-    "_one_line",
-    class_name=_view_class_name,
+from src.modules.clientes.ui.column_layout import (
+    first_line_preview as _first_line_preview,
+    one_line as _one_line,
 )
-_first_line_preview = _fns["_first_line_preview"]
-_one_line = _fns["_one_line"]
 
 
 class TestFirstLinePreview:

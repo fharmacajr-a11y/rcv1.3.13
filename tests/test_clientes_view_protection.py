@@ -198,6 +198,55 @@ class TestViewStructureAST:
             "_on_cliente_selected" in src
         ), "_on_pick_confirm deve chamar _on_cliente_selected para integração com módulo ANVISA"
 
+    def test_pick_confirm_uses_client_row_to_dict(self) -> None:
+        """_on_pick_confirm delega a serialização do cliente para client_row_to_dict de actions.py."""
+        fn = _method_node("_on_pick_confirm")
+        src = _source_of(fn)
+        assert "client_row_to_dict" in src, (
+            "_on_pick_confirm deve usar client_row_to_dict de actions.py "
+            "para serializar o cliente — não reimplementar inline"
+        )
+
+    def test_pick_cancel_checks_pick_mode(self) -> None:
+        """_on_pick_cancel deve checar _pick_mode antes de agir."""
+        fn = _method_node("_on_pick_cancel")
+        src = _source_of(fn)
+        assert (
+            "self._pick_mode" in src
+        ), "_on_pick_cancel deve verificar _pick_mode — não deve agir fora do contexto ANVISA"
+
+    def test_pick_cancel_does_not_call_callback(self) -> None:
+        """_on_pick_cancel NÃO deve chamar _on_cliente_selected (cancelamento não seleciona)."""
+        fn = _method_node("_on_pick_cancel")
+        src = _source_of(fn)
+        assert (
+            "_on_cliente_selected" not in src
+        ), "_on_pick_cancel não deve invocar _on_cliente_selected — apenas _on_pick_confirm seleciona"
+
+    def test_create_pick_bar_wires_both_callbacks(self) -> None:
+        """_create_pick_bar deve conectar _on_pick_confirm e _on_pick_cancel como commands."""
+        fn = _method_node("_create_pick_bar")
+        src = _source_of(fn)
+        assert "self._on_pick_confirm" in src, "_create_pick_bar deve wiring _on_pick_confirm no botão Selecionar"
+        assert "self._on_pick_cancel" in src, "_create_pick_bar deve wiring _on_pick_cancel no botão Cancelar"
+
+    def test_calculate_ultima_alter_fallback_from_column_specs(self) -> None:
+        """_calculate_ultima_alteracao_width não deve usar fallback hardcoded 215."""
+        fn = _method_node("_calculate_ultima_alteracao_width")
+        src = _source_of(fn)
+        assert "COLUMN_SPECS_DEFAULTS" in src, (
+            "_calculate_ultima_alteracao_width deve derivar o fallback de COLUMN_SPECS_DEFAULTS "
+            "em vez de hardcodar 215 — mantém coerência se o default da spec mudar"
+        )
+
+    def test_calculate_ultima_alter_uses_cell_pad(self) -> None:
+        """_calculate_ultima_alteracao_width usa CELL_PAD_PX para o padding do cálculo."""
+        fn = _method_node("_calculate_ultima_alteracao_width")
+        src = _source_of(fn)
+        assert (
+            "CELL_PAD_PX" in src
+        ), "_calculate_ultima_alteracao_width deve referenciar CELL_PAD_PX para o respiro das colunas"
+
     def test_compute_column_widths_in_column_layout(self) -> None:
         """compute_column_widths, COLUMN_SPECS_DEFAULTS e COLUMNS existem em column_layout.py."""
         from src.modules.clientes.ui.column_layout import (
@@ -228,6 +277,48 @@ class TestViewStructureAST:
         assert callable(execute_restore)
         assert callable(execute_export)
 
+    def test_one_line_extracted_to_column_layout(self) -> None:
+        """_one_line NÃO deve mais existir como método de ClientesV2Frame."""
+        import pytest
+
+        with pytest.raises(RuntimeError):
+            _method_node("_one_line")
+
+    def test_first_line_preview_extracted_to_column_layout(self) -> None:
+        """_first_line_preview NÃO deve mais existir como método de ClientesV2Frame."""
+        import pytest
+
+        with pytest.raises(RuntimeError):
+            _method_node("_first_line_preview")
+
+    def test_view_imports_one_line_from_column_layout(self) -> None:
+        """view.py deve referenciar one_line (importada de column_layout)."""
+        assert "one_line" in _VIEW_SOURCE
+
+    def test_view_imports_first_line_preview_from_column_layout(self) -> None:
+        """view.py deve referenciar first_line_preview (importada de column_layout)."""
+        assert "first_line_preview" in _VIEW_SOURCE
+
+    def test_compute_status_cell_extracted_to_column_layout(self) -> None:
+        """_compute_status_cell NÃO deve mais existir como método de ClientesV2Frame."""
+        import pytest
+
+        with pytest.raises(RuntimeError):
+            _method_node("_compute_status_cell")
+
+    def test_compute_status_cell_exists_in_column_layout(self) -> None:
+        """compute_status_cell deve existir em column_layout.py como função de módulo."""
+        from src.modules.clientes.ui import column_layout
+
+        assert hasattr(
+            column_layout, "compute_status_cell"
+        ), "compute_status_cell deve ser exportada por column_layout.py"
+
+    def test_view_imports_compute_status_cell_from_column_layout(self) -> None:
+        """view.py deve importar compute_status_cell de column_layout (não defini-la)."""
+        src = _VIEW_SOURCE
+        assert "compute_status_cell" in src, "view.py deve referenciar compute_status_cell importada de column_layout"
+
     def test_resize_columns_calls_compute(self) -> None:
         """_resize_columns delega o cálculo a _compute_column_widths (alias de column_layout)."""
         fn = _method_node("_resize_columns")
@@ -256,6 +347,14 @@ class TestViewStructureAST:
         fn = _method_node("_on_tree_click")
         src = _source_of(fn)
         assert "resolve_whatsapp_click" in src, "_on_tree_click deve usar resolve_whatsapp_click de actions.py"
+
+    def test_on_tree_right_click_delegates_to_resolve_trash_context_menu(self) -> None:
+        """_on_tree_right_click delega a lógica de menu trash para resolve_trash_context_menu."""
+        fn = _method_node("_on_tree_right_click")
+        src = _source_of(fn)
+        assert (
+            "resolve_trash_context_menu" in src
+        ), "_on_tree_right_click deve usar resolve_trash_context_menu de actions.py"
 
     def test_on_enviar_documentos_uses_trigger_dialog_upload(self) -> None:
         """_on_enviar_documentos delega o auto-disparo para trigger_dialog_upload."""
@@ -287,11 +386,28 @@ class TestViewStructureAST:
         src = _source_of(fn)
         assert "execute_export" in src, "_on_export deve usar execute_export de actions.py"
 
-    def test_on_toggle_trash_calls_load_async(self) -> None:
-        """_on_toggle_trash deve acionar load_async para recarregar com o modo correto."""
+    def test_update_toolbar_status_list_calls_update_status_values(self) -> None:
+        """_update_toolbar_status_list deve delegar para toolbar.update_status_values()."""
+        fn = _method_node("_update_toolbar_status_list")
+        src = _source_of(fn)
+        assert "update_status_values" in src, (
+            "_update_toolbar_status_list deve chamar toolbar.update_status_values() "
+            "para sincronizar o dropdown de status"
+        )
+
+    def test_on_toggle_trash_delegates_to_carregar(self) -> None:
+        """_on_toggle_trash deve delegar o recarregamento para self.carregar()."""
         fn = _method_node("_on_toggle_trash")
         src = _source_of(fn)
-        assert "load_async" in src, "_on_toggle_trash deve chamar load_async para atualizar a listagem"
+        assert (
+            "self.carregar()" in src
+        ), "_on_toggle_trash deve delegar para carregar() em vez de chamar load_async diretamente"
+
+    def test_on_toggle_trash_does_not_bypass_carregar(self) -> None:
+        """_on_toggle_trash não deve chamar load_async diretamente — deve passar por carregar()."""
+        fn = _method_node("_on_toggle_trash")
+        src = _source_of(fn)
+        assert "load_async" not in src, "_on_toggle_trash não deve invocar load_async diretamente; deve usar carregar()"
 
     def test_on_tree_double_click_uses_identify_clicked_row(self) -> None:
         """_on_tree_double_click usa identify_clicked_row de actions.py."""
@@ -340,6 +456,32 @@ class TestViewStructureAST:
             "_get_selected_values deve preservar o fallback via _row_data_map "
             "para quando a Treeview perde o estado de seleção"
         )
+
+    def test_on_reload_shortcut_calls_load_async(self) -> None:
+        """_on_reload_shortcut chama load_async() diretamente (bypass de carregar() intencional para F5)."""
+        fn = _method_node("_on_reload_shortcut")
+        src = _source_of(fn)
+        assert "load_async" in src, "_on_reload_shortcut deve chamar load_async()"
+
+    def test_on_reload_shortcut_returns_break(self) -> None:
+        """_on_reload_shortcut retorna 'break' para interromper propagao do evento de teclado."""
+        fn = _method_node("_on_reload_shortcut")
+        src = _source_of(fn)
+        assert "break" in src, "_on_reload_shortcut deve retornar 'break'"
+
+    def test_re_enable_trash_btn_accesses_trash_btn(self) -> None:
+        """_re_enable_trash_btn deve referenciar toolbar.trash_btn para reabilitar o botão."""
+        fn = _method_node("_re_enable_trash_btn")
+        src = _source_of(fn)
+        assert "trash_btn" in src, "_re_enable_trash_btn deve acessar toolbar.trash_btn"
+
+    def test_force_redraw_calls_sync_tree_theme_and_zebra(self) -> None:
+        """force_redraw delega a atualização de tema/zebra para _sync_tree_theme_and_zebra."""
+        fn = _method_node("force_redraw")
+        src = _source_of(fn)
+        assert (
+            "_sync_tree_theme_and_zebra" in src
+        ), "force_redraw deve chamar _sync_tree_theme_and_zebra para reaplicar tema e listras"
 
 
 # ---------------------------------------------------------------------------
@@ -1564,21 +1706,17 @@ class TestToggleTrashBehavior:
         _on_toggle_trash(fake)
         fake.toolbar.status_var.set.assert_not_called()
 
-    def test_load_async_called_with_show_trash_true(self) -> None:
-        """Ao entrar na lixeira, load_async recebe show_trash=True."""
+    def test_toggle_trash_delegates_to_carregar(self) -> None:
+        """_on_toggle_trash deve delegar o recarregamento para self.carregar()."""
         fake = _make_toggle_fake(trash_mode=False)
         _on_toggle_trash(fake)
-        fake.load_async.assert_called_once()
-        kwargs = fake.load_async.call_args[1]
-        assert kwargs.get("show_trash") is True
+        fake.carregar.assert_called_once_with()
 
-    def test_load_async_called_with_show_trash_false(self) -> None:
-        """Ao sair da lixeira, load_async recebe show_trash=False."""
+    def test_toggle_trash_does_not_bypass_carregar(self) -> None:
+        """_on_toggle_trash não deve chamar load_async diretamente."""
         fake = _make_toggle_fake(trash_mode=True)
         _on_toggle_trash(fake)
-        fake.load_async.assert_called_once()
-        kwargs = fake.load_async.call_args[1]
-        assert kwargs.get("show_trash") is False
+        fake.load_async.assert_not_called()
 
     def test_actionbar_delete_label_in_trash_mode(self) -> None:
         """Entrando na lixeira: actionbar recebe label 'Excluir definitivamente'."""
@@ -1721,6 +1859,15 @@ class TestDoubleClickBehavior:
         result = _on_tree_double_click(fake, MagicMock(x=5, y=10))
         assert result == "break"
 
+    def test_editor_opens_even_when_row_not_in_map(self) -> None:
+        """Se item_id não está em _row_data_map, editor ainda abre (id não é atualizado)."""
+        fake = _make_dblclick_fake(region="cell", row_id="I001")
+        fake._row_data_map = {}  # item_id ausente do mapa
+        fake._selected_client_id = 7  # deve permanecer inalterado
+        _on_tree_double_click(fake, MagicMock(x=5, y=10))
+        fake._open_client_editor.assert_called_once_with(source="doubleclick")
+        assert fake._selected_client_id == 7  # não foi sobrescrito
+
 
 # ---------------------------------------------------------------------------
 # 15. Testes de resolve_selection_id + _on_tree_select
@@ -1852,6 +1999,19 @@ class TestTreeSelectBehavior:
         _on_tree_select(fake)
         _mock_apply_selected_tag.assert_not_called()
 
+    def test_no_actionbar_does_not_crash(self) -> None:
+        """Sem actionbar (hasattr retorna False), nenhuma exceção deve ser levantada."""
+        fake = _make_select_fake(selection=["I001"], values=("5", "Z"), has_actionbar=False)
+        _on_tree_select(fake)  # não deve lançar
+        assert fake._selected_client_id == 5
+
+    def test_exception_resets_selected_client_id(self) -> None:
+        """Exceção no handler define _selected_client_id como None."""
+        fake = _make_select_fake(selection=["I001"], values=("7", "W"))
+        fake.tree.selection.side_effect = RuntimeError("tree destruída")
+        _on_tree_select(fake)
+        assert fake._selected_client_id is None
+
 
 # ---------------------------------------------------------------------------
 # Helpers para TestGetSelectedValuesBehavior
@@ -1933,6 +2093,20 @@ class TestGetSelectedValuesBehavior:
         result = frame._get_selected_values()
         assert result is not None
         assert int(result[0]) == 55
+
+    def test_falls_through_to_row_map_when_tree_item_has_empty_values(self) -> None:
+        """Se Treeview tem seleção mas item retorna valores vazios, cai no fallback _row_data_map."""
+        row = types.SimpleNamespace(id="12", razao_social="Gama ME")
+        frame = _make_gsv_frame(
+            client_id=12,
+            tree_selection=["I003"],  # seleção existe...
+            tree_values=(),  # ...mas values() vazio → cai no fallback
+            row_map={"iid1": row},
+        )
+        result = frame._get_selected_values()
+        assert result is not None
+        assert int(result[0]) == 12
+        assert result[1] == "Gama ME"
 
 
 # ---------------------------------------------------------------------------
@@ -2023,6 +2197,17 @@ class TestFilterHandlersBehavior:
         _on_order_changed_fn(fake, "qualquer_ordem")
         kwargs = fake.load_async.call_args[1]
         assert kwargs["order_label"] == "normalized_test_order"
+
+    def test_order_changed_does_not_delegate_to_carregar(self) -> None:
+        """_on_order_changed não deve delegar para carregar() — precisa normalizar explicitamente.
+
+        carregar() lê toolbar.get_order() sem normalização, logo perderaria a conversão
+        de alias ('ID (1-9)' → 'ID (1→9)') que o dropdown atual emite para dois dos dez
+        itens. A bypass para carregar() quebraria silenciosamente a ordenação por ID.
+        """
+        fake = _make_filter_fake()
+        _on_order_changed_fn(fake, "qualquer")
+        fake.carregar.assert_not_called()
 
     # --- _on_status_changed -------------------------------------------------
 
@@ -2133,6 +2318,39 @@ class TestColumnLockHandlerBehavior:
 
 
 # ---------------------------------------------------------------------------
+# 17b. Testes de _update_toolbar_status_list
+# ---------------------------------------------------------------------------
+
+_update_toolbar_fns = extract_functions_from_source(
+    _VIEW_FILE,
+    "_update_toolbar_status_list",
+    class_name="ClientesV2Frame",
+    extra_namespace={
+        "log": logging.getLogger("test.update_toolbar_status"),
+        "Any": Any,
+    },
+)
+_update_toolbar_status_list_fn = _update_toolbar_fns["_update_toolbar_status_list"]
+
+
+class TestUpdateToolbarStatusListBehavior:
+    """Testes comportamentais de _update_toolbar_status_list."""
+
+    def test_calls_update_status_values_on_toolbar(self) -> None:
+        """_update_toolbar_status_list chama toolbar.update_status_values()."""
+        fake = MagicMock()
+        _update_toolbar_status_list_fn(fake)
+        fake.toolbar.update_status_values.assert_called_once_with()
+
+    def test_exception_is_swallowed(self) -> None:
+        """_update_toolbar_status_list não deve propagar exceções do toolbar."""
+        fake = MagicMock()
+        fake.toolbar.update_status_values.side_effect = RuntimeError("toolbar não pronto")
+        # Não deve lançar
+        _update_toolbar_status_list_fn(fake)
+
+
+# ---------------------------------------------------------------------------
 # 18. Testes de _on_theme_changed
 # ---------------------------------------------------------------------------
 
@@ -2211,9 +2429,253 @@ class TestThemeChangedBehavior:
 
 
 # ---------------------------------------------------------------------------
-# 19. Testes de auditoria de _on_tree_right_click (AST + comportamento mínimo)
+# 19. Testes de resolve_trash_context_menu (Bloco F de _on_tree_right_click)
 # ---------------------------------------------------------------------------
-# Estrutura de _on_tree_right_click (103 linhas, start=532):
+# Estrutura de _on_tree_right_click:
+#   A) Resolução de linha — tree.identify_row(event.y)          → widget
+#   B) Guard early return — if not item_id: return              → 1 linha, não extraível
+#   C) Seleção da linha   — selection_set + focus + _on_tree_select → widget
+#   D) Criação do popup   — CTkToplevel + container             → widget
+#   E) Itens fixos        — Editar + Enviar documentos          → widget
+#   F) Condicional trash  — delegado a resolve_trash_context_menu ← EXTRAÍDO
+#   G) Posicionamento     — geometry(+x+y)                      → widget
+#   H) Foco/lift          — deiconify() + lift() + focus_force() → widget
+#   I) Fechamento         — close_on_focus_out                  → widget
+
+
+class TestTrashContextMenuResolver:
+    """Testa resolve_trash_context_menu — regra pura que decide label e visibilidade
+    do botão Restaurar no context menu da Treeview.
+    """
+
+    def test_normal_mode_label(self) -> None:
+        """Modo normal: label de exclusão deve ser 'Enviar para Lixeira'."""
+        from src.modules.clientes.ui.actions import resolve_trash_context_menu
+
+        label, _ = resolve_trash_context_menu(is_trash_mode=False)
+        assert "Enviar para Lixeira" in label
+
+    def test_trash_mode_label(self) -> None:
+        """Modo lixeira: label de exclusão deve ser 'Excluir definitivamente'."""
+        from src.modules.clientes.ui.actions import resolve_trash_context_menu
+
+        label, _ = resolve_trash_context_menu(is_trash_mode=True)
+        assert "Excluir definitivamente" in label
+
+    def test_normal_mode_no_restore(self) -> None:
+        """Modo normal: show_restore deve ser False."""
+        from src.modules.clientes.ui.actions import resolve_trash_context_menu
+
+        _, show_restore = resolve_trash_context_menu(is_trash_mode=False)
+        assert show_restore is False
+
+    def test_trash_mode_shows_restore(self) -> None:
+        """Modo lixeira: show_restore deve ser True."""
+        from src.modules.clientes.ui.actions import resolve_trash_context_menu
+
+        _, show_restore = resolve_trash_context_menu(is_trash_mode=True)
+        assert show_restore is True
+
+    def test_labels_are_distinct(self) -> None:
+        """Os dois labels devem ser diferentes entre si (não reutiliza string errada)."""
+        from src.modules.clientes.ui.actions import resolve_trash_context_menu
+
+        label_normal, _ = resolve_trash_context_menu(is_trash_mode=False)
+        label_trash, _ = resolve_trash_context_menu(is_trash_mode=True)
+        assert label_normal != label_trash
+
+
+# ---------------------------------------------------------------------------
+# 19b. Lote de residuais triviais: _on_reload_shortcut / _re_enable_trash_btn / force_redraw
+# ---------------------------------------------------------------------------
+
+_reload_fns = extract_functions_from_source(
+    _VIEW_FILE,
+    "_on_reload_shortcut",
+    class_name="ClientesV2Frame",
+    extra_namespace={
+        "log": logging.getLogger("test.reload_shortcut"),
+        "Any": Any,
+    },
+)
+_on_reload_shortcut_fn = _reload_fns["_on_reload_shortcut"]
+
+_re_enable_fns = extract_functions_from_source(
+    _VIEW_FILE,
+    "_re_enable_trash_btn",
+    class_name="ClientesV2Frame",
+    extra_namespace={
+        "log": logging.getLogger("test.re_enable_trash"),
+        "Any": Any,
+    },
+)
+_re_enable_trash_btn_fn = _re_enable_fns["_re_enable_trash_btn"]
+
+_force_redraw_fns = extract_functions_from_source(
+    _VIEW_FILE,
+    "force_redraw",
+    class_name="ClientesV2Frame",
+    extra_namespace={
+        "log": logging.getLogger("test.force_redraw"),
+        "Any": Any,
+    },
+)
+_force_redraw_fn = _force_redraw_fns["force_redraw"]
+
+
+class TestOnReloadShortcutBehavior:
+    """Comportamento de _on_reload_shortcut."""
+
+    def test_calls_load_async(self) -> None:
+        """_on_reload_shortcut deve chamar self.load_async()."""
+        fake = MagicMock()
+        _on_reload_shortcut_fn(fake)
+        fake.load_async.assert_called_once_with()
+
+    def test_returns_break(self) -> None:
+        """_on_reload_shortcut deve retornar 'break' para interromper propagao do evento F5."""
+        fake = MagicMock()
+        result = _on_reload_shortcut_fn(fake)
+        assert result == "break"
+
+
+class TestReEnableTrashBtnBehavior:
+    """Comportamento de _re_enable_trash_btn."""
+
+    def test_calls_configure_normal_when_btn_exists(self) -> None:
+        """_re_enable_trash_btn deve chamar configure(state='normal') no trash_btn."""
+        fake = MagicMock()
+        fake.toolbar = MagicMock(spec=["trash_btn"])
+        fake.toolbar.trash_btn = MagicMock()
+        _re_enable_trash_btn_fn(fake)
+        fake.toolbar.trash_btn.configure.assert_called_once_with(state="normal")
+
+    def test_exception_is_swallowed(self) -> None:
+        """_re_enable_trash_btn não deve propagar exceções (toolbar pode não estar pronto)."""
+        fake = MagicMock()
+        fake.toolbar.trash_btn.configure.side_effect = RuntimeError("widget destrudo")
+        _re_enable_trash_btn_fn(fake)  # não deve lançar
+
+
+class TestForceRedrawBehavior:
+    """Comportamento de force_redraw."""
+
+    def test_early_return_when_no_tree_widget(self) -> None:
+        """force_redraw deve retornar imediatamente se tree_widget for None/falsy."""
+        fake = MagicMock()
+        fake.tree_widget = None
+        _force_redraw_fn(fake)
+        fake._sync_tree_theme_and_zebra.assert_not_called()
+
+    def test_calls_sync_theme_when_tree_exists(self) -> None:
+        """force_redraw deve chamar _sync_tree_theme_and_zebra quando tree_widget existir."""
+        fake = MagicMock()
+        fake.tree_widget = MagicMock()  # truthy
+        _force_redraw_fn(fake)
+        fake._sync_tree_theme_and_zebra.assert_called_once_with()
+
+
+# ---------------------------------------------------------------------------
+# 20. Testes comportamentais de _on_tree_click
+# ---------------------------------------------------------------------------
+# Responsabilidades mapeadas:
+#   A) Coleta de estado do widget — identify_region / identify_row / identify_column / item
+#   B) Decisão de WhatsApp       — delegada a resolve_whatsapp_click (actions.py) ← já extraída
+#   C) Normalização do telefone  — delegada a normalize_phone_for_whatsapp (actions.py) ← já extraída
+#   D) Construção da URL         — delegada a whatsapp_url (actions.py) ← já extraída
+#   E) Abertura do browser       — webbrowser.open(url)
+#   F) Exceção global swallowed  — try/except com log.error
+#
+# Decisão: NÃO extrair — método já está maximalmente delegado às funções puras
+# em actions.py (seções 7 e 8 cobrem a lógica pura). O residual é glue de widget.
+# Cobertura que faltava: 0 testes comportamentais headless do handler em si.
+# ---------------------------------------------------------------------------
+
+_tree_click_fns = extract_functions_from_source(
+    _VIEW_FILE,
+    "_on_tree_click",
+    class_name="ClientesV2Frame",
+    extra_namespace={
+        "log": logging.getLogger("test.tree_click"),
+        "Any": Any,
+    },
+)
+_on_tree_click_fn = _tree_click_fns["_on_tree_click"]
+
+
+def _make_tree_click_fake(
+    region: str = "cell",
+    row_id: str = "I001",
+    column_id: str = "#5",
+    values: tuple = ("A", "B", "C", "D", "(11) 99999-0000"),
+) -> MagicMock:
+    """Stub de ClientesV2Frame mínimo para testes de _on_tree_click."""
+    fake = MagicMock()
+    fake.tree = MagicMock()
+    fake.tree.identify_region.return_value = region
+    fake.tree.identify_row.return_value = row_id
+    fake.tree.identify_column.return_value = column_id
+    fake.tree.item.return_value = values
+    return fake
+
+
+def _make_click_event(x: int = 10, y: int = 20) -> MagicMock:
+    ev = MagicMock()
+    ev.x = x
+    ev.y = y
+    return ev
+
+
+class TestOnTreeClickBehavior:
+    """Protege os 4 caminhos de execução de _on_tree_click (sem display Tk)."""
+
+    def test_no_browser_when_resolve_returns_none(self) -> None:
+        """resolve_whatsapp_click retorna None → webbrowser.open NÃO é chamado."""
+        from unittest.mock import patch
+
+        fake = _make_tree_click_fake()
+        with (
+            patch("src.modules.clientes.ui.actions.resolve_whatsapp_click", return_value=None),
+            patch("webbrowser.open") as mock_open,
+        ):
+            _on_tree_click_fn(fake, _make_click_event())
+        mock_open.assert_not_called()
+
+    def test_no_browser_when_phone_normalization_returns_none(self) -> None:
+        """resolve retorna telefone mas normalize_phone retorna None → sem abertura do browser."""
+        from unittest.mock import patch
+
+        fake = _make_tree_click_fake()
+        with (
+            patch("src.modules.clientes.ui.actions.resolve_whatsapp_click", return_value="(11) 0000-0000"),
+            patch("src.modules.clientes.ui.actions.normalize_phone_for_whatsapp", return_value=None),
+            patch("webbrowser.open") as mock_open,
+        ):
+            _on_tree_click_fn(fake, _make_click_event())
+        mock_open.assert_not_called()
+
+    def test_opens_whatsapp_url_on_happy_path(self) -> None:
+        """Caminho feliz: resolve + normalize + url → webbrowser.open chamado com URL correta."""
+        from unittest.mock import patch
+
+        fake = _make_tree_click_fake()
+        with (
+            patch("src.modules.clientes.ui.actions.resolve_whatsapp_click", return_value="11999990000"),
+            patch("src.modules.clientes.ui.actions.normalize_phone_for_whatsapp", return_value="5511999990000"),
+            patch("src.modules.clientes.ui.actions.whatsapp_url", return_value="https://wa.me/5511999990000"),
+            patch("webbrowser.open") as mock_open,
+        ):
+            _on_tree_click_fn(fake, _make_click_event())
+        mock_open.assert_called_once_with("https://wa.me/5511999990000")
+
+    def test_exception_from_tree_is_swallowed(self) -> None:
+        """RuntimeError lançado por tree.identify_region é silenciado — handler não propaga."""
+        fake = _make_tree_click_fake()
+        fake.tree.identify_region.side_effect = RuntimeError("Tk widget destruído")
+        # Não deve propagar
+        _on_tree_click_fn(fake, _make_click_event())
+
+
 #   A) Resolução de linha — tree.identify_row(event.y)   → widget
 #   B) Guard / early return — if not item_id: return      → extraível (pure)
 #   C) Seleção da linha    — selection_set + focus + _on_tree_select → widget
@@ -2243,11 +2705,12 @@ class TestRightClickAuditAST:
         assert "Restaurar" in src, "O texto 'Restaurar' deve existir no método para aparecer no menu de lixeira"
 
     def test_delete_text_depends_on_trash_mode(self) -> None:
-        """O texto do botão de exclusão muda com base em _trash_mode."""
+        """O texto do botão de exclusão é determinado via resolve_trash_context_menu."""
         fn = _method_node("_on_tree_right_click")
         src = _source_of(fn)
-        assert "Excluir definitivamente" in src, "Texto 'Excluir definitivamente' deve aparecer no menu em modo lixeira"
-        assert "Enviar para Lixeira" in src, "Texto 'Enviar para Lixeira' deve aparecer no menu em modo normal"
+        assert (
+            "resolve_trash_context_menu" in src
+        ), "_on_tree_right_click deve delegar a lógica de texto/restore para resolve_trash_context_menu"
 
 
 _mock_log_right_click = logging.getLogger("test.right_click")
@@ -2586,9 +3049,9 @@ class TestBuildFooterBarAST:
         start = src.find("def _build_ui(")
         end = src.find("\n    def ", start + 1)
         body = src[start:end] if end > 0 else src[start:]
-        assert "_build_footer_bar" in body, (
-            "_build_ui deve delegar para _build_footer_bar(). " "O rodapé foi extraído para esse método."
-        )
+        assert (
+            "_build_footer_bar" in body
+        ), "_build_ui deve delegar para _build_footer_bar(). O rodapé foi extraído para esse método."
 
     def test_build_ui_no_longer_contains_pick_mode_literal(self) -> None:
         """_build_ui não deve mais conter lógica de pick_mode diretamente."""
@@ -2596,10 +3059,9 @@ class TestBuildFooterBarAST:
         start = src.find("def _build_ui(")
         end = src.find("\n    def ", start + 1)
         body = src[start:end] if end > 0 else src[start:]
-        assert "self._pick_mode" not in body, (
-            "_build_ui ainda contém self._pick_mode diretamente. "
-            "A lógica de pick_mode deve estar em _build_footer_bar."
-        )
+        assert (
+            "self._pick_mode" not in body
+        ), "_build_ui ainda contém self._pick_mode diretamente. A lógica de pick_mode deve estar em _build_footer_bar."
 
 
 class TestSetupTreeviewBindingsAST:
@@ -2718,16 +3180,16 @@ class TestSetupColumnSpecsAST:
     def test_overrides_ultima_alteracao(self) -> None:
         """_setup_column_specs deve sobrescrever spec de ultima_alteracao com largura calculada."""
         src = self._method_src()
-        assert '"ultima_alteracao"' in src, (
-            "_setup_column_specs deve incluir entrada 'ultima_alteracao' " "com largura calculada ao vivo."
-        )
+        assert (
+            '"ultima_alteracao"' in src
+        ), "_setup_column_specs deve incluir entrada 'ultima_alteracao' com largura calculada ao vivo."
 
     def test_calls_apply_columns_layout(self) -> None:
         """_setup_column_specs deve chamar _apply_columns_layout() ao final."""
         src = self._method_src()
-        assert "_apply_columns_layout" in src, (
-            "_setup_column_specs deve chamar _apply_columns_layout() " "para aplicar as specs ao Treeview."
-        )
+        assert (
+            "_apply_columns_layout" in src
+        ), "_setup_column_specs deve chamar _apply_columns_layout() para aplicar as specs ao Treeview."
 
     def test_create_treeview_delegates_to_setup_column_specs(self) -> None:
         """_create_treeview deve chamar self._setup_column_specs()."""
@@ -2735,10 +3197,9 @@ class TestSetupColumnSpecsAST:
         start = src.find("def _create_treeview(")
         end = src.find("\n    def ", start + 1)
         body = src[start:end] if end > 0 else src[start:]
-        assert "_setup_column_specs" in body, (
-            "_create_treeview deve delegar para _setup_column_specs(). "
-            "O bloco de specs foi extraído para esse método."
-        )
+        assert (
+            "_setup_column_specs" in body
+        ), "_create_treeview deve delegar para _setup_column_specs(). O bloco de specs foi extraído para esse método."
 
     def test_create_treeview_no_longer_contains_column_specs_literal(self) -> None:
         """_create_treeview não deve mais conter self._column_specs = diretamente."""
@@ -2776,7 +3237,7 @@ def _make_sync_fake(
     fake = MagicMock()
     vm = MagicMock()
     vm.has_more = has_more
-    vm._fetch_all = fetch_all
+    vm.fetch_all = fetch_all
     vm.cap_hit = cap_hit
     fake._vm = vm
     fake._load_more_visible = load_more_visible
@@ -3343,6 +3804,63 @@ class TestDeselectAndReloadBehavior:
         fake.carregar.assert_called_once()
 
 
+# ── SEÇÃO 31: one_line + first_line_preview — proteção unitária ───────────────
+
+from src.modules.clientes.ui.column_layout import (  # noqa: E402
+    first_line_preview as _first_line_preview_fn,
+    one_line as _one_line_fn,
+)
+
+
+class TestOneLineUnit:
+    """Testes unitários de one_line extraída para column_layout."""
+
+    def test_none_returns_empty(self) -> None:
+        assert _one_line_fn(None) == ""
+
+    def test_empty_returns_empty(self) -> None:
+        assert _one_line_fn("") == ""
+
+    def test_newline_removed(self) -> None:
+        assert _one_line_fn("a\nb") == "a b"
+
+    def test_cr_removed(self) -> None:
+        assert _one_line_fn("a\rb") == "a b"
+
+    def test_multiple_spaces_collapsed(self) -> None:
+        assert _one_line_fn("a  b") == "a b"
+
+    def test_plain_text_unchanged(self) -> None:
+        assert _one_line_fn("hello") == "hello"
+
+
+class TestFirstLinePreviewUnit:
+    """Testes unitários de first_line_preview extraída para column_layout."""
+
+    def test_none_returns_empty(self) -> None:
+        assert _first_line_preview_fn(None) == ""
+
+    def test_empty_returns_empty(self) -> None:
+        assert _first_line_preview_fn("") == ""
+
+    def test_single_line_returned_as_is(self) -> None:
+        assert _first_line_preview_fn("hello") == "hello"
+
+    def test_multiline_adds_ellipsis(self) -> None:
+        assert _first_line_preview_fn("a\nb") == "a\u2026"
+
+    def test_long_line_truncated(self) -> None:
+        result = _first_line_preview_fn("x" * 50)
+        assert result == "x" * 39 + "\u2026"
+
+    def test_exactly_max_len_no_truncation(self) -> None:
+        # Exatamente 40 chars — não deve truncar
+        assert _first_line_preview_fn("x" * 40) == "x" * 40
+
+    def test_custom_max_len(self) -> None:
+        assert _first_line_preview_fn("abcde", max_len=3) == "ab\u2026"
+
+
 # ── SEÇÃO 26: _on_delete_client — cobertura complementar (FASE 7B.23) ───────
 
 
@@ -3792,10 +4310,9 @@ class TestOnSavedSentinelSource:
     def test_enviar_docs_on_saved_has_upload_source_branch(self) -> None:
         """on_saved em _on_enviar_documentos deve checar `_source == "upload"`."""
         body = self._body_enviar_documentos()
-        assert '"upload"' in body or "'upload'" in body, (
-            "_on_enviar_documentos.on_saved não tem ramo _source=='upload'. "
-            "Upload dispararia log semântico incorreto."
-        )
+        assert (
+            '"upload"' in body or "'upload'" in body
+        ), "_on_enviar_documentos.on_saved não tem ramo _source=='upload'. Upload dispararia log semântico incorreto."
 
     def test_enviar_docs_on_saved_upload_branch_logs_documentos(self) -> None:
         """Ramo upload em _on_enviar_documentos deve mencionar 'Documentos'."""
@@ -4066,14 +4583,12 @@ class TestOnExportBehaviorExtra:
         ), "execute_export deve receber filedialog.asksaveasfilename como ask_save_fn"
 
 
-# ── SEÇÃO 30: _compute_status_cell — proteção unitária (FASE 7B.27) ─────────
+# ── SEÇÃO 30: compute_status_cell — proteção unitária (FASE 7B.27 → extraída) ─
+# A função foi movida de ClientesV2Frame._compute_status_cell para
+# column_layout.compute_status_cell. Os testes abaixo importam diretamente do
+# módulo e garantem o contrato sem depender da view.
 
-_compute_status_cell_fns = extract_functions_from_source(
-    _VIEW_FILE,
-    "_compute_status_cell",
-    class_name="ClientesV2Frame",
-)
-_compute_status_cell_fn = _compute_status_cell_fns["_compute_status_cell"]
+from src.modules.clientes.ui.column_layout import compute_status_cell as _compute_status_cell_fn  # noqa: E402
 
 
 class TestComputeStatusCellUnit:
@@ -4182,3 +4697,439 @@ class TestComputeStatusCellUnit:
     def test_whitespace_status_is_treated_as_inactive(self) -> None:
         """Status só com espaços é tratado como inativo e ignorado."""
         assert _compute_status_cell_fn("   ", "Ativo", None) == "AN"
+
+
+# ── SEÇÃO 32: _on_toggle_trash — cobertura comportamental (FASE 7B.28) ───────
+
+import time as _time_module  # noqa: E402
+
+_mock_log_toggle = logging.getLogger("test.toggle_trash")
+
+_toggle_fns = extract_functions_from_source(
+    _VIEW_FILE,
+    "_on_toggle_trash",
+    class_name="ClientesV2Frame",
+    extra_namespace={
+        "log": _mock_log_toggle,
+        "time": _time_module,
+    },
+)
+_on_toggle_trash_fn = _toggle_fns["_on_toggle_trash"]
+
+
+def _make_toggle_fake_s32(trash_mode: bool = False) -> MagicMock:
+    """Stub de ClientesV2Frame para _on_toggle_trash."""
+    fake = MagicMock()
+    fake._trash_mode = trash_mode
+    return fake
+
+
+class TestToggleTrashAST:
+    """Invariantes estruturais de _on_toggle_trash."""
+
+    def _src(self) -> str:
+        text = Path(_VIEW_FILE).read_text(encoding="utf-8")
+        start = text.find("def _on_toggle_trash(")
+        end = text.find("\n    def ", start + 1)
+        return text[start:end] if end > 0 else text[start:]
+
+    def test_toggles_trash_mode_flag(self) -> None:
+        """_on_toggle_trash deve inverter self._trash_mode."""
+        src = self._src()
+        assert (
+            "_trash_mode" in src and "not" in src
+        ), "_on_toggle_trash deve conter 'not self._trash_mode' para alternar o modo"
+
+    def test_resets_status_to_todos_on_trash_entry(self) -> None:
+        """Ao entrar na lixeira, status_var deve ser resetado para 'Todos'."""
+        src = self._src()
+        assert "Todos" in src, "_on_toggle_trash deve resetar status_var para 'Todos' ao entrar no modo lixeira"
+
+    def test_calls_carregar_at_end(self) -> None:
+        """_on_toggle_trash deve chamar self.carregar() para recarregar a lista."""
+        src = self._src()
+        assert (
+            "self.carregar()" in src
+        ), "_on_toggle_trash deve chamar carregar() — sem isso a troca de modo não recarrega dados"
+
+
+class TestToggleTrashBehaviorS32:
+    """Testes comportamentais headless de _on_toggle_trash."""
+
+    def test_entering_trash_sets_trash_mode_true(self) -> None:
+        """De normal → lixeira: _trash_mode deve se tornar True."""
+        fake = _make_toggle_fake_s32(trash_mode=False)
+        _on_toggle_trash_fn(fake)
+        assert fake._trash_mode is True
+
+    def test_exiting_trash_sets_trash_mode_false(self) -> None:
+        """De lixeira → normal: _trash_mode deve se tornar False."""
+        fake = _make_toggle_fake_s32(trash_mode=True)
+        _on_toggle_trash_fn(fake)
+        assert fake._trash_mode is False
+
+    def test_entering_trash_resets_status_var_to_todos(self) -> None:
+        """Ao entrar na lixeira, toolbar.status_var.set('Todos') deve ser chamado."""
+        fake = _make_toggle_fake_s32(trash_mode=False)
+        _on_toggle_trash_fn(fake)
+        fake.toolbar.status_var.set.assert_called_once_with("Todos")
+
+    def test_exiting_trash_does_not_reset_status_var(self) -> None:
+        """Ao sair da lixeira, toolbar.status_var.set NÃO deve ser chamado."""
+        fake = _make_toggle_fake_s32(trash_mode=True)
+        _on_toggle_trash_fn(fake)
+        fake.toolbar.status_var.set.assert_not_called()
+
+    def test_carregar_called_when_entering_trash(self) -> None:
+        """carregar() deve ser chamado ao entrar na lixeira."""
+        fake = _make_toggle_fake_s32(trash_mode=False)
+        _on_toggle_trash_fn(fake)
+        fake.carregar.assert_called_once()
+
+    def test_carregar_called_when_exiting_trash(self) -> None:
+        """carregar() deve ser chamado ao sair da lixeira."""
+        fake = _make_toggle_fake_s32(trash_mode=True)
+        _on_toggle_trash_fn(fake)
+        fake.carregar.assert_called_once()
+
+    def test_actionbar_receives_excluir_definitivamente_in_trash(self) -> None:
+        """Ao entrar na lixeira, actionbar deve receber label 'Excluir definitivamente'."""
+        fake = _make_toggle_fake_s32(trash_mode=False)
+        _on_toggle_trash_fn(fake)
+        fake.actionbar.set_delete_label.assert_called_once_with("Excluir definitivamente")
+
+    def test_actionbar_receives_excluir_in_normal_mode(self) -> None:
+        """Ao sair da lixeira, actionbar deve receber label 'Excluir'."""
+        fake = _make_toggle_fake_s32(trash_mode=True)
+        _on_toggle_trash_fn(fake)
+        fake.actionbar.set_delete_label.assert_called_once_with("Excluir")
+
+
+# ── SEÇÃO 33: _on_pick_confirm + _on_pick_cancel — cobertura (FASE 7B.29) ────
+
+_mock_log_pick = logging.getLogger("test.pick")
+_mock_show_warning_pick = MagicMock()
+
+_pick_fns = extract_functions_from_source(
+    _VIEW_FILE,
+    "_on_pick_confirm",
+    "_on_pick_cancel",
+    class_name="ClientesV2Frame",
+    extra_namespace={
+        "log": _mock_log_pick,
+        "_show_warning": _mock_show_warning_pick,
+    },
+)
+_on_pick_confirm_fn = _pick_fns["_on_pick_confirm"]
+_on_pick_cancel_fn = _pick_fns["_on_pick_cancel"]
+
+
+def _make_pick_fake(
+    *,
+    pick_mode: bool = True,
+    selection: list[str] | None = None,
+    client_row: Any = None,
+    on_cliente_selected: Any = None,
+) -> MagicMock:
+    """Stub de ClientesV2Frame para testes de pick mode."""
+    fake = MagicMock()
+    fake._pick_mode = pick_mode
+    if selection is not None:
+        fake.tree.selection.return_value = selection
+    else:
+        fake.tree.selection.return_value = ["iid-42"]
+    fake._row_data_map.get.return_value = client_row
+    fake._on_cliente_selected = on_cliente_selected
+    return fake
+
+
+class TestPickConfirmAST:
+    """Invariantes estruturais de _on_pick_confirm e _on_pick_cancel."""
+
+    def _src_confirm(self) -> str:
+        text = Path(_VIEW_FILE).read_text(encoding="utf-8")
+        start = text.find("def _on_pick_confirm(")
+        end = text.find("\n    def ", start + 1)
+        return text[start:end] if end > 0 else text[start:]
+
+    def _src_cancel(self) -> str:
+        text = Path(_VIEW_FILE).read_text(encoding="utf-8")
+        start = text.find("def _on_pick_cancel(")
+        end = text.find("\n    def ", start + 1)
+        return text[start:end] if end > 0 else text[start:]
+
+    def test_confirm_guards_pick_mode(self) -> None:
+        """_on_pick_confirm deve verificar _pick_mode antes de prosseguir."""
+        src = self._src_confirm()
+        assert "_pick_mode" in src, "_on_pick_confirm deve ter guard de _pick_mode"
+
+    def test_confirm_warns_when_no_selection(self) -> None:
+        """_on_pick_confirm deve chamar _show_warning quando não há seleção."""
+        src = self._src_confirm()
+        assert "_show_warning" in src, "_on_pick_confirm deve avisar usuário quando nenhum cliente está selecionado"
+
+    def test_confirm_calls_client_row_to_dict(self) -> None:
+        """_on_pick_confirm deve usar client_row_to_dict para converter o row."""
+        src = self._src_confirm()
+        assert "client_row_to_dict" in src, "_on_pick_confirm deve usar client_row_to_dict de actions.py"
+
+    def test_cancel_guards_pick_mode(self) -> None:
+        """_on_pick_cancel deve verificar _pick_mode antes de prosseguir."""
+        src = self._src_cancel()
+        assert "_pick_mode" in src, "_on_pick_cancel deve ter guard de _pick_mode"
+
+
+class TestPickConfirmBehavior:
+    """Testes comportamentais headless de _on_pick_confirm."""
+
+    def setup_method(self) -> None:
+        _mock_show_warning_pick.reset_mock()
+
+    def test_no_pick_mode_returns_immediately(self) -> None:
+        """Sem _pick_mode ativo, não deve ocorrer seleção nem warning."""
+        fake = _make_pick_fake(pick_mode=False)
+        _on_pick_confirm_fn(fake)
+        _mock_show_warning_pick.assert_not_called()
+        fake.tree.selection.assert_not_called()
+
+    def test_empty_selection_shows_warning(self) -> None:
+        """Sem item selecionado na tree, _show_warning deve ser chamado."""
+        fake = _make_pick_fake(pick_mode=True, selection=[])
+        _on_pick_confirm_fn(fake)
+        _mock_show_warning_pick.assert_called_once()
+
+    def test_missing_row_in_map_does_not_call_callback(self) -> None:
+        """Se o iid não está no _row_data_map, callback NÃO deve ser chamado."""
+        callback = MagicMock()
+        fake = _make_pick_fake(pick_mode=True, client_row=None, on_cliente_selected=callback)
+        _on_pick_confirm_fn(fake)
+        callback.assert_not_called()
+
+    def test_happy_path_calls_on_cliente_selected(self) -> None:
+        """Com row válido, _on_cliente_selected deve ser chamado com dict do cliente."""
+        callback = MagicMock()
+        fake_row = MagicMock()
+        fake_row.id = 42
+        fake_row.razao_social = "Farmácia Central"
+        fake_row.cnpj = "00.000.000/0001-00"
+        fake_row.nome = ""
+        fake_row.whatsapp = ""
+        fake_row.status = "Ativo"
+        fake = _make_pick_fake(
+            pick_mode=True,
+            selection=["iid-42"],
+            client_row=fake_row,
+            on_cliente_selected=callback,
+        )
+        _on_pick_confirm_fn(fake)
+        callback.assert_called_once()
+        client_data = callback.call_args[0][0]
+        assert client_data["id"] == 42
+
+    def test_callback_exception_is_swallowed(self) -> None:
+        """Exceção no callback _on_cliente_selected deve ser silenciada."""
+        callback = MagicMock(side_effect=RuntimeError("callback falhou"))
+        fake_row = MagicMock()
+        fake_row.id = 99
+        fake_row.razao_social = "Teste"
+        fake_row.cnpj = ""
+        fake_row.nome = ""
+        fake_row.whatsapp = ""
+        fake_row.status = ""
+        fake = _make_pick_fake(
+            pick_mode=True,
+            selection=["iid-99"],
+            client_row=fake_row,
+            on_cliente_selected=callback,
+        )
+        _on_pick_confirm_fn(fake)  # não deve propagar
+
+
+class TestPickCancelBehavior:
+    """Testes comportamentais headless de _on_pick_cancel."""
+
+    def test_no_pick_mode_returns_immediately(self) -> None:
+        """Sem _pick_mode ativo, nenhuma ação deve ser executada."""
+        fake = MagicMock()
+        fake._pick_mode = False
+        _on_pick_cancel_fn(fake)
+        # Apenas verifica que não levantou exceção e retornou silenciosamente
+
+    def test_with_pick_mode_does_not_raise(self) -> None:
+        """Com _pick_mode ativo, _on_pick_cancel deve completar sem erros."""
+        fake = MagicMock()
+        fake._pick_mode = True
+        _on_pick_cancel_fn(fake)  # não deve propagar
+
+
+# ── SEÇÃO 34: BATCH FINAL — _finish_initial_load, _finish_load_normal, ───────
+# _finish_load_trash, destroy — fechamento formal de view.py (FASE 7B-FINAL) ─
+
+import time as _time_std  # noqa: E402  (já importado como _time_module em seção 32 — alias diferente para clareza)
+
+_mock_log_final = logging.getLogger("test.final_batch")
+
+_final_fns = extract_functions_from_source(
+    _VIEW_FILE,
+    "_finish_initial_load",
+    "_finish_load_normal",
+    "_finish_load_trash",
+    class_name="ClientesV2Frame",
+    extra_namespace={
+        "log": _mock_log_final,
+        "time": _time_std,
+    },
+)
+_finish_initial_load_fn = _final_fns["_finish_initial_load"]
+_finish_load_normal_fn = _final_fns["_finish_load_normal"]
+_finish_load_trash_fn = _final_fns["_finish_load_trash"]
+
+
+def _make_final_fake(gen: int = 0, load_gen: int = 0) -> MagicMock:
+    """Stub de ClientesV2Frame para testes do batch final."""
+    fake = MagicMock()
+    fake._load_gen = load_gen
+    fake._render_rows = MagicMock()
+    fake._sync_load_more_btn = MagicMock()
+    fake._re_enable_trash_btn = MagicMock()
+    fake._update_toolbar_status_list = MagicMock()
+    fake._vm = MagicMock()
+    fake._vm.get_rows.return_value = []
+    return fake
+
+
+# ── _finish_initial_load ──────────────────────────────────────────────────────
+
+
+class TestFinishInitialLoadBehavior:
+    """Testes comportamentais de _finish_initial_load — callback após carga inicial."""
+
+    def test_stale_gen_skips_render(self) -> None:
+        """Geração obsoleta (gen != _load_gen) não deve chamar _render_rows."""
+        fake = _make_final_fake(gen=1, load_gen=7)
+        _finish_initial_load_fn(fake, gen=1)
+        fake._render_rows.assert_not_called()
+
+    def test_current_gen_calls_render_rows(self) -> None:
+        """Geração atual deve acionar _render_rows."""
+        fake = _make_final_fake(gen=3, load_gen=3)
+        _finish_initial_load_fn(fake, gen=3)
+        fake._render_rows.assert_called_once()
+
+    def test_current_gen_schedules_after_500ms(self) -> None:
+        """Geração atual deve agendar _update_toolbar_status_list via after(500, ...)."""
+        fake = _make_final_fake(gen=0, load_gen=0)
+        _finish_initial_load_fn(fake, gen=0)
+        fake.after.assert_called_once_with(500, fake._update_toolbar_status_list)
+
+
+# ── _finish_load_normal ───────────────────────────────────────────────────────
+
+
+class TestFinishLoadNormalBehavior:
+    """Testes comportamentais de _finish_load_normal — callback de carga normal."""
+
+    def test_stale_gen_calls_re_enable_trash_btn(self) -> None:
+        """Geração obsoleta deve chamar _re_enable_trash_btn antes de retornar."""
+        fake = _make_final_fake(gen=1, load_gen=9)
+        _finish_load_normal_fn(fake, gen=1, search="", status="")
+        fake._re_enable_trash_btn.assert_called()
+
+    def test_stale_gen_skips_render(self) -> None:
+        """Geração obsoleta não deve chamar _render_rows."""
+        fake = _make_final_fake(gen=1, load_gen=9)
+        _finish_load_normal_fn(fake, gen=1, search="", status="")
+        fake._render_rows.assert_not_called()
+
+    def test_current_gen_calls_render_rows(self) -> None:
+        """Geração atual deve acionar _render_rows."""
+        fake = _make_final_fake(gen=2, load_gen=2)
+        _finish_load_normal_fn(fake, gen=2, search="", status="")
+        fake._render_rows.assert_called_once()
+
+    def test_current_gen_calls_re_enable_trash_btn(self) -> None:
+        """Geração atual deve também chamar _re_enable_trash_btn ao final."""
+        fake = _make_final_fake(gen=2, load_gen=2)
+        _finish_load_normal_fn(fake, gen=2, search="", status="")
+        fake._re_enable_trash_btn.assert_called()
+
+
+# ── _finish_load_trash (deprecated 1-liner) ───────────────────────────────────
+
+
+class TestFinishLoadTrashDeprecated:
+    """_finish_load_trash é um 1-liner deprecated que delega para _finish_load_normal."""
+
+    def _body(self) -> str:
+        text = Path(_VIEW_FILE).read_text(encoding="utf-8")
+        start = text.find("def _finish_load_trash(")
+        end = text.find("\n    def ", start + 1)
+        return text[start:end] if end > 0 else text[start:]
+
+    def test_delegates_to_finish_load_normal(self) -> None:
+        """_finish_load_trash deve chamar _finish_load_normal — sem lógica própria."""
+        body = self._body()
+        assert "_finish_load_normal" in body, (
+            "_finish_load_trash deve delegar exclusivamente a _finish_load_normal; "
+            "não introduzir lógica própria neste método deprecated"
+        )
+
+    def test_does_not_contain_render_rows_directly(self) -> None:
+        """_finish_load_trash não deve chamar _render_rows diretamente (delegação pura)."""
+        body = self._body()
+        assert "_render_rows" not in body, (
+            "_finish_load_trash não deve ter chamada direta a _render_rows — "
+            "deve apenas delegar para _finish_load_normal"
+        )
+
+
+# ── destroy ───────────────────────────────────────────────────────────────────
+# destroy usa super().destroy() que exige célula __class__ — não testável via
+# extract_functions_from_source. Proteção via AST guards, mesmo padrão de
+# outros métodos com super() no módulo.
+
+
+class TestDestroyAST:
+    """Invariantes estruturais de destroy via análise AST."""
+
+    def _src(self) -> str:
+        text = Path(_VIEW_FILE).read_text(encoding="utf-8")
+        start = text.find("\n    def destroy(")
+        end = text.find("\n    def ", start + 1)
+        return text[start:end] if end > 0 else text[start:]
+
+    def test_cancels_search_debounce_job(self) -> None:
+        """destroy deve cancelar _search_debounce_job via after_cancel."""
+        src = self._src()
+        assert (
+            "_search_debounce_job" in src and "after_cancel" in src
+        ), "destroy deve cancelar _search_debounce_job com after_cancel"
+
+    def test_after_cancel_wrapped_in_try_except(self) -> None:
+        """Chamadas a after_cancel devem estar dentro de try/except."""
+        src = self._src()
+        assert (
+            "try:" in src and "after_cancel" in src
+        ), "destroy deve proteger after_cancel com try/except para não propagar se timer expirou"
+
+    def test_removes_from_appearance_mode_tracker(self) -> None:
+        """destroy deve remover o frame do AppearanceModeTracker."""
+        src = self._src()
+        assert (
+            "AppearanceModeTracker" in src and "remove" in src
+        ), "destroy deve chamar AppearanceModeTracker.remove para desregistrar o callback de tema"
+
+    def test_tracker_removal_wrapped_in_try_except(self) -> None:
+        """Remoção do tracker deve estar em try/except."""
+        src = self._src()
+        # contar blocos try: — há pelo menos 2 (jobs + tracker) ou 3 (search + load + tracker)
+        assert (
+            src.count("try:") >= 2
+        ), "destroy deve ter pelo menos 2 blocos try/except: um para jobs e um para o tracker"
+
+    def test_calls_super_destroy(self) -> None:
+        """destroy deve chamar super().destroy() ao final do cleanup."""
+        src = self._src()
+        assert (
+            "super().destroy()" in src
+        ), "destroy deve chamar super().destroy() para executar o cleanup do CTkFrame pai"
