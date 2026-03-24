@@ -299,6 +299,24 @@ class ClientesViewModel:
         """True se o último fetch foi na lixeira."""
         return self._trash_mode
 
+    @property
+    def current_order_label(self) -> str:  # noqa: D401
+        """Label de ordenação atual (leitura somente — mutações via set_order_label)."""
+        return self._current_order_label
+
+    @property
+    def fetch_all(self) -> bool:  # noqa: D401
+        """True se o último refresh foi feito com fetch_all (busca ilimitada)."""
+        return self._fetch_all
+
+    def rebuild_rows(self) -> None:
+        """Reconstrói rows localmente (filtra + ordena) sem novo fetch do servidor.
+
+        Delegação pública de _rebuild_rows — use este método em vez de
+        acessar o membro privado diretamente.
+        """
+        self._rebuild_rows()
+
     def load_from_iterable(self, clientes: Iterable[Any]) -> None:
         """Utilitário para testes: injeta dados fake."""
         self._clientes_raw = list(clientes)
