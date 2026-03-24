@@ -50,6 +50,9 @@ from src.modules.clientes.ui.column_layout import (
     COLUMNS as _COLUMNS,
     COLUMN_SPECS_DEFAULTS as _COLUMN_SPECS_DEFAULTS,
     compute_column_widths as _compute_column_widths,
+    compute_status_cell as _compute_status_cell,
+    first_line_preview as _first_line_preview,
+    one_line as _one_line,
 )
 
 log = logging.getLogger(__name__)
@@ -344,7 +347,7 @@ class ClientesV2Frame(ctk.CTkFrame):
 
         except Exception as e:
             log.warning(f"[Clientes] Erro ao calcular largura ultima_alteracao: {e}, usando fallback 215px")
-            return 215  # Fallback
+            return _COLUMN_SPECS_DEFAULTS["ultima_alteracao"][0]  # fallback = base_width do default
 
     def _resize_columns(self, event: Any = None) -> None:
         """Recalcula larguras das colunas flex baseado no espaço disponível.
@@ -418,64 +421,6 @@ class ClientesV2Frame(ctk.CTkFrame):
         self._sync_tree_theme_and_zebra()
         self.tree_widget.update_idletasks()
         log.debug("[Clientes] force_redraw() completo")
-
-    @staticmethod
-    def _one_line(text: str | None) -> str:
-        """Sanitiza texto para garantir que aparece em uma única linha.
-
-        Remove caracteres \r, \n e múltiplos espaços, garantindo que o texto
-        não quebre em várias linhas na Treeview.
-
-        Args:
-            text: Texto a ser sanitizado
-
-        Returns:
-            Texto em uma única linha
-        """
-        if not text:
-            return ""
-        # Substituir \r e \n por espaço, depois remover múltiplos espaços
-        return " ".join(str(text).replace("\r", " ").replace("\n", " ").split())
-
-    @staticmethod
-    def _first_line_preview(text: str | None, max_len: int = 40) -> str:
-        """Extrai primeira linha do texto para preview na TreeView.
-
-        Mostra apenas a primeira linha, adicionando "…" se houver mais conteúdo
-        ou se o texto exceder max_len caracteres.
-
-        Args:
-            text: Texto completo (pode ter múltiplas linhas)
-            max_len: Comprimento máximo antes de truncar
-
-        Returns:
-            Primeira linha truncada com "…" se necessário
-        """
-        if not text:
-            return ""
-
-        # Normalizar quebras de linha
-        normalized = str(text).replace("\r\n", "\n").replace("\r", "\n")
-
-        # Separar em linhas
-        lines = normalized.split("\n")
-
-        # Pegar primeira linha (strip para remover espaços)
-        first_line = lines[0].strip() if lines else ""
-
-        # Verificar se há mais conteúdo além da primeira linha
-        has_more_lines = len(lines) > 1 and any(line.strip() for line in lines[1:])
-
-        # Truncar se necessário
-        if len(first_line) > max_len:
-            # Truncar e adicionar "…"
-            return first_line[: max_len - 1].rstrip() + "…"
-        elif has_more_lines:
-            # Tem mais linhas, adicionar "…"
-            return first_line + "…" if first_line else ""
-        else:
-            # Apenas uma linha, sem truncamento
-            return first_line
 
     def _on_tree_select(self, event: Any = None) -> None:
         """Handler quando uma linha é selecionada na Treeview.
@@ -594,13 +539,17 @@ class ClientesV2Frame(ctk.CTkFrame):
                 container, " Enviar documentos", lambda: [menu.destroy(), self._on_enviar_documentos()]
             ).pack(padx=4, pady=2)
 
-            delete_text = "🗑️ Excluir definitivamente" if self._trash_mode else "🗑️ Enviar para Lixeira"
+            from src.modules.clientes.ui.actions import (
+                resolve_trash_context_menu as _resolve_trash_context_menu,
+            )
+
+            delete_text, show_restore = _resolve_trash_context_menu(self._trash_mode)
             self._build_menu_btn(container, delete_text, lambda: [menu.destroy(), self._on_delete_client()]).pack(
                 padx=4, pady=(2, 4 if not self._trash_mode else 2)
             )
 
             # Botão Restaurar (somente em modo LIXEIRA)
-            if self._trash_mode:
+            if show_restore:
                 self._build_menu_btn(
                     container, "♻️ Restaurar", lambda: [menu.destroy(), self._on_restore_client()]
                 ).pack(padx=4, pady=(2, 4))
@@ -696,7 +645,7 @@ class ClientesV2Frame(ctk.CTkFrame):
             try:
                 # Usa a ordenação padrão da toolbar para que a primeira página
                 # já venha do servidor com o sort correto.
-                default_order = self._vm._current_order_label
+                default_order = self._vm.current_order_label
                 self._vm.refresh_from_service(order_label=default_order)
             except Exception as e:
                 log.error(f"[Clientes] Erro ao carregar dados: {e}", exc_info=True)
@@ -762,7 +711,7 @@ class ClientesV2Frame(ctk.CTkFrame):
                     self._vm.set_order_label(order_label, rebuild=False)
                 self._vm.refresh_from_service(
                     term=search,
-                    order_label=order_label or self._vm._current_order_label,
+                    order_label=order_label or self._vm.current_order_label,
                     fetch_all=has_search,
                     trash=show_trash,
                 )
@@ -820,7 +769,7 @@ class ClientesV2Frame(ctk.CTkFrame):
         """Mostra/esconde botão 'Carregar mais' e aviso de cap-hit."""
         try:
             cap = getattr(self._vm, "cap_hit", False)
-            should_show = self._vm.has_more and (not self._vm._fetch_all or cap)
+            should_show = self._vm.has_more and (not self._vm.fetch_all or cap)
             if should_show and not self._load_more_visible:
                 self._load_more_btn.pack(side="top", pady=(2, 4))
                 self._load_more_visible = True
@@ -856,7 +805,7 @@ class ClientesV2Frame(ctk.CTkFrame):
                 self._vm.set_status_filter(status if status else None, rebuild=False)
                 if order_label:
                     self._vm.set_order_label(order_label, rebuild=False)
-                self._vm._rebuild_rows()
+                self._vm.rebuild_rows()
             except Exception as exc:
                 log.error("[Clientes] Erro ao carregar mais: %s", exc, exc_info=True)
                 had_new = False
@@ -876,38 +825,6 @@ class ClientesV2Frame(ctk.CTkFrame):
         self._sync_load_more_btn()
         if had_new:
             log.info("[Clientes] Página adicional carregada — total: %d", len(self._vm.get_rows()))
-
-    @staticmethod
-    def _compute_status_cell(
-        status: str | None,
-        status_anvisa: str | None,
-        status_farmacia_popular: str | None,
-    ) -> str:
-        """Deriva o texto da célula Status na Treeview.
-
-        Combina o status principal com marcadores AN (ANVISA) e/ou
-        FP (Farmácia Popular), ignorando valores vazios ou '---'.
-        """
-
-        def _is_active(v: str | None) -> bool:
-            return bool(v and str(v).strip() and str(v).strip() != "---")
-
-        _sp = status if _is_active(status) else ""
-        _has_an = _is_active(status_anvisa)
-        _has_fp = _is_active(status_farmacia_popular)
-        if _has_an and _has_fp:
-            _aux = "AN/FP"
-        elif _has_an:
-            _aux = "AN"
-        elif _has_fp:
-            _aux = "FP"
-        else:
-            _aux = ""
-        if _sp and _aux:
-            return f"{_sp} + {_aux}"
-        if _aux:
-            return _aux
-        return _sp
 
     def _render_rows(self) -> None:
         """Renderiza rows do ViewModel na Treeview com zebra tags.
@@ -931,13 +848,13 @@ class ClientesV2Frame(ctk.CTkFrame):
             ultima_alt_str = row.ultima_alteracao  # já formatado pelo ViewModel
 
             # Sanitizar textos para evitar quebras de linha
-            razao_social = self._one_line(row.razao_social)
-            nome = self._one_line(row.nome)
+            razao_social = _one_line(row.razao_social)
+            nome = _one_line(row.nome)
             # AJUSTE 2: Mostrar apenas primeira linha das observações
-            observacoes = self._first_line_preview(row.observacoes)
+            observacoes = _first_line_preview(row.observacoes)
 
             # Compor texto da coluna Status: principal + marcadores AN/FP
-            status_cell = self._compute_status_cell(row.status, row.status_anvisa, row.status_farmacia_popular)
+            status_cell = _compute_status_cell(row.status, row.status_anvisa, row.status_farmacia_popular)
 
             iid = self.tree_widget.insert(
                 "",
@@ -1059,10 +976,7 @@ class ClientesV2Frame(ctk.CTkFrame):
         # Recarregar com filtro de lixeira
         t_toggle = time.perf_counter()
         log.debug(f"[Clientes] toggle_start mode={'LIXEIRA' if self._trash_mode else 'ATIVOS'} t={t_toggle:.3f}")
-        search_text = self.toolbar.get_search_text() if self.toolbar else ""
-        order_label = self.toolbar.get_order() if self.toolbar else ""
-        status = self.toolbar.get_status() if self.toolbar else ""
-        self.load_async(search=search_text, order_label=order_label, status=status, show_trash=self._trash_mode)
+        self.carregar()
 
     def _setup_keyboard_shortcuts(self) -> None:
         """Configura atalhos de teclado (FASE 3.8).
