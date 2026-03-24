@@ -18,23 +18,8 @@ from .core.service import (
 )
 
 
-# Lazy import de UI para evitar collection errors quando não há GUI
-def _get_clientes_frame():
-    """Lazy import de ClientesFrame para evitar problemas de collection."""
-    from .ui.view import ClientesV2Frame
-
-    return ClientesV2Frame
-
-
-# Alias para compatibilidade com código legacy
-class _ClientesFrameProxy:
-    """Proxy para lazy loading de ClientesFrame."""
-
-    def __new__(cls):
-        return _get_clientes_frame()
-
-
-ClientesFrame = _ClientesFrameProxy
+# B2: import direto em vez do proxy frágil (ui/__init__.py já faz o mesmo)
+from .ui.view import ClientesV2Frame as ClientesFrame  # noqa: E402
 
 __all__ = [
     "ClienteCNPJDuplicadoError",
