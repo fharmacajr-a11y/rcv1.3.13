@@ -4,7 +4,7 @@ Este módulo encapsula funcionalidades de formulários e
 reexporta ações de storage (download_file, list_storage_objects).
 
 Para formulários de clientes específicos, importe diretamente de:
-- src.modules.clientes.forms.client_form (form_cliente)
+- src.modules.clientes.ui.views.client_editor_dialog (ClientEditorDialog)
 - src.modules.clientes.forms.client_subfolder_prompt (SubpastaDialog)
 """
 
