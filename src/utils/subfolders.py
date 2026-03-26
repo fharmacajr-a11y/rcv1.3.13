@@ -13,7 +13,7 @@ import re
 from typing import Any
 
 from src.core.text_normalization import strip_diacritics as _strip_diacritics
-from src.utils.subpastas_config import get_mandatory_subpastas, join_prefix
+from src.utils.subpastas_config import join_prefix
 
 logger = logging.getLogger(__name__)
 
@@ -96,16 +96,6 @@ def list_storage_subfolders(
     except Exception as exc:
         logger.exception("Erro ao listar subpastas do Storage: %s", exc)
         return []
-
-
-def get_mandatory_subfolder_names() -> tuple[str, ...]:
-    """
-    Retorna tuple de nomes de subpastas obrigatórias.
-
-    Returns:
-        Tuple com nomes de subpastas obrigatórias
-    """
-    return get_mandatory_subpastas()
 
 
 def build_storage_path(org_id: str, client_id: int, subfolder: str = "") -> str:

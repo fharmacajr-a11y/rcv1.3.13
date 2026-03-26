@@ -2,21 +2,17 @@
 from __future__ import annotations
 
 import logging
-import os
 import tkinter as tk
-from tempfile import NamedTemporaryFile
 from typing import Iterable
 
 from src.ui.dialogs.rc_dialogs import show_error
 
 from src.adapters.storage.api import delete_file as storage_delete_file
 from src.adapters.storage.api import list_files as storage_list_files
-from src.adapters.storage.api import upload_file as storage_upload_file
 from src.adapters.storage.api import using_storage_backend
 from src.adapters.storage.supabase_storage import SupabaseStorageAdapter
 from src.infra.db_schemas import MEMBERSHIPS_SELECT_ORG_ID
 from src.infra.supabase_client import exec_postgrest
-from src.utils.subpastas_config import get_mandatory_subpastas, join_prefix
 
 logger = logging.getLogger(__name__)
 log = logger
@@ -101,38 +97,6 @@ def _remove_storage_prefix(org_id: str, client_id: int) -> int:
     return removed
 
 
-def _ensure_mandatory_subfolders(prefix: str) -> None:
-    """
-    Garante que as subpastas obrigatórias existam sob `prefix`.
-    Como o Supabase é orientado a objetos e 'pastas' são prefixos,
-    cria um placeholder `.keep` quando não houver nenhum objeto no prefixo.
-    """
-    adapter = SupabaseStorageAdapter(bucket=BUCKET_DOCS)
-    with using_storage_backend(adapter):
-        for name in get_mandatory_subpastas():
-            sub_prefix = join_prefix(prefix, name)
-            has_any = False
-            for _ in storage_list_files(sub_prefix):
-                has_any = True
-                break
-            if has_any:
-                continue
-            keep_key = f"{sub_prefix}.keep"
-            tmp_name: str | None = None
-            with NamedTemporaryFile("wb", delete=False) as tmp:
-                tmp.write(b"")
-                tmp.flush()
-                tmp_name = tmp.name
-            try:
-                storage_upload_file(tmp_name, keep_key, "text/plain")
-            finally:
-                if tmp_name:
-                    try:
-                        os.unlink(tmp_name)
-                    except OSError as exc:
-                        logger.debug("Falha ao limpar arquivo temporário %s", tmp_name, exc_info=exc)
-
-
 # ----------------- Ações públicas -----------------
 def restore_clients(client_ids: Iterable[int], parent: tk.Misc | None = None) -> tuple[int, list[tuple[int, str]]]:
     """Restore clients from trash, returning (successes, [(client_id, error), ...])."""
@@ -148,15 +112,6 @@ def restore_clients(client_ids: Iterable[int], parent: tk.Misc | None = None) ->
     for cid in client_ids:
         try:
             exec_postgrest(supabase.table("clients").update({"deleted_at": None}).eq("id", int(cid)))  # pyright: ignore[reportAttributeAccessIssue]
-            prefix = f"{org_id}/{int(cid)}"
-            try:
-                _ensure_mandatory_subfolders(prefix)
-            except Exception as guard_err:
-                log.warning(
-                    "Falha ao garantir subpastas obrigatórias para %s: %s",
-                    prefix,
-                    guard_err,
-                )
             ok += 1
         except Exception as e:
             errs.append((int(cid), str(e)))

@@ -520,6 +520,9 @@ def restaurar_clientes_da_lixeira(ids: Iterable[int]) -> None:
     """
     Restaura clientes da lixeira (remove marcacao de deleted_at).
 
+    O storage do cliente permanece intacto — nenhuma pasta é criada ou
+    removida.  Apenas o soft-delete (deleted_at) é revertido.
+
     As colunas UUID de auditoria (restored_by, updated_by) SAO preenchidas
     automaticamente pelo trigger trg_clients_audit_trail (DB-side).
     """
