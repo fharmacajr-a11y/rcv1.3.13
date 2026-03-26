@@ -64,7 +64,7 @@ openai>=1.40.0             # Cliente oficial da OpenAI para ChatGPT
 # ============================================================================
 cryptography>=46.0.5      # Primitivas criptograficas (CVE-2026-26007)
 bcrypt>=5.0.0             # Hashing de senhas
-PyJWT>=2.10.1             # JSON Web Tokens
+PyJWT>=2.12.1             # JSON Web Tokens (CVE-2025-33028)
 passlib>=1.7.4            # Framework de hashing de senhas
 cffi>=2.0.0               # FFI para cryptography
 pycparser>=2.23           # Parser C para CFFI
@@ -74,7 +74,7 @@ keyring>=25.0.0           # Armazenamento seguro de credenciais (DPAPI no Window
 # PROCESSAMENTO DE ARQUIVOS
 # ============================================================================
 # PDFs
-pypdf>=6.7.4              # Extracao de texto (fallback) (CVE-2026-27026/27024/27025/27628/27888/28351)
+pypdf>=6.9.2              # Extracao de texto (fallback) (CVE-2026-27026/27024/27025/27628/27888/28351)
 PyMuPDF>=1.26.4           # Extracao robusta + preview (primario)
 pytesseract>=0.3.13       # OCR para PDFs escaneados
 pillow>=12.1.1            # Manipulacao de imagens (CVE-2026-25990)
@@ -105,7 +105,7 @@ PyYAML-ft>=8.0.0          # YAML full-featured
 tzdata>=2025.2            # Timezone database
 tzlocal>=5.3.1            # Deteccao de timezone
 filelock>=3.16.1          # File locking (usado em prefs.py)
-requests>=2.32.3          # HTTP client (usado em net_session.py, storage_client.py)
+requests>=2.33.0          # HTTP client (usado em net_session.py, storage_client.py)
 
 # ============================================================================
 # DEPENDENCIAS TRANSITIVAS (Documentadas)
