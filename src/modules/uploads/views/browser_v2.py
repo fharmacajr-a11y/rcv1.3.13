@@ -24,18 +24,21 @@ from __future__ import annotations
 
 import atexit as _atexit
 import logging
-import os
 import queue
+import shutil
 import sys
 import tempfile
+import threading
 import tkinter as tk
-import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from tkinter import filedialog
 from typing import Any, Callable
 
-from src.adapters.storage.supabase_storage import SupabaseStorageAdapter
+from src.adapters.storage.supabase_storage import (
+    DownloadCancelledError,
+    download_folder_zip as _storage_download_zip,
+)
 from src.ui.dialogs.download_result_dialog import DownloadResultDialog
 from src.modules.pdf_preview import open_pdf_viewer
 from src.modules.uploads.service import (
@@ -52,13 +55,12 @@ from src.ui.dialogs.rc_dialogs import show_info, show_error, ask_yes_no_danger
 from src.ui.ui_tokens import (
     APP_BG,
     BODY_FONT,
-    BORDER,
-    SURFACE_2,
     SURFACE_DARK,
     TEXT_PRIMARY,
     TEXT_MUTED,
     PRIMARY_BLUE,
     PRIMARY_BLUE_HOVER,
+    BTN_PRIMARY,
     BTN_SECONDARY,
     BTN_SECONDARY_HOVER,
     BTN_SUCCESS,
@@ -186,6 +188,7 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
         self._pdf_viewer_window = None
         self._nav_stack: list[str] = []
         self._progress_queue: queue.Queue = queue.Queue()
+        self._cancel_event = threading.Event()
 
         # PASSO 4 — título (ID + razão + CNPJ formatado)
         razao_display = razao.strip() or f"ID {client_id}"
@@ -367,7 +370,7 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
         self.rowconfigure(0, weight=0)  # header
         self.rowconfigure(1, weight=0)  # breadcrumb
         self.rowconfigure(2, weight=0)  # status label
-        self.rowconfigure(3, weight=0)  # _dl_card (oculto por padrão)
+        self.rowconfigure(3, weight=0)  # (reservado)
         self.rowconfigure(4, weight=1)  # tree_wrapper (EXPANDE)
         self.rowconfigure(5, weight=0)  # footer
 
@@ -403,92 +406,61 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
             border_width=0,
         ).grid(row=0, column=1, sticky="e")
 
-        # ── Breadcrumb (row 1): barra de caminho ────────────────────────
-        breadcrumb_frame = ctk.CTkFrame(  # type: ignore[union-attr]
+        # ── Status card (row 2): card ÚNICO para status + progresso ─────
+        self._status_card = ctk.CTkFrame(  # type: ignore[union-attr]
             self,
             corner_radius=10,
             fg_color=SURFACE_DARK,
             border_width=0,
         )
-        breadcrumb_frame.grid(row=1, column=0, sticky="ew", padx=16, pady=(4, 6))
-        breadcrumb_frame.columnconfigure(1, weight=1)
+        self._status_card.grid(row=2, column=0, sticky="ew", padx=16, pady=(4, 6))
+        self._status_card.columnconfigure(0, weight=1)
+        self._status_card.columnconfigure(1, weight=0)
+        self._status_card.columnconfigure(2, weight=0)
 
-        ctk.CTkLabel(  # type: ignore[union-attr]
-            breadcrumb_frame,
-            text="📂 Caminho:",
-            font=BODY_FONT,
-            text_color=TEXT_MUTED,
-        ).grid(row=0, column=0, padx=(12, 4), pady=8, sticky="w")
-
-        self.breadcrumb_label = ctk.CTkLabel(  # type: ignore[union-attr]
-            breadcrumb_frame,
-            text="/ (raiz)",
-            font=BODY_FONT,
-            text_color=TEXT_PRIMARY,
-            anchor="w",
-            wraplength=700,
-        )
-        self.breadcrumb_label.grid(row=0, column=1, padx=(0, 8), pady=8, sticky="ew")
-
-        ctk.CTkButton(  # type: ignore[union-attr]
-            breadcrumb_frame,
-            text="Copiar",
-            width=64,
-            height=26,
-            corner_radius=8,
-            fg_color=("#e5e7eb", "#374151"),
-            hover_color=("#d1d5db", "#4b5563"),
-            text_color=("#6b7280", "#9ca3af"),
-            font=("Segoe UI", 10),
-            command=self._copy_path_to_clipboard,
-            border_width=0,
-        ).grid(row=0, column=2, padx=(0, 10), pady=5, sticky="e")
-
-        # ── Status label (row 2): contador / texto auxiliar ──────────────
         self.status_label = ctk.CTkLabel(  # type: ignore[union-attr]
-            self,
+            self._status_card,
             text="Carregando arquivos\u2026",
             font=BODY_FONT,
             text_color=TEXT_MUTED,
             anchor="w",
         )
-        self.status_label.grid(row=2, column=0, sticky="ew", padx=16, pady=(2, 4))
-
-        # ── Card de progresso (row 3): oculto por padrão — aparece durante downloads/uploads ───
-        self._dl_card = ctk.CTkFrame(  # type: ignore[union-attr]
-            self,
-            corner_radius=10,
-            fg_color=SURFACE_2,
-            border_width=1,
-            border_color=BORDER,
-        )
-        self._dl_card.grid(row=3, column=0, sticky="ew", padx=16, pady=(2, 6))
-        self._dl_card.columnconfigure(0, weight=1)
-        self._dl_card.columnconfigure(1, weight=0)
-
-        self._dl_name_label = ctk.CTkLabel(  # type: ignore[union-attr]
-            self._dl_card,
-            text="",
-            font=("Segoe UI", 10),
-            text_color=TEXT_PRIMARY,
-            anchor="w",
-        )
-        self._dl_name_label.grid(row=0, column=0, padx=12, pady=(8, 2), sticky="w")
+        self.status_label.grid(row=0, column=0, sticky="ew", padx=12, pady=8)
 
         self._dl_pct_label = ctk.CTkLabel(  # type: ignore[union-attr]
-            self._dl_card,
+            self._status_card,
             text="",
             font=("Segoe UI", 9),
             text_color=TEXT_MUTED,
             anchor="e",
         )
-        self._dl_pct_label.grid(row=0, column=1, padx=(0, 12), pady=(8, 2), sticky="e")
+        self._dl_pct_label.grid(row=0, column=1, padx=(0, 4), pady=8, sticky="e")
+        self._dl_pct_label.grid_remove()  # oculto em repouso  # type: ignore[attr-defined]
+
+        self._dl_cancel_btn = ctk.CTkButton(  # type: ignore[union-attr]
+            self._status_card,
+            text="\u2715 Cancelar",
+            width=90,
+            height=24,
+            corner_radius=8,
+            fg_color=BTN_DANGER,
+            hover_color=BTN_DANGER_HOVER,
+            font=("Segoe UI", 9),
+            command=self._cancel_download,
+            border_width=0,
+        )
+        self._dl_cancel_btn.grid(row=0, column=2, padx=(4, 12), pady=8, sticky="e")
+        self._dl_cancel_btn.grid_remove()  # oculto em repouso  # type: ignore[attr-defined]
 
         self.progress_bar = ctk.CTkProgressBar(  # type: ignore[union-attr]
-            self._dl_card, mode="indeterminate", height=10, corner_radius=8
+            self._status_card,
+            mode="indeterminate",
+            height=10,
+            corner_radius=8,
+            progress_color=BTN_PRIMARY,
         )
-        self.progress_bar.grid(row=1, column=0, columnspan=2, sticky="ew", padx=12, pady=(2, 10))
-        self._dl_card.grid_remove()  # Ocultar inicialmente  # type: ignore[attr-defined]
+        self.progress_bar.grid(row=1, column=0, columnspan=3, sticky="ew", padx=12, pady=(0, 8))
+        self.progress_bar.grid_remove()  # oculto em repouso  # type: ignore[attr-defined]
 
         # ── Área da árvore (row 4): wrapper visual + FileList ──────────────────
         _tree_wrapper = ctk.CTkFrame(  # type: ignore[union-attr]
@@ -580,7 +552,6 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
     # ------------------------------------------------------------------
     def _sync_actions_state(self) -> None:
         """Habilita/desabilita botões de ação conforme item selecionado."""
-        self._update_breadcrumb_for_selected()
         selected_info = self.file_list.get_selected_info()
 
         if not selected_info:
@@ -622,7 +593,6 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
                 self.status_label.configure(text="1 arquivo encontrado")
             else:
                 self.status_label.configure(text=f"{n} arquivos encontrados")
-        self._update_breadcrumb()
         self._sync_actions_state()
 
     def _load_folder_children(self, folder_path: str) -> list[dict]:
@@ -632,19 +602,6 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
             folder_path = folder_path + "/"
         items = list_browser_items(folder_path, bucket=self._bucket)
         return list(items)
-
-    # ------------------------------------------------------------------
-    # Ações: Copiar caminho
-    # ------------------------------------------------------------------
-    def _copy_path_to_clipboard(self) -> None:
-        """Copia o caminho atual (breadcrumb) para a área de transferência."""
-        try:
-            text = self.breadcrumb_label.cget("text")
-            self.clipboard_clear()
-            self.clipboard_append(text)
-            show_info(self, "Copiar caminho", f"Caminho copiado:\n{text}")
-        except Exception as exc:  # noqa: BLE001
-            _log.debug("[BrowserV2] Erro ao copiar caminho: %s", exc)
 
     # ------------------------------------------------------------------
     # Ações: Visualizar
@@ -707,7 +664,11 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
             show_info(self, "Baixar", "Para pasta, use o botão 'Baixar pasta (.zip)'.")
             return
 
-        local_path = filedialog.asksaveasfilename(parent=self, initialfile=item_name)
+        local_path = filedialog.asksaveasfilename(
+            parent=self,
+            initialfile=item_name,
+            initialdir=str(Path.home() / "Downloads"),
+        )
         if not local_path:
             return
 
@@ -715,6 +676,7 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
         try:
             result = download_storage_object(full_path, local_path, bucket=self._bucket)
             if result.get("ok"):
+                self._restore_item_count()
                 DownloadResultDialog(self, title="Download Concluído", file_name=item_name, save_path=local_path)
             else:
                 show_error(self, "Download", result.get("message", "Erro desconhecido ao baixar arquivo"))
@@ -747,122 +709,137 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
             title="Salvar pasta como ZIP",
             initialfile=zip_name,
             parent=self,
+            initialdir=str(Path.home() / "Downloads"),
             defaultextension=".zip",
             filetypes=[("Arquivos ZIP", "*.zip")],
         )
         if not save_path:
             return
 
+        self._cancel_event.clear()
         self._download_in_progress = True
-        if hasattr(self, "status_label") and self.status_label.winfo_exists():
-            self.status_label.configure(text="Preparando download ZIP...")
         self._progress_queue.put({"action": "show", "mode": "indeterminate"})
+        self._progress_queue.put({"action": "status", "text": "Preparando download ZIP…"})
 
         folder_prefix = full_path
+        bucket = self._bucket
 
         def _worker() -> None:
-            try:
-                adapter = SupabaseStorageAdapter(bucket=self._bucket)
-                self._progress_queue.put({"action": "status", "text": "Listando arquivos..."})
+            _switched = False
 
-                file_list: list[tuple[str, str]] = []  # (full_path, relative_path)
-
-                def _enumerate(prefix: str, rel: str = "") -> None:
-                    for item in adapter.list_files(prefix):
-                        name = item.get("name", "")
-                        if not name or name == ".keep" or name.endswith("/.keep"):
-                            continue
-                        full_item = f"{prefix}/{name}".strip("/")
-                        rel_item = f"{rel}/{name}".strip("/") if rel else name
-                        if item.get("metadata") is not None:
-                            file_list.append((full_item, rel_item))
-                        else:
-                            _enumerate(full_item, rel_item)
-
-                _enumerate(folder_prefix)
-                total = len(file_list)
-
-                if total == 0:
-                    self._progress_queue.put({"action": "status", "text": "Pasta vazia — nada para baixar."})
-                    self._progress_queue.put({"action": "hide"})
-                    self.after(
-                        0,
-                        lambda: (
-                            setattr(self, "_download_in_progress", False),
-                            show_info(self, "Baixar ZIP", "Pasta não contém arquivos."),
-                        ),
-                    )
+            def _progress(written: int, expected: int) -> None:
+                nonlocal _switched
+                if self._cancel_event.is_set():
                     return
+                # Fase 2: total HTTP conhecido → barra determinada + "Baixando ZIP…"
+                if expected > 0:
+                    if not _switched:
+                        _switched = True
+                        self._progress_queue.put({"action": "show", "mode": "determinate"})
+                    self._progress_queue.put({"action": "update", "value": written / expected})
+                    mb = written / (1024 * 1024)
+                    total_mb = expected / (1024 * 1024)
+                    self._progress_queue.put(
+                        {
+                            "action": "status",
+                            "text": f"Baixando ZIP… {mb:.1f} / {total_mb:.1f} MB",
+                        }
+                    )
+                else:
+                    # Sem Content-Length: manter indeterminate, texto genérico
+                    kb = written / 1024
+                    self._progress_queue.put(
+                        {
+                            "action": "status",
+                            "text": f"Recebendo ZIP… {kb:.0f} KB",
+                        }
+                    )
 
-                self._progress_queue.put({"action": "show", "mode": "determinate"})
-                self._progress_queue.put({"action": "update", "value": 0.0})
+            try:
+                with tempfile.TemporaryDirectory(prefix="rc_zip_") as tmp_dir:
+                    result_path = _storage_download_zip(
+                        folder_prefix,
+                        bucket=bucket,
+                        zip_name=item_name,
+                        out_dir=tmp_dir,
+                        cancel_event=self._cancel_event,
+                        progress_cb=_progress,
+                    )
+                    # Mover para o caminho escolhido pelo usuário
+                    shutil.move(str(result_path), save_path)
 
-                fd, tmp = tempfile.mkstemp(suffix=".zip", prefix="rc_zip_")
-                os.close(fd)
-                temp_zip = Path(tmp)
-                done = 0
+                saved = save_path
+                self._safe_after(0, lambda p=saved: self._on_zip_complete(p))
 
-                try:
-                    with zipfile.ZipFile(temp_zip, "w", zipfile.ZIP_DEFLATED) as zf:
-                        for fp_item, rel_path in file_list:
-                            self._progress_queue.put(
-                                {
-                                    "action": "status",
-                                    "text": f"Baixando {rel_path} ({done + 1}/{total})...",
-                                }
-                            )
-                            try:
-                                content = adapter.download_file(fp_item)
-                                if isinstance(content, bytes):
-                                    zf.writestr(rel_path, content)
-                                else:
-                                    zf.write(str(content), rel_path)
-                                done += 1
-                                self._progress_queue.put({"action": "update", "value": done / total})
-                            except Exception as e:
-                                _log.warning("[BrowserV2] Erro ao baixar %s: %s", fp_item, e)
-
-                    import shutil
-
-                    shutil.move(str(temp_zip), save_path)
-
-                    file_count = done
-                    saved = save_path
-                    self.after(0, lambda c=file_count, p=saved: self._on_zip_complete(c, p))
-                finally:
-                    temp_zip.unlink(missing_ok=True)
-
+            except DownloadCancelledError:
+                self._safe_after(0, self._on_zip_cancelled)
             except Exception as exc:
+                if self._cancel_event.is_set():
+                    self._safe_after(0, self._on_zip_cancelled)
+                    return
                 err_msg = str(exc)
                 _log.exception("[BrowserV2] Erro no ZIP")
-                self.after(0, lambda m=err_msg: self._on_zip_error(m))
+                self._safe_after(0, lambda m=err_msg: self._on_zip_error(m))
 
         _executor.submit(_worker)
 
-    def _on_zip_complete(self, file_count: int, save_path: str) -> None:
+    def _cancel_download(self) -> None:
+        """Cancela o download ZIP em andamento (cooperativo por flag)."""
+        if not self._download_in_progress:
+            return
+        _log.info("[BrowserV2] Cancelamento solicitado pelo usuário (client_id=%s)", self._client_id)
+        self._cancel_event.set()
+        # Feedback visual imediato no card unificado
+        if hasattr(self, "status_label") and self.status_label.winfo_exists():
+            self.status_label.configure(text="Cancelando\u2026")
+        if hasattr(self, "_dl_cancel_btn") and self._dl_cancel_btn.winfo_exists():
+            self._dl_cancel_btn.configure(state="disabled")
+
+    def _on_zip_cancelled(self) -> None:
+        """Callback quando download ZIP foi cancelado pelo usuário."""
+        self._download_in_progress = False
+        self._progress_queue.put({"action": "hide"})
+        if self._is_closing or not self.winfo_exists():
+            _log.info("[BrowserV2] ZIP cancelado mas janela já fechada")
+            return
+        # Feedback inline: mostra "Download cancelado" no status card
+        if hasattr(self, "status_label") and self.status_label.winfo_exists():
+            self.status_label.configure(text="Download cancelado")
+        if hasattr(self, "_dl_cancel_btn") and self._dl_cancel_btn.winfo_exists():
+            self._dl_cancel_btn.configure(state="normal")
+        # Restaura contagem após 2 s
+        self._safe_after(2000, self._restore_item_count)
+        _log.info("[BrowserV2] Download ZIP cancelado com sucesso")
+
+    def _on_zip_complete(self, save_path: str) -> None:
         """Callback quando download ZIP concluiu com sucesso."""
         self._download_in_progress = False
         self._progress_queue.put({"action": "hide"})
-        if hasattr(self, "status_label") and self.status_label.winfo_exists():
-            self.status_label.configure(text="ZIP criado com sucesso")
-        try:
-            self.lift()
-        except Exception:  # noqa: BLE001
-            pass
+        if self._is_closing or not self.winfo_exists():
+            _log.info("[BrowserV2] ZIP concluído mas janela já fechada")
+            return
+        self._restore_item_count()
+        if hasattr(self, "_dl_cancel_btn") and self._dl_cancel_btn.winfo_exists():
+            self._dl_cancel_btn.configure(state="normal")
+        zip_name = Path(save_path).name
         DownloadResultDialog(
             self,
             title="Download ZIP Concluído",
-            file_name="pasta.zip",
+            file_name=zip_name,
             save_path=save_path,
-            extra_info=f"Pasta com {file_count} arquivo(s) baixada com sucesso.",
+            extra_info="Pasta baixada com sucesso.",
         )
 
     def _on_zip_error(self, error: str) -> None:
         """Callback quando download ZIP falhou."""
         self._download_in_progress = False
         self._progress_queue.put({"action": "hide"})
-        if hasattr(self, "status_label") and self.status_label.winfo_exists():
-            self.status_label.configure(text="Erro no download ZIP")
+        if self._is_closing or not self.winfo_exists():
+            _log.warning("[BrowserV2] Erro no ZIP mas janela já fechada: %s", error)
+            return
+        self._restore_item_count()
+        if hasattr(self, "_dl_cancel_btn") and self._dl_cancel_btn.winfo_exists():
+            self._dl_cancel_btn.configure(state="normal")
         show_error(self, "Erro no Download ZIP", f"Não foi possível criar o ZIP:\n\n{error}")
 
     # ------------------------------------------------------------------
@@ -985,56 +962,50 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
                 pass
 
     # ------------------------------------------------------------------
-    # Breadcrumb
-    # ------------------------------------------------------------------
-    def _update_breadcrumb(self) -> None:
-        """Atualiza label do breadcrumb com base no _nav_stack."""
-        if not self._nav_stack:
-            path_text = "/ (raiz)"
-        else:
-            path_text = "/" + "/".join(self._nav_stack)
-        if hasattr(self, "breadcrumb_label") and self.breadcrumb_label.winfo_exists():
-            self.breadcrumb_label.configure(text=path_text)
-
-    def _update_breadcrumb_for_selected(self) -> None:
-        """Atualiza breadcrumb com caminho amigável do item selecionado."""
-        selected_info = self.file_list.get_selected_info()
-        if not selected_info:
-            self._update_breadcrumb()
-            return
-        _name, item_type, full_path = selected_info
-        # Calcular caminho relativo ao base_prefix
-        base = self._base_prefix.rstrip("/").lstrip("/")
-        fp = full_path.lstrip("/")
-        if base and fp.startswith(base + "/"):
-            rel = fp[len(base) + 1 :]
-        else:
-            rel = fp
-        folder_part = rel.rstrip("/") if item_type == "Pasta" else (rel.rsplit("/", 1)[0] if "/" in rel else "")
-        if hasattr(self, "breadcrumb_label") and self.breadcrumb_label.winfo_exists():
-            self.breadcrumb_label.configure(text=("/" + folder_part) if folder_part else "/ (raiz)")
-
-    # ------------------------------------------------------------------
-    # Progresso inline (_dl_card + _progress_queue)
+    # Progresso inline (dentro do _status_card unificado)
     # ------------------------------------------------------------------
     def _show_progress(self, mode: str = "indeterminate") -> None:
-        """Mostra card de progresso."""
+        """Mostra barra + botão Cancelar dentro do status card (sem trocar frame)."""
         self.progress_bar.stop()
         self.progress_bar.configure(mode=mode)
         if mode == "indeterminate":
             self.progress_bar.start()
         else:
             self.progress_bar.set(0)
-        if hasattr(self, "_dl_card") and self._dl_card.winfo_exists():
-            self._dl_card.grid()
+        self.progress_bar.grid()  # type: ignore[attr-defined]
         if hasattr(self, "_dl_pct_label") and self._dl_pct_label.winfo_exists():
             self._dl_pct_label.configure(text="")
+            if mode == "determinate":
+                self._dl_pct_label.grid()  # type: ignore[attr-defined]
+            else:
+                self._dl_pct_label.grid_remove()  # type: ignore[attr-defined]
+        if hasattr(self, "_dl_cancel_btn") and self._dl_cancel_btn.winfo_exists():
+            self._dl_cancel_btn.grid()  # type: ignore[attr-defined]
+            self._dl_cancel_btn.configure(state="normal")
 
     def _hide_progress(self) -> None:
-        """Oculta card de progresso."""
+        """Oculta barra + botão Cancelar (card permanece inalterado)."""
         self.progress_bar.stop()
-        if hasattr(self, "_dl_card") and self._dl_card.winfo_exists():
-            self._dl_card.grid_remove()  # type: ignore[attr-defined]
+        self.progress_bar.grid_remove()  # type: ignore[attr-defined]
+        if hasattr(self, "_dl_pct_label") and self._dl_pct_label.winfo_exists():
+            self._dl_pct_label.grid_remove()  # type: ignore[attr-defined]
+        if hasattr(self, "_dl_cancel_btn") and self._dl_cancel_btn.winfo_exists():
+            self._dl_cancel_btn.grid_remove()  # type: ignore[attr-defined]
+
+    def _restore_item_count(self) -> None:
+        """Restaura o status_label com a contagem de itens da tree."""
+        if not hasattr(self, "status_label") or not self.status_label.winfo_exists():
+            return
+        try:
+            n = len(self.file_list.tree.get_children())
+        except Exception:  # noqa: BLE001
+            n = 0
+        if n == 0:
+            self.status_label.configure(text="Nenhum arquivo encontrado nesta pasta")
+        elif n == 1:
+            self.status_label.configure(text="1 arquivo encontrado")
+        else:
+            self.status_label.configure(text=f"{n} arquivos encontrados")
 
     def _update_progress(self, value: float) -> None:
         """Atualiza barra de progresso determinada (0.0–1.0)."""
@@ -1058,17 +1029,9 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
                     self._update_progress(msg.get("value", 0.0))
                 elif action == "status":
                     text = msg.get("text", "")
-                    if hasattr(self, "status_label") and self.status_label.winfo_exists():
-                        self.status_label.configure(text=text)
                     try:
-                        if (
-                            hasattr(self, "_dl_name_label")
-                            and self._dl_name_label.winfo_exists()
-                            and hasattr(self, "_dl_card")
-                            and self._dl_card.winfo_exists()
-                            and self._dl_card.winfo_ismapped()  # type: ignore[attr-defined]
-                        ):
-                            self._dl_name_label.configure(text=text)
+                        if hasattr(self, "status_label") and self.status_label.winfo_exists():
+                            self.status_label.configure(text=text)
                     except Exception:  # noqa: BLE001
                         pass
         except queue.Empty:

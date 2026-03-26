@@ -13,8 +13,6 @@ from src.ui.ctk_config import ctk
 from src.ui.dark_window_helper import set_win_dark_titlebar
 from src.ui.ui_tokens import (
     BORDER,
-    BTN_SECONDARY,
-    BTN_SECONDARY_HOVER,
     BUTTON_RADIUS,
     DIALOG_BTN_H,
     DIALOG_BTN_W,
@@ -143,20 +141,9 @@ class DownloadResultDialog(ctk.CTkToplevel):
         path_box.insert("1.0", save_path)
         path_box.configure(state="disabled")
 
-        # Botões
+        # Botão OK centralizado
         btn_frame = ctk.CTkFrame(card, fg_color="transparent")
         btn_frame.grid(row=5, column=0, pady=(0, 20))
-
-        ctk.CTkButton(
-            btn_frame,
-            text="Copiar caminho",
-            width=DIALOG_BTN_W,
-            height=DIALOG_BTN_H,
-            corner_radius=BUTTON_RADIUS,
-            fg_color=BTN_SECONDARY,
-            hover_color=BTN_SECONDARY_HOVER,
-            command=lambda p=save_path: self._copy_path(p),
-        ).pack(side="left", padx=5)
 
         ctk.CTkButton(
             btn_frame,
@@ -167,7 +154,7 @@ class DownloadResultDialog(ctk.CTkToplevel):
             fg_color=PRIMARY_BLUE,
             hover_color=PRIMARY_BLUE_HOVER,
             command=self.destroy,
-        ).pack(side="left", padx=5)
+        ).pack()
 
     def _safe_grab_set(self) -> None:
         """Tenta grab_set com guard para widget já destruído."""
@@ -175,12 +162,4 @@ class DownloadResultDialog(ctk.CTkToplevel):
             if self.winfo_exists():
                 self.grab_set()
         except Exception:  # noqa: BLE001
-            pass
-
-    def _copy_path(self, path: str) -> None:
-        """Copia o caminho para a área de transferência."""
-        try:
-            self.clipboard_clear()  # pyright: ignore[reportAttributeAccessIssue]
-            self.clipboard_append(path)  # pyright: ignore[reportAttributeAccessIssue]
-        except Exception:
             pass
