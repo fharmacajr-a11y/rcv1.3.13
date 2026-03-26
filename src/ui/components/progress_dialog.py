@@ -9,13 +9,16 @@ from typing import Callable
 from src.ui.ctk_config import ctk
 from src.ui.ui_tokens import (
     APP_BG,
+    BTN_PRIMARY,
+    BUTTON_RADIUS,
+    DIALOG_BTN_H,
+    DIALOG_BTN_W,
     SURFACE,
     DIALOG_RADIUS,
     PROGRESS_RADIUS,
     KPI_RED,
     KPI_RED_HOVER,
 )
-from src.ui.widgets.button_factory import make_btn
 from src.ui.window_utils import apply_window_icon, show_centered
 
 logger = logging.getLogger(__name__)
@@ -54,6 +57,7 @@ class BusyDialog(ctk.CTkToplevel):
             mode="indeterminate",
             corner_radius=PROGRESS_RADIUS,
             height=12,
+            progress_color=BTN_PRIMARY,
         )
         self._pb.set(0)
         self._pb.start()  # CTk requer start() para indeterminate
@@ -173,7 +177,7 @@ class ProgressDialog(ctk.CTkToplevel):
             fg_color=SURFACE,
             bg_color=APP_BG,
         )
-        body.grid(row=0, column=0, sticky="nsew", padx=12, pady=12)
+        body.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
         body.columnconfigure(0, weight=1)
         body.columnconfigure(1, weight=0)
 
@@ -213,23 +217,27 @@ class ProgressDialog(ctk.CTkToplevel):
         )
         eta_label.grid(row=1, column=1, sticky="e", padx=(4, 16), pady=(0, 4))
 
-        # Linha 3: Barra de progresso azul clara
+        # Linha 3: Barra de progresso (azul primário canônico)
         self._progress = ctk.CTkProgressBar(
             body,
             width=420,
             mode="determinate",
             corner_radius=PROGRESS_RADIUS,
             height=12,
+            progress_color=BTN_PRIMARY,
         )
         self._progress.set(0)
         self._progress.grid(row=2, column=0, columnspan=2, sticky="ew", padx=16, pady=(0, 8))
 
-        # Botão Cancelar: canto direito, vermelho
+        # Botão Cancelar: canto direito, vermelho (tamanho padrão de diálogo)
         if can_cancel:
-            self._cancel_button = make_btn(
+            self._cancel_button = ctk.CTkButton(
                 body,
                 text="Cancelar",
                 command=self._handle_cancel,
+                width=DIALOG_BTN_W,
+                height=DIALOG_BTN_H,
+                corner_radius=BUTTON_RADIUS,
                 fg_color=KPI_RED,
                 hover_color=KPI_RED_HOVER,
             )
@@ -239,21 +247,41 @@ class ProgressDialog(ctk.CTkToplevel):
         try:
             self.update_idletasks()
             req_w = max(self.DIALOG_MIN_WIDTH, self.winfo_reqwidth())
-            req_h = self.winfo_reqheight()
-            self.geometry(f"{req_w}x{req_h}")
+            req_h = self.winfo_reqheight() + 10
             self.minsize(req_w, req_h)
-            show_centered(self)
+            # Centralizar sobre o parent (owner)
+            try:
+                px = owner.winfo_rootx()
+                py = owner.winfo_rooty()
+                pw = owner.winfo_width()
+                ph = owner.winfo_height()
+                x = max(0, px + (pw - req_w) // 2)
+                y = max(0, py + (ph - req_h) // 2)
+                self.geometry(f"{req_w}x{req_h}+{x}+{y}")
+            except Exception:
+                self.geometry(f"{req_w}x{req_h}")
 
-            # Reaplicar tamanho mantendo posição para evitar expansão
-            self.update_idletasks()
-            x, y = self.winfo_x(), self.winfo_y()
-            w = self.winfo_width()
-            h = self.winfo_reqheight()
-            self.geometry(f"{w}x{h}+{x}+{y}")
-            self.minsize(w, h)
-
+            # Anti-flash: alpha 0 → deiconify → reveal após 220ms
+            try:
+                self.attributes("-alpha", 0.0)
+            except Exception:
+                pass
+            self.deiconify()
+            self.lift()
             self.grab_set()
             self.focus_force()
+
+            def _reveal() -> None:
+                if not self.winfo_exists():
+                    return
+                apply_window_icon(self)
+                try:
+                    self.attributes("-alpha", 1.0)
+                except Exception:
+                    pass
+                self.lift()
+
+            self.after(220, _reveal)
         except Exception as exc:  # noqa: BLE001
             logger.debug("Falha ao exibir ProgressDialog: %s", exc)
 

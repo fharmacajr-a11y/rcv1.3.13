@@ -14,6 +14,9 @@ from src.ui.ui_tokens import (
     APP_BG,
     BTN_SECONDARY,
     BTN_SECONDARY_HOVER,
+    DIALOG_BTN_H,
+    DIALOG_BTN_W,
+    BUTTON_RADIUS,
     SURFACE,
     PRIMARY_BLUE,
     PRIMARY_BLUE_HOVER,
@@ -23,9 +26,8 @@ from src.ui.ui_tokens import (
     FONT_SECTION,
     FONT_BODY_SM,
 )
-from src.ui.widgets.button_factory import make_btn
 from src.utils.subfolders import sanitize_subfolder_name
-from src.ui.window_utils import apply_window_icon, show_centered
+from src.ui.window_utils import apply_window_icon
 
 logger = logging.getLogger(__name__)
 
@@ -92,20 +94,26 @@ class SubpastaDialog(ctk.CTkToplevel):
         )
         ent.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 16))
 
-        # Botões alinhados à direita
+        # Botões alinhados à direita (tamanho padrão de diálogo)
         btns_frame = ctk.CTkFrame(card, fg_color="transparent")
         btns_frame.grid(row=3, column=0, sticky="e", padx=20, pady=(0, 20))
-        make_btn(
+        ctk.CTkButton(
             btns_frame,
             text="Cancelar",
             command=self._cancel,
+            width=DIALOG_BTN_W,
+            height=DIALOG_BTN_H,
+            corner_radius=BUTTON_RADIUS,
             fg_color=BTN_SECONDARY,
             hover_color=BTN_SECONDARY_HOVER,
         ).pack(side="left", padx=(0, 8))
-        make_btn(
+        ctk.CTkButton(
             btns_frame,
             text="OK",
             command=self._ok,
+            width=DIALOG_BTN_W,
+            height=DIALOG_BTN_H,
+            corner_radius=BUTTON_RADIUS,
             fg_color=PRIMARY_BLUE,
             hover_color=PRIMARY_BLUE_HOVER,
         ).pack(side="left")
@@ -114,16 +122,46 @@ class SubpastaDialog(ctk.CTkToplevel):
         self.bind("<Escape>", lambda e: self._cancel())
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
-        # Centralizar e exibir
+        # Centralizar sobre o parent e exibir com anti-flash
         try:
             self.update_idletasks()
             req_w = max(self.DIALOG_MIN_WIDTH, self.winfo_reqwidth())
-            req_h = self.winfo_reqheight()
+            req_h = self.winfo_reqheight() + 10
             self.minsize(req_w, req_h)
-            show_centered(self)
+            # Centralizar sobre o parent
+            try:
+                px = parent.winfo_rootx()
+                py = parent.winfo_rooty()
+                pw = parent.winfo_width()
+                ph = parent.winfo_height()
+                x = max(0, px + (pw - req_w) // 2)
+                y = max(0, py + (ph - req_h) // 2)
+                self.geometry(f"{req_w}x{req_h}+{x}+{y}")
+            except Exception:
+                self.geometry(f"{req_w}x{req_h}")
+            # Anti-flash: alpha 0 → deiconify → reveal após 220ms
+            try:
+                self.attributes("-alpha", 0.0)
+            except Exception:
+                pass
+            self.deiconify()
+            self.lift()
+            self.grab_set()
+            self.focus_force()
+
+            def _reveal() -> None:
+                if not self.winfo_exists():
+                    return
+                apply_window_icon(self)
+                try:
+                    self.attributes("-alpha", 1.0)
+                except Exception:
+                    pass
+                self.lift()
+
+            self.after(220, _reveal)
         except Exception as exc:  # noqa: BLE001
             logger.debug("Falha ao centralizar SubpastaDialog: %s", exc)
-        self.grab_set()
         ent.focus_force()
 
         self.result: Optional[str] = None
