@@ -178,3 +178,22 @@ def normalize_br_whatsapp(raw: str | None) -> dict:
         e164 = ""
 
     return {"e164": e164, "display": display, "ddd": ddd, "local": local}
+
+
+def resolve_client_phone(data: object) -> str:
+    """Resolver canônico para o campo telefone/whatsapp de um cliente.
+
+    Prioridade: ``numero`` (coluna DB) → ``whatsapp`` → ``telefone``.
+    Aceita dict **ou** objeto com acesso por atributo.
+    """
+    if data is None:
+        return ""
+    for key in ("numero", "whatsapp", "telefone"):
+        val = getattr(data, key, None)
+        if val is not None and str(val).strip():
+            return str(val).strip()
+        if isinstance(data, dict):
+            val = data.get(key)
+            if val is not None and str(val).strip():
+                return str(val).strip()
+    return ""

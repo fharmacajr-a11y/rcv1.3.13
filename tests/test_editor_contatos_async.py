@@ -389,7 +389,7 @@ class TestSaveContatosToDb:
         mock_supabase.rpc.assert_called_once()
 
     def test_save_btn_disabled_during_save(self):
-        """Botão salvar é desabilitado enquanto a persistência roda."""
+        """Botão salvar NÃO é desabilitado por _save_contatos_to_db (BLOCO-1 moveu para _on_save_clicked)."""
         fake, _ = _make_fake_self(contatos_text_content="B - 2")
         mock_supabase = MagicMock()
         mock_exec = MagicMock()
@@ -400,11 +400,10 @@ class TestSaveContatosToDb:
             patch(_PATCH_EXEC_POSTGREST, mock_exec),
         ):
             EditorDataMixin._save_contatos_to_db(fake, 1, on_done=done_event.set)
-
-            # Botão deve ser desabilitado IMEDIATAMENTE (antes da thread terminar)
-            fake.save_btn.configure.assert_called_with(state="disabled")
-
             done_event.wait(timeout=2.0)
+
+            # _save_contatos_to_db não deve mexer no botão — responsabilidade de _on_save_clicked
+            fake.save_btn.configure.assert_not_called()
 
     def test_empty_textbox_sends_empty_payload(self):
         """Se textbox está vazio, RPC é chamada com payload vazio (só deleta)."""

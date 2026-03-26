@@ -19,6 +19,7 @@ from src.modules.clientes.core.service import (
     listar_clientes_na_lixeira,
     restaurar_clientes_da_lixeira,
 )
+from src.utils.phone_utils import resolve_client_phone
 from src.ui.ui_tokens import (
     BTN_DANGER,
     BTN_DANGER_HOVER,
@@ -210,7 +211,7 @@ def abrir_lixeira(parent: tk.Misc, app: Any | None = None) -> Optional[ctk.CTkTo
                 razao_social = _get_val(r, "razao_social") or ""
                 cnpj = _get_val(r, "cnpj") or ""
                 nome = _get_val(r, "nome") or ""
-                whatsapp = _get_val(r, "whatsapp", "numero") or ""
+                whatsapp = resolve_client_phone(r)
                 obs = _get_val(r, "obs", "observacoes", "Observacoes") or ""
                 ultima_raw = _get_val(r, "ultima_alteracao", "updated_at") or ""
                 if ultima_raw:

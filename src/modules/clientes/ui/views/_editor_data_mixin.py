@@ -15,7 +15,7 @@ import threading
 from typing import TYPE_CHECKING, Any
 
 from src.utils.formatters import format_cnpj
-from src.utils.phone_utils import format_phone_br
+from src.utils.phone_utils import format_phone_br, resolve_client_phone
 from src.ui.widgets.textbox_placeholder import clear_textbox_placeholder, get_textbox_content
 
 if TYPE_CHECKING:
@@ -38,6 +38,7 @@ class EditorDataMixin:
         work: Callable[[], Any],
         on_success: Callable[[Any], None] | None = None,
         on_error: Callable[[Exception], None] | None = None,
+        timeout_s: float = 0,
     ) -> None:
         """Execute *work* in a daemon thread; dispatch result to UI thread.
 
@@ -45,28 +46,77 @@ class EditorDataMixin:
         on the Tk main-loop.  If the widget has already been destroyed
         (``winfo_exists()`` returns *False*) the callback is dropped and logged
         at DEBUG level.
+
+        Args:
+            timeout_s: If > 0, a watchdog fires after *timeout_s* seconds.
+                After expiry the *on_error* callback receives a
+                ``TimeoutError``.  Any late completion from the thread is
+                silently ignored — neither success nor error will touch
+                the dialog, ensuring a consistent UI state.
         """
+        # Both _dispatch callbacks and _on_timeout run on the Tk main thread
+        # (via self.after), so no lock is needed for the shared mutable state.
+        _expired: list[bool] = [False]
+        _timer_id: list[str | None] = [None]
+
+        def _cancel_timer() -> None:
+            if _timer_id[0] is not None:
+                try:
+                    self.after_cancel(_timer_id[0])
+                except Exception:  # noqa: BLE001
+                    pass
+                _timer_id[0] = None
+
+        def _dispatch_success(result: Any) -> None:
+            if _expired[0]:
+                log.debug("[EditorDataMixin] late success ignorado (timeout)")
+                return
+            _cancel_timer()
+            if on_success:
+                on_success(result)
+
+        def _dispatch_error(exc: Exception) -> None:
+            if _expired[0]:
+                log.debug(
+                    "[EditorDataMixin] late error ignorado (timeout): %s",
+                    type(exc).__name__,
+                )
+                return
+            _cancel_timer()
+            if on_error:
+                on_error(exc)
+
+        def _on_timeout() -> None:
+            _expired[0] = True
+            _timer_id[0] = None
+            log.warning(
+                "[EditorDataMixin] Timeout de %ss em operação de background",
+                timeout_s,
+            )
+            if on_error and self.winfo_exists():
+                on_error(TimeoutError(f"Operação não concluída em {timeout_s}s"))
 
         def _wrapper() -> None:
             try:
                 result = work()
             except Exception as exc:
-                if on_error:
-                    if self.winfo_exists():
-                        self.after(0, on_error, exc)
-                    else:
-                        log.debug(
-                            "[EditorDataMixin] on_error descartado: widget destruído (%s)",
-                            type(exc).__name__,
-                        )
-                return
-            if on_success:
                 if self.winfo_exists():
-                    self.after(0, on_success, result)
+                    self.after(0, _dispatch_error, exc)
                 else:
-                    log.debug("[EditorDataMixin] on_success descartado: widget destruído")
+                    log.debug(
+                        "[EditorDataMixin] on_error descartado: widget destruído (%s)",
+                        type(exc).__name__,
+                    )
+                return
+            if self.winfo_exists():
+                self.after(0, _dispatch_success, result)
+            else:
+                log.debug("[EditorDataMixin] on_success descartado: widget destruído")
 
         threading.Thread(target=_wrapper, daemon=True).start()
+
+        if timeout_s > 0 and self.winfo_exists():
+            _timer_id[0] = self.after(int(timeout_s * 1000), _on_timeout)
 
     # -- parse helpers -------------------------------------------------------
 
@@ -242,7 +292,7 @@ class EditorDataMixin:
             if on_done:
                 on_done()
 
-        self._run_in_thread(_persist, on_success=_on_saved, on_error=_on_error)
+        self._run_in_thread(_persist, on_success=_on_saved, on_error=_on_error, timeout_s=30)
 
     def _save_contatos_to_db(
         self: EditorDialogProto,
@@ -263,9 +313,6 @@ class EditorDataMixin:
         # Ler widget na UI thread (obrigatório)
         contatos = self._parse_contatos_from_textbox()
         cliente_id_int = int(cliente_id)
-
-        # Desabilitar botão para evitar duplo-clique
-        self.save_btn.configure(state="disabled")
 
         def _persist() -> None:
             from src.infra.supabase_client import exec_postgrest, get_supabase
@@ -301,7 +348,7 @@ class EditorDataMixin:
             if on_done:
                 on_done()
 
-        self._run_in_thread(_persist, on_success=_on_saved, on_error=_on_error)
+        self._run_in_thread(_persist, on_success=_on_saved, on_error=_on_error, timeout_s=30)
 
     def _load_client_data(self: EditorDialogProto) -> None:
         """Carrega dados do cliente para edição."""
@@ -342,7 +389,7 @@ class EditorDataMixin:
             self._set_entry_value(self.nome_entry, _safe_get(cliente, "nome", ""))
 
             # WhatsApp FORMATADO (padrão +55 DD XXXXX-XXXX)
-            whatsapp_raw = _safe_get(cliente, "numero", "") or _safe_get(cliente, "whatsapp", "")
+            whatsapp_raw = resolve_client_phone(cliente)
             whatsapp_fmt = format_phone_br(whatsapp_raw) if whatsapp_raw else ""
             self._set_entry_value(self.whatsapp_entry, whatsapp_fmt or whatsapp_raw)
 
@@ -412,58 +459,39 @@ class EditorDataMixin:
             log.debug(f"[ClientEditor] Erro ao formatar WhatsApp: {e}")
 
     def _validate_fields(self: EditorDialogProto) -> bool:
-        """Valida campos obrigatórios.
+        """Valida campos do formulário antes de salvar.
 
-        Razão Social e CNPJ são ambos obrigatórios.
-        Se CNPJ informado, deve ter 14 dígitos.
+        Regra canônica (consistente com salvar_cliente e salvar_clientes_em_lote):
+        pelo menos UM de (Razão Social, CNPJ, Nome, WhatsApp) deve estar preenchido.
+        Se CNPJ informado, deve ter exatamente 14 dígitos.
 
         Returns:
             True se campos válidos, False se há erros
         """
         razao = self.razao_entry.get().strip()
         cnpj = self.cnpj_entry.get().strip()
+        nome = self.nome_entry.get().strip()
+        whatsapp = self.whatsapp_entry.get().strip()
 
-        # Validar presença dos campos obrigatórios
-        falta_razao = not razao
-        falta_cnpj = not cnpj
-
-        if falta_razao and falta_cnpj:
+        # Pelo menos um campo identificador deve estar preenchido
+        if not (razao or cnpj or nome or whatsapp):
             from src.ui.dialogs.rc_dialogs import show_warning
 
             show_warning(
                 self,
                 "Campos obrigatórios",
-                "Preencha a Razão Social e o CNPJ antes de salvar.",
+                "Preencha pelo menos um campo: Razão Social, CNPJ, Nome ou WhatsApp.",
             )
             return False
 
-        if falta_razao:
-            from src.ui.dialogs.rc_dialogs import show_warning
+        # Validar formato básico do CNPJ (14 dígitos) quando preenchido
+        if cnpj:
+            digits = re.sub(r"\D", "", cnpj)
+            if len(digits) != 14:
+                from src.ui.dialogs.rc_dialogs import show_warning
 
-            show_warning(
-                self,
-                "Campos obrigatórios",
-                "Preencha a Razão Social antes de salvar.",
-            )
-            return False
-
-        if falta_cnpj:
-            from src.ui.dialogs.rc_dialogs import show_warning
-
-            show_warning(
-                self,
-                "Campos obrigatórios",
-                "Preencha o CNPJ antes de salvar.",
-            )
-            return False
-
-        # Validar formato básico do CNPJ (14 dígitos)
-        digits = re.sub(r"\D", "", cnpj)
-        if len(digits) != 14:
-            from src.ui.dialogs.rc_dialogs import show_warning
-
-            show_warning(self, "Campos obrigatórios", "CNPJ deve ter 14 dígitos.")
-            return False
+                show_warning(self, "Campos obrigatórios", "CNPJ deve ter 14 dígitos.")
+                return False
 
         return True
 
@@ -553,6 +581,9 @@ class EditorDataMixin:
             # 3. Se passou as validações, salvar
             log.debug("[ClientEditor] Salvando cliente (id=%s)", self.client_id or "novo")
 
+            # Feedback visual: desabilitar botão e mostrar estado de progresso
+            self.save_btn.configure(state="disabled", text="Salvando\u2026")
+
             # P1-3: inicializar tracker de falhas parciais
             self._save_warnings: list[str] = []
 
@@ -596,6 +627,7 @@ class EditorDataMixin:
 
             except ClienteCNPJDuplicadoError as dup_err:
                 # CNPJ duplicado detectado no service (fallback)
+                self.save_btn.configure(state="normal", text="Salvar")
                 show_error(
                     self,
                     "CNPJ Duplicado",
@@ -608,4 +640,6 @@ class EditorDataMixin:
             log.error(f"[ClientEditor] Erro ao salvar: {e}", exc_info=True)
             from src.ui.dialogs.rc_dialogs import show_error
 
+            if self.winfo_exists():
+                self.save_btn.configure(state="normal", text="Salvar")
             show_error(self, "Erro", f"Erro ao salvar cliente: {e}")

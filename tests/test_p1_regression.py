@@ -241,7 +241,7 @@ class TestP11NumeroConflicts(unittest.TestCase):
 
 
 class TestP12ValidationAlignment(unittest.TestCase):
-    """Editor deve exigir ao menos Razão Social OU CNPJ (não ambos)."""
+    """Editor deve exigir ao menos um campo (Razão Social, CNPJ, Nome ou WhatsApp)."""
 
     def test_validate_fields_source_accepts_razao_only(self):
         """Inspeção AST: _validate_fields NÃO deve ter 'Razão Social é obrigatória'."""
@@ -262,12 +262,35 @@ class TestP12ValidationAlignment(unittest.TestCase):
         )
 
     def test_validate_fields_requires_at_least_one(self):
-        """Inspeção: _validate_fields exige Razão Social e CNPJ (ambos obrigatórios)."""
+        """Inspeção: _validate_fields exige pelo menos um campo preenchido."""
         source = Path(_EDITOR_MIXIN_PATH).read_text(encoding="utf-8")
         self.assertIn(
-            "Preencha a Razão Social",
+            "Preencha pelo menos um campo",
             source,
-            "Deve haver validação de Razão Social em _validate_fields",
+            "Deve haver validação de pelo menos um campo em _validate_fields",
+        )
+
+    def test_validate_fields_no_individual_required_messages(self):
+        """_validate_fields não deve ter mensagens exigindo campos individuais obrigatórios."""
+        source = Path(_EDITOR_MIXIN_PATH).read_text(encoding="utf-8")
+        self.assertNotIn(
+            "Preencha a Razão Social antes de salvar",
+            source,
+            "Mensagem de Razão Social obrigatória individual não deve existir",
+        )
+        self.assertNotIn(
+            "Preencha o CNPJ antes de salvar",
+            source,
+            "Mensagem de CNPJ obrigatório individual não deve existir",
+        )
+
+    def test_validate_fields_cnpj_format_still_checked(self):
+        """CNPJ quando preenchido ainda deve ser validado (14 dígitos)."""
+        source = Path(_EDITOR_MIXIN_PATH).read_text(encoding="utf-8")
+        self.assertIn(
+            "CNPJ deve ter 14 dígitos",
+            source,
+            "Validação de formato do CNPJ (14 dígitos) deve existir",
         )
 
 

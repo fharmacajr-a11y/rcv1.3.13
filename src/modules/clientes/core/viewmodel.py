@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List
 from src.core.search import search_clientes, search_clientes_lixeira
 from src.core.string_utils import only_digits
 from src.core.textnorm import join_and_normalize
-from src.utils.phone_utils import normalize_br_whatsapp
+from src.utils.phone_utils import normalize_br_whatsapp, resolve_client_phone
 
 from . import constants as status_helpers
 
@@ -645,7 +645,7 @@ class ClientesViewModel:
     # ------------------------------------------------------------------ #
 
     def _build_row_from_cliente(self, cliente: Any) -> ClienteRow:
-        whatsapp = normalize_br_whatsapp(str(self._value_from_cliente(cliente, "whatsapp", "numero", "telefone") or ""))
+        whatsapp = normalize_br_whatsapp(resolve_client_phone(cliente))
 
         cnpj_raw = str(self._value_from_cliente(cliente, "cnpj") or "")
         cnpj_fmt = cnpj_raw
