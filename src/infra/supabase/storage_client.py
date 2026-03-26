@@ -7,7 +7,7 @@ import tempfile
 import unicodedata
 import logging
 from pathlib import Path
-from typing import Callable, Final
+from typing import Callable
 from urllib.parse import unquote as url_unquote
 import threading
 
@@ -17,11 +17,31 @@ from http.client import RemoteDisconnected
 from urllib3.exceptions import ReadTimeoutError, ProtocolError
 
 from src.infra.net_session import make_session
-from src.infra.supabase.types import SUPABASE_ANON_KEY, SUPABASE_URL
+from src.infra.supabase import types as supa_types
 
 logger = logging.getLogger("infra.supabase.storage_client")
 
-EDGE_FUNCTION_ZIPPER_URL: Final[str] = f"{SUPABASE_URL}/functions/v1/zipper"
+
+def _get_zipper_url() -> str:
+    """Resolve a URL da Edge Function 'zipper' sob demanda.
+
+    Leitura lazy: tenta os.environ (populado por bootstrap) primeiro,
+    depois o atributo do módulo types (populado pelo load_env do types.py).
+    Garante que a URL esteja disponível mesmo que types.py tenha sido
+    importado antes de configure_environment().
+
+    Raises:
+        RuntimeError: se SUPABASE_URL não estiver configurada.
+    """
+    url = os.getenv("SUPABASE_URL") or supa_types.SUPABASE_URL
+    if not url:
+        raise RuntimeError(
+            "Configuração do serviço ZIP não encontrada.\n"
+            "A variável SUPABASE_URL não está definida no ambiente (.env ou variáveis de sistema).\n"
+            "Configure SUPABASE_URL e reinicie o aplicativo."
+        )
+    return f"{url}/functions/v1/zipper"
+
 
 _session = None
 _session_lock = threading.Lock()
@@ -73,7 +93,7 @@ def baixar_pasta_zip(
     out_dir: os.PathLike[str] | str | None = None,
     timeout_s: int = 300,
     cancel_event: threading.Event | None = None,
-    progress_cb: Callable[[int], None] | None = None,
+    progress_cb: Callable[[int, int], None] | None = None,
 ) -> Path:
     """Baixa uma PASTA do Storage (prefix) em .zip via Edge Function 'zipper' (GET).
 
@@ -84,7 +104,7 @@ def baixar_pasta_zip(
         out_dir: Diretório de destino (padrão: Downloads ou temp)
         timeout_s: Timeout de leitura em segundos
         cancel_event: Event para cancelamento durante download
-        progress_cb: Callback para progresso (recebe bytes baixados)
+        progress_cb: Callback para progresso (recebe bytes_escritos_total, bytes_esperados_total)
 
     Returns:
         Path do arquivo .zip baixado
@@ -108,7 +128,7 @@ def baixar_pasta_zip(
     if not CLOUD_ONLY:
         destino.mkdir(parents=True, exist_ok=True)
 
-    anon_key = SUPABASE_ANON_KEY or ""
+    anon_key = os.getenv("SUPABASE_ANON_KEY") or supa_types.SUPABASE_ANON_KEY or ""
     headers: dict[str, str] = {
         "Authorization": f"Bearer {anon_key}",
         "apikey": anon_key,
@@ -125,14 +145,16 @@ def baixar_pasta_zip(
     timeouts: tuple[int, int] = (15, timeout_s)  # (connect, read)
 
     try:
+        zipper_url = _get_zipper_url()
         logger.info(
-            "ZIP: iniciando preparo via zipper | bucket=%s prefix=%s name=%s",
+            "ZIP: iniciando preparo via zipper | bucket=%s prefix=%s name=%s url=%s",
             bucket,
             prefix,
             desired_name,
+            zipper_url,
         )
         with sess.get(
-            EDGE_FUNCTION_ZIPPER_URL,
+            zipper_url,
             headers=headers,
             params=params,
             stream=True,
@@ -188,7 +210,7 @@ def baixar_pasta_zip(
 
                         if progress_cb is not None:
                             try:
-                                progress_cb(len(chunk))
+                                progress_cb(written, expected)
                             except Exception as exc:
                                 logger.debug("Callback de progresso falhou", exc_info=exc)
 
@@ -224,6 +246,17 @@ def baixar_pasta_zip(
         ) from e
     except DownloadCancelledError:
         raise
+    except req_exc.MissingSchema as e:
+        # URL inválida (ex.: SUPABASE_URL=None → "None/functions/v1/zipper")
+        logger.error(
+            "ZIP: URL inválida (MissingSchema) | bucket=%s prefix=%s erro=%s",
+            bucket,
+            prefix,
+            e,
+        )
+        raise RuntimeError(
+            "Configuração do serviço ZIP inválida.\n" "Verifique se SUPABASE_URL está corretamente definida no .env."
+        ) from e
     except (RemoteDisconnected, ProtocolError, req_exc.ConnectionError, req_exc.RequestException) as e:
         # Conexão encerrada pelo servidor antes de responder ou erro de protocolo/conn.
         friendly = (

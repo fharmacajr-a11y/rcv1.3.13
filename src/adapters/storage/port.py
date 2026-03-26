@@ -17,4 +17,5 @@ class StoragePort(Protocol):
         out_dir: Optional[str] = None,
         timeout_s: int = 300,
         cancel_event: Optional[Any] = None,
+        progress_cb: Optional[Any] = None,
     ) -> Any: ...

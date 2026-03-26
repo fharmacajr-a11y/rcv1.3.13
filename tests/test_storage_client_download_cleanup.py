@@ -13,6 +13,7 @@ Estratégia de isolamento:
 
 from __future__ import annotations
 
+import os
 import tempfile
 import threading
 import unittest
@@ -94,8 +95,11 @@ class TestDownloadSuccess(unittest.TestCase):
     def setUp(self):
         self.tmpdir = tempfile.TemporaryDirectory()
         self.out_dir = Path(self.tmpdir.name)
+        self._env_patcher = patch.dict(os.environ, {"SUPABASE_URL": "http://test.local"})
+        self._env_patcher.start()
 
     def tearDown(self):
+        self._env_patcher.stop()
         self.tmpdir.cleanup()
 
     def test_success_final_file_exists(self):
@@ -177,8 +181,11 @@ class TestDownloadErrorMidStream(unittest.TestCase):
     def setUp(self):
         self.tmpdir = tempfile.TemporaryDirectory()
         self.out_dir = Path(self.tmpdir.name)
+        self._env_patcher = patch.dict(os.environ, {"SUPABASE_URL": "http://test.local"})
+        self._env_patcher.start()
 
     def tearDown(self):
+        self._env_patcher.stop()
         self.tmpdir.cleanup()
 
     def test_exception_during_iter_content_no_final_file(self):
@@ -283,8 +290,11 @@ class TestDownloadErrorBeforeWrite(unittest.TestCase):
     def setUp(self):
         self.tmpdir = tempfile.TemporaryDirectory()
         self.out_dir = Path(self.tmpdir.name)
+        self._env_patcher = patch.dict(os.environ, {"SUPABASE_URL": "http://test.local"})
+        self._env_patcher.start()
 
     def tearDown(self):
+        self._env_patcher.stop()
         self.tmpdir.cleanup()
 
     def test_empty_chunks_with_length_mismatch_temp_removed(self):
@@ -342,8 +352,11 @@ class TestDownloadCancellation(unittest.TestCase):
     def setUp(self):
         self.tmpdir = tempfile.TemporaryDirectory()
         self.out_dir = Path(self.tmpdir.name)
+        self._env_patcher = patch.dict(os.environ, {"SUPABASE_URL": "http://test.local"})
+        self._env_patcher.start()
 
     def tearDown(self):
+        self._env_patcher.stop()
         self.tmpdir.cleanup()
 
     def _chunks_with_cancel(self, cancel_event: threading.Event):
