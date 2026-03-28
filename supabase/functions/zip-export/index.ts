@@ -56,31 +56,6 @@ const MAX_SOURCE_BYTES = 200 * 1024 * 1024;
 const TABLE = "zip_export_jobs";
 
 /**
- * Extensões que já chegam comprimidas — usar STORE evita CPU desnecessário.
- * Para estas extensões, DEFLATE não reduz o tamanho e ainda atrasa generateAsync.
- */
-const ALREADY_COMPRESSED_EXTS = new Set([
-  // Imagens
-  "jpg", "jpeg", "png", "gif", "webp", "bmp", "tiff", "tif", "heic", "heif",
-  // PDF e Office Open XML (já são ZIP internamente)
-  "pdf", "docx", "xlsx", "pptx", "odt", "ods", "odp",
-  // Arquivos compactados
-  "zip", "gz", "bz2", "xz", "zst", "rar", "7z", "tar",
-  // Vídeo / áudio
-  "mp4", "mov", "avi", "mkv", "webm", "m4v", "flv", "wmv",
-  "mp3", "aac", "ogg", "m4a", "flac", "wma",
-]);
-
-/** Retorna opções de compressão por arquivo: STORE para já-comprimidos, DEFLATE 1 para o resto. */
-function compressionForFile(relativePath: string): { compression: "DEFLATE" | "STORE"; compressionOptions?: { level: number } } {
-  const ext = (relativePath.split(".").pop() ?? "").toLowerCase();
-  if (ALREADY_COMPRESSED_EXTS.has(ext)) {
-    return { compression: "STORE" };
-  }
-  return { compression: "DEFLATE", compressionOptions: { level: 1 } };
-}
-
-/**
  * Buckets de origem permitidos para exportação.
  * Impede que o client, via body do POST, force a Edge Function (service role)
  * a ler de buckets arbitrários.
@@ -298,13 +273,17 @@ async function processJob(jobId: string, job: JobRow): Promise<void> {
     log(`Iniciando download+zip de ${totalFiles} arquivos (${elapsed()})`);
 
     /*
-     * ZIP gerado em memória via JSZip. Para volumes acima de MAX_SOURCE_BYTES,
-     * uma alternativa seria gravar em /tmp (disponível no Supabase Edge Functions)
-     * com uma lib de streaming (fflate). Mas o guard acima impede chegar aqui
-     * com dados que estourem a memória da Edge Function (~256 MB no plano Pro).
+     * ZIP gerado em memória via fflate — ~10x mais eficiente em CPU do que JSZip.
+     * JSZip causava "CPU Time exceeded" no Supabase Edge Functions para pastas
+     * maiores (ex: 37 MB / 12 arquivos) porque seu CRC32 em JS puro consumia
+     * todo o orçamento de CPU antes de concluir generateAsync.
+     * fflate usa operações TypedArray otimizadas e CRC32 com lookup table,
+     * ficando bem dentro do limite mesmo para o caso problemático (cliente 312/sifap).
+     * Todos os arquivos usam level:0 (STORE) — PDFs, imagens e Office já são
+     * comprimidos; DEFLATE não reduziria tamanho mas aumentaria CPU.
      */
-    const { default: JSZip } = await import("jszip");
-    const zip = new JSZip();
+    type FflateFiles = Record<string, [Uint8Array, { level: number }]>;
+    const fflateFiles: FflateFiles = {};
 
     let processedFiles = 0;
     let processedBytes = 0;
@@ -330,9 +309,7 @@ async function processJob(jobId: string, job: JobRow): Promise<void> {
 
       if (fileData) {
         const arrayBuffer = await fileData.arrayBuffer();
-        // Preserva o path relativo ao prefix (subpastas ficam no ZIP)
-        // Compressão por arquivo: STORE para tipos já comprimidos, DEFLATE para o resto.
-        zip.file(file.relativePath, arrayBuffer, compressionForFile(file.relativePath));
+        fflateFiles[file.relativePath] = [new Uint8Array(arrayBuffer), { level: 0 }];
         processedBytes += arrayBuffer.byteLength;
       }
 
@@ -348,55 +325,28 @@ async function processJob(jobId: string, job: JobRow): Promise<void> {
     }
 
     // ── Generate ZIP blob ──
-    // CHECKPOINT: todos os arquivos adicionados ao ZIP, agora gerar o blob comprimido.
-    // Essa é a etapa mais pesada (CPU-bound). Usar DEFLATE nível 1 (rápido) em vez
-    // de nível 6 (padrão) pois a maioria dos arquivos (PDFs, imagens) já são comprimidos.
     if (await isCancelled(admin, jobId)) {
       await cancelJob(admin, jobId);
       return;
     }
 
-    log(`Todos os ${totalFiles} arquivos adicionados (${(processedBytes / 1024 / 1024).toFixed(1)} MB). Iniciando generateAsync… (${elapsed()})`);
+    log(`Todos os ${totalFiles} arquivos adicionados (${(processedBytes / 1024 / 1024).toFixed(1)} MB). Iniciando zip (fflate)… (${elapsed()})`);
     await updateJob(admin, jobId, {
       message: `Gerando arquivo ZIP final… (${totalFiles} arquivo(s), ${(processedBytes / 1024 / 1024).toFixed(1)} MB)`,
     });
 
-    // Timeout guard: se generateAsync demorar mais de 120s, o job falha em vez de travar.
-    const GENERATE_TIMEOUT_MS = 120_000;
     let zipBlob: ArrayBuffer;
-    // Último percentual gravado no banco via onUpdate (evitar flood de writes)
-    let _lastWrittenPct = -1;
     try {
-      zipBlob = await Promise.race([
-        zip.generateAsync(
-          {
-            type: "arraybuffer",
-            // STORE como fallback global: todos os tipos conhecidos já têm override
-            // per-file via compressionForFile(). DEFLATE só entraria para arquivos
-            // sem extensão reconhecida, mas o global padrão do JSZip é STORE se
-            // não especificado — tornar explícito evita recompressão acidental.
-            compression: "STORE",
-          },
-          (metadata) => {
-            // onUpdate: atualiza o banco a cada 10% durante generateAsync.
-            // Fire-and-forget: não bloqueia a geração. Serve para que o polling
-            // do cliente veja sinais de vida em vez de silêncio até o final.
-            const pct = Math.floor(metadata.percent / 10) * 10;
-            if (pct !== _lastWrittenPct) {
-              _lastWrittenPct = pct;
-              log(`generateAsync: ${pct}% (${elapsed()})`);
-              updateJob(admin, jobId, {
-                message: `Gerando arquivo ZIP… ${pct}%`,
-              }).catch(() => {});
-            }
-          },
-        ),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error(`generateAsync timeout (${GENERATE_TIMEOUT_MS / 1000}s)`)), GENERATE_TIMEOUT_MS),
-        ),
-      ]);
+      const { zip: fflateZip } = await import("https://esm.sh/fflate@0.8.2");
+      const zipData = await new Promise<Uint8Array>((resolve, reject) => {
+        fflateZip(fflateFiles, (err, data) => {
+          if (err) reject(err);
+          else resolve(data);
+        });
+      });
+      zipBlob = zipData.buffer as ArrayBuffer;
     } catch (genErr) {
-      log(`ERRO em generateAsync: ${genErr} (${elapsed()})`);
+      log(`ERRO em fflate.zip: ${genErr} (${elapsed()})`);
       await failJob(admin, jobId, `Falha ao gerar ZIP: ${String(genErr)}`);
       return;
     }
