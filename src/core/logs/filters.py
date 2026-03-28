@@ -234,6 +234,8 @@ class ConsoleImportantFilter(logging.Filter):
         "src.core.auth_bootstrap",  # Fluxo de sessão/login
         "src.ui.login_dialog",  # Cancelamento/fechamento do dialog
         "src.modules.hub.recent_activity_store",
+        "src.modules.uploads.zip_job_service",  # Fluxo ZIP export
+        "src.modules.uploads.views.browser_v2",  # UI do browser de arquivos / ZIP
     }
 
     # Prefixos de loggers que devem ser bloqueados em INFO

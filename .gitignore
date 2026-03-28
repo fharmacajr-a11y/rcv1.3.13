@@ -25,6 +25,7 @@ backup_*/
 .env.backup
 .env.*
 !.env.example
+!.env.local.example
 
 # Chave da API OpenAI (não versionar)
 config/openai_key.txt
@@ -39,6 +40,9 @@ dist/
 # Exceção: binários embarcados do 7-Zip
 !src/infra/bin/7zip/*.exe
 !src/infra/bin/7zip/*.dll
+# Supabase CLI local (binário ~96 MB — não versionar)
+supabase/supabase.exe
+supabase/.temp/
 *.egg-info/
 wheels/
 

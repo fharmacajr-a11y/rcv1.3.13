@@ -1,0 +1,10 @@
+# supabase/config.toml
+# Gerado manualmente para suporte a Edge Functions.
+# Valores de API ID e project_id serão definidos via `supabase link`.
+
+[api]
+enabled = true
+port = 54321
+
+[functions.zip-export]
+verify_jwt = true
