@@ -24,25 +24,17 @@ from __future__ import annotations
 
 import atexit as _atexit
 import logging
+import os
 import queue
 import sys
 import threading
 import tkinter as tk
+import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from tkinter import filedialog
 from typing import Any, Callable
 
-from src.adapters.storage.supabase_storage import DownloadCancelledError
-from src.modules.uploads.zip_job_service import (
-    ZipJobCancelledError,
-    ZipJobFailedError,
-    cancel_zip_job,
-    download_artifact,
-    poll_zip_job,
-    start_zip_export,
-)
-from src.modules.uploads.zip_job_models import ZipJob, ZipJobPhase
 from src.ui.dialogs.download_result_dialog import DownloadResultDialog
 from src.modules.pdf_preview import open_pdf_viewer
 from src.modules.uploads.service import (
@@ -52,6 +44,7 @@ from src.modules.uploads.service import (
     download_bytes,
     download_storage_object,
     list_browser_items,
+    list_storage_objects,
     upload_items_for_client,
 )
 from src.ui.ctk_config import ctk
@@ -81,6 +74,26 @@ _log = logging.getLogger(__name__)
 
 _executor = ThreadPoolExecutor(max_workers=4)
 _atexit.register(_executor.shutdown, wait=False)
+
+
+class _LocalZipCancelledError(Exception):
+    """Sinal interno de cancelamento no fluxo ZIP local."""
+
+
+def _collect_folder_entries(bucket: str, prefix: str) -> list[tuple[str, int]]:
+    """Lista recursivamente todos os arquivos sob prefix retornando (storage_path, size_bytes)."""
+    results: list[tuple[str, int]] = []
+    entries = list_storage_objects(bucket, prefix=(prefix or "").strip("/")) or []
+    for entry in entries:
+        full_path = (entry.get("full_path") or "").strip("/")
+        if not full_path:
+            continue
+        if entry.get("is_folder"):
+            results.extend(_collect_folder_entries(bucket, full_path))
+        else:
+            results.append((full_path, entry.get("size_bytes") or 0))
+    return results
+
 
 # Dimensões canônicas
 _W = 1000
@@ -691,12 +704,13 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
             self._download_in_progress = False
 
     # ------------------------------------------------------------------
-    # Ações: Baixar pasta (.zip) — progresso inline
+    # Ações: Baixar pasta (.zip) — ZIP local
     # ------------------------------------------------------------------
     def _download_folder_zip(self) -> None:
-        """Baixa a pasta selecionada como ZIP via fluxo server-side job-based.
+        """Baixa a pasta selecionada como ZIP processado localmente.
 
-        Fluxo: criar job no servidor → poll progresso → download artefato via signed URL.
+        Fluxo: listar arquivos → baixar um a um do Storage → escrever diretamente
+        no arquivo .part via zipfile → renomear para destino final quando íntegro.
         """
         if self._download_in_progress:
             return
@@ -725,216 +739,117 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
 
         self._cancel_event.clear()
         self._download_in_progress = True
-        self._current_zip_job_id: str | None = None
         self._progress_queue.put({"action": "show", "mode": "determinate"})
         self._progress_queue.put({"action": "update", "value": 0.02})
-        self._progress_queue.put({"action": "status", "text": "Preparando exportação ZIP…"})
+        self._progress_queue.put({"action": "status", "text": "Listando arquivos…"})
 
         folder_prefix = full_path
         bucket = self._bucket
-        org_id = self._org_id
-        client_id = self._client_id
 
         _log.info(
-            "[BrowserV2] Baixar pasta (.zip): pasta=%s bucket=%s client_id=%s destino=%s",
+            "[BrowserV2] Baixar pasta (.zip) local: pasta=%s bucket=%s destino=%s",
             item_name,
             bucket,
-            client_id,
             save_path,
         )
 
         def _worker() -> None:
-            job: ZipJob | None = None
-
+            part_path = save_path + ".part"
             try:
-                # 1. Criar e iniciar job no servidor (Edge Function)
-                job = start_zip_export(
-                    org_id=org_id,
-                    client_id=client_id,
-                    bucket=bucket,
-                    prefix=folder_prefix,
-                    zip_name=zip_name,
-                )
-                self._current_zip_job_id = job.id
-                _log.info("[BrowserV2] ZIP job criado no servidor: %s", job.id)
+                # 1. Listar arquivos recursivamente (com tamanho para progresso real)
+                entries = _collect_folder_entries(bucket, folder_prefix)
 
-                # 2. Callback de progresso do polling (atualiza UI via queue)
-                #
-                # Mapeamento de fases para faixas determinadas de 0–100%:
-                #   queued:              2%
-                #   scanning:            5% – 15%
-                #   zipping:            15% – 85% (baseado em processed_files/total_files)
-                #   uploading_artifact: 85% – 98% (baseado em artifact_bytes)
-                #   ready/completed:   100%
-                _last_logged_phase: str | None = None
-
-                def _on_poll_progress(updated_job: ZipJob) -> None:
-                    nonlocal _last_logged_phase
-                    if self._cancel_event.is_set():
-                        return
-
-                    phase = updated_job.phase
-                    prog = updated_job.progress
-
-                    # Log por mudança de fase (sem spam a cada poll)
-                    phase_val = phase.value if hasattr(phase, "value") else str(phase)
-                    if phase_val != _last_logged_phase:
-                        _log.info("[BrowserV2] Poll fase: %s (job %s)", phase_val, updated_job.id[:8])
-                        _last_logged_phase = phase_val
-
-                    def _fmt_mb(b: int) -> str:
-                        return f"{b / (1024 * 1024):.1f}"
-
-                    if phase == ZipJobPhase.QUEUED:
-                        frac = 0.02
-                        self._progress_queue.put({"action": "update", "value": frac})
-                        self._progress_queue.put({"action": "status", "text": "Na fila — aguardando início…"})
-
-                    elif phase == ZipJobPhase.SCANNING:
-                        if prog.total_files > 0:
-                            frac = 0.05 + 0.10 * prog.file_progress
-                            txt = f"Escaneando — {prog.total_files} arquivos ({_fmt_mb(prog.total_source_bytes)} MB)"
-                        else:
-                            frac = 0.05
-                            txt = "Escaneando arquivos…"
-                        self._progress_queue.put({"action": "update", "value": frac})
-                        self._progress_queue.put({"action": "status", "text": txt})
-
-                    elif phase == ZipJobPhase.ZIPPING:
-                        if prog.total_files > 0:
-                            # Quando todos os arquivos já foram adicionados ao ZIP,
-                            # o servidor está em generateAsync() (CPU-bound, pode levar
-                            # vários segundos). Mostrar mensagem explícita para não
-                            # aparentar travamento a 85%.
-                            files_done = prog.processed_files >= prog.total_files
-                            if files_done:
-                                frac = 0.84
-                                txt = "Finalizando compressão do ZIP no servidor…"
-                            else:
-                                # 15%–84%: mapeia 0–99% dos arquivos processados
-                                frac = 0.15 + 0.69 * prog.file_progress
-                                txt = (
-                                    f"Comprimindo {prog.processed_files}/{prog.total_files}"
-                                    f" — {_fmt_mb(prog.processed_source_bytes)}/{_fmt_mb(prog.total_source_bytes)} MB"
-                                )
-                                # Se o servidor incluiu nome do arquivo na message, acrescentar
-                                msg = updated_job.message or ""
-                                # Pattern: "Comprimindo… X/Y — file.ext"
-                                if "—" in msg:
-                                    _tail = msg.split("—", 1)[1].strip()
-                                    if _tail:
-                                        txt += f" | {_tail}"
-                        else:
-                            frac = 0.15
-                            txt = "Iniciando compressão…"
-                        self._progress_queue.put({"action": "update", "value": frac})
-                        self._progress_queue.put({"action": "status", "text": txt})
-
-                    elif phase == ZipJobPhase.UPLOADING_ARTIFACT:
-                        if prog.artifact_bytes_total > 0:
-                            frac = 0.85 + 0.13 * prog.upload_progress
-                            txt = (
-                                f"Enviando ZIP — {_fmt_mb(prog.artifact_bytes_uploaded)}"
-                                f"/{_fmt_mb(prog.artifact_bytes_total)} MB"
-                            )
-                        else:
-                            frac = 0.85
-                            txt = "Enviando ZIP para o servidor…"
-                        self._progress_queue.put({"action": "update", "value": frac})
-                        self._progress_queue.put({"action": "status", "text": txt})
-
-                    elif phase == ZipJobPhase.READY:
-                        self._progress_queue.put({"action": "update", "value": 1.0})
-                        self._progress_queue.put(
-                            {"action": "status", "text": "ZIP pronto no servidor — iniciando download…"}
-                        )
-
-                # 3. Polling: aguardar servidor processar (scanning → zipping → ready)
-                job = poll_zip_job(
-                    job.id,
-                    on_progress=_on_poll_progress,
-                    cancel_event=self._cancel_event,
-                )
-
-                # Guarda de corrida: entre o polling retornar READY e o download
-                # iniciar, o usuário pode fechar a janela ou clicar em Cancelar.
                 if self._cancel_event.is_set():
-                    raise ZipJobCancelledError("Cancelado após polling")
+                    raise _LocalZipCancelledError()
 
-                # 4. Download do artefato via signed URL
-                #    Continuidade visual: manter barra cheia, sem resetar para 0%
-                self._progress_queue.put({"action": "update", "value": 0.98})
-                self._progress_queue.put({"action": "status", "text": "Baixando ZIP para o computador…"})
+                if not entries:
+                    self._safe_after(
+                        0,
+                        lambda: self._on_zip_error("Nenhum arquivo encontrado nesta pasta.", None),
+                    )
+                    return
 
-                def _on_download_progress(written: int, expected: int) -> None:
-                    if expected > 0:
-                        # Mapeia download local na faixa 98%–100%
-                        dl_frac = min(written / expected, 1.0)
-                        frac = 0.98 + 0.02 * dl_frac
-                        self._progress_queue.put({"action": "update", "value": frac})
-                        mb_done = written / (1024 * 1024)
-                        mb_total = expected / (1024 * 1024)
-                        self._progress_queue.put(
-                            {"action": "status", "text": f"Baixando… {mb_done:.1f}/{mb_total:.1f} MB"}
-                        )
-                    else:
-                        mb = written / (1024 * 1024)
-                        self._progress_queue.put({"action": "status", "text": f"Baixando… {mb:.1f} MB"})
+                total_files = len(entries)
+                total_bytes = sum(sz for _, sz in entries)
+                mb_total = total_bytes / (1024 * 1024)
 
-                download_artifact(
-                    job.id,
-                    save_path,
-                    cancel_event=self._cancel_event,
-                    progress_cb=_on_download_progress,
+                _log.info("[BrowserV2] ZIP local: %d arquivo(s), %.1f MB", total_files, mb_total)
+                self._progress_queue.put({"action": "update", "value": 0.05})
+                self._progress_queue.put(
+                    {"action": "status", "text": f"Baixando {total_files} arquivo(s) ({mb_total:.1f} MB)…"}
                 )
 
-                saved = save_path
-                job_id = job.id
-                self._safe_after(0, lambda p=saved, jid=job_id: self._on_zip_complete(p, jid))
+                # 2. Download + escrita direta no arquivo .part
+                done_bytes = 0
+                with zipfile.ZipFile(part_path, "w", compression=zipfile.ZIP_STORED, allowZip64=True) as zf:
+                    for idx, (storage_path, _file_size) in enumerate(entries):
+                        if self._cancel_event.is_set():
+                            raise _LocalZipCancelledError()
 
-            except (ZipJobCancelledError, DownloadCancelledError):
-                job_id = job.id if job else None
-                _log.info("[BrowserV2] ZIP cancelado (job=%s)", job_id and job_id[:8])
-                self._safe_after(0, lambda jid=job_id: self._on_zip_cancelled(jid))
-            except ZipJobFailedError as exc:
-                err_msg = str(exc)
-                job_id = job.id if job else None
-                _log.error("[BrowserV2] ZIP job falhou no servidor (job=%s): %s", job_id and job_id[:8], err_msg)
-                self._safe_after(0, lambda m=err_msg, jid=job_id: self._on_zip_error(m, jid))
+                        rel_path = storage_path[len(folder_prefix) :].lstrip("/")
+                        if not rel_path:
+                            rel_path = storage_path.rsplit("/", 1)[-1]
+
+                        data = download_bytes(bucket, storage_path)
+
+                        if self._cancel_event.is_set():
+                            raise _LocalZipCancelledError()
+
+                        if data is None:
+                            raise RuntimeError(f"Falha ao baixar: {storage_path}")
+
+                        zf.writestr(rel_path, data)
+                        done_bytes += len(data)
+
+                        mb_done = done_bytes / (1024 * 1024)
+                        frac = (
+                            0.05 + 0.95 * (done_bytes / total_bytes)
+                            if total_bytes > 0
+                            else 0.05 + 0.95 * (idx + 1) / total_files
+                        )
+                        self._progress_queue.put({"action": "update", "value": frac})
+                        self._progress_queue.put(
+                            {
+                                "action": "status",
+                                "text": f"Baixando {idx + 1}/{total_files} — {mb_done:.1f}/{mb_total:.1f} MB",
+                            }
+                        )
+
+                # 3. ZIP íntegro → mover para destino final
+                os.replace(part_path, save_path)
+                self._safe_after(0, lambda p=save_path: self._on_zip_complete(p, None))
+
+            except _LocalZipCancelledError:
+                _log.info("[BrowserV2] ZIP local cancelado")
+                try:
+                    os.unlink(part_path)
+                except OSError:
+                    pass
+                self._safe_after(0, lambda: self._on_zip_cancelled(None))
             except Exception as exc:
                 if self._cancel_event.is_set():
-                    job_id = job.id if job else None
-                    self._safe_after(0, lambda jid=job_id: self._on_zip_cancelled(jid))
+                    try:
+                        os.unlink(part_path)
+                    except OSError:
+                        pass
+                    self._safe_after(0, lambda: self._on_zip_cancelled(None))
                     return
-                err_msg = str(exc)
-                job_id = job.id if job else None
-                _log.exception("[BrowserV2] Erro no ZIP job")
-                self._safe_after(0, lambda m=err_msg, jid=job_id: self._on_zip_error(m, jid))
+                _log.exception("[BrowserV2] Erro no ZIP local")
+                try:
+                    os.unlink(part_path)
+                except OSError:
+                    pass
+                err = str(exc)
+                self._safe_after(0, lambda m=err: self._on_zip_error(m, None))
 
         _executor.submit(_worker)
 
     def _cancel_download(self) -> None:
-        """Cancela o download ZIP em andamento (cooperativo: server + client)."""
+        """Cancela o download ZIP em andamento."""
         if not self._download_in_progress:
             return
-        job_id = getattr(self, "_current_zip_job_id", None)
-        _log.info(
-            "[BrowserV2] Cancelamento solicitado pelo usuário (client_id=%s, job=%s)",
-            self._client_id,
-            job_id and job_id[:8],
-        )
-        # 1. Sinalizar cancelamento local (thread de execução)
+        _log.info("[BrowserV2] Cancelamento solicitado pelo usuário (client_id=%s)", self._client_id)
         self._cancel_event.set()
-        # 2. Sinalizar cancelamento no servidor (cooperativo)
-        if job_id:
-            try:
-                result = cancel_zip_job(job_id)
-                _log.info(
-                    "[BrowserV2] cancel_zip_job enviado para %s — fase_resultante=%s", job_id[:8], result.phase.value
-                )
-            except Exception as exc:
-                _log.warning("[BrowserV2] Erro ao cancelar job no servidor: %s", exc)
-        # 3. Feedback visual imediato
         if hasattr(self, "status_label") and self.status_label.winfo_exists():
             self.status_label.configure(text="Cancelando\u2026")
         if hasattr(self, "_dl_cancel_btn") and self._dl_cancel_btn.winfo_exists():
@@ -1209,12 +1124,6 @@ class UploadsBrowserWindowV2(ctk.CTkToplevel):  # type: ignore[misc]
         if getattr(self, "_download_in_progress", False):
             _log.info("[BrowserV2] Fechando com download ativo — cancelando automaticamente")
             self._cancel_event.set()
-            job_id = getattr(self, "_current_zip_job_id", None)
-            if job_id:
-                try:
-                    cancel_zip_job(job_id)
-                except Exception:
-                    pass
         try:
             self.destroy()
         except Exception:  # noqa: BLE001
